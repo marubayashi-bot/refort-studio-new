@@ -391,6 +391,15 @@ body.internal .cost-banner{display:block}
 .brand .sb-line{font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.7);text-align:center}
 .lockcard .mk-logo.lock{display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
 .lockcard .mk-logo.lock img{height:40px;display:block}
+
+/* ===== Before/After 3分割グラフ ===== */
+.cmp3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px}
+.cmp3-item{background:var(--paper);border:1px solid var(--line2);border-radius:13px;padding:14px 12px 12px}
+.cmp3-t{font-size:12.5px;font-weight:700;color:var(--ink2);text-align:center;margin-bottom:2px}
+.cmp3-canvas{height:185px}
+.cmp3-delta{text-align:center;margin-top:6px;font-family:var(--num);font-size:24px;font-weight:800;color:var(--green);line-height:1.1}
+.cmp3-delta span{display:block;font-size:12px;color:var(--gold-dark);font-weight:700;margin-top:3px}
+@media print{.cmp3{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
 <body>
@@ -1625,7 +1634,7 @@ function jcard(l,m,s){ const cls=m==='◎'?'g1':''; return `<div class="jc"><div
 /* ========== 画面⑤ お客様向け提案書 ========== */
 function viewProposal(c){
   const r=safeSim(c), h=c.hearing;
-  afterRender(()=>{ drawCmpChart('propGenChart',r); drawCumChart('propCumChart',r); });
+  afterRender(()=>{ drawCmpChart(r); drawCumChart('propCumChart',r); });
   return `<div id="proposalRoot" class="prop internal-keep">
     <div class="prop-cover">
       <div class="logo-chip"><img src="${LOGO}" alt="アースコム"></div>
@@ -1666,10 +1675,17 @@ function viewProposal(c){
         </tbody></table></div>
         <div class="note-tips" style="margin-top:14px">💡 卒FIT後に収益が下がるのは「FIT終了」が原因で、ReFortのせいではありません。比べるべきは『ReFortした発電所』と『何もしなかった発電所』です。<br><span class="em">⚠️ 動かないほど毎年差が開きます。何もしない＝損失の固定化です。</span></div>
       </div>
-      <div class="grid2">
-        <div class="prop-sec"><div class="h"><div class="bar"></div><h2>発電量 Before / After</h2></div><div style="height:230px"><canvas id="propGenChart"></canvas></div></div>
-        <div class="prop-sec"><div class="h"><div class="bar"></div><h2>投資回収イメージ</h2></div><div style="height:230px"><canvas id="propCumChart"></canvas></div></div>
+      <div class="prop-sec"><div class="h"><div class="bar"></div><h2>発電量・売電は ReFort後にこう変わる</h2></div>
+        <div class="cmp3">
+          ${[['年間発電量 (kWh)','cmpGen',r.genBefore,r.genAfter,''],['FIT年間売電 (円)','cmpRev',r.revBeforeFit,r.revAfterFit,'円'],['残FIT累計売電 (円)','cmpCum',r.fitCumBefore,r.fitCumAfter,'円']].map(([t,id,b,a,u])=>`
+          <div class="cmp3-item">
+            <div class="cmp3-t">${t}</div>
+            <div class="cmp3-canvas"><canvas id="${id}"></canvas></div>
+            <div class="cmp3-delta">+${b?((a/b-1)*100).toFixed(0):0}%<span>+${yen(a-b)}${u}</span></div>
+          </div>`).join('')}
+        </div>
       </div>
+      <div class="prop-sec"><div class="h"><div class="bar"></div><h2>投資回収イメージ</h2></div><div style="height:260px"><canvas id="propCumChart"></canvas></div></div>
       <div class="prop-sec">
         <div class="h"><div class="bar"></div><h2>現状設備 と ReFort後設備</h2></div>
         <div class="tablewrap"><table class="cmp"><thead><tr><th></th><th class="no">現状</th><th class="rf">ReFort後</th><th class="df"></th></tr></thead><tbody>
@@ -1852,15 +1868,26 @@ function drawCumChart(id,r){
     options:chartOpts()
   }));
 }
-function drawCmpChart(id,r){
-  const cv=document.getElementById(id); if(!cv||typeof Chart==='undefined')return;
-  CHARTS.push(new Chart(cv.getContext('2d'),{type:'bar',
-    data:{labels:['年間発電量(kWh)','FIT年間売電(円)','残FIT累計売電(円)'],datasets:[
-      {label:'何もしない',data:[r.genBefore,r.revBeforeFit,r.fitCumBefore],backgroundColor:'#9AA6BC',borderRadius:6},
-      {label:'ReFort後',data:[r.genAfter,r.revAfterFit,r.fitCumAfter],backgroundColor:'#C99A3D',borderRadius:6}
-    ]},
-    options:{...chartOpts(),scales:{y:{type:'logarithmic',grid:{color:'#EEF1F7'},ticks:{color:'#6B7890',font:{size:9},callback:v=>v>=1e6?(v/1e6)+'M':v>=1e4?(v/1e4)+'万':v}},x:{grid:{display:false},ticks:{color:'#6B7890',font:{size:10}}}}}
-  }));
+function drawCmpChart(r){
+  const metrics=[
+    {id:'cmpGen', before:r.genBefore, after:r.genAfter, unit:''},
+    {id:'cmpRev', before:r.revBeforeFit, after:r.revAfterFit, unit:'円'},
+    {id:'cmpCum', before:r.fitCumBefore, after:r.fitCumAfter, unit:'円'}
+  ];
+  metrics.forEach(m=>{
+    const cv=document.getElementById(m.id); if(!cv||typeof Chart==='undefined')return;
+    CHARTS.push(new Chart(cv.getContext('2d'),{type:'bar',
+      data:{labels:['何もしない','ReFort後'],datasets:[{data:[m.before,m.after],
+        backgroundColor:['#AEB8CA','#C99A3D'],borderRadius:7,maxBarThickness:62}]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{y:{display:false,beginAtZero:true,grace:'14%'},
+          x:{grid:{display:false},border:{display:false},ticks:{color:'#5A6680',font:{size:11,weight:'600'}}}}},
+      plugins:[{id:'vlab',afterDatasetsDraw(c){const ctx=c.ctx;ctx.save();ctx.font='700 12px sans-serif';ctx.textAlign='center';
+        c.getDatasetMeta(0).data.forEach((bar,i)=>{const v=[m.before,m.after][i];ctx.fillStyle=i===1?'#A87E2A':'#7E8CA0';
+        ctx.fillText(yen(v)+m.unit,bar.x,bar.y-8);});ctx.restore();}}]
+    }));
+  });
 }
 function chartOpts(){
   return {responsive:true,maintainAspectRatio:false,
