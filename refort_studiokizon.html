@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>アースコム ReFort 提案・パイプライン・ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --navy:#0f2547; --navy2:#1c3a66; --gold:#c9a14a; --gold-d:#a8842f;
@@ -211,6 +212,25 @@ table.grid tr:hover td{background:#f8fafd}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:11px 22px;border-radius:10px;font-weight:700;font-size:13px;opacity:0;transition:.25s;z-index:200;box-shadow:var(--shadow)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ログイン画面 */
+.login-bk{position:fixed;inset:0;background:linear-gradient(135deg,var(--navy),#0a1830);display:grid;place-items:center;z-index:300;padding:20px}
+.login-card{background:#fff;border-radius:16px;padding:34px 30px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.login-card .lbrand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.login-card .lbrand .lg{width:34px;height:34px;border-radius:9px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:18px}
+.login-card .lbrand .t1{font-size:16px;font-weight:800;color:var(--navy);line-height:1.1}
+.login-card .lbrand .t2{font-size:10px;color:var(--sub);letter-spacing:.06em}
+.login-card h2{font-size:18px;color:var(--navy);margin:18px 0 4px}
+.login-card .lsub{font-size:12px;color:var(--sub);margin-bottom:18px}
+.login-card label{font-size:11.5px;font-weight:700;color:var(--sub);display:block;margin-bottom:5px}
+.login-card input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:14px;font-size:14px}
+.login-card input:focus{outline:none;border-color:var(--gold)}
+.login-card .btn{width:100%;justify-content:center;padding:12px;font-size:14px;display:flex;align-items:center}
+.login-err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px;font-weight:600}
+.login-foot{font-size:10.5px;color:var(--sub);margin-top:16px;text-align:center;line-height:1.6}
+#appRoot{display:none}
+.topbar .uinfo{font-size:11px;color:#cdd8ec;display:flex;align-items:center;gap:8px}
+.topbar .uinfo .lo{color:#cdd8ec;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:5px 10px;font-weight:700;font-size:11.5px}
+.topbar .uinfo .lo:hover{background:rgba(255,255,255,.1);color:#fff}
 @media print{
   body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .topbar,.pp-controls,.tabs,.no-print{display:none!important}
@@ -237,6 +257,23 @@ table.grid tr:hover td{background:#f8fafd}
 </style>
 </head>
 <body>
+<!-- ログイン画面 -->
+<div class="login-bk" id="loginScreen">
+  <div class="login-card">
+    <div class="lbrand"><div class="lg">E</div><div><div class="t1">アースコム ReFort</div><div class="t2">PROPOSAL / PIPELINE / DASHBOARD</div></div></div>
+    <h2>ログイン</h2>
+    <div class="lsub">社内共有のメールアドレスとパスワードでログインしてください。</div>
+    <label>メールアドレス</label>
+    <input type="email" id="loginEmail" autocomplete="username" placeholder="example@earthcom-eco.jp">
+    <label>パスワード</label>
+    <input type="password" id="loginPass" autocomplete="current-password" placeholder="パスワード">
+    <button class="btn gold" id="loginBtn">ログイン</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-foot">株式会社アースコム ｜ ReFort Studio<br>※ ダウンロードしたファイルではなく、公開URL（https）から開いてください。</div>
+  </div>
+</div>
+
+<div id="appRoot">
 <div class="topbar">
   <div class="brand"><div class="logo">E</div>
     <div><div class="t1">アースコム ReFort</div><div class="t2">PROPOSAL / PIPELINE / DASHBOARD</div></div></div>
@@ -247,6 +284,7 @@ table.grid tr:hover td{background:#f8fafd}
   </div>
   <div class="spacer"></div>
   <button class="gear" id="openSettings">⚙ 計算設定</button>
+  <div class="uinfo"><span id="userEmail"></span><button class="lo" id="logoutBtn">ログアウト</button></div>
   <div class="asof" id="asof"></div>
 </div>
 
@@ -283,8 +321,10 @@ table.grid tr:hover td{background:#f8fafd}
       <div class="fld"><label>残FIT内回収</label><select id="fRecover"><option value="">すべて</option><option value="ok">○ 回収可</option><option value="ng">× 不可</option></select></div>
       <div class="fld"><label>優先度 下限</label><input type="number" id="fScore" placeholder="0" min="0" style="min-width:80px"></div>
       <div class="right">
+        <button class="btn ghost" id="refreshCloud">🔄 クラウド更新</button>
         <button class="btn ghost" id="manageMembers">👤 担当者</button>
         <button class="btn ghost" id="exportCsv">⬇ CSV</button>
+        <button class="btn ghost" id="migrateBtn">📥 ローカル移行</button>
         <button class="btn ghost" id="resetFilters">クリア</button>
       </div>
     </div>
@@ -303,7 +343,7 @@ table.grid tr:hover td{background:#f8fafd}
         </div>
       </div>
     </div>
-    <p class="muted no-print" style="font-size:11.5px;margin-top:10px">※ 担当者・ステータス・受注実績・案件別設定は、このブラウザに自動保存されます。「✎」で各案件の詳細を編集・受注金額/原価を登録できます。</p>
+    <p class="muted no-print" style="font-size:11.5px;margin-top:10px">※ 担当者・ステータス・受注実績・案件別設定は、クラウド（Supabase）に保存され、ログインした全員で共有されます。他の人の更新を取り込むには「🔄 クラウド更新」を押してください。</p>
   </div>
 
   <!-- DASHBOARD -->
@@ -339,6 +379,7 @@ table.grid tr:hover td{background:#f8fafd}
     </div>
   </div>
 </div>
+</div><!-- /appRoot -->
 
 <!-- 計算設定モーダル -->
 <div class="modal-bk" id="settingsModal"><div class="modal md">
@@ -407,20 +448,55 @@ const yen=n=>n==null?"–":Math.round(n).toLocaleString('ja-JP');
 const man=n=>n==null?"–":Math.round(n/10000).toLocaleString('ja-JP');
 const r1=n=>Math.round(n*10)/10;
 
-/* ---------- storage ---------- */
-const LS_ASSIGN="refort_assign_v2",LS_MEMBERS="refort_members_v2",LS_GSET="refort_gset_v2";
-let store={},members=[],gov={};
-function load(){
-  try{store=JSON.parse(localStorage.getItem(LS_ASSIGN)||"{}")}catch(e){store={}}
-  try{members=JSON.parse(localStorage.getItem(LS_MEMBERS)||"null")||["丸林","大澤","奥田","狐塚","増田"]}catch(e){members=["丸林"]}
-  try{gov=JSON.parse(localStorage.getItem(LS_GSET)||"{}")}catch(e){gov={}}
-}
-const saveStore=()=>{try{localStorage.setItem(LS_ASSIGN,JSON.stringify(store))}catch(e){}};
-const saveMembers=()=>{try{localStorage.setItem(LS_MEMBERS,JSON.stringify(members))}catch(e){}};
-const saveGov=()=>{try{localStorage.setItem(LS_GSET,JSON.stringify(gov))}catch(e){}};
+/* ---------- storage（Supabaseクラウド共有） ---------- */
+const SB_URL="https://aakofrzurgwrkctunthw.supabase.co";
+const SB_KEY="sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
+const DEFAULT_MEMBERS=["丸林","大澤","奥田","狐塚","増田"];
+let sb=null, currentUser="";
+let store={},members=[...DEFAULT_MEMBERS],gov={};
 const getA=no=>store[no]||{};
-function setA(no,patch){store[no]={...getA(no),...patch};saveStore();}
+
+// store(キャメル) ⇔ DB(スネーク) 変換
+function rowToStore(r){return{status:r.status,owner:r.owner,ovImprove:r.ov_improve,ovCostPerKw:r.ov_cost_per_kw,ovGenUnit:r.ov_gen_unit,wonDate:r.won_date,wonAmount:r.won_amount,cost:r.cost};}
+function storeToRow(no,a){a=a||{};return{no:+no,status:a.status??null,owner:a.owner??null,ov_improve:a.ovImprove??null,ov_cost_per_kw:a.ovCostPerKw??null,ov_gen_unit:a.ovGenUnit??null,won_date:a.wonDate||null,won_amount:a.wonAmount??null,cost:a.cost??null,updated_at:new Date().toISOString(),updated_by:currentUser};}
+
+async function loadCloud(){
+  store={};members=[...DEFAULT_MEMBERS];gov={};
+  try{
+    const {data:asn}=await sb.from('refort_assignments').select('*');
+    if(asn)asn.forEach(r=>{store[r.no]=rowToStore(r);});
+    const {data:cfg}=await sb.from('refort_config').select('*');
+    if(cfg)cfg.forEach(r=>{if(r.key==='members'&&Array.isArray(r.value))members=r.value;if(r.key==='gset'&&r.value&&typeof r.value==='object')gov=r.value;});
+  }catch(e){toast('クラウド読込に失敗しました（通信をご確認ください）');}
+}
+async function cloudUpsertAssign(no){try{const {error}=await sb.from('refort_assignments').upsert(storeToRow(no,getA(no)),{onConflict:'no'});if(error)throw error;}catch(e){toast('クラウド保存に失敗: '+(e.message||e));}}
+async function cloudUpsertConfig(key,value){try{const {error}=await sb.from('refort_config').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});if(error)throw error;}catch(e){toast('設定の保存に失敗しました');}}
+function setA(no,patch){store[no]={...getA(no),...patch};cloudUpsertAssign(no);}
+const saveMembers=()=>cloudUpsertConfig('members',members);
+const saveGov=()=>cloudUpsertConfig('gset',gov);
 const gset=()=>({...BASE,...gov});
+
+async function refreshFromCloud(silent){await loadCloud();refreshAll();
+  if(document.getElementById('view-pipeline').classList.contains('active'))renderPipeline();
+  if(document.getElementById('view-dashboard').classList.contains('active'))renderDashboard();
+  if(!silent)toast('クラウドの最新データに更新しました');}
+
+// 旧ローカル版(localStorage)の入力をクラウドへ移行
+async function migrateLocal(){
+  let la={},lm=null,lg={};
+  try{la=JSON.parse(localStorage.getItem('refort_assign_v2')||'{}')}catch(e){}
+  try{lm=JSON.parse(localStorage.getItem('refort_members_v2')||'null')}catch(e){}
+  try{lg=JSON.parse(localStorage.getItem('refort_gset_v2')||'{}')}catch(e){}
+  const nos=Object.keys(la||{});
+  if(!nos.length&&!lm&&!Object.keys(lg||{}).length){toast('このPCに移行できるローカルデータはありません');return;}
+  if(!confirm('このPCのローカル入力（担当者・ステータス・受注実績・設定）をクラウドへ反映します。よろしいですか？'))return;
+  try{
+    if(nos.length){const rows=nos.map(no=>{store[no]={...(store[no]||{}),...la[no]};return storeToRow(+no,store[no]);});await sb.from('refort_assignments').upsert(rows,{onConflict:'no'});}
+    if(lm&&Array.isArray(lm)){members=lm;await cloudUpsertConfig('members',members);}
+    if(lg&&Object.keys(lg).length){gov=lg;await cloudUpsertConfig('gset',gov);}
+    await refreshFromCloud(true);toast('ローカル入力をクラウドへ移行しました');
+  }catch(e){toast('移行に失敗しました: '+(e.message||e));}
+}
 
 /* ---------- 計算（全体設定＋案件別上書き） ---------- */
 function effS(row){const g=gset(),a=getA(row.no);return{
@@ -448,12 +524,12 @@ function enrich(){return ROWS.map(r=>{const c=calc(r),a=getA(r.no);
     wonDate:a.wonDate||"",wonAmount:a.wonAmount??null,costActual:a.cost??null,profit,margin};});}
 
 /* ---------- tabs ---------- */
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+document.querySelectorAll('.tab').forEach(t=>t.onclick=async()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');document.getElementById('view-'+t.dataset.view).classList.add('active');
-  if(t.dataset.view==='pipeline')renderPipeline();
-  if(t.dataset.view==='dashboard')renderDashboard();
+  if(t.dataset.view==='pipeline'){await loadCloud();renderPipeline();}
+  if(t.dataset.view==='dashboard'){await loadCloud();renderDashboard();}
 });
 /* modal close helpers */
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=e=>e.target.closest('.modal-bk').classList.remove('show'));
@@ -784,10 +860,53 @@ function fmtYM2(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 function fmtYMD(d){return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;}
 let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
 
-/* init */
-load();
-document.getElementById('cntTotal').textContent=ROWS.length.toLocaleString();
-document.getElementById('asof').textContent='データ基準 '+RAW.asOf+'｜表示 '+fmtYMD(new Date()).replace(/(\d{4})(\d{2})(\d{2})/,'$1.$2.$3');
+/* ===================== 認証・初期化 ===================== */
+const loginScreen=document.getElementById('loginScreen'),appRoot=document.getElementById('appRoot');
+function initStaticUI(){
+  document.getElementById('cntTotal').textContent=ROWS.length.toLocaleString();
+  document.getElementById('asof').textContent='データ基準 '+RAW.asOf+'｜表示 '+fmtYMD(new Date()).replace(/(\d{4})(\d{2})(\d{2})/,'$1.$2.$3');
+}
+async function enterApp(session){
+  currentUser=session?.user?.email||'';
+  document.getElementById('userEmail').textContent=currentUser;
+  loginScreen.style.display='none';appRoot.style.display='block';
+  initStaticUI();
+  await loadCloud();
+  // membersがクラウド未登録なら初期メンバーを一度だけ登録
+  try{const {data}=await sb.from('refort_config').select('key').eq('key','members');if(!data||!data.length){await cloudUpsertConfig('members',members);}}catch(e){}
+  toast('ログインしました（クラウド共有モード）');
+}
+function showLogin(msg){loginScreen.style.display='grid';appRoot.style.display='none';if(msg)document.getElementById('loginErr').textContent=msg;}
+
+async function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim(),pass=document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent='';
+  if(!email||!pass){document.getElementById('loginErr').textContent='メールアドレスとパスワードを入力してください';return;}
+  const btn=document.getElementById('loginBtn');btn.textContent='ログイン中…';btn.disabled=true;
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error)throw error;
+    await enterApp(data.session);
+  }catch(e){
+    const m=(e&&e.message||'').includes('Invalid')?'メールアドレスまたはパスワードが違います':('ログインできませんでした: '+(e.message||e));
+    document.getElementById('loginErr').textContent=m;
+  }finally{btn.textContent='ログイン';btn.disabled=false;}
+}
+document.getElementById('loginBtn').onclick=doLogin;
+document.getElementById('loginPass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
+document.getElementById('loginEmail').onkeydown=e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();};
+document.getElementById('logoutBtn').onclick=async()=>{try{await sb.auth.signOut();}catch(e){}location.reload();};
+document.getElementById('refreshCloud').onclick=()=>refreshFromCloud(false);
+document.getElementById('migrateBtn').onclick=migrateLocal;
+
+(async function boot(){
+  if(!window.supabase||!window.supabase.createClient){showLogin('通信エラー：ライブラリを読み込めませんでした。ネット接続を確認し、公開URL（https）から開いてください。');return;}
+  sb=window.supabase.createClient(SB_URL,SB_KEY);
+  try{
+    const {data}=await sb.auth.getSession();
+    if(data&&data.session){await enterApp(data.session);}else{showLogin();}
+  }catch(e){showLogin();}
+})();
 </script>
 </body>
 </html>
