@@ -2586,6 +2586,42 @@ function downloadQuotePDF(){
 }
 
 window.addEventListener('DOMContentLoaded',()=>App.init());
+
+/* ========== データのバックアップ（書き出し／復元） ========== */
+function exportBackup(){
+  try{
+    const payload={ app:'ReFort Studio', version:1, exportedAt:new Date().toISOString(), owners:OWNERS, cases:App.cases };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const d=new Date(); const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+    const a=document.createElement('a'); a.href=url; a.download='ReFort_backup_'+ymd+'.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },500);
+    toast('バックアップを書き出しました（全'+App.cases.length+'件）');
+  }catch(e){ console.error(e); toast('書き出しに失敗しました'); }
+}
+function importBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const cases=Array.isArray(data.cases)?data.cases:(Array.isArray(data)?data:null);
+      if(!cases){ toast('このファイルはバックアップ形式ではありません'); return; }
+      if(!confirm('バックアップから '+cases.length+' 件を復元します。\n・同じ案件は上書きされます\n・クラウド（全員）にも反映されます\n続けますか？')) return;
+      if(Array.isArray(data.owners)){ data.owners.forEach(o=>{ if(o&&!OWNERS.includes(o)) OWNERS.push(o); }); persistOwners(); rebuildOwnerSelect(); }
+      let added=0,updated=0;
+      cases.forEach(c=>{
+        if(!c||!c.id) return;
+        const i=App.cases.findIndex(x=>x.id===c.id);
+        if(i>=0){ App.cases[i]=c; updated++; } else { App.cases.unshift(c); added++; }
+        Store.syncNow(c);
+      });
+      Store.save(); render();
+      toast('復元しました（追加 '+added+'件 / 更新 '+updated+'件）');
+    }catch(e){ console.error(e); toast('読み込みに失敗しました。ファイルをご確認ください'); }
+  };
+  reader.readAsText(file);
+}
 </script>
 <script>/* ========== パラメーター管理（管理者） ========== */
 function viewParams(){
@@ -2602,6 +2638,18 @@ function viewParams(){
         <button class="btn gold" onclick="App.addOwner()">${IC.plus}追加</button>
       </div>
       <div style="font-size:11.5px;color:var(--mute);margin-top:10px;line-height:1.7">※ ここで追加した担当者は、案件一覧・商談記録・左下の担当者選択など、すべての担当者リストに反映されます。削除しても、過去の案件に設定済みの担当者名はそのまま残ります。</div>
+    </div></div>
+    <div class="card" style="margin-bottom:18px"><div class="card-h">${IC.download}<h3>データのバックアップ</h3><div class="sub">全案件を書き出し／復元</div></div><div class="card-b">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn gold" onclick="exportBackup()">${IC.download}バックアップを書き出す</button>
+        <button class="btn" onclick="document.getElementById('restore-file').click()">${IC.upload}バックアップから復元</button>
+        <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="if(this.files[0])importBackup(this.files[0]);this.value='';">
+      </div>
+      <div style="font-size:11.5px;color:var(--mute);margin-top:12px;line-height:1.8">
+        ・<b>書き出し</b>：今の全案件を1つのファイル（.json）として保存します。万一に備えた控えになります。<br>
+        ・<b>復元</b>：書き出したファイルを読み込み、案件を取り込みます（同じ案件は上書き）。クラウドにも反映され、全員に共有されます。<br>
+        ・定期的に書き出してパソコンに保管しておくと安心です。
+      </div>
     </div></div>
     <div class="card" style="margin-bottom:18px;background:var(--gold-soft);border-color:rgba(201,154,61,.3)"><div class="card-b" style="padding:16px 22px;font-size:13px;color:var(--gold-dark);font-weight:600">⚙ 管理者用マスタ。現在は閲覧専用です。本番運用ではこの画面から数値を編集し、全案件の計算根拠を一元管理できます（パネル・反射率・方式・原価・粗利率など）。</div></div>
     ${rows('交換パネル マスタ',MASTER.panels,[{h:'パネル名',k:'name'},{h:'出力W',k:'w',num:1},{h:'Bifaciality',k:'bifa',num:1}])}
