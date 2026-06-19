@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>内定者オンボーディング管理アプリ｜28内定者版</title>
+<style>
+  :root{--navy:#1f4e78;--blue:#2f75b5;--bg:#f5f7fb;--line:#d9e2f3;--danger:#f8696b;--warn:#fff2cc;--ok:#e2f0d9;--text:#233;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;color:var(--text)}
+  header{background:var(--navy);color:white;padding:18px 28px}
+  header h1{margin:0;font-size:22px}
+  header p{margin:6px 0 0;font-size:13px;opacity:.9}
+  main{padding:22px;max-width:1400px;margin:auto}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .card{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 4px 14px rgba(31,78,120,.06)}
+  .card h3{margin:0 0 6px;font-size:13px;color:#506070}
+  .kpi{font-size:30px;font-weight:800;color:var(--navy)}
+  .tabs{display:flex;gap:8px;margin:18px 0}
+  .tab{border:1px solid var(--line);background:white;border-radius:999px;padding:10px 16px;cursor:pointer;font-weight:700}
+  .tab.active{background:var(--blue);color:white}
+  .panel{display:none}.panel.active{display:block}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}
+  th{background:#edf4fa;color:#1f4e78;position:sticky;top:0}
+  .badge{display:inline-block;border-radius:999px;padding:4px 10px;font-weight:800;font-size:12px}
+  .danger{background:var(--danger);color:white}.warn{background:var(--warn);color:#7f6000}.ok{background:var(--ok);color:#375623}
+  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:white}
+  .formgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+  .formgrid label{font-size:12px;font-weight:700;color:#506070}
+  button{background:var(--blue);color:white;border:0;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+  .muted{color:#667;font-size:12px}
+  @media(max-width:900px){.grid,.formgrid{grid-template-columns:1fr 1fr}main{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>内定者オンボーディング管理｜28内定者版</h1>
+  <p>会社イベント・勉強会・研修・アルバイト・課題を一元管理し、内定辞退リスクを自動アラート化します。</p>
+</header>
+<main>
+  <section class="grid">
+    <div class="card"><h3>内定者数</h3><div class="kpi" id="kpiTotal">0</div></div>
+    <div class="card"><h3>危険アラート</h3><div class="kpi" id="kpiDanger">0</div></div>
+    <div class="card"><h3>注意アラート</h3><div class="kpi" id="kpiWarn">0</div></div>
+    <div class="card"><h3>平均課題完了率</h3><div class="kpi" id="kpiTask">0%</div></div>
+  </section>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('candidates')">内定者一覧</button>
+    <button class="tab" onclick="showTab('events')">イベント・研修</button>
+    <button class="tab" onclick="showTab('alerts')">アラート一覧</button>
+    <button class="tab" onclick="showTab('settings')">設定</button>
+  </div>
+
+  <section id="candidates" class="panel active card">
+    <h2>内定者マスター</h2>
+    <div class="formgrid">
+      <label>氏名<input id="name" placeholder="例：山田 太郎"></label>
+      <label>年度<select id="year"><option>28内定者</option><option>27内定者</option></select></label>
+      <label>担当者<input id="owner" placeholder="例：村田"></label>
+      <label>志望温度 1〜5<input id="motivation" type="number" min="1" max="5" value="3"></label>
+      <label>最終接触日<input id="lastContact" type="date"></label>
+      <label>課題完了率 %<input id="taskRate" type="number" min="0" max="100" value="0"></label>
+    </div>
+    <p><button onclick="addCandidate()">内定者を追加</button> <span class="muted">※この試作版はブラウザ内に保存します。本番はGoogle Sheets / Supabase / Firebase等に接続。</span></p>
+    <table id="candidateTable"></table>
+  </section>
+
+  <section id="events" class="panel card">
+    <h2>イベント・研修・アルバイト管理</h2>
+    <div class="formgrid">
+      <label>日付<input id="eventDate" type="date"></label>
+      <label>種別<select id="eventType"><option>会社イベント</option><option>勉強会</option><option>研修</option><option>アルバイト</option><option>面談</option><option>課題</option></select></label>
+      <label>対象者<input id="eventPerson" placeholder="氏名"></label>
+      <label>イベント名<input id="eventName" placeholder="例：経営計画書勉強会"></label>
+      <label>出欠<select id="attendance"><option>未回答</option><option>参加</option><option>欠席</option><option>完了</option></select></label>
+      <label>担当者<input id="eventOwner" placeholder="担当者"></label>
+    </div>
+    <p><button onclick="addEvent()">イベントを追加</button></p>
+    <table id="eventTable"></table>
+  </section>
+
+  <section id="alerts" class="panel card">
+    <h2>内定辞退・異常値アラート</h2>
+    <p class="muted">判定例：志望温度2以下、30日以上未接触、課題完了率50%未満、イベント欠席など。</p>
+    <table id="alertTable"></table>
+  </section>
+
+  <section id="settings" class="panel card">
+    <h2>判定ルール</h2>
+    <table>
+      <tr><th>項目</th><th>初期値</th><th>意味</th></tr>
+      <tr><td>接触なし注意</td><td>14日</td><td>14日以上接点がないと注意</td></tr>
+      <tr><td>接触なし危険</td><td>30日</td><td>30日以上接点がないと危険</td></tr>
+      <tr><td>志望温度低</td><td>2以下</td><td>辞退予兆として加点</td></tr>
+      <tr><td>課題完了率注意</td><td>50%未満</td><td>エンゲージメント低下として加点</td></tr>
+    </table>
+  </section>
+</main>
+<script>
+let candidates = JSON.parse(localStorage.getItem('candidates')||'[]');
+let events = JSON.parse(localStorage.getItem('events')||'[]');
+if(candidates.length===0){
+  candidates=[
+    {name:'山田 太郎',year:'28内定者',owner:'村田',motivation:4,lastContact:'2026-06-15',taskRate:50,status:'内定承諾'},
+    {name:'佐藤 花子',year:'28内定者',owner:'村田',motivation:3,lastContact:'2026-06-02',taskRate:25,status:'研修中'},
+    {name:'鈴木 一郎',year:'28内定者',owner:'村田',motivation:2,lastContact:'2026-05-15',taskRate:0,status:'対応中'}
+  ];
+}
+function daysSince(d){ if(!d) return 999; return Math.floor((new Date()-new Date(d))/(1000*60*60*24));}
+function risk(c){
+  let score=0, reasons=[];
+  if(Number(c.motivation)<=2){score+=25; reasons.push('志望温度低');}
+  if(daysSince(c.lastContact)>=30){score+=25; reasons.push('30日以上未接触');}
+  else if(daysSince(c.lastContact)>=14){score+=15; reasons.push('14日以上未接触');}
+  if(Number(c.taskRate)<50){score+=20; reasons.push('課題完了率低');}
+  const absent = events.filter(e=>e.person===c.name && e.attendance==='欠席').length;
+  if(absent>0){score+=20; reasons.push('欠席あり');}
+  const level = score>=75?'危険':score>=50?'注意':'正常';
+  return {score, reasons:reasons.join(' / ')||'通常', level};
+}
+function badge(level){return `<span class="badge ${level==='危険'?'danger':level==='注意'?'warn':'ok'}">${level}</span>`}
+function render(){
+  localStorage.setItem('candidates',JSON.stringify(candidates));
+  localStorage.setItem('events',JSON.stringify(events));
+  document.getElementById('kpiTotal').textContent=candidates.length;
+  const risks=candidates.map(risk);
+  document.getElementById('kpiDanger').textContent=risks.filter(r=>r.level==='危険').length;
+  document.getElementById('kpiWarn').textContent=risks.filter(r=>r.level==='注意').length;
+  document.getElementById('kpiTask').textContent=Math.round(candidates.reduce((a,c)=>a+Number(c.taskRate||0),0)/(candidates.length||1))+'%';
+  document.getElementById('candidateTable').innerHTML='<tr><th>氏名</th><th>年度</th><th>担当</th><th>志望温度</th><th>最終接触</th><th>課題完了率</th><th>リスク</th><th>理由</th></tr>'+
+    candidates.map(c=>{const r=risk(c);return `<tr><td>${c.name}</td><td>${c.year}</td><td>${c.owner||''}</td><td>${c.motivation}</td><td>${c.lastContact||''}</td><td>${c.taskRate||0}%</td><td>${badge(r.level)} ${r.score}点</td><td>${r.reasons}</td></tr>`}).join('');
+  document.getElementById('eventTable').innerHTML='<tr><th>日付</th><th>種別</th><th>対象者</th><th>イベント名</th><th>出欠</th><th>担当</th></tr>'+
+    events.map(e=>`<tr><td>${e.date}</td><td>${e.type}</td><td>${e.person}</td><td>${e.name}</td><td>${e.attendance}</td><td>${e.owner}</td></tr>`).join('');
+  document.getElementById('alertTable').innerHTML='<tr><th>対象者</th><th>アラート</th><th>リスク点</th><th>原因</th><th>次アクション</th></tr>'+
+    candidates.map(c=>{const r=risk(c);return r.level==='正常'?'':`<tr><td>${c.name}</td><td>${badge(r.level)}</td><td>${r.score}</td><td>${r.reasons}</td><td>${r.level==='危険'?'本日中に電話・面談設定':'3日以内に接点を作る'}</td></tr>`}).join('');
+}
+function addCandidate(){
+  candidates.push({name:name.value,year:year.value,owner:owner.value,motivation:motivation.value,lastContact:lastContact.value,taskRate:taskRate.value,status:'対応中'});
+  render();
+}
+function addEvent(){
+  events.push({date:eventDate.value,type:eventType.value,person:eventPerson.value,name:eventName.value,attendance:attendance.value,owner:eventOwner.value});
+  render();
+}
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+render();
+</script>
+</body>
+</html>
