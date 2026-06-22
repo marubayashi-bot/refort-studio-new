@@ -318,6 +318,8 @@ table.grid tr:hover td{background:#f8fafd}
       <div class="fld"><label>検索（物件 / オーナー / 所在地）</label><input type="text" id="pSearch" placeholder="キーワード"></div>
       <div class="fld"><label>ステータス</label><select id="fStatus"><option value="">すべて</option></select></div>
       <div class="fld"><label>担当者</label><select id="fOwner"><option value="">すべて</option></select></div>
+      <div class="fld"><label>FIT単価 下限</label><input type="number" id="fPriceMin" placeholder="例:30" min="0" step="1" style="min-width:80px"></div>
+      <div class="fld"><label>FIT単価 上限</label><input type="number" id="fPriceMax" placeholder="上限なし" min="0" step="1" style="min-width:80px"></div>
       <div class="fld"><label>残FIT内回収</label><select id="fRecover"><option value="">すべて</option><option value="ok">○ 回収可</option><option value="ng">× 不可</option></select></div>
       <div class="fld"><label>優先度 下限</label><input type="number" id="fScore" placeholder="0" min="0" style="min-width:80px"></div>
       <div class="right">
@@ -636,10 +638,13 @@ function renderPKpis(d){
 function applyFilters(d){
   const q=document.getElementById('pSearch').value.trim().toLowerCase(),st=document.getElementById('fStatus').value,
         ow=document.getElementById('fOwner').value,rc=document.getElementById('fRecover').value,sc=parseFloat(document.getElementById('fScore').value)||0;
+  const pmin=parseFloat(document.getElementById('fPriceMin').value),pmax=parseFloat(document.getElementById('fPriceMax').value);
   return d.filter(r=>{
     if(q&&!(r.name+r.owner+r.siteAddr).toLowerCase().includes(q))return false;
     if(st&&r.status!==st)return false; if(ow&&r.assignee!==ow)return false;
     if(rc==='ok'&&r.recover!==true)return false; if(rc==='ng'&&r.recover!==false)return false;
+    if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return false;
+    if(!isNaN(pmax)&&!(r.price!=null&&r.price<=pmax))return false;
     if(r.score<sc)return false; return true;});
 }
 function sortData(d){const s=sortDir;return d.slice().sort((a,b)=>{let x=a[sortKey],y=b[sortKey];
@@ -699,11 +704,11 @@ function bindRows(){
 }
 function syncOwnerFilter(id){const el=document.getElementById(id),cur=el.value;
   el.innerHTML=(id==='dOwner'?'<option value="">全員</option>':'<option value="">すべて</option>')+members.map(m=>`<option ${m===cur?'selected':''}>${esc(m)}</option>`).join('');}
-['pSearch','fStatus','fOwner','fRecover','fScore'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{page=1;renderPipeline();}));
+['pSearch','fStatus','fOwner','fRecover','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{page=1;renderPipeline();}));
 document.getElementById('pageSize').onchange=()=>{page=1;renderPipeline();};
 document.getElementById('prevPage').onclick=()=>{page--;renderPipeline();};
 document.getElementById('nextPage').onclick=()=>{page++;renderPipeline();};
-document.getElementById('resetFilters').onclick=()=>{['pSearch','fScore'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');page=1;renderPipeline();};
+document.getElementById('resetFilters').onclick=()=>{['pSearch','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');page=1;renderPipeline();};
 
 /* ===================== 案件編集モーダル ===================== */
 const cm=document.getElementById('caseModal');let editNo=null;
