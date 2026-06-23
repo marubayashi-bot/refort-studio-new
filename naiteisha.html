@@ -120,6 +120,40 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 .syncBadge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#10294b;border:1px solid #2c4a74;color:#9fd3b5}
 .btn-logout{font:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;border:1px solid #2c4a74;background:#10294b;color:#fff;cursor:pointer}
 .btn-logout:hover{background:#163763}
+/* karte / CRM */
+.karte-sel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.kfield{display:flex;flex-direction:column;gap:3px}
+.kfield label{font-size:11px;color:var(--muted);font-weight:700}
+.stars{font-size:24px;letter-spacing:3px;cursor:pointer;user-select:none;line-height:1}
+.stars i{color:#d9dee8;font-style:normal}.stars i.on{color:var(--gold)}
+.gauge{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ring{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.ring .inner{position:absolute;inset:11px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.ring b{font-size:21px;line-height:1.1}.ring span{font-size:10px;color:var(--muted)}
+.k-sec{border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:#fff}
+.k-sec h4{margin:0 0 10px;font-size:14px;color:var(--navy);display:flex;align-items:center;gap:8px}
+.k-sec h4 .no{background:var(--navy);color:#fff;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.chk{display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:13px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.chk.on{background:var(--dangerbg);border-color:#f0bcbc;color:var(--danger);font-weight:700}
+.chkwrap{display:flex;gap:8px;flex-wrap:wrap}
+.tl{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch}
+.tl .st{flex:1;min-width:82px;border:1px solid var(--line);border-radius:9px;padding:8px 6px;text-align:center;font-size:11px;background:#fff}
+.tl .st.done{background:var(--okbg);border-color:#bfe6d2}
+.tl .st.now{background:#fff7e0;border-color:#f0dca0}
+.tl .st .ic{font-size:16px;font-weight:800;display:block}
+.tl .st.done .ic{color:var(--ok)}.tl .st.now .ic{color:#9a6f00}
+.nextact{background:#eef4ff;border:1px solid #d3e0fb;border-radius:9px;padding:9px 12px;margin-top:8px;font-size:13px}
+.engbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.engbar .c{flex:1;min-width:92px;border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:11px}
+.engbar .c b{font-size:16px;color:var(--navy);display:block}
+.handoff-card{background:#0f2747;color:#dbe7ff;border-radius:10px;padding:13px 14px;font-size:12.5px;white-space:pre-wrap;margin-top:8px;line-height:1.7}
+.k-sec table input.in,.k-sec table select.in{font-size:12px}
+.chk-inline{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--navy);font-weight:700;background:#f1f5fc;border:1px solid #d6e0f2;border-radius:8px;padding:5px 9px;white-space:nowrap}
+.chk-inline input{accent-color:var(--navy)}
+.sess{display:inline-flex;align-items:center;gap:3px;background:#f6f8fc;border:1px solid var(--line);border-radius:8px;padding:2px 4px}
+.xb{border:none;background:#e7ebf2;color:#5b6880;border-radius:6px;width:20px;height:20px;cursor:pointer;font-weight:800;line-height:1}
+.xb:hover{background:#f0bcbc;color:#a12}
 </style>
 </head>
 <body>
@@ -168,6 +202,18 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
     <p class="lead">基本情報・志望温度・最終接触日を管理。参加率／課題完了率／辞退リスクは自動計算されます。</p>
     <div class="row" style="margin-bottom:12px"><button class="btn gold" onclick="addPerson()">＋ 内定者を追加</button><span class="muted small right" id="peopleCount"></span></div>
     <div class="card" style="padding:0;overflow:auto"><table id="peopleTbl"></table></div>
+  </section>
+
+  <!-- KARTE / CRM -->
+  <section class="page" id="p-karte">
+    <h2 class="title">内定者カルテ（引継ぎCRM）</h2>
+    <p class="lead">担当者が変わっても育成・定着を引き継げる「入社準備CRM」。①基本情報〜⑩NGポイント・エンゲージメントスコア・入社確率／活躍確率・引継ぎ動画メモを1枚に集約します。</p>
+    <div class="karte-sel">
+      <span class="muted small">対象</span>
+      <select class="in" id="karteSel" style="max-width:260px" onchange="setKarte(this.value)"></select>
+      <button class="btn ghost sm" onclick="copyHandoff()">引継ぎカードをコピー</button>
+    </div>
+    <div id="karteBody"></div>
   </section>
 
   <!-- EVENTS -->
@@ -341,20 +387,54 @@ const STD_TASKS=[["内定者課題図書（1冊目）",14],["企業理念eラー
 function seedCohort28(){
   return {
     people:[
-      {id:'p1',name:'山田 太郎',route:'kimeteフェス',temp:'高',offerDate:'2026-03-10',acceptDate:'2026-03-18',joinDate:'2027-04-01',lastContact:'2026-06-16',memo:''},
-      {id:'p2',name:'佐藤 花子',route:'HR team',temp:'中',offerDate:'2026-03-12',acceptDate:'2026-03-25',joinDate:'2027-04-01',lastContact:'2026-05-30',memo:'返信やや遅め'},
-      {id:'p3',name:'鈴木 一郎',route:'リアステージ',temp:'低',offerDate:'2026-03-15',acceptDate:'',joinDate:'2027-04-01',lastContact:'2026-05-10',memo:'内定式以降連絡が途絶え気味'},
+      {id:'p1',name:'山田 太郎',route:'kimeteフェス',temp:'高',tempStar:5,university:'埼玉大学',faculty:'経済学部',gradYear:'2027卒',owner:'村田',offerDate:'2026-03-10',acceptDate:'2026-03-18',joinDate:'2027-04-01',lastContact:'2026-06-16',memo:'',
+        setsumeikai:{date:'2025-08-20',impression:'再エネ事業に強く共感'},kobetsu:{count:3,note:'営業職志望'},intern:{count:2,eval:'A'},konshinkai:{count:2},eventHist:{count:3},kanbujuku:{status:'参加'},
+        arbeit:{start:'2026-04-15',hours:48,dept:'営業部',eval:'積極的',genba:5,shain:4,satis:5},
+        kadai:[{item:'経営計画書感想文',submit:'○',evalc:'A'},{item:'デイリーシート',submit:'○',evalc:'B'},{item:'業界研究',submit:'○',evalc:'A'}],
+        mendan:[{date:'2026-05-10',owner:'石野',note:'営業職希望を再確認'},{date:'2026-06-15',owner:'村田',note:'入社後のキャリアに前向き'}],
+        parent:{father:'賛成',mother:'賛成',concerns:''},
+        riskFlags:{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false},
+        kudoki:'若手責任者になりたい / 営業で稼ぎたい',ng:'転勤は要相談',
+        handoff:{video:'',q1:'明るく素直。再エネ志望度が高い',q2:'特になし',q3:'低',q4:'若手で責任あるポジション',q5:'村田が継続フォロー'}},
+      {id:'p2',name:'佐藤 花子',route:'HR team',temp:'中',tempStar:3,university:'文教大学',faculty:'人間科学部',gradYear:'2027卒',owner:'村田',offerDate:'2026-03-12',acceptDate:'2026-03-25',joinDate:'2027-04-01',lastContact:'2026-05-30',memo:'返信やや遅め',
+        setsumeikai:{date:'2025-09-05',impression:'雰囲気が良いと好印象'},kobetsu:{count:1,note:'事務職にも興味'},intern:{count:1,eval:'B'},konshinkai:{count:1},eventHist:{count:1},kanbujuku:{status:'未参加'},
+        arbeit:{start:'',hours:0,dept:'',eval:'',genba:0,shain:0,satis:3},
+        kadai:[{item:'経営計画書感想文',submit:'○',evalc:'B'},{item:'デイリーシート',submit:'△',evalc:''},{item:'業界研究',submit:'×',evalc:''}],
+        mendan:[{date:'2026-05-12',owner:'村田',note:'比較中の他社あり'}],
+        parent:{father:'中立',mother:'やや不安',concerns:'通勤 / 将来性'},
+        riskFlags:{otherOffer:false,lessContact:true,eventAbsent:false,noArbeit:true,kadaiUn:true,parentNg:false},
+        kudoki:'安定した成長企業',ng:'残業が不安',
+        handoff:{video:'',q1:'真面目だが温度感が中程度',q2:'親が将来性を心配',q3:'中',q4:'働きやすさ・成長環境',q5:'村田'}},
+      {id:'p3',name:'鈴木 一郎',route:'リアステージ',temp:'低',tempStar:2,university:'城西大学',faculty:'経営学部',gradYear:'2027卒',owner:'石野',offerDate:'2026-03-15',acceptDate:'',joinDate:'2027-04-01',lastContact:'2026-05-10',memo:'内定式以降連絡が途絶え気味',
+        setsumeikai:{date:'2025-10-01',impression:''},kobetsu:{count:0,note:''},intern:{count:0,eval:''},konshinkai:{count:0},eventHist:{count:0},kanbujuku:{status:'未参加'},
+        arbeit:{start:'',hours:0,dept:'',eval:'',genba:0,shain:0,satis:2},
+        kadai:[{item:'経営計画書感想文',submit:'×',evalc:''},{item:'デイリーシート',submit:'×',evalc:''}],
+        mendan:[],
+        parent:{father:'やや不安',mother:'反対',concerns:'県外就職 / 給与'},
+        riskFlags:{otherOffer:true,lessContact:true,eventAbsent:true,noArbeit:true,kadaiUn:true,parentNg:true},
+        kudoki:'',ng:'厳しい上下関係が苦手',
+        handoff:{video:'',q1:'おとなしいタイプ。接触が減っている',q2:'他社内定＋保護者反対',q3:'高',q4:'未確定',q5:'石野→（要・幹部面談）'}},
+      {id:'p4',name:'笹川 さくら',route:'kimete個別',temp:'高',tempStar:5,university:'獨協大学',faculty:'外国語学部',gradYear:'2027卒',owner:'石野',offerDate:'2026-02-28',acceptDate:'2026-03-05',joinDate:'2027-04-01',lastContact:'2026-06-18',memo:'非常に意欲的',
+        setsumeikai:{date:'2025-07-30',impression:'社長の話に感銘'},kobetsu:{count:4,note:'営業で早期に成果を出したい'},intern:{count:3,eval:'A'},konshinkai:{count:3},eventHist:{count:4},kanbujuku:{status:'参加'},
+        arbeit:{start:'2026-03-20',hours:96,dept:'営業部',eval:'非常に積極的',genba:5,shain:5,satis:5},
+        kadai:[{item:'経営計画書感想文',submit:'○',evalc:'A'},{item:'デイリーシート',submit:'○',evalc:'A'},{item:'業界研究',submit:'○',evalc:'A'},{item:'課題レポート',submit:'○',evalc:'A'}],
+        mendan:[{date:'2026-04-02',owner:'石野',note:'目標が明確'},{date:'2026-05-20',owner:'村田',note:'入社確定の意思'},{date:'2026-06-18',owner:'石野',note:'後輩内定者のフォローも自発的に'}],
+        parent:{father:'賛成',mother:'賛成',concerns:''},
+        riskFlags:{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false},
+        kudoki:'営業で稼ぎたい / 再エネ業界に興味 / 成長企業で働きたい',ng:'',
+        handoff:{video:'',q1:'全項目で高エンゲージのトップ内定者',q2:'特になし',q3:'極低',q4:'成長環境と裁量',q5:'石野（活躍人材として早期戦力化）'}},
     ],
     events:[
-      {id:'e1',type:'会社イベント',name:'内定式',date:'2026-04-05',att:{p1:'参加',p2:'参加',p3:'欠席'}},
-      {id:'e2',type:'勉強会',name:'太陽光業界 基礎勉強会',date:'2026-05-10',att:{p1:'参加',p2:'参加',p3:'欠席'}},
-      {id:'e3',type:'研修',name:'ビジネスマナー研修',date:'2026-05-24',att:{p1:'参加',p2:'欠席',p3:'欠席'}},
-      {id:'e4',type:'アルバイト',name:'オフィス業務アルバイト',date:'2026-06-07',att:{p1:'参加',p2:'参加',p3:'未定'}},
+      {id:'e1',type:'会社イベント',name:'内定式',date:'2026-04-05',att:{p1:'参加',p2:'参加',p3:'欠席',p4:'参加'}},
+      {id:'e5',type:'勉強会',name:'用語集勉強会（毎月）',recurring:true,sessions:[{id:'s1',date:'2026-04-18'},{id:'s2',date:'2026-05-16'},{id:'s3',date:'2026-06-20'}],att:{p1:{s1:'参加',s2:'参加',s3:'参加'},p2:{s1:'参加',s2:'欠席',s3:'参加'},p3:{s1:'欠席',s2:'欠席',s3:'欠席'},p4:{s1:'参加',s2:'参加',s3:'参加'}}},
+      {id:'e6',type:'会社イベント',name:'懇親会（毎月）',recurring:true,sessions:[{id:'s1',date:'2026-04-25'},{id:'s2',date:'2026-05-30'}],att:{p1:{s1:'参加',s2:'参加'},p2:{s1:'参加',s2:'未定'},p3:{s1:'欠席',s2:'欠席'},p4:{s1:'参加',s2:'参加'}}},
+      {id:'e3',type:'研修',name:'ビジネスマナー研修',date:'2026-05-24',att:{p1:'欠席',p2:'欠席',p3:'欠席',p4:'参加'}},
+      {id:'e4',type:'アルバイト',name:'オフィス業務アルバイト',date:'2026-06-07',att:{p1:'参加',p2:'未定',p3:'未定',p4:'参加'}},
     ],
     tasks:[
-      {id:'t1',name:'内定者課題図書（1冊目）',due:'2026-05-31',st:{p1:'完了',p2:'進行中',p3:'未着手'},done:{p1:'2026-05-20',p2:'',p3:''}},
-      {id:'t2',name:'企業理念eラーニング',due:'2026-06-10',st:{p1:'完了',p2:'未着手',p3:'未着手'},done:{p1:'2026-06-03',p2:'',p3:''}},
-      {id:'t3',name:'業界研究レポート',due:'2026-06-25',st:{p1:'進行中',p2:'未着手',p3:'未着手'},done:{p1:'',p2:'',p3:''}},
+      {id:'t1',name:'内定者課題図書（1冊目）',due:'2026-05-31',dueBy:{p4:'2026-05-15'},st:{p1:'完了',p2:'進行中',p3:'未着手',p4:'完了'},done:{p1:'2026-05-20',p2:'',p3:'',p4:'2026-05-12'}},
+      {id:'t2',name:'企業理念eラーニング',due:'2026-06-22',dueBy:{},st:{p1:'完了',p2:'未着手',p3:'未着手',p4:'完了'},done:{p1:'2026-06-24',p2:'',p3:'',p4:'2026-06-01'}},
+      {id:'t3',name:'業界研究レポート',due:'2026-06-25',dueBy:{},st:{p1:'進行中',p2:'未着手',p3:'未着手',p4:'完了'},done:{p1:'',p2:'',p3:'',p4:'2026-06-15'}},
     ]
   };
 }
@@ -417,11 +497,23 @@ function cur(){return S.cohorts[S.cohort];}
 
 /* ---------- calc ---------- */
 function daysBetween(a,b){if(!a||!b)return null;return Math.round((new Date(b)-new Date(a))/86400000);}
-function partRate(pid){const evs=cur().events;let t=0,p=0;evs.forEach(e=>{const a=e.att?.[pid];if(a==='参加'||a==='欠席'){t++;if(a==='参加')p++;}});return t?p/t:null;}
+function fmtMd(d){if(!d)return'未設定';const x=String(d).split('-');return x.length===3?(+x[1])+'/'+(+x[2]):d;}
+/* ---- 参加（単発／繰り返し開催 両対応） ---- */
+function evSessions(e){return (e.recurring&&e.sessions&&e.sessions.length)?e.sessions:null;}
+function evPersonCounts(e,pid){const ss=evSessions(e);
+  if(ss){let p=0,t=0;ss.forEach(s=>{const v=(e.att&&e.att[pid]&&typeof e.att[pid]==='object')?e.att[pid][s.id]:undefined;if(v==='参加'||v==='欠席'){t++;if(v==='参加')p++;}});return{p,t};}
+  const v=e.att?.[pid];if(v==='参加'||v==='欠席')return{p:v==='参加'?1:0,t:1};return{p:0,t:0};}
+function partRate(pid){let p=0,t=0;cur().events.forEach(e=>{const c=evPersonCounts(e,pid);p+=c.p;t+=c.t;});return t?p/t:null;}
+function attendedDates(pid){const out=[];cur().events.forEach(e=>{const ss=evSessions(e);if(ss){ss.forEach(s=>{const v=(e.att&&e.att[pid]&&typeof e.att[pid]==='object')?e.att[pid][s.id]:undefined;if(v==='参加'&&s.date)out.push(s.date);});}else{if(e.att?.[pid]==='参加'&&e.date)out.push(e.date);}});return out;}
 function taskRate(pid){const ts=cur().tasks;let t=0,d=0;ts.forEach(x=>{const s=x.st?.[pid];if(s){t++;if(s==='完了')d++;}});return t?d/t:null;}
-function taskState(task,pid){const s=task.st?.[pid];if(!s)return null;if(s==='完了')return{k:'完了',late:false};const over=daysBetween(task.due,S.baseDate);if(over!=null&&over>0)return{k:'遅延',late:true,over};const near=daysBetween(S.baseDate,task.due);if(near!=null&&near<=3&&near>=0)return{k:'期限間近',late:false};return{k:s,late:false};}
+/* ---- 課題（内定者ごとの個別期限／期限超過提出 対応） ---- */
+function taskDue(task,pid){return (task.dueBy&&task.dueBy[pid])||task.due||'';}
+function taskState(task,pid){const s=task.st?.[pid];if(!s)return null;const due=taskDue(task,pid);
+  if(s==='完了'){const dd=task.done?.[pid];if(due&&dd){const late=daysBetween(due,dd);if(late!=null&&late>0)return{k:'期限超過',lateSubmit:true,over:late};}return{k:'完了',late:false};}
+  const over=daysBetween(due,S.baseDate);if(over!=null&&over>0)return{k:'遅延',late:true,over};
+  const near=daysBetween(S.baseDate,due);if(near!=null&&near<=3&&near>=0)return{k:'期限間近',late:false};return{k:s,late:false};}
 function hasDelay(pid){return cur().tasks.some(t=>{const st=taskState(t,pid);return st&&st.late;});}
-function lastContactDays(p){const evDates=cur().events.filter(e=>e.att?.[p.id]==='参加').map(e=>e.date);const all=[p.lastContact,...evDates].filter(Boolean).sort();const latest=all[all.length-1];return daysBetween(latest,S.baseDate);}
+function lastContactDays(p){const all=[p.lastContact,...attendedDates(p.id)].filter(Boolean).sort();const latest=all[all.length-1];return daysBetween(latest,S.baseDate);}
 function riskScore(p){const w=S.weights;let s=0;const reasons=[];
   if(p.temp==='低'){s+=w.tempLow;reasons.push(WLAB.tempLow);}
   const nc=lastContactDays(p);
@@ -438,11 +530,11 @@ function lvClass(lv){return lv==='危険'?'danger':lv==='注意'?'warn':'ok';}
 function pct(x){return x==null?'—':Math.round(x*100)+'%';}
 
 /* ---------- render ---------- */
-const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-recruit','新卒採用進捗'],['p-settings','設定']];
+const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-karte','内定者カルテ'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-recruit','新卒採用進捗'],['p-settings','設定']];
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';TABS.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(i===0)b.classList.add('active');b.dataset.id=t[0];n.appendChild(b);});}
 function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));renderAll();}
 
-function renderAll(){renderDash();renderPeople();renderEvents();renderTasks();renderAlerts();renderRecruit();renderSettings();}
+function renderAll(){normalizeAll();renderDash();renderPeople();renderKarte();renderEvents();renderTasks();renderAlerts();renderRecruit();renderSettings();}
 
 function renderDash(){
   const ppl=cur().people;const scored=ppl.map(p=>({p,r:riskScore(p)}));
@@ -450,12 +542,17 @@ function renderDash(){
   const accepted=ppl.filter(p=>p.acceptDate).length;
   const avgPart=avg(ppl.map(p=>partRate(p.id)).filter(x=>x!=null));
   const avgTask=avg(ppl.map(p=>taskRate(p.id)).filter(x=>x!=null));
+  const avgEng=avg(ppl.map(p=>engagement(p).score));
+  const avgJoin=avg(ppl.map(p=>joinProb(p)));
+  const kanbu=ppl.filter(p=>engagement(p).score<60).length;
   document.getElementById('dashKpis').innerHTML=[
     kpi('内定者数',ppl.length+'<small> 名</small>'),
     kpi('承諾済',accepted+'<small> / '+ppl.length+'</small>'),
     kpi('危険',`<span style="color:var(--danger)">${danger}</span><small> 名</small>`),
     kpi('注意',`<span style="color:#9a6f00">${warn}</span><small> 名</small>`),
-    kpi('平均参加率',pct(avgPart)),
+    kpi('平均エンゲージ',(avgEng==null?'—':Math.round(avgEng))+'<small> 点</small>'),
+    kpi('平均入社確率',(avgJoin==null?'—':Math.round(avgJoin))+'<small>%</small>'),
+    kpi('幹部面談対象',`<span style="color:${kanbu?'var(--danger)':'var(--ok)'}">${kanbu}</span><small> 名（60点未満）</small>`),
     kpi('平均課題完了率',pct(avgTask)),
   ].join('');
   document.getElementById('riskDist').innerHTML=donut(danger,warn,ok);
@@ -492,24 +589,36 @@ function renderPeople(){
 function renderEvents(){
   const c=cur();const w=document.getElementById('eventsWrap');
   if(!c.events.length){w.innerHTML='<p class="muted">活動がまだありません。「＋ 活動を追加」から登録してください。</p>';return;}
-  w.innerHTML=c.events.map(e=>`<div class="card"><div class="row" style="margin-bottom:10px">
-    <select class="in" style="width:120px" onchange="upd('events','${e.id}','type',this.value)">${opt(['会社イベント','勉強会','研修','アルバイト'],e.type)}</select>
-    <input class="in" style="flex:1;min-width:160px" value="${esc(e.name)}" onchange="upd('events','${e.id}','name',this.value)">
-    <input class="in" type="date" style="width:150px" value="${e.date||''}" onchange="upd('events','${e.id}','date',this.value)">
-    <button class="btn ghost sm" onclick="del('events','${e.id}')">削除</button></div>
-    <table><thead><tr><th>氏名</th><th>参加状況</th></tr></thead><tbody>${c.people.map(p=>`<tr><td>${esc(p.name)}</td><td><select class="in" style="width:100px" onchange="updAtt('${e.id}','${p.id}',this.value)">${opt(['参加','欠席','未定'],e.att?.[p.id]||'未定')}</select></td></tr>`).join('')}</tbody></table></div>`).join('');
+  w.innerHTML=c.events.map(e=>{
+    const head=`<div class="row" style="margin-bottom:8px;align-items:center">
+      <select class="in" style="width:120px" onchange="upd('events','${e.id}','type',this.value)">${opt(['会社イベント','勉強会','研修','アルバイト'],e.type)}</select>
+      <input class="in" style="flex:1;min-width:150px" value="${esc(e.name)}" onchange="upd('events','${e.id}','name',this.value)">
+      ${e.recurring?'':`<input class="in" type="date" style="width:150px" value="${e.date||''}" onchange="upd('events','${e.id}','date',this.value)">`}
+      <label class="chk-inline"><input type="checkbox" ${e.recurring?'checked':''} onchange="toggleRecurring('${e.id}',this.checked)"> 繰り返し開催</label>
+      <button class="btn ghost sm" onclick="del('events','${e.id}')">削除</button></div>`;
+    if(e.recurring){
+      const ss=e.sessions||[];
+      const sess=`<div class="row small" style="margin:2px 0 8px;gap:6px;flex-wrap:wrap;align-items:center"><span class="muted">開催日（毎月など）：</span>${ss.map(s=>`<span class="sess"><input class="in" type="date" style="width:140px" value="${s.date||''}" onchange="sessUpd('${e.id}','${s.id}',this.value)"><button class="xb" onclick="sessDel('${e.id}','${s.id}')">×</button></span>`).join('')}<button class="btn ghost sm" onclick="sessAdd('${e.id}')">＋ 開催日を追加</button></div>`;
+      const matrix=`<div style="overflow:auto"><table><thead><tr><th>氏名</th>${ss.map(s=>`<th style="text-align:center">${fmtMd(s.date)}</th>`).join('')}<th style="text-align:center">参加回数 / 率</th></tr></thead><tbody>${c.people.map(p=>{const cnt=evPersonCounts(e,p.id);const rate=cnt.t?Math.round(cnt.p/cnt.t*100):null;return `<tr><td>${esc(p.name)}</td>${ss.map(s=>{const v=(e.att&&e.att[p.id]&&typeof e.att[p.id]==='object')?(e.att[p.id][s.id]||'未定'):'未定';return `<td style="text-align:center"><select class="in" style="width:76px" onchange="updAttS('${e.id}','${p.id}','${s.id}',this.value)">${opt(['参加','欠席','未定'],v)}</select></td>`;}).join('')}<td style="text-align:center"><b>${cnt.p}/${cnt.t}</b> <span class="${rate!=null&&rate<50?'badge-late':'muted'} small">${rate==null?'—':rate+'%'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+      return `<div class="card">${head}${sess}${matrix}</div>`;
+    }
+    const simple=`<table><thead><tr><th>氏名</th><th>参加状況</th></tr></thead><tbody>${c.people.map(p=>`<tr><td>${esc(p.name)}</td><td><select class="in" style="width:100px" onchange="updAtt('${e.id}','${p.id}',this.value)">${opt(['参加','欠席','未定'],e.att?.[p.id]||'未定')}</select></td></tr>`).join('')}</tbody></table>`;
+    return `<div class="card">${head}${simple}</div>`;
+  }).join('');
 }
 function renderTasks(){
   const c=cur();const w=document.getElementById('tasksWrap');
   if(!c.tasks.length){w.innerHTML='<p class="muted">課題がまだありません。「＋ 課題を追加」または「標準課題を一括付与」から登録してください。</p>';return;}
   w.innerHTML=c.tasks.map(t=>`<div class="card"><div class="row" style="margin-bottom:10px">
     <input class="in" style="flex:1;min-width:180px" value="${esc(t.name)}" onchange="upd('tasks','${t.id}','name',this.value)">
-    <span class="muted small">期限</span><input class="in" type="date" style="width:150px" value="${t.due||''}" onchange="upd('tasks','${t.id}','due',this.value)">
+    <span class="muted small">既定期限（全員）</span><input class="in" type="date" style="width:150px" value="${t.due||''}" onchange="upd('tasks','${t.id}','due',this.value)">
     <button class="btn ghost sm" onclick="del('tasks','${t.id}')">削除</button></div>
-    <table><thead><tr><th>氏名</th><th>状態</th><th>完了日</th><th>判定</th></tr></thead><tbody>${c.people.map(p=>{const st=taskState(t,p.id);return `<tr><td>${esc(p.name)}</td>
+    <p class="hint" style="margin:-2px 0 8px">内定者ごとに期限を変えたい場合は「個別期限」を設定してください（空欄なら既定期限を使用）。</p>
+    <table><thead><tr><th>氏名</th><th>状態</th><th>個別期限</th><th>完了日</th><th>判定</th></tr></thead><tbody>${c.people.map(p=>{const st=taskState(t,p.id);const due=taskDue(t,p.id);return `<tr><td>${esc(p.name)}</td>
       <td><select class="in" style="width:100px" onchange="updTask('${t.id}','${p.id}',this.value)">${opt(['未着手','進行中','完了'],t.st?.[p.id]||'未着手')}</select></td>
+      <td><input class="in" type="date" style="width:140px" value="${(t.dueBy&&t.dueBy[p.id])||''}" placeholder="${t.due||''}" onchange="updDueBy('${t.id}','${p.id}',this.value)"></td>
       <td><input class="in" type="date" style="width:140px" value="${t.done?.[p.id]||''}" onchange="updDone('${t.id}','${p.id}',this.value)"></td>
-      <td>${st?(st.late?`<span class="badge-late">遅延 ${st.over}日</span>`:st.k==='完了'?'<span class="pill ok">完了</span>':st.k==='期限間近'?'<span class="pill warn">期限間近</span>':`<span class="pill gray">${st.k}</span>`):'—'}</td></tr>`;}).join('')}</tbody></table></div>`).join('');
+      <td>${st?(st.lateSubmit?`<span class="pill warn">期限超過（${st.over}日遅れ提出）</span>`:st.late?`<span class="badge-late">遅延 ${st.over}日</span>`:st.k==='完了'?'<span class="pill ok">完了</span>':st.k==='期限間近'?'<span class="pill warn">期限間近</span>':`<span class="pill gray">${st.k}</span>`):'—'}</td></tr>`;}).join('')}</tbody></table></div>`).join('');
 }
 function renderAlerts(){
   const ppl=cur().people;const scored=ppl.map(p=>({p,r:riskScore(p)})).sort((a,b)=>b.r.score-a.r.score);
@@ -609,12 +718,21 @@ function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;'
 function uid(p){return p+Math.random().toString(36).slice(2,8);}
 function upd(arr,id,f,v){const o=cur()[arr].find(x=>x.id===id);if(o){o[f]=v;save();renderAll();}}
 function updAtt(eid,pid,v){const e=cur().events.find(x=>x.id===eid);if(e){e.att=e.att||{};e.att[pid]=v;save();renderAll();}}
+function updAttS(eid,pid,sid,v){const e=cur().events.find(x=>x.id===eid);if(!e)return;e.att=e.att||{};if(!e.att[pid]||typeof e.att[pid]!=='object')e.att[pid]={};e.att[pid][sid]=v;save();renderAll();}
+function toggleRecurring(eid,on){const e=cur().events.find(x=>x.id===eid);if(!e)return;const ppl=cur().people;
+  if(on){if(!e.sessions||!e.sessions.length)e.sessions=[{id:uid('s'),date:e.date||S.baseDate}];const sid=e.sessions[0].id;const na={};ppl.forEach(p=>{const v=e.att?.[p.id];na[p.id]=(v&&typeof v==='object')?v:{[sid]:(typeof v==='string'?v:'未定')};});e.att=na;e.recurring=true;}
+  else{const sid=e.sessions&&e.sessions[0]&&e.sessions[0].id;const na={};ppl.forEach(p=>{const v=e.att?.[p.id];na[p.id]=(v&&typeof v==='object')?(v[sid]||'未定'):(v||'未定');});e.att=na;e.recurring=false;}
+  save();renderAll();}
+function sessAdd(eid){const e=cur().events.find(x=>x.id===eid);e.sessions=e.sessions||[];e.sessions.push({id:uid('s'),date:S.baseDate});save();renderEvents();}
+function sessDel(eid,sid){const e=cur().events.find(x=>x.id===eid);if(!e.sessions||e.sessions.length<=1){alert('開催日は最低1つ必要です。');return;}e.sessions=e.sessions.filter(s=>s.id!==sid);Object.values(e.att||{}).forEach(m=>{if(m&&typeof m==='object')delete m[sid];});save();renderEvents();}
+function sessUpd(eid,sid,v){const e=cur().events.find(x=>x.id===eid);const s=e.sessions.find(x=>x.id===sid);if(s){s.date=v;save();renderEvents();}}
+function updDueBy(tid,pid,v){const t=cur().tasks.find(x=>x.id===tid);if(!t)return;t.dueBy=t.dueBy||{};if(v)t.dueBy[pid]=v;else delete t.dueBy[pid];save();renderAll();}
 function updTask(tid,pid,v){const t=cur().tasks.find(x=>x.id===tid);if(t){t.st=t.st||{};t.st[pid]=v;if(v==='完了'&&!(t.done&&t.done[pid])){t.done=t.done||{};t.done[pid]=S.baseDate;}save();renderAll();}}
 function updDone(tid,pid,v){const t=cur().tasks.find(x=>x.id===tid);if(t){t.done=t.done||{};t.done[pid]=v;save();renderAll();}}
 function del(arr,id){if(!confirm('削除しますか？'))return;const c=cur();c[arr]=c[arr].filter(x=>x.id!==id);save();renderAll();}
-function addPerson(){cur().people.push({id:uid('p'),name:'新規 内定者',route:'',temp:'中',offerDate:'',acceptDate:'',joinDate:'',lastContact:S.baseDate,memo:''});save();renderAll();show('p-people');}
+function addPerson(){const p=normalizePerson({id:uid('p'),name:'新規 内定者',route:'',temp:'中',offerDate:'',acceptDate:'',joinDate:'',lastContact:S.baseDate,memo:''});cur().people.push(p);S.karteSel=p.id;save();renderAll();show('p-people');}
 function addEvent(){cur().events.push({id:uid('e'),type:'会社イベント',name:'新規イベント',date:S.baseDate,att:{}});save();renderAll();}
-function addTask(){cur().tasks.push({id:uid('t'),name:'新規課題',due:'',st:{},done:{}});save();renderAll();}
+function addTask(){cur().tasks.push({id:uid('t'),name:'新規課題',due:'',dueBy:{},st:{},done:{}});save();renderAll();}
 function seedStdTasks(){const c=cur();const base=new Date(S.baseDate);STD_TASKS.forEach(([nm,d])=>{const due=new Date(base);due.setDate(due.getDate()+d);c.tasks.push({id:uid('t'),name:nm,due:due.toISOString().slice(0,10),st:{},done:{}});});save();renderAll();}
 function setCohort(v){S.cohort=v;save();renderAll();}
 function setBaseDate(v){S.baseDate=v;save();renderAll();}
@@ -638,6 +756,225 @@ function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new File
 function resetAll(){if(!confirm('全データを初期状態に戻します。よろしいですか？'))return;S=freshState();save();initHeader();renderAll();renderLooker();}
 
 function initHeader(){document.getElementById('cohortSel').value=S.cohort;document.getElementById('baseDate').value=S.baseDate;}
+/* ---------- CRM / Karte (引継ぎ) ---------- */
+function normalizePerson(p){
+  if(p.tempStar==null)p.tempStar=(p.temp==='高'?5:p.temp==='中'?3:p.temp==='低'?2:3);
+  p.university=p.university||'';p.faculty=p.faculty||'';p.gradYear=p.gradYear||'';p.owner=p.owner||'';
+  p.setsumeikai=p.setsumeikai||{date:'',impression:''};
+  p.kobetsu=p.kobetsu||{count:0,note:''};
+  p.intern=p.intern||{count:0,eval:''};
+  p.konshinkai=p.konshinkai||{count:0};
+  p.eventHist=p.eventHist||{count:0};
+  p.kanbujuku=p.kanbujuku||{status:''};
+  p.arbeit=p.arbeit||{start:'',hours:0,dept:'',eval:'',genba:0,shain:0,satis:0};
+  p.kadai=p.kadai||[];
+  p.mendan=p.mendan||[];
+  p.parent=p.parent||{father:'',mother:'',concerns:''};
+  p.riskFlags=p.riskFlags||{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false};
+  p.kudoki=p.kudoki||'';p.ng=p.ng||'';
+  p.handoff=p.handoff||{video:'',q1:'',q2:'',q3:'',q4:'',q5:''};
+  return p;
+}
+function normalizeAll(){['28','27'].forEach(c=>{if(S.cohorts[c]&&S.cohorts[c].people)S.cohorts[c].people.forEach(normalizePerson);});}
+
+function evRateTypes(pid,types){let p=0,t=0;cur().events.forEach(e=>{if(types.includes(e.type)){const c=evPersonCounts(e,pid);p+=c.p;t+=c.t;}});return t?(p/t):null;}
+function kadaiRate(p){if(p.kadai&&p.kadai.length){let s=0;p.kadai.forEach(k=>{s+=k.submit==='○'?1:k.submit==='△'?0.5:0;});return s/p.kadai.length;}return taskRate(p.id);}
+function mendanRate(p){const target=3;const n=(p.mendan?p.mendan.length:0);return Math.min(1,n/target);}
+function engagement(p){
+  const comps=[['研修参加率',evRateTypes(p.id,['研修'])],['イベント参加率',evRateTypes(p.id,['会社イベント','勉強会'])],['アルバイト参加率',evRateTypes(p.id,['アルバイト'])],['課題提出率',kadaiRate(p)],['面談実施率',mendanRate(p)]];
+  let active=0,sum=0;const detail=[];
+  comps.forEach(([lab,r])=>{if(r!=null){active++;sum+=r;detail.push([lab,Math.round(r*100)]);}else detail.push([lab,null]);});
+  const score=active?Math.round(sum/active*100):0;
+  const lv=score>=80?'安心':score>=60?'注意':'幹部面談';
+  return{score,lv,detail,active};
+}
+function joinProb(p){
+  const eng=engagement(p).score;
+  const starAdj={5:35,4:25,3:10,2:-5,1:-20}[p.tempStar||3]||0;
+  let v=35+starAdj+eng*0.25;
+  if(p.acceptDate)v+=10;
+  const rf=p.riskFlags||{};
+  if(rf.otherOffer)v-=25;if(rf.parentNg)v-=15;if(rf.lessContact)v-=8;if(rf.eventAbsent)v-=6;if(rf.noArbeit)v-=5;if(rf.kadaiUn)v-=6;
+  return Math.max(5,Math.min(98,Math.round(v)));
+}
+function successProb(p){
+  let v=45;const a=p.arbeit||{};const e5=x=>x?((x-3)*8):0;
+  v+=e5(a.genba)+e5(a.shain)+e5(a.satis)*0.6;
+  if(p.kadai&&p.kadai.length){const m={A:100,B:70,C:40};let s=0,n=0;p.kadai.forEach(k=>{if(k.evalc&&m[k.evalc]!=null){s+=m[k.evalc];n++;}});if(n)v+=(s/n-70)*0.35;}
+  if(/A|優|高/.test((p.intern&&p.intern.eval)||''))v+=8;
+  if(/参加|済|出席/.test((p.kanbujuku&&p.kanbujuku.status)||''))v+=5;
+  v+=engagement(p).score*0.12;
+  return Math.max(5,Math.min(98,Math.round(v)));
+}
+const TL_STAGES=['説明会','面接','内定','課題','アルバイト','研修','入社式'];
+function timeline(p){
+  const done={};
+  done['説明会']=!!(p.setsumeikai&&p.setsumeikai.date);
+  done['面接']=!!p.offerDate||(p.intern&&p.intern.count>0)||(p.kobetsu&&p.kobetsu.count>0);
+  done['内定']=!!p.offerDate;
+  done['課題']=(p.kadai||[]).some(k=>k.submit==='○');
+  done['アルバイト']=!!(p.arbeit&&(p.arbeit.start||p.arbeit.hours>0))||evRateTypes(p.id,['アルバイト'])>0;
+  done['研修']=evRateTypes(p.id,['研修'])>0||(p.kanbujuku&&/参加|済|出席/.test(p.kanbujuku.status||''));
+  done['入社式']=!!(p.joinDate&&new Date(p.joinDate)<=new Date(S.baseDate));
+  let next=TL_STAGES.find(s=>!done[s]);
+  const actMap={'説明会':'会社説明会への参加を促す','面接':'面接日程を設定する','内定':'内定通知・承諾手続きを進める','課題':'内定者課題を案内し提出を促す','アルバイト':'内定者アルバイトの開始を打診する','研修':'内定者研修への参加を案内する','入社式':'入社式・入社手続きの最終案内を行う'};
+  return{done,next,action:next?actMap[next]:'全工程フォロー済み。入社まで関係維持'};
+}
+
+function ringHtml(val,lab,unit){const c=val>=80?'#1f9d6b':val>=60?'#e0a106':'#d23b3b';const deg=Math.max(0,Math.min(100,val))*3.6;
+  return `<div class="ring" style="background:conic-gradient(${c} ${deg}deg,#eef1f6 ${deg}deg)"><div class="inner"><b style="color:${c}">${val}${unit||''}</b><span>${lab}</span></div></div>`;}
+function stars(pid,n){let h='<span class="stars">';for(let i=1;i<=5;i++)h+=`<i class="${i<=n?'on':''}" onclick="setStar('${pid}',${i})">★</i>`;return h+'</span>';}
+
+function renderKarte(){
+  const ppl=cur().people;const sel=document.getElementById('karteSel');
+  if(!ppl.length){sel.innerHTML='';document.getElementById('karteBody').innerHTML='<p class="muted">内定者がいません。「内定者一覧」から追加してください。</p>';return;}
+  if(!S.karteSel||!ppl.find(p=>p.id===S.karteSel))S.karteSel=ppl[0].id;
+  sel.innerHTML=ppl.map(p=>`<option value="${p.id}" ${p.id===S.karteSel?'selected':''}>${esc(p.name)}（${esc(p.university||'大学未入力')}）</option>`).join('');
+  const p=normalizePerson(ppl.find(x=>x.id===S.karteSel));
+  const eng=engagement(p),jp=joinProb(p),sp=successProb(p),tl=timeline(p);
+  const TEMPLAB={5:'★★★★★ 絶対入社',4:'★★★★☆ ほぼ確定',3:'★★★☆☆ 比較中',2:'★★☆☆☆ 辞退リスク有',1:'★☆☆☆☆ 高リスク'};
+  const engLvCls=eng.score>=80?'ok':eng.score>=60?'warn':'danger';
+  document.getElementById('karteBody').innerHTML=`
+  <div class="card">
+    <div class="row" style="align-items:flex-start;gap:18px">
+      <div style="flex:1;min-width:220px">
+        <div style="font-size:20px;font-weight:800;color:var(--navy)">${esc(p.name)} <span class="muted" style="font-size:13px">${esc(p.gradYear||'')} ${esc(p.owner?'/ 担当 '+p.owner:'')}</span></div>
+        <div class="muted small" style="margin:2px 0 8px">${esc(p.university||'')} ${esc(p.faculty||'')} ／ 入社予定 ${esc(p.joinDate||'未定')}</div>
+        <div class="kfield" style="max-width:280px"><label>現在温度感</label>${stars(p.id,p.tempStar)}<div class="muted small">${TEMPLAB[p.tempStar]||''}</div></div>
+      </div>
+      <div class="gauge">
+        ${ringHtml(eng.score,'エンゲージ','')}
+        ${ringHtml(jp,'入社確率','%')}
+        ${ringHtml(sp,'活躍確率','%')}
+      </div>
+    </div>
+    <div class="engbar">${eng.detail.map(d=>`<div class="c">${d[0]}<b>${d[1]==null?'—':d[1]+'%'}</b></div>`).join('')}</div>
+    <div class="row small" style="margin-top:8px"><span class="pill ${engLvCls}">エンゲージ判定：${eng.lv}${eng.score<60?'（幹部面談実施）':''}</span><span class="muted">※入社確率・活躍確率はAIによる暫定自動判定（温度感・参加・課題・評価・辞退リスクから算出）</span></div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">★</span>理想形タイムライン（説明会→入社式）</h4>
+    <div class="tl">${TL_STAGES.map(s=>{const dn=tl.done[s],nw=(s===tl.next);return `<div class="st ${dn?'done':nw?'now':''}"><span class="ic">${dn?'✓':nw?'▶':'…'}</span>${s}</div>`;}).join('')}</div>
+    <div class="nextact"><b>次にやること：</b>${esc(tl.action)}</div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">①</span>基本情報</h4>
+    <div class="kgrid">
+      ${kf(p.id,'name','氏名',p.name)}${kf(p.id,'university','大学',p.university)}${kf(p.id,'faculty','学部',p.faculty)}
+      ${kf(p.id,'gradYear','卒業予定',p.gradYear)}${kf(p.id,'joinDate','入社予定日',p.joinDate,'date')}${kf(p.id,'owner','担当者',p.owner)}
+    </div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">③</span>参加履歴</h4>
+    <div class="kgrid">
+      ${kf(p.id,'setsumeikai.date','会社説明会 参加日',p.setsumeikai.date,'date')}${kf(p.id,'setsumeikai.impression','説明会 感想',p.setsumeikai.impression)}
+      ${kf(p.id,'kobetsu.count','個別面談 回数',p.kobetsu.count,'number')}${kf(p.id,'kobetsu.note','個別面談 内容',p.kobetsu.note)}
+      ${kf(p.id,'intern.count','インターン 回数',p.intern.count,'number')}${kf(p.id,'intern.eval','インターン 評価',p.intern.eval)}
+      ${kf(p.id,'konshinkai.count','懇親会 回数',p.konshinkai.count,'number')}${kf(p.id,'eventHist.count','社内イベント 回数',p.eventHist.count,'number')}
+      ${kf(p.id,'kanbujuku.status','幹部塾 参加状況',p.kanbujuku.status)}
+    </div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">④</span>アルバイト履歴</h4>
+    <div class="kgrid">
+      ${kf(p.id,'arbeit.start','開始日',p.arbeit.start,'date')}${kf(p.id,'arbeit.hours','累計勤務時間(h)',p.arbeit.hours,'number')}${kf(p.id,'arbeit.dept','部署',p.arbeit.dept)}${kf(p.id,'arbeit.eval','評価メモ',p.arbeit.eval)}
+      ${kfStar(p.id,'arbeit.genba','現場評価(5段階)',p.arbeit.genba)}${kfStar(p.id,'arbeit.shain','社員評価(5段階)',p.arbeit.shain)}${kfStar(p.id,'arbeit.satis','本人満足度(5段階)',p.arbeit.satis)}
+    </div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑤</span>内定者課題</h4>
+    <table><thead><tr><th>項目</th><th style="width:90px">提出</th><th style="width:90px">評価</th><th style="width:60px"></th></tr></thead><tbody>
+    ${p.kadai.map((k,i)=>`<tr>
+      <td><input class="in" value="${esc(k.item)}" onchange="kadaiUpd('${p.id}',${i},'item',this.value)"></td>
+      <td><select class="in" onchange="kadaiUpd('${p.id}',${i},'submit',this.value)">${opt(['○','△','×'],k.submit)}</select></td>
+      <td><select class="in" onchange="kadaiUpd('${p.id}',${i},'evalc',this.value)">${opt(['','A','B','C'],k.evalc)}</select></td>
+      <td><button class="btn ghost sm" onclick="kadaiDel('${p.id}',${i})">削除</button></td></tr>`).join('')}
+    </tbody></table>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="kadaiAdd('${p.id}')">＋ 課題を追加</button>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑥</span>面談履歴</h4>
+    <table><thead><tr><th style="width:130px">日時</th><th style="width:120px">担当者</th><th>内容</th><th style="width:60px"></th></tr></thead><tbody>
+    ${p.mendan.map((m,i)=>`<tr>
+      <td><input class="in" type="date" value="${m.date||''}" onchange="mendanUpd('${p.id}',${i},'date',this.value)"></td>
+      <td><input class="in" value="${esc(m.owner||'')}" onchange="mendanUpd('${p.id}',${i},'owner',this.value)"></td>
+      <td><input class="in" value="${esc(m.note||'')}" onchange="mendanUpd('${p.id}',${i},'note',this.value)"></td>
+      <td><button class="btn ghost sm" onclick="mendanDel('${p.id}',${i})">削除</button></td></tr>`).join('')}
+    </tbody></table>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="mendanAdd('${p.id}')">＋ 面談を追加</button>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑦</span>保護者情報</h4>
+    <div class="kgrid">
+      ${kfSel(p.id,'parent.father','父',p.parent.father,['','賛成','中立','やや不安','反対'])}
+      ${kfSel(p.id,'parent.mother','母',p.parent.mother,['','賛成','中立','やや不安','反対'])}
+      ${kf(p.id,'parent.concerns','懸念事項（通勤/給与/将来性 等）',p.parent.concerns)}
+    </div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑧</span>辞退リスク チェック</h4>
+    <div class="chkwrap">
+      ${rfChk(p.id,'otherOffer','他社内定',p.riskFlags.otherOffer)}
+      ${rfChk(p.id,'lessContact','連絡頻度減少',p.riskFlags.lessContact)}
+      ${rfChk(p.id,'eventAbsent','イベント欠席',p.riskFlags.eventAbsent)}
+      ${rfChk(p.id,'noArbeit','アルバイト参加なし',p.riskFlags.noArbeit)}
+      ${rfChk(p.id,'kadaiUn','課題未提出',p.riskFlags.kadaiUn)}
+      ${rfChk(p.id,'parentNg','保護者反対',p.riskFlags.parentNg)}
+    </div>
+  </div>
+
+  <div class="subgrid">
+    <div class="k-sec"><h4><span class="no">⑨</span>口説きポイント</h4>
+      <textarea class="in" onchange="kset('${p.id}','kudoki',this.value)" placeholder="例：若手責任者になりたい / 営業で稼ぎたい">${esc(p.kudoki)}</textarea></div>
+    <div class="k-sec"><h4><span class="no">⑩</span>NGポイント</h4>
+      <textarea class="in" onchange="kset('${p.id}','ng',this.value)" placeholder="例：厳しい上下関係苦手 / 転勤NG / 残業不安">${esc(p.ng)}</textarea></div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⇄</span>引継ぎ（担当変更時の必須事項）</h4>
+    <div class="note" style="margin-bottom:10px">担当変更時は<b>5分動画</b>を必須化。下のURL欄に格納し、5つの観点を埋めてください。「引継ぎカードをコピー」でサマリーを書き出せます。</div>
+    <div class="kfield" style="margin-bottom:8px"><label>引継ぎ動画 URL（5分）</label><input class="in" value="${esc(p.handoff.video)}" placeholder="https://… （Google Drive / YouTube限定公開 等）" onchange="kset('${p.id}','handoff.video',this.value)"></div>
+    <div class="kgrid">
+      ${kfArea(p.id,'handoff.q1','① どんな学生か',p.handoff.q1)}
+      ${kfArea(p.id,'handoff.q2','② 何に悩んでいるか',p.handoff.q2)}
+      ${kfArea(p.id,'handoff.q3','③ 辞退リスク',p.handoff.q3)}
+      ${kfArea(p.id,'handoff.q4','④ 入社決定要因',p.handoff.q4)}
+      ${kfArea(p.id,'handoff.q5','⑤ 次に誰がフォローするか',p.handoff.q5)}
+    </div>
+    <div class="handoff-card" id="handoffCard">${esc(handoffText(p))}</div>
+  </div>`;
+}
+function kf(pid,path,lab,val,type){return `<div class="kfield"><label>${lab}</label><input class="in" type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="${type==='number'?'ksetNum':'kset'}('${pid}','${path}',this.value)"></div>`;}
+function kfArea(pid,path,lab,val){return `<div class="kfield"><label>${lab}</label><textarea class="in" style="min-height:48px" onchange="kset('${pid}','${path}',this.value)">${esc(val||'')}</textarea></div>`;}
+function kfSel(pid,path,lab,val,opts){return `<div class="kfield"><label>${lab}</label><select class="in" onchange="kset('${pid}','${path}',this.value)">${opt(opts,val)}</select></div>`;}
+function kfStar(pid,path,lab,val){let h=`<div class="kfield"><label>${lab}</label><select class="in" onchange="ksetNum('${pid}','${path}',this.value)">`;h+=`<option value="0" ${!val?'selected':''}>—</option>`;for(let i=1;i<=5;i++)h+=`<option value="${i}" ${val==i?'selected':''}>${'★'.repeat(i)}（${i}）</option>`;return h+'</select></div>';}
+function rfChk(pid,key,lab,on){return `<label class="chk ${on?'on':''}"><input type="checkbox" ${on?'checked':''} onchange="ksetBool('${pid}','riskFlags.${key}',this.checked)">${lab}</label>`;}
+function handoffText(p){
+  const eng=engagement(p),jp=joinProb(p),sp=successProb(p);
+  const rf=p.riskFlags||{};const risks=[];
+  if(rf.otherOffer)risks.push('他社内定');if(rf.lessContact)risks.push('連絡減少');if(rf.eventAbsent)risks.push('イベント欠席');if(rf.noArbeit)risks.push('アルバイト不参加');if(rf.kadaiUn)risks.push('課題未提出');if(rf.parentNg)risks.push('保護者反対');
+  return `【内定者 引継ぎカード】${p.name}（${p.university||''} ${p.faculty||''} / ${p.gradYear||''}）
+担当：${p.owner||'未設定'} ／ 温度感：${'★'.repeat(p.tempStar||0)}
+エンゲージ ${eng.score}点（${eng.lv}） ／ 入社確率 ${jp}% ／ 活躍確率 ${sp}%
+① どんな学生か：${p.handoff.q1||'—'}
+② 悩み：${p.handoff.q2||'—'}
+③ 辞退リスク：${p.handoff.q3||'—'}${risks.length?'（チェック：'+risks.join('・')+'）':''}
+④ 入社決定要因：${p.handoff.q4||'—'}
+⑤ 次の担当：${p.handoff.q5||'—'}
+口説き：${p.kudoki||'—'} ／ NG：${p.ng||'—'}
+動画：${p.handoff.video||'（未登録）'}`;
+}
+function setKarte(id){S.karteSel=id;save();renderKarte();}
+function setStar(pid,n){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.tempStar=n;p.temp=n>=4?'高':n===3?'中':'低';save();renderKarte();renderPeople();renderDash();}
+function kset(pid,path,val){const p=cur().people.find(x=>x.id===pid);if(!p)return;const a=path.split('.');let o=p;for(let i=0;i<a.length-1;i++){o[a[i]]=o[a[i]]||{};o=o[a[i]];}o[a[a.length-1]]=val;save();renderKarte();renderDash();renderPeople();}
+function ksetNum(pid,path,val){kset(pid,path,val===''?0:(+val));}
+function ksetBool(pid,path,val){kset(pid,path,val);}
+function kadaiAdd(pid){const p=cur().people.find(x=>x.id===pid);p.kadai.push({item:'新規課題',submit:'×',evalc:''});save();renderKarte();}
+function kadaiUpd(pid,i,f,v){const p=cur().people.find(x=>x.id===pid);p.kadai[i][f]=v;save();renderKarte();renderDash();}
+function kadaiDel(pid,i){const p=cur().people.find(x=>x.id===pid);p.kadai.splice(i,1);save();renderKarte();}
+function mendanAdd(pid){const p=cur().people.find(x=>x.id===pid);p.mendan.push({date:S.baseDate,owner:'',note:''});save();renderKarte();}
+function mendanUpd(pid,i,f,v){const p=cur().people.find(x=>x.id===pid);p.mendan[i][f]=v;save();renderKarte();renderDash();}
+function mendanDel(pid,i){const p=cur().people.find(x=>x.id===pid);p.mendan.splice(i,1);save();renderKarte();}
+function copyHandoff(){const p=cur().people.find(x=>x.id===S.karteSel);if(!p){return;}const t=handoffText(p);navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('引継ぎカードをコピーしました。Chatwork等に貼り付けできます。'),()=>{});}
+
 boot();
 </script>
 </body>
