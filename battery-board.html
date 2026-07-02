@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蓄電池用地 営業ボード｜関東</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --ink:#1E2B27;
+  --ink-sub:#5C6B66;
+  --paper:#F3F5F2;
+  --card:#FFFFFF;
+  --line:#DDE4DF;
+  --pine:#14463A;      /* ヘッダー・基調 */
+  --pine-deep:#0D332A;
+  --volt:#F0B429;      /* 充電アンバー（アクセント） */
+  --volt-soft:#FBEED0;
+  --st-none:#9AA5A1;
+  --st-intro:#3B82C4;
+  --st-nego:#E8A93C;
+  --st-apply:#E2703A;
+  --st-won:#2F9E63;
+  --st-lost:#5B5B66;
+  --radius:10px;
+  font-size:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.55;
+}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:.92rem}
+
+/* ===== ヘッダー ===== */
+header{
+  background:linear-gradient(135deg,var(--pine-deep),var(--pine) 70%);
+  color:#F4F7F3;padding:14px 20px 0;position:sticky;top:0;z-index:1100;
+  box-shadow:0 2px 10px rgba(13,51,42,.25);
+}
+.hd-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hd-title{display:flex;align-items:center;gap:10px}
+.hd-batt{width:34px;height:18px;border:2px solid var(--volt);border-radius:4px;position:relative;display:inline-block}
+.hd-batt::after{content:"";position:absolute;right:-6px;top:4px;width:4px;height:6px;background:var(--volt);border-radius:0 2px 2px 0}
+.hd-batt i{position:absolute;left:2px;top:2px;bottom:2px;width:70%;background:var(--volt);border-radius:2px;animation:charge 3s ease-in-out infinite}
+@keyframes charge{0%,100%{width:35%}50%{width:88%}}
+@media (prefers-reduced-motion:reduce){.hd-batt i{animation:none;width:70%}}
+h1{font-size:1.15rem;font-weight:700;letter-spacing:.03em}
+.hd-sub{font-size:.75rem;opacity:.75;letter-spacing:.05em}
+.hd-spacer{flex:1}
+.mode-toggle{
+  display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 14px;
+  color:#fff;font-size:.85rem;font-weight:600;transition:.2s;
+}
+.mode-toggle.on{background:var(--volt);color:var(--pine-deep);border-color:var(--volt)}
+.tabs{display:flex;gap:4px;margin-top:12px}
+.tab{
+  background:transparent;border:none;color:rgba(255,255,255,.65);
+  padding:9px 18px;font-size:.92rem;font-weight:600;border-radius:8px 8px 0 0;
+}
+.tab.act{background:var(--paper);color:var(--pine)}
+.cust-banner{
+  display:none;background:var(--volt);color:var(--pine-deep);text-align:center;
+  font-size:.8rem;font-weight:700;padding:5px;letter-spacing:.08em;
+}
+body.customer .cust-banner{display:block}
+body.customer .internal{display:none !important}
+
+/* ===== フィルタ ===== */
+.filters{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line);
+}
+.filters select,.filters input[type=text]{
+  padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:120px;
+}
+.filters input[type=text]{min-width:180px}
+.f-count{margin-left:auto;font-size:.85rem;color:var(--ink-sub);font-weight:600}
+
+/* ===== ビュー ===== */
+main{padding:0}
+.view{display:none}
+.view.act{display:block}
+
+/* --- 地図 --- */
+#mapWrap{position:relative}
+#map{height:calc(100vh - 205px);min-height:440px}
+.map-tools{
+  position:absolute;top:12px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:8px;align-items:flex-end;
+}
+.map-btn{
+  background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+  font-size:.82rem;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.15);color:var(--ink);
+}
+.map-btn.on{background:var(--pine);color:#fff;border-color:var(--pine)}
+.geo-status{
+  position:absolute;bottom:14px;left:12px;z-index:1000;background:rgba(255,255,255,.95);
+  border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:.8rem;box-shadow:0 1px 4px rgba(0,0,0,.12);
+}
+.legend{
+  position:absolute;bottom:14px;right:12px;z-index:1000;background:rgba(255,255,255,.95);
+  border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:.78rem;box-shadow:0 1px 4px rgba(0,0,0,.12);
+}
+.legend div{display:flex;align-items:center;gap:6px;margin:2px 0}
+.dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.leaflet-popup-content{font-size:.85rem;min-width:230px}
+.pp-name{font-weight:700;font-size:.92rem;margin-bottom:4px;color:var(--pine)}
+.pp-row{display:flex;justify-content:space-between;gap:10px;padding:2px 0;border-bottom:1px dashed var(--line)}
+.pp-row b{font-weight:600;color:var(--ink-sub);white-space:nowrap}
+.pp-links{margin-top:8px;display:flex;gap:8px}
+.pp-links a{color:var(--pine);font-weight:600}
+.approx{font-size:.72rem;color:#B0722A;margin-top:6px}
+
+/* --- 一覧 --- */
+#listWrap{padding:16px 20px;overflow-x:auto}
+.list-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tool-btn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:.82rem;font-weight:600}
+.tool-btn:hover{border-color:var(--pine);color:var(--pine)}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 4px rgba(20,70,58,.07)}
+th{background:var(--pine);color:#fff;font-size:.78rem;font-weight:600;padding:9px 10px;text-align:left;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:.84rem;vertical-align:top}
+tr:hover td{background:#F6FAF7}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.site-name{font-weight:700;color:var(--pine);cursor:pointer}
+.site-name:hover{text-decoration:underline}
+.addr{color:var(--ink-sub);font-size:.78rem}
+.phase{font-size:.74rem;background:#EDF3EF;border-radius:6px;padding:2px 7px;white-space:nowrap;display:inline-block;margin:1px 0}
+td select{padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-weight:600}
+td input[type=text]{padding:4px 6px;border:1px solid var(--line);border-radius:6px;width:110px}
+td .memo{width:170px}
+
+/* 電池ゲージ（商談ステータス表示） */
+.gauge{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.batt{width:30px;height:14px;border:1.5px solid var(--ink-sub);border-radius:3px;position:relative;display:inline-flex;gap:1px;padding:1.5px}
+.batt::after{content:"";position:absolute;right:-4px;top:3.5px;width:3px;height:5px;background:var(--ink-sub);border-radius:0 1px 1px 0}
+.batt s{flex:1;border-radius:1px;background:#E3E8E4;text-decoration:none}
+.st-tag{font-size:.76rem;font-weight:700}
+
+/* --- ダッシュボード --- */
+#dashWrap{padding:20px;max-width:1080px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:0 1px 4px rgba(20,70,58,.07);border-top:3px solid var(--pine)}
+.kpi .lbl{font-size:.75rem;color:var(--ink-sub);font-weight:600;letter-spacing:.04em}
+.kpi .val{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .unit{font-size:.8rem;color:var(--ink-sub);font-weight:600}
+.panel{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:0 1px 4px rgba(20,70,58,.07);margin-bottom:14px}
+.panel h3{font-size:.95rem;color:var(--pine);margin-bottom:10px;border-left:4px solid var(--volt);padding-left:8px}
+.bar-row{display:grid;grid-template-columns:90px 1fr 90px;gap:10px;align-items:center;margin:6px 0;font-size:.84rem}
+.bar-bg{background:#EDF1EE;border-radius:6px;height:16px;overflow:hidden}
+.bar{height:100%;border-radius:6px}
+.bar-val{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-sub)}
+
+footer{padding:14px 20px 30px;font-size:.75rem;color:var(--ink-sub);text-align:center}
+
+/* ===== シミュレーション提案シート ===== */
+#simOverlay{
+  display:none;position:fixed;inset:0;z-index:2000;background:rgba(20,35,30,.55);
+  overflow:auto;padding:24px 10px;
+}
+#simOverlay.open{display:block}
+.sim-tools{max-width:210mm;margin:0 auto 10px;display:flex;gap:8px;justify-content:flex-end}
+.sim-btn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 16px;font-weight:700;font-size:.85rem}
+.sim-btn.pri{background:var(--volt);border-color:var(--volt);color:var(--pine-deep)}
+.sheet{
+  background:#fff;width:210mm;min-height:297mm;margin:0 auto;padding:13mm 14mm;
+  box-shadow:0 4px 24px rgba(0,0,0,.35);color:var(--ink);font-size:9.5pt;
+}
+.sh-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--pine);padding-bottom:6px}
+.sh-head .t1{font-size:8pt;letter-spacing:.2em;color:var(--pine);font-weight:700}
+.sh-head h2{font-size:15pt;color:var(--pine);letter-spacing:.02em}
+.sh-head .brand{text-align:right;font-size:8pt;color:var(--ink-sub);line-height:1.4}
+.sh-head .brand b{color:var(--pine);font-size:10pt;letter-spacing:.1em}
+.sh-prop{display:flex;gap:14px;flex-wrap:wrap;background:#F2F6F3;border-radius:6px;padding:7px 12px;margin:8px 0;font-size:9pt}
+.sh-prop b{color:var(--ink-sub);font-weight:600;margin-right:5px}
+.sh-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.sh-kpi{border:1px solid var(--line);border-top:3px solid var(--pine);border-radius:6px;padding:7px 9px}
+.sh-kpi.gold{border-top-color:var(--volt)}
+.sh-kpi .l{font-size:7.5pt;color:var(--ink-sub);font-weight:700}
+.sh-kpi .v{font-size:13.5pt;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
+.sh-kpi .u{font-size:8pt;color:var(--ink-sub);font-weight:600}
+.sh-sec{font-size:10pt;color:var(--pine);font-weight:700;border-left:4px solid var(--volt);padding-left:7px;margin:10px 0 5px}
+.sh-assump{font-size:8pt;color:var(--ink-sub);line-height:1.6;background:#FBFCFB;border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+#simChart{width:100%;height:auto;display:block;margin:2px 0}
+table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
+.sh-tbl th{background:var(--pine);color:#fff;padding:3.5pt 5pt;font-weight:600;text-align:right;white-space:nowrap}
+.sh-tbl th:first-child{text-align:left}
+.sh-tbl td{padding:3pt 5pt;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sh-tbl td:first-child{text-align:left;font-weight:600}
+.sh-tbl tr.total td{background:var(--volt-soft);font-weight:700;border-top:2px solid var(--volt)}
+.sh-tbl td.neg{color:#B4432E}
+.sh-tbl td.pos{color:#1E7A4C}
+.sh-note{font-size:7pt;color:var(--ink-sub);margin-top:8px;line-height:1.6;border-top:1px solid var(--line);padding-top:5px}
+
+@media print{
+  @page{size:A4;margin:0}
+  body *{visibility:hidden}
+  #simOverlay,#simOverlay *{visibility:visible}
+  #simOverlay{position:absolute;inset:0;background:#fff;padding:0;overflow:visible}
+  .sim-tools{display:none}
+  .sheet{box-shadow:none;width:auto;min-height:auto;margin:0}
+}
+@media(max-width:820px){.sheet{width:100%;min-height:auto;padding:16px}.sh-kpis{grid-template-columns:repeat(2,1fr)}}
+
+@media(max-width:700px){
+  #map{height:calc(100vh - 250px)}
+  .filters select{min-width:100px}
+  td .memo{width:120px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-top">
+    <div class="hd-title">
+      <span class="hd-batt"><i></i></span>
+      <div>
+        <h1>蓄電池用地 営業ボード｜関東</h1>
+        <div class="hd-sub">EARTHCOM ｜ 低圧蓄電池用地 パイプライン管理・物件マップ</div>
+      </div>
+    </div>
+    <div class="hd-spacer"></div>
+    <button class="mode-toggle" id="custToggle" onclick="toggleCustomer()">
+      <span id="custIcon">🔒</span><span id="custLabel">社内モード</span>
+    </button>
+  </div>
+  <nav class="tabs">
+    <button class="tab act" data-v="map" onclick="switchView('map')">🗾 地図</button>
+    <button class="tab" data-v="list" onclick="switchView('list')">📋 一覧</button>
+    <button class="tab internal" data-v="dash" onclick="switchView('dash')">📊 ダッシュボード</button>
+  </nav>
+</header>
+<div class="cust-banner">お客様提示モード ─ 社内情報（担当・仕入価格・粗利・商談メモ）は非表示です</div>
+
+<div class="filters">
+  <select id="fPref" onchange="render()"><option value="">都道府県：すべて</option></select>
+  <select id="fOwner" class="internal" onchange="render()"><option value="">担当：すべて</option></select>
+  <select id="fLand" onchange="render()"><option value="">土地フェーズ：すべて</option></select>
+  <select id="fStatus" class="internal" onchange="render()"><option value="">商談：すべて</option></select>
+  <input type="text" id="fKw" placeholder="物件名・所在地で検索" oninput="render()">
+  <span class="f-count" id="fCount"></span>
+</div>
+
+<main>
+  <section class="view act" id="v-map">
+    <div id="mapWrap">
+      <div id="map"></div>
+      <div class="map-tools">
+        <button class="map-btn" id="tileBtn" onclick="toggleTile()">🛰 航空写真</button>
+        <button class="map-btn internal" id="fixBtn" onclick="toggleFix()">📍 位置修正モード</button>
+        <button class="map-btn" onclick="fitAll()">⤢ 全体表示</button>
+      </div>
+      <div class="geo-status" id="geoStatus">位置情報を取得中…</div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-list">
+    <div id="listWrap">
+      <div class="list-tools internal">
+        <button class="tool-btn" onclick="exportCSV()">⬇ CSV書き出し</button>
+        <button class="tool-btn" onclick="exportJSON()">💾 商談データ書き出し</button>
+        <button class="tool-btn" onclick="document.getElementById('impFile').click()">📂 商談データ読み込み</button>
+        <input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(event)">
+      </div>
+      <table id="tbl"></table>
+    </div>
+  </section>
+
+  <section class="view" id="v-dash">
+    <div id="dashWrap"></div>
+  </section>
+</main>
+
+<footer>
+  ピン位置は所在地から自動取得した概算です。正確な位置は各物件の「Googleマップ」リンク、または位置修正モードで調整してください。<br>
+  商談ステータス・メモ・ピン修正はこの端末（ブラウザ）に保存されます。共有する場合は「商談データ書き出し」をご利用ください。
+</footer>
+
+<div id="simOverlay" onclick="if(event.target===this)closeSim()">
+  <div class="sim-tools">
+    <button class="sim-btn pri" onclick="window.print()">🖨 印刷 / PDF保存</button>
+    <button class="sim-btn" onclick="closeSim()">✕ 閉じる</button>
+  </div>
+  <div class="sheet" id="simSheet"></div>
+</div>
+
+<script>
+/* ================= データ ================= */
+const SITES = [{"id":6,"owner":"奥田 正博","name":"4393【那須塩原】栃木大輪地原A","address":"栃木県那須塩原市青木字大輪地原1352番4","mapUrl":"https://maps.app.goo.gl/8w2aEMfVtZeFrHy1A","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1380000.0,"fee":330000.0,"pq":28620000.0,"mq":9261000.0,"pref":"栃木県"},{"id":7,"owner":"奥田 正博","name":"買付4398【那須塩原】栃木行田B","address":"栃木県那須塩原市埼玉字行田318-32","mapUrl":"https://maps.app.goo.gl/jwdZ554DfFWEvmgy9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":9441000.0,"pref":"栃木県"},{"id":8,"owner":"奥田 正博","name":"4401【日光】栃木薄井沢A","address":"栃木県日光市薄井沢２９３−９３","mapUrl":"https://maps.app.goo.gl/UCusxDeK3YQECaNV7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":600000.0,"fee":0.0,"pq":29400000.0,"mq":10371000.0,"pref":"栃木県"},{"id":9,"owner":"奥田 正博","name":"4423【日光】栃木猪倉A","address":"栃木県日光市猪倉3507-29","mapUrl":"https://maps.app.goo.gl/4q5yHCc8YmBkRFQM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":10,"owner":"奥田 正博","name":"買付4411【日光】栃木大室A","address":"栃木県日光市大室1913-161","mapUrl":"https://maps.app.goo.gl/FrdEVhY7ULd2KjxA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":11,"owner":"奥田 正博","name":"買付4415【日光】栃木入東原A","address":"栃木県日光市板橋字東原3184番14、3184番23","mapUrl":"https://maps.app.goo.gl/8jS9kzW8afUzJ55cA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"栃木県"},{"id":12,"owner":"奥田 正博","name":"買付4421【塩原】栃木関谷B","address":"栃木県那須塩原市関谷2022番地12","mapUrl":"https://maps.app.goo.gl/cwa5zCyN7kxHSSvo8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2500000.0,"fee":330000.0,"pq":27500000.0,"mq":8141000.0,"pref":"栃木県"},{"id":13,"owner":"奥田 正博","name":"【蓄電池】4426【日光】栃木名野山下A","address":"栃木県日光市大室字名野山下1831番106","mapUrl":"https://maps.app.goo.gl/c8QCbTkcSSFSf2Fu5","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":14,"owner":"奥田 正博","name":"見込み5/17買付4431【日光】栃木越原A","address":"栃木県日光市小佐越字越原7-161","mapUrl":"https://maps.app.goo.gl/LdErTVwSGqrzaYwR9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":15,"owner":"奥田 正博","name":"【分筆あり】4467（常陸大宮）茨城原C","address":"茨城県常陸大宮市鷹巣字原1430-1","mapUrl":"https://maps.app.goo.gl/JcedKwRzjiBwEKkw8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":0.0,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":16,"owner":"奥田 正博","name":"4437【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番39,1051番40","mapUrl":"https://maps.app.goo.gl/KwNDS1a487KQnmpt9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":17,"owner":"奥田 正博","name":"4436【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番36","mapUrl":"https://maps.app.goo.gl/7nq7xwQU1AeSEngT9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"栃木県"},{"id":18,"owner":"奥田 正博","name":"4438【日光】栃木十石坂A","address":"栃木県日光市室瀬字十石坂509番19","mapUrl":"https://maps.app.goo.gl/wrJ11ByYF8k1eicf8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":900000.0,"fee":330000.0,"pq":29100000.0,"mq":9741000.0,"pref":"栃木県"},{"id":19,"owner":"奥田 正博","name":"4442(石岡)茨城新谷A","address":"茨城県石岡市山崎字新谷3091番27","mapUrl":"https://maps.app.goo.gl/tRsVqN9dN2j3CzEFA","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":20,"owner":"奥田 正博","name":"4443(石岡)茨城新谷B","address":"茨城県石岡市山崎字新谷 3091番36","mapUrl":"https://maps.app.goo.gl/eDyaPUyJLzragqP1A","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":21,"owner":"奥田 正博","name":"4444(石岡)茨城新谷C","address":"茨城県石岡市山崎字新谷3091番35","mapUrl":"https://maps.app.goo.gl/gvn3bRu2xaUpi7Ga6","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":22,"owner":"奥田 正博","name":"買付4446(行方)茨城浜A","address":"茨城県行方市浜2620","mapUrl":"https://maps.app.goo.gl/kBez4oLRbeCzbWNc6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":23,"owner":"奥田 正博","name":"4449(日光)栃木中ノ平A","address":"栃木県日光市柄倉字中ノ平731-24","mapUrl":"https://maps.app.goo.gl/j3wjJvjth7MjvdfFA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":24,"owner":"奥田 正博","name":"買付4447(稲敷)茨城蒲ケ山A","address":"茨城県稲敷市蒲ケ山字原山22-23","mapUrl":"https://maps.app.goo.gl/7oCpsWJcQ3GY6MUA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":25,"owner":"奥田 正博","name":"4451(日光)栃木板橋A","address":"栃木県日光市板橋字西原3293-1,字森下1901-4","mapUrl":"https://maps.app.goo.gl/1HCZ1nR1ZvKXtkoK9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":26,"owner":"奥田 正博","name":"4471（常陸大宮）茨城原D","address":"茨城県常陸大宮市鷹巣字原1444-1","mapUrl":"https://maps.app.goo.gl/R3P9pXgHBjeBeDETA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":100000.0,"pq":29000000.0,"mq":9871000.0,"pref":"茨城県"},{"id":27,"owner":"奥田 正博","name":"買付4473（日光）栃木名野山下B","address":"栃木県日光市大室字名野山下1831-20,1831-114","mapUrl":"https://maps.app.goo.gl/jNi6yf1MvmYX2Ent6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":28,"owner":"奥田 正博","name":"買付4472（日光）栃木大沢町B","address":"栃木県日光市大沢町1291-29,1291-30","mapUrl":"https://maps.app.goo.gl/BEqCR8BXKhNqKH6h6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":29,"owner":"奥田 正博","name":"見込み買付4501（稲敷）茨城犬塚A","address":"茨城県稲敷市犬塚562-23,570-2,574-9","mapUrl":"https://maps.app.goo.gl/124tg2sXZzttDyLM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1800000.0,"fee":330000.0,"pq":28200000.0,"mq":8037000.0,"pref":"茨城県"},{"id":30,"owner":"奥田 正博","name":"買付4499（日立）茨城入四間町A","address":"茨城県日立市入四間町863-40","mapUrl":"https://maps.app.goo.gl/b9fVXxdEZLWahNh98","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"茨城県"},{"id":31,"owner":"奥田 正博","name":"見込み買付【蓄電池】4506(かすみがうら)茨城香取A","address":"〒300-0202　茨城県かすみがうら市田伏字香取4136-36","mapUrl":"https://maps.app.goo.gl/4nT3VV3TRpgHDqQ49","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"茨城県"},{"id":32,"owner":"奥田 正博","name":"買付4498（水戸）茨城堀町A","address":"茨城県水戸市堀町291-1","mapUrl":"https://maps.app.goo.gl/v79LpQkkLsFshjp77","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2300000.0,"fee":330000.0,"pq":27700000.0,"mq":8341000.0,"pref":"茨城県"},{"id":33,"owner":"奥田 正博","name":"買付4497（ひたちなか）茨城金久A","address":"茨城県ひたちなか市大字足崎字金久1225-1","mapUrl":"https://maps.app.goo.gl/dLc2vcPzoCtDvKEY8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"茨城県"},{"id":34,"owner":"奥田 正博","name":"買付【蓄電池】4516(日光)栃木後山A","address":"〒321-2342 栃木県日光市根室字後山669-32","mapUrl":"https://maps.app.goo.gl/orxMewZpSnHyhtpLA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"栃木県"},{"id":35,"owner":"奥田 正博","name":"4517(日光)栃木久保A","address":"〒321-1102　栃木県日光市板橋字久保989-12","mapUrl":"https://maps.app.goo.gl/TcougmV9SZ1r9X459","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":8637000.0,"pref":"栃木県"},{"id":36,"owner":"奥田 正博","name":"買付【蓄電池】4507(水戸)茨城新田A","address":"〒310-0903　茨城県水戸市堀町字新田1811-15","mapUrl":"https://maps.app.goo.gl/ZDF9zVX8mGpm59Po6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":8337000.0,"pref":"茨城県"},{"id":37,"owner":"奥田 正博","name":"買付【蓄電池】4508(筑西)茨城開A","address":"〒308-0846　茨城県筑西市布川字開1015-26","mapUrl":"https://maps.app.goo.gl/pKjoVc3HEWtAy8QB7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":7837000.0,"pref":"茨城県"},{"id":38,"owner":"奥田 正博","name":"買付4549（稲敷）茨城長峰C","address":"茨城県稲敷市柴崎字長峰6835-7","mapUrl":"https://maps.app.goo.gl/btYwrKBhXHq1s8oJA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2800000.0,"fee":200000.0,"pq":27200000.0,"mq":7971000.0,"pref":"茨城県"},{"id":39,"owner":"奥田 正博","name":"買付4551（桐生）群馬赤城山E","address":"群馬県桐生市新里町赤城山616-37","mapUrl":"https://maps.app.goo.gl/ZrdfdyJTeUkRYS7H7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1020000.0,"fee":330000.0,"pq":28980000.0,"mq":8817000.0,"pref":"群馬県"},{"id":40,"owner":"奥田 正博","name":"買付4553（桐生）群馬赤城山F","address":"群馬県桐生市新里町赤城山字鳥居坂617-56,617-59","mapUrl":"https://maps.app.goo.gl/giBXtR4ytnYS6sCMA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1530000.0,"fee":330000.0,"pq":28470000.0,"mq":8307000.0,"pref":"群馬県"},{"id":43,"owner":"佐藤 壮馬","name":"4464【高萩】茨城高萩A","address":"茨城県高萩市大字高萩８８－１","mapUrl":"https://maps.app.goo.gl/QNybo6pAN8YhHnBe9","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"},{"id":44,"owner":"佐藤 壮馬","name":"4457(稲敷)茨城西の台B","address":"茨城県稲敷市下根本字西の台2001","mapUrl":"https://maps.app.goo.gl/ysB6ZNTRDUGSTBhz6","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"茨城県"},{"id":45,"owner":"佐藤 壮馬","name":"4475（高萩）茨城道上A","address":"茨城県高萩市高萩字道上943-2","mapUrl":"https://maps.app.goo.gl/xFFQy3SCQtH4cwMW7","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"}];
+
+const STATUSES = [
+  {k:"未着手", c:"var(--st-none)",  lv:0},
+  {k:"紹介中", c:"var(--st-intro)", lv:1},
+  {k:"商談中", c:"var(--st-nego)",  lv:2},
+  {k:"申込",   c:"var(--st-apply)", lv:3},
+  {k:"成約",   c:"var(--st-won)",   lv:4},
+  {k:"見送り", c:"var(--st-lost)",  lv:-1},
+];
+const stColor = k => (STATUSES.find(s=>s.k===k)||STATUSES[0]).c;
+const stLv    = k => (STATUSES.find(s=>s.k===k)||STATUSES[0]).lv;
+
+/* ローカル保存 */
+const LS_SALES="battery_sales_v1", LS_GEO="battery_geo_v1", LS_FIX="battery_geofix_v1";
+let sales = JSON.parse(localStorage.getItem(LS_SALES)||"{}");
+let geoCache = JSON.parse(localStorage.getItem(LS_GEO)||"{}");
+let geoFix = JSON.parse(localStorage.getItem(LS_FIX)||"{}");
+const saveSales=()=>localStorage.setItem(LS_SALES,JSON.stringify(sales));
+const getS=id=> sales[id]||{status:"未着手",customer:"",memo:""};
+const setS=(id,patch)=>{sales[id]={...getS(id),...patch,updated:new Date().toISOString().slice(0,10)};saveSales();};
+
+/* お客様向け表示名（社内接頭語を除去） */
+const custName = n => n.replace(/^(見込み\d+\/\d+買付|見込み買付|見込み|買付|【蓄電池】|【分筆あり】)+/g,"").trim();
+const yen = v => v==null?"─":"¥"+Math.round(v).toLocaleString();
+const man = v => v==null?"─":(v/10000).toLocaleString(undefined,{maximumFractionDigits:1})+"万円";
+
+/* ================= 投資シミュレーション（東京プラン：低圧系統蓄電池 PCS49.5kW） ================= */
+const SIM={
+  plan:"東京プラン ／ 低圧系統蓄電池（PCS 49.5kW）",
+  years:[2027,2028,2029,2030,2031,2032,2033,2034,2035,2036,2037,2038,2039,2040,2041],
+  spot:[0,0,235681,325582,345118,367576,304469,324857,270686,347466,329395,296643,308579,262980,241075],
+  ichiji:[11804885,11835184,7661069,6308928,6308890,6326881,6308586,6309331,6307828,6326004,6308386,6307908,6308055,6324905,6307180],
+  cap:[0,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000],
+  sales:[11804885,12075184,8136750,6874510,6894008,6934457,6853055,6874188,6818514,6913470,6877781,6844551,6856634,6827885,6788255],
+  cost:[2824907.584,2857591.153,2538405.789,2460041.341,2475906.747,2490153.594,2445263.299,2467582.311,2429769.213,2468529.235,2465799.004,2440038.182,2435484.203,2419849.461,2392007.016],
+  net:[8979977.416,9217592.847,5598344.211,4414468.659,4418101.253,4444303.406,4407791.701,4406605.689,4388744.787,4444940.765,4411981.996,4404512.818,4421149.797,4408035.539,4396247.984],
+  assump:"市場参加：一次調整力市場＋スポット市場＋容量市場 ／ 一次調整力 単価前提：2027-2028年 13.5円/ΔkW・30分、2029年以降 7.21円/ΔkW・30分 ／ 運用期間：2027〜2041年（15年間）"
+};
+function simCalc(inv){
+  const cum=[]; let c=-inv, be=null;
+  SIM.net.forEach((n,i)=>{c+=n;cum.push(c);if(be===null&&c>=0)be=i;});
+  const npv=r=>SIM.net.reduce((a,n,i)=>a+n/Math.pow(1+r,i+1),-inv);
+  let lo=-0.9,hi=3;
+  for(let i=0;i<200;i++){const m=(lo+hi)/2;(npv(m)>0)?lo=m:hi=m;}
+  const totalNet=SIM.net.reduce((a,b)=>a+b,0);
+  return {cum,be,irr:(lo+hi)/2,totalNet,finalCF:totalNet-inv,
+    totalSales:SIM.sales.reduce((a,b)=>a+b,0),totalCost:SIM.cost.reduce((a,b)=>a+b,0)};
+}
+function simChartSVG(inv,cum){
+  const W=740,H=190,padL=58,padR=8,padT=14,padB=24;
+  const vals=[-inv,...cum];
+  const min=Math.min(...vals),max=Math.max(...vals),span=max-min||1;
+  const x=i=>padL+(W-padL-padR)*i/(vals.length-1);
+  const y=v=>padT+(H-padT-padB)*(1-(v-min)/span);
+  const zero=y(0);
+  let bars="",pts="";
+  cum.forEach((v,i)=>{
+    const xi=x(i+1),yi=y(v);
+    const h=Math.abs(yi-zero)||1;
+    bars+=`<rect x="${xi-9}" y="${Math.min(yi,zero)}" width="18" height="${h}" rx="2" fill="${v>=0?"#2F9E63":"#C9CFCB"}"/>`;
+    pts+=`${xi},${yi} `;
+    if(i%2===0||i===cum.length-1)bars+=`<text x="${xi}" y="${H-6}" font-size="8.5" text-anchor="middle" fill="#5C6B66">${SIM.years[i]}</text>`;
+  });
+  const yl=[max,0,min].map(v=>`<text x="${padL-6}" y="${y(v)+3}" font-size="8.5" text-anchor="end" fill="#5C6B66">${(v/1e4).toLocaleString(undefined,{maximumFractionDigits:0})}万</text>`).join("");
+  return `<svg id="simChart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${padL}" y1="${zero}" x2="${W-padR}" y2="${zero}" stroke="#1E2B27" stroke-width="1"/>
+    ${bars}
+    <polyline points="${pts}" fill="none" stroke="#14463A" stroke-width="2"/>
+    ${yl}</svg>`;
+}
+function openSim(id){
+  const s=SITES.find(x=>x.id===id); if(!s)return;
+  const inv=s.pq||30000000;
+  const r=simCalc(inv);
+  const today=new Date();
+  const dt=`${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const rows=SIM.years.map((yr,i)=>`
+    <tr><td>${yr}年（${i+1}年目）</td>
+      <td>${Math.round(SIM.sales[i]).toLocaleString()}</td>
+      <td>${Math.round(SIM.cost[i]).toLocaleString()}</td>
+      <td>${Math.round(SIM.net[i]).toLocaleString()}</td>
+      <td class="${r.cum[i]>=0?"pos":"neg"}">${Math.round(r.cum[i]).toLocaleString()}</td></tr>`).join("");
+  document.getElementById("simSheet").innerHTML=`
+    <div class="sh-head">
+      <div>
+        <div class="t1">BATTERY STORAGE INVESTMENT SIMULATION</div>
+        <h2>低圧系統蓄電池 投資シミュレーション</h2>
+      </div>
+      <div class="brand"><b>EARTHCOM</b><br>株式会社アースコム<br>作成日：${dt}</div>
+    </div>
+    <div class="sh-prop">
+      <span><b>物件</b>${custName(s.name)}</span>
+      <span><b>所在地</b>${s.address}</span>
+      <span><b>プラン</b>${SIM.plan}</span>
+    </div>
+    <div class="sh-kpis">
+      <div class="sh-kpi"><div class="l">初期投資（販売価格・税別想定）</div><div class="v">${(inv/1e4).toLocaleString()}<span class="u">万円</span></div></div>
+      <div class="sh-kpi"><div class="l">年間収益（1年目）</div><div class="v">${(SIM.sales[0]/1e4).toLocaleString(undefined,{maximumFractionDigits:0})}<span class="u">万円</span></div></div>
+      <div class="sh-kpi gold"><div class="l">15年累計CF（投資後・税前）</div><div class="v">${(r.finalCF/1e4).toLocaleString(undefined,{maximumFractionDigits:0})}<span class="u">万円</span></div></div>
+      <div class="sh-kpi gold"><div class="l">表面IRR（税前）／ 黒字化</div><div class="v">${(r.irr*100).toFixed(1)}<span class="u">%　${r.be!==null?`${r.be+1}年目（${SIM.years[r.be]}年）`:"─"}</span></div></div>
+    </div>
+    <div class="sh-sec">累積キャッシュフロー推移（税前・投資後）</div>
+    ${simChartSVG(inv,r.cum)}
+    <div class="sh-sec">年次収支シミュレーション（円・税前）</div>
+    <table class="sh-tbl">
+      <tr><th>年</th><th>売上計</th><th>運転費用計</th><th>純CF（単年度）</th><th>累積CF（投資後）</th></tr>
+      ${rows}
+      <tr class="total"><td>15年合計</td>
+        <td>${Math.round(r.totalSales).toLocaleString()}</td>
+        <td>${Math.round(r.totalCost).toLocaleString()}</td>
+        <td>${Math.round(r.totalNet).toLocaleString()}</td>
+        <td>${Math.round(r.finalCF).toLocaleString()}</td></tr>
+    </table>
+    <div class="sh-assump" style="margin-top:6px">${SIM.assump}<br>売上内訳（15年計）：一次調整力市場 ${Math.round(SIM.ichiji.reduce((a,b)=>a+b,0)/1e4).toLocaleString()}万円 ／ スポット市場 ${Math.round(SIM.spot.reduce((a,b)=>a+b,0)/1e4).toLocaleString()}万円 ／ 容量市場 ${Math.round(SIM.cap.reduce((a,b)=>a+b,0)/1e4).toLocaleString()}万円</div>
+    <div class="sh-note">※本シミュレーションはTensor Energyアグリゲーションデータおよび需給調整市場単価前提に基づく試算値であり、収益を保証するものではありません。実際の収益は市場動向・稼働状況により変動します。※金額は税別想定・税引前です。土地取得費・登記費用・租税公課等は含みません。詳細は担当者までお問い合わせください。<br>株式会社アースコム　〒343-0816 埼玉県越谷市</div>`;
+  document.getElementById("simOverlay").classList.add("open");
+  document.body.style.overflow="hidden";
+}
+function closeSim(){
+  document.getElementById("simOverlay").classList.remove("open");
+  document.body.style.overflow="";
+}
+
+/* ================= モード / ビュー ================= */
+let customer=false, curView="map";
+function toggleCustomer(){
+  customer=!customer;
+  document.body.classList.toggle("customer",customer);
+  document.getElementById("custToggle").classList.toggle("on",customer);
+  document.getElementById("custLabel").textContent = customer?"お客様提示モード":"社内モード";
+  document.getElementById("custIcon").textContent = customer?"👥":"🔒";
+  if(customer && curView==="dash") switchView("map");
+  render();
+}
+function switchView(v){
+  curView=v;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("act",t.dataset.v===v));
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("act",s.id==="v-"+v));
+  if(v==="map") setTimeout(()=>map.invalidateSize(),60);
+  render();
+}
+
+/* ================= フィルタ ================= */
+function initFilters(){
+  const opt=(el,vals)=>vals.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;el.appendChild(o)});
+  opt(document.getElementById("fPref"),[...new Set(SITES.map(s=>s.pref))]);
+  opt(document.getElementById("fOwner"),[...new Set(SITES.map(s=>s.owner))]);
+  opt(document.getElementById("fLand"),[...new Set(SITES.map(s=>s.landPhase))]);
+  opt(document.getElementById("fStatus"),STATUSES.map(s=>s.k));
+}
+function filtered(){
+  const p=fPref.value,o=fOwner.value,l=fLand.value,st=fStatus.value,kw=fKw.value.trim();
+  return SITES.filter(s=>{
+    const d=getS(s.id);
+    if(p&&s.pref!==p)return false;
+    if(!customer&&o&&s.owner!==o)return false;
+    if(l&&s.landPhase!==l)return false;
+    if(!customer&&st&&d.status!==st)return false;
+    if(customer&&d.status==="見送り")return false;
+    if(kw&&!(s.name+s.address).includes(kw))return false;
+    return true;
+  });
+}
+
+/* ================= 地図 ================= */
+const tileStd = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{attribution:"地理院タイル",maxZoom:18});
+const tilePhoto = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",{attribution:"地理院タイル（写真）",maxZoom:18});
+const map = L.map("map",{layers:[tileStd]}).setView([36.6,139.9],8);
+let photoOn=false, fixOn=false;
+const markers={};
+
+function toggleTile(){
+  photoOn=!photoOn;
+  if(photoOn){map.removeLayer(tileStd);tilePhoto.addTo(map);}
+  else{map.removeLayer(tilePhoto);tileStd.addTo(map);}
+  document.getElementById("tileBtn").classList.toggle("on",photoOn);
+  document.getElementById("tileBtn").textContent = photoOn?"🗾 標準地図":"🛰 航空写真";
+}
+function toggleFix(){
+  fixOn=!fixOn;
+  document.getElementById("fixBtn").classList.toggle("on",fixOn);
+  Object.values(markers).forEach(m=>{ fixOn?m.dragging.enable():m.dragging.disable(); });
+}
+function coordOf(s){
+  if(geoFix[s.id]) return geoFix[s.id];
+  return geoCache[s.address]||null;
+}
+function popupHtml(s){
+  const d=getS(s.id), fixed=!!geoFix[s.id];
+  if(customer){
+    return `<div class="pp-name">${custName(s.name)}</div>
+      <div class="pp-row"><b>所在地</b><span>${s.address}</span></div>
+      <div class="pp-row"><b>販売価格</b><span>${man(s.pq)}</span></div>
+      <div class="pp-row"><b>状況</b><span>${d.status==="成約"?"ご成約済み":(d.status==="申込"?"お申込あり":"販売中")}</span></div>
+      <div class="pp-links"><a href="#" onclick="openSim(${s.id});return false;">📊 投資シミュレーション</a><a href="${s.mapUrl}" target="_blank">Googleマップ</a></div>
+      ${fixed?"":"<div class='approx'>※ピンは住所からの概算位置です</div>"}`;
+  }
+  return `<div class="pp-name">${s.name}</div>
+    <div class="pp-row"><b>所在地</b><span>${s.address}</span></div>
+    <div class="pp-row"><b>担当</b><span>${s.owner}</span></div>
+    <div class="pp-row"><b>土地</b><span>${s.landPhase}</span></div>
+    <div class="pp-row"><b>電力</b><span>${s.powerPhase}</span></div>
+    <div class="pp-row"><b>土地価格</b><span>${man(s.landPrice)}</span></div>
+    <div class="pp-row"><b>PQ</b><span>${man(s.pq)}</span></div>
+    <div class="pp-row"><b>MQ</b><span>${man(s.mq)}</span></div>
+    <div class="pp-row"><b>商談</b><span style="color:${stColor(d.status)};font-weight:700">${d.status}${d.customer?"／"+d.customer:""}</span></div>
+    ${d.memo?`<div class="pp-row"><b>メモ</b><span>${d.memo}</span></div>`:""}
+    <div class="pp-links"><a href="#" onclick="openSim(${s.id});return false;">📊 シミュレーション</a><a href="${s.mapUrl}" target="_blank">Googleマップ</a><a href="#" onclick="switchView('list');return false;">一覧で編集</a></div>
+    ${fixed?"<div class='approx' style='color:#2F9E63'>✔ 手動修正済みの位置</div>":"<div class='approx'>※概算位置（位置修正モードでドラッグ可）</div>"}`;
+}
+function markerColor(s){
+  if(!customer) return stColor(getS(s.id).status);
+  const st=getS(s.id).status;
+  return st==="成約"?"#8A938F":(st==="申込"?"var(--st-apply)":"#14463A");
+}
+function drawMarkers(){
+  const list=filtered();
+  const ids=new Set(list.map(s=>s.id));
+  Object.entries(markers).forEach(([id,m])=>{ if(!ids.has(+id)){map.removeLayer(m);delete markers[id];} });
+  list.forEach(s=>{
+    const c=coordOf(s); if(!c) return;
+    const col=markerColor(s);
+    if(markers[s.id]){
+      markers[s.id].setLatLng([c.lat,c.lng]);
+      markers[s.id].setIcon(pinIcon(cssColor(col)));
+      return;
+    }
+    const mk=L.marker([c.lat,c.lng],{draggable:false,icon:pinIcon(cssColor(col))}).addTo(map);
+    mk.bindPopup(()=>popupHtml(s));
+    mk.on("dragend",e=>{
+      const ll=e.target.getLatLng();
+      geoFix[s.id]={lat:ll.lat,lng:ll.lng};
+      localStorage.setItem(LS_FIX,JSON.stringify(geoFix));
+      mk.setPopupContent(popupHtml(s));
+    });
+    if(fixOn) mk.dragging.enable();
+    markers[s.id]=mk;
+  });
+  updateGeoStatus();
+}
+function cssColor(v){
+  if(!v.startsWith("var(")) return v;
+  return getComputedStyle(document.documentElement).getPropertyValue(v.slice(4,-1)).trim();
+}
+function pinIcon(color){
+  return L.divIcon({className:"",iconSize:[22,30],iconAnchor:[11,29],popupAnchor:[0,-26],
+    html:`<svg width="22" height="30" viewBox="0 0 22 30"><path d="M11 0C4.9 0 0 4.9 0 11c0 8 11 19 11 19s11-11 11-19C22 4.9 17.1 0 11 0z" fill="${color}" stroke="#fff" stroke-width="1.5"/><circle cx="11" cy="11" r="4" fill="#fff"/></svg>`});
+}
+function refreshMarkerColors(){
+  Object.entries(markers).forEach(([id,m])=>{
+    const s=SITES.find(x=>x.id===+id); if(!s)return;
+    m.setIcon(pinIcon(cssColor(markerColor(s))));
+  });
+}
+function fitAll(){
+  const pts=filtered().map(s=>coordOf(s)).filter(Boolean).map(c=>[c.lat,c.lng]);
+  if(pts.length) map.fitBounds(pts,{padding:[40,40]});
+}
+function drawLegend(){
+  const el=document.getElementById("legend");
+  if(customer){
+    el.innerHTML=`<div><span class="dot" style="background:#14463A"></span>販売中</div>
+      <div><span class="dot" style="background:${cssColor("var(--st-apply)")}"></span>お申込あり</div>
+      <div><span class="dot" style="background:#8A938F"></span>ご成約済み</div>`;
+  }else{
+    el.innerHTML=STATUSES.map(s=>`<div><span class="dot" style="background:${cssColor(s.c)}"></span>${s.k}</div>`).join("");
+  }
+}
+
+/* ================= ジオコーディング（国土地理院API） ================= */
+function cleanAddr(a){
+  return a.replace(/〒\d{3}-?\d{4}\s*/,"").replace(/\s+/g,"").split(/[、,]/)[0];
+}
+async function gsiSearch(q){
+  const r=await fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(q));
+  const j=await r.json();
+  if(j&&j.length){const[lng,lat]=j[0].geometry.coordinates;return{lat,lng};}
+  return null;
+}
+async function geocodeAll(){
+  const targets=SITES.filter(s=>!geoCache[s.address]&&!geoFix[s.id]);
+  let done=SITES.length-targets.length;
+  for(const s of targets){
+    const base=cleanAddr(s.address);
+    const cands=[base,
+      base.replace(/[0-9０-９\-−ー番地の]+$/,""),
+      base.replace(/字.*$/,"")];
+    let hit=null;
+    for(const q of cands){ if(!q)continue;
+      try{hit=await gsiSearch(q);}catch(e){}
+      if(hit)break;
+      await new Promise(r=>setTimeout(r,120));
+    }
+    if(hit){
+      // 同一地点の重なり回避に微小オフセット
+      const n=Object.values(geoCache).filter(c=>Math.abs(c.lat-hit.lat)<1e-4&&Math.abs(c.lng-hit.lng)<1e-4).length;
+      if(n>0){hit={lat:hit.lat+0.0007*n,lng:hit.lng+0.0007*n};}
+      geoCache[s.address]=hit;
+      localStorage.setItem(LS_GEO,JSON.stringify(geoCache));
+    }
+    done++;
+    document.getElementById("geoStatus").textContent=`位置情報を取得中… ${done}/${SITES.length}`;
+    drawMarkers();
+  }
+  updateGeoStatus(true);
+  fitAll();
+}
+function updateGeoStatus(final){
+  const ok=SITES.filter(s=>coordOf(s)).length;
+  const el=document.getElementById("geoStatus");
+  if(final||ok===SITES.length){
+    el.textContent=`表示中の物件：${filtered().filter(s=>coordOf(s)).length}件（位置取得 ${ok}/${SITES.length}）`;
+  }
+}
+
+/* ================= 一覧 ================= */
+function battHtml(status){
+  const lv=stLv(status), col=cssColor(stColor(status));
+  if(lv<0) return `<span class="gauge"><span class="batt"><s style="background:${col};flex:4"></s></span><span class="st-tag" style="color:${col}">見送り</span></span>`;
+  let segs="";
+  for(let i=0;i<4;i++) segs+=`<s style="${i<lv?`background:${col}`:""}"></s>`;
+  return `<span class="gauge"><span class="batt">${segs}</span><span class="st-tag" style="color:${col}">${status}</span></span>`;
+}
+function drawTable(){
+  const list=filtered();
+  const t=document.getElementById("tbl");
+  if(customer){
+    t.innerHTML=`<tr><th>No.</th><th>物件名</th><th>所在地</th><th>販売価格</th><th>状況</th><th>詳細</th></tr>`+
+      list.map((s,i)=>{
+        const d=getS(s.id);
+        const st=d.status==="成約"?"ご成約済み":(d.status==="申込"?"お申込あり":"販売中");
+        return `<tr><td>${i+1}</td>
+          <td><span class="site-name" onclick="focusSite(${s.id})">${custName(s.name)}</span></td>
+          <td class="addr">${s.address}</td>
+          <td class="num">${man(s.pq)}</td>
+          <td>${st}</td>
+          <td style="white-space:nowrap"><a href="#" onclick="openSim(${s.id});return false;">📊 シミュレーション</a>　<a href="${s.mapUrl}" target="_blank">Googleマップ</a></td></tr>`;
+      }).join("");
+    return;
+  }
+  t.innerHTML=`<tr><th>物件名／所在地</th><th>担当</th><th>フェーズ</th><th>土地価格</th><th>PQ</th><th>MQ</th><th>商談ステータス</th><th>顧客名</th><th>メモ</th><th></th></tr>`+
+    list.map(s=>{
+      const d=getS(s.id);
+      return `<tr>
+        <td><span class="site-name" onclick="focusSite(${s.id})">${s.name}</span><br><span class="addr">${s.address}</span></td>
+        <td>${s.owner.split(" ")[0]}</td>
+        <td><span class="phase">${s.landPhase}</span><br><span class="phase">${s.powerPhase}</span></td>
+        <td class="num">${man(s.landPrice)}</td>
+        <td class="num">${man(s.pq)}</td>
+        <td class="num">${man(s.mq)}</td>
+        <td>${battHtml(d.status)}<br>
+          <select onchange="setS(${s.id},{status:this.value});render()">
+            ${STATUSES.map(x=>`<option ${x.k===d.status?"selected":""}>${x.k}</option>`).join("")}
+          </select></td>
+        <td><input type="text" value="${(d.customer||"").replace(/"/g,"&quot;")}" placeholder="顧客名" onchange="setS(${s.id},{customer:this.value})"></td>
+        <td><input type="text" class="memo" value="${(d.memo||"").replace(/"/g,"&quot;")}" placeholder="次アクション等" onchange="setS(${s.id},{memo:this.value})"></td>
+        <td style="white-space:nowrap"><a href="#" onclick="openSim(${s.id});return false;">📊 シミュ</a><br><a href="${s.mapUrl}" target="_blank">G地図</a></td>
+      </tr>`;
+    }).join("");
+}
+function focusSite(id){
+  const s=SITES.find(x=>x.id===id), c=s&&coordOf(s);
+  switchView("map");
+  if(c){map.setView([c.lat,c.lng],15);markers[id]&&markers[id].openPopup();}
+}
+
+/* ================= ダッシュボード ================= */
+function drawDash(){
+  const list=filtered();
+  const sum=k=>list.reduce((a,s)=>a+(s[k]||0),0);
+  const byStatus={}; STATUSES.forEach(x=>byStatus[x.k]=0);
+  list.forEach(s=>byStatus[getS(s.id).status]++);
+  const byPref={}; list.forEach(s=>{byPref[s.pref]=byPref[s.pref]||{n:0,pq:0};byPref[s.pref].n++;byPref[s.pref].pq+=s.pq||0;});
+  const active=list.filter(s=>!["成約","見送り"].includes(getS(s.id).status));
+  const won=list.filter(s=>getS(s.id).status==="成約");
+  const el=document.getElementById("dashWrap");
+  el.innerHTML=`
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">対象物件数</div><div class="val">${list.length}<span class="unit"> 件</span></div></div>
+    <div class="kpi"><div class="lbl">PQ 合計</div><div class="val">${(sum("pq")/1e8).toFixed(2)}<span class="unit"> 億円</span></div></div>
+    <div class="kpi"><div class="lbl">MQ 合計</div><div class="val">${(sum("mq")/1e8).toFixed(2)}<span class="unit"> 億円</span></div></div>
+    <div class="kpi" style="border-top-color:var(--st-won)"><div class="lbl">成約</div><div class="val">${won.length}<span class="unit"> 件 ／ MQ ${(won.reduce((a,s)=>a+(s.mq||0),0)/1e8).toFixed(2)}億円</span></div></div>
+    <div class="kpi" style="border-top-color:var(--volt)"><div class="lbl">販売中（未成約・見送り除く）</div><div class="val">${active.length}<span class="unit"> 件</span></div></div>
+  </div>
+  <div class="panel"><h3>商談ステータス内訳</h3>
+    ${STATUSES.map(x=>{
+      const n=byStatus[x.k], pct=list.length?n/list.length*100:0;
+      return `<div class="bar-row"><span>${x.k}</span><div class="bar-bg"><div class="bar" style="width:${pct}%;background:${cssColor(x.c)}"></div></div><span class="bar-val">${n}件</span></div>`;
+    }).join("")}
+  </div>
+  <div class="panel"><h3>都道府県別</h3>
+    ${Object.entries(byPref).map(([p,v])=>{
+      const pct=list.length?v.n/list.length*100:0;
+      return `<div class="bar-row"><span>${p}</span><div class="bar-bg"><div class="bar" style="width:${pct}%;background:var(--pine)"></div></div><span class="bar-val">${v.n}件／PQ ${(v.pq/1e8).toFixed(2)}億</span></div>`;
+    }).join("")}
+  </div>
+  <div class="panel"><h3>担当別</h3>
+    ${[...new Set(list.map(s=>s.owner))].map(o=>{
+      const g=list.filter(s=>s.owner===o), pct=g.length/list.length*100;
+      return `<div class="bar-row"><span>${o.split(" ")[0]}</span><div class="bar-bg"><div class="bar" style="width:${pct}%;background:var(--volt)"></div></div><span class="bar-val">${g.length}件／MQ ${(g.reduce((a,s)=>a+(s.mq||0),0)/1e8).toFixed(2)}億</span></div>`;
+    }).join("")}
+  </div>`;
+}
+
+/* ================= 書き出し・読み込み ================= */
+function dl(name,content,type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();
+}
+function exportCSV(){
+  const rows=[["物件名","所在地","都道府県","担当","土地フェーズ","電力フェーズ","土地価格","紹介手数料","PQ","MQ","商談ステータス","顧客名","メモ","地図URL"]];
+  filtered().forEach(s=>{const d=getS(s.id);
+    rows.push([s.name,s.address,s.pref,s.owner,s.landPhase,s.powerPhase,s.landPrice||"",s.fee||"",s.pq||"",s.mq||"",d.status,d.customer||"",d.memo||"",s.mapUrl]);});
+  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  dl("蓄電池用地_営業一覧_"+new Date().toISOString().slice(0,10)+".csv",csv,"text/csv");
+}
+function exportJSON(){
+  dl("蓄電池用地_商談データ_"+new Date().toISOString().slice(0,10)+".json",
+     JSON.stringify({sales,geoFix},null,1),"application/json");
+}
+function importJSON(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const j=JSON.parse(r.result);
+    if(j.sales){sales={...sales,...j.sales};saveSales();}
+    if(j.geoFix){geoFix={...geoFix,...j.geoFix};localStorage.setItem(LS_FIX,JSON.stringify(geoFix));}
+    render();alert("商談データを読み込みました。");
+  }catch(e){alert("読み込みに失敗しました："+e.message);}};
+  r.readAsText(f);
+}
+
+/* ================= 描画 ================= */
+function render(){
+  document.getElementById("fCount").textContent=`${filtered().length} / ${SITES.length} 件`;
+  drawLegend();
+  drawMarkers();
+  refreshMarkerColors();
+  if(curView==="list")drawTable();
+  if(curView==="dash")drawDash();
+}
+initFilters();
+render();
+geocodeAll();
+</script>
+</body>
+</html>
