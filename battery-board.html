@@ -6,6 +6,8 @@
 <title>蓄電池用地 営業ボード｜関東</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --ink:#1E2B27;
@@ -204,6 +206,25 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
 }
 @media(max-width:820px){.sheet{width:100%;min-height:auto;padding:16px}.sh-kpis{grid-template-columns:repeat(2,1fr)}}
 
+/* ===== ログイン ===== */
+#loginOverlay{
+  position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--pine-deep),var(--pine));
+}
+.login-card{background:#fff;border-radius:14px;padding:30px 32px;width:min(92vw,380px);box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.login-card h2{color:var(--pine);font-size:1.1rem;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.login-card p{font-size:.78rem;color:var(--ink-sub);margin-bottom:16px}
+.login-card label{display:block;font-size:.78rem;font-weight:700;color:var(--ink-sub);margin:10px 0 4px}
+.login-card input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:.95rem}
+.login-card button{
+  width:100%;margin-top:18px;padding:11px;border:none;border-radius:8px;
+  background:var(--volt);color:var(--pine-deep);font-weight:700;font-size:.95rem;
+}
+.login-err{color:#B4432E;font-size:.8rem;margin-top:10px;display:none}
+.sync-badge{font-size:.72rem;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);white-space:nowrap}
+.sync-badge.ok{background:rgba(47,158,99,.35)}
+.sync-badge.err{background:rgba(180,67,46,.5)}
+
 @media(max-width:700px){
   #map{height:calc(100vh - 250px)}
   .filters select{min-width:100px}
@@ -223,6 +244,7 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
       </div>
     </div>
     <div class="hd-spacer"></div>
+    <span class="sync-badge internal" id="syncBadge">☁ 接続中…</span>
     <button class="mode-toggle" id="custToggle" onclick="toggleCustomer()">
       <span id="custIcon">🔒</span><span id="custLabel">社内モード</span>
     </button>
@@ -261,9 +283,13 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
   <section class="view" id="v-list">
     <div id="listWrap">
       <div class="list-tools internal">
+        <button class="tool-btn" onclick="cloudLoad()">↻ 最新を取得</button>
         <button class="tool-btn" onclick="exportCSV()">⬇ CSV書き出し</button>
+        <button class="tool-btn" onclick="migrateLocal()">☁ このPCの入力をクラウドへ送信</button>
+        <button class="tool-btn" onclick="document.getElementById('impXlsx').click()">📊 物件Excel読み込み</button>
         <button class="tool-btn" onclick="exportJSON()">💾 商談データ書き出し</button>
-        <button class="tool-btn" onclick="document.getElementById('impFile').click()">📂 商談データ読み込み</button>
+        <button class="tool-btn" onclick="document.getElementById('impFile').click()">📂 商談データ読み込み（JSON）</button>
+        <input type="file" id="impXlsx" accept=".xlsx,.xls,.xlsm" style="display:none" onchange="importExcel(event)">
         <input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(event)">
       </div>
       <table id="tbl"></table>
@@ -280,6 +306,21 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
   商談ステータス・メモ・ピン修正はこの端末（ブラウザ）に保存されます。共有する場合は「商談データ書き出し」をご利用ください。
 </footer>
 
+<div id="loginOverlay" style="display:none">
+  <div class="login-card">
+    <h2><span class="hd-batt" style="border-color:var(--pine)"><i style="background:var(--pine);animation:none;width:70%"></i></span>蓄電池用地 営業ボード</h2>
+    <p>社内共有アカウントでログインしてください。商談ステータス・ピン位置は全員に共有されます。</p>
+    <label>メールアドレス</label>
+    <input type="email" id="lgEmail" value="hankyo@earthcom-eco.jp" autocomplete="username">
+    <label>パスワード</label>
+    <input type="password" id="lgPass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <label>お名前（更新者の記録用・任意）</label>
+    <input type="text" id="lgName" placeholder="例）奥田">
+    <button onclick="doLogin()">ログイン</button>
+    <div class="login-err" id="lgErr"></div>
+  </div>
+</div>
+
 <div id="simOverlay" onclick="if(event.target===this)closeSim()">
   <div class="sim-tools">
     <button class="sim-btn pri" onclick="window.print()">🖨 印刷 / PDF保存</button>
@@ -290,7 +331,9 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
 
 <script>
 /* ================= データ ================= */
-const SITES = [{"id":6,"owner":"奥田 正博","name":"4393【那須塩原】栃木大輪地原A","address":"栃木県那須塩原市青木字大輪地原1352番4","mapUrl":"https://maps.app.goo.gl/8w2aEMfVtZeFrHy1A","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1380000.0,"fee":330000.0,"pq":28620000.0,"mq":9261000.0,"pref":"栃木県"},{"id":7,"owner":"奥田 正博","name":"買付4398【那須塩原】栃木行田B","address":"栃木県那須塩原市埼玉字行田318-32","mapUrl":"https://maps.app.goo.gl/jwdZ554DfFWEvmgy9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":9441000.0,"pref":"栃木県"},{"id":8,"owner":"奥田 正博","name":"4401【日光】栃木薄井沢A","address":"栃木県日光市薄井沢２９３−９３","mapUrl":"https://maps.app.goo.gl/UCusxDeK3YQECaNV7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":600000.0,"fee":0.0,"pq":29400000.0,"mq":10371000.0,"pref":"栃木県"},{"id":9,"owner":"奥田 正博","name":"4423【日光】栃木猪倉A","address":"栃木県日光市猪倉3507-29","mapUrl":"https://maps.app.goo.gl/4q5yHCc8YmBkRFQM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":10,"owner":"奥田 正博","name":"買付4411【日光】栃木大室A","address":"栃木県日光市大室1913-161","mapUrl":"https://maps.app.goo.gl/FrdEVhY7ULd2KjxA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":11,"owner":"奥田 正博","name":"買付4415【日光】栃木入東原A","address":"栃木県日光市板橋字東原3184番14、3184番23","mapUrl":"https://maps.app.goo.gl/8jS9kzW8afUzJ55cA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"栃木県"},{"id":12,"owner":"奥田 正博","name":"買付4421【塩原】栃木関谷B","address":"栃木県那須塩原市関谷2022番地12","mapUrl":"https://maps.app.goo.gl/cwa5zCyN7kxHSSvo8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2500000.0,"fee":330000.0,"pq":27500000.0,"mq":8141000.0,"pref":"栃木県"},{"id":13,"owner":"奥田 正博","name":"【蓄電池】4426【日光】栃木名野山下A","address":"栃木県日光市大室字名野山下1831番106","mapUrl":"https://maps.app.goo.gl/c8QCbTkcSSFSf2Fu5","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":14,"owner":"奥田 正博","name":"見込み5/17買付4431【日光】栃木越原A","address":"栃木県日光市小佐越字越原7-161","mapUrl":"https://maps.app.goo.gl/LdErTVwSGqrzaYwR9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":15,"owner":"奥田 正博","name":"【分筆あり】4467（常陸大宮）茨城原C","address":"茨城県常陸大宮市鷹巣字原1430-1","mapUrl":"https://maps.app.goo.gl/JcedKwRzjiBwEKkw8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":0.0,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":16,"owner":"奥田 正博","name":"4437【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番39,1051番40","mapUrl":"https://maps.app.goo.gl/KwNDS1a487KQnmpt9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":17,"owner":"奥田 正博","name":"4436【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番36","mapUrl":"https://maps.app.goo.gl/7nq7xwQU1AeSEngT9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"栃木県"},{"id":18,"owner":"奥田 正博","name":"4438【日光】栃木十石坂A","address":"栃木県日光市室瀬字十石坂509番19","mapUrl":"https://maps.app.goo.gl/wrJ11ByYF8k1eicf8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":900000.0,"fee":330000.0,"pq":29100000.0,"mq":9741000.0,"pref":"栃木県"},{"id":19,"owner":"奥田 正博","name":"4442(石岡)茨城新谷A","address":"茨城県石岡市山崎字新谷3091番27","mapUrl":"https://maps.app.goo.gl/tRsVqN9dN2j3CzEFA","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":20,"owner":"奥田 正博","name":"4443(石岡)茨城新谷B","address":"茨城県石岡市山崎字新谷 3091番36","mapUrl":"https://maps.app.goo.gl/eDyaPUyJLzragqP1A","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":21,"owner":"奥田 正博","name":"4444(石岡)茨城新谷C","address":"茨城県石岡市山崎字新谷3091番35","mapUrl":"https://maps.app.goo.gl/gvn3bRu2xaUpi7Ga6","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":22,"owner":"奥田 正博","name":"買付4446(行方)茨城浜A","address":"茨城県行方市浜2620","mapUrl":"https://maps.app.goo.gl/kBez4oLRbeCzbWNc6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":23,"owner":"奥田 正博","name":"4449(日光)栃木中ノ平A","address":"栃木県日光市柄倉字中ノ平731-24","mapUrl":"https://maps.app.goo.gl/j3wjJvjth7MjvdfFA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":24,"owner":"奥田 正博","name":"買付4447(稲敷)茨城蒲ケ山A","address":"茨城県稲敷市蒲ケ山字原山22-23","mapUrl":"https://maps.app.goo.gl/7oCpsWJcQ3GY6MUA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":25,"owner":"奥田 正博","name":"4451(日光)栃木板橋A","address":"栃木県日光市板橋字西原3293-1,字森下1901-4","mapUrl":"https://maps.app.goo.gl/1HCZ1nR1ZvKXtkoK9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":26,"owner":"奥田 正博","name":"4471（常陸大宮）茨城原D","address":"茨城県常陸大宮市鷹巣字原1444-1","mapUrl":"https://maps.app.goo.gl/R3P9pXgHBjeBeDETA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":100000.0,"pq":29000000.0,"mq":9871000.0,"pref":"茨城県"},{"id":27,"owner":"奥田 正博","name":"買付4473（日光）栃木名野山下B","address":"栃木県日光市大室字名野山下1831-20,1831-114","mapUrl":"https://maps.app.goo.gl/jNi6yf1MvmYX2Ent6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":28,"owner":"奥田 正博","name":"買付4472（日光）栃木大沢町B","address":"栃木県日光市大沢町1291-29,1291-30","mapUrl":"https://maps.app.goo.gl/BEqCR8BXKhNqKH6h6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":29,"owner":"奥田 正博","name":"見込み買付4501（稲敷）茨城犬塚A","address":"茨城県稲敷市犬塚562-23,570-2,574-9","mapUrl":"https://maps.app.goo.gl/124tg2sXZzttDyLM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1800000.0,"fee":330000.0,"pq":28200000.0,"mq":8037000.0,"pref":"茨城県"},{"id":30,"owner":"奥田 正博","name":"買付4499（日立）茨城入四間町A","address":"茨城県日立市入四間町863-40","mapUrl":"https://maps.app.goo.gl/b9fVXxdEZLWahNh98","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"茨城県"},{"id":31,"owner":"奥田 正博","name":"見込み買付【蓄電池】4506(かすみがうら)茨城香取A","address":"〒300-0202　茨城県かすみがうら市田伏字香取4136-36","mapUrl":"https://maps.app.goo.gl/4nT3VV3TRpgHDqQ49","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"茨城県"},{"id":32,"owner":"奥田 正博","name":"買付4498（水戸）茨城堀町A","address":"茨城県水戸市堀町291-1","mapUrl":"https://maps.app.goo.gl/v79LpQkkLsFshjp77","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2300000.0,"fee":330000.0,"pq":27700000.0,"mq":8341000.0,"pref":"茨城県"},{"id":33,"owner":"奥田 正博","name":"買付4497（ひたちなか）茨城金久A","address":"茨城県ひたちなか市大字足崎字金久1225-1","mapUrl":"https://maps.app.goo.gl/dLc2vcPzoCtDvKEY8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"茨城県"},{"id":34,"owner":"奥田 正博","name":"買付【蓄電池】4516(日光)栃木後山A","address":"〒321-2342 栃木県日光市根室字後山669-32","mapUrl":"https://maps.app.goo.gl/orxMewZpSnHyhtpLA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"栃木県"},{"id":35,"owner":"奥田 正博","name":"4517(日光)栃木久保A","address":"〒321-1102　栃木県日光市板橋字久保989-12","mapUrl":"https://maps.app.goo.gl/TcougmV9SZ1r9X459","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":8637000.0,"pref":"栃木県"},{"id":36,"owner":"奥田 正博","name":"買付【蓄電池】4507(水戸)茨城新田A","address":"〒310-0903　茨城県水戸市堀町字新田1811-15","mapUrl":"https://maps.app.goo.gl/ZDF9zVX8mGpm59Po6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":8337000.0,"pref":"茨城県"},{"id":37,"owner":"奥田 正博","name":"買付【蓄電池】4508(筑西)茨城開A","address":"〒308-0846　茨城県筑西市布川字開1015-26","mapUrl":"https://maps.app.goo.gl/pKjoVc3HEWtAy8QB7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":7837000.0,"pref":"茨城県"},{"id":38,"owner":"奥田 正博","name":"買付4549（稲敷）茨城長峰C","address":"茨城県稲敷市柴崎字長峰6835-7","mapUrl":"https://maps.app.goo.gl/btYwrKBhXHq1s8oJA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2800000.0,"fee":200000.0,"pq":27200000.0,"mq":7971000.0,"pref":"茨城県"},{"id":39,"owner":"奥田 正博","name":"買付4551（桐生）群馬赤城山E","address":"群馬県桐生市新里町赤城山616-37","mapUrl":"https://maps.app.goo.gl/ZrdfdyJTeUkRYS7H7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1020000.0,"fee":330000.0,"pq":28980000.0,"mq":8817000.0,"pref":"群馬県"},{"id":40,"owner":"奥田 正博","name":"買付4553（桐生）群馬赤城山F","address":"群馬県桐生市新里町赤城山字鳥居坂617-56,617-59","mapUrl":"https://maps.app.goo.gl/giBXtR4ytnYS6sCMA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1530000.0,"fee":330000.0,"pq":28470000.0,"mq":8307000.0,"pref":"群馬県"},{"id":43,"owner":"佐藤 壮馬","name":"4464【高萩】茨城高萩A","address":"茨城県高萩市大字高萩８８－１","mapUrl":"https://maps.app.goo.gl/QNybo6pAN8YhHnBe9","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"},{"id":44,"owner":"佐藤 壮馬","name":"4457(稲敷)茨城西の台B","address":"茨城県稲敷市下根本字西の台2001","mapUrl":"https://maps.app.goo.gl/ysB6ZNTRDUGSTBhz6","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"茨城県"},{"id":45,"owner":"佐藤 壮馬","name":"4475（高萩）茨城道上A","address":"茨城県高萩市高萩字道上943-2","mapUrl":"https://maps.app.goo.gl/xFFQy3SCQtH4cwMW7","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"}];
+const SITES_EMBED = [{"id":6,"owner":"奥田 正博","name":"4393【那須塩原】栃木大輪地原A","address":"栃木県那須塩原市青木字大輪地原1352番4","mapUrl":"https://maps.app.goo.gl/8w2aEMfVtZeFrHy1A","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1380000.0,"fee":330000.0,"pq":28620000.0,"mq":9261000.0,"pref":"栃木県"},{"id":7,"owner":"奥田 正博","name":"買付4398【那須塩原】栃木行田B","address":"栃木県那須塩原市埼玉字行田318-32","mapUrl":"https://maps.app.goo.gl/jwdZ554DfFWEvmgy9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":9441000.0,"pref":"栃木県"},{"id":8,"owner":"奥田 正博","name":"4401【日光】栃木薄井沢A","address":"栃木県日光市薄井沢２９３−９３","mapUrl":"https://maps.app.goo.gl/UCusxDeK3YQECaNV7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":600000.0,"fee":0.0,"pq":29400000.0,"mq":10371000.0,"pref":"栃木県"},{"id":9,"owner":"奥田 正博","name":"4423【日光】栃木猪倉A","address":"栃木県日光市猪倉3507-29","mapUrl":"https://maps.app.goo.gl/4q5yHCc8YmBkRFQM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":10,"owner":"奥田 正博","name":"買付4411【日光】栃木大室A","address":"栃木県日光市大室1913-161","mapUrl":"https://maps.app.goo.gl/FrdEVhY7ULd2KjxA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":330000.0,"pq":29000000.0,"mq":9641000.0,"pref":"栃木県"},{"id":11,"owner":"奥田 正博","name":"買付4415【日光】栃木入東原A","address":"栃木県日光市板橋字東原3184番14、3184番23","mapUrl":"https://maps.app.goo.gl/8jS9kzW8afUzJ55cA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"栃木県"},{"id":12,"owner":"奥田 正博","name":"買付4421【塩原】栃木関谷B","address":"栃木県那須塩原市関谷2022番地12","mapUrl":"https://maps.app.goo.gl/cwa5zCyN7kxHSSvo8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2500000.0,"fee":330000.0,"pq":27500000.0,"mq":8141000.0,"pref":"栃木県"},{"id":13,"owner":"奥田 正博","name":"【蓄電池】4426【日光】栃木名野山下A","address":"栃木県日光市大室字名野山下1831番106","mapUrl":"https://maps.app.goo.gl/c8QCbTkcSSFSf2Fu5","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":14,"owner":"奥田 正博","name":"見込み5/17買付4431【日光】栃木越原A","address":"栃木県日光市小佐越字越原7-161","mapUrl":"https://maps.app.goo.gl/LdErTVwSGqrzaYwR9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":15,"owner":"奥田 正博","name":"【分筆あり】4467（常陸大宮）茨城原C","address":"茨城県常陸大宮市鷹巣字原1430-1","mapUrl":"https://maps.app.goo.gl/JcedKwRzjiBwEKkw8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":0.0,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":16,"owner":"奥田 正博","name":"4437【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番39,1051番40","mapUrl":"https://maps.app.goo.gl/KwNDS1a487KQnmpt9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":17,"owner":"奥田 正博","name":"4436【日光】栃木上ノ台A","address":"栃木県日光市板橋字上ノ台1051番36","mapUrl":"https://maps.app.goo.gl/7nq7xwQU1AeSEngT9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"栃木県"},{"id":18,"owner":"奥田 正博","name":"4438【日光】栃木十石坂A","address":"栃木県日光市室瀬字十石坂509番19","mapUrl":"https://maps.app.goo.gl/wrJ11ByYF8k1eicf8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":900000.0,"fee":330000.0,"pq":29100000.0,"mq":9741000.0,"pref":"栃木県"},{"id":19,"owner":"奥田 正博","name":"4442(石岡)茨城新谷A","address":"茨城県石岡市山崎字新谷3091番27","mapUrl":"https://maps.app.goo.gl/tRsVqN9dN2j3CzEFA","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":20,"owner":"奥田 正博","name":"4443(石岡)茨城新谷B","address":"茨城県石岡市山崎字新谷 3091番36","mapUrl":"https://maps.app.goo.gl/eDyaPUyJLzragqP1A","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":21,"owner":"奥田 正博","name":"4444(石岡)茨城新谷C","address":"茨城県石岡市山崎字新谷3091番35","mapUrl":"https://maps.app.goo.gl/gvn3bRu2xaUpi7Ga6","landPhase":"条件承認済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":null,"pq":29000000.0,"mq":9971000.0,"pref":"茨城県"},{"id":22,"owner":"奥田 正博","name":"買付4446(行方)茨城浜A","address":"茨城県行方市浜2620","mapUrl":"https://maps.app.goo.gl/kBez4oLRbeCzbWNc6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":23,"owner":"奥田 正博","name":"4449(日光)栃木中ノ平A","address":"栃木県日光市柄倉字中ノ平731-24","mapUrl":"https://maps.app.goo.gl/j3wjJvjth7MjvdfFA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"栃木県"},{"id":24,"owner":"奥田 正博","name":"買付4447(稲敷)茨城蒲ケ山A","address":"茨城県稲敷市蒲ケ山字原山22-23","mapUrl":"https://maps.app.goo.gl/7oCpsWJcQ3GY6MUA6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":800000.0,"fee":330000.0,"pq":29200000.0,"mq":9841000.0,"pref":"茨城県"},{"id":25,"owner":"奥田 正博","name":"4451(日光)栃木板橋A","address":"栃木県日光市板橋字西原3293-1,字森下1901-4","mapUrl":"https://maps.app.goo.gl/1HCZ1nR1ZvKXtkoK9","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":26,"owner":"奥田 正博","name":"4471（常陸大宮）茨城原D","address":"茨城県常陸大宮市鷹巣字原1444-1","mapUrl":"https://maps.app.goo.gl/R3P9pXgHBjeBeDETA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":100000.0,"pq":29000000.0,"mq":9871000.0,"pref":"茨城県"},{"id":27,"owner":"奥田 正博","name":"買付4473（日光）栃木名野山下B","address":"栃木県日光市大室字名野山下1831-20,1831-114","mapUrl":"https://maps.app.goo.gl/jNi6yf1MvmYX2Ent6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":28,"owner":"奥田 正博","name":"買付4472（日光）栃木大沢町B","address":"栃木県日光市大沢町1291-29,1291-30","mapUrl":"https://maps.app.goo.gl/BEqCR8BXKhNqKH6h6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":8641000.0,"pref":"栃木県"},{"id":29,"owner":"奥田 正博","name":"見込み買付4501（稲敷）茨城犬塚A","address":"茨城県稲敷市犬塚562-23,570-2,574-9","mapUrl":"https://maps.app.goo.gl/124tg2sXZzttDyLM8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1800000.0,"fee":330000.0,"pq":28200000.0,"mq":8037000.0,"pref":"茨城県"},{"id":30,"owner":"奥田 正博","name":"買付4499（日立）茨城入四間町A","address":"茨城県日立市入四間町863-40","mapUrl":"https://maps.app.goo.gl/b9fVXxdEZLWahNh98","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":9341000.0,"pref":"茨城県"},{"id":31,"owner":"奥田 正博","name":"見込み買付【蓄電池】4506(かすみがうら)茨城香取A","address":"〒300-0202　茨城県かすみがうら市田伏字香取4136-36","mapUrl":"https://maps.app.goo.gl/4nT3VV3TRpgHDqQ49","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"茨城県"},{"id":32,"owner":"奥田 正博","name":"買付4498（水戸）茨城堀町A","address":"茨城県水戸市堀町291-1","mapUrl":"https://maps.app.goo.gl/v79LpQkkLsFshjp77","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2300000.0,"fee":330000.0,"pq":27700000.0,"mq":8341000.0,"pref":"茨城県"},{"id":33,"owner":"奥田 正博","name":"買付4497（ひたちなか）茨城金久A","address":"茨城県ひたちなか市大字足崎字金久1225-1","mapUrl":"https://maps.app.goo.gl/dLc2vcPzoCtDvKEY8","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":9141000.0,"pref":"茨城県"},{"id":34,"owner":"奥田 正博","name":"買付【蓄電池】4516(日光)栃木後山A","address":"〒321-2342 栃木県日光市根室字後山669-32","mapUrl":"https://maps.app.goo.gl/orxMewZpSnHyhtpLA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1300000.0,"fee":330000.0,"pq":28700000.0,"mq":8537000.0,"pref":"栃木県"},{"id":35,"owner":"奥田 正博","name":"4517(日光)栃木久保A","address":"〒321-1102　栃木県日光市板橋字久保989-12","mapUrl":"https://maps.app.goo.gl/TcougmV9SZ1r9X459","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1200000.0,"fee":330000.0,"pq":28800000.0,"mq":8637000.0,"pref":"栃木県"},{"id":36,"owner":"奥田 正博","name":"買付【蓄電池】4507(水戸)茨城新田A","address":"〒310-0903　茨城県水戸市堀町字新田1811-15","mapUrl":"https://maps.app.goo.gl/ZDF9zVX8mGpm59Po6","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":330000.0,"pq":28500000.0,"mq":8337000.0,"pref":"茨城県"},{"id":37,"owner":"奥田 正博","name":"買付【蓄電池】4508(筑西)茨城開A","address":"〒308-0846　茨城県筑西市布川字開1015-26","mapUrl":"https://maps.app.goo.gl/pKjoVc3HEWtAy8QB7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2000000.0,"fee":330000.0,"pq":28000000.0,"mq":7837000.0,"pref":"茨城県"},{"id":38,"owner":"奥田 正博","name":"買付4549（稲敷）茨城長峰C","address":"茨城県稲敷市柴崎字長峰6835-7","mapUrl":"https://maps.app.goo.gl/btYwrKBhXHq1s8oJA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":2800000.0,"fee":200000.0,"pq":27200000.0,"mq":7971000.0,"pref":"茨城県"},{"id":39,"owner":"奥田 正博","name":"買付4551（桐生）群馬赤城山E","address":"群馬県桐生市新里町赤城山616-37","mapUrl":"https://maps.app.goo.gl/ZrdfdyJTeUkRYS7H7","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1020000.0,"fee":330000.0,"pq":28980000.0,"mq":8817000.0,"pref":"群馬県"},{"id":40,"owner":"奥田 正博","name":"買付4553（桐生）群馬赤城山F","address":"群馬県桐生市新里町赤城山字鳥居坂617-56,617-59","mapUrl":"https://maps.app.goo.gl/giBXtR4ytnYS6sCMA","landPhase":"04 合意書取得済み","powerPhase":"03.2.電力協議中（追加）","landPrice":1530000.0,"fee":330000.0,"pq":28470000.0,"mq":8307000.0,"pref":"群馬県"},{"id":43,"owner":"佐藤 壮馬","name":"4464【高萩】茨城高萩A","address":"茨城県高萩市大字高萩８８－１","mapUrl":"https://maps.app.goo.gl/QNybo6pAN8YhHnBe9","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"},{"id":44,"owner":"佐藤 壮馬","name":"4457(稲敷)茨城西の台B","address":"茨城県稲敷市下根本字西の台2001","mapUrl":"https://maps.app.goo.gl/ysB6ZNTRDUGSTBhz6","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1500000.0,"fee":0.0,"pq":28500000.0,"mq":9471000.0,"pref":"茨城県"},{"id":45,"owner":"佐藤 壮馬","name":"4475（高萩）茨城道上A","address":"茨城県高萩市高萩字道上943-2","mapUrl":"https://maps.app.goo.gl/xFFQy3SCQtH4cwMW7","landPhase":"05 土地契約締結済","powerPhase":"03.2.電力協議中（追加）","landPrice":1000000.0,"fee":220000.0,"pq":29000000.0,"mq":9751000.0,"pref":"茨城県"}];
+
+let SITES = JSON.parse(localStorage.getItem("battery_sites_v1")||"null") || SITES_EMBED;
 
 const STATUSES = [
   {k:"未着手", c:"var(--st-none)",  lv:0},
@@ -310,7 +353,87 @@ let geoCache = JSON.parse(localStorage.getItem(LS_GEO)||"{}");
 let geoFix = JSON.parse(localStorage.getItem(LS_FIX)||"{}");
 const saveSales=()=>localStorage.setItem(LS_SALES,JSON.stringify(sales));
 const getS=id=> sales[id]||{status:"未着手",customer:"",memo:""};
-const setS=(id,patch)=>{sales[id]={...getS(id),...patch,updated:new Date().toISOString().slice(0,10)};saveSales();};
+const setS=(id,patch)=>{sales[id]={...getS(id),...patch,updated:new Date().toISOString().slice(0,10)};saveSales();cloudSaveSite(id);};
+
+/* ================= クラウド共有（Supabase） ================= */
+const SB_URL="https://aakofrzurgwrkctunthw.supabase.co";
+const SB_KEY="sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
+const TBL="battery_board";
+let sb=null, cloudOn=false;
+let myName=localStorage.getItem("battery_username")||"";
+
+function setBadge(txt,cls){const b=document.getElementById("syncBadge");b.textContent=txt;b.className="sync-badge internal "+(cls||"");}
+async function boot(){
+  if(!window.supabase){ setBadge("☁ 未接続（ローカル保存）","err"); geocodeAll(); return; }
+  sb=window.supabase.createClient(SB_URL,SB_KEY);
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){ await afterLogin(); }
+  else{ document.getElementById("loginOverlay").style.display="flex";
+        document.getElementById("lgName").value=myName; }
+}
+async function doLogin(){
+  const email=document.getElementById("lgEmail").value.trim();
+  const pass=document.getElementById("lgPass").value;
+  const err=document.getElementById("lgErr");
+  err.style.display="none";
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){ err.textContent="ログインできませんでした。メール・パスワードをご確認ください。"; err.style.display="block"; return; }
+  myName=document.getElementById("lgName").value.trim();
+  localStorage.setItem("battery_username",myName);
+  document.getElementById("loginOverlay").style.display="none";
+  await afterLogin();
+}
+async function afterLogin(){
+  cloudOn=true;
+  document.getElementById("loginOverlay").style.display="none";
+  await cloudLoad();
+  geocodeAll();
+}
+async function cloudLoad(){
+  if(!cloudOn)return;
+  setBadge("☁ 読込中…");
+  const {data,error}=await sb.from(TBL).select("key,value");
+  if(error){ setBadge("☁ 読込エラー","err"); console.error(error); return; }
+  (data||[]).forEach(r=>{
+    if(r.key==="sites_data"&&r.value&&Array.isArray(r.value.sites)&&r.value.sites.length){
+      SITES=r.value.sites;
+      localStorage.setItem("battery_sites_v1",JSON.stringify(SITES));
+      return;
+    }
+    if(!r.key.startsWith("site_"))return;
+    const id=+r.key.slice(5), v=r.value||{};
+    sales[id]={status:v.status||"未着手",customer:v.customer||"",memo:v.memo||"",updated:v.updated||""};
+    if(v.lat!=null&&v.lng!=null) geoFix[id]={lat:v.lat,lng:v.lng};
+  });
+  saveSales(); localStorage.setItem(LS_FIX,JSON.stringify(geoFix));
+  initFilters();
+  setBadge("☁ 共有中（"+new Date().toTimeString().slice(0,5)+" 取得）","ok");
+  render();
+}
+async function cloudSaveSite(id){
+  if(!cloudOn)return;
+  const d=getS(id), f=geoFix[id]||{};
+  setBadge("☁ 保存中…");
+  const {error}=await sb.from(TBL).upsert({
+    key:"site_"+id,
+    value:{status:d.status,customer:d.customer||"",memo:d.memo||"",updated:d.updated||"",lat:f.lat,lng:f.lng},
+    updated_at:new Date().toISOString(),
+    updated_by:myName||"（未入力）"
+  });
+  setBadge(error?"☁ 保存エラー":"☁ 共有中（保存済み）",error?"err":"ok");
+  if(error)console.error(error);
+}
+async function migrateLocal(){
+  if(!cloudOn){alert("クラウド未接続のため送信できません。");return;}
+  const ids=SITES.map(s=>s.id).filter(id=>{
+    const d=sales[id];
+    return (d&&(d.status!=="未着手"||d.customer||d.memo))||geoFix[id];
+  });
+  if(!ids.length){alert("送信対象のデータがありません。");return;}
+  if(!confirm(ids.length+"件の入力・ピン修正をクラウドへ送信します。よろしいですか？\n（クラウド側の同じ物件のデータは上書きされます）"))return;
+  for(const id of ids) await cloudSaveSite(id);
+  alert("送信しました。");
+}
 
 /* お客様向け表示名（社内接頭語を除去） */
 const custName = n => n.replace(/^(見込み\d+\/\d+買付|見込み買付|見込み|買付|【蓄電池】|【分筆あり】)+/g,"").trim();
@@ -414,6 +537,70 @@ function closeSim(){
   document.body.style.overflow="";
 }
 
+/* ================= 物件Excel読み込み（部署予算進行MQ計上用フォーマット） ================= */
+function importExcel(ev){
+  const f=ev.target.files[0]; if(!f)return; ev.target.value="";
+  const rd=new FileReader();
+  rd.onload=()=>{try{
+    const wb=XLSX.read(rd.result,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+    /* ヘッダー行（「所在地」セル）から列位置を自動検出 */
+    let cA=-1;
+    for(const row of rows){
+      const i=(row||[]).findIndex(v=>typeof v==="string"&&v.trim()==="所在地");
+      if(i>=0){cA=i;break;}
+    }
+    if(cA<0){alert("「所在地」列が見つかりませんでした。「蓄電池：部署予算進行MQ計上用」形式のExcel（1シート目）をご利用ください。");return;}
+    const cName=cA-1, cOwner=Math.max(0,cA-3), cUrl=cA+1, cLand=cA+2, cPower=cA+3, cPrice=cA+4, cFee=cA+5, cPq=cA+6, cMq=cA+7;
+    let owner=""; const parsed=[];
+    const num=v=>{
+      if(typeof v==="number")return v;
+      if(v==null||v==="")return null;
+      const n=+String(v).replace(/[,，円\s]/g,"");
+      return isNaN(n)?null:n;
+    };
+    rows.forEach(row=>{
+      if(!row)return;
+      const b=row[cOwner]!=null?String(row[cOwner]).trim():"";
+      const name=row[cName]!=null?String(row[cName]).trim():"";
+      const addr=row[cA]!=null?String(row[cA]).trim():"";
+      if(b&&b!=="小計"&&b!=="合計"&&!b.startsWith("物件:")&&!b.startsWith("蓄電池")&&!b.includes("生成者")) owner=b;
+      if(!name||name==="合計"||b==="小計"||b==="合計")return;
+      if(!/[都道府県]/.test(addr))return;
+      const m=addr.replace(/〒?\d{3}[-−ー]?\d{4}\s*/,"").match(/^(.+?[都道府県])/);
+      parsed.push({owner, name, address:addr,
+        mapUrl:row[cUrl]?String(row[cUrl]).trim():"",
+        landPhase:row[cLand]?String(row[cLand]).trim():"",
+        powerPhase:row[cPower]?String(row[cPower]).trim():"",
+        landPrice:num(row[cPrice]), fee:num(row[cFee]), pq:num(row[cPq]), mq:num(row[cMq]),
+        pref:m?m[1]:""});
+    });
+    if(!parsed.length){alert("物件データが見つかりませんでした。「蓄電池：部署予算進行MQ計上用」形式のExcel（1シート目）をご利用ください。");return;}
+    let upd=0,add=0,maxId=Math.max(999,...SITES.map(s=>s.id));
+    parsed.forEach(p=>{
+      const ex=SITES.find(s=>s.name===p.name);
+      if(ex){Object.assign(ex,p);upd++;}
+      else{maxId++;SITES.push({id:maxId,...p});add++;}
+    });
+    const missing=SITES.filter(s=>!parsed.find(p=>p.name===s.name)).length;
+    cloudSaveSites();
+    initFilters(); render(); geocodeAll();
+    alert(`Excelを読み込みました。\n更新：${upd}件　新規追加：${add}件`
+      +(missing?`\n※Excelに無い既存 ${missing}件は削除せず残しています（商談データ保護のため）。`:"")
+      +(cloudOn?"\n物件データはクラウドに保存し、全員に共有されます。":""));
+  }catch(e){alert("Excelの読み込みに失敗しました："+e.message);}};
+  rd.readAsArrayBuffer(f);
+}
+async function cloudSaveSites(){
+  localStorage.setItem("battery_sites_v1",JSON.stringify(SITES));
+  if(!cloudOn)return;
+  setBadge("☁ 保存中…");
+  const {error}=await sb.from(TBL).upsert({key:"sites_data",value:{sites:SITES},
+    updated_at:new Date().toISOString(),updated_by:myName||"（未入力）"});
+  setBadge(error?"☁ 保存エラー":"☁ 共有中（保存済み）",error?"err":"ok");
+}
+
 /* ================= モード / ビュー ================= */
 let customer=false, curView="map";
 function toggleCustomer(){
@@ -435,7 +622,10 @@ function switchView(v){
 
 /* ================= フィルタ ================= */
 function initFilters(){
-  const opt=(el,vals)=>vals.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;el.appendChild(o)});
+  const opt=(el,vals)=>{
+    el.querySelectorAll("option:not(:first-child)").forEach(o=>o.remove());
+    vals.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;el.appendChild(o)});
+  };
   opt(document.getElementById("fPref"),[...new Set(SITES.map(s=>s.pref))]);
   opt(document.getElementById("fOwner"),[...new Set(SITES.map(s=>s.owner))]);
   opt(document.getElementById("fLand"),[...new Set(SITES.map(s=>s.landPhase))]);
@@ -524,6 +714,7 @@ function drawMarkers(){
       const ll=e.target.getLatLng();
       geoFix[s.id]={lat:ll.lat,lng:ll.lng};
       localStorage.setItem(LS_FIX,JSON.stringify(geoFix));
+      cloudSaveSite(s.id);
       mk.setPopupContent(popupHtml(s));
     });
     if(fixOn) mk.dragging.enable();
@@ -734,7 +925,7 @@ function render(){
 }
 initFilters();
 render();
-geocodeAll();
+boot();
 </script>
 </body>
 </html>
