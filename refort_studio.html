@@ -121,6 +121,14 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .kpihero .big .u{font-size:24px;font-weight:600;margin-left:6px;color:rgba(255,255,255,.8)}
 .kpihero .cap{color:rgba(255,255,255,.78);font-size:13.5px;max-width:560px}
 .kpihero .cap b{color:var(--gold2)}
+.kpihero{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.kpihero .hero-main{flex:1;min-width:300px;position:relative;z-index:1}
+.kpihero .hero-up{flex-shrink:0;background:rgba(255,255,255,.07);border:1.5px solid rgba(229,181,71,.55);border-radius:16px;padding:18px 30px;text-align:center;position:relative;z-index:1}
+.kpihero .hero-up .up-lab{font-size:12.5px;font-weight:800;color:var(--gold2);letter-spacing:1px;margin-bottom:4px}
+.kpihero .hero-up .up-val{font-family:var(--num);font-size:48px;font-weight:800;color:#fff;line-height:1;font-variant-numeric:tabular-nums}
+.kpihero .hero-up .up-val .u{font-size:22px;font-weight:600;color:var(--gold2);margin-left:2px}
+.kpihero .hero-up .up-det{font-size:11px;color:rgba(255,255,255,.72);margin-top:7px}
+@media(max-width:720px){.kpihero .hero-up{width:100%}}
 .kpigrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
 .kpi .lab{font-size:11px;color:var(--mute);font-weight:700;letter-spacing:.3px}
@@ -1166,7 +1174,7 @@ function simulate(c){
   const effCap = acCap*2;                                                       // B95
   const effBefore = Math.min(dc, effCap);                                       // B97
   const effAfter = Math.min(dc*(1+improve0), effCap);                           // B98
-  const improve = effBefore>0 ? Math.max(effAfter/effBefore-1,0) : 0;           // B99
+  const improve = (+i.genBeforeXls>0 && +i.genAfterXls>0) ? Math.max(+i.genAfterXls/+i.genBeforeXls-1,0) : (effBefore>0 ? Math.max(effAfter/effBefore-1,0) : 0);           // B99
   const pcsEff = pcsSwap ? MASTER.pcsEffGain : 0;                               // B107
 
   // ===== 発電量・売電（B13-B28） =====
@@ -1175,8 +1183,8 @@ function simulate(c){
   const fitYears = +c.fitYears;                                                // C15/B19
   const degB = (+i.degradeBefore||0.5)/100, degA = (+i.degradeAfter||0.3)/100; // C23/C24
   // B13 現状発電量: 実績優先→DC×950簡易
-  const genBefore = (+h.annualGen>0 ? +h.annualGen*plots : (dc*1000*0.95));     // B13(実績はヒアリングD35*区画)
-  const genAfter = genBefore*(1+improve)*(1+pcsEff);                            // B15
+  const genBefore = (+i.genBeforeXls>0) ? +i.genBeforeXls : (+h.annualGen>0 ? +h.annualGen*plots : (dc*1000*0.95));     // B13
+  const genAfter = (+i.genAfterXls>0) ? +i.genAfterXls : genBefore*(1+improve)*(1+pcsEff);                            // B15
   const genInc = genAfter-genBefore;                                            // B17
   const revBeforeFit = genBefore*fitPrice;                                      // B14
   const revAfterFit = genAfter*fitPrice;                                        // B16
@@ -1330,7 +1338,7 @@ function blankCase(){
     input:{ newPanelIdx:4, methodIdx:0, sheetTypeIdx:3,
       sheetOn:true, pcsSwap:false, monitor:false, sunkeeper:false,
       postFitPrice:13.2, degradeBefore:0.5, degradeAfter:0.3, rearShare:30,
-      manualImprove:0, manualCost:0, rackH:1, arrayGap:2, panelWidth:0.99, dataMode:'hearing' },
+      manualImprove:0, manualCost:0, genBeforeXls:0, genAfterXls:0, rackH:1, arrayGap:2, panelWidth:0.99, dataMode:'hearing' },
     survey:{ newPanelModel:'CHINT CHSM66RN(DG)/F-BH（620W両面）', newPanelW:620, newPanelCount:0,
       newPcsModel:'Huawei SUN2000-4.95KTL-NHL2（4.95kW）', newPcsUnit:4.95, newPcsCount:0 },
   };
@@ -1740,12 +1748,19 @@ function viewResult(c){
   afterRender(()=>drawCumChart('cumChart',r));
   return `
   <div class="kpihero">
-    <div class="eyebrow">ANNUAL REVENUE INCREASE ／ FIT期間中・初年度</div>
-    <div class="big tnum">${yenS(r.annualInc)}<span class="u">円 / 年</span></div>
-    <div class="cap">月あたり <b>${yenS(r.monthlyInc)}円</b>、1区画あたり <b>${yenS(r.perPlotInc)}円/年</b>。何もしなければ受け取れなかった売電収入が毎年積み上がります。</div>
+    <div class="hero-main">
+      <div class="eyebrow">ANNUAL REVENUE INCREASE ／ FIT期間中・初年度</div>
+      <div class="big tnum">${yenS(r.annualInc)}<span class="u">円 / 年</span></div>
+      <div class="cap">月あたり <b>${yenS(r.monthlyInc)}円</b>、1区画あたり <b>${yenS(r.perPlotInc)}円/年</b>。何もしなければ受け取れなかった売電収入が毎年積み上がります。</div>
+    </div>
+    <div class="hero-up">
+      <div class="up-lab">発電量 UP率</div>
+      <div class="up-val tnum">+${pct(r.improve)}<span class="u">%</span></div>
+      <div class="up-det">現状 ${Math.round(r.genBefore).toLocaleString('ja-JP')} → RF後 ${Math.round(r.genAfter).toLocaleString('ja-JP')} kWh</div>
+    </div>
   </div>
   <div class="kpigrid">
-    ${kpi('発電量 改善率',pct(r.improve),'%','PCS実効制約 適用後',r.improve*100,50,'g')}
+    ${kpi('工事費（税込）',yen(r.costInc),'円','税抜 '+yen(r.costEx)+'円',r.costInc,Math.max(r.costInc*1.4,1),'navy')}
     ${kpi('投資回収年数',isFinite(r.payback)?f1(r.payback):'—','年','工事費(税抜)÷年間増収',isFinite(r.payback)?Math.max(0,20-r.payback):0,20,'gold')}
     ${kpi('IRR（20年）',isFinite(r.irr)?f1(r.irr):'—','%','増収CFの内部収益率',isFinite(r.irr)?r.irr:0,15,'navy')}
     ${kpi('残FIT累計増収',yen(r.fitCumInc),'円','何もしない場合との差額',r.fitCumInc,r.costEx*2,'g')}
@@ -2137,6 +2152,43 @@ function importExcel(file){
         c.survey.newPcsUnit=+get(S,'C16')||c.survey.newPcsUnit;
         c.survey.newPcsCount=+get(S,'C17')||0;
       }
+      // ===== V15（最新版）：Excelの計算済み実数値を優先で読み取り =====
+      try{
+        const S2='② お客様サマリー', I1='① 入力', Q3='③ 御見積';
+        const gv=(sh,a)=>{ const ws=wb.Sheets[sh]; return ws&&ws[a]?ws[a].v:undefined; };
+        if(wb.Sheets[I1] || wb.Sheets[S2]){
+          const plots = +gv(I1,'C16') || c.hearing.plots || 1;
+          c.hearing.plots = plots;
+          // 発電量（現状/RF後）：②サマリー C26/E26、無ければ ①入力 C30/C31
+          const gB = +gv(S2,'C26') || +gv(I1,'C30') || 0;
+          const gA = +gv(S2,'E26') || +gv(I1,'C31') || 0;
+          if(gB>0){ c.hearing.annualGen=Math.round(gB/plots); c.hearing.firstYearGen=Math.round(gB/plots); c.input.genBeforeXls=gB; }
+          if(gA>0){ c.input.genAfterXls=gA; }
+          if(gB>0&&gA>0){ c.input.manualImprove=Math.round((gA/gB-1)*1000)/10; }
+          c.input.dataMode='hearing';
+          // FIT単価・連系日・FIT終了・卒FIT単価
+          const fp=+gv(I1,'C12'); if(fp) c.hearing.fitPrice=fp;
+          const gs=gv(I1,'C13'); if(gs) c.hearing.gridStart=toISO(gs);
+          const fe=gv(I1,'C14'); if(fe) c.hearing.fitEnd=toISO(fe);
+          const pf=+gv(I1,'C22'); if(pf) c.input.postFitPrice=pf;
+          // 工事区分（反射シート・PCS交換）
+          const sw=gv(I1,'C34'); if(sw!==undefined){ const s=String(sw); c.input.sheetOn=(s.indexOf('あり')>=0||s.indexOf('アリ')>=0); }
+          const pw=gv(I1,'C35'); if(pw!==undefined){ const s=String(pw); c.input.pcsSwap=(s.indexOf('あり')>=0||s.indexOf('アリ')>=0); }
+          // 工事費（御見積 税抜：F31値引後→F29小計→税込/1.1）
+          let costEx=+gv(Q3,'F31')||+gv(Q3,'F29')||0;
+          if(!costEx){ const inc=+gv(Q3,'F33')||+gv(Q3,'D7')||0; if(inc) costEx=Math.round(inc/1.1); }
+          if(costEx>0) c.input.manualCost=Math.round(costEx);
+          // 名称
+          const nm=gv(Q3,'C8')||gv(S2,'C7')||gv(I1,'C7');
+          if(nm){ if(!c.hearing.plant) c.hearing.plant=String(nm); if(!c.hearing.customer) c.hearing.customer=String(nm); }
+          // パネル/PCS仕様（表示用・任意）
+          const pMk=gv(I1,'C51'); if(pMk&&!c.hearing.panelMaker) c.hearing.panelMaker=String(pMk);
+          const pWv=+gv(I1,'C18'); if(pWv&&!c.hearing.panelW) c.hearing.panelW=pWv;
+          const pNv=+gv(I1,'C19'); if(pNv&&!c.hearing.panelCount) c.hearing.panelCount=pNv;
+          const psN=+gv(I1,'C38'); if(psN&&!c.hearing.pcsCount) c.hearing.pcsCount=psN;
+          const psU=+gv(I1,'C39'); if(psU&&!c.hearing.pcsUnit) c.hearing.pcsUnit=psU;
+        }
+      }catch(e){ console.error('V15 parse', e); }
       c.status=2; c.owner=OWNERS[0];
       App.cases.unshift(c); App.current=c; Store.save(); Store.syncNow(c);
       toast('取り込みました：'+(c.hearing.customer||c.hearing.plant||'新規案件'));
