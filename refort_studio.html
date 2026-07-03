@@ -437,7 +437,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案</div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3b 地図・担当者絞込対応</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -3516,6 +3516,8 @@ body:not(.internal) .leafmap{border-top:1px solid var(--line,#E4E8F0);border-rad
 .mapbar-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .mtitle{font-size:16px;font-weight:800;color:var(--navy,#0A1F3D)}
 .mtotal{font-size:12px;font-weight:600;color:var(--mute,#7A8696);margin-left:8px}
+.mowner{padding:6px 11px;border:1px solid var(--line,#E4E8F0);border-radius:9px;font-weight:700;font-size:12.5px;color:var(--ink2,#33404F);background:#fff;cursor:pointer;max-width:210px}
+.mowner:focus{outline:0;border-color:var(--gold,#C99A3D)}
 .mlayers{margin-left:auto;display:flex;gap:6px}
 .mapbar .btn.sm{padding:6px 12px;font-size:12.5px;border:1px solid var(--line,#E4E8F0);background:#fff;border-radius:9px;font-weight:700;color:var(--ink2,#33404F);cursor:pointer}
 .mapbar .btn.sm.pri{background:linear-gradient(135deg,#16314f,#0A1F3D);color:#fff;border:none}
@@ -3558,7 +3560,7 @@ body:not(.internal) .leafmap{border-top:1px solid var(--line,#E4E8F0);border-rad
 <script id="map-js">/* ===== 案件マップ ロジック ===== */
 const STATUS_COLORS = ['#94A3B8','#64748B','#C99A3D','#E5B547','#2563EB','#0EA5E9','#7C3AED','#059669','#16A34A','#DC2626'];
 let _map=null, _markers=[], _radiusCircle=null, _meMarker=null, _tileStd=null, _tilePhoto=null, _mapLayer='std';
-let mapFilter = { statuses:null, radiusOn:false, radiusKm:20, me:null };
+let mapFilter = { statuses:null, radiusOn:false, radiusKm:20, me:null, owner:'' };
 
 function viewMap(){
   if(mapFilter.statuses===null){ mapFilter.statuses = new Set(STATUS.map((_,i)=>i)); }
@@ -3566,11 +3568,14 @@ function viewMap(){
     const on = mapFilter.statuses.has(i);
     return `<button class="mchip ${on?'on':''}" id="mchip-${i}" style="--c:${STATUS_COLORS[i]}" onclick="toggleMapStatus(${i})"><span class="dot"></span>${s}<span class="cnt" id="mcnt-${i}">0</span></button>`;
   }).join('');
+  const _owners = Array.from(new Set([].concat(typeof OWNERS!=='undefined'?OWNERS:[], App.cases.map(c=>c.owner).filter(Boolean))));
+  const ownerOpts = '<option value="">担当者：すべて</option>' + _owners.map(o=>`<option value="${esc(o)}" ${mapFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('');
   afterRender(()=>initMap());
   return `<div class="mapwrap">
     <div class="mapbar">
       <div class="mapbar-row">
         <div class="mtitle">案件マップ<span id="map-total" class="mtotal"></span></div>
+        <select id="map-owner" class="mowner" onchange="setMapOwner(this.value)">${ownerOpts}</select>
         <div class="mlayers">
           <button class="btn sm pri" id="lyr-std" onclick="setMapLayer('std')">標準地図</button>
           <button class="btn sm" id="lyr-photo" onclick="setMapLayer('photo')">航空写真</button>
@@ -3661,6 +3666,7 @@ async function refreshMapPins(){
   let shown=0, inRadius=0; const bounds=[];
   App.cases.forEach(c=>{
     if(!c.geo) return;
+    if(mapFilter.owner && (c.owner||'')!==mapFilter.owner) return;
     counts[c.status]=(counts[c.status]||0)+1;
     if(!mapFilter.statuses.has(c.status)) return;
     if(mapFilter.radiusOn && mapFilter.me){
@@ -3673,7 +3679,7 @@ async function refreshMapPins(){
     _markers.push(mk); bounds.push([c.geo.lat,c.geo.lng]); shown++;
   });
   counts.forEach((n,i)=>{ const el=document.getElementById('mcnt-'+i); if(el)el.textContent=n; });
-  const geoTotal=App.cases.filter(c=>c.geo).length;
+  const geoTotal=App.cases.filter(c=>c.geo && (!mapFilter.owner || (c.owner||'')===mapFilter.owner)).length;
   if(total) total.textContent=`　表示 ${shown}件 ／ 位置あり ${geoTotal}件`;
   const rc=document.getElementById('radius-count');
   if(rc) rc.textContent=(mapFilter.radiusOn&&mapFilter.me)?`半径${mapFilter.radiusKm}km内：${inRadius}件`:'';
@@ -3690,6 +3696,7 @@ function setAllMapStatus(on){
   STATUS.forEach((_,i)=>{ const b=document.getElementById('mchip-'+i); if(b)b.classList.toggle('on',on); });
   refreshMapPins();
 }
+function setMapOwner(v){ mapFilter.owner=v||''; refreshMapPins(); }
 
 function onRadiusSlider(v){
   mapFilter.radiusKm=+v; const k=document.getElementById('rkm'); if(k)k.textContent=v;
