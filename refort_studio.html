@@ -437,7 +437,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3b 地図・担当者絞込対応</span></div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3c 未回収残高の符号修正</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -1791,8 +1791,8 @@ function viewResult(c){
     </div>
   </div></div>
   <div class="card" style="margin-top:20px"><div class="card-h">${IC.table}<h3>年次回収明細（20年）</h3></div><div class="card-b tablewrap">
-    <table class="yr"><thead><tr><th>年</th><th>何もしない発電</th><th>RF後発電</th><th>単価</th><th>何もしない売電</th><th>RF後売電</th><th>年間増収</th><th>累計増収</th><th>未回収残高</th></tr></thead>
-    <tbody>${r.rows.map(x=>`<tr class="${x.isFit?'':'postfit'}"><td>${x.y}年目</td><td>${yen(x.bGen)}</td><td>${yen(x.aGen)}</td><td>${x.price}</td><td>${yen(x.bRev)}</td><td>${yen(x.aRev)}</td><td>${yen(x.inc)}</td><td>${yen(x.cum)}</td><td style="color:${x.remain<=0?'var(--green)':'var(--mute)'}">${yen(x.remain)}</td></tr>`).join('')}</tbody></table>
+    <table class="yr"><thead><tr><th>年</th><th>何もしない発電</th><th>RF後発電</th><th>単価</th><th>何もしない売電</th><th>RF後売電</th><th>年間増収</th><th>累計増収</th><th>未回収残高／回収後利益</th></tr></thead>
+    <tbody>${r.rows.map(x=>`<tr class="${x.isFit?'':'postfit'}"><td>${x.y}年目</td><td>${yen(x.bGen)}</td><td>${yen(x.aGen)}</td><td>${x.price}</td><td>${yen(x.bRev)}</td><td>${yen(x.aRev)}</td><td>${yen(x.inc)}</td><td>${yen(x.cum)}</td><td style="color:${x.remain<=0?'var(--green)':'var(--mute)'}">${x.remain<=0 ? yenS(-x.remain) : yen(x.remain)}</td></tr>`).join('')}</tbody></table>
   </div></div>`;
 }
 function kpi(lab,val,u,det,bar,max,cls){
