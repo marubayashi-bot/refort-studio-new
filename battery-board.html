@@ -246,7 +246,7 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
     <div class="hd-spacer"></div>
     <span class="sync-badge internal" id="syncBadge">☁ 接続中…</span>
     <button class="mode-toggle" id="custToggle" onclick="toggleCustomer()">
-      <span id="custIcon">🔒</span><span id="custLabel">社内モード</span>
+      <span id="custIcon"></span><span id="custLabel">👥 お客様表示に切替</span>
     </button>
   </div>
   <nav class="tabs">
@@ -607,8 +607,9 @@ function toggleCustomer(){
   customer=!customer;
   document.body.classList.toggle("customer",customer);
   document.getElementById("custToggle").classList.toggle("on",customer);
-  document.getElementById("custLabel").textContent = customer?"お客様提示モード":"社内モード";
-  document.getElementById("custIcon").textContent = customer?"👥":"🔒";
+  document.getElementById("custLabel").textContent = customer?"🔒 社内表示に戻す":"👥 お客様表示に切替";
+  document.getElementById("custIcon").textContent = "";
+  map.closePopup();
   if(customer && curView==="dash") switchView("map");
   render();
 }
