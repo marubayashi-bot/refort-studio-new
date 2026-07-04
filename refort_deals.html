@@ -432,7 +432,7 @@ table.st tr.hl td.lbl{color:#b9770e}
     <h3>☁ クラウド同期（社内共有）</h3>
     <p class="hint">Supabaseに接続すると、営業全員が同じ案件データを共有できます。GitHub Pagesに公開したこのページを全員が開けば、同じ案件・パイプラインが表示されます。</p>
     <div class="sf"><label>Supabase URL</label><input id="sbUrl" readonly></div>
-    <div class="sf"><label>anon public key（Supabase → Settings → API）</label><input id="sbKey" placeholder="eyJ... を貼り付け" autocomplete="off"></div>
+    <div class="sf"><label>Publishable key（Supabase → Settings → API｜sb_publishable_…）</label><input id="sbKey" placeholder="sb_publishable_… を貼り付け" autocomplete="off"></div>
     <div class="st" id="sbStat"></div>
     <p class="hint" style="margin-top:8px">※ 初回のみ、Supabaseで下記テーブルの作成が必要です（SQL Editorに貼り付け）：<br>
     <code style="font-size:11px">create table if not exists refort_deals (id text primary key, name text, stage text, data jsonb, updated_at timestamptz default now());</code></p>
@@ -1876,7 +1876,7 @@ if(DB.deals.length===0 && !safeLS(true,'refort_seeded')){
 }
 /* ==================== Supabase クラウド同期（社内共有） ==================== */
 const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
-const SB_KEY_HARD=''; /* 全社共有する場合はここに anon key を貼ると全員自動で共有（空でも「同期設定」から入力可） */
+const SB_KEY_HARD='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa'; /* Publishable key（公開可・全員自動共有）。ローカルのみに戻す場合は空文字に */
 let sb=null, sbPushT=null, cloudReady=false;
 function sbKey(){return SB_KEY_HARD || (localStorage.getItem('refort_sb_key')||'');}
 function setPill(state){const p=$('#syncPill');if(!p)return;p.className='sync-pill '+state;
@@ -1915,7 +1915,7 @@ function openSyncModal(){ $('#sbUrl').value=SB_URL; $('#sbKey').value=sbKey();
 $('#btnSync').onclick=openSyncModal;
 $('#syncModal').onclick=e=>{if(e.target.id==='syncModal')$('#syncModal').classList.remove('show');};
 $('#sbLocal').onclick=()=>{localStorage.removeItem('refort_sb_key');sb=null;cloudReady=false;setPill('local');$('#syncModal').classList.remove('show');toast('ローカル保存に切り替えました');};
-$('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast('anon keyを入力してください');return;}
+$('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast('キーを入力してください');return;}
   localStorage.setItem('refort_sb_key',k);const st=$('#sbStat');st.textContent='接続中…';st.style.color='#8a6d18';
   await initCloud();
   if(sb){st.textContent='✅ 接続しました（社内共有を開始）';st.style.color='#1f8a55';toast('クラウド共有を開始しました');}
