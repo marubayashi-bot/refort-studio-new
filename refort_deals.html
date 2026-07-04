@@ -832,7 +832,7 @@ function renderDash(){
   html+=`<div class="drop-zone" id="dropZone">
     <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
     <div class="dz-title">Excelファイルをドロップ、またはクリックして選択</div>
-    <div class="dz-sub">.xlsx（RFシミュレーション）を新規案件として自動取込</div>
+    <div class="dz-sub">.xlsx（複数テンプレート対応）を新規案件として自動取込</div>
   </div>`;
   html+=`<div class="kpis">
     ${kpi('進行中案件',active.length,'件','成約・見送り除く','📁')}
@@ -1739,8 +1739,14 @@ function readExcelFile(file){
   }));
 }
 function parseExcelToInputs(wb){
-  const ws=wb.Sheets['01_物件情報'];
-  if(!ws)throw new Error('「01_物件情報」シートが見つかりません');
+  const names=wb.SheetNames||[];
+  const aSheet=names.find(n=>n==='01_物件情報') || names.find(n=>/物件情報/.test(n));
+  if(aSheet) return parseTemplateA(wb,aSheet);          // ReFort Vr19 テンプレート
+  if(names.includes('入力')) return parseTemplateB(wb); // VQ／セカンダリー「入力」テンプレート
+  throw new Error('対応する入力シートが見つかりません（シート一覧：'+(names.join('、')||'なし')+'）');
+}
+function parseTemplateA(wb,sheetName){
+  const ws=wb.Sheets[sheetName];
   const inp=blankInputs();
   let count=0;
   Object.keys(XLSX_MAP).forEach(key=>{
@@ -1759,6 +1765,45 @@ function parseExcelToInputs(wb){
   });
   const nm=xCell(ws,XLSX_NAME_CELL);
   return {inputs:inp, name:(nm?String(nm).trim():(inp.customer||'')), count};
+}
+function parseTemplateB(wb){
+  const ws=wb.Sheets['入力'];
+  const inp=blankInputs();
+  let count=0;
+  const gv=a=>{const c=ws[a];return c?c.v:undefined;};
+  const num=a=>{const v=gv(a);const x=typeof v==='number'?v:parseFloat(String(v==null?'':v).replace(/[,\s%¥円]/g,''));return isFinite(x)?x:0;};
+  const str=a=>{const v=gv(a);return v==null?'':String(v).trim();};
+  const set=(k,v)=>{if(v!==''&&v!=null&&!(typeof v==='number'&&isNaN(v))){inp[k]=v;count++;}};
+  set('location',str('C3'));               // 発電所名欄に所在地
+  set('plantName',str('C3'));
+  const gm=xMonthFromCell(ws['C5']); if(gm)set('gridDate',gm);   // 連系日
+  set('fitPrice',num('C29'));              // 売電単価
+  set('sotsuFit',num('F2'));               // 卒FIT単価
+  inp.sotsuApply = num('F2')>0 ? '適応' : '不適合'; // 卒FIT単価が無ければ卒FIT非適用
+  set('actualGen',num('C57'));             // 実発電量
+  set('degExist',num('C42'));              // パネル経年劣化率
+  set('dcExisting',num('C10'));            // DC
+  set('acExisting',num('C11'));            // AC
+  set('panelMaker',str('C33'));
+  set('pcsMaker',str('C37'));
+  set('pcsCount',num('C40'));
+  set('landType',str('C16'));              // 土地権利
+  set('landRent',num('C19'));              // 年払い地代
+  set('elec',num('C22'));                  // 電気代
+  set('insExist',num('C23'));              // 保険料
+  set('mainExist',num('C20'));             // メンテナンス費用
+  set('hoan',num('C21'));                  // 主任技術者費用
+  set('propTaxAmt',num('C24'));            // 固定資産税
+  set('pcsReplaceCost',num('C25'));        // PCS交換費用
+  set('rate',num('C26'));                  // 金利
+  set('loanYears',num('C27'));             // 返済年数
+  set('secSaleEx',num('F5'));              // 中古物件売価税抜（投資家への販売価格）
+  set('secCostEx',num('H4'));              // 原価（仕入原価）
+  const goodwill=num('F7'), sale=num('F5');
+  if(sale>0) set('goodwillPct',Math.round(goodwill/sale*100)); // 営業権割合
+  if(num('C24')>0) inp.propTaxApply='適応';
+  if(num('C26')>0||num('C27')>0) inp.useLoan='使用する';
+  return {inputs:inp, name:(str('C3')||'(無題案件)'), count};
 }
 function importExcelNew(file){
   readExcelFile(file).then(wb=>{
