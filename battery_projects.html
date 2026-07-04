@@ -1,0 +1,585 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>系統蓄電池 提案シミュレーター｜EARTHCOM</title>
+<style>
+:root{
+  --navy:#0d2340;--navy2:#163a5f;--navy3:#1f4e7a;
+  --gold:#c8a24a;--gold2:#e3c878;--gold-soft:#f3ead0;
+  --ink:#15202e;--muted:#6a7787;--line:#e1e8f0;--line2:#cdd8e4;
+  --bg:#eef1f5;--surface:#fff;--surface2:#f5f8fb;
+  --pos:#1f8a55;--neg:#c0392b;--r:11px;--shadow:0 1px 3px rgba(13,35,64,.08),0 4px 16px rgba(13,35,64,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:1px solid transparent;background:none}
+input,select{font-family:inherit}
+.num{font-variant-numeric:tabular-nums}
+header.top{position:sticky;top:0;z-index:40;background:var(--navy);border-bottom:2px solid var(--gold);
+  display:flex;align-items:center;gap:16px;padding:11px 22px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold2));
+  display:grid;place-items:center;color:var(--navy);font-weight:800;font-size:15px;box-shadow:0 1px 6px rgba(200,162,74,.4)}
+.brand b{color:#fff;font-size:15px;letter-spacing:.01em}
+.brand span{font-size:10.5px;color:var(--gold2);letter-spacing:.05em;display:block;margin-top:-2px}
+.spacer{flex:1}
+.util{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{padding:7px 13px;border-radius:8px;font-size:13px;font-weight:600;transition:.12s}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-gold{background:var(--gold);color:var(--navy)}.btn-gold:hover{background:var(--gold2)}
+.btn-line{background:var(--surface);color:var(--navy2);border-color:var(--line2)}.btn-line:hover{border-color:var(--gold)}
+.btn-ghost{background:rgba(255,255,255,.08);color:#dce6f0;border-color:rgba(255,255,255,.16)}.btn-ghost:hover{background:rgba(255,255,255,.16)}
+.btn-danger{background:#fdecec;color:#c0392b;border-color:#f3c0bd}.btn-danger:hover{background:#f9d9d9}
+header select{padding:6px 9px;border-radius:7px;border:1px solid var(--line2);background:#fff;font-size:13px;font-weight:600;color:var(--navy);max-width:230px}
+main{max-width:1280px;margin:0 auto;padding:20px 22px 60px}
+.page-h{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+.page-h h1{font-size:20px;font-weight:700;color:var(--navy)}
+.page-h .sub{color:var(--muted);font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.hd{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);
+  font-weight:700;color:var(--navy);font-size:13.5px}
+.hd .gi{color:var(--gold)}
+.card-b{padding:14px 16px}
+.fld{display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap}
+.fld>label{width:130px;flex:0 0 130px;font-size:12px;color:var(--ink);font-weight:600}
+.fld .ctrl{flex:1;min-width:90px;display:flex;align-items:center;gap:6px}
+.fld input,.fld select{width:100%;padding:6px 9px;border:1px solid var(--line2);border-radius:6px;font-size:13px;text-align:right}
+.fld input[type=text].l,.fld input[type=month]{text-align:left}
+.fld select{text-align:left}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.fld .u{font-size:11px;color:var(--muted);white-space:nowrap}
+.sub-h{font-size:11.5px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin:12px 0 4px;padding-top:8px;border-top:1px dashed var(--line2)}
+.sub-h:first-child{border-top:none;padding-top:0;margin-top:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+@media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden}
+.kpi.hl{background:var(--navy);border-color:var(--navy)}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:600}
+.kpi.hl .l{color:var(--gold2)}
+.kpi .v{font-size:21px;font-weight:800;color:var(--navy);margin-top:3px;letter-spacing:-.01em}
+.kpi.hl .v{color:#fff}
+.kpi .s{font-size:10.5px;color:var(--muted);margin-top:1px}
+.kpi.hl .s{color:#9fb2c8}
+.sec-title{font-size:13px;font-weight:700;color:var(--navy2);margin:22px 0 9px;display:flex;align-items:center;gap:9px}
+.sec-title::before{content:"";width:4px;height:15px;background:var(--gold);border-radius:2px}
+.sec-title .tip{font-size:11px;color:var(--muted);font-weight:500}
+.grid-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.yr{border-collapse:collapse;font-size:12px;min-width:100%}
+table.yr th,table.yr td{border:1px solid var(--line);padding:5px 7px;white-space:nowrap}
+table.yr thead th{background:var(--navy);color:#fff;font-weight:600;font-size:11px;position:sticky;top:0;z-index:2}
+table.yr td.lbl,table.yr th.lbl{position:sticky;left:0;z-index:1;background:var(--surface2);text-align:left;
+  font-weight:600;color:var(--navy2);min-width:168px;max-width:168px}
+table.yr thead th.lbl{z-index:3;background:var(--navy)}
+table.yr td.num{text-align:right}
+table.yr input{width:84px;border:1px solid transparent;background:transparent;text-align:right;font-size:12px;
+  padding:3px 4px;border-radius:4px;font-variant-numeric:tabular-nums}
+table.yr input:hover{border-color:var(--line2)}
+table.yr input:focus{outline:none;border-color:var(--gold);background:#fffdf6;box-shadow:0 0 0 2px var(--gold-soft)}
+table.yr tr.calc td{background:var(--surface2);font-weight:700;color:var(--navy)}
+table.yr tr.calc td.neg{color:var(--neg)}
+table.yr td.tot{background:var(--gold-soft);font-weight:700;color:#8a6d18}
+.note{font-size:11.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.6}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;
+  padding:11px 20px;border-radius:30px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal{position:fixed;inset:0;background:rgba(13,35,64,.5);display:none;align-items:center;justify-content:center;z-index:250;padding:20px}
+.modal.show{display:flex}
+.modal .box{background:#fff;border-radius:14px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.modal .mh{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)}
+.modal .mb{padding:16px 18px}
+.modal textarea{width:100%;min-height:150px;border:1px solid var(--line2);border-radius:8px;padding:10px;font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums}
+.modal .mf{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:9px}
+.hint{font-size:11.5px;color:var(--muted)}
+
+/* ===== A4 PROPOSAL SHEET ===== */
+#ov{display:none;position:fixed;inset:0;z-index:400;background:#566173;overflow:auto}
+#ov.show{display:block}
+.ovbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:11px;background:var(--navy);
+  border-bottom:2px solid var(--gold);padding:11px 18px;flex-wrap:wrap}
+.ovbar .t{color:#fff;font-weight:700;font-size:13px}.ovbar .sp{flex:1}
+#proot{padding:22px 0 44px}
+.sheet{width:297mm;min-height:209mm;background:#fff;margin:0 auto;padding:9mm 10mm;box-sizing:border-box;
+  color:#15202e;font-size:8.4px;box-shadow:0 8px 34px rgba(0,0,0,.32);display:flex;flex-direction:column}
+.s-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2.5px solid #c8a24a;padding-bottom:7px}
+.s-head .L{display:flex;align-items:center;gap:10px}
+.s-head .mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c8a24a,#e3c878);display:grid;place-items:center;color:#0d2340;font-weight:800;font-size:15px}
+.s-head .ttl{font-size:14px;font-weight:800;color:#0d2340}
+.s-head .sub{font-size:9px;color:#46586c;margin-top:1px}
+.s-head .R{text-align:right;font-size:8px;color:#6a7787;line-height:1.5}
+.s-spec{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0}
+.s-spec .chip{background:#f3ead0;border:1px solid #ecdcb4;border-radius:6px;padding:3px 9px;font-size:8.5px}
+.s-spec .chip b{color:#0d2340;font-weight:800;margin-left:4px}
+.s-spec .chip.nv{background:#0d2340;border-color:#0d2340;color:#fff}
+.s-spec .chip.nv b{color:#e3c878}
+.s-kpis{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin:6px 0}
+.s-kpi{border:1px solid #e3e9f0;border-radius:7px;padding:5px 7px;text-align:center}
+.s-kpi.gold{background:#f3ead0;border-color:#ecdcb4}
+.s-kpi.nv{background:#0d2340;border-color:#0d2340}
+.s-kpi .l{font-size:7.3px;color:#6a7787;font-weight:700}
+.s-kpi.nv .l{color:#e3c878}
+.s-kpi .v{font-size:13px;font-weight:800;color:#0d2340;line-height:1.15;margin-top:1px;font-variant-numeric:tabular-nums}
+.s-kpi.nv .v{color:#fff}
+.s-sec{font-size:9px;font-weight:800;color:#0d2340;border-left:3px solid #c8a24a;padding-left:6px;margin:7px 0 3px}
+table.st{width:100%;border-collapse:collapse;font-size:7.2px;table-layout:fixed}
+table.st th,table.st td{border:1px solid #dde4ec;padding:2px 3px;text-align:right;font-variant-numeric:tabular-nums;overflow:hidden}
+table.st thead th{background:#0d2340;color:#fff;font-weight:600}
+table.st th.lbl,table.st td.lbl{text-align:left;width:108px;background:#f5f8fb;font-weight:700;color:#36475c}
+table.st td.tot{background:#f3ead0;font-weight:800;color:#8a6d18}
+table.st th.tot{background:#8a6d18}
+table.st tr.sum td{background:#eef3f8;font-weight:800;color:#0d2340}
+table.st tr.sum td.tot{background:#e7d9b0}
+table.st tr.op td{background:#0d2340;color:#fff;font-weight:800}
+table.st tr.op td.lbl{background:#163a5f;color:#fff}
+table.st tr.op td.tot{background:#8a6d18;color:#fff}
+table.st td.neg{color:#c0392b}
+table.st tr.cum td{background:#faf6ec}
+.s-foot{margin-top:auto;border-top:1px solid #e1e8f0;padding-top:6px;font-size:7px;color:#8893a2;line-height:1.5}
+.s-foot b{color:#46586c}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{background:#fff!important}
+  body *{visibility:hidden}
+  #ov,#ov *{visibility:visible}
+  #ov{position:static;background:#fff;overflow:visible;display:block}
+  .ovbar{display:none!important}
+  #proot{padding:0}
+  .sheet{box-shadow:none;margin:0;page-break-after:always}
+  .sheet:last-child{page-break-after:auto}
+}
+.sync-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap}
+.sync-pill.local{background:rgba(255,255,255,.1);color:#b9c8da}
+.sync-pill.synced{background:#173d2a;color:#5fd39b}
+.sync-pill.connecting{background:#3a3416;color:#e3c878}
+.sync-pill.error{background:#4a1f1f;color:#f0a0a0}
+#syncModal label{display:block;font-size:12px;font-weight:700;color:var(--navy2);margin:10px 0 4px}
+#syncModal input{width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:7px;font:inherit;font-size:13px}
+#syncModal .st{font-size:12.5px;font-weight:700;margin-top:8px}
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><div class="mark">B</div>
+    <div><b>系統蓄電池 提案シミュレーター</b><span>EARTHCOM｜低圧系統蓄電事業（年別収支）</span></div></div>
+  <div class="spacer"></div>
+  <div class="util">
+    <select id="projSel" title="案件を選択"></select>
+    <span id="syncPill" class="sync-pill local" title="同期状態">● ローカル</span>
+    <button class="btn btn-line btn-sm" id="bNew">＋ 新規</button>
+    <button class="btn btn-line btn-sm" id="bDup">複製</button>
+    <button class="btn btn-danger btn-sm" id="bDel">削除</button>
+    <button class="btn btn-ghost btn-sm" id="bSync">☁ 同期</button>
+    <button class="btn btn-ghost btn-sm" id="bImport">復元</button>
+    <button class="btn btn-ghost btn-sm" id="bExport">バックアップ</button>
+    <button class="btn btn-gold" id="bSheet">📄 提案シート</button>
+  </div>
+</header>
+<main id="app"></main>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileImp" accept="application/json" style="display:none">
+
+<div class="modal" id="syncModal"><div class="box">
+  <div class="mh">☁ クラウド同期（社内共有）</div>
+  <div class="mb">
+    <p class="hint">Supabaseに接続すると、営業全員が同じ蓄電池案件を共有できます。GitHub Pagesに公開したこのページを全員が開けば、同じ案件一覧が表示されます。</p>
+    <label>Supabase URL</label><input id="sbUrl" readonly>
+    <label>Publishable key（Supabase → Settings → API｜sb_publishable_…）</label><input id="sbKey" placeholder="sb_publishable_… を貼り付け" autocomplete="off">
+    <div class="st" id="sbStat"></div>
+    <p class="hint" style="margin-top:8px">※ 初回のみSupabaseで下記テーブルの作成が必要です：<br>
+    <code style="font-size:11px">create table if not exists battery_projects (id text primary key, name text, data jsonb, updated_at timestamptz default now());</code></p>
+  </div>
+  <div class="mf"><button class="btn btn-line btn-sm" id="sbLocal">ローカルのみ</button>
+    <button class="btn btn-gold btn-sm" id="sbConnect">接続して共有する</button></div>
+</div></div>
+
+<div class="modal" id="pasteModal"><div class="box">
+  <div class="mh">📋 Excelから一括貼付</div>
+  <div class="mb">
+    <p class="hint" style="margin-bottom:8px">Excelで <b>7行 × 期間列</b> を選択してコピーし、下に貼り付けてください。行の順番：<br>
+    ①スポット市場 ②一次調整力(FCR) ③容量市場 ④充電費用 ⑤アグリゲーター費用 ⑥託送料 ⑦再エネ賦課金</p>
+    <textarea id="pasteArea" placeholder="ここに貼り付け（タブ・カンマ・スペース区切り）"></textarea>
+  </div>
+  <div class="mf"><button class="btn btn-line btn-sm" id="pCancel">キャンセル</button>
+    <button class="btn btn-gold btn-sm" id="pApply">反映する</button></div>
+</div></div>
+
+<div id="ov"><div class="ovbar"><span class="t">📄 系統蓄電池 提案シート（A4横）</span><span class="sp"></span>
+  <button class="btn btn-gold btn-sm" id="ovPrint">🖨 印刷 / PDF保存</button>
+  <button class="btn btn-line btn-sm" id="ovClose">閉じる</button></div>
+  <div id="proot"></div></div>
+
+<script>
+'use strict';
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const KEY='batt_sim_v1';
+const ROWS=[['spot','① スポット市場'],['fcr','② 一次調整力市場（FCR）'],['cap','③ 容量市場'],
+  ['charge','④ 充電費用'],['agg','⑤ アグリゲーター費用'],['wheel','⑥ 託送料'],['levy','⑦ 再エネ賦課金']];
+const nf=x=>Math.round(x||0).toLocaleString('ja-JP');
+const yen=x=>'¥'+nf(x);
+const pct=(x,d=1)=>(x*100).toFixed(d)+'%';
+const mil=x=>'¥'+(x/1e6).toFixed(1)+'M';
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+function uid(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+
+/* ---------- storage ---------- */
+let MEM=null;
+function read(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null;}catch(e){return MEM;}}
+function write(db){MEM=db;try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){} if(window.__battPush)window.__battPush(db);}
+function sample(){
+  const S=(...a)=>a;
+  return {id:uid(),name:'サンプル：東京 216kWh案件',
+    meta:{siteNo:'0000-0',area:'東京都',kwh:216,pcs:49.5,cod:'2027-01',term:15,sysPrice:22000000,invest:22000000,disc:0.10},
+    fixed:{insurance:120000,om:180000,balancing:60000,elec:120000,misc:120000,hatsudenRate:120},
+    rows:{
+      spot:S(0,0,235681,325582,345118,367576,304469,324857,270686,347466,329395,296643,308579,262980,241075),
+      fcr:S(11804885,11835184,7661069,6308928,6308890,6326881,6308586,6309331,6307828,6326004,6308386,6307908,6308055,6324905,6307180),
+      cap:S(0,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000,240000),
+      charge:S(708161,715387,776392,817646,831391,839916,805878,825780,796513,820645,823804,801756,794626,784985,760755),
+      agg:S(330042,337962,217321,177858,177979,178853,177636,177596,177001,178874,177775,177526,178081,177644,177251),
+      wheel:S(75384,74637,91994,101423,102781,105003,99629,101645,96456,103086,101325,99045,99620,96033,94212),
+      levy:S(19943,19745,24337,26831,27191,27779,26357,26890,25517,27271,26806,26202,26355,25405,24924)
+    },
+    note:'＊需給調整市場上限単価：1〜2年目 13.5円／3年目以降 7.21円、約定率90%にて算出。＊スポット・充電費用等は市場前提に基づく試算値です。'};
+}
+let DB=read();
+if(!DB||!DB.projects||!DB.projects.length){DB={projects:[sample()],curId:null};DB.curId=DB.projects[0].id;write(DB);}
+let P=DB.projects.find(p=>p.id===DB.curId)||DB.projects[0];
+
+/* ---------- compute ---------- */
+function blankArr(n){return Array.from({length:n},()=>0);}
+function fixArrays(p){const T=p.meta.term;Object.keys(p.rows).forEach(k=>{const a=p.rows[k]||[];
+  if(a.length<T)while(a.length<T)a.push(k==='cap'?(a.length===0?0:240000):0);
+  if(a.length>T)a.length=T;p.rows[k]=a;});}
+function compute(p){
+  fixArrays(p);
+  const T=p.meta.term, inv=+p.meta.invest||0, disc=+p.meta.disc||0;
+  const f=p.fixed;
+  const fixedSum=(+f.insurance||0)+(+f.om||0)+(+f.balancing||0)+(+f.elec||0)+(+f.misc||0);
+  const hatsuden=Math.round((+p.meta.pcs||0)*(+f.hatsudenRate||0)*12);
+  const r=p.rows;
+  const sales=[],cost=[],op=[],netY=[],cum=[-inv];
+  for(let t=0;t<T;t++){
+    const s=(+r.spot[t]||0)+(+r.fcr[t]||0)+(+r.cap[t]||0);
+    const c=(+r.charge[t]||0)+(+r.agg[t]||0)+(+r.wheel[t]||0)+(+r.levy[t]||0)+fixedSum+hatsuden;
+    sales.push(s);cost.push(c);op.push(s-c);netY.push(inv?(s-c)/inv:0);
+    cum.push(cum[cum.length-1]+(s-c));
+  }
+  const sum=a=>a.reduce((x,y)=>x+y,0);
+  const sumS=sum(sales),sumC=sum(cost),sumOp=sum(op);
+  const surfaceY=inv?(sumS/T)/inv:0, netYAvg=inv?(sumOp/T)/inv:0;
+  let pb=null;for(let t=1;t<cum.length;t++){if(cum[t]>=0){pb=t;break;}}
+  const irr=calcIRR([-inv,...op]);
+  const npv=-inv+op.reduce((s,c,i)=>s+c/Math.pow(1+disc,i+1),0);
+  return {T,inv,hatsuden,fixedSum,sales,cost,op,netY,cum,sumS,sumC,sumOp,surfaceY,netYAvg,
+    payback:pb,irr,npv,mult:inv?sumOp/inv:0};
+}
+function calcIRR(cf){let lo=-0.95,hi=3;const f=r=>cf.reduce((s,c,i)=>s+c/Math.pow(1+r,i),0);
+  if(f(lo)*f(hi)>0)return null;for(let k=0;k<200;k++){const m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m;}return (lo+hi)/2;}
+
+/* ---------- render app ---------- */
+function saveP(){P.updatedAt=Date.now();write(DB);}
+function renderProjSel(){
+  $('#projSel').innerHTML=DB.projects.map(p=>`<option value="${p.id}" ${p.id===P.id?'selected':''}>${esc(p.name||'(無題)')}</option>`).join('');
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+function renderApp(){
+  const c=compute(P),m=P.meta;
+  let h=`<div class="page-h"><h1>${esc(P.name||'(無題案件)')}</h1><span class="sub">低圧系統蓄電事業シミュレーション（年別収支）</span></div>`;
+  h+=`<div class="kpis">
+    ${kpi('表面利回り',pct(c.surfaceY),'年平均売上÷投資',1)}
+    ${kpi('ネット利回り',pct(c.netYAvg),'年平均営業利益÷投資',1)}
+    ${kpi('IRR（内部収益率）',c.irr!=null?pct(c.irr):'—','期間'+c.T+'年',0)}
+    ${kpi('投資回収年数',c.payback!=null?c.payback+'年':'—','累積CFがプラス転換',1)}
+    ${kpi('設備投資額',yen(c.inv),'税抜')}
+    ${kpi('営業利益（'+c.T+'年計）',yen(c.sumOp),'売上'+nf(c.sumS)+'−費用'+nf(c.sumC))}
+    ${kpi('NPV（割引率'+pct(m.disc,0)+'）',mil(c.npv),'正味現在価値')}
+    ${kpi('投資倍率',pct(c.mult,0),'営業利益÷設備投資')}
+  </div>`;
+  // inputs
+  h+=`<div class="sec-title">基本情報・前提</div><div class="grid2">
+    <div class="card"><div class="hd"><span class="gi">▸</span> 案件・設備</div><div class="card-b">
+      <div class="sub-h">案件情報</div>
+      ${fld('name','案件名','text','',P.name)}
+      ${fldM('siteNo','蓄電所番号','text','',m.siteNo)}
+      ${fldM('area','設置場所','text','',m.area)}
+      <div class="sub-h">設備・投資</div>
+      ${fldM('kwh','蓄電池容量','num','kWh',m.kwh)}
+      ${fldM('pcs','パワコン出力','num','kW',m.pcs)}
+      ${fldM('cod','COD（運開）','month','',m.cod)}
+      ${fldM('term','期間','num','年',m.term)}
+      ${fldM('sysPrice','システム価格','num','円(税抜)',m.sysPrice)}
+      ${fldM('invest','純投資額計','num','円(税抜)',m.invest)}
+      ${fldM('disc','NPV割引率','num','（例 0.10）',m.disc)}
+    </div></div>
+    <div class="card"><div class="hd"><span class="gi">▸</span> 年間固定費・前提</div><div class="card-b">
+      <div class="sub-h">固定費（毎年・円）</div>
+      ${fldF('insurance','(2) 保険','num','円/年',P.fixed.insurance)}
+      ${fldF('om','(3) O&M費用','num','円/年',P.fixed.om)}
+      ${fldF('balancing','(4) 需給調整市場手数料','num','円/年',P.fixed.balancing)}
+      ${fldF('elec','(5) 設備電気代','num','円/年',P.fixed.elec)}
+      ${fldF('misc','(10) 諸経費','num','円/年',P.fixed.misc)}
+      <div class="sub-h">(6) 発電側課金</div>
+      ${fldF('hatsudenRate','単価','num','円/kW/月',P.fixed.hatsudenRate)}
+      <div class="fld"><label>発電側課金（年）</label><div class="ctrl"><input class="num" readonly value="${nf(c.hatsuden)}"></div><span class="u">円/年 ＝ PCS×単価×12</span></div>
+      <div class="note" style="margin-top:10px">充電費用・アグリゲーター費用・託送料・再エネ賦課金は<b>市場連動の変動費</b>のため、下表で年別に入力（Excelから一括貼付可）。</div>
+    </div></div>
+  </div>`;
+  // year grid
+  h+=`<div class="sec-title">年別データ入力 <span class="tip">セルを直接編集／Excelの行をコピーして先頭セルに貼付で一括入力</span>
+    <span style="flex:1"></span><button class="btn btn-line btn-sm" id="bPaste">📋 一括貼付</button></div>`;
+  h+=gridHTML(c);
+  h+=`<div class="note">${esc(P.note||'')}</div>`;
+  $('#app').innerHTML=h;
+  wireApp();
+}
+function kpi(l,v,s,hl){return `<div class="kpi ${hl?'hl':''}"><div class="l">${l}</div><div class="v num">${v}</div><div class="s">${s||''}</div></div>`;}
+function fld(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-p="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
+function fldM(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-m="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
+function fldF(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-f="${k}" type="text" class="num" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
+
+function gridHTML(c){
+  const T=P.meta.term;
+  let h=`<div class="grid-wrap"><table class="yr"><thead><tr><th class="lbl">項目（円）</th>`;
+  for(let t=1;t<=T;t++)h+=`<th>${t}期</th>`;
+  h+=`<th class="tot" style="background:#8a6d18">合計</th></tr></thead><tbody>`;
+  ROWS.forEach(([k,lab])=>{
+    h+=`<tr><td class="lbl">${lab}</td>`;
+    let sum=0;
+    for(let t=0;t<T;t++){const v=+P.rows[k][t]||0;sum+=v;
+      h+=`<td class="num"><input data-r="${k}" data-i="${t}" value="${v?nf(v):''}"></td>`;}
+    h+=`<td class="tot num">${nf(sum)}</td></tr>`;
+  });
+  // computed rows
+  const addCalc=(lab,arr,fmt)=>{let s=`<tr class="calc"><td class="lbl">${lab}</td>`;let sum=0;
+    for(let t=0;t<T;t++){const v=arr[t];sum+=v;s+=`<td class="num ${v<0?'neg':''}">${fmt?fmt(v):nf(v)}</td>`;}
+    s+=`<td class="tot num">${fmt&&fmt!==nfc?'—':nf(sum)}</td></tr>`;return s;};
+  function nfc(v){return nf(v);}
+  h+=addCalc('売上高（売上計）',c.sales);
+  h+=addCalc('費用計',c.cost);
+  h+=addCalc('営業利益額',c.op);
+  // net yield row (percent, no total)
+  h+=`<tr class="calc"><td class="lbl">ネット利回り</td>`;
+  for(let t=0;t<T;t++)h+=`<td class="num">${pct(c.netY[t])}</td>`;
+  h+=`<td class="tot num">${pct(c.netYAvg)}</td></tr>`;
+  // cumulative CF
+  h+=`<tr class="calc"><td class="lbl">累積キャッシュフロー</td>`;
+  for(let t=1;t<=T;t++){const v=c.cum[t];h+=`<td class="num ${v<0?'neg':''}">${nf(v)}</td>`;}
+  h+=`<td class="tot num">${nf(c.cum[T])}</td></tr>`;
+  h+=`</tbody></table></div>`;
+  return h;
+}
+
+function wireApp(){
+  $('#bPaste').onclick=()=>{$('#pasteArea').value='';$('#pasteModal').classList.add('show');};
+  $$('[data-p]').forEach(i=>i.oninput=e=>{P[i.dataset.p]=e.target.value;saveP();renderProjSel();});
+  $$('[data-m]').forEach(i=>i.oninput=e=>{const k=i.dataset.m;
+    P.meta[k]=(i.type==='month')?e.target.value:(['siteNo','area','cod'].includes(k)?e.target.value:numv(e.target.value));
+    if(k==='term'){saveP();renderApp();return;} liveCalc();saveP();});
+  $$('[data-f]').forEach(i=>i.oninput=e=>{P.fixed[i.dataset.f]=numv(e.target.value);liveCalc();saveP();});
+  $$('[data-r]').forEach(inp=>{
+    inp.oninput=e=>{P.rows[inp.dataset.r][+inp.dataset.i]=numv(e.target.value);liveCalc();saveP();};
+    inp.addEventListener('paste',onCellPaste);
+  });
+}
+function numv(s){if(s==null)return 0;const n=parseFloat(String(s).replace(/[, ¥円%\s]/g,''));return isFinite(n)?n:0;}
+function liveCalc(){ // re-render just KPIs + computed rows without losing focus on grid
+  const c=compute(P);
+  // update KPI values
+  const ks=$$('.kpis .kpi .v');
+  if(ks.length>=8){
+    ks[0].textContent=pct(c.surfaceY);ks[1].textContent=pct(c.netYAvg);
+    ks[2].textContent=c.irr!=null?pct(c.irr):'—';ks[3].textContent=c.payback!=null?c.payback+'年':'—';
+    ks[4].textContent=yen(c.inv);ks[5].textContent=yen(c.sumOp);ks[6].textContent=mil(c.npv);ks[7].textContent=pct(c.mult,0);
+  }
+  // update computed rows + totals in grid (rebuild tbody calc rows + per-row totals)
+  rebuildGridCalc(c);
+}
+function rebuildGridCalc(c){
+  const T=P.meta.term;
+  // update editable-row totals
+  ROWS.forEach(([k])=>{let sum=0;for(let t=0;t<T;t++)sum+=+P.rows[k][t]||0;});
+  // simplest: re-render the whole grid wrap
+  const wrap=$('.grid-wrap'); if(!wrap)return;
+  const active=document.activeElement; const ar=active&&active.dataset?active.dataset.r:null; const ai=active&&active.dataset?active.dataset.i:null;
+  wrap.outerHTML=gridHTML(c);
+  // rewire grid inputs
+  $$('[data-r]').forEach(inp=>{
+    inp.oninput=e=>{P.rows[inp.dataset.r][+inp.dataset.i]=numv(e.target.value);liveCalc();saveP();};
+    inp.addEventListener('paste',onCellPaste);
+  });
+  if(ar!=null&&ai!=null){const re=document.querySelector(`[data-r="${ar}"][data-i="${ai}"]`);if(re){re.focus();re.setSelectionRange(re.value.length,re.value.length);}}
+}
+function onCellPaste(e){
+  const text=(e.clipboardData||window.clipboardData).getData('text');
+  if(!text)return; if(!/[\t,\n ]/.test(text.trim()))return; // single value → default paste
+  e.preventDefault();
+  const vals=text.trim().split(/[\t,\s]+/).map(numv);
+  const k=e.target.dataset.r; let i=+e.target.dataset.i;
+  const T=P.meta.term;
+  vals.forEach(v=>{if(i<T){P.rows[k][i]=v;i++;}});
+  liveCalc();saveP();
+}
+
+/* ---------- paste modal ---------- */
+function applyBulkPaste(){
+  const txt=$('#pasteArea').value.trim(); if(!txt){$('#pasteModal').classList.remove('show');return;}
+  const lines=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const order=['spot','fcr','cap','charge','agg','wheel','levy'];
+  let applied=0;
+  lines.forEach((line,idx)=>{ if(idx>=order.length)return;
+    const vals=line.split(/[\t,\s]+/).map(numv);
+    const k=order[idx]; for(let t=0;t<P.meta.term;t++)P.rows[k][t]=vals[t]||0; applied++;
+  });
+  $('#pasteModal').classList.remove('show'); saveP(); renderApp();
+  toast(applied+'行を反映しました');
+}
+
+/* ---------- proposal sheet ---------- */
+function buildSheet(){
+  const c=compute(P),m=P.meta,f=P.fixed;
+  const T=c.T;
+  const cols=t=>{let s='';for(let i=0;i<T;i++)s+=`<td>${t(i)}</td>`;return s;};
+  const fc=v=>v?nf(v):'–';
+  const fcn=v=>`<td class="${v<0?'neg':''}">${v?nf(v):'–'}</td>`;
+  const head=()=>{let s='<th class="lbl">期</th>';for(let i=1;i<=T;i++)s+=`<th>${i}</th>`;s+='<th class="tot">合計</th>';return s;};
+  const sum=a=>a.reduce((x,y)=>x+(+y||0),0);
+  // market table
+  const mkt=`<div class="s-sec">市場運用（円）</div><table class="st"><thead><tr>${head()}</tr></thead><tbody>
+    <tr><td class="lbl">スポット市場</td>${cols(i=>fc(P.rows.spot[i]))}<td class="tot">${nf(sum(P.rows.spot))}</td></tr>
+    <tr><td class="lbl">一次調整力市場（FCR）</td>${cols(i=>fc(P.rows.fcr[i]))}<td class="tot">${nf(sum(P.rows.fcr))}</td></tr>
+    <tr><td class="lbl">容量市場</td>${cols(i=>fc(P.rows.cap[i]))}<td class="tot">${nf(sum(P.rows.cap))}</td></tr>
+    <tr class="sum"><td class="lbl">売上高（売上計）</td>${cols(i=>nf(c.sales[i]))}<td class="tot">${nf(c.sumS)}</td></tr>
+  </tbody></table>`;
+  // P&L table
+  const fixRow=(lab,val)=>`<tr><td class="lbl">${lab}</td>${cols(()=>nf(val))}<td class="tot">${nf(val*T)}</td></tr>`;
+  const varRow=(lab,arr)=>`<tr><td class="lbl">${lab}</td>${cols(i=>fc(arr[i]))}<td class="tot">${nf(sum(arr))}</td></tr>`;
+  const pl=`<div class="s-sec">事業損益計算（円）</div><table class="st"><thead><tr>${head()}</tr></thead><tbody>
+    ${varRow('(1) 充電費用',P.rows.charge)}
+    ${fixRow('(2) 保険',+f.insurance||0)}
+    ${fixRow('(3) O&M費用',+f.om||0)}
+    ${fixRow('(4) 需給調整市場手数料',+f.balancing||0)}
+    ${fixRow('(5) 設備電気代',+f.elec||0)}
+    ${fixRow('(6) 発電側課金',c.hatsuden)}
+    ${varRow('(7) アグリゲーター費用',P.rows.agg)}
+    ${varRow('(8) 託送料',P.rows.wheel)}
+    ${varRow('(9) 再エネ賦課金',P.rows.levy)}
+    ${fixRow('(10) 諸経費',+f.misc||0)}
+    <tr class="sum"><td class="lbl">費用計</td>${cols(i=>nf(c.cost[i]))}<td class="tot">${nf(c.sumC)}</td></tr>
+    <tr class="op"><td class="lbl">営業利益額</td>${cols(i=>nf(c.op[i]))}<td class="tot">${nf(c.sumOp)}</td></tr>
+    <tr><td class="lbl">ネット利回り</td>${cols(i=>pct(c.netY[i]))}<td class="tot">${pct(c.netYAvg)}</td></tr>
+  </tbody></table>`;
+  // CF table
+  const cf=`<div class="s-sec">キャッシュフロー（円）</div><table class="st"><thead><tr>${head()}</tr></thead><tbody>
+    <tr><td class="lbl">予想収益額（営業利益）</td>${cols(i=>nf(c.op[i]))}<td class="tot">${nf(c.sumOp)}</td></tr>
+    <tr class="cum"><td class="lbl">累積キャッシュフロー</td>${cols(i=>`<span class="${c.cum[i+1]<0?'':''}">${nf(c.cum[i+1])}</span>`)}<td class="tot">${nf(c.cum[T])}</td></tr>
+  </tbody></table>`;
+  const kpis=`<div class="s-kpis">
+    <div class="s-kpi gold"><div class="l">表面利回り</div><div class="v">${pct(c.surfaceY)}</div></div>
+    <div class="s-kpi gold"><div class="l">ネット利回り</div><div class="v">${pct(c.netYAvg)}</div></div>
+    <div class="s-kpi nv"><div class="l">IRR</div><div class="v">${c.irr!=null?pct(c.irr):'—'}</div></div>
+    <div class="s-kpi gold"><div class="l">投資回収年数</div><div class="v">${c.payback!=null?c.payback+'年':'—'}</div></div>
+    <div class="s-kpi"><div class="l">設備投資額</div><div class="v">${yen(c.inv)}</div></div>
+    <div class="s-kpi"><div class="l">営業利益（${T}年計）</div><div class="v">${yen(c.sumOp)}</div></div>
+    <div class="s-kpi"><div class="l">NPV（${pct(m.disc,0)}）</div><div class="v">${mil(c.npv)}</div></div>
+    <div class="s-kpi nv"><div class="l">投資倍率</div><div class="v">${pct(c.mult,0)}</div></div>
+  </div>`;
+  const spec=`<div class="s-spec">
+    <span class="chip">蓄電池容量<b>${nf(m.kwh)} kWh</b></span>
+    <span class="chip">パワコン出力<b>${m.pcs} kW</b></span>
+    <span class="chip">設置場所<b>${esc(m.area)}</b></span>
+    <span class="chip">COD<b>${codJ(m.cod)}</b></span>
+    <span class="chip">期間<b>${m.term} 年</b></span>
+    <span class="chip nv">システム価格<b>${nf(m.sysPrice)} 円</b></span>
+    <span class="chip nv">純投資額計<b>${nf(m.invest)} 円</b></span>
+  </div>`;
+  const head1=`<div class="s-head"><div class="L"><div class="mk">B</div>
+    <div><div class="ttl">低圧系統蓄電事業シミュレーション（年別収支）</div>
+    <div class="sub">蓄電所 ${esc(m.siteNo)} ｜ ${esc(m.area)} ｜ 蓄電池容量 ${nf(m.kwh)} kWh</div></div></div>
+    <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}<br>${esc(P.name||'')}</div></div>`;
+  const foot=`<div class="s-foot">${esc(P.note||'')}<br><b>ご留意事項：</b>本資料は市場前提に基づく試算値であり、記載の収益・利回り等を保証するものではありません。需給調整市場・スポット市場の価格、約定率、制度は変動します。最終的なご判断は専門家にご確認ください。　株式会社アースコム</div>`;
+  return `<div class="sheet">${head1}${spec}${kpis}${mkt}${pl}${cf}${foot}</div>`;
+}
+function codJ(cod){if(!cod)return'—';const m=String(cod).match(/(\d{4})\D(\d{1,2})/);return m?`${m[1]}年${+m[2]}月`:cod;}
+function openSheet(){$('#proot').innerHTML=buildSheet();$('#ov').classList.add('show');document.body.style.overflow='hidden';}
+function closeSheet(){$('#ov').classList.remove('show');document.body.style.overflow='';}
+
+/* ---------- project ops ---------- */
+function switchProj(id){P=DB.projects.find(p=>p.id===id)||P;DB.curId=P.id;write(DB);renderProjSel();renderApp();}
+function newProj(){const p=sample();p.id=uid();p.name='新規蓄電所案件';
+  // blank arrays
+  Object.keys(p.rows).forEach(k=>p.rows[k]=Array.from({length:p.meta.term},(_, i)=>k==='cap'?(i===0?0:240000):0));
+  DB.projects.unshift(p);DB.curId=p.id;write(DB);P=p;renderProjSel();renderApp();toast('新規案件を作成しました');}
+function dupProj(){const c=JSON.parse(JSON.stringify(P));c.id=uid();c.name=(P.name||'案件')+'（複製）';DB.projects.unshift(c);DB.curId=c.id;write(DB);P=c;renderProjSel();renderApp();toast('複製しました');}
+function delProj(){if(DB.projects.length<=1){toast('最後の案件は削除できません');return;}
+  if(!confirm('「'+(P.name||'(無題)')+'」を削除しますか？'))return;
+  DB.projects=DB.projects.filter(p=>p.id!==P.id);P=DB.projects[0];DB.curId=P.id;write(DB);renderProjSel();renderApp();toast('削除しました');}
+function exportJSON(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='battery-sim-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('バックアップを保存しました');}
+function importJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(!d.projects)throw 0;if(!confirm('現在の'+DB.projects.length+'件を'+d.projects.length+'件で置換しますか？'))return;
+  DB=d;if(!DB.curId||!DB.projects.find(p=>p.id===DB.curId))DB.curId=DB.projects[0].id;write(DB);P=DB.projects.find(p=>p.id===DB.curId);renderProjSel();renderApp();toast('復元しました');
+}catch(e){toast('読み込めませんでした');}};r.readAsText(file);}
+
+/* ---------- wiring ---------- */
+$('#projSel').onchange=e=>switchProj(e.target.value);
+$('#bNew').onclick=newProj;$('#bDup').onclick=dupProj;$('#bDel').onclick=delProj;
+$('#bExport').onclick=exportJSON;$('#bImport').onclick=()=>$('#fileImp').click();
+$('#fileImp').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';};
+$('#bSheet').onclick=openSheet;$('#ovClose').onclick=closeSheet;$('#ovPrint').onclick=()=>window.print();
+$('#pCancel').onclick=()=>$('#pasteModal').classList.remove('show');$('#pApply').onclick=applyBulkPaste;
+$('#pasteModal').onclick=e=>{if(e.target.id==='pasteModal')$('#pasteModal').classList.remove('show');};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();$('#pasteModal').classList.remove('show');}});
+/* ==================== Supabase クラウド同期（社内共有） ==================== */
+const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY_HARD='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa'; /* Publishable key（公開可・全員自動共有）。ローカルのみに戻す場合は空文字に */
+let sb=null, sbPushT=null, cloudReady=false;
+function sbKey(){return SB_KEY_HARD || (localStorage.getItem('batt_sb_key')||'');}
+function setPill(state){const p=$('#syncPill');if(!p)return;p.className='sync-pill '+state;
+  p.textContent={local:'● ローカル',connecting:'● 接続中…',synced:'● 共有中',error:'● 未接続'}[state]||'';}
+function localWrite(db){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}}
+function ensureSB(){return new Promise((res,rej)=>{if(window.supabase)return res(window.supabase);
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  s.onload=()=>window.supabase?res(window.supabase):rej(new Error('lib'));
+  s.onerror=()=>rej(new Error('ライブラリ読込失敗（要ネット接続）'));document.head.appendChild(s);});}
+async function cloudUpsert(projects){if(!sb||!projects.length)return;
+  const rows=projects.map(x=>({id:x.id,name:x.name||'',data:x,updated_at:new Date().toISOString()}));
+  const {error}=await sb.from('battery_projects').upsert(rows);if(error)throw error;}
+async function cloudReconcile(db){if(!sb)return;
+  try{ await cloudUpsert(db.projects);
+    const {data:cloud}=await sb.from('battery_projects').select('id');
+    const ids=new Set(db.projects.map(x=>x.id));
+    for(const r of (cloud||[])) if(!ids.has(r.id)) await sb.from('battery_projects').delete().eq('id',r.id);
+    setPill('synced');
+  }catch(e){setPill('error');console.warn('cloud push',e);}}
+async function initCloud(){const key=sbKey();if(!key){setPill('local');return;}
+  setPill('connecting');
+  try{ const lib=await ensureSB(); sb=lib.createClient(SB_URL,key);
+    const {data,error}=await sb.from('battery_projects').select('data').order('updated_at',{ascending:false});
+    if(error)throw error;
+    const rows=(data||[]).map(r=>r.data).filter(Boolean);
+    if(rows.length===0 && DB.projects.length>0){ await cloudUpsert(DB.projects); }
+    else if(rows.length>0){ DB.projects=rows; if(!DB.projects.find(p=>p.id===DB.curId))DB.curId=DB.projects[0].id;
+      P=DB.projects.find(p=>p.id===DB.curId)||DB.projects[0]; localWrite(DB); renderProjSel(); renderApp(); }
+    cloudReady=true; setPill('synced');
+  }catch(e){ sb=null; cloudReady=false; setPill('error'); console.warn('cloud init',e); }}
+window.__battPush=function(db){ if(!sb||!cloudReady)return; clearTimeout(sbPushT); sbPushT=setTimeout(()=>cloudReconcile(db),700); };
+function openSyncModal(){ $('#sbUrl').value=SB_URL; $('#sbKey').value=sbKey();
+  const st=$('#sbStat'); st.textContent=sb?'✅ 接続済み（社内共有中）':(sbKey()?'⚠ 未接続':'現在はローカル保存のみ');
+  st.style.color=sb?'#1f8a55':'#8a6d18'; $('#syncModal').classList.add('show'); }
+$('#bSync').onclick=openSyncModal;
+$('#syncModal').onclick=e=>{if(e.target.id==='syncModal')$('#syncModal').classList.remove('show');};
+$('#sbLocal').onclick=()=>{localStorage.removeItem('batt_sb_key');sb=null;cloudReady=false;setPill('local');$('#syncModal').classList.remove('show');toast('ローカル保存に切り替えました');};
+$('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast('キーを入力してください');return;}
+  localStorage.setItem('batt_sb_key',k);const st=$('#sbStat');st.textContent='接続中…';st.style.color='#8a6d18';
+  await initCloud();
+  if(sb){st.textContent='✅ 接続しました（社内共有を開始）';st.style.color='#1f8a55';toast('クラウド共有を開始しました');}
+  else{st.textContent='⚠ 接続できませんでした。URL・key・テーブル作成をご確認ください';st.style.color='#c0392b';}};
+
+renderProjSel();renderApp();
+initCloud();
+})();
+</script>
+</body></html>
