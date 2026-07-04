@@ -437,7 +437,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3d 日本語入力の不具合修正</span></div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3e 重なるピンの分散表示</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -3672,6 +3672,7 @@ async function refreshMapPins(){
   }
   const counts = STATUS.map(()=>0);
   let shown=0, inRadius=0; const bounds=[];
+  const toShow=[];
   App.cases.forEach(c=>{
     if(!c.geo) return;
     if(mapFilter.owner && (c.owner||'')!==mapFilter.owner) return;
@@ -3682,9 +3683,25 @@ async function refreshMapPins(){
       if(d>mapFilter.radiusKm) return;
       inRadius++;
     }
-    const mk=L.marker([c.geo.lat,c.geo.lng],{icon:pinIcon(c.status)}).addTo(_map);
-    mk.bindPopup(pinPopup(c));
-    _markers.push(mk); bounds.push([c.geo.lat,c.geo.lng]); shown++;
+    toShow.push(c);
+  });
+  // 同一座標（同じ市町村など）で重なるピンを小さくずらして全部見えるようにする
+  const groups={};
+  toShow.forEach(c=>{ const k=c.geo.lat.toFixed(4)+','+c.geo.lng.toFixed(4); (groups[k]=groups[k]||[]).push(c); });
+  Object.keys(groups).forEach(k=>{
+    const arr=groups[k]; const n=arr.length;
+    arr.forEach((c,idx)=>{
+      let lat=c.geo.lat, lng=c.geo.lng;
+      if(n>1){
+        const ring = 0.003 + Math.min(0.007, (n/40)*0.007);   // 件数が多いほど少し広げる（約0.3〜1km）
+        const ang = 2*Math.PI*idx/n;
+        lat += ring*Math.cos(ang);
+        lng += ring*Math.sin(ang)/Math.max(0.3,Math.cos(lat*Math.PI/180));
+      }
+      const mk=L.marker([lat,lng],{icon:pinIcon(c.status)}).addTo(_map);
+      mk.bindPopup(pinPopup(c));
+      _markers.push(mk); bounds.push([lat,lng]); shown++;
+    });
   });
   counts.forEach((n,i)=>{ const el=document.getElementById('mcnt-'+i); if(el)el.textContent=n; });
   const geoTotal=App.cases.filter(c=>c.geo && (!mapFilter.owner || (c.owner||'')===mapFilter.owner)).length;
