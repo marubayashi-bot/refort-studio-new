@@ -437,7 +437,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3c 未回収残高の符号修正</span></div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3d 日本語入力の不具合修正</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -1442,11 +1442,15 @@ function setVal(obj, path, val){
 }
 function bindField(elId, obj, path, opts={}){
   const el=document.getElementById(elId); if(!el)return;
-  el.addEventListener(opts.event||'input', ()=>{
-    let v=el.type==='checkbox'?el.checked:(el.type==='number'?(+el.value||0):el.value);
-    setVal(obj,path,v); App.touch();
-    if(opts.recalc!==false) render();
-  });
+  const ev = opts.event || 'input';
+  const commit=()=>{ let v=el.type==='checkbox'?el.checked:(el.type==='number'?(+el.value||0):el.value); setVal(obj,path,v); App.touch(); };
+  if(ev==='change'){
+    el.addEventListener('change',()=>{ commit(); if(opts.recalc!==false) render(); });
+  } else {
+    // 入力中はモデル更新のみ（再描画しない＝日本語入力・フォーカスを維持）。確定時に再計算。
+    el.addEventListener('input', commit);
+    el.addEventListener('change', ()=>{ commit(); if(opts.recalc!==false) render(); });
+  }
 }
 
 function toast(msg){
@@ -1480,6 +1484,9 @@ function killCharts(){ CHARTS.forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS=[
 
 function render(){
   killCharts();
+  const _ae=document.activeElement;
+  const _aeId=(_ae && _ae.id && /^(INPUT|TEXTAREA|SELECT)$/.test(_ae.tagName))?_ae.id:null;
+  let _s=null,_e=null; if(_aeId){ try{ _s=_ae.selectionStart; _e=_ae.selectionEnd; }catch(err){} }
   const root=document.getElementById('content-inner');
   const c=App.current;
   // topbar
@@ -1495,6 +1502,7 @@ function render(){
   root.innerHTML = (R[App.route]||viewList)(c);
   syncToggle();
   if(afterRender._fn){ const fn=afterRender._fn; afterRender._fn=null; fn(); }
+  if(_aeId){ const nn=document.getElementById(_aeId); if(nn){ try{ nn.focus(); if(_s!=null && typeof nn.setSelectionRange==='function') nn.setSelectionRange(_s,_e); }catch(err){} } }
 }
 function afterRender(fn){ afterRender._fn=fn; }
 const esc=s=>(''+(s??'')).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
