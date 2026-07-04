@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReFort 査定スタジオ｜セカンダリー一次判定・3モデルシミュレーション</title>
+<style>
+:root{
+  --navy:#0d2340; --navy2:#163a5f; --navy3:#1f4e7a;
+  --gold:#c8a24a; --gold2:#e3c878; --gold-soft:#f3ead0;
+  --bg:#eef2f7; --surface:#ffffff; --surface2:#f7f9fc;
+  --ink:#15202e; --muted:#6a7787; --line:#e1e8f0; --line2:#cdd8e4;
+  --go:#1f8a55; --go-bg:#e6f4ec; --warn:#c98414; --warn-bg:#fbf1de;
+  --stop:#c0392b; --stop-bg:#fbe9e7; --info:#2a6fb0;
+  --shadow:0 1px 2px rgba(13,35,64,.06),0 4px 16px rgba(13,35,64,.07);
+  --r:10px;
+  --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select{font-family:inherit;font-size:13px}
+a{color:var(--info);text-decoration:none}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ===== top bar ===== */
+header.top{position:sticky;top:0;z-index:40;background:var(--navy);
+  border-bottom:2px solid var(--gold);display:flex;align-items:center;gap:18px;
+  padding:0 20px;height:58px;box-shadow:0 2px 12px rgba(13,35,64,.18)}
+.brand{display:flex;align-items:center;gap:11px;color:#fff;white-space:nowrap}
+.brand .mark{width:30px;height:30px;border-radius:7px;background:
+  linear-gradient(135deg,var(--gold),var(--gold2));display:grid;place-items:center;
+  color:var(--navy);font-weight:800;font-size:15px;box-shadow:0 1px 6px rgba(200,162,74,.4)}
+.brand b{font-size:15.5px;letter-spacing:.02em;font-weight:700}
+.brand span{font-size:10.5px;color:var(--gold2);letter-spacing:.06em;display:block;margin-top:-2px}
+nav.tabs{display:flex;gap:2px;margin-left:6px}
+nav.tabs button{color:#b9c8da;font-size:13px;font-weight:600;padding:8px 15px;border-radius:7px;letter-spacing:.02em}
+nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.07)}
+nav.tabs button.on{color:var(--navy);background:var(--gold)}
+.top .spacer{flex:1}
+.top .util{display:flex;gap:8px;align-items:center}
+.btn{border-radius:7px;font-weight:600;font-size:13px;padding:8px 14px;display:inline-flex;
+  align-items:center;gap:6px;transition:.12s;white-space:nowrap;border:1px solid transparent}
+.btn-gold{background:var(--gold);color:var(--navy)}
+.btn-gold:hover{background:var(--gold2)}
+.btn-ghost{background:rgba(255,255,255,.08);color:#dce6f0;border-color:rgba(255,255,255,.16)}
+.btn-ghost:hover{background:rgba(255,255,255,.16)}
+.btn-line{background:var(--surface);color:var(--navy2);border-color:var(--line2)}
+.btn-line:hover{background:var(--surface2);border-color:var(--gold)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-danger{background:#fff;color:var(--stop);border-color:#f0c5bf}
+.btn-danger:hover{background:var(--stop-bg)}
+
+main{max-width:1320px;margin:0 auto;padding:22px 20px 70px}
+.view{display:none;animation:fade .2s}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.page-h{display:flex;align-items:flex-end;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.page-h h1{font-size:20px;font-weight:700;letter-spacing:.01em;color:var(--navy)}
+.page-h .sub{color:var(--muted);font-size:12.5px;margin-left:2px}
+
+/* ===== cards ===== */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:13px;margin-bottom:20px}
+.kpi{padding:15px 16px;position:relative;overflow:hidden}
+.kpi .lab{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.kpi .val{font-size:25px;font-weight:800;color:var(--navy);margin-top:4px;letter-spacing:-.01em}
+.kpi .val small{font-size:13px;font-weight:600;color:var(--muted);margin-left:3px}
+.kpi .foot{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi::after{content:"";position:absolute;right:-12px;top:-12px;width:54px;height:54px;
+  border-radius:50%;background:var(--gold-soft);opacity:.5}
+.kpi .ic{position:absolute;right:13px;top:14px;font-size:17px;opacity:.55;z-index:1}
+
+/* ===== pipeline ===== */
+.pipe-wrap{overflow-x:auto;padding-bottom:8px}
+.pipe{display:flex;gap:12px;min-width:max-content}
+.lane{width:230px;flex:0 0 230px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:var(--r);display:flex;flex-direction:column;max-height:64vh}
+.lane.drop{outline:2px dashed var(--gold);outline-offset:-3px;background:var(--gold-soft)}
+.lane-h{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  gap:8px;position:sticky;top:0;background:var(--surface2);border-radius:var(--r) var(--r) 0 0}
+.lane-h .dot{width:9px;height:9px;border-radius:50%}
+.lane-h b{font-size:12.5px;font-weight:700;color:var(--navy2)}
+.lane-h .cnt{margin-left:auto;font-size:11px;color:var(--muted);background:var(--surface);
+  border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-weight:600}
+.lane-h .sum{font-size:10.5px;color:var(--muted);width:100%;margin-top:1px}
+.lane-body{padding:9px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1}
+.deal{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--navy3);
+  border-radius:8px;padding:10px 11px;cursor:grab;transition:.12s}
+.deal:hover{box-shadow:var(--shadow);border-left-color:var(--gold);transform:translateY(-1px)}
+.deal:active{cursor:grabbing}
+.deal .nm{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;line-height:1.3}
+.deal .meta{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px 9px}
+.deal .row2{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.chip{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.02em}
+.chip.go{background:var(--go-bg);color:var(--go)} .chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.stop{background:var(--stop-bg);color:var(--stop)} .chip.neutral{background:#eef2f7;color:var(--muted)}
+.empty-lane{color:var(--muted);font-size:11.5px;text-align:center;padding:18px 6px;border:1px dashed var(--line2);border-radius:8px}
+
+/* ===== deal list table ===== */
+table.grid{width:100%;border-collapse:collapse;background:var(--surface);font-size:13px}
+table.grid th{background:var(--navy);color:#fff;font-weight:600;font-size:11.5px;text-align:left;
+  padding:9px 11px;letter-spacing:.02em;white-space:nowrap;position:sticky;top:0;z-index:5}
+table.grid th.r,table.grid td.r{text-align:right}
+table.grid td{padding:8px 11px;border-bottom:1px solid var(--line)}
+table.grid tr:hover td{background:var(--surface2)}
+table.grid .lnk{font-weight:700;color:var(--navy);cursor:pointer}
+table.grid .lnk:hover{color:var(--gold);text-decoration:underline}
+.list-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:13px;flex-wrap:wrap}
+.list-toolbar input,.list-toolbar select{padding:7px 10px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.list-toolbar input{min-width:200px}
+
+/* ===== deal workspace ===== */
+.ws-head{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px;display:flex;gap:14px;
+  align-items:center;flex-wrap:wrap}
+.ws-head .nmbox{flex:1;min-width:220px}
+.ws-head .nmbox input{font-size:18px;font-weight:700;color:var(--navy);border:none;width:100%;
+  background:transparent;padding:2px 0}
+.ws-head .nmbox input:focus{outline:none;border-bottom:2px solid var(--gold)}
+.ws-head .sel{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ws-head select,.ws-head input.txt{padding:7px 10px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.ws-grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:980px){.ws-grid{grid-template-columns:1fr}}
+
+/* input form */
+.form-card{padding:0;overflow:hidden}
+.form-card>.hd{background:var(--navy);color:#fff;padding:11px 16px;font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:8px;letter-spacing:.02em}
+.form-card>.hd .gi{color:var(--gold2)}
+.acc{border-bottom:1px solid var(--line)}
+.acc:last-child{border-bottom:none}
+.acc-h{width:100%;text-align:left;padding:11px 16px;font-size:12.5px;font-weight:700;color:var(--navy2);
+  display:flex;align-items:center;gap:8px;background:var(--surface)}
+.acc-h:hover{background:var(--surface2)}
+.acc-h .tw{margin-left:auto;color:var(--muted);transition:.15s;font-size:11px}
+.acc.open .acc-h .tw{transform:rotate(90deg)}
+.acc-b{display:none;padding:6px 16px 15px}
+.acc.open .acc-b{display:block}
+.fld{display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap}
+.fld>label{width:128px;flex:0 0 128px;font-size:12px;color:var(--ink);font-weight:600}
+.fld .ctrl{flex:1;min-width:90px;display:flex;align-items:center;gap:6px}
+.fld input,.fld select{width:100%;padding:6px 9px;border:1px solid var(--line2);border-radius:6px;
+  background:#fff;text-align:right}
+.fld select{text-align:left}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.fld input[readonly]{background:var(--surface2);color:var(--navy2);font-weight:700;border-style:dashed}
+.fld .u{font-size:11px;color:var(--muted);flex:0 0 auto;min-width:34px}
+.fld.full>label{width:100%;flex-basis:100%}
+.fld.full input,.fld.full textarea{text-align:left}
+.fld textarea{width:100%;padding:6px 9px;border:1px solid var(--line2);border-radius:6px;resize:vertical;min-height:42px}
+.auto-tag{font-size:9.5px;background:var(--gold-soft);color:#8a6d1e;padding:1px 5px;border-radius:4px;font-weight:700}
+
+/* results */
+.res-tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;background:var(--surface);
+  padding:5px;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.res-tabs button{padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.res-tabs button:hover{background:var(--surface2);color:var(--navy)}
+.res-tabs button.on{background:var(--navy);color:#fff}
+.res-tabs button.on .badge{background:var(--gold);color:var(--navy)}
+.res-tabs .badge{font-size:10px;background:var(--surface2);color:var(--muted);border-radius:5px;padding:1px 6px;margin-left:6px}
+.res-pane{display:none}.res-pane.on{display:block}
+
+.verdict{padding:16px 18px;border-radius:var(--r);margin-bottom:16px;border:1px solid;display:flex;
+  gap:16px;align-items:center;flex-wrap:wrap}
+.verdict.go{background:var(--go-bg);border-color:#bfe3cd}
+.verdict.warn{background:var(--warn-bg);border-color:#f0dcae}
+.verdict.stop{background:var(--stop-bg);border-color:#f1c8c1}
+.verdict .big{font-size:21px;font-weight:800}
+.verdict.go .big{color:var(--go)} .verdict.warn .big{color:var(--warn)} .verdict.stop .big{color:var(--stop)}
+.verdict .lab{font-size:11px;font-weight:700;letter-spacing:.04em;opacity:.7}
+.verdict .cmt{flex:1;min-width:200px;font-size:12.5px;color:var(--ink)}
+
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:16px}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:13px 14px;box-shadow:var(--shadow)}
+.metric .l{font-size:11px;color:var(--muted);font-weight:600}
+.metric .v{font-size:20px;font-weight:800;color:var(--navy);margin-top:3px;letter-spacing:-.01em}
+.metric .v.pos{color:var(--go)} .metric .v.neg{color:var(--stop)}
+.metric .v small{font-size:12px;font-weight:600;color:var(--muted)}
+
+.sec-title{font-size:13px;font-weight:700;color:var(--navy);margin:18px 0 9px;display:flex;align-items:center;gap:8px}
+.sec-title::before{content:"";width:4px;height:15px;background:var(--gold);border-radius:2px}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow)}
+table.sim{border-collapse:collapse;font-size:11.5px;width:100%;min-width:max-content}
+table.sim th,table.sim td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.sim th{background:var(--surface2);font-weight:700;color:var(--navy2);position:sticky;top:0}
+table.sim td.lbl,table.sim th.lbl{text-align:left;position:sticky;left:0;background:var(--surface);
+  font-weight:600;color:var(--ink);min-width:140px;z-index:1;border-right:1px solid var(--line)}
+table.sim th.lbl{background:var(--surface2);z-index:2}
+table.sim tr.hl td{background:var(--gold-soft);font-weight:700}
+table.sim tr.hl td.lbl{background:#f0e4c2}
+table.sim tr.tot td{border-top:2px solid var(--navy2);font-weight:800;background:var(--surface2)}
+table.sim td.col-tot{background:var(--surface2);font-weight:700;border-left:1px solid var(--line)}
+.neg{color:var(--stop)}
+
+.note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:12px;padding:11px 14px;
+  background:var(--surface2);border:1px solid var(--line);border-radius:8px}
+.note b{color:var(--navy2)}
+
+/* DD checklist */
+.dd-grid{display:flex;flex-direction:column;gap:3px}
+.dd-cat{font-size:12px;font-weight:700;color:var(--gold);margin:12px 0 4px;letter-spacing:.03em}
+.dd-item{display:grid;grid-template-columns:1fr 110px 86px;gap:8px;align-items:center;
+  padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface)}
+.dd-item .t{font-size:12px}
+.dd-item .ref{font-size:10px;color:var(--muted)}
+.dd-item select{padding:4px 7px;border:1px solid var(--line2);border-radius:6px;width:100%}
+.dd-item select.s-ok{background:var(--go-bg);color:var(--go);font-weight:700}
+.dd-item select.s-ng{background:var(--stop-bg);color:var(--stop);font-weight:700}
+.dd-item select.s-doing{background:var(--warn-bg);color:var(--warn);font-weight:700}
+
+/* compare */
+.cmp{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:820px){.cmp{grid-template-columns:1fr}}
+.cmp-card{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);background:var(--surface)}
+.cmp-card.best{border:2px solid var(--gold);box-shadow:0 6px 22px rgba(200,162,74,.25)}
+.cmp-card .ch{padding:12px 15px;color:#fff;font-weight:700;font-size:13.5px;position:relative}
+.cmp-card.m1 .ch{background:linear-gradient(120deg,#2a6fb0,#1f4e7a)}
+.cmp-card.m2 .ch{background:linear-gradient(120deg,var(--navy3),var(--navy))}
+.cmp-card.m3 .ch{background:linear-gradient(120deg,#1f8a55,#136c41)}
+.cmp-card .ch .star{position:absolute;right:13px;top:11px;background:var(--gold);color:var(--navy);
+  font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px}
+.cmp-card .cb{padding:6px 15px 14px}
+.cmp-line{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.cmp-line:last-child{border-bottom:none}
+.cmp-line .k{color:var(--muted)}
+.cmp-line .v{font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.cmp-line .v.pos{color:var(--go)}
+
+/* misc */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--navy);color:#fff;padding:11px 20px;border-radius:9px;font-size:13px;font-weight:600;
+  box-shadow:0 8px 28px rgba(13,35,64,.32);opacity:0;transition:.25s;z-index:80;border-left:3px solid var(--gold)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state .ic{font-size:46px;margin-bottom:12px;opacity:.4}
+.empty-state h3{color:var(--navy2);font-size:16px;margin-bottom:6px}
+.hint{font-size:11px;color:var(--muted)}
+.redflag-warn{background:var(--stop-bg);border:1px solid #f1c8c1;color:var(--stop);font-weight:700;
+  padding:9px 13px;border-radius:8px;font-size:12.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.modal-bg{position:fixed;inset:0;background:rgba(13,35,64,.5);z-index:90;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.modal-bg.show{display:flex}
+.sync-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.sync-pill.local{background:rgba(255,255,255,.1);color:#b9c8da}
+.sync-pill.synced{background:#173d2a;color:#5fd39b}
+.sync-pill.connecting{background:#3a3416;color:#e3c878}
+.sync-pill.error{background:#4a1f1f;color:#f0a0a0}
+#syncModal .modal{max-width:520px}
+#syncModal .sf{margin:10px 0}
+#syncModal label{display:block;font-size:12px;font-weight:700;color:var(--navy2,#163a5f);margin-bottom:4px}
+#syncModal input{width:100%;padding:8px 10px;border:1px solid var(--line2,#cdd8e4);border-radius:7px;font:inherit;font-size:13px}
+#syncModal .hint{font-size:12px;color:#6a7787;line-height:1.6}
+#syncModal .st{font-size:12.5px;font-weight:700;margin-top:8px}
+.modal{background:#fff;border-radius:14px;max-width:480px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h3{font-size:16px;color:var(--navy);margin-bottom:6px}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:18px}
+.modal .acts{display:flex;gap:9px;justify-content:flex-end}
+.savebar{font-size:11px;color:var(--muted)}
+.savebar.dirty{color:var(--warn);font-weight:700}
+/* ===== next action / badges / alerts ===== */
+.ws-sub{display:flex;align-items:center;gap:10px 12px;padding:10px 2px 0;flex-wrap:wrap}
+.ws-sub .na{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--navy2);font-weight:600}
+.ws-sub .na.grow{flex:1;min-width:200px}
+.ws-sub input.na-txt{flex:1;padding:6px 9px;border:1px solid var(--line2);border-radius:6px;font:inherit;font-size:12.5px}
+.ws-sub input[type=date]{padding:6px 8px;border:1px solid var(--line2);border-radius:6px;font:inherit}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;border:1px solid transparent;white-space:nowrap}
+.badge.overdue{background:#fdecec;color:#c0392b;border-color:#f3c0bd}
+.badge.soon{background:#fef6e7;color:#b9770e;border-color:#f3e0b0}
+.badge.ok{background:#eaf6ef;color:#1f8a55;border-color:#bfe6cf}
+.badge.none{background:#eef2f7;color:#8893a2}
+.memo-wrap{width:100%;margin-top:8px}
+.memo-wrap textarea{width:100%;min-height:52px;resize:vertical;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px;color:var(--ink)}
+.alert-strip{display:flex;flex-direction:column;gap:7px;margin:2px 0 18px}
+.alert-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:9px;padding:9px 13px;font-size:12.5px;cursor:pointer;transition:.12s}
+.alert-row:hover{border-color:var(--gold);box-shadow:var(--shadow);transform:translateX(2px)}
+.alert-row.overdue{border-left-color:#c0392b}
+.alert-row .nm{font-weight:700;color:var(--navy)}
+.alert-row .ax{color:var(--muted)}
+.alert-row .sp{flex:1}
+.deal .na2{font-size:10.5px;color:var(--navy2);margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.lnk-sheet{color:var(--gold2);font-size:11px;font-weight:700;cursor:pointer;margin-left:8px}
+.lnk-sheet:hover{color:var(--gold);text-decoration:underline}
+
+/* ===== PROPOSAL SHEET / PRINT ===== */
+#sheetOverlay{display:none;position:fixed;inset:0;z-index:200;background:#566173;overflow:auto}
+#sheetOverlay.show{display:block}
+.sheet-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:11px;
+  background:var(--navy);border-bottom:2px solid var(--gold);padding:11px 18px;flex-wrap:wrap}
+.sheet-bar .t{color:#fff;font-weight:700;font-size:13px}
+.sheet-bar .seg{display:flex;gap:2px;background:rgba(255,255,255,.08);padding:3px;border-radius:9px}
+.sheet-bar .seg button{color:#cdd8e4;font-size:12px;font-weight:600;padding:5px 11px;border-radius:7px}
+.sheet-bar .seg button.on{background:var(--gold);color:var(--navy)}
+.sheet-bar .sp{flex:1}
+.sheet-bar label.tg{color:#cdd8e4;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
+#printRoot{padding:22px 0 44px}
+.sheet{width:297mm;min-height:209mm;background:#fff;margin:0 auto 22px;padding:9mm 10mm;
+  box-shadow:0 8px 34px rgba(0,0,0,.32);box-sizing:border-box;color:#15202e;
+  font-size:8.6px;position:relative;display:flex;flex-direction:column}
+.sh-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2.5px solid #c8a24a;padding-bottom:7px}
+.sh-head .L{display:flex;align-items:center;gap:10px}
+.sh-head .mk{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#c8a24a,#e3c878);display:grid;place-items:center;color:#0d2340;font-weight:800;font-size:16px}
+.sh-head .ttl{font-size:14px;font-weight:800;color:#0d2340;letter-spacing:.01em}
+.sh-head .subt{font-size:9px;color:#46586c;margin-top:1px}
+.sh-head .R{text-align:right;font-size:8.4px;color:#6a7787;line-height:1.5}
+.sh-head .R .cust{font-size:12.5px;font-weight:800;color:#0d2340}
+.sh-badge{display:inline-block;font-size:8.4px;font-weight:700;color:#fff;background:#0d2340;padding:2px 9px;border-radius:14px;margin-top:3px}
+.sh-spec{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}
+.sh-spec .chip{background:#f3ead0;border:1px solid #ecdcb4;border-radius:6px;padding:3px 9px;font-size:8.6px}
+.sh-spec .chip b{color:#0d2340;font-weight:800;margin-left:4px}
+.sh-spec .chip.nv{background:#0d2340;border-color:#0d2340;color:#fff}
+.sh-spec .chip.nv b{color:#e3c878}
+.sh-spec .chip.up{background:#fff6e8;border-color:#f0d6a0}
+.sh-spec .chip.up b{color:#b9770e}
+.sh-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:6px 0}
+.sh-kpi{border:1px solid #e3e9f0;border-radius:7px;padding:6px 9px}
+.sh-kpi.gold{background:#f3ead0;border-color:#ecdcb4}
+.sh-kpi.nv{background:#0d2340;border-color:#0d2340}
+.sh-kpi .l{font-size:8px;color:#6a7787;font-weight:700}
+.sh-kpi.gold .l{color:#7a6a3a}
+.sh-kpi.nv .l{color:#e3c878}
+.sh-kpi .v{font-size:16px;font-weight:800;color:#0d2340;line-height:1.12;margin-top:2px;font-variant-numeric:tabular-nums}
+.sh-kpi.nv .v{color:#fff}
+.sh-kpi .s{font-size:7.6px;color:#8a8f98;margin-top:1px}
+.sh-kpi.nv .s{color:#9fb2c8}
+.sh-sec{font-size:9.2px;font-weight:800;color:#0d2340;border-left:3px solid #c8a24a;padding-left:6px;margin:8px 0 3px}
+table.st{width:100%;border-collapse:collapse;font-size:6.7px;table-layout:fixed;letter-spacing:-.2px}
+table.st th,table.st td{border:1px solid #dde4ec;padding:1.6px 2px;text-align:right;font-variant-numeric:tabular-nums;overflow:hidden}
+table.st thead th{background:#0d2340;color:#fff;font-weight:600;letter-spacing:0}
+table.st th.lbl,table.st td.lbl{text-align:left;width:96px;background:#f5f8fb;font-weight:700;color:#36475c;letter-spacing:0}
+table.st td.tot{background:#f3ead0;font-weight:800;color:#8a6d18}
+table.st th.tot{background:#8a6d18}
+table.st tr.sum td{background:#eef3f8;font-weight:800;color:#0d2340}
+table.st tr.sum td.tot{background:#e7d9b0}
+table.st tr.op td{background:#0d2340;color:#fff;font-weight:800}
+table.st tr.op td.lbl{background:#163a5f;color:#fff}
+table.st tr.op td.tot{background:#8a6d18;color:#fff}
+table.st tr.cum td{background:#faf6ec}
+table.st td.neg{color:#c0392b}
+table.st tr.hl td{background:#fff6e8}
+table.st tr.hl td.lbl{color:#b9770e}
+.sh-msg{background:#f7f9fc;border:1px solid #e8edf3;border-left:3px solid #c8a24a;border-radius:7px;padding:7px 11px;font-size:8.8px;color:#36475c;margin:7px 0;line-height:1.55}
+.sh-msg b{color:#0d2340}
+.sh-foot{margin-top:auto;border-top:1px solid #e1e8f0;padding-top:6px;font-size:7.4px;color:#8893a2;line-height:1.5}
+.sh-foot b{color:#46586c}
+.sh-cmp{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px}
+.sh-cmp .cc{border:1px solid #e3e9f0;border-radius:8px;overflow:hidden}
+.sh-cmp .cc.best{border:2px solid #c8a24a}
+.sh-cmp .cc h4{background:#0d2340;font-size:9px;color:#fff;padding:6px 9px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.sh-cmp .cc.best h4{background:#8a6d18}
+.sh-cmp .cc h4 .star{font-size:7.4px;color:#0d2340;background:#e3c878;padding:1px 6px;border-radius:9px}
+.sh-cmp .cc .ln{display:flex;justify-content:space-between;padding:4px 9px;font-size:8.8px;border-top:1px solid #eef2f7}
+.sh-cmp .cc .ln .k{color:#6a7787}
+.sh-cmp .cc .ln .v{font-weight:700;color:#0d2340;font-variant-numeric:tabular-nums}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{background:#fff!important}
+  body *{visibility:hidden}
+  #sheetOverlay,#sheetOverlay *{visibility:visible}
+  #sheetOverlay{position:static;inset:auto;background:#fff;overflow:visible;display:block}
+  .sheet-bar{display:none!important}
+  #printRoot{padding:0}
+  .sheet{box-shadow:none;margin:0;page-break-after:always;break-after:page}
+  .sheet:last-child{page-break-after:auto;break-after:auto}
+}
+/* ===== MAP VIEW ===== */
+#map{height:calc(100vh - 220px);min-height:440px;border:1px solid var(--line);border-radius:var(--r);z-index:1}
+.map-wrap{position:relative}
+.map-note{background:#fff6e8;border:1px solid #f0d6a0;border-radius:9px;padding:9px 13px;font-size:12px;color:#8a6d18;margin-bottom:12px}
+.lpop{font-family:inherit;min-width:184px}
+.lpop .lp-nm{font-weight:800;color:var(--navy);font-size:13px;margin-bottom:2px}
+.lpop .lp-meta{font-size:11px;color:var(--muted);margin-bottom:7px}
+.lpop .lp-kpi{display:flex;gap:6px;font-size:11px;margin-bottom:8px;flex-wrap:wrap}
+.lpop .lp-kpi span{background:#f3ead0;border-radius:5px;padding:1px 6px;color:#8a6d18;font-weight:700}
+.lpop .lp-btns{display:flex;gap:6px}
+.lpop button{font-family:inherit;font-size:11.5px;font-weight:700;border-radius:6px;padding:5px 9px;cursor:pointer;border:1px solid transparent}
+.lpop .b-open{background:#fff;color:var(--navy2);border-color:var(--line2)}
+.lpop .b-sheet{background:var(--gold);color:var(--navy)}
+.map-pin{background:var(--navy);color:#fff;border:2px solid var(--gold);border-radius:50% 50% 50% 0;
+  width:26px;height:26px;transform:rotate(-45deg);display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.map-pin b{transform:rotate(45deg);font-size:10px;font-weight:800}
+.map-pin.won{background:#1f8a55}.map-pin.lost{background:#8893a2;border-color:#c8d2dd}.map-pin.hot{background:#c0392b}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="mark">R</div>
+    <div><b>ReFort 査定スタジオ</b><span>EARTHCOM｜セカンダリー・リフォート統合査定</span></div>
+  </div>
+  <nav class="tabs">
+    <button data-nav="dash" class="on">ダッシュボード</button>
+    <button data-nav="list">案件一覧</button>
+    <button data-nav="map">マップ</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="util">
+    <span id="syncPill" class="sync-pill local" title="同期状態">● ローカル</span>
+    <button class="btn btn-ghost btn-sm" id="btnSync">☁ 同期設定</button>
+    <button class="btn btn-ghost btn-sm" id="btnImport">復元</button>
+    <button class="btn btn-ghost btn-sm" id="btnExport">バックアップ</button>
+    <button class="btn btn-ghost btn-sm" id="btnExcel">📥 Excel取込</button>
+    <button class="btn btn-gold" id="btnNew">＋ 新規案件</button>
+  </div>
+</header>
+
+<main>
+  <!-- DASHBOARD -->
+  <section class="view on" id="view-dash"></section>
+  <!-- LIST -->
+  <section class="view" id="view-list"></section>
+  <section class="view" id="view-map"></section>
+  <!-- DEAL WORKSPACE -->
+  <section class="view" id="view-deal"></section>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3 id="mTitle"></h3><p id="mBody"></p>
+    <div class="acts">
+      <button class="btn btn-line" id="mCancel">キャンセル</button>
+      <button class="btn btn-danger" id="mOk">削除する</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="fileImport" accept="application/json" style="display:none">
+<div class="modal-bg" id="syncModal">
+  <div class="modal">
+    <h3>☁ クラウド同期（社内共有）</h3>
+    <p class="hint">Supabaseに接続すると、営業全員が同じ案件データを共有できます。GitHub Pagesに公開したこのページを全員が開けば、同じ案件・パイプラインが表示されます。</p>
+    <div class="sf"><label>Supabase URL</label><input id="sbUrl" readonly></div>
+    <div class="sf"><label>anon public key（Supabase → Settings → API）</label><input id="sbKey" placeholder="eyJ... を貼り付け" autocomplete="off"></div>
+    <div class="st" id="sbStat"></div>
+    <p class="hint" style="margin-top:8px">※ 初回のみ、Supabaseで下記テーブルの作成が必要です（SQL Editorに貼り付け）：<br>
+    <code style="font-size:11px">create table if not exists refort_deals (id text primary key, name text, stage text, data jsonb, updated_at timestamptz default now());</code></p>
+    <div class="acts">
+      <button class="btn btn-line" id="sbLocal">ローカルのみに戻す</button>
+      <button class="btn btn-gold" id="sbConnect">接続して共有する</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="fileExcelNew" accept=".xlsx,.xlsm" style="display:none">
+<input type="file" id="fileExcelCur" accept=".xlsx,.xlsm" style="display:none">
+
+<!-- PROPOSAL SHEET OVERLAY (A4 landscape, print/PDF) -->
+<div id="sheetOverlay" aria-hidden="true">
+  <div class="sheet-bar">
+    <span class="t">📄 提案シート</span>
+    <div class="seg" id="sheetModels"></div>
+    <label class="tg"><input type="checkbox" id="shOwner"> 担当者名を表示</label>
+    <span class="sp"></span>
+    <button class="btn btn-gold btn-sm" id="shPrint">🖨 印刷 / PDF保存</button>
+    <button class="btn btn-line btn-sm" id="shClose">閉じる</button>
+  </div>
+  <div id="printRoot"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ===== ReFort 査定スタジオ ===== */
+'use strict';
+
+/* ---------- storage (localStorage with in-memory fallback) ---------- */
+const STORE_KEY = 'refort_studio_v1';
+let MEM = null;
+const Store = {
+  read(){
+    try{ const r = localStorage.getItem(STORE_KEY); return r?JSON.parse(r):{deals:[]}; }
+    catch(e){ return MEM || {deals:[]}; }
+  },
+  write(d){
+    MEM = d;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); }catch(e){}
+  }
+};
+function load(){ const d=Store.read(); if(!d.deals)d.deals=[]; return d; }
+function saveDB(d){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d); }catch(e){} }
+
+/* ---------- stages ---------- */
+const STAGES = [
+  {k:'hearing', n:'ヒアリング', c:'#8b9bb0'},
+  {k:'screen',  n:'一次判定',   c:'#2a6fb0'},
+  {k:'dd',      n:'DD・現調',   c:'#c98414'},
+  {k:'propose', n:'提案中',     c:'#7a5cc7'},
+  {k:'nego',    n:'契約交渉',   c:'#1f8a55'},
+  {k:'won',     n:'成約',       c:'#0d7a4a'},
+  {k:'lost',    n:'見送り',     c:'#9aa3ad'},
+];
+const stageOf = k => STAGES.find(s=>s.k===k) || STAGES[0];
+
+/* ---------- DD checklist template ---------- */
+const DD_TEMPLATE = [
+  {cat:'A. 権利・契約', items:[
+    ['A-1','土地の権利形態（所有/賃借/地上権）','契約書'],['A-2','土地賃貸借契約の残存期間','契約書'],
+    ['A-3','FIT認定IDと設備の一致確認','認定通知'],['A-4','特定契約（売電契約）の承継可否','電力会社'],
+    ['A-5','名義変更手続きの難易度・期間','経産局'],['A-6','抵当権・担保設定の有無','登記簿'],
+    ['A-7','連系負担金の精算有無','電力会社'],
+  ]},
+  {cat:'B. 技術・設備', items:[
+    ['B-1','パネル劣化・汚れ・破損の状態','現地調査'],['B-2','PCS稼働状況・交換履歴','保守記録'],
+    ['B-3','PCS残寿命（交換時期の見込み）','保守記録'],['B-4','架台・基礎の腐食・傾斜','現地調査'],
+    ['B-5','キュービクル・受電設備の状態','現地調査'],['B-6','監視システムの稼働・データ品質','遠隔確認'],
+    ['B-7','防犯・盗難対策の現状','現地調査'],['B-8','過去の故障・停止履歴','保守記録'],
+  ]},
+  {cat:'C. 法務・許認可', items:[
+    ['C-1','農地転用許可（農地の場合）','許可証'],['C-2','林地開発許可（林地の場合）','許可証'],
+    ['C-3','建築確認（高さ・面積基準）','確認済証'],['C-4','消防法対応（蓄電池併設時）','届出書'],
+    ['C-5','近隣住民との合意・協定','協定書'],['C-6','環境アセスメント（該当の場合）','評価書'],
+  ]},
+  {cat:'D. 収益・リスク', items:[
+    ['D-1','過去3年分の発電実績データ','監視データ'],['D-2','出力制御の実績・地域リスク','電力会社'],
+    ['D-3','自然災害リスク（洪水・土砂・風）','ハザードマップ'],['D-4','保険の引継ぎ・再付保条件','保険証券'],
+    ['D-5','是正工事が必要な箇所と概算','現地調査'],['D-6','メンテナンス契約の引継ぎ','契約書'],
+  ]},
+];
+const REDFLAGS = [
+  ['nameChange','名義変更可否','名義変更できない案件は即停止'],
+  ['fitMatch','FIT/FIP認定整合','認定IDと設備が一致するか'],
+  ['legal','違法性・法令違反','農転・林地開発・建築確認等'],
+  ['failure','重大故障・毀損','PCS故障・パネル大量破損等'],
+  ['dispute','係争・訴訟リスク','地権者トラブル・近隣問題等'],
+];
+
+/* ---------- default inputs ---------- */
+function blankInputs(){return{
+  customer:'', location:'', mapUrl:'', plantName:'', buyer:'', contractType:'FIT',
+  gridDate:'', landType:'所有',
+  fitPrice:36, sotsuFit:12, sotsuYears:10, sotsuApply:'適応',
+  dcExisting:'', acExisting:'', panelMaker:'', pcsMaker:'', pcsCount:1, pcsReplaced:'無',
+  mount:'固定', orientation:'', initialEquip:0,
+  actualGen:'', degExist:0.005,
+  rfPriceEx:'', rfCostTotal:'', rfGrossTotal:'',
+  rfDcAfter:'', realOutput:'', rfAcAfter:'', rfGenAfter:'', degRF:0.002, retireLoss:0,
+  landRent:0, elec:0, hoan:0, propTaxAmt:0, propTaxApply:'適応',
+  insExist:0, insRF:0, mainExist:0, mainRF:0,
+  secCostEx:'', secSaleEx:'', goodwillPct:50,
+  rate:0, landPrice:0, brokerEx:0, pcsReplaceCost:0, pcsReplaceApply:'適用外',
+  useLoan:'しない', loanYears:10, down:0,
+  rfRetireApply:'適応', rfRetirePct:100, rfRetireYear:1, rfDepYears:17, goodwillYears:5,
+  skrfRetirePct:100, skrfRetireYear:2, owner:'',
+};}
+
+/* ---------- math helpers ---------- */
+const n = v => { const x=parseFloat(v); return isFinite(x)?x:0; };
+const tdig = (x,d)=>{ const p=Math.pow(10,-d); return Math.trunc(x/p)*p; }; // d=-3 floor thousands
+function pmt(rate,nper,pv){ if(nper<=0)return 0; if(rate===0)return -pv/nper;
+  return -(pv*rate*Math.pow(1+rate,nper))/(Math.pow(1+rate,nper)-1); }
+function irr(cf){ const f=r=>cf.reduce((s,c,t)=>s+c/Math.pow(1+r,t),0);
+  let lo=-0.95,hi=15,flo=f(lo),fhi=f(hi); if(flo*fhi>0)return null;
+  for(let i=0;i<240;i++){ const m=(lo+hi)/2,fm=f(m); if(Math.abs(fm)<1)return m;
+    if(flo*fm<0){hi=m;fhi=fm;}else{lo=m;flo=fm;} } return (lo+hi)/2; }
+function rateLevel(nper,pay,pv){ // RATE(nper,pmt,pv) for level annuity: pv + pay*ann = 0
+  const cf=[pv]; for(let i=0;i<nper;i++)cf.push(pay); return irr(cf); }
+function removalTier(fit){ return fit>=40?1.62:fit>=36?1.49:fit>=32?1.28:fit>=27?1.14:
+  fit>=24?1.09:fit>=21?0.91:fit>=18?0.78:fit>=14?0.66:0.58; }
+
+const yen = v => (v===''||v==null||!isFinite(v))?'—':'¥'+Math.round(v).toLocaleString('ja-JP');
+const yenM = v => { if(v===''||v==null||!isFinite(v))return'—'; const m=v/10000;
+  return Math.abs(m)>=10000? (m/10000).toFixed(2)+'億' : Math.round(m).toLocaleString('ja-JP')+'万'; };
+const pct = (v,d=1) => (v===''||v==null||!isFinite(v))?'—':(v*100).toFixed(d)+'%';
+const kwh = v => (v===''||v==null||!isFinite(v))?'—':Math.round(v).toLocaleString('ja-JP');
+
+/* ---------- DERIVED values (shared) ---------- */
+function derive(I){
+  const Y=new Date().getFullYear();
+  const gridYear = I.gridDate? parseInt(String(I.gridDate).slice(0,4)) : NaN;
+  const elapsed = isFinite(gridYear)? (Y-gridYear) : 11;
+  const residual = Math.max(20 - elapsed, 0);
+  const fit=n(I.fitPrice), gen=n(I.actualGen);
+  const rfEx=n(I.rfPriceEx), rfIn=Math.round(rfEx*1.1);
+  const cost=n(I.rfCostTotal), gross=n(I.rfGrossTotal);
+  const grossRate = rfEx>0? gross/rfEx : 0;
+  const secEx=n(I.secCostEx), saleEx=n(I.secSaleEx), gw=n(I.goodwillPct);
+  const saleIn=Math.round(saleEx*1.1);
+  const usedEx=Math.round(saleEx*(100-gw)/100);
+  const goodwillEx=Math.round(saleEx*gw/100);
+  const secGross=saleEx-secEx, secGrossRate=saleEx>0?secGross/saleEx:0;
+  const removal=Math.round(gen*removalTier(fit));
+  const residLife=Math.max(Math.trunc(elapsed>=17?17*0.2:17-elapsed+elapsed*0.2),2);
+  const rfGenAfter=n(I.rfGenAfter);
+  const rfGenRate = gen>0? (rfGenAfter-gen)/gen : 0;
+  const ref50 = gen*fit*residual*0.5 - n(I.landRent)*residual;
+  const ref55 = gen*fit*residual*0.55 - n(I.landRent)*residual;
+  const retireResid = Math.round(n(I.initialEquip)/17*residLife);
+  return {Y,gridYear,elapsed,residual,fit,gen,rfEx,rfIn,cost,gross,grossRate,
+    secEx,saleEx,gw,saleIn,usedEx,goodwillEx,secGross,secGrossRate,removal,residLife,
+    rfGenAfter,rfGenRate,ref50,ref55,retireResid};
+}
+
+/* ---------- 一次判定 ---------- */
+function judge(I){
+  const d=derive(I);
+  const util = (n(I.acExisting)>0)? d.gen/(n(I.acExisting)*8760) : null;
+  const cost = n(I.landRent)+n(I.elec)+n(I.hoan)+n(I.propTaxAmt)+n(I.insExist)+n(I.mainExist)+d.removal;
+  const rev = d.gen*d.fit;
+  const ncf = rev-cost;
+  const surfaceY = d.secEx>0? rev/d.secEx : null;
+  const holdY = d.secEx>0? ncf/d.secEx : null;
+  const simpleIRR = d.secEx>0? rateLevel(20,ncf,-d.secEx) : null;
+  const resaleGross = d.secGross, resaleRate = d.secGrossRate;
+  const kwUnit = n(I.dcExisting)>0? Math.round(d.secEx/n(I.dcExisting)) : null;
+  const dev50 = d.ref50!==0? (d.secEx-d.ref50)/d.ref50 : null;
+  // red flags
+  let ng=0; REDFLAGS.forEach(([k])=>{ if((I['rf_'+k]||'未確認')==='NG')ng++; });
+  // verdict
+  let policy, level, irrJ, flagJ;
+  flagJ = ng>0? `停止（赤旗${ng}件）` : 'クリア';
+  if(simpleIRR==null){ irrJ='—（仕入未入力）'; }
+  else if(simpleIRR>=0.065) irrJ='Go（IRR6.5%以上）';
+  else if(simpleIRR>=0.06) irrJ='Go（IRR6.0%以上）';
+  else irrJ='見送り（IRR6%未満）';
+  if(ng>0){ policy='見送り（赤旗あり）'; level='stop'; }
+  else if(simpleIRR!=null && simpleIRR<0.06){ policy='見送り（IRR不足）'; level='stop'; }
+  else if(holdY!=null && holdY>=0.08 && simpleIRR>=0.065){ policy='自社保有向き'; level='go'; }
+  else if(resaleRate>=0.08){ policy='転売向き'; level='go'; }
+  else if(simpleIRR==null){ policy='仕入価格を入力して判定'; level='warn'; }
+  else { policy='両面検討'; level='warn'; }
+  return {d,util,cost,rev,ncf,surfaceY,holdY,simpleIRR,resaleGross,resaleRate,kwUnit,
+    dev50,ng,policy,level,irrJ,flagJ};
+}
+
+/* ====================================================================
+   SIMULATION ENGINES  (faithful port of the Excel workbook)
+   ==================================================================== */
+const ZERO20=()=>new Array(20).fill(0);
+
+// shared per-year helpers
+function genSeries(base,deg,residual,sotsuApply){
+  const a=ZERO20();
+  for(let t=1;t<=20;t++){ const act=(t<=residual)||(sotsuApply==='適応');
+    a[t-1]=act? base*Math.pow(1-deg,t-1):0; } return a;
+}
+function priceSeries(fit,sotsu,residual,sotsuApply){
+  const a=ZERO20();
+  for(let t=1;t<=20;t++){ a[t-1]= t<=residual? fit*1.1 : (sotsuApply==='適応'? sotsu*1.1:0); }
+  return a;
+}
+
+/* ---- Model ① セカンダリー（既存運用） ---- */
+function simSecondary(I){
+  const d=derive(I);
+  const gen=genSeries(d.gen,n(I.degExist),d.residual,I.sotsuApply);
+  const pr=priceSeries(d.fit,n(I.sotsuFit),d.residual,I.sotsuApply);
+  const rows={売電量:ZERO20(),売電収入:ZERO20(),地代:ZERO20(),電気代:ZERO20(),保険料:ZERO20(),
+    メンテ費:ZERO20(),保安協会費:ZERO20(),償却資産税:ZERO20(),撤去費積立:ZERO20(),PCS交換:ZERO20(),
+    コスト合計:ZERO20(),減価償却:ZERO20(),
+    営業権償却:ZERO20(),経常利益:ZERO20(),営業CF:ZERO20(),ローン返済:ZERO20(),返済後CF:ZERO20()};
+  const useLoan=I.useLoan==='使用する';
+  const loanPV=d.saleIn-n(I.down);
+  for(let t=1;t<=20;t++){
+    const act=(t<=d.residual)||(I.sotsuApply==='適応');
+    rows.売電量[t-1]=gen[t-1];
+    rows.売電収入[t-1]=gen[t-1]*pr[t-1];
+    const propTax=(I.propTaxApply==='適応'&&act)? tdig(tdig(Math.max(d.saleEx*0.9365*Math.pow(0.873,t-1),d.saleEx*0.05),-3)*0.014,-2):0;
+    const removal=(t>d.residual-10&&t<=d.residual)? Math.round(gen[t-1]*(d.removal/(d.gen||1))):0;
+    const pcs=(I.pcsReplaceApply==='適応'&&t===10&&act)? n(I.pcsReplaceCost):0;
+    const run=act?(n(I.landRent)+n(I.elec)+n(I.insExist)+n(I.mainExist)+n(I.hoan)):0;
+    rows.地代[t-1]=act?n(I.landRent):0; rows.電気代[t-1]=act?n(I.elec):0;
+    rows.保険料[t-1]=act?n(I.insExist):0; rows.メンテ費[t-1]=act?n(I.mainExist):0;
+    rows.保安協会費[t-1]=act?n(I.hoan):0; rows.償却資産税[t-1]=propTax; rows.撤去費積立[t-1]=removal; rows.PCS交換[t-1]=pcs;
+    rows.コスト合計[t-1]=run+propTax+removal+pcs;
+    rows.減価償却[t-1]=(t<=d.residLife)? Math.round(d.usedEx/d.residLife):0;
+    rows.営業権償却[t-1]=(t<=n(I.goodwillYears))? Math.round(d.goodwillEx/n(I.goodwillYears)):0;
+    rows.経常利益[t-1]=rows.売電収入[t-1]-rows.コスト合計[t-1]-rows.減価償却[t-1]-rows.営業権償却[t-1];
+    rows.営業CF[t-1]=rows.経常利益[t-1]+rows.減価償却[t-1]+rows.営業権償却[t-1];
+    rows.ローン返済[t-1]=(useLoan&&t<=n(I.loanYears))? Math.round(-pmt(n(I.rate)/100,n(I.loanYears),loanPV)):0;
+    rows.返済後CF[t-1]=rows.営業CF[t-1]-rows.ローン返済[t-1];
+  }
+  const inv=d.saleIn;
+  const out0=-(useLoan?n(I.down):d.saleIn)-(I.landType==='所有'?n(I.landPrice):0);
+  const stream=[out0]; for(let t=1;t<=20;t++)stream.push(useLoan?rows.返済後CF[t-1]:rows.営業CF[t-1]);
+  const dealIRR=irr(stream);
+  const avgRev=rows.売電収入.reduce((a,b)=>a+b,0)/20;
+  const fitAvgCF=avg(rows.営業CF.slice(0,Math.min(d.residual,20))||[0]);
+  const sum=k=>rows[k].reduce((a,b)=>a+b,0);
+  return {d,rows,useLoan,inv,dealIRR,avgRev,fitAvgCF,
+    surfaceY: inv>0?rows.売電収入[0]/inv:null,
+    holdY: inv>0?rows.営業CF[0]/inv:null,
+    payback: avg(rows.営業CF)>0? inv/avg(rows.営業CF):null,
+    cf20:sum('営業CF'), rev20:sum('売電収入')};
+}
+function avg(a){ if(!a||!a.length)return 0; return a.reduce((x,y)=>x+y,0)/a.length; }
+
+/* ---- Model ② セカンダリーRF（取得＋リフォート） ---- */
+function simSecondaryRF(I){
+  const d=derive(I);
+  const gen=genSeries(d.rfGenAfter,n(I.degRF),d.residual,I.sotsuApply);
+  const pr=priceSeries(d.fit,n(I.sotsuFit),d.residual,I.sotsuApply);
+  const skY=n(I.skrfRetireYear), depYears=n(I.rfDepYears), gwYears=n(I.goodwillYears);
+  const rows={売電量:ZERO20(),売電収入:ZERO20(),地代:ZERO20(),電気代:ZERO20(),保険料:ZERO20(),
+    メンテ費:ZERO20(),保安協会費:ZERO20(),償却資産税:ZERO20(),撤去費積立:ZERO20(),コスト合計:ZERO20(),減価償却中古:ZERO20(),
+    営業権償却:ZERO20(),RF減価償却:ZERO20(),除却損:ZERO20(),経常利益:ZERO20(),営業CF:ZERO20(),累積CF:ZERO20()};
+  const totalInv=Math.round(d.secEx*1.1)+Math.round(d.rfEx*1.1)+(I.landType==='所有'?n(I.landPrice):0)+Math.round(n(I.brokerEx)*1.1);
+  let cum=0; const stream=[-totalInv];
+  for(let t=1;t<=20;t++){
+    const act=(t<=d.residual)||(I.sotsuApply==='適応');
+    rows.売電量[t-1]=gen[t-1]; rows.売電収入[t-1]=gen[t-1]*pr[t-1];
+    const propUsed=(I.propTaxApply==='適応'&&act)? tdig(tdig(Math.max(d.saleEx*0.9365*Math.pow(0.873,t-1),d.saleEx*0.05),-3)*0.014,-2):0;
+    const propRF=(I.propTaxApply==='適応'&&act&&t>=skY)? tdig(tdig(Math.max(d.rfEx*0.9365*Math.pow(0.873,t-skY),d.rfEx*0.05),-3)*0.014,-2):0;
+    const removal=(t>d.residual-10&&t<=d.residual)? Math.round(gen[t-1]*(d.removal/(d.gen||1))):0;
+    const run=act?(n(I.landRent)+n(I.elec)+n(I.insRF)+n(I.mainRF)+n(I.hoan)):0;
+    rows.地代[t-1]=act?n(I.landRent):0; rows.電気代[t-1]=act?n(I.elec):0;
+    rows.保険料[t-1]=act?n(I.insRF):0; rows.メンテ費[t-1]=act?n(I.mainRF):0;
+    rows.保安協会費[t-1]=act?n(I.hoan):0; rows.償却資産税[t-1]=propUsed+propRF; rows.撤去費積立[t-1]=removal;
+    rows.コスト合計[t-1]=run+propUsed+propRF+removal;
+    if(t<skY) rows.減価償却中古[t-1]=(t<=d.residLife)?Math.round(d.usedEx*1.1/d.residLife):0;
+    else rows.減価償却中古[t-1]=(t<skY+d.residLife)?Math.round(d.usedEx*1.1*(1-n(I.skrfRetirePct)/100)/d.residLife):0;
+    rows.営業権償却[t-1]=(t<=gwYears)?Math.round(d.goodwillEx*1.1/gwYears):0;
+    rows.RF減価償却[t-1]=(t>=skY&&t<skY+depYears)?Math.round(d.rfEx*1.1/depYears):0;
+    rows.除却損[t-1]=(t===skY)?Math.max(Math.round(d.usedEx*1.1*n(I.skrfRetirePct)/100 - d.usedEx*1.1/d.residLife*(skY-1)),0):0;
+    rows.経常利益[t-1]=rows.売電収入[t-1]-rows.コスト合計[t-1]-rows.減価償却中古[t-1]-rows.営業権償却[t-1]-rows.RF減価償却[t-1];
+    rows.営業CF[t-1]=rows.経常利益[t-1]+rows.減価償却中古[t-1]+rows.営業権償却[t-1]+rows.RF減価償却[t-1];
+    cum+= (t===1)? rows.営業CF[0]-totalInv : rows.営業CF[t-1];
+    rows.累積CF[t-1]=cum; stream.push(rows.営業CF[t-1]);
+  }
+  const dealIRR=irr(stream);
+  const fitAvgCF=avg(rows.営業CF.slice(0,Math.min(d.residual,20)));
+  const postCF = d.residual>=20? null : avg(rows.営業CF.slice(d.residual,20));
+  const roi=(rows.経常利益[0]+rows.減価償却中古[0]+rows.営業権償却[0]+rows.RF減価償却[0])/(d.rfIn||1);
+  return {d,rows,totalInv,dealIRR,fitAvgCF,postCF,roi,
+    surfaceY:totalInv>0?rows.売電収入[0]/totalInv:null,
+    immediateDep:Math.round(d.rfIn*0.3),
+    cf20:rows.営業CF.reduce((a,b)=>a+b,0)};
+}
+
+/* ---- Model ③ リフォートのみ（現オーナー投資効果） ---- */
+function simRefortOnly(I){
+  const d=derive(I);
+  const before=genSeries(d.gen,n(I.degExist),d.residual,I.sotsuApply);
+  const after=genSeries(d.rfGenAfter,n(I.degRF),d.residual,I.sotsuApply);
+  const pr=priceSeries(d.fit,n(I.sotsuFit),d.residual,I.sotsuApply);
+  const rows={RF前発電:ZERO20(),RF後発電:ZERO20(),発電増加:ZERO20(),売電収益増加:ZERO20(),
+    除却損:ZERO20(),RF減価償却:ZERO20(),累積効果:ZERO20()};
+  const rfIn=d.rfIn, retYear=n(I.rfRetireYear), depYears=n(I.rfDepYears);
+  let cum=0, payback=null;
+  for(let t=1;t<=20;t++){
+    const act=(t<=d.residual)||(I.sotsuApply==='適応');
+    rows.RF前発電[t-1]=before[t-1]; rows.RF後発電[t-1]=after[t-1];
+    rows.発電増加[t-1]=after[t-1]-before[t-1];
+    rows.売電収益増加[t-1]=rows.発電増加[t-1]*pr[t-1];
+    rows.除却損[t-1]=(I.rfRetireApply==='適応'&&t===n(I.rfRetireYear))?Math.round(d.retireResid*1.1*n(I.rfRetirePct)/100):0;
+    rows.RF減価償却[t-1]=(t>=retYear&&t<retYear+depYears)?Math.round(d.rfEx*1.1/depYears):0;
+    cum = (t===1)? rows.売電収益増加[0]-rfIn : cum+rows.売電収益増加[t-1];
+    rows.累積効果[t-1]=act?cum:0;
+    if(payback==null && act && rows.累積効果[t-1]>0){
+      const inc=rows.売電収益増加[t-1], prev=rows.累積効果[t-1]-inc;
+      payback = inc>0 ? (t-1)+(-prev)/inc : t;
+    }
+  }
+  const incomeTotal=rows.売電収益増加.reduce((a,b)=>a+b,0);
+  const netGain20=rows.累積効果[19];
+  const fitYears=Math.min(d.residual,20);
+  const netGainFIT=rows.売電収益増加.slice(0,fitYears).reduce((a,b)=>a+b,0)-rfIn;
+  const roi=(rows.売電収益増加[0]+rows.RF減価償却[0])/(rfIn||1);
+  const before20=before.reduce((a,b)=>a+b,0), after20=after.reduce((a,b)=>a+b,0);
+  // current vs RF annual (yr1, incl tax)
+  const cur={rev:d.gen*d.fit*1.1, maint:n(I.mainExist), ins:n(I.insExist)};
+  const aft={rev:d.rfGenAfter*d.fit*1.1, maint:n(I.mainRF), ins:n(I.insRF)};
+  cur.cf=cur.rev-cur.maint-cur.ins; aft.cf=aft.rev-aft.maint-aft.ins;
+  return {d,rows,rfIn,incomeTotal,netGain20,netGainFIT,roi,payback,before20,after20,
+    immediateDep:Math.round(rfIn*0.3),taxCredit:Math.round(rfIn*0.07),
+    roiOK:roi>=0.15,cur,aft};
+}
+
+/* ==================================================================== */
+/* expose for UI */
+window.RF = {load,saveDB,STAGES,stageOf,DD_TEMPLATE,REDFLAGS,blankInputs,derive,judge,
+  simSecondary,simSecondaryRF,simRefortOnly,
+  yen,yenM,pct,kwh,n,
+  fmt:{yen,yenM,pct,kwh}};
+
+</script>
+<script>
+/* ===== ReFort 査定スタジオ — UI ===== */
+'use strict';
+(function(){
+const {load,saveDB,STAGES,stageOf,DD_TEMPLATE,REDFLAGS,blankInputs,derive,judge,
+  simSecondary,simSecondaryRF,simRefortOnly,yen,yenM,pct,kwh,n} = window.RF;
+
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+let DB=load();
+let curDeal=null, dirty=false, resTab='judge';
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+function uid(){return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function nav(v){$$('.view').forEach(x=>x.classList.remove('on'));$('#view-'+v).classList.add('on');
+  $$('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.nav===v));
+  window.scrollTo(0,0);}
+
+/* ---------- best verdict label for a deal ---------- */
+function dealVerdict(deal){
+  const j=judge(deal.inputs);
+  return {level:j.level,policy:j.policy,irr:j.simpleIRR,ng:j.ng};
+}
+function dealPipelineValue(deal){
+  const d=derive(deal.inputs);
+  // representative value: secondary sale (incl tax) if set, else RF price (incl tax)
+  return d.saleIn>0? d.saleIn : d.rfIn;
+}
+
+/* ==================== DASHBOARD ==================== */
+function renderDash(){
+  const v=$('#view-dash');
+  const deals=DB.deals;
+  const active=deals.filter(d=>d.stage!=='won'&&d.stage!=='lost');
+  const won=deals.filter(d=>d.stage==='won');
+  const pipeVal=active.reduce((s,d)=>s+dealPipelineValue(d),0);
+  const weighted=active.reduce((s,d)=>s+dealPipelineValue(d)*(STAGE_PROB[d.stage]||0),0);
+  const goCount=active.filter(d=>dealVerdict(d).level==='go').length;
+  const flagCount=deals.filter(d=>dealVerdict(d).ng>0).length;
+  const todo=active.filter(d=>{const st=dueInfo(d).state;return st==='overdue'||st==='soon';})
+    .sort((a,b)=>(dueInfo(a).days)-(dueInfo(b).days));
+
+  let html=`<div class="page-h"><h1>ダッシュボード</h1>
+    <span class="sub">セカンダリー査定・パイプライン全体像</span></div>`;
+  html+=`<div class="kpis">
+    ${kpi('進行中案件',active.length,'件','成約・見送り除く','📁')}
+    ${kpi('パイプライン金額',yenM(pipeVal),'','進行中案件の想定取引額','💰')}
+    ${kpi('加重見込',yenM(weighted),'','ステージ確度で加重','📈')}
+    ${kpi('Go判定',goCount,'件','一次判定で推奨','✅')}
+    ${kpi('要対応',todo.length,'件','期限超過・3日以内','⏰')}
+    ${kpi('成約',won.length,'件','クローズ済','🏆')}
+    ${kpi('赤旗あり',flagCount,'件','要確認・停止検討','🚩')}
+  </div>`;
+
+  if(todo.length){
+    html+=`<div class="sec-title">要対応（次アクション）</div><div class="alert-strip">`;
+    todo.slice(0,6).forEach(d=>{const di=dueInfo(d);
+      html+=`<div class="alert-row ${di.state}" data-open="${d.id}">
+        ${dueBadge(d)}<span class="nm">${esc(d.name||'(無題案件)')}</span>
+        <span class="ax">${esc(d.next||'次アクション未設定')}</span>
+        <span class="sp"></span><span class="hint">${stageOf(d.stage).n} →</span></div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // pipeline lanes
+  html+=`<div class="sec-title">パイプライン</div><div class="pipe-wrap"><div class="pipe" id="pipe"></div></div>`;
+  v.innerHTML=html;
+
+  $$('.alert-row[data-open]').forEach(r=>r.onclick=()=>openDeal(r.dataset.open));
+
+  const pipe=$('#pipe');
+  STAGES.forEach(st=>{
+    const list=deals.filter(d=>d.stage===st.k);
+    const sum=list.reduce((s,d)=>s+dealPipelineValue(d),0);
+    const lane=el('div','lane');lane.dataset.stage=st.k;
+    lane.innerHTML=`<div class="lane-h"><span class="dot" style="background:${st.c}"></span>
+      <b>${st.n}</b><span class="cnt">${list.length}</span>
+      <span class="sum">${list.length?yenM(sum):'—'}</span></div>
+      <div class="lane-body"></div>`;
+    const body=lane.querySelector('.lane-body');
+    if(!list.length){ body.appendChild(el('div','empty-lane','案件なし')); }
+    list.forEach(d=>body.appendChild(dealCard(d)));
+    // drag drop
+    lane.addEventListener('dragover',e=>{e.preventDefault();lane.classList.add('drop');});
+    lane.addEventListener('dragleave',()=>lane.classList.remove('drop'));
+    lane.addEventListener('drop',e=>{e.preventDefault();lane.classList.remove('drop');
+      const id=e.dataTransfer.getData('id');const deal=DB.deals.find(x=>x.id===id);
+      if(deal&&deal.stage!==st.k){deal.stage=st.k;deal.updatedAt=Date.now();saveDB(DB);renderDash();toast(deal.name+'を「'+st.n+'」へ移動');}
+    });
+    pipe.appendChild(lane);
+  });
+}
+function kpi(lab,val,unit,foot,ic){
+  return `<div class="card kpi"><span class="ic">${ic}</span><div class="lab">${lab}</div>
+    <div class="val num">${val}${unit?`<small>${unit}</small>`:''}</div>
+    <div class="foot">${foot}</div></div>`;
+}
+function dealCard(d){
+  const v=dealVerdict(d);const der=derive(d.inputs);
+  const c=el('div','deal');c.draggable=true;c.style.borderLeftColor=stageOf(d.stage).c;
+  c.innerHTML=`<div class="nm">${esc(d.name||'(無題案件)')}</div>
+    <div class="meta">
+      ${d.inputs.location?'<span>📍 '+esc(d.inputs.location)+'</span>':''}
+      ${d.inputs.owner?'<span>👤 '+esc(d.inputs.owner)+'</span>':''}
+      ${der.gen?'<span>'+kwh(der.gen)+' kWh/年</span>':''}
+    </div>
+    <div class="row2">
+      <span class="chip ${v.level}">${esc(v.policy)}</span>
+      ${v.irr!=null?'<span class="chip neutral">IRR '+pct(v.irr)+'</span>':''}
+      ${v.ng>0?'<span class="chip stop">🚩'+v.ng+'</span>':''}
+    </div>
+    ${(d.due||d.next)?`<div class="na2">${d.due?dueBadge(d):''}${d.next?'<span>🎯 '+esc(d.next)+'</span>':''}</div>`:''}`;
+  c.addEventListener('dragstart',e=>e.dataTransfer.setData('id',d.id));
+  c.addEventListener('click',()=>openDeal(d.id));
+  return c;
+}
+
+/* ==================== LIST ==================== */
+let listFilter={q:'',stage:'',owner:''};
+let lastListRows=[];
+function renderList(){
+  const v=$('#view-list');
+  let html=`<div class="page-h"><h1>案件一覧</h1><span class="sub">全${DB.deals.length}件</span></div>`;
+  const owners=[...new Set(DB.deals.map(d=>d.inputs.owner).filter(Boolean))];
+  html+=`<div class="list-toolbar">
+    <input id="lq" placeholder="🔍 案件名・所在地で検索" value="${esc(listFilter.q)}">
+    <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
+    <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
+    <div style="flex:1"></div>
+    <button class="btn btn-line btn-sm" id="lsheet">📄 一括シート印刷</button>
+    <button class="btn btn-line btn-sm" id="lcsv">CSV出力</button>
+  </div>`;
+  let rows=DB.deals.filter(d=>{
+    if(listFilter.stage&&d.stage!==listFilter.stage)return false;
+    if(listFilter.owner&&d.inputs.owner!==listFilter.owner)return false;
+    if(listFilter.q){const q=listFilter.q.toLowerCase();
+      if(!((d.name||'').toLowerCase().includes(q)||(d.inputs.location||'').toLowerCase().includes(q)))return false;}
+    return true;
+  }).sort((a,b)=>b.updatedAt-a.updatedAt);
+  lastListRows=rows;
+
+  if(!rows.length){
+    html+=`<div class="card empty-state"><div class="ic">📋</div><h3>案件がありません</h3>
+      <p class="hint">右上の「＋ 新規案件」から査定を始めましょう</p></div>`;
+    v.innerHTML=html; wireList(); return;
+  }
+  html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>
+    <th>案件名</th><th>所在地</th><th>担当</th><th>ステージ</th>
+    <th class="r">DC容量</th><th class="r">発電量/年</th><th class="r">想定IRR</th>
+    <th>一次判定</th><th>次アクション・期限</th><th class="r">取引額</th><th>更新</th></tr></thead><tbody>`;
+  rows.forEach(d=>{
+    const v2=dealVerdict(d);const der=derive(d.inputs);const st=stageOf(d.stage);
+    html+=`<tr><td><span class="lnk" data-open="${d.id}">${esc(d.name||'(無題)')}</span><span class="lnk-sheet" data-sheet="${d.id}">📄シート</span></td>
+      <td>${esc(d.inputs.location||'—')}</td><td>${esc(d.inputs.owner||'—')}</td>
+      <td><span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span></td>
+      <td class="r num">${der.gen?n(d.inputs.dcExisting).toLocaleString():'—'}</td>
+      <td class="r num">${kwh(der.gen)}</td>
+      <td class="r num">${v2.irr!=null?pct(v2.irr):'—'}</td>
+      <td><span class="chip ${v2.level}">${esc(v2.policy)}</span></td>
+      <td>${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}</td>
+      <td class="r num">${yenM(dealPipelineValue(d))}</td>
+      <td class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  v.innerHTML=html; wireList();
+}
+function wireList(){
+  const q=$('#lq'); if(q)q.oninput=e=>{listFilter.q=e.target.value;renderListSoft();};
+  const ls=$('#lstage'); if(ls)ls.onchange=e=>{listFilter.stage=e.target.value;renderList();};
+  const lo=$('#lowner'); if(lo)lo.onchange=e=>{listFilter.owner=e.target.value;renderList();};
+  const cs=$('#lcsv'); if(cs)cs.onclick=exportCSV;
+  const sh=$('#lsheet'); if(sh)sh.onclick=()=>{
+    if(!lastListRows.length){toast('対象の案件がありません');return;}
+    openSheet(lastListRows.slice(),'m3');
+  };
+  $$('[data-open]').forEach(b=>b.onclick=()=>openDeal(b.dataset.open));
+  $$('[data-sheet]').forEach(b=>b.onclick=()=>{const dd=DB.deals.find(x=>x.id===b.dataset.sheet);if(dd)openSheet([dd],autoModel(dd));});
+}
+let _lt; function renderListSoft(){clearTimeout(_lt);_lt=setTimeout(renderList,200);}
+
+/* ==================== DEAL WORKSPACE ==================== */
+function openDeal(id){
+  curDeal=DB.deals.find(d=>d.id===id); if(!curDeal)return;
+  dirty=false; resTab='judge'; nav('deal'); renderDeal();
+}
+function newDeal(){
+  const d={id:uid(),name:'',stage:'hearing',createdAt:Date.now(),updatedAt:Date.now(),
+    inputs:blankInputs(),dd:{}};
+  DB.deals.unshift(d); saveDB(DB); curDeal=d; dirty=false; resTab='judge'; nav('deal'); renderDeal();
+  setTimeout(()=>{const i=$('#dealName');if(i)i.focus();},60);
+}
+function I(){return curDeal.inputs;}
+function setI(k,val){curDeal.inputs[k]=val;markDirty();recompute();}
+function markDirty(){dirty=true;const sb=$('#savebar');if(sb){sb.textContent='● 未保存の変更';sb.classList.add('dirty');}}
+function persist(){curDeal.updatedAt=Date.now();
+  if(!curDeal.name)curDeal.name=curDeal.inputs.customer||'(無題案件)';
+  saveDB(DB);dirty=false;const sb=$('#savebar');if(sb){sb.textContent='✓ 保存済 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});sb.classList.remove('dirty');}
+  toast('保存しました');}
+
+function renderDeal(){
+  const v=$('#view-deal');
+  v.innerHTML=`
+  <div class="ws-head">
+    <button class="btn btn-line btn-sm" id="backBtn">← 一覧</button>
+    <div class="nmbox"><input id="dealName" placeholder="案件名を入力" value="${esc(curDeal.name)}"></div>
+    <div class="sel">
+      <input class="txt" id="dealOwner" placeholder="担当者" style="width:110px" value="${esc(curDeal.inputs.owner||'')}">
+      <select id="dealStage">${STAGES.map(s=>`<option value="${s.k}" ${curDeal.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
+      <span class="savebar" id="savebar"></span>
+      <button class="btn btn-line btn-sm" id="excelBtn">📥 Excel取込</button>
+      <button class="btn btn-line btn-sm" id="sheetBtn">📄 提案シート</button>
+      <button class="btn btn-line btn-sm" id="dupBtn">複製</button>
+      <button class="btn btn-danger btn-sm" id="delBtn">削除</button>
+      <button class="btn btn-gold" id="saveBtn">保存</button>
+    </div>
+  </div>
+  <div class="ws-sub">
+    <div class="na grow"><span>次アクション</span><input class="na-txt" id="dealNext" placeholder="例：DM送付／現地調査の日程調整／提案書送付" value="${esc(curDeal.next||'')}"></div>
+    <label class="na">期限 <input type="date" id="dealDue" value="${esc(curDeal.due||'')}"></label>
+    <span id="dueBadgeSlot">${curDeal.due?dueBadge(curDeal):''}</span>
+    <button class="btn btn-line btn-sm" id="memoBtn">📝 メモ</button>
+  </div>
+  <div class="memo-wrap" id="memoWrap" style="display:${curDeal.memo?'block':'none'}"><textarea id="dealMemo" placeholder="社内メモ（提案シートには印刷されません）">${esc(curDeal.memo||'')}</textarea></div>
+  <div class="ws-grid">
+    <div id="formCol"></div>
+    <div id="resCol"></div>
+  </div>`;
+  $('#backBtn').onclick=()=>{nav('list');renderList();};
+  $('#dealName').oninput=e=>{curDeal.name=e.target.value;markDirty();};
+  $('#dealOwner').oninput=e=>{curDeal.inputs.owner=e.target.value;markDirty();};
+  $('#dealStage').onchange=e=>{curDeal.stage=e.target.value;markDirty();};
+  $('#saveBtn').onclick=persist;
+  $('#dealNext').oninput=e=>{curDeal.next=e.target.value;markDirty();};
+  $('#dealDue').onchange=e=>{curDeal.due=e.target.value;markDirty();
+    const slot=$('#dueBadgeSlot');if(slot)slot.innerHTML=curDeal.due?dueBadge(curDeal):'';};
+  $('#memoBtn').onclick=()=>{const w=$('#memoWrap');w.style.display=w.style.display==='none'?'block':'none';if(w.style.display==='block')$('#dealMemo').focus();};
+  $('#dealMemo').oninput=e=>{curDeal.memo=e.target.value;markDirty();};
+  $('#sheetBtn').onclick=()=>openSheet([curDeal],autoModel(curDeal));
+  $('#excelBtn').onclick=()=>$('#fileExcelCur').click();
+  $('#dupBtn').onclick=()=>{const c=JSON.parse(JSON.stringify(curDeal));c.id=uid();c.name=(curDeal.name||'案件')+'（複製）';c.createdAt=c.updatedAt=Date.now();DB.deals.unshift(c);saveDB(DB);curDeal=c;renderDeal();toast('複製しました');};
+  $('#delBtn').onclick=()=>confirmDelete(curDeal.id);
+  renderForm(); renderResults();
+}
+
+/* ----- input form ----- */
+const ACC=[
+  {id:'basic',t:'① 案件基本情報',open:true,fields:[
+    ['customer','お客様名','text'],['location','所在地','text'],['mapUrl','位置URL','text'],
+    ['plantName','発電所名','text'],['buyer','売電先','text'],
+    ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
+    ['gridDate','連系年月','month'],
+    ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
+  ]},
+  {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
+    ['fitPrice','FIT単価','num','円/kWh'],
+    ['__residual','残FIT年数','auto','年'],
+    ['sotsuFit','卒FIT単価','num','円/kWh'],['sotsuYears','卒FIT想定年数','num','年'],
+    ['sotsuApply','卒FIT反映','sel',['適応','不適合']],
+  ]},
+  {id:'equip',t:'③ 既存設備（リフォート前）',open:false,fields:[
+    ['dcExisting','パネル容量DC','num','kW'],['acExisting','パネル容量AC','num','kW'],
+    ['panelMaker','既存パネルメーカー','text'],['pcsMaker','既存PCSメーカー','text'],
+    ['pcsCount','PCS台数','num','台'],['pcsReplaced','PCS交換実績','sel',['有','無']],
+    ['mount','架台仕様','sel',['固定','スチール製','アルミニウム製','ステンレス製','単管']],
+    ['orientation','方位・角度','text'],['initialEquip','初期設備価格','num','円(税抜)'],
+  ]},
+  {id:'gen',t:'④ 発電実績',open:true,fields:[
+    ['actualGen','実績発電量','num','kWh/年'],
+    ['__util','設備利用率','auto','%'],
+    ['degExist','既存パネル劣化率','num','/年'],
+  ]},
+  {id:'rf',t:'⑤ リフォート想定',open:false,fields:[
+    ['rfPriceEx','リフォート価格','num','円(税抜)'],
+    ['__rfPriceIn','リフォート価格(税込)','auto','円'],
+    ['rfCostTotal','リフォート原価合計','num','円(税抜)'],
+    ['__rfGross','リフォート粗利','auto','円'],['__rfGrossRate','リフォート粗利率','auto','%'],
+    ['rfGrossTotal','(粗利を直接入力する場合)','num','円'],
+    ['rfDcAfter','RF後DC容量','num','kW'],['realOutput','実質出力','num','kW'],
+    ['rfAcAfter','RF後AC容量','num','kW'],
+    ['rfGenAfter','RF後想定発電量','num','kWh/年'],
+    ['__rfGenRate','RF後発電量率','auto','%'],
+    ['degRF','RF後パネル劣化率','num','/年'],
+  ]},
+  {id:'run',t:'⑥ ランニングコスト（年）',open:false,fields:[
+    ['landRent','地代','num','円/年'],['elec','電気代','num','円/年'],
+    ['hoan','保安協会費','num','円/年'],['propTaxAmt','償却資産税(概算)','num','円/年'],
+    ['propTaxApply','償却資産税 反映','sel',['適応','適用外']],
+    ['insExist','保険料 既存','num','円/年'],['insRF','保険料 RF後','num','円/年'],
+    ['mainExist','メンテ費 既存','num','円/年'],['mainRF','メンテ費 RF後','num','円/年'],
+    ['__removal','撤去費積立','auto','円/年'],
+  ]},
+  {id:'sec',t:'⑦ セカンダリー仕入・販売',open:false,fields:[
+    ['__ref50','参考相場(50%)','auto','円'],['__ref55','参考相場(55%)','auto','円'],
+    ['secCostEx','仕入原価','num','円(税抜)'],['secSaleEx','販売価格','num','円(税抜)'],
+    ['__secGross','販売粗利','auto','円'],['__secGrossRate','粗利率','auto','%'],
+    ['__saleIn','販売価格(税込)','auto','円'],
+    ['goodwillPct','営業権割合','num','%'],
+    ['__usedEx','中古物件(税抜)','auto','円'],['__goodwillEx','営業権(税抜)','auto','円'],
+    ['landPrice','土地代金','num','円(非課税)'],['brokerEx','仲介手数料','num','円(税抜)'],
+  ]},
+  {id:'loan',t:'⑧ 借入・PCS',open:false,fields:[
+    ['useLoan','借入利用','sel',['しない','使用する']],
+    ['rate','金利','num','%'],['loanYears','借入年数','num','年'],['down','頭金','num','円'],
+    ['pcsReplaceCost','PCS交換費(既存維持)','num','円'],
+    ['pcsReplaceApply','PCS交換費 反映','sel',['適用外','適応']],
+  ]},
+  {id:'tax',t:'⑨ 税務・償却パラメータ',open:false,fields:[
+    ['rfRetireApply','RF除却損 反映','sel',['適応','適用外']],
+    ['rfRetirePct','RF除却損割合','num','%'],['rfRetireYear','RF除却損計上年','num','年目'],
+    ['rfDepYears','RF減価償却年数','num','年'],['goodwillYears','営業権償却年数','num','年'],
+    ['__residLife','残耐用年数','auto','年'],
+    ['skrfRetirePct','SKRF除却損割合','num','%'],['skrfRetireYear','SKRF除却損計上年','num','年目'],
+  ]},
+];
+function renderForm(){
+  const col=$('#formCol');
+  let html=`<div class="card form-card"><div class="hd"><span class="gi">▸</span> 物件情報入力 <span style="margin-left:auto;font-weight:400;font-size:11px;color:var(--gold2)">入力すると右側が自動計算</span></div>`;
+  ACC.forEach(a=>{
+    html+=`<div class="acc ${a.open?'open':''}" data-acc="${a.id}">
+      <button class="acc-h"><span>${a.t}</span><span class="tw">▸</span></button>
+      <div class="acc-b">${a.fields.map(fldHTML).join('')}</div></div>`;
+  });
+  html+=`</div>`;
+  // DD + redflag card
+  html+=ddCardHTML();
+  col.innerHTML=html;
+  wireForm();
+}
+function fldHTML(f){
+  const [k,label,type,extra]=f;
+  if(type==='auto'){ return `<div class="fld"><label>${label} <span class="auto-tag">自動</span></label>
+    <div class="ctrl"><input id="auto_${k}" readonly value="—"></div><span class="u">${extra||''}</span></div>`; }
+  const val=I()[k]!=null?I()[k]:'';
+  if(type==='sel'){ return `<div class="fld"><label>${label}</label><div class="ctrl">
+    <select data-k="${k}">${extra.map(o=>`<option ${String(val)===o?'selected':''}>${o}</option>`).join('')}</select></div></div>`; }
+  if(type==='text'){ const full=['mapUrl'].includes(k);
+    return `<div class="fld ${full?'full':''}"><label>${label}</label><div class="ctrl">
+      <input data-k="${k}" type="text" value="${esc(val)}" style="text-align:left"></div></div>`; }
+  if(type==='month'){ return `<div class="fld"><label>${label}</label><div class="ctrl">
+    <input data-k="${k}" type="month" value="${esc(val)}" style="text-align:left"></div></div>`; }
+  // num
+  return `<div class="fld"><label>${label}</label><div class="ctrl">
+    <input data-k="${k}" type="number" step="any" value="${val===''?'':esc(val)}"></div><span class="u">${extra||''}</span></div>`;
+}
+function wireForm(){
+  $$('.acc-h').forEach(h=>h.onclick=()=>h.closest('.acc').classList.toggle('open'));
+  $$('[data-k]').forEach(inp=>{
+    const k=inp.dataset.k;
+    const ev=inp.tagName==='SELECT'?'change':'input';
+    inp.addEventListener(ev,()=>{
+      let v=inp.value;
+      if(inp.type==='number') v=inp.value===''?'':v;
+      setI(k,v);
+    });
+  });
+  wireDD();
+  recompute();
+}
+function ddCardHTML(){
+  let html=`<div class="card form-card" style="margin-top:16px"><div class="hd"><span class="gi">▸</span> 赤旗チェック ＆ DDチェックリスト</div>
+  <div class="acc open"><button class="acc-h"><span>赤旗チェック（1つでもNGで停止）</span><span class="tw">▸</span></button><div class="acc-b">`;
+  REDFLAGS.forEach(([k,t,d])=>{
+    const v=I()['rf_'+k]||'未確認';
+    html+=`<div class="dd-item"><div><div class="t">${t}</div><div class="ref">${d}</div></div>
+      <select data-rf="${k}">${['未確認','OK','NG'].map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join('')}</select>
+      <div></div></div>`;
+  });
+  html+=`</div></div>
+  <div class="acc"><button class="acc-h"><span>DDチェックリスト（進行案件のみ）</span><span class="tw">▸</span></button><div class="acc-b"><div class="dd-grid">`;
+  DD_TEMPLATE.forEach(cat=>{
+    html+=`<div class="dd-cat">${cat.cat}</div>`;
+    cat.items.forEach(([id,t,ref])=>{
+      const v=(curDeal.dd&&curDeal.dd[id])||'未着手';
+      html+=`<div class="dd-item"><div><div class="t">${t}</div><div class="ref">${ref}</div></div>
+        <select data-dd="${id}">${['未着手','確認中','OK','NG','N/A'].map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join('')}</select>
+        <div class="ref">${id}</div></div>`;
+    });
+  });
+  html+=`</div></div></div></div>`;
+  return html;
+}
+function wireDD(){
+  $$('[data-rf]').forEach(s=>{styleStatus(s);s.onchange=()=>{I()['rf_'+s.dataset.rf]=s.value;styleStatus(s);markDirty();recompute();};});
+  $$('[data-dd]').forEach(s=>{styleStatus(s);s.onchange=()=>{if(!curDeal.dd)curDeal.dd={};curDeal.dd[s.dataset.dd]=s.value;styleStatus(s);markDirty();};});
+}
+function styleStatus(s){s.classList.remove('s-ok','s-ng','s-doing');
+  if(s.value==='OK')s.classList.add('s-ok');else if(s.value==='NG')s.classList.add('s-ng');
+  else if(s.value==='確認中')s.classList.add('s-doing');}
+
+/* recompute auto fields */
+function recompute(){
+  const d=derive(I());const j=judge(I());
+  const set=(k,v)=>{const e=$('#auto_'+k);if(e)e.value=v;};
+  set('__residual',d.residual+'');
+  set('__util',j.util!=null?pct(j.util):'—');
+  set('__rfPriceIn',yen(d.rfIn));
+  set('__rfGross',yen(d.gross));
+  set('__rfGrossRate',pct(d.grossRate));
+  set('__rfGenRate',pct(d.rfGenRate));
+  set('__removal',yen(d.removal));
+  set('__ref50',yen(d.ref50));set('__ref55',yen(d.ref55));
+  set('__secGross',yen(d.secGross));set('__secGrossRate',pct(d.secGrossRate));
+  set('__saleIn',yen(d.saleIn));set('__usedEx',yen(d.usedEx));set('__goodwillEx',yen(d.goodwillEx));
+  set('__residLife',d.residLife+'');
+  // refresh results pane live
+  renderResults();
+}
+
+/* ----- RESULTS ----- */
+function renderResults(){
+  const col=$('#resCol'); if(!col)return;
+  const tabs=[['judge','一次判定'],['m1','① セカンダリー'],['m2','② セカンダリーRF'],['m3','③ リフォートのみ'],['cmp','3シナリオ比較']];
+  let html=`<div class="res-tabs">${tabs.map(([k,t])=>`<button data-rt="${k}" class="${resTab===k?'on':''}">${t}</button>`).join('')}</div>`;
+  html+=`<div id="resBody"></div>`;
+  col.innerHTML=html;
+  $$('[data-rt]').forEach(b=>b.onclick=()=>{resTab=b.dataset.rt;renderResults();});
+  const body=$('#resBody');
+  if(resTab==='judge')body.innerHTML=judgeHTML();
+  else if(resTab==='m1')body.innerHTML=m1HTML();
+  else if(resTab==='m2')body.innerHTML=m2HTML();
+  else if(resTab==='m3')body.innerHTML=m3HTML();
+  else body.innerHTML=cmpHTML();
+}
+
+function judgeHTML(){
+  const j=judge(I());const d=j.d;
+  let h=`<div class="verdict ${j.level}">
+    <div><div class="lab">推奨方針</div><div class="big">${esc(j.policy)}</div></div>
+    <div class="cmt">${esc(j.irrJ)}　／　赤旗：${esc(j.flagJ)}<br>
+    <span class="hint">IRR ${j.simpleIRR!=null?pct(j.simpleIRR):'—'}・保有利回り ${j.holdY!=null?pct(j.holdY):'—'}・転売粗利率 ${pct(j.resaleRate)}</span></div></div>`;
+  if(j.ng>0)h+=`<div class="redflag-warn">🚩 赤旗が${j.ng}件あります。原則として仕入れを停止し、解消を確認してください。</div>`;
+  h+=`<div class="metric-row">
+    ${metric('簡易IRR(20年)',j.simpleIRR!=null?pct(j.simpleIRR):'—',j.simpleIRR>=0.06?'pos':(j.simpleIRR!=null?'neg':''))}
+    ${metric('表面利回り',j.surfaceY!=null?pct(j.surfaceY):'—')}
+    ${metric('初年度保有利回り',j.holdY!=null?pct(j.holdY):'—',j.holdY>=0.08?'pos':'')}
+    ${metric('設備利用率',j.util!=null?pct(j.util):'—',j.util>=0.12?'pos':'')}
+    ${metric('kW単価(税抜)',j.kwUnit!=null?yen(j.kwUnit):'—')}
+    ${metric('相場乖離(50%基準)',j.dev50!=null?pct(j.dev50):'—',j.dev50<=0?'pos':'neg')}
+  </div>`;
+  h+=`<div class="sec-title">取得価格 vs 参考相場</div>
+  <div class="table-scroll"><table class="sim"><tbody>
+    ${trow('参考相場(50%)',yen(d.ref50))}${trow('参考相場(55%)',yen(d.ref55))}
+    ${trow('仕入原価(税抜)',yen(d.secEx))}${trow('販売価格(税抜)',yen(d.saleEx))}
+    ${trow('転売粗利',yen(j.resaleGross))}${trow('転売粗利率',pct(j.resaleRate))}
+    ${trow('年間売電収入',yen(j.rev))}${trow('年間コスト合計',yen(j.cost))}${trow('年間ネットCF',yen(j.ncf))}
+  </tbody></table></div>`;
+  h+=`<div class="note"><b>判定ルール:</b> IRR6%以上かつ赤旗ゼロで Go。保有利回り8%以上＋IRR6.5%以上→自社保有向き、転売粗利率8%以上→転売向き。
+  簡易IRRは RATE(20年, 年間ネットCF, −仕入原価) で算出。実数値は税理士確認のうえご判断ください。</div>`;
+  return h;
+}
+function metric(l,v,cls){return `<div class="metric"><div class="l">${l}</div><div class="v num ${cls||''}">${v}</div></div>`;}
+function trow(l,v,cls){return `<tr class="${cls||''}"><td class="lbl">${l}</td><td class="num">${v}</td></tr>`;}
+
+/* table builder for 20yr */
+function simTable(rows,order,opts={}){
+  const yrs=opts.years||20;
+  let h=`<div class="table-scroll"><table class="sim"><thead><tr><th class="lbl">項目</th>`;
+  for(let t=1;t<=yrs;t++)h+=`<th>${t}年</th>`;
+  if(opts.total!==false)h+=`<th class="col-tot">合計</th>`;
+  h+=`</tr></thead><tbody>`;
+  order.forEach(o=>{
+    const [key,label,hl,asPct]=Array.isArray(o)?o:[o,o,false,false];
+    const arr=rows[key]; if(!arr)return;
+    h+=`<tr class="${hl?'hl':''}"><td class="lbl">${label}</td>`;
+    let sum=0;
+    for(let t=0;t<yrs;t++){const val=arr[t];sum+=val;
+      h+=`<td class="num ${val<0?'neg':''}">${asPct?pct(val):fmtCell(val)}</td>`;}
+    if(opts.total!==false)h+=`<td class="num col-tot">${asPct?'—':fmtCell(sum)}</td>`;
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table></div>`;return h;
+}
+function fmtCell(v){if(!isFinite(v))return'—';if(v===0)return'—';
+  return Math.round(v).toLocaleString('ja-JP');}
+
+function m1HTML(){
+  const s=simSecondary(I());const d=s.d;
+  if(!(d.saleEx>0)||!(d.gen>0))return needInput('販売価格・実績発電量');
+  let h=`<div class="metric-row">
+    ${metric('設備投資額(税込)',yen(s.inv))}
+    ${metric('初年度表面利回り',s.surfaceY!=null?pct(s.surfaceY):'—',s.surfaceY>=0.08?'pos':'')}
+    ${metric('初年度手残り利回り',s.holdY!=null?pct(s.holdY):'—',s.holdY>=0.08?'pos':'')}
+    ${metric('事業IRR',s.dealIRR!=null?pct(s.dealIRR):'—',s.dealIRR>=0.06?'pos':'')}
+    ${metric('年間平均売電収入',yen(s.avgRev))}
+    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—')}
+  </div>`;
+  h+=`<div class="sec-title">20年収支シミュレーション（既存設備運用）</div>`;
+  h+=simTable(s.rows,[
+    ['売電量','売電量(kWh)'],['売電収入','売電収入(税込)',true],
+    ['コスト合計','コスト合計'],['減価償却','減価償却費'],['営業権償却','営業権償却費'],
+    ['経常利益','経常利益'],['営業CF','営業CF(税引前)',true],
+    ...(s.useLoan?[['ローン返済','ローン返済'],['返済後CF','返済後CF',true]]:[]),
+  ]);
+  h+=`<div class="note"><b>セカンダリー（既存運用）:</b> 仕入れた発電所を改修せず20年運用した場合の収支。
+  減価償却は中古資産（残耐用年数${d.residLife}年）、営業権は${n(I().goodwillYears)}年定額。投資家向け試算としてそのまま提示できます。</div>`;
+  return h;
+}
+function m2HTML(){
+  const s=simSecondaryRF(I());const d=s.d;
+  if(!(d.rfEx>0)||!(d.rfGenAfter>0))return needInput('リフォート価格・RF後想定発電量');
+  let h=`<div class="metric-row">
+    ${metric('総投資額(税込)',yen(s.totalInv))}
+    ${metric('初年度表面利回り',s.surfaceY!=null?pct(s.surfaceY):'—',s.surfaceY>=0.1?'pos':'')}
+    ${metric('FIT期間 平均CF',yen(s.fitAvgCF))}
+    ${metric('卒FIT後 平均CF',s.postCF!=null?yen(s.postCF):'—')}
+    ${metric('事業IRR',s.dealIRR!=null?pct(s.dealIRR):'—',s.dealIRR>=0.06?'pos':'')}
+    ${metric('強化税制ROI(初年度)',pct(s.roi),s.roi>=0.15?'pos':'')}
+  </div>`;
+  h+=`<div class="sec-title">20年収支シミュレーション（取得＋リフォート）</div>`;
+  h+=simTable(s.rows,[
+    ['売電量','売電量(kWh)'],['売電収入','売電収入(税込)',true],['コスト合計','コスト合計'],
+    ['減価償却中古','減価償却(中古設備)'],['営業権償却','営業権償却費'],['RF減価償却','RF設備減価償却'],
+    ['除却損','除却損(RF時)'],['経常利益','経常利益'],['営業CF','営業CF(税引前)',true],['累積CF','累積CF'],
+  ]);
+  h+=`<div class="metric-row" style="margin-top:14px">
+    ${metric('即時償却効果(税率30%)',yen(s.immediateDep))}
+    ${metric('税額控除(7%)',yen(Math.round(d.rfIn*0.07)))}
+  </div>`;
+  h+=`<div class="note"><b>セカンダリーRF:</b> 売りたいオーナーから仕入れ→リフォートし、発電量を増やして20年運用／新投資家へ提示する想定。
+  中古設備＋営業権＋RF新設備の3系統で償却、SKRF除却損は${n(I().skrfRetireYear)}年目に計上。リフォート部分は生産性向上設備として強化税制の対象可能性あり（中古取得分は対象外）。</div>`;
+  return h;
+}
+function m3HTML(){
+  const s=simRefortOnly(I());const d=s.d;
+  if(!(d.rfEx>0)||!(d.rfGenAfter>0)||!(d.gen>0))return needInput('実績発電量・リフォート価格・RF後想定発電量');
+  let h=`<div class="verdict ${s.roiOK?'go':'warn'}">
+    <div><div class="lab">投資促進税制 ROI判定</div><div class="big">${s.roiOK?'○ 適用可能':'× 15%未達'}</div></div>
+    <div class="cmt">強化税制ROI(初年度) <b>${pct(s.roi)}</b>（基準15%）<br>
+    <span class="hint">ROI＝(売電収益増加＋RF減価償却費)÷RF投資額</span></div></div>`;
+  h+=`<div class="metric-row">
+    ${metric('RF価格(税込)',yen(s.rfIn))}
+    ${metric('収益増加額(20年)',yen(s.incomeTotal),'pos')}
+    ${metric('純増効果(20年)',yen(s.netGain20),s.netGain20>=0?'pos':'neg')}
+    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—')}
+    ${metric('発電量(RF前→後)',kwh(d.gen)+' → '+kwh(d.rfGenAfter))}
+    ${metric('発電量UP率',pct(d.rfGenRate),d.rfGenRate>=0.3?'pos':'')}
+  </div>`;
+  h+=`<div class="sec-title">RF投資効果 20年（発電量増加＋節税）</div>`;
+  h+=simTable(s.rows,[
+    ['RF前発電','RF前予想発電量(kWh)'],['RF後発電','RF後想定発電量(kWh)'],['発電増加','発電増加量(kWh)'],
+    ['売電収益増加','売電収益増加(税込)',true],['RF減価償却','RF設備減価償却'],['除却損','特別損失(除却損)'],
+    ['累積効果','投資対効果(累積)',true],
+  ]);
+  h+=`<div class="sec-title">現状維持 vs RF後（初年度・税込）</div>
+  <div class="table-scroll"><table class="sim"><thead><tr><th class="lbl">比較項目</th><th>現状維持</th><th>RF後</th><th class="col-tot">差</th></tr></thead><tbody>
+    ${cmpRow('年間売上高',s.cur.rev,s.aft.rev)}
+    ${cmpRow('メンテ費',s.cur.maint,s.aft.maint)}
+    ${cmpRow('保険費',s.cur.ins,s.aft.ins)}
+    ${cmpRow('年間CF',s.cur.cf,s.aft.cf,true)}
+  </tbody></table></div>`;
+  h+=`<div class="metric-row" style="margin-top:14px">
+    ${metric('即時償却効果(税率30%)',yen(s.immediateDep))}
+    ${metric('税額控除(7%)',yen(s.taxCredit))}
+    ${metric('FIT期間内 純増',yen(s.netGainFIT),s.netGainFIT>=0?'pos':'neg')}
+  </div>`;
+  h+=`<div class="note"><b>リフォートのみ（高圧）:</b> 現オーナーの発電所を改修した場合、発電量がどれだけ増え、20年でどれだけ純増するかを試算。
+  増加分のみFIT/卒FIT単価で評価し、RF投資額を回収する形。出力抑制は考慮していません。</div>`;
+  return h;
+}
+function cmpRow(l,a,b,hl){const diff=b-a;
+  return `<tr class="${hl?'hl':''}"><td class="lbl">${l}</td><td class="num">${yen(a)}</td><td class="num">${yen(b)}</td><td class="num col-tot ${diff<0?'neg':''}">${diff>=0?'+':''}${yen(diff)}</td></tr>`;}
+
+function needInput(what){return `<div class="card empty-state"><div class="ic">✍️</div>
+  <h3>入力が必要です</h3><p class="hint">${what} を入力するとシミュレーションが表示されます</p></div>`;}
+
+function cmpHTML(){
+  const d=derive(I());
+  const hasSec=d.saleEx>0&&d.gen>0;
+  const hasRF=d.rfEx>0&&d.rfGenAfter>0;
+  const m1=hasSec?simSecondary(I()):null;
+  const m2=(hasSec&&hasRF)?simSecondaryRF(I()):null;
+  const m3=(hasRF&&d.gen>0)?simRefortOnly(I()):null;
+  // pick best by IRR (m1,m2) — m3 is owner-side, shown separately
+  let bestKey=null,bestIRR=-9;
+  if(m1&&m1.dealIRR>bestIRR){bestIRR=m1.dealIRR;bestKey='m1';}
+  if(m2&&m2.dealIRR>bestIRR){bestIRR=m2.dealIRR;bestKey='m2';}
+  let h=`<div class="sec-title">3シナリオ比較</div><div class="cmp">`;
+  h+=cmpCard('m1','① セカンダリー（既存運用）',bestKey==='m1',m1?[
+    ['投資額(税込)',yen(m1.inv)],['事業IRR',m1.dealIRR!=null?pct(m1.dealIRR):'—',m1.dealIRR>=0.06],
+    ['初年度表面利回り',m1.surfaceY!=null?pct(m1.surfaceY):'—'],
+    ['年間平均売電',yen(m1.avgRev)],['20年営業CF',yen(m1.cf20),true],['回収年数',m1.payback!=null?m1.payback.toFixed(1)+'年':'—'],
+  ]:null,'販売価格・発電量');
+  h+=cmpCard('m2','② セカンダリーRF（取得＋RF）',bestKey==='m2',m2?[
+    ['総投資額(税込)',yen(m2.totalInv)],['事業IRR',m2.dealIRR!=null?pct(m2.dealIRR):'—',m2.dealIRR>=0.06],
+    ['初年度表面利回り',m2.surfaceY!=null?pct(m2.surfaceY):'—'],
+    ['FIT期間平均CF',yen(m2.fitAvgCF)],['20年営業CF',yen(m2.cf20),true],['強化税制ROI',pct(m2.roi),m2.roi>=0.15],
+  ]:null,'仕入＋リフォート価格・RF後発電量');
+  h+=cmpCard('m3','③ リフォートのみ（オーナー）',false,m3?[
+    ['RF価格(税込)',yen(m3.rfIn)],['収益増加(20年)',yen(m3.incomeTotal),true],
+    ['純増効果(20年)',yen(m3.netGain20),m3.netGain20>=0],
+    ['発電量UP率',pct(d.rfGenRate),d.rfGenRate>=0.3],['回収年数',m3.payback!=null?m3.payback.toFixed(1)+'年':'—'],
+    ['強化税制ROI',pct(m3.roi),m3.roi>=0.15],
+  ]:null,'リフォート価格・RF後発電量');
+  h+=`</div>`;
+  h+=`<div class="note">① と ② は当社が仕入れて投資家へ販売する事業視点のIRR比較（金色＝IRR最良）。③ は現オーナーがリフォートした場合の投資効果で、提案トークに使います。
+  数値は想定値であり保証するものではありません。最終判断は税理士・専門家にご確認ください。</div>`;
+  return h;
+}
+function cmpCard(cls,title,best,lines,need){
+  let h=`<div class="cmp-card ${cls} ${best?'best':''}"><div class="ch">${title}${best?'<span class="star">IRR最良</span>':''}</div><div class="cb">`;
+  if(!lines){h+=`<div style="padding:20px 4px;color:var(--muted);font-size:12px;text-align:center">${need}<br>を入力すると表示</div>`;}
+  else lines.forEach(([k,v,pos])=>{h+=`<div class="cmp-line"><span class="k">${k}</span><span class="v ${pos?'pos':''} num">${v}</span></div>`;});
+  h+=`</div></div>`;return h;
+}
+
+/* ==================== delete / backup ==================== */
+function confirmDelete(id){
+  const deal=DB.deals.find(d=>d.id===id);if(!deal)return;
+  $('#mTitle').textContent='案件を削除';
+  $('#mBody').textContent='「'+(deal.name||'無題案件')+'」を削除します。元に戻せません。';
+  $('#modal').classList.add('show');
+  $('#mOk').onclick=()=>{DB.deals=DB.deals.filter(d=>d.id!==id);saveDB(DB);
+    $('#modal').classList.remove('show');toast('削除しました');nav('list');renderList();};
+}
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='refort-studio-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  toast('バックアップを保存しました');
+}
+function importBackup(file){
+  const r=new FileReader();
+  r.onload=()=>{try{const data=JSON.parse(r.result);
+    if(!data.deals)throw 0;
+    if(!confirm('現在の'+DB.deals.length+'件を、バックアップの'+data.deals.length+'件で置き換えますか？'))return;
+    DB=data;saveDB(DB);toast('復元しました');nav('dash');renderDash();
+  }catch(e){toast('ファイルを読み込めませんでした');}};
+  r.readAsText(file);
+}
+function exportCSV(){
+  const head=['案件名','所在地','担当','ステージ','DC容量kW','発電量kWh','想定IRR','一次判定','取引額'];
+  const rows=DB.deals.map(d=>{const v=dealVerdict(d);const der=derive(d.inputs);
+    return [d.name,d.inputs.location,d.inputs.owner,stageOf(d.stage).n,d.inputs.dcExisting,
+      Math.round(der.gen),v.irr!=null?(v.irr*100).toFixed(1)+'%':'',v.policy,dealPipelineValue(d)];});
+  const csv=[head,...rows].map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='refort-pipeline-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('CSVを出力しました');
+}
+
+/* ==================== 次アクション・期限・確度 ==================== */
+const STAGE_PROB={hearing:.10,screen:.25,dd:.45,propose:.65,nego:.85,won:1,lost:0};
+function fmtDate(s){const d=new Date(s+'T00:00:00');return (d.getMonth()+1)+'/'+d.getDate();}
+function dueInfo(deal){
+  if(!deal.due)return{state:'none',days:null,label:'期限なし'};
+  const today=new Date();today.setHours(0,0,0,0);
+  const due=new Date(deal.due+'T00:00:00');
+  const days=Math.round((due-today)/86400000);
+  if(deal.stage==='won'||deal.stage==='lost')return{state:'ok',days,label:fmtDate(deal.due)};
+  if(days<0)return{state:'overdue',days,label:fmtDate(deal.due)+'（'+(-days)+'日超過）'};
+  if(days<=3)return{state:'soon',days,label:fmtDate(deal.due)+'（あと'+days+'日）'};
+  return{state:'ok',days,label:fmtDate(deal.due)};
+}
+function dueBadge(deal){const di=dueInfo(deal);
+  const ic=di.state==='overdue'?'⚠':di.state==='soon'?'⏰':di.state==='ok'?'📅':'';
+  return `<span class="badge ${di.state}">${ic} ${esc(di.label)}</span>`;}
+
+/* ==================== 提案シート（A4横・PDF） ==================== */
+let sheetState={deals:[],model:'m3'};
+const SHEET_MODELS=[['m3','③ リフォート提案'],['m1','① セカンダリー'],['m2','② セカンダリーRF'],['cmp','3シナリオ比較']];
+function autoModel(deal){
+  const d=derive(deal.inputs);
+  const hasSec=d.saleEx>0&&d.gen>0, hasRF=d.rfEx>0&&d.rfGenAfter>0;
+  if(hasRF&&d.gen>0&&!hasSec)return'm3';
+  if(hasSec&&hasRF)return'm2';
+  if(hasSec)return'm1';
+  if(hasRF&&d.gen>0)return'm3';
+  return'm3';
+}
+function openSheet(deals,model){
+  sheetState.deals=(deals||[]).filter(Boolean);
+  if(!sheetState.deals.length){toast('対象の案件がありません');return;}
+  sheetState.model=model||autoModel(sheetState.deals[0]);
+  renderSheetBar();renderSheets();
+  $('#sheetOverlay').classList.add('show');document.body.style.overflow='hidden';
+}
+function closeSheet(){$('#sheetOverlay').classList.remove('show');document.body.style.overflow='';}
+function renderSheetBar(){
+  const seg=$('#sheetModels');if(!seg)return;
+  seg.innerHTML=SHEET_MODELS.map(([k,t])=>`<button data-sm="${k}" class="${sheetState.model===k?'on':''}">${t}</button>`).join('');
+  seg.querySelectorAll('[data-sm]').forEach(b=>b.onclick=()=>{sheetState.model=b.dataset.sm;renderSheetBar();renderSheets();});
+}
+function renderSheets(){
+  const showOwner=$('#shOwner')&&$('#shOwner').checked;
+  $('#printRoot').innerHTML=sheetState.deals.map(d=>buildSheet(d,sheetState.model,showOwner)).join('');
+}
+/* ---- sheet building blocks ---- */
+function nfn(x){return Math.round(x||0).toLocaleString('ja-JP');}
+function dispYears(d,I){return (I.sotsuApply==='適応')?20:Math.min(Math.max(d.residual,1),20);}
+function shHead(deal,title,subt,badge){
+  const i=deal.inputs, today=new Date().toLocaleDateString('ja-JP');
+  const cust=String(i.customer||deal.name||'お客様').replace(/\s*様\s*$/,'');
+  return `<div class="sh-head"><div class="L"><div class="mk">R</div>
+    <div><div class="ttl">${esc(title)}</div><div class="subt">${esc(subt)}</div></div></div>
+    <div class="R"><div class="cust">${esc(cust)} 様</div>株式会社アースコム ／ 作成日 ${today}<br><span class="sh-badge">${esc(badge||'')}</span></div></div>`;
+}
+function shSpec(chips){return `<div class="sh-spec">${chips.map(c=>`<span class="chip ${c[2]||''}">${c[0]}<b>${c[1]}</b></span>`).join('')}</div>`;}
+function shKpiTiles(arr){return `<div class="sh-kpis">${arr.map(k=>`<div class="sh-kpi ${k.cls||''}"><div class="l">${k.l}</div><div class="v">${k.v}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('')}</div>`;}
+function shMsg(html){return `<div class="sh-msg">${html}</div>`;}
+function shFoot(){return `<div class="sh-foot"><b>ご留意事項：</b>本資料は現地調査・ヒアリング情報に基づく想定シミュレーションであり、記載の発電量・収益・利回り・税制効果等を保証するものではありません。FIT／FIP制度・税制・出力制御等の前提は変動する可能性があります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;}
+function shYearTable(secTitle,N,defs){
+  let head='<th class="lbl">期</th>';for(let i=1;i<=N;i++)head+=`<th>${i}</th>`;head+='<th class="tot">合計</th>';
+  let h=`<div class="sh-sec">${secTitle}</div><table class="st"><thead><tr>${head}</tr></thead><tbody>`;
+  defs.forEach(r=>{
+    const pctRow=!!r.pct;let cells='',sum=0;
+    for(let i=0;i<N;i++){const v=r.arr[i]||0;sum+=v;
+      cells+=`<td class="${(!pctRow&&v<0)?'neg':''}">${pctRow?pct(v):(v?nfn(v):'–')}</td>`;}
+    const tot=(r.tot!==undefined)?r.tot:(r.noTot?'–':nfn(sum));
+    h+=`<tr class="${r.cls||''}"><td class="lbl">${r.lbl}</td>${cells}<td class="tot">${tot}</td></tr>`;
+  });
+  return h+'</tbody></table>';
+}
+
+function sheetM3(deal){
+  const s=simRefortOnly(deal.inputs),d=s.d,I=deal.inputs,N=dispYears(d,I);
+  const spec=shSpec([
+    ['所在地',esc(I.location||'—')],
+    ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
+    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['パネルDC/AC',(n(I.dcExisting)?nfn(I.dcExisting):'—')+' / '+(n(I.acExisting)?nfn(I.acExisting):'—')+' kW'],
+    ['想定発電量',kwh(d.gen)+' kWh'],
+    ['発電量UP率',pct(d.rfGenRate),'up'],
+    ['リフォート費用',nfn(s.rfIn)+' 円(税込)','nv'],
+  ]);
+  const kpis=shKpiTiles([
+    {l:'発電量アップ率',v:pct(d.rfGenRate),cls:'nv'},
+    {l:'リフォート費用(税込)',v:yen(s.rfIn)},
+    {l:'20年 売電収益増加',v:yen(s.incomeTotal),cls:'gold'},
+    {l:'20年 純増効果',v:yen(s.netGain20),s:'投資差引後',cls:'gold'},
+    {l:'投資回収',v:s.payback!=null?s.payback.toFixed(1)+'年':'—'},
+    {l:'強化税制ROI',v:pct(s.roi),s:s.roiOK?'適用可能':'要確認'},
+    {l:'即時償却 見込',v:yen(s.immediateDep),s:'RF費用×30%目安'},
+    {l:'税額控除 見込',v:yen(s.taxCredit),s:'RF費用×7%目安'},
+  ]);
+  const t1=shYearTable('発電量比較（kWh）',N,[
+    {lbl:'リフォート前 発電量',arr:s.rows.RF前発電},
+    {lbl:'リフォート後 発電量',arr:s.rows.RF後発電},
+    {lbl:'発電量 増加',arr:s.rows.発電増加,cls:'sum'},
+  ]);
+  const t2=shYearTable('リフォート投資効果（円）',N,[
+    {lbl:'売電収益 増加',arr:s.rows.売電収益増加},
+    {lbl:'RF減価償却',arr:s.rows.RF減価償却},
+    {lbl:'特別損失（除却損）',arr:s.rows.除却損},
+    {lbl:'累積効果（投資対効果）',arr:s.rows.累積効果,cls:'op'},
+  ]);
+  const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年）での投資回収を目指せます。`);
+  const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
+    <table class="st" style="table-layout:auto"><thead><tr><th class="lbl" style="width:auto">項目</th><th>現状維持のまま</th><th>リフォート実施後</th><th class="tot">差額（年間）</th></tr></thead><tbody>
+    <tr><td class="lbl" style="width:auto">年間 売電収入</td><td>${nfn(s.cur.rev)}</td><td>${nfn(s.aft.rev)}</td><td class="tot">+${nfn(s.aft.rev-s.cur.rev)}</td></tr>
+    <tr class="op"><td class="lbl" style="width:auto">年間 キャッシュフロー</td><td>${nfn(s.cur.cf)}</td><td>${nfn(s.aft.cf)}</td><td class="tot">+${nfn(s.aft.cf-s.cur.cf)}</td></tr>
+    </tbody></table>`;
+  return spec+kpis+msg+t1+t2+t3;
+}
+function sheetM1(deal){
+  const s=simSecondary(deal.inputs),d=s.d,I=deal.inputs,N=dispYears(d,I),j=judge(I);
+  const cum=[];let c=-s.inv;for(let t=0;t<20;t++){c+=s.rows.営業CF[t];cum[t]=c;}
+  const spec=shSpec([
+    ['所在地',esc(I.location||'—')],
+    ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
+    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['想定発電量',kwh(d.gen)+' kWh'],
+    ['設備利用率',j.util!=null?pct(j.util):'—'],
+    ['取得価格',nfn(s.inv)+' 円(税込)','nv'],
+  ]);
+  const kpis=shKpiTiles([
+    {l:'想定 事業IRR',v:s.dealIRR!=null?pct(s.dealIRR):'—',cls:'nv'},
+    {l:'取得価格(税込)',v:yen(s.inv)},
+    {l:'初年度 表面利回り',v:s.surfaceY!=null?pct(s.surfaceY):'—',cls:'gold'},
+    {l:'年間平均 売電収入',v:yen(s.avgRev),cls:'gold'},
+    {l:'20年 累計営業CF',v:yen(s.cf20)},
+    {l:'投資回収',v:s.payback!=null?s.payback.toFixed(1)+'年':'—'},
+    {l:'残FIT年数',v:d.residual+'年'},
+    {l:'FIT期間 平均CF',v:yen(s.fitAvgCF)},
+  ]);
+  const y1=s.rows.営業CF.map(v=>s.inv?v/s.inv:0);
+  const defs=[
+    {lbl:'売電量(kWh)',arr:s.rows.売電量},
+    {lbl:'売電収入(税込)',arr:s.rows.売電収入},
+    {lbl:'地代',arr:s.rows.地代},
+    {lbl:'電気代',arr:s.rows.電気代},
+    {lbl:'保険料',arr:s.rows.保険料},
+    {lbl:'メンテ費',arr:s.rows.メンテ費},
+    {lbl:'保安協会費',arr:s.rows.保安協会費},
+    {lbl:'償却資産税',arr:s.rows.償却資産税},
+    {lbl:'撤去費積立',arr:s.rows.撤去費積立},
+  ];
+  if(s.rows.PCS交換.some(v=>v))defs.push({lbl:'PCS交換費',arr:s.rows.PCS交換});
+  defs.push({lbl:'コスト合計',arr:s.rows.コスト合計,cls:'sum'});
+  defs.push({lbl:'減価償却費',arr:s.rows.減価償却});
+  defs.push({lbl:'営業権償却費',arr:s.rows.営業権償却});
+  defs.push({lbl:'経常利益',arr:s.rows.経常利益,cls:'sum'});
+  defs.push({lbl:'営業CF(税引前)',arr:s.rows.営業CF,cls:'op'});
+  if(s.useLoan){defs.push({lbl:'ローン返済',arr:s.rows.ローン返済});defs.push({lbl:'返済後CF',arr:s.rows.返済後CF,cls:'sum'});}
+  defs.push({lbl:'累積CF',arr:cum,cls:'cum',tot:nfn(cum[N-1])});
+  defs.push({lbl:'実質利回り(IRR)',arr:y1,pct:true,tot:s.dealIRR!=null?pct(s.dealIRR):'—'});
+  const tbl=shYearTable('年別収支（円）',N,defs);
+  const msg=shMsg(`<b>ご提案の要点：</b>既存設備のまま取得・運用した場合の収支です。残FIT <b>${d.residual}年</b>の安定した売電収入をベースに、想定IRR <b>${s.dealIRR!=null?pct(s.dealIRR):'—'}</b> を見込みます。`);
+  return spec+kpis+msg+tbl;
+}
+function sheetM2(deal){
+  const s=simSecondaryRF(deal.inputs),d=s.d,I=deal.inputs,N=dispYears(d,I);
+  const spec=shSpec([
+    ['所在地',esc(I.location||'—')],
+    ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
+    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['発電量 RF前→後',kwh(d.gen)+'→'+kwh(d.rfGenAfter)+' kWh'],
+    ['発電量UP率',pct(d.rfGenRate),'up'],
+    ['総投資額',nfn(s.totalInv)+' 円(税込)','nv'],
+  ]);
+  const kpis=shKpiTiles([
+    {l:'想定 事業IRR',v:s.dealIRR!=null?pct(s.dealIRR):'—',cls:'nv'},
+    {l:'総投資額(税込)',v:yen(s.totalInv)},
+    {l:'初年度 表面利回り',v:s.surfaceY!=null?pct(s.surfaceY):'—',cls:'gold'},
+    {l:'FIT期間 平均CF',v:yen(s.fitAvgCF),cls:'gold'},
+    {l:'20年 累計営業CF',v:yen(s.cf20)},
+    {l:'強化税制ROI',v:pct(s.roi),s:s.roi>=0.15?'適用可能':'要確認'},
+    {l:'即時償却 見込',v:yen(s.immediateDep),s:'RF費用×30%目安'},
+    {l:'発電量UP率',v:pct(d.rfGenRate)},
+  ]);
+  const y2=s.rows.営業CF.map(v=>s.totalInv?v/s.totalInv:0);
+  const tbl=shYearTable('年別収支（円）',N,[
+    {lbl:'売電量(kWh)',arr:s.rows.売電量},
+    {lbl:'売電収入(税込)',arr:s.rows.売電収入},
+    {lbl:'地代',arr:s.rows.地代},
+    {lbl:'電気代',arr:s.rows.電気代},
+    {lbl:'保険料',arr:s.rows.保険料},
+    {lbl:'メンテ費',arr:s.rows.メンテ費},
+    {lbl:'保安協会費',arr:s.rows.保安協会費},
+    {lbl:'償却資産税',arr:s.rows.償却資産税},
+    {lbl:'撤去費積立',arr:s.rows.撤去費積立},
+    {lbl:'コスト合計',arr:s.rows.コスト合計,cls:'sum'},
+    {lbl:'減価償却費(中古設備)',arr:s.rows.減価償却中古},
+    {lbl:'営業権償却費',arr:s.rows.営業権償却},
+    {lbl:'RF設備減価償却費',arr:s.rows.RF減価償却},
+    {lbl:'除却損(RF時)',arr:s.rows.除却損},
+    {lbl:'経常利益',arr:s.rows.経常利益,cls:'sum'},
+    {lbl:'営業CF(税引前)',arr:s.rows.営業CF,cls:'op'},
+    {lbl:'累積CF',arr:s.rows.累積CF,cls:'cum',tot:nfn(s.rows.累積CF[N-1])},
+    {lbl:'実質利回り(IRR)',arr:y2,pct:true,tot:s.dealIRR!=null?pct(s.dealIRR):'—'},
+  ]);
+  const msg=shMsg(`<b>ご提案の要点：</b>取得後にリフォートを実施し、発電量を <b>${pct(d.rfGenRate)}</b> 高めて運用する想定です。リフォート部分は生産性向上設備として強化税制（即時償却・税額控除）の対象となる可能性があります（中古取得分は対象外）。`);
+  return spec+kpis+msg+tbl;
+}
+function sheetCmp(deal){
+  const I=deal.inputs,d=derive(I);
+  const hasSec=d.saleEx>0&&d.gen>0,hasRF=d.rfEx>0&&d.rfGenAfter>0;
+  const m1=hasSec?simSecondary(I):null,m2=(hasSec&&hasRF)?simSecondaryRF(I):null,m3=(hasRF&&d.gen>0)?simRefortOnly(I):null;
+  let best=null,bi=-9;if(m1&&m1.dealIRR>bi){bi=m1.dealIRR;best='m1';}if(m2&&m2.dealIRR>bi){bi=m2.dealIRR;best='m2';}
+  const spec=shSpec([
+    ['所在地',esc(I.location||'—')],['FIT単価',d.fit?d.fit+'円':'—'],
+    ['残FIT',d.residual+'年'],['年間発電量',kwh(d.gen)+' kWh'],
+    ['発電量UP率',pct(d.rfGenRate),'up'],
+  ]);
+  const card=(key,title,lines)=>`<div class="cc ${best===key?'best':''}"><h4>${title}${best===key?'<span class="star">IRR最良</span>':''}</h4>${lines.map(([k,v])=>`<div class="ln"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div>`;
+  const cards=`<div class="sh-sec">3シナリオ比較</div><div class="sh-cmp">
+    ${card('m1','① セカンダリー',m1?[['取得価格(税込)',yenM(m1.inv)],['事業IRR',pct(m1.dealIRR)],['初年度表面利回り',m1.surfaceY!=null?pct(m1.surfaceY):'—'],['20年累計CF',yenM(m1.cf20)],['回収年数',m1.payback!=null?m1.payback.toFixed(1)+'年':'—']]:[['—','販売価格・発電量の入力が必要']])}
+    ${card('m2','② セカンダリーRF',m2?[['総投資額(税込)',yenM(m2.totalInv)],['事業IRR',pct(m2.dealIRR)],['初年度表面利回り',m2.surfaceY!=null?pct(m2.surfaceY):'—'],['20年累計CF',yenM(m2.cf20)],['強化税制ROI',pct(m2.roi)]]:[['—','仕入＋RF価格・発電量の入力が必要']])}
+    ${card('m3','③ リフォートのみ',m3?[['RF費用(税込)',yenM(m3.rfIn)],['発電量UP率',pct(d.rfGenRate)],['20年収益増加',yenM(m3.incomeTotal)],['20年純増効果',yenM(m3.netGain20)],['強化税制ROI',pct(m3.roi)]]:[['—','RF価格・発電量の入力が必要']])}
+  </div>`;
+  const msg=shMsg('<b>比較の見方：</b>①②は当社が取得し投資家へご提案する事業視点の利回り比較（金枠＝IRR最良）。③は現オーナー様がリフォートを実施した場合の投資効果です。');
+  return spec+cards+msg;
+}
+function buildSheet(deal,model,showOwner){
+  const d=derive(deal.inputs);
+  const hasSec=d.saleEx>0&&d.gen>0, hasRF=d.rfEx>0&&d.rfGenAfter>0, hasGen=d.gen>0;
+  let m=model;
+  if(m==='m1'&&!hasSec)m=autoModel(deal);
+  if(m==='m2'&&!(hasSec&&hasRF))m=autoModel(deal);
+  if(m==='m3'&&!(hasRF&&hasGen))m=autoModel(deal);
+  let body;
+  if(m==='cmp')body=sheetCmp(deal);
+  else if(m==='m3')body=sheetM3(deal);
+  else if(m==='m1')body=sheetM1(deal);
+  else if(m==='m2')body=sheetM2(deal);
+  else body=shMsg('数値を入力するとシミュレーション結果が表示されます。');
+  const titles={m1:'ReFort 発電所投資シミュレーション（年別収支）',m2:'ReFort 発電所投資シミュレーション（年別収支）',m3:'ReFort リフォート投資シミュレーション（年別効果）',cmp:'ReFort 投資シナリオ比較'};
+  const badges={m1:'① セカンダリー（取得・運用）',m2:'② セカンダリーリフォート',m3:'③ リフォート提案（オーナー様向け）',cmp:'3シナリオ比較'};
+  const i=deal.inputs;
+  const subt=`${esc(i.plantName||deal.name||'')}${i.location?'｜'+esc(i.location):''}`;
+  return `<div class="sheet">${shHead(deal,titles[m],subt,badges[m])}${body}${shFoot()}</div>`;
+}
+
+
+/* ==================== Excel取込（01_物件情報 → 入力） ==================== */
+const XLSX_MAP={
+  customer:'C8', location:'C9', mapUrl:'C10', plantName:'C11', buyer:'C12',
+  contractType:'C13', gridDate:'C14', landType:'C15',
+  fitPrice:'C17', sotsuFit:'C19', sotsuYears:'C20', sotsuApply:'C21',
+  dcExisting:'C23', acExisting:'C24', panelMaker:'C25', pcsMaker:'C26',
+  pcsCount:'C27', pcsReplaced:'C28', mount:'C29', orientation:'C30', initialEquip:'C31',
+  actualGen:'C33', degExist:'C34',
+  rfPriceEx:'C36', rfCostTotal:'C38', rfGrossTotal:'C39',
+  rfDcAfter:'C41', realOutput:'C42', rfAcAfter:'C43', rfGenAfter:'C44',
+  degRF:'C46', retireLoss:'C47',
+  landRent:'C50', elec:'C51', hoan:'C52', propTaxAmt:'C53', propTaxApply:'C54',
+  insExist:'C55', insRF:'C56', mainExist:'C57', mainRF:'C58',
+  secCostEx:'C63', secSaleEx:'C64', goodwillPct:'C68',
+  rate:'C71', useLoan:'F71', landPrice:'C72', loanYears:'F72', down:'F73',
+  brokerEx:'C74', pcsReplaceCost:'C75', pcsReplaceApply:'C76',
+  rfRetireApply:'C83', rfRetirePct:'C84', rfRetireYear:'C85', rfDepYears:'C86',
+  goodwillYears:'C87', skrfRetirePct:'C89', skrfRetireYear:'C90',
+  owner:'C92',
+};
+const XLSX_NAME_CELL='C7';
+const XLSX_TEXT_KEYS=new Set(['customer','location','mapUrl','plantName','buyer','contractType',
+  'landType','panelMaker','pcsMaker','pcsReplaced','mount','orientation','sotsuApply',
+  'propTaxApply','useLoan','pcsReplaceApply','rfRetireApply','owner']);
+function xCell(ws,addr){const c=ws[addr];return c?c.v:undefined;}
+function xMonthFromCell(cell){
+  if(!cell)return'';
+  if(cell.w){const m=String(cell.w).match(/(\d{4})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);}
+  const v=cell.v;
+  if(v&&typeof v.getFullYear==='function')return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2);
+  if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2);}
+  if(typeof v==='string'){const m=v.match(/(\d{4})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);return v.slice(0,7);}
+  return'';
+}
+function ensureXLSX(){
+  return new Promise((res,rej)=>{
+    if(window.XLSX)return res(window.XLSX);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>window.XLSX?res(window.XLSX):rej(new Error('ライブラリ未ロード'));
+    s.onerror=()=>rej(new Error('ライブラリ読込失敗（インターネット接続が必要です）'));
+    document.head.appendChild(s);
+  });
+}
+function readExcelFile(file){
+  return ensureXLSX().then(X=>new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{try{res(X.read(new Uint8Array(e.target.result),{type:'array',cellDates:true}));}
+      catch(err){rej(new Error('Excelを読めませんでした'));}};
+    r.onerror=()=>rej(new Error('ファイル読込に失敗しました'));
+    r.readAsArrayBuffer(file);
+  }));
+}
+function parseExcelToInputs(wb){
+  const ws=wb.Sheets['01_物件情報'];
+  if(!ws)throw new Error('「01_物件情報」シートが見つかりません');
+  const inp=blankInputs();
+  let count=0;
+  Object.keys(XLSX_MAP).forEach(key=>{
+    if(key==='gridDate'){const mv=xMonthFromCell(ws[XLSX_MAP.gridDate]);if(mv){inp.gridDate=mv;count++;}return;}
+    let v=xCell(ws,XLSX_MAP[key]);
+    if(v===undefined||v===null||v==='')return;
+    if(XLSX_TEXT_KEYS.has(key)){
+      v=String(v).trim();
+      if(key==='customer')v=v.replace(/\s*様\s*$/,'');
+    }else{
+      const num=typeof v==='number'?v:parseFloat(String(v).replace(/[,\s]/g,''));
+      if(!isFinite(num))return;
+      v=num;
+    }
+    inp[key]=v;count++;
+  });
+  const nm=xCell(ws,XLSX_NAME_CELL);
+  return {inputs:inp, name:(nm?String(nm).trim():(inp.customer||'')), count};
+}
+function importExcelNew(file){
+  readExcelFile(file).then(wb=>{
+    const {inputs,name,count}=parseExcelToInputs(wb);
+    const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:{}};
+    DB.deals.unshift(d);saveDB(DB);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
+    toast('Excelから新規案件を取込みました（'+count+'項目）');
+  }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
+}
+function importExcelCur(file){
+  if(!curDeal)return;
+  readExcelFile(file).then(wb=>{
+    const {inputs,name,count}=parseExcelToInputs(wb);
+    if(!confirm('この案件の入力内容をExcelの値で上書きします。よろしいですか？\n（次アクション・期限・メモ・ステージは保持されます）'))return;
+    curDeal.inputs=inputs;
+    if(!curDeal.name||curDeal.name==='(無題案件)')curDeal.name=name;
+    markDirty();renderDeal();
+    toast('Excelの値で上書きしました（'+count+'項目）');
+  }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
+}
+
+
+/* ==================== マップ（日本地図＋ピン） ==================== */
+const PREF={
+ '北海道':[43.06,141.35],'青森県':[40.82,140.74],'岩手県':[39.70,141.15],'宮城県':[38.27,140.87],
+ '秋田県':[39.72,140.10],'山形県':[38.24,140.36],'福島県':[37.75,140.47],'茨城県':[36.34,140.45],
+ '栃木県':[36.57,139.88],'群馬県':[36.39,139.06],'埼玉県':[35.86,139.65],'千葉県':[35.61,140.12],
+ '東京都':[35.69,139.69],'神奈川県':[35.45,139.64],'新潟県':[37.90,139.02],'富山県':[36.70,137.21],
+ '石川県':[36.59,136.63],'福井県':[36.07,136.22],'山梨県':[35.66,138.57],'長野県':[36.65,138.18],
+ '岐阜県':[35.39,136.72],'静岡県':[34.98,138.38],'愛知県':[35.18,136.91],'三重県':[34.73,136.51],
+ '滋賀県':[35.00,135.87],'京都府':[35.02,135.76],'大阪府':[34.69,135.52],'兵庫県':[34.69,135.18],
+ '奈良県':[34.69,135.83],'和歌山県':[34.23,135.17],'鳥取県':[35.50,134.24],'島根県':[35.47,133.05],
+ '岡山県':[34.66,133.93],'広島県':[34.40,132.46],'山口県':[34.19,131.47],'徳島県':[34.07,134.56],
+ '香川県':[34.34,134.04],'愛媛県':[33.84,132.77],'高知県':[33.56,133.53],'福岡県':[33.61,130.42],
+ '佐賀県':[33.25,130.30],'長崎県':[32.74,129.87],'熊本県':[32.79,130.74],'大分県':[33.24,131.61],
+ '宮崎県':[31.91,131.42],'鹿児島県':[31.56,130.56],'沖縄県':[26.21,127.68]};
+function prefOf(loc){ if(!loc)return null; loc=String(loc).trim();
+  let k=Object.keys(PREF).find(p=>loc.startsWith(p));
+  if(!k)k=Object.keys(PREF).find(p=>loc.startsWith(p.replace(/[都道府県]$/,'')));
+  return k||null;
+}
+let leafletMap=null;
+function ensureLeaflet(){
+  return new Promise((res,rej)=>{
+    if(window.L)return res(window.L);
+    if(!document.getElementById('leafletCSS')){
+      const css=document.createElement('link');css.id='leafletCSS';css.rel='stylesheet';
+      css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.appendChild(css);
+    }
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    s.onload=()=>window.L?res(window.L):rej(new Error('地図ライブラリ未ロード'));
+    s.onerror=()=>rej(new Error('地図ライブラリの読込に失敗（インターネット接続が必要です）'));
+    document.head.appendChild(s);
+  });
+}
+function renderMap(){
+  const v=$('#view-map');
+  v.innerHTML=`<div class="page-h"><h1>マップ</h1><span class="sub">案件を地図上で確認し、ピンから提案シートを開けます</span></div>
+    <div class="map-note" id="mapNote">🗺️ 地図を読み込んでいます…</div>
+    <div class="map-wrap"><div id="map"></div></div>`;
+  ensureLeaflet().then(L=>buildMap(L)).catch(err=>{
+    $('#mapNote').innerHTML='⚠ '+esc(err.message||'地図を表示できませんでした');});
+}
+function buildMap(L){
+  if(leafletMap){try{leafletMap.remove();}catch(e){}leafletMap=null;}
+  const map=L.map('map',{scrollWheelZoom:true,zoomControl:true}).setView([37.5,138.4],5);
+  leafletMap=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
+  const groups={},noloc=[];
+  DB.deals.forEach(d=>{const p=prefOf(d.inputs.location);if(!p){noloc.push(d);return;}(groups[p]=groups[p]||[]).push(d);});
+  const bounds=[];
+  Object.keys(groups).forEach(p=>{
+    const base=PREF[p],arr=groups[p];
+    arr.forEach((d,i)=>{
+      const ang=i*(2*Math.PI/Math.max(arr.length,1)),r=arr.length>1?0.18:0;
+      const lat=base[0]+r*Math.sin(ang),lng=base[1]+r*Math.cos(ang);
+      bounds.push([lat,lng]);
+      const st=stageOf(d.stage),vd=dealVerdict(d);
+      const cls=d.stage==='won'?'won':d.stage==='lost'?'lost':(vd.ng>0?'hot':'');
+      const icon=L.divIcon({className:'',html:`<div class="map-pin ${cls}"><b>R</b></div>`,iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]});
+      const irr=vd.irr!=null?'IRR '+pct(vd.irr):'';
+      const kw=n(d.inputs.dcExisting)?n(d.inputs.dcExisting).toLocaleString()+'kW':'';
+      const pop=`<div class="lpop"><div class="lp-nm">${esc(d.name||'(無題案件)')}</div>
+        <div class="lp-meta">${esc(d.inputs.location||'所在地未設定')}｜${st.n}</div>
+        <div class="lp-kpi">${irr?`<span>${irr}</span>`:''}${kw?`<span>${kw}</span>`:''}${vd.ng>0?'<span>🚩'+vd.ng+'</span>':''}</div>
+        <div class="lp-btns"><button class="b-open" data-open="${d.id}">案件を開く</button>
+        <button class="b-sheet" data-sheet="${d.id}">📄 提案シート</button></div></div>`;
+      L.marker([lat,lng],{icon}).addTo(map).bindPopup(pop);
+    });
+  });
+  if(bounds.length)map.fitBounds(bounds,{padding:[50,50],maxZoom:8});
+  map.on('popupopen',e=>{const el=e.popup.getElement();if(!el)return;
+    const ob=el.querySelector('[data-open]');if(ob)ob.onclick=()=>{map.closePopup();openDeal(ob.dataset.open);};
+    const sb=el.querySelector('[data-sheet]');if(sb)sb.onclick=()=>{const dd=DB.deals.find(x=>x.id===sb.dataset.sheet);if(dd)openSheet([dd],autoModel(dd));};
+  });
+  setTimeout(()=>{try{map.invalidateSize();}catch(e){}},120);
+  const nt=$('#mapNote');
+  if(nt)nt.innerHTML=`全 ${DB.deals.length} 件中 <b>${bounds.length} 件</b>を地図に表示（所在地の都道府県で配置）${noloc.length?`　／ 所在地未判定 ${noloc.length} 件`:''}　🔵進行中 🔴赤旗あり 🟢成約`;
+}
+
+/* ==================== wiring ==================== */
+$$('nav.tabs button').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;nav(v);
+  if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='map')renderMap();});
+$('#btnNew').onclick=newDeal;
+$('#btnExport').onclick=exportBackup;
+$('#btnImport').onclick=()=>$('#fileImport').click();
+$('#fileImport').onchange=e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value='';};
+$('#btnExcel').onclick=()=>$('#fileExcelNew').click();
+$('#fileExcelNew').onchange=e=>{if(e.target.files[0])importExcelNew(e.target.files[0]);e.target.value='';};
+$('#fileExcelCur').onchange=e=>{if(e.target.files[0])importExcelCur(e.target.files[0]);e.target.value='';};
+$('#mCancel').onclick=()=>$('#modal').classList.remove('show');
+$('#modal').onclick=e=>{if(e.target.id==='modal')$('#modal').classList.remove('show');};
+$('#shClose').onclick=closeSheet;
+$('#shPrint').onclick=()=>window.print();
+$('#shOwner').onchange=renderSheets;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheetOverlay').classList.contains('show'))closeSheet();});
+
+// seed a clearly-labelled sample deal on first ever run (safe: storage may be blocked)
+function safeLS(get,key,val){try{return get?localStorage.getItem(key):localStorage.setItem(key,val);}catch(e){return null;}}
+if(DB.deals.length===0 && !safeLS(true,'refort_seeded')){
+  safeLS(false,'refort_seeded','1');
+  const si=blankInputs();
+  Object.assign(si,{
+    customer:'サンプル太陽光（株）', plantName:'サンプル発電所', location:'栃木県那須郡',
+    buyer:'新規投資家', contractType:'FIT', gridDate:'2013-04-01', landType:'賃借',
+    fitPrice:36, sotsuFit:12, sotsuApply:'適応',
+    dcExisting:540, acExisting:500, panelMaker:'—', pcsMaker:'—', pcsCount:10,
+    actualGen:421224, degExist:0.005,
+    rfPriceEx:57780000, rfCostTotal:46224000, rfGrossTotal:11556000,
+    rfDcAfter:720, rfGenAfter:634931, degRF:0.002,
+    secCostEx:38000000, secSaleEx:46000000, goodwillPct:50,
+    propTaxApply:'適応', rfRetireApply:'適応', rfDepYears:17, goodwillYears:5,
+    skrfRetireYear:2,
+  });
+  DB.deals.push({id:uid(),name:'【サンプル】サンプル発電所（削除可）',stage:'dd',
+    createdAt:Date.now(),updatedAt:Date.now(),inputs:si,dd:{'A-1':'OK','A-3':'OK','B-2':'要確認','D-1':'OK'}});
+  saveDB(DB);
+}
+/* ==================== Supabase クラウド同期（社内共有） ==================== */
+const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY_HARD=''; /* 全社共有する場合はここに anon key を貼ると全員自動で共有（空でも「同期設定」から入力可） */
+let sb=null, sbPushT=null, cloudReady=false;
+function sbKey(){return SB_KEY_HARD || (localStorage.getItem('refort_sb_key')||'');}
+function setPill(state){const p=$('#syncPill');if(!p)return;p.className='sync-pill '+state;
+  p.textContent={local:'● ローカル',connecting:'● 接続中…',synced:'● 共有中',error:'● 未接続'}[state]||'';}
+function activeView(){const on=document.querySelector('.view.on');return on?on.id.replace('view-',''):'dash';}
+function refreshView(){const v=activeView();if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='map')renderMap();}
+function localWrite(d){try{localStorage.setItem('refort_studio_v1',JSON.stringify(d));}catch(e){}}
+function ensureSB(){return new Promise((res,rej)=>{if(window.supabase)return res(window.supabase);
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  s.onload=()=>window.supabase?res(window.supabase):rej(new Error('lib'));
+  s.onerror=()=>rej(new Error('ライブラリ読込失敗（要ネット接続）'));document.head.appendChild(s);});}
+async function cloudUpsert(deals){if(!sb||!deals.length)return;
+  const rows=deals.map(x=>({id:x.id,name:x.name||'',stage:x.stage||'',data:x,updated_at:new Date().toISOString()}));
+  const {error}=await sb.from('refort_deals').upsert(rows);if(error)throw error;}
+async function cloudReconcile(d){if(!sb)return;
+  try{ await cloudUpsert(d.deals);
+    const {data:cloud}=await sb.from('refort_deals').select('id');
+    const ids=new Set(d.deals.map(x=>x.id));
+    for(const r of (cloud||[])) if(!ids.has(r.id)) await sb.from('refort_deals').delete().eq('id',r.id);
+    setPill('synced');
+  }catch(e){setPill('error');console.warn('cloud push',e);}}
+async function initCloud(){const key=sbKey();if(!key){setPill('local');return;}
+  setPill('connecting');
+  try{ const lib=await ensureSB(); sb=lib.createClient(SB_URL,key);
+    const {data,error}=await sb.from('refort_deals').select('data').order('updated_at',{ascending:false});
+    if(error)throw error;
+    const rows=(data||[]).map(r=>r.data).filter(Boolean);
+    if(rows.length===0 && DB.deals.length>0){ await cloudUpsert(DB.deals); }
+    else if(rows.length>0){ DB.deals=rows; localWrite(DB); if(activeView()!=='deal')refreshView(); }
+    cloudReady=true; setPill('synced');
+  }catch(e){ sb=null; cloudReady=false; setPill('error'); console.warn('cloud init',e); }}
+window.__cloudPush=function(d){ if(!sb||!cloudReady)return; clearTimeout(sbPushT); sbPushT=setTimeout(()=>cloudReconcile(d),700); };
+function openSyncModal(){ $('#sbUrl').value=SB_URL; $('#sbKey').value=sbKey();
+  const st=$('#sbStat'); st.textContent=sb?'✅ 接続済み（社内共有中）':(sbKey()?'⚠ 未接続':'現在はローカル保存のみ');
+  st.style.color=sb?'#1f8a55':'#8a6d18'; $('#syncModal').classList.add('show'); }
+$('#btnSync').onclick=openSyncModal;
+$('#syncModal').onclick=e=>{if(e.target.id==='syncModal')$('#syncModal').classList.remove('show');};
+$('#sbLocal').onclick=()=>{localStorage.removeItem('refort_sb_key');sb=null;cloudReady=false;setPill('local');$('#syncModal').classList.remove('show');toast('ローカル保存に切り替えました');};
+$('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast('anon keyを入力してください');return;}
+  localStorage.setItem('refort_sb_key',k);const st=$('#sbStat');st.textContent='接続中…';st.style.color='#8a6d18';
+  await initCloud();
+  if(sb){st.textContent='✅ 接続しました（社内共有を開始）';st.style.color='#1f8a55';toast('クラウド共有を開始しました');}
+  else{st.textContent='⚠ 接続できませんでした。URL・key・テーブル作成をご確認ください';st.style.color='#c0392b';}};
+
+renderDash();
+initCloud();
+})();
+
+</script>
+</body>
+</html>
