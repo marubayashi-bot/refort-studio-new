@@ -365,6 +365,15 @@ table.st tr.hl td.lbl{color:#b9770e}
   .sheet{box-shadow:none;margin:0;page-break-after:always;break-after:page}
   .sheet:last-child{page-break-after:auto;break-after:auto}
 }
+/* ===== EXCEL DROP ZONE ===== */
+.drop-zone{border:2px dashed var(--line2);border-radius:14px;background:var(--surface);
+  padding:24px 20px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:20px}
+.drop-zone:hover{border-color:var(--gold);background:#f7f9fc}
+.drop-zone.dragover{border-color:var(--gold);background:var(--gold-soft);box-shadow:0 0 0 4px var(--gold-soft)}
+.dz-icon{width:54px;height:54px;border-radius:14px;background:var(--gold-soft);display:grid;place-items:center;margin:0 auto 11px;color:#b8902f}
+.dz-icon svg{width:25px;height:25px}
+.dz-title{font-size:15px;font-weight:800;color:var(--navy)}
+.dz-sub{font-size:12px;color:var(--muted);margin-top:4px}
 /* ===== MAP VIEW ===== */
 #map{height:calc(100vh - 220px);min-height:440px;border:1px solid var(--line);border-radius:var(--r);z-index:1}
 .map-wrap{position:relative}
@@ -820,6 +829,11 @@ function renderDash(){
 
   let html=`<div class="page-h"><h1>ダッシュボード</h1>
     <span class="sub">セカンダリー査定・パイプライン全体像</span></div>`;
+  html+=`<div class="drop-zone" id="dropZone">
+    <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+    <div class="dz-title">Excelファイルをドロップ、またはクリックして選択</div>
+    <div class="dz-sub">.xlsx（RFシミュレーション）を新規案件として自動取込</div>
+  </div>`;
   html+=`<div class="kpis">
     ${kpi('進行中案件',active.length,'件','成約・見送り除く','📁')}
     ${kpi('パイプライン金額',yenM(pipeVal),'','進行中案件の想定取引額','💰')}
@@ -844,6 +858,16 @@ function renderDash(){
   // pipeline lanes
   html+=`<div class="sec-title">パイプライン</div><div class="pipe-wrap"><div class="pipe" id="pipe"></div></div>`;
   v.innerHTML=html;
+
+  const dz=$('#dropZone');
+  if(dz){
+    dz.onclick=()=>$('#fileExcelNew').click();
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+    dz.addEventListener('dragleave',e=>{if(!dz.contains(e.relatedTarget))dz.classList.remove('dragover');});
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');
+      const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+      if(f){ if(/\.(xlsx|xlsm)$/i.test(f.name))importExcelNew(f); else toast('.xlsx ファイルを選択してください'); }});
+  }
 
   $$('.alert-row[data-open]').forEach(r=>r.onclick=()=>openDeal(r.dataset.open));
 
