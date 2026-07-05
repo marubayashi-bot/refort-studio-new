@@ -365,7 +365,46 @@ table.st tr.hl td.lbl{color:#b9770e}
   .sheet{box-shadow:none;margin:0;page-break-after:always;break-after:page}
   .sheet:last-child{page-break-after:auto;break-after:auto}
 }
-/* ===== EXCEL DROP ZONE ===== */
+/* ===== LEDGER (台帳) ===== */
+.led-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:12px}
+.led-kpi{border-radius:10px;padding:13px 15px;color:#fff}
+.led-kpi .l{font-size:12px;font-weight:700;opacity:.92}
+.led-kpi .v{font-size:26px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+.led-kpi.b1{background:#2a6fb0}.led-kpi.b2{background:#3f8a3f}.led-kpi.b3{background:#c8721c}.led-kpi.b4{background:#c0392b}
+.led-fin{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:16px}
+.led-fin .cell{border-radius:10px;padding:12px 15px;color:#fff}
+.led-fin .b1{background:#2a6fb0}.led-fin .b2{background:#3f8a3f}.led-fin .b3{background:#c8721c}
+.led-fin .l{font-size:12px;font-weight:700;opacity:.92}
+.led-fin .v{font-size:23px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.led-agg{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:820px){.led-agg{grid-template-columns:1fr}}
+.led-agg h4{font-size:13px;font-weight:700;color:var(--navy);margin:0 0 7px;display:flex;align-items:center;gap:7px}
+.led-agg h4::before{content:"■";color:var(--gold)}
+table.aggt{width:100%;border-collapse:collapse;font-size:12px}
+table.aggt th{background:var(--navy);color:#fff;font-weight:600;padding:6px 9px;text-align:right;white-space:nowrap}
+table.aggt th:first-child{text-align:left}
+table.aggt td{padding:5px 9px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+table.aggt td:first-child{text-align:left;color:var(--navy2);font-weight:600}
+table.aggt tr.tot td{background:var(--surface2);font-weight:800;color:var(--navy);border-top:2px solid var(--line2)}
+.led-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff;max-height:70vh}
+table.ledger{border-collapse:collapse;font-size:11.5px;white-space:nowrap}
+table.ledger thead th{position:sticky;top:0;z-index:3;color:#fff;font-weight:600;padding:6px 8px;border:1px solid rgba(255,255,255,.15)}
+table.ledger thead tr.grp th{font-size:11px;text-align:center}
+table.ledger thead tr.col th{font-size:10.5px;text-align:center;top:27px}
+table.ledger .g-base{background:#1f4e79}table.ledger .g-stat{background:#4a7a2a}table.ledger .g-money{background:#b8860b}table.ledger .g-date{background:#6a3d9a}table.ledger .g-own{background:#b03a2e}table.ledger .g-memo{background:#5a6570}
+table.ledger td{border:1px solid var(--line);padding:3px 6px;font-variant-numeric:tabular-nums;text-align:right}
+table.ledger td.l{text-align:left;white-space:normal;min-width:120px;max-width:180px}
+table.ledger td.c{text-align:center}
+table.ledger tr:nth-child(even) td{background:#f7f9fb}
+table.ledger td.no{color:var(--muted);text-align:center;font-weight:700}
+table.ledger select,table.ledger input{border:1px solid transparent;background:transparent;font:inherit;font-size:11.5px;border-radius:4px;padding:2px 4px;width:100%;font-variant-numeric:tabular-nums}
+table.ledger td.r input{text-align:right}
+table.ledger select:hover,table.ledger input:hover{border-color:var(--line2)}
+table.ledger select:focus,table.ledger input:focus{outline:none;border-color:var(--gold);background:#fffdf6}
+table.ledger td.mq{font-weight:700;color:var(--navy)}
+table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;font-weight:800}.ledger .pr-B{color:var(--navy2)}.ledger .pr-C{color:var(--muted)}
+.led-open{color:var(--gold2);cursor:pointer;font-weight:700}.led-open:hover{text-decoration:underline}
+/* ===== EXCEL DROP ZONE ===== */ */
 .drop-zone{border:2px dashed var(--line2);border-radius:14px;background:var(--surface);
   padding:24px 20px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:20px}
 .drop-zone:hover{border-color:var(--gold);background:#f7f9fc}
@@ -402,6 +441,7 @@ table.st tr.hl td.lbl{color:#b9770e}
   <nav class="tabs">
     <button data-nav="dash" class="on">ダッシュボード</button>
     <button data-nav="list">案件一覧</button>
+    <button data-nav="ledger">台帳</button>
     <button data-nav="map">マップ</button>
   </nav>
   <div class="spacer"></div>
@@ -420,6 +460,7 @@ table.st tr.hl td.lbl{color:#b9770e}
   <section class="view on" id="view-dash"></section>
   <!-- LIST -->
   <section class="view" id="view-list"></section>
+  <section class="view" id="view-ledger"></section>
   <section class="view" id="view-map"></section>
   <!-- DEAL WORKSPACE -->
   <section class="view" id="view-deal"></section>
@@ -1847,8 +1888,41 @@ function parseTemplateC(wb){
   const nm2=str('C5')||str('D5')||str('E5')||str('D11');
   return {inputs:inp, name:(nm2||'(無題案件)'), count, dd:parseDDsheet(wb)};
 }
+function isLedgerWB(wb){
+  const ws=wb.Sheets['案件一覧']; if(!ws)return false;
+  const b4=ws['B4'], c4=ws['C4'];
+  return !!(b4&&/カテゴリ/.test(String(b4.v||''))) && !!(c4&&/物件名/.test(String(c4.v||'')));
+}
+function xLedDate(v){ if(v==null||v==='')return '';
+  if(v&&typeof v.getFullYear==='function')return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2);
+  if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.toISOString().slice(0,10);}
+  const s=String(v);const m=s.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);return m?`${m[1]}-${('0'+m[2]).slice(-2)}-${('0'+m[3]).slice(-2)}`:'';}
+function ledStage(sell){return {'販売準備中':'screen','販売中':'propose','商談中':'propose','契約手続中':'nego','成約':'won','引渡完了':'won','販売見送り':'lost'}[sell]||'screen';}
+function importLedgerRows(wb){
+  const ws=wb.Sheets['案件一覧'];
+  const gv=(col,r)=>{const c=ws[col+r];return c?c.v:undefined;};
+  const num=(col,r)=>{const v=gv(col,r);const x=typeof v==='number'?v:parseFloat(String(v==null?'':v).replace(/[,\s%¥円]/g,''));return isFinite(x)?x:0;};
+  const str=(col,r)=>{const v=gv(col,r);return v==null?'':String(v).trim();};
+  let added=0; const thisY=new Date().getFullYear();
+  for(let r=5;r<300;r++){
+    const name=str('C',r); if(!name)continue;
+    const years=num('G',r);
+    const inp=blankInputs();
+    inp.plantName=name; inp.location=str('D',r);
+    inp.dcExisting=num('E',r); inp.fitPrice=num('F',r); inp.actualGen=num('H',r);
+    inp.secSaleEx=num('L',r); inp.secCostEx=num('M',r);
+    if(years>0)inp.gridDate=(thisY-Math.round(years))+'-01';
+    inp.owner=str('T',r); inp.customer=str('U',r); inp.sotsuApply='不適合';
+    const led={category:str('B',r), buyStatus:str('I',r)||'仕入検討中', sellStatus:str('J',r)||'販売準備中',
+      priority:str('K',r)||'B', buyDate:xLedDate(gv('R',r)), sellDate:xLedDate(gv('S',r)), buyer:str('U',r)};
+    DB.deals.unshift({id:uid(),name,stage:ledStage(led.sellStatus),createdAt:Date.now(),updatedAt:Date.now(),inputs:inp,dd:{},ledger:led,memo:str('V',r)});
+    added++;
+  }
+  return added;
+}
 function importExcelNew(file){
   readExcelFile(file).then(wb=>{
+    if(isLedgerWB(wb)){ const added=importLedgerRows(wb); saveDB(DB); nav('ledger'); renderLedger(); toast('案件管理台帳から '+added+' 件を取込みました'); return; }
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
     const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
     DB.deals.unshift(d);saveDB(DB);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
@@ -1949,9 +2023,138 @@ function buildMap(L){
   if(nt)nt.innerHTML=`全 ${DB.deals.length} 件中 <b>${bounds.length} 件</b>を地図に表示（所在地の都道府県で配置）${noloc.length?`　／ 所在地未判定 ${noloc.length} 件`:''}　🔵進行中 🔴赤旗あり 🟢成約`;
 }
 
+/* ==================== 台帳（案件管理台帳＋ダッシュボード） ==================== */
+const LED_CAT=['セカンダリー','リフォート','セカンダリーリフォート','新規開発','蓄電池併設'];
+const LED_BUY=['仕入検討中','仮押さえ中','査定中','仕入済','仕入見送り'];
+const LED_SELL=['販売準備中','販売中','商談中','契約手続中','成約','引渡完了','販売見送り'];
+const LED_PRI=['S','A','B','C'];
+const LED_OWNERS=['丸林','大澤','森作','江藤','渡慶次','相河','庭','村田','石野','狐塚','佐藤'];
+function ledObj(d){ if(!d.ledger)d.ledger={}; return d.ledger; }
+function ledCat(d){ const l=ledObj(d); if(l.category)return l.category;
+  const m=autoModel(d); return m==='m2'?'セカンダリーリフォート':m==='m3'?'リフォート':'セカンダリー'; }
+function ledRow(d){
+  const I=d.inputs, der=derive(I), l=ledObj(d);
+  const pq=n(I.secSaleEx)||0, vq=n(I.secCostEx)||0, mq=pq-vq;
+  const gen=der.gen||n(I.actualGen)||0, fit=der.fit||n(I.fitPrice)||0;
+  const saleRev=Math.round(gen*fit);
+  return {
+    category:ledCat(d),
+    name:(I.plantName||d.name||''), location:(I.location||''),
+    kw:n(I.dcExisting)||0, fit:fit, years:der.gridYear?der.elapsed:'', gen:gen,
+    buyStatus:l.buyStatus||'仕入検討中', sellStatus:l.sellStatus||'販売準備中', priority:l.priority||'B',
+    pq:pq, vq:vq, mq:mq, marginRate:pq>0?mq/pq:0,
+    saleRev:saleRev, surfaceY:pq>0?saleRev/pq:0,
+    buyDate:l.buyDate||'', sellDate:l.sellDate||'',
+    owner:(I.owner||''), buyer:(l.buyer||I.customer||''), memo:(d.memo||'')
+  };
+}
+function renderLedger(){
+  const v=$('#view-ledger');
+  const deals=DB.deals;
+  const rows=deals.map(d=>({d,r:ledRow(d)}));
+  const sum=f=>rows.reduce((s,x)=>s+(f(x.r)||0),0);
+  const pqTot=sum(r=>r.pq), mqTot=sum(r=>r.mq);
+  const cnt=s=>rows.filter(x=>x.r.sellStatus===s).length;
+  let h=`<div class="page-h"><h1>案件管理台帳</h1><span class="sub">セカンダリー・リフォート 案件一覧・ダッシュボード</span></div>`;
+  // KPI cards
+  h+=`<div class="led-kpis">
+    <div class="led-kpi b1"><div class="l">総案件数</div><div class="v">${deals.length}</div></div>
+    <div class="led-kpi b2"><div class="l">販売中案件</div><div class="v">${cnt('販売中')+cnt('販売準備中')}</div></div>
+    <div class="led-kpi b3"><div class="l">商談中案件</div><div class="v">${cnt('商談中')+cnt('契約手続中')}</div></div>
+    <div class="led-kpi b4"><div class="l">成約件数</div><div class="v">${cnt('成約')+cnt('引渡完了')}</div></div>
+  </div>`;
+  h+=`<div class="led-fin">
+    <div class="cell b1"><div class="l">PQ合計（税抜）</div><div class="v">¥${nfn(pqTot)}</div></div>
+    <div class="cell b2"><div class="l">MQ合計（税抜）</div><div class="v">¥${nfn(mqTot)}</div></div>
+    <div class="cell b3"><div class="l">平均粗利率</div><div class="v">${pqTot>0?pct(mqTot/pqTot):'—'}</div></div>
+  </div>`;
+  // aggregation tables (仕入/販売ステータス別)
+  const aggBy=(keyf,order)=>{const m={};rows.forEach(x=>{const k=keyf(x.r);(m[k]=m[k]||{n:0,pq:0,mq:0}).n++;m[k].pq+=x.r.pq;m[k].mq+=x.r.mq;});
+    return (order||Object.keys(m)).map(k=>[k,(m[k]||{n:0,pq:0,mq:0})]);};
+  const aggTable=(title,data,extraCol)=>{
+    let t=`<div><h4>${title}</h4><table class="aggt"><thead><tr><th>${title.replace('別','')}</th><th>件数</th><th>PQ合計</th><th>MQ合計</th>${extraCol?'<th>成約</th>':''}</tr></thead><tbody>`;
+    let tn=0,tp=0,tm=0,tw=0;
+    data.forEach(([k,o])=>{tn+=o.n;tp+=o.pq;tm+=o.mq; const won=o.won||0; tw+=won;
+      t+=`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${nfn(o.pq)}</td><td>${nfn(o.mq)}</td>${extraCol?`<td>${won}</td>`:''}</tr>`;});
+    t+=`<tr class="tot"><td>合計</td><td>${tn}</td><td>${nfn(tp)}</td><td>${nfn(tm)}</td>${extraCol?`<td>${tw}</td>`:''}</tr></tbody></table></div>`;
+    return t;};
+  h+=`<div class="led-agg">${aggTable('仕入ステータス別',aggBy(r=>r.buyStatus,LED_BUY))}${aggTable('販売ステータス別',aggBy(r=>r.sellStatus,LED_SELL))}</div>`;
+  // 担当者別 + カテゴリ別
+  const ownerAgg=(()=>{const m={};rows.forEach(x=>{const k=x.r.owner||'(未設定)';const o=(m[k]=m[k]||{n:0,pq:0,mq:0,won:0});o.n++;o.pq+=x.r.pq;o.mq+=x.r.mq;if(['成約','引渡完了'].includes(x.r.sellStatus))o.won++;});
+    const keys=LED_OWNERS.filter(o=>m[o]).concat(Object.keys(m).filter(k=>!LED_OWNERS.includes(k)));return keys.map(k=>[k,m[k]]);})();
+  h+=`<div class="led-agg">${aggTable('担当者別集計',ownerAgg,true)}${aggTable('カテゴリ別集計',aggBy(r=>r.category,LED_CAT))}</div>`;
+  // ledger table
+  h+=`<div class="sec-title">案件一覧 <span style="flex:1"></span><button class="btn btn-line btn-sm" id="ledCsv">CSV出力</button></div>`;
+  h+=`<div class="led-wrap"><table class="ledger"><thead>
+    <tr class="grp"><th class="g-base" colspan="7">基本情報</th><th class="g-stat" colspan="3">ステータス</th><th class="g-money" colspan="6">金額・利回り</th><th class="g-date" colspan="2">日程</th><th class="g-own" colspan="2">担当・顧客</th><th class="g-memo">メモ</th></tr>
+    <tr class="col"><th class="g-base">カテゴリ</th><th class="g-base">物件名</th><th class="g-base">所在地</th><th class="g-base">容量<br>(kW)</th><th class="g-base">FIT<br>(円)</th><th class="g-base">稼働<br>年数</th><th class="g-base">年間発電量<br>(kWh)</th>
+    <th class="g-stat">仕入<br>ステータス</th><th class="g-stat">販売<br>ステータス</th><th class="g-stat">優先</th>
+    <th class="g-money">PQ売価<br>(税抜)</th><th class="g-money">VQ原価<br>(税抜)</th><th class="g-money">MQ粗利</th><th class="g-money">粗利率</th><th class="g-money">年間<br>売電収入</th><th class="g-money">表面<br>利回り</th>
+    <th class="g-date">仕入日</th><th class="g-date">販売予定日</th><th class="g-own">担当者</th><th class="g-own">顧客名<br>(買い手)</th><th class="g-memo">商談メモ</th></tr></thead><tbody>`;
+  const sel=(id,val,opts)=>`<select data-led="${id}">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+  rows.forEach((x,i)=>{const d=x.d,r=x.r;
+    h+=`<tr data-id="${d.id}">
+      <td class="c">${sel('category',r.category,LED_CAT)}</td>
+      <td class="l"><span class="led-open" data-open="${d.id}">${esc(r.name||'(無題)')}</span></td>
+      <td class="l">${esc(r.location)}</td>
+      <td class="r">${r.kw?nfn(r.kw):'—'}</td>
+      <td class="r">${r.fit||'—'}</td>
+      <td class="c">${r.years!==''?r.years:'—'}</td>
+      <td class="r">${r.gen?nfn(r.gen):'—'}</td>
+      <td class="c">${sel('buyStatus',r.buyStatus,LED_BUY)}</td>
+      <td class="c">${sel('sellStatus',r.sellStatus,LED_SELL)}</td>
+      <td class="c pr-${r.priority}">${sel('priority',r.priority,LED_PRI)}</td>
+      <td class="r"><input data-led="secSaleEx" data-inp="1" value="${r.pq?nfn(r.pq):''}"></td>
+      <td class="r"><input data-led="secCostEx" data-inp="1" value="${r.vq?nfn(r.vq):''}"></td>
+      <td class="r mq">${nfn(r.mq)}</td>
+      <td class="r">${pct(r.marginRate)}</td>
+      <td class="r">${nfn(r.saleRev)}</td>
+      <td class="r">${pct(r.surfaceY)}</td>
+      <td class="c"><input type="date" data-led="buyDate" value="${esc(r.buyDate)}"></td>
+      <td class="c"><input type="date" data-led="sellDate" value="${esc(r.sellDate)}"></td>
+      <td class="c">${sel('owner',r.owner,[''].concat(LED_OWNERS))}</td>
+      <td class="l"><input data-led="buyer" value="${esc(r.buyer)}"></td>
+      <td class="l"><input data-led="memo" value="${esc(r.memo)}" style="min-width:120px"></td>
+    </tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  v.innerHTML=h;
+  // wiring
+  $('#ledCsv').onclick=exportLedgerCSV;
+  $$('.led-open[data-open]').forEach(b=>b.onclick=()=>openDeal(b.dataset.open));
+  $$('#view-ledger [data-led]').forEach(el=>{
+    const handler=()=>{
+      const tr=el.closest('tr'), d=DB.deals.find(x=>x.id===tr.dataset.id); if(!d)return;
+      const key=el.dataset.led, val=el.value;
+      if(key==='secSaleEx'||key==='secCostEx'){ d.inputs[key]=n(String(val).replace(/[,\s¥円]/g,'')); }
+      else if(key==='owner'){ d.inputs.owner=val; }
+      else if(key==='memo'){ d.memo=val; }
+      else { ledObj(d)[key]=val; }
+      d.updatedAt=Date.now(); saveDB(DB);
+      // live-refresh derived cells in this row only
+      const r=ledRow(d), cells=tr.children;
+      cells[12].textContent=nfn(r.mq); cells[13].textContent=pct(r.marginRate);
+      cells[14].textContent=nfn(r.saleRev); cells[15].textContent=pct(r.surfaceY);
+      if(key==='priority'){cells[9].className='c pr-'+val;}
+    };
+    el.tagName==='SELECT'?el.onchange=handler:(el.onchange=handler);
+  });
+}
+function exportLedgerCSV(){
+  const head=['No','カテゴリ','物件名','所在地','容量kW','FIT単価','稼働年数','年間発電量','仕入ステータス','販売ステータス','優先度','PQ売価(税抜)','VQ原価(税抜)','MQ粗利','粗利率','年間売電収入','表面利回り','仕入日','販売予定日','担当者','顧客名','商談メモ'];
+  const lines=[head.join(',')];
+  DB.deals.forEach((d,i)=>{const r=ledRow(d);
+    const row=[i+1,r.category,r.name,r.location,r.kw,r.fit,r.years,r.gen,r.buyStatus,r.sellStatus,r.priority,r.pq,r.vq,r.mq,(r.marginRate*100).toFixed(1)+'%',r.saleRev,(r.surfaceY*100).toFixed(1)+'%',r.buyDate,r.sellDate,r.owner,r.buyer,r.memo]
+      .map(x=>{const s=String(x==null?'':x);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;});
+    lines.push(row.join(','));});
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='案件管理台帳_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('台帳をCSV出力しました');
+}
+
 /* ==================== wiring ==================== */
 $$('nav.tabs button').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;nav(v);
-  if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='map')renderMap();});
+  if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='ledger')renderLedger();else if(v==='map')renderMap();});
 $('#btnNew').onclick=newDeal;
 $('#btnExport').onclick=exportBackup;
 $('#btnImport').onclick=()=>$('#fileImport').click();
@@ -1995,7 +2198,7 @@ function sbKey(){return SB_KEY_HARD || (localStorage.getItem('refort_sb_key')||'
 function setPill(state){const p=$('#syncPill');if(!p)return;p.className='sync-pill '+state;
   p.textContent={local:'● ローカル',connecting:'● 接続中…',synced:'● 共有中',error:'● 未接続'}[state]||'';}
 function activeView(){const on=document.querySelector('.view.on');return on?on.id.replace('view-',''):'dash';}
-function refreshView(){const v=activeView();if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='map')renderMap();}
+function refreshView(){const v=activeView();if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='ledger')renderLedger();else if(v==='map')renderMap();}
 function localWrite(d){try{localStorage.setItem('refort_studio_v1',JSON.stringify(d));}catch(e){}}
 function ensureSB(){return new Promise((res,rej)=>{if(window.supabase)return res(window.supabase);
   const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
