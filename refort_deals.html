@@ -688,7 +688,7 @@ function simSecondary(I){
   return {d,rows,useLoan,inv,dealIRR,avgRev,fitAvgCF,
     surfaceY: inv>0?rows.売電収入[0]/inv:null,
     holdY: inv>0?rows.営業CF[0]/inv:null,
-    payback: avg(rows.営業CF)>0? inv/avg(rows.営業CF):null,
+    payback: fitAvgCF>0? inv/fitAvgCF:null,
     cf20:sum('営業CF'), rev20:sum('売電収入')};
 }
 function avg(a){ if(!a||!a.length)return 0; return a.reduce((x,y)=>x+y,0)/a.length; }
