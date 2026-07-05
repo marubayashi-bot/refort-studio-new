@@ -1710,6 +1710,9 @@ const XLSX_TEXT_KEYS=new Set(['customer','location','mapUrl','plantName','buyer'
   'landType','panelMaker','pcsMaker','pcsReplaced','mount','orientation','sotsuApply',
   'propTaxApply','useLoan','pcsReplaceApply','rfRetireApply','owner']);
 function xCell(ws,addr){const c=ws[addr];return c?c.v:undefined;}
+function xUrl(ws,addr){const c=ws[addr];if(!c)return '';
+  if(c.l&&c.l.Target)return String(c.l.Target).trim(); // ハイパーリンク先を優先
+  return c.v==null?'':String(c.v).trim();}
 function xMonthFromCell(cell){
   if(!cell)return'';
   if(cell.w){const m=String(cell.w).match(/(\d{4})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);}
@@ -1752,6 +1755,7 @@ function parseTemplateA(wb,sheetName){
   let count=0;
   Object.keys(XLSX_MAP).forEach(key=>{
     if(key==='gridDate'){const mv=xMonthFromCell(ws[XLSX_MAP.gridDate]);if(mv){inp.gridDate=mv;count++;}return;}
+    if(key==='mapUrl'){const u=xUrl(ws,XLSX_MAP.mapUrl);if(u){inp.mapUrl=u;count++;}return;}
     let v=xCell(ws,XLSX_MAP[key]);
     if(v===undefined||v===null||v==='')return;
     if(XLSX_TEXT_KEYS.has(key)){
@@ -1830,7 +1834,7 @@ function parseTemplateC(wb){
   const num=a=>{const v=gv(a);const x=typeof v==='number'?v:parseFloat(String(v==null?'':v).replace(/[,\s%¥円]/g,''));return isFinite(x)?x:0;};
   const str=a=>{const v=gv(a);return v==null?'':String(v).trim();};
   const set=(k,v)=>{if(v!==''&&v!=null&&!(typeof v==='number'&&isNaN(v))){inp[k]=v;count++;}};
-  set('location',str('D11')); set('mapUrl',str('D12'));
+  set('location',str('D11')); set('mapUrl',xUrl(ws,'D12'));
   set('fitPrice',num('D13'));
   const gm=xMonthFromCell(ws['D14']); if(gm)set('gridDate',gm);
   set('dcExisting',num('D16')); set('acExisting',num('D17'));
