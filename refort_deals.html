@@ -397,7 +397,9 @@ table.ledger td.l{text-align:left;white-space:normal;min-width:120px;max-width:1
 table.ledger td.c{text-align:center}
 table.ledger tr:nth-child(even) td{background:#f7f9fb}
 table.ledger td.no{color:var(--muted);text-align:center;font-weight:700}
-table.ledger select,table.ledger input{border:1px solid transparent;background:transparent;font:inherit;font-size:11.5px;border-radius:4px;padding:2px 4px;width:100%;font-variant-numeric:tabular-nums}
+table.ledger input{border:1px solid transparent;background:transparent;font:inherit;font-size:11.5px;border-radius:4px;padding:2px 4px;width:100%;font-variant-numeric:tabular-nums}
+table.ledger select{border:1px solid transparent;background:transparent;font:inherit;font-size:11px;border-radius:4px;padding:2px 2px;width:auto;max-width:160px;cursor:pointer;-webkit-appearance:auto;appearance:auto}
+table.ledger td.c{text-align:center;padding-left:2px;padding-right:2px}
 table.ledger td.r input{text-align:right}
 table.ledger select:hover,table.ledger input:hover{border-color:var(--line2)}
 table.ledger select:focus,table.ledger input:focus{outline:none;border-color:var(--gold);background:#fffdf6}
@@ -2086,11 +2088,11 @@ function renderLedger(){
   // ledger table
   h+=`<div class="sec-title">案件一覧 <span style="flex:1"></span><button class="btn btn-line btn-sm" id="ledCsv">CSV出力</button></div>`;
   h+=`<div class="led-wrap"><table class="ledger"><thead>
-    <tr class="grp"><th class="g-base" colspan="7">基本情報</th><th class="g-stat" colspan="3">ステータス</th><th class="g-money" colspan="6">金額・利回り</th><th class="g-date" colspan="2">日程</th><th class="g-own" colspan="2">担当・顧客</th><th class="g-memo">メモ</th></tr>
+    <tr class="grp"><th class="g-base" colspan="7">基本情報</th><th class="g-stat" colspan="3">ステータス</th><th class="g-money" colspan="6">金額・利回り</th><th class="g-date" colspan="2">日程</th><th class="g-own" colspan="2">担当・顧客</th></tr>
     <tr class="col"><th class="g-base">カテゴリ</th><th class="g-base">物件名</th><th class="g-base">所在地</th><th class="g-base">容量<br>(kW)</th><th class="g-base">FIT<br>(円)</th><th class="g-base">稼働<br>年数</th><th class="g-base">年間発電量<br>(kWh)</th>
     <th class="g-stat">仕入<br>ステータス</th><th class="g-stat">販売<br>ステータス</th><th class="g-stat">優先</th>
     <th class="g-money">PQ売価<br>(税抜)</th><th class="g-money">VQ原価<br>(税抜)</th><th class="g-money">MQ粗利</th><th class="g-money">粗利率</th><th class="g-money">年間<br>売電収入</th><th class="g-money">表面<br>利回り</th>
-    <th class="g-date">仕入日</th><th class="g-date">販売予定日</th><th class="g-own">担当者</th><th class="g-own">顧客名<br>(買い手)</th><th class="g-memo">商談メモ</th></tr></thead><tbody>`;
+    <th class="g-date">仕入日</th><th class="g-date">販売予定日</th><th class="g-own">担当者</th><th class="g-own">顧客名<br>(買い手)</th></tr></thead><tbody>`;
   const sel=(id,val,opts)=>`<select data-led="${id}">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
   rows.forEach((x,i)=>{const d=x.d,r=x.r;
     h+=`<tr data-id="${d.id}">
@@ -2114,7 +2116,6 @@ function renderLedger(){
       <td class="c"><input type="date" data-led="sellDate" value="${esc(r.sellDate)}"></td>
       <td class="c">${sel('owner',r.owner,[''].concat(LED_OWNERS))}</td>
       <td class="l"><input data-led="buyer" value="${esc(r.buyer)}"></td>
-      <td class="l"><input data-led="memo" value="${esc(r.memo)}" style="min-width:120px"></td>
     </tr>`;
   });
   h+=`</tbody></table></div>`;
@@ -2141,10 +2142,10 @@ function renderLedger(){
   });
 }
 function exportLedgerCSV(){
-  const head=['No','カテゴリ','物件名','所在地','容量kW','FIT単価','稼働年数','年間発電量','仕入ステータス','販売ステータス','優先度','PQ売価(税抜)','VQ原価(税抜)','MQ粗利','粗利率','年間売電収入','表面利回り','仕入日','販売予定日','担当者','顧客名','商談メモ'];
+  const head=['No','カテゴリ','物件名','所在地','容量kW','FIT単価','稼働年数','年間発電量','仕入ステータス','販売ステータス','優先度','PQ売価(税抜)','VQ原価(税抜)','MQ粗利','粗利率','年間売電収入','表面利回り','仕入日','販売予定日','担当者','顧客名'];
   const lines=[head.join(',')];
   DB.deals.forEach((d,i)=>{const r=ledRow(d);
-    const row=[i+1,r.category,r.name,r.location,r.kw,r.fit,r.years,r.gen,r.buyStatus,r.sellStatus,r.priority,r.pq,r.vq,r.mq,(r.marginRate*100).toFixed(1)+'%',r.saleRev,(r.surfaceY*100).toFixed(1)+'%',r.buyDate,r.sellDate,r.owner,r.buyer,r.memo]
+    const row=[i+1,r.category,r.name,r.location,r.kw,r.fit,r.years,r.gen,r.buyStatus,r.sellStatus,r.priority,r.pq,r.vq,r.mq,(r.marginRate*100).toFixed(1)+'%',r.saleRev,(r.surfaceY*100).toFixed(1)+'%',r.buyDate,r.sellDate,r.owner,r.buyer]
       .map(x=>{const s=String(x==null?'':x);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;});
     lines.push(row.join(','));});
   const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'});
