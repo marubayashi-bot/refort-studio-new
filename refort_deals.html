@@ -1743,6 +1743,7 @@ function parseExcelToInputs(wb){
   const aSheet=names.find(n=>n==='01_物件情報') || names.find(n=>/物件情報/.test(n));
   if(aSheet) return parseTemplateA(wb,aSheet);          // ReFort Vr19 テンプレート
   if(names.includes('入力')) return parseTemplateB(wb); // VQ／セカンダリー「入力」テンプレート
+  if(names.some(n=>/ヒアリング/.test(n))) return parseTemplateC(wb); // DDチェックリスト（営業初動ヒアリング）
   throw new Error('対応する入力シートが見つかりません（シート一覧：'+(names.join('、')||'なし')+'）');
 }
 function parseTemplateA(wb,sheetName){
@@ -1805,20 +1806,59 @@ function parseTemplateB(wb){
   if(num('C26')>0||num('C27')>0) inp.useLoan='使用する';
   return {inputs:inp, name:(str('C3')||'(無題案件)'), count};
 }
+function parseDDsheet(wb){
+  const nm=(wb.SheetNames||[]).find(n=>/DDチェックリスト/.test(n)); if(!nm)return {};
+  const ws=wb.Sheets[nm], dd={};
+  const map=s=>{s=String(s||'').trim();
+    if(/未着手/.test(s))return '未着手'; if(/確認中|進行/.test(s))return '確認中';
+    if(/OK|問題なし|完了|良好|可/.test(s))return 'OK'; if(/NG|問題あり|不可|否/.test(s))return 'NG';
+    if(/N\/A|該当なし|対象外|不要/.test(s))return 'N/A'; return null;};
+  for(let r=1;r<=80;r++){
+    const c=ws['B'+r]; if(!c)continue;
+    const code=String(c.v||'').trim(); if(!/^[A-D]-\d+$/.test(code))continue;
+    const st=map(ws['D'+r]&&ws['D'+r].v);
+    if(st && st!=='未着手') dd[code]=st;
+  }
+  return dd;
+}
+function parseTemplateC(wb){
+  const nm=(wb.SheetNames||[]).find(n=>/ヒアリング/.test(n));
+  const ws=wb.Sheets[nm];
+  const inp=blankInputs();
+  let count=0;
+  const gv=a=>{const c=ws[a];return c?c.v:undefined;};
+  const num=a=>{const v=gv(a);const x=typeof v==='number'?v:parseFloat(String(v==null?'':v).replace(/[,\s%¥円]/g,''));return isFinite(x)?x:0;};
+  const str=a=>{const v=gv(a);return v==null?'':String(v).trim();};
+  const set=(k,v)=>{if(v!==''&&v!=null&&!(typeof v==='number'&&isNaN(v))){inp[k]=v;count++;}};
+  set('location',str('D11')); set('mapUrl',str('D12'));
+  set('fitPrice',num('D13'));
+  const gm=xMonthFromCell(ws['D14']); if(gm)set('gridDate',gm);
+  set('dcExisting',num('D16')); set('acExisting',num('D17'));
+  set('landType',str('D18')); set('landPrice',num('D19')); set('landRent',num('D20'));
+  set('actualGen',num('D21')); set('pcsReplaced',str('D22'));
+  set('secCostEx',num('D23'));                          // 売却希望額(税抜)＝仕入原価
+  const total=num('D29'); set('secSaleEx', total>0?total:num('D23')); // 総取得コスト＝投資基準
+  set('brokerEx',num('D26'));
+  inp.sotsuApply='不適合';
+  const nm2=str('C5')||str('D5')||str('E5')||str('D11');
+  return {inputs:inp, name:(nm2||'(無題案件)'), count, dd:parseDDsheet(wb)};
+}
 function importExcelNew(file){
   readExcelFile(file).then(wb=>{
-    const {inputs,name,count}=parseExcelToInputs(wb);
-    const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:{}};
+    const {inputs,name,count,dd}=parseExcelToInputs(wb);
+    const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
     DB.deals.unshift(d);saveDB(DB);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
-    toast('Excelから新規案件を取込みました（'+count+'項目）');
+    const ddn=dd?Object.keys(dd).length:0;
+    toast('Excelから新規案件を取込みました（'+count+'項目'+(ddn?'／DD '+ddn+'件':'')+'）');
   }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
 }
 function importExcelCur(file){
   if(!curDeal)return;
   readExcelFile(file).then(wb=>{
-    const {inputs,name,count}=parseExcelToInputs(wb);
+    const {inputs,name,count,dd}=parseExcelToInputs(wb);
     if(!confirm('この案件の入力内容をExcelの値で上書きします。よろしいですか？\n（次アクション・期限・メモ・ステージは保持されます）'))return;
     curDeal.inputs=inputs;
+    if(dd&&Object.keys(dd).length)curDeal.dd=Object.assign(curDeal.dd||{},dd);
     if(!curDeal.name||curDeal.name==='(無題案件)')curDeal.name=name;
     markDirty();renderDeal();
     toast('Excelの値で上書きしました（'+count+'項目）');
