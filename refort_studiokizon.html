@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>アースコム ReFort 提案・パイプライン・ダッシュボード</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --navy:#0f2547; --navy2:#1c3a66; --gold:#c9a14a; --gold-d:#a8842f;
@@ -138,6 +140,19 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
 .kpi .kpi-go{position:absolute;top:11px;right:13px;font-size:10.5px;font-weight:800;color:var(--gold-d);opacity:0;transition:opacity .12s}
 .kpi.accent .kpi-go,.kpi.gold .kpi-go{color:#fff}
 .kpi.clickable:hover .kpi-go{opacity:1}
+.agg-toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;border:1.5px solid var(--line);border-radius:8px;padding:8px 11px;background:#fff;white-space:nowrap}
+.agg-toggle input{width:15px;height:15px;accent-color:var(--gold);cursor:pointer}
+/* map */
+#map{height:600px;width:100%;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:1}
+.map-legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:var(--sub);box-shadow:var(--shadow)}
+.map-legend .lg-item{display:flex;align-items:center;gap:6px;font-weight:700}
+.map-legend .lg-dot{width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.map-pop{font-size:12.5px;line-height:1.6;min-width:190px}
+.map-pop .mp-name{font-weight:800;color:var(--navy);font-size:13px}
+.map-pop .mp-sub{color:var(--sub);font-size:11.5px;margin:2px 0 6px}
+.map-pop .mp-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #eef2f8;padding:2px 0}
+.map-pop .mp-open{display:inline-block;margin-top:8px;background:var(--navy);color:#fff;padding:6px 12px;border-radius:7px;font-weight:700;cursor:pointer;text-align:center;width:100%}
+.map-pop .mp-open:hover{background:var(--navy2)}
 
 /* filters */
 .filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow);display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
@@ -287,6 +302,7 @@ table.grid tr:hover td{background:#f8fafd}
     <button class="tab active" data-view="proposal">📄 提案書</button>
     <button class="tab" data-view="pipeline">📊 パイプライン</button>
     <button class="tab" data-view="dashboard">📈 ダッシュボード</button>
+    <button class="tab" data-view="map">🗺 地図</button>
   </div>
   <div class="spacer"></div>
   <button class="gear" id="openSettings">⚙ 計算設定</button>
@@ -328,6 +344,8 @@ table.grid tr:hover td{background:#f8fafd}
       <div class="fld"><label>FIT単価 上限</label><input type="number" id="fPriceMax" placeholder="上限なし" min="0" step="1" style="min-width:80px"></div>
       <div class="fld"><label>残FIT内回収</label><select id="fRecover"><option value="">すべて</option><option value="ok">○ 回収可</option><option value="ng">× 不可</option></select></div>
       <div class="fld"><label>優先度 下限</label><input type="number" id="fScore" placeholder="0" min="0" style="min-width:80px"></div>
+      <div class="fld"><label>オーナー保有数 下限</label><input type="number" id="fOwnerCntMin" placeholder="例:2" min="1" step="1" style="min-width:90px"></div>
+      <div class="fld"><label>表示</label><label class="agg-toggle"><input type="checkbox" id="chkOwnerAgg"> オーナー別にまとめる</label></div>
       <div class="right">
         <button class="btn ghost" id="refreshCloud">🔄 クラウド更新</button>
         <button class="btn ghost" id="manageMembers">👤 担当者</button>
@@ -386,7 +404,25 @@ table.grid tr:hover td{background:#f8fafd}
       <div id="wonList"></div>
     </div>
   </div>
-</div>
+
+  <!-- MAP -->
+  <div class="view" id="view-map">
+    <div class="filters no-print">
+      <button class="btn ghost" id="geoLocate">📍 現在地を取得</button>
+      <div class="fld"><label>半径</label><select id="mapRadius"><option value="0">指定なし（全件）</option><option value="10">10 km</option><option value="20">20 km</option><option value="30">30 km</option><option value="40">40 km</option><option value="50">50 km</option></select></div>
+      <div class="fld"><label>ピンの色分け</label><select id="mapColor"><option value="score">優先度スコア</option><option value="status">ステータス</option><option value="price">FIT単価</option></select></div>
+      <div class="fld"><label>FIT単価 下限</label><input type="number" id="mapPriceMin" placeholder="例:30" min="0" step="1" style="min-width:80px"></div>
+      <div class="right">
+        <span id="mapStatus" class="muted" style="font-size:11.5px"></span>
+        <button class="btn ghost" id="geoFetch">🗺 地図データを取得</button>
+      </div>
+    </div>
+    <div class="map-legend no-print" id="mapLegend"></div>
+    <div id="map"></div>
+    <p class="muted no-print" style="font-size:11.5px;margin-top:10px">
+      ※ ピンは住所から自動で位置を取得して表示します。初回の「🗺 地図データを取得」は全件で数分かかりますが、取得した位置はクラウドに保存され、次回以降は全員すぐ表示されます。ピンをクリックすると案件の詳細（提案書）へ移動できます。「📍 現在地を取得」を押し、半径を選ぶと、現在地から一定距離内の案件だけに絞れます。
+    </p>
+  </div>
 </div><!-- /appRoot -->
 
 <!-- 計算設定モーダル -->
@@ -461,6 +497,7 @@ const SB_URL="https://aakofrzurgwrkctunthw.supabase.co";
 const SB_KEY="sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
 const DEFAULT_MEMBERS=["丸林","大澤","奥田","狐塚","増田"];
 let sb=null, currentUser="";
+let geoCache={}, geocoding=false, map=null, markerLayer=null, radiusCircle=null, myMarker=null, myLatLng=null, mapInited=false;
 let store={},members=[...DEFAULT_MEMBERS],gov={};
 const getA=no=>store[no]||{};
 
@@ -474,7 +511,11 @@ async function loadCloud(){
     const {data:asn}=await sb.from('refort_assignments').select('*');
     if(asn)asn.forEach(r=>{store[r.no]=rowToStore(r);});
     const {data:cfg}=await sb.from('refort_config').select('*');
-    if(cfg)cfg.forEach(r=>{if(r.key==='members'&&Array.isArray(r.value))members=r.value;if(r.key==='gset'&&r.value&&typeof r.value==='object')gov=r.value;});
+    if(cfg)cfg.forEach(r=>{
+      if(r.key==='members'&&Array.isArray(r.value))members=r.value;
+      if(r.key==='gset'&&r.value&&typeof r.value==='object')gov=r.value;
+      if(r.key==='geo'&&r.value&&typeof r.value==='object'&&!geocoding)geoCache=r.value;
+    });
   }catch(e){toast('クラウド読込に失敗しました（通信をご確認ください）');}
 }
 async function cloudUpsertAssign(no){try{const {error}=await sb.from('refort_assignments').upsert(storeToRow(no,getA(no)),{onConflict:'no'});if(error)throw error;}catch(e){toast('クラウド保存に失敗: '+(e.message||e));}}
@@ -538,6 +579,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=async()=>{
   t.classList.add('active');document.getElementById('view-'+t.dataset.view).classList.add('active');
   if(t.dataset.view==='pipeline'){await loadCloud();renderPipeline();}
   if(t.dataset.view==='dashboard'){await loadCloud();renderDashboard();}
+  if(t.dataset.view==='map'){await loadCloud();openMapTab();}
 });
 /* modal close helpers */
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=e=>e.target.closest('.modal-bk').classList.remove('show'));
@@ -646,7 +688,7 @@ function renderPKpis(d){
    <div class="kpi clickable" data-kpi="profit" title="受注実績のダッシュボードを開きます">${arrow}<div class="kl">受注 粗利（実績）</div><div class="kv">${man(prof)}<small> 万円</small></div><div class="ksub">粗利率 ${wonAmt?Math.round(prof/wonAmt*100):0}%</div></div>`;
   document.querySelectorAll('#pKpis .kpi.clickable').forEach(c=>c.onclick=()=>onKpiClick(c.dataset.kpi));
 }
-function clearFilterInputs(){['pSearch','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');activeStatusFilter=false;}
+function clearFilterInputs(){['pSearch','fScore','fPriceMin','fPriceMax','fOwnerCntMin'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');document.getElementById('chkOwnerAgg').checked=false;activeStatusFilter=false;}
 function onKpiClick(kind){
   if(kind==='won'||kind==='profit'){document.querySelector('.tab[data-view="dashboard"]').click();return;}
   clearFilterInputs();page=1;
@@ -659,12 +701,14 @@ function applyFilters(d){
   const q=document.getElementById('pSearch').value.trim().toLowerCase(),st=document.getElementById('fStatus').value,
         ow=document.getElementById('fOwner').value,rc=document.getElementById('fRecover').value,sc=parseFloat(document.getElementById('fScore').value)||0;
   const pmin=parseFloat(document.getElementById('fPriceMin').value),pmax=parseFloat(document.getElementById('fPriceMax').value);
+  const ocmin=parseFloat(document.getElementById('fOwnerCntMin').value);
   return d.filter(r=>{
     if(q&&!(r.name+r.owner+r.siteAddr).toLowerCase().includes(q))return false;
     if(st&&r.status!==st)return false; if(ow&&r.assignee!==ow)return false;
     if(rc==='ok'&&r.recover!==true)return false; if(rc==='ng'&&r.recover!==false)return false;
     if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return false;
     if(!isNaN(pmax)&&!(r.price!=null&&r.price<=pmax))return false;
+    if(!isNaN(ocmin)&&!((r.ownerCnt||0)>=ocmin))return false;
     if(activeStatusFilter&&!ACTIVE_ST.includes(r.status))return false;
     if(r.score<sc)return false; return true;});
 }
@@ -679,17 +723,65 @@ function renderHead(){
   document.querySelectorAll('#gridHead th').forEach(th=>{if(th.classList.contains('nosort'))return;
     th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(['name','owner','status'].includes(k))?1:-1;}page=1;renderPipeline();};});
 }
+let ownerSortKey='hold',ownerSortDir=-1;
+const OWNER_COLS=[
+  {k:'owner',t:'オーナー'},{k:'hold',t:'保有件数',cls:'num'},{k:'matched',t:'対象件数',cls:'num'},
+  {k:'cum',t:'残FIT改善累計',cls:'num'},{k:'annUp',t:'年間改善',cls:'num'},
+  {k:'wonCnt',t:'受注件数',cls:'num'},{k:'wonAmt',t:'受注金額',cls:'num'},
+  {k:'assignee',t:'担当者'},{k:'bar',t:'保有',cls:'nosort'}];
 function renderPipeline(){
   const all=enrich();maxScore=Math.max(...all.map(r=>r.score||0),1);renderPKpis(all);
   const fStatus=document.getElementById('fStatus');if(fStatus.options.length<=1)STATUSES.forEach(s=>fStatus.add(new Option(s,s)));
   syncOwnerFilter('fOwner');
   const filtered=sortData(applyFilters(all));
+  if(document.getElementById('chkOwnerAgg').checked){renderOwnerAgg(filtered);return;}
   const psRaw=document.getElementById('pageSize').value, ps=psRaw==='全件'?(filtered.length||1):parseInt(psRaw);
   const pages=Math.max(1,Math.ceil(filtered.length/ps));page=Math.min(page,pages);
   const slice=filtered.slice((page-1)*ps,page*ps);renderHead();
   document.getElementById('gridBody').innerHTML=slice.map(rowHtml).join('')||`<tr><td colspan="${COLS.length}" style="text-align:center;padding:30px;color:var(--sub)">該当する物件がありません</td></tr>`;
   bindRows();
   document.getElementById('rowInfo').textContent=`${filtered.length.toLocaleString()} 件中 ${slice.length} 件を表示`+(activeStatusFilter?'（商談中・活動中のみ）':'');
+  document.getElementById('pageInfo').textContent=`${page} / ${pages}`;
+  document.getElementById('prevPage').disabled=page<=1;document.getElementById('nextPage').disabled=page>=pages;
+}
+function renderOwnerAgg(filtered){
+  const m={};
+  filtered.forEach(r=>{const g=m[r.owner]||(m[r.owner]={owner:r.owner,hold:0,matched:0,cum:0,annUp:0,wonCnt:0,wonAmt:0,profit:0,as:new Set()});
+    g.hold=Math.max(g.hold,r.ownerCnt||0);g.matched++;g.cum+=r.cumUp||0;g.annUp+=r.annUp||0;
+    if(r.wonAmount!=null){g.wonCnt++;g.wonAmt+=r.wonAmount||0;g.profit+=r.profit||0;}
+    if(r.assignee)g.as.add(r.assignee);});
+  let owners=Object.values(m).map(g=>({...g,assignee:[...g.as].join('・')||'',holdEff:Math.max(g.hold,g.matched)}));
+  const s=ownerSortDir;owners.sort((a,b)=>{let x=a[ownerSortKey],y=b[ownerSortKey];
+    if(ownerSortKey==='hold')x=a.holdEff,y=b.holdEff;
+    if(typeof x==='string')return x.localeCompare(y,'ja')*s;
+    return((x==null?-Infinity:x)-(y==null?-Infinity:y))*s;});
+  const maxHold=Math.max(...owners.map(o=>o.holdEff),1);
+  const psRaw=document.getElementById('pageSize').value, ps=psRaw==='全件'?(owners.length||1):parseInt(psRaw);
+  const pages=Math.max(1,Math.ceil(owners.length/ps));page=Math.min(page,pages);
+  const slice=owners.slice((page-1)*ps,page*ps);
+  document.getElementById('gridHead').innerHTML=OWNER_COLS.map(c=>{const ar=ownerSortKey===c.k?`<span class="ar">${ownerSortDir<0?'▼':'▲'}</span>`:'';
+    return `<th data-k="${c.k}" class="${c.cls||''}">${c.t}${ar}</th>`;}).join('');
+  document.querySelectorAll('#gridHead th').forEach(th=>{if(th.classList.contains('nosort'))return;
+    th.onclick=()=>{const k=th.dataset.k;if(ownerSortKey===k)ownerSortDir*=-1;else{ownerSortKey=k;ownerSortDir=(k==='owner'||k==='assignee')?1:-1;}page=1;renderPipeline();};});
+  document.getElementById('gridBody').innerHTML=slice.map(o=>{
+    const bw=Math.max(6,Math.round(o.holdEff/maxHold*70));
+    return `<tr>
+      <td><span class="pname" data-owner="${esc(o.owner)}">${esc(o.owner)}</span></td>
+      <td class="num" style="font-weight:800;color:var(--navy)">${o.holdEff}</td>
+      <td class="num muted">${o.matched}</td>
+      <td class="num" style="font-weight:700;color:var(--gold-d)">${man(o.cum)}万</td>
+      <td class="num">${man(o.annUp)}万</td>
+      <td class="num">${o.wonCnt||'<span class="muted">–</span>'}</td>
+      <td class="num" style="${o.wonAmt?'color:var(--green);font-weight:700':''}">${o.wonAmt?man(o.wonAmt)+'万':'<span class="muted">–</span>'}</td>
+      <td>${esc(o.assignee)||'<span class="muted">—</span>'}</td>
+      <td><span class="score-bar" style="width:${bw}px"></span></td></tr>`;
+  }).join('')||`<tr><td colspan="${OWNER_COLS.length}" style="text-align:center;padding:30px;color:var(--sub)">該当するオーナーがありません</td></tr>`;
+  document.querySelectorAll('#gridBody .pname[data-owner]').forEach(el=>el.onclick=()=>{
+    document.getElementById('chkOwnerAgg').checked=false;
+    document.getElementById('pSearch').value=el.dataset.owner;
+    activeStatusFilter=false;page=1;renderPipeline();scrollToTable();});
+  const totalMatched=owners.reduce((s,o)=>s+o.matched,0);
+  document.getElementById('rowInfo').textContent=`${owners.length.toLocaleString()} オーナー（対象物件 ${totalMatched.toLocaleString()}件）`;
   document.getElementById('pageInfo').textContent=`${page} / ${pages}`;
   document.getElementById('prevPage').disabled=page<=1;document.getElementById('nextPage').disabled=page>=pages;
 }
@@ -725,7 +817,8 @@ function bindRows(){
 }
 function syncOwnerFilter(id){const el=document.getElementById(id),cur=el.value;
   el.innerHTML=(id==='dOwner'?'<option value="">全員</option>':'<option value="">すべて</option>')+members.map(m=>`<option ${m===cur?'selected':''}>${esc(m)}</option>`).join('');}
-['pSearch','fStatus','fOwner','fRecover','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{activeStatusFilter=false;page=1;renderPipeline();}));
+['pSearch','fStatus','fOwner','fRecover','fScore','fPriceMin','fPriceMax','fOwnerCntMin'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{activeStatusFilter=false;page=1;renderPipeline();}));
+document.getElementById('chkOwnerAgg').addEventListener('change',()=>{page=1;renderPipeline();});
 document.getElementById('pageSize').onchange=()=>{page=1;renderPipeline();};
 document.getElementById('prevPage').onclick=()=>{page--;renderPipeline();};
 document.getElementById('nextPage').onclick=()=>{page++;renderPipeline();};
@@ -886,7 +979,126 @@ function fmtYM2(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 function fmtYMD(d){return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;}
 let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
 
-/* ===================== 認証・初期化 ===================== */
+/* ===================== 地図 ===================== */
+function cleanAddr(a){ return (a||'').replace(/〒?\s*\d{3}-?\d{4}/,'').replace(/\s+/g,'').trim(); }
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371,toR=x=>x*Math.PI/180;
+  const dLat=toR(lat2-lat1),dLng=toR(lng2-lng1);
+  const s=Math.sin(dLat/2)**2+Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));
+}
+function pinColor(r,mode){
+  if(mode==='status'){ if(r.status==='受注')return '#1f9d6b'; if(r.status==='失注')return '#d24b4b';
+    if(ACTIVE_ST.includes(r.status))return '#d9962b'; if(r.status==='保留')return '#9aa6b6'; return '#5b6678'; }
+  if(mode==='price'){ const p=r.price||0; if(p>=30)return '#1f9d6b'; if(p>=18)return '#d9962b'; return '#2f6fd2'; }
+  const s=r.score||0; if(s>=300)return '#d24b4b'; if(s>=150)return '#d9962b'; return '#0f2547';
+}
+function renderLegend(mode){
+  const sets={
+    score:[['#d24b4b','高（300+）'],['#d9962b','中（150-299）'],['#0f2547','低（0-149）']],
+    status:[['#1f9d6b','受注'],['#d9962b','商談中・活動中'],['#d24b4b','失注'],['#5b6678','未着手ほか']],
+    price:[['#1f9d6b','30円以上'],['#d9962b','18-29円'],['#2f6fd2','17円以下']]
+  };
+  const items=sets[mode]||sets.score;
+  document.getElementById('mapLegend').innerHTML='<span style="font-weight:800;color:var(--navy)">凡例：</span>'+
+    items.map(([c,l])=>`<span class="lg-item"><span class="lg-dot" style="background:${c}"></span>${l}</span>`).join('')+
+    (myLatLng?'<span class="lg-item"><span class="lg-dot" style="background:#2f6fd2;width:15px;height:15px"></span>現在地</span>':'');
+}
+function openMapTab(){
+  if(!window.L){ document.getElementById('mapStatus').textContent='地図ライブラリを読み込めませんでした（通信をご確認ください）'; return; }
+  if(!mapInited){
+    map=L.map('map',{scrollWheelZoom:true}).setView([37.5,138.2],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+    markerLayer=L.layerGroup().addTo(map);
+    mapInited=true;
+  }
+  setTimeout(()=>{ if(map)map.invalidateSize(); },80);
+  plotPins(true);
+}
+window.openProposalFromMap=function(no){ document.querySelector('.tab[data-view="proposal"]').click(); showProposal(no); };
+function plotPins(fit){
+  if(!map)return;
+  const mode=document.getElementById('mapColor').value;
+  const radius=parseFloat(document.getElementById('mapRadius').value)||0;
+  const pmin=parseFloat(document.getElementById('mapPriceMin').value);
+  renderLegend(mode);
+  markerLayer.clearLayers();
+  if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null;}
+  if(myMarker){map.removeLayer(myMarker);myMarker=null;}
+  const all=enrich();
+  let shown=0, geocoded=0, inRadius=0;
+  const bounds=[];
+  all.forEach(r=>{
+    const g=geoCache[r.no]; if(!g||g.lat==null)return; geocoded++;
+    if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return;
+    if(myLatLng&&radius>0){ const d=haversine(myLatLng[0],myLatLng[1],g.lat,g.lng); if(d>radius)return; inRadius++; }
+    const color=pinColor(r,mode);
+    const mk=L.circleMarker([g.lat,g.lng],{radius:6,color:'#fff',weight:1.5,fillColor:color,fillOpacity:.9});
+    const recTxt=r.recover==null?'–':(r.recover?'○ 回収可':'× 不可');
+    mk.bindPopup(`<div class="map-pop"><div class="mp-name">No.${r.no}　${esc(r.name)}</div>
+      <div class="mp-sub">${esc(r.owner)}<br>${esc(r.siteAddr)}</div>
+      <div class="mp-row"><span>残FIT</span><b>${r.remFit!=null?r.remFit.toFixed(1):'–'}年</b></div>
+      <div class="mp-row"><span>買取単価</span><b>${r.price??'–'}円</b></div>
+      <div class="mp-row"><span>年間改善</span><b>${r.annUp!=null?man(r.annUp)+'万円':'–'}</b></div>
+      <div class="mp-row"><span>優先度 / 回収</span><b>${Math.round(r.score)} / ${recTxt}</b></div>
+      <div class="mp-row"><span>ステータス / 担当</span><b>${esc(r.status)}${r.assignee?' / '+esc(r.assignee):''}</b></div>
+      <div class="mp-open" onclick="openProposalFromMap(${r.no})">この案件を開く ›</div></div>`);
+    markerLayer.addLayer(mk); shown++; bounds.push([g.lat,g.lng]);
+  });
+  if(myLatLng){
+    myMarker=L.circleMarker(myLatLng,{radius:9,color:'#fff',weight:2,fillColor:'#2f6fd2',fillOpacity:1}).addTo(map).bindPopup('現在地');
+    if(radius>0){ radiusCircle=L.circle(myLatLng,{radius:radius*1000,color:'#2f6fd2',weight:1.5,fillColor:'#2f6fd2',fillOpacity:.06}).addTo(map);
+      map.fitBounds(radiusCircle.getBounds(),{padding:[20,20]}); }
+  } else if(fit&&bounds.length){ map.fitBounds(bounds,{padding:[30,30],maxZoom:12}); }
+  const total=ROWS.length, missing=total-geocoded;
+  let msg=`表示 ${shown} 件 / 位置取得済 ${geocoded} 件`;
+  if(myLatLng&&radius>0) msg=`半径${radius}km内 ${inRadius} 件（表示 ${shown}件）`;
+  if(missing>0) msg+=` ｜ 未取得 ${missing} 件`;
+  document.getElementById('mapStatus').textContent=msg;
+}
+['mapColor','mapRadius','mapPriceMin'].forEach(id=>document.getElementById(id).addEventListener('input',()=>plotPins(false)));
+document.getElementById('geoLocate').onclick=()=>{
+  if(!navigator.geolocation){toast('この端末では現在地を取得できません');return;}
+  document.getElementById('mapStatus').textContent='現在地を取得中…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLatLng=[p.coords.latitude,p.coords.longitude];
+    if(!document.getElementById('mapRadius').value||document.getElementById('mapRadius').value==='0')document.getElementById('mapRadius').value='30';
+    if(map)map.setView(myLatLng,10); plotPins(false); toast('現在地を取得しました');
+  },err=>{ document.getElementById('mapStatus').textContent='現在地を取得できませんでした（位置情報の許可をご確認ください）'; },{enableHighAccuracy:true,timeout:10000});
+};
+async function geocodeAddr(addr){
+  const q=cleanAddr(addr); if(!q)return null;
+  try{
+    const res=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
+    const j=await res.json();
+    if(Array.isArray(j)&&j.length&&j[0].geometry&&j[0].geometry.coordinates){
+      const c=j[0].geometry.coordinates; return {lat:c[1],lng:c[0]};
+    }
+  }catch(e){}
+  return null;
+}
+document.getElementById('geoFetch').onclick=async()=>{
+  if(geocoding)return;
+  const missing=ROWS.filter(r=>r.siteAddr&&(!geoCache[r.no]||geoCache[r.no].lat==null));
+  if(!missing.length){toast('全案件の位置を取得済みです');return;}
+  if(!confirm(`未取得の ${missing.length} 件の位置を住所から取得します。数分かかる場合があります。開始しますか？`))return;
+  geocoding=true; const btn=document.getElementById('geoFetch'); btn.disabled=true;
+  let done=0,ok=0;
+  for(const r of missing){
+    const g=await geocodeAddr(r.siteAddr);
+    if(g){ geoCache[r.no]=g; ok++; }
+    else { geoCache[r.no]={lat:null,lng:null}; } // 失敗も記録して再取得を避ける
+    done++;
+    if(done%15===0){ document.getElementById('mapStatus').textContent=`位置取得中… ${done}/${missing.length}（成功 ${ok}）`;
+      await cloudUpsertConfig('geo',geoCache); plotPins(false); }
+    await new Promise(z=>setTimeout(z,120));
+  }
+  await cloudUpsertConfig('geo',geoCache);
+  geocoding=false; btn.disabled=false; plotPins(true);
+  toast(`位置取得が完了しました（成功 ${ok} / ${missing.length} 件）`);
+};
+
+
 const loginScreen=document.getElementById('loginScreen'),appRoot=document.getElementById('appRoot');
 function initStaticUI(){
   document.getElementById('cntTotal').textContent=ROWS.length.toLocaleString();
