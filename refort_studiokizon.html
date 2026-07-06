@@ -132,6 +132,12 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
 .kpi.accent .kl{color:#bcc9de}.kpi.accent .kv{color:#fff}.kpi.accent .kv small{color:var(--gold)}.kpi.accent .ksub{color:#9fb1cd}
 .kpi.gold{background:linear-gradient(155deg,var(--gold),var(--gold-d));color:#fff}
 .kpi.gold .kl{color:#fff3da}.kpi.gold .kv{color:#fff}.kpi.gold .kv small{color:#fff3da}.kpi.gold .ksub{color:#fff3da}
+.kpi.clickable{position:relative;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.kpi.clickable:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(15,37,71,.16)}
+.kpi.clickable:active{transform:translateY(0)}
+.kpi .kpi-go{position:absolute;top:11px;right:13px;font-size:10.5px;font-weight:800;color:var(--gold-d);opacity:0;transition:opacity .12s}
+.kpi.accent .kpi-go,.kpi.gold .kpi-go{color:#fff}
+.kpi.clickable:hover .kpi-go{opacity:1}
 
 /* filters */
 .filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow);display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
@@ -615,6 +621,9 @@ function showProposal(no){
 
 /* ===================== パイプライン ===================== */
 let sortKey='score',sortDir=-1,page=1,maxScore=1;
+const ACTIVE_ST=['アプローチ中','アポ獲得','商談中','診断実施','見積提示'];
+let activeStatusFilter=false; // KPI「商談中」カードからのクイック絞り込み
+function scrollToTable(){const el=document.querySelector('#view-pipeline .tbl-wrap');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
 const COLS=[
   {k:'no',t:'No.',cls:'num'},{k:'name',t:'物件名'},{k:'owner',t:'オーナー'},
   {k:'remFit',t:'残FIT',cls:'num'},{k:'price',t:'単価',cls:'num'},
@@ -626,14 +635,25 @@ const COLS=[
 function renderPKpis(d){
   const total=d.length, potential=d.reduce((s,r)=>s+(r.cumUp||0),0);
   const won=d.filter(r=>r.wonAmount!=null), wonAmt=won.reduce((s,r)=>s+(r.wonAmount||0),0), prof=won.reduce((s,r)=>s+(r.profit||0),0);
-  const active=d.filter(r=>['アプローチ中','アポ獲得','商談中','診断実施','見積提示'].includes(r.status)).length;
+  const active=d.filter(r=>ACTIVE_ST.includes(r.status)).length;
   const hi=d.filter(r=>r.score>=300).length;
+  const arrow='<span class="kpi-go">詳細 ›</span>';
   document.getElementById('pKpis').innerHTML=`
-   <div class="kpi accent"><div class="kl">残FIT改善累計ポテンシャル</div><div class="kv">${man(potential)}<small> 万円</small></div><div class="ksub">全 ${total} 物件の改善見込み合計</div></div>
-   <div class="kpi"><div class="kl">管理物件 / オーナー</div><div class="kv">${total}<small> 件</small></div><div class="ksub">ユニークオーナー ${new Set(d.map(r=>r.owner)).size} 名</div></div>
-   <div class="kpi"><div class="kl">商談中（活動中）</div><div class="kv">${active}<small> 件</small></div><div class="ksub">高優先度(≥300) ${hi}件</div></div>
-   <div class="kpi gold"><div class="kl">受注 金額（実績）</div><div class="kv">${man(wonAmt)}<small> 万円</small></div><div class="ksub">受注 ${won.length} 件</div></div>
-   <div class="kpi"><div class="kl">受注 粗利（実績）</div><div class="kv">${man(prof)}<small> 万円</small></div><div class="ksub">粗利率 ${wonAmt?Math.round(prof/wonAmt*100):0}%</div></div>`;
+   <div class="kpi accent clickable" data-kpi="pot" title="改善見込みが大きい順に並べ替えます">${arrow}<div class="kl">残FIT改善累計ポテンシャル</div><div class="kv">${man(potential)}<small> 万円</small></div><div class="ksub">全 ${total} 物件の改善見込み合計</div></div>
+   <div class="kpi clickable" data-kpi="all" title="全物件を表示します">${arrow}<div class="kl">管理物件 / オーナー</div><div class="kv">${total}<small> 件</small></div><div class="ksub">ユニークオーナー ${new Set(d.map(r=>r.owner)).size} 名</div></div>
+   <div class="kpi clickable" data-kpi="active" title="活動中の案件だけを表示します">${arrow}<div class="kl">商談中（活動中）</div><div class="kv">${active}<small> 件</small></div><div class="ksub">高優先度(≥300) ${hi}件</div></div>
+   <div class="kpi gold clickable" data-kpi="won" title="受注実績のダッシュボードを開きます">${arrow}<div class="kl">受注 金額（実績）</div><div class="kv">${man(wonAmt)}<small> 万円</small></div><div class="ksub">受注 ${won.length} 件</div></div>
+   <div class="kpi clickable" data-kpi="profit" title="受注実績のダッシュボードを開きます">${arrow}<div class="kl">受注 粗利（実績）</div><div class="kv">${man(prof)}<small> 万円</small></div><div class="ksub">粗利率 ${wonAmt?Math.round(prof/wonAmt*100):0}%</div></div>`;
+  document.querySelectorAll('#pKpis .kpi.clickable').forEach(c=>c.onclick=()=>onKpiClick(c.dataset.kpi));
+}
+function clearFilterInputs(){['pSearch','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');activeStatusFilter=false;}
+function onKpiClick(kind){
+  if(kind==='won'||kind==='profit'){document.querySelector('.tab[data-view="dashboard"]').click();return;}
+  clearFilterInputs();page=1;
+  if(kind==='pot'){sortKey='cumUp';sortDir=-1;}
+  else if(kind==='active'){activeStatusFilter=true;sortKey='score';sortDir=-1;}
+  else if(kind==='all'){sortKey='score';sortDir=-1;}
+  renderPipeline();scrollToTable();
 }
 function applyFilters(d){
   const q=document.getElementById('pSearch').value.trim().toLowerCase(),st=document.getElementById('fStatus').value,
@@ -645,6 +665,7 @@ function applyFilters(d){
     if(rc==='ok'&&r.recover!==true)return false; if(rc==='ng'&&r.recover!==false)return false;
     if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return false;
     if(!isNaN(pmax)&&!(r.price!=null&&r.price<=pmax))return false;
+    if(activeStatusFilter&&!ACTIVE_ST.includes(r.status))return false;
     if(r.score<sc)return false; return true;});
 }
 function sortData(d){const s=sortDir;return d.slice().sort((a,b)=>{let x=a[sortKey],y=b[sortKey];
@@ -668,7 +689,7 @@ function renderPipeline(){
   const slice=filtered.slice((page-1)*ps,page*ps);renderHead();
   document.getElementById('gridBody').innerHTML=slice.map(rowHtml).join('')||`<tr><td colspan="${COLS.length}" style="text-align:center;padding:30px;color:var(--sub)">該当する物件がありません</td></tr>`;
   bindRows();
-  document.getElementById('rowInfo').textContent=`${filtered.length.toLocaleString()} 件中 ${slice.length} 件を表示`;
+  document.getElementById('rowInfo').textContent=`${filtered.length.toLocaleString()} 件中 ${slice.length} 件を表示`+(activeStatusFilter?'（商談中・活動中のみ）':'');
   document.getElementById('pageInfo').textContent=`${page} / ${pages}`;
   document.getElementById('prevPage').disabled=page<=1;document.getElementById('nextPage').disabled=page>=pages;
 }
@@ -704,11 +725,11 @@ function bindRows(){
 }
 function syncOwnerFilter(id){const el=document.getElementById(id),cur=el.value;
   el.innerHTML=(id==='dOwner'?'<option value="">全員</option>':'<option value="">すべて</option>')+members.map(m=>`<option ${m===cur?'selected':''}>${esc(m)}</option>`).join('');}
-['pSearch','fStatus','fOwner','fRecover','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{page=1;renderPipeline();}));
+['pSearch','fStatus','fOwner','fRecover','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{activeStatusFilter=false;page=1;renderPipeline();}));
 document.getElementById('pageSize').onchange=()=>{page=1;renderPipeline();};
 document.getElementById('prevPage').onclick=()=>{page--;renderPipeline();};
 document.getElementById('nextPage').onclick=()=>{page++;renderPipeline();};
-document.getElementById('resetFilters').onclick=()=>{['pSearch','fScore','fPriceMin','fPriceMax'].forEach(id=>document.getElementById(id).value='');['fStatus','fOwner','fRecover'].forEach(id=>document.getElementById(id).value='');page=1;renderPipeline();};
+document.getElementById('resetFilters').onclick=()=>{clearFilterInputs();page=1;renderPipeline();};
 
 /* ===================== 案件編集モーダル ===================== */
 const cm=document.getElementById('caseModal');let editNo=null;
