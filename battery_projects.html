@@ -129,6 +129,12 @@ table.st th.lbl,table.st td.lbl{text-align:left;width:108px;background:#f5f8fb;f
 table.st td.tot{background:#f3ead0;font-weight:800;color:#8a6d18}
 table.st th.tot{background:#8a6d18}
 table.st tr.sum td{background:#eef3f8;font-weight:800;color:#0d2340}
+table.st.cmp{font-size:9px}
+table.st.cmp th,table.st.cmp td{padding:5px 8px}
+table.st.cmp th.lbl,table.st.cmp td.lbl{width:150px}
+table.st.cmp tr.op td{background:#fbf6ea;font-weight:800;color:#0d2340}
+.s-note-box{margin-top:9px;padding:9px 13px;background:#f7f9fc;border-left:3px solid #c8a24a;border-radius:4px;font-size:9px;line-height:1.6;color:#3a4655}
+.s-note-box b{color:#0d2340}
 table.st tr.sum td.tot{background:#e7d9b0}
 table.st tr.op td{background:#0d2340;color:#fff;font-weight:800}
 table.st tr.op td.lbl{background:#163a5f;color:#fff}
@@ -304,7 +310,17 @@ function renderApp(){
   </div>`;
   // ===== 太陽光＋蓄電池 セット合計 =====
   if(cs){
-    h+=`<div class="sec-title">☀＋🔋 セット合計（営農型太陽光＋系統蓄電池）</div>
+    const sl=P.solar;
+    h+=`<div class="sec-title">② 営農型太陽光（単体）</div>
+    <div class="kpis solar-kpis">
+      ${kpi('表面利回り',pct(sl.surfaceY),'年間売電÷投資',1)}
+      ${kpi('ネット利回り',pct(sl.netY),'営業利益÷投資',1)}
+      ${kpi('税効果利回り',pct(sl.taxY),'即時償却の節税',1)}
+      ${kpi('年間売電収入',yen(sl.saleY1),'税込・初年度')}
+      ${kpi('設備価格',yen(sl.price),'税込')}
+      ${kpi('発電容量',nf(sl.capDC)+' kW','年間'+nf(sl.gen1)+'kWh')}
+    </div>`;
+    h+=`<div class="sec-title">③ ☀＋🔋 セット合計（営農型太陽光＋系統蓄電池）</div>
     <div class="kpis set-kpis">
       ${kpi('総合表面利回り',pct(cs.setSurface),'年間収益合計÷投資合計',1)}
       ${kpi('総合ネット利回り',pct(cs.setNet),'営業利益合計÷投資合計',1)}
@@ -313,7 +329,7 @@ function renderApp(){
       ${kpi('太陽光 表面/税効果',pct(cs.solarSurface)+' / '+pct(cs.solarTax),'安定＋節税')}
       ${kpi('蓄電池 表面利回り',pct(cs.battSurface),'高利回り市場収益')}
     </div>
-    <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年FIT＋蓄電池${c.T}年市場収益）。太陽光は下部「☀ 太陽光（セット）」で編集できます。</div>`;
+    <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年FIT＋蓄電池${c.T}年市場収益）。提案シートは①蓄電池・②太陽光・③合算の3枚が出力されます。</div>`;
   }
   // inputs
   h+=`<div class="sec-title">基本情報・前提</div><div class="grid2">
@@ -447,7 +463,10 @@ function liveCalc(){ // re-render just KPIs + computed rows without losing focus
   rebuildGridCalc(c);
   // update セット合計 KPIs if present
   const cs=computeSet(P,c);
-  if(cs){const sk=$$('.set-kpis .kpi .v');
+  if(cs){const sl=P.solar;
+    const so=$$('.solar-kpis .kpi .v');
+    if(so.length>=6){so[0].textContent=pct(sl.surfaceY);so[1].textContent=pct(sl.netY);so[2].textContent=pct(sl.taxY);so[3].textContent=yen(sl.saleY1);so[4].textContent=yen(sl.price);so[5].textContent=nf(sl.capDC)+' kW';}
+    const sk=$$('.set-kpis .kpi .v');
     if(sk.length>=6){sk[0].textContent=pct(cs.setSurface);sk[1].textContent=pct(cs.setNet);sk[2].textContent=yen(cs.totInvIncl);sk[3].textContent=cs.payback!=null?cs.payback+'年':'—';sk[4].textContent=pct(cs.solarSurface)+' / '+pct(cs.solarTax);sk[5].textContent=pct(cs.battSurface);}}
 }
 function rebuildGridCalc(c){
@@ -491,6 +510,77 @@ function applyBulkPaste(){
 }
 
 /* ---------- proposal sheet ---------- */
+function solarSheetHTML(){
+  const s=P.solar; if(!s||!s.on)return '';
+  const T=s.term||20, deg=s.deg||0.005;
+  const gen=t=>Math.round((s.gen1||0)*Math.pow(1-deg,t));
+  const sale=t=>Math.round((s.saleY1||0)*Math.pow(1-deg,t));
+  const saleExY1=(s.saleY1||0)/1.1;
+  const estCost=Math.max(0,Math.round(saleExY1-(s.netY||0)*(s.priceEx||0)));
+  const op=t=>Math.round(sale(t)/1.1-estCost);
+  let saleTot=0,genTot=0,opTot=0,cum=-(s.priceEx||0),pb=null,cumArr=[];
+  for(let t=0;t<T;t++){saleTot+=sale(t);genTot+=gen(t);opTot+=op(t);cum+=op(t);cumArr.push(cum);if(pb==null&&cum>=0)pb=t+1;}
+  const cols=fn=>{let x='';for(let t=0;t<T;t++)x+=`<td>${fn(t)}</td>`;return x;};
+  const th=()=>{let x='<th class="lbl">期</th>';for(let i=1;i<=T;i++)x+=`<th>${i}</th>`;x+='<th class="tot">合計</th>';return x;};
+  const head=`<div class="s-head"><div class="L"><div class="mk">②</div>
+    <div><div class="ttl">② 営農型太陽光発電 収支シミュレーション</div>
+    <div class="sub">${esc(s.name||'')} ｜ 発電容量 ${nf(s.capDC)} kW ｜ 20年FIT売電</div></div></div>
+    <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}</div></div>`;
+  const spec=`<div class="s-spec">
+    <span class="chip">発電容量(DC)<b>${nf(s.capDC)} kW</b></span>
+    <span class="chip">年間発電量<b>${nf(s.gen1)} kWh</b></span>
+    <span class="chip">FIT期間<b>${T} 年</b></span>
+    <span class="chip">土地<b>賃貸</b></span>
+    <span class="chip nv">設備価格(税込)<b>${nf(s.price)} 円</b></span>
+    <span class="chip nv">設備価格(税抜)<b>${nf(s.priceEx)} 円</b></span></div>`;
+  const kpis=`<div class="s-kpis">
+    <div class="s-kpi gold"><div class="l">表面利回り</div><div class="v">${pct(s.surfaceY)}</div></div>
+    <div class="s-kpi gold"><div class="l">ネット利回り</div><div class="v">${pct(s.netY)}</div></div>
+    <div class="s-kpi gold"><div class="l">税効果利回り</div><div class="v">${pct(s.taxY)}</div></div>
+    <div class="s-kpi"><div class="l">年間売電収入(税込)</div><div class="v">${yen(s.saleY1)}</div></div>
+    <div class="s-kpi"><div class="l">設備価格(税込)</div><div class="v">${yen(s.price)}</div></div>
+    <div class="s-kpi gold"><div class="l">投資回収年数</div><div class="v">${pb!=null?pb+'年':'—'}</div></div></div>`;
+  const tbl=`<div class="s-sec">発電・売電推移（円／kWh）</div><table class="st"><thead><tr>${th()}</tr></thead><tbody>
+    <tr><td class="lbl">想定発電量(kWh)</td>${cols(t=>nf(gen(t)))}<td class="tot">${nf(genTot)}</td></tr>
+    <tr class="sum"><td class="lbl">売電収入(税込)</td>${cols(t=>nf(sale(t)))}<td class="tot">${nf(saleTot)}</td></tr>
+    <tr class="op"><td class="lbl">営業利益(概算)</td>${cols(t=>nf(op(t)))}<td class="tot">${nf(opTot)}</td></tr>
+    <tr class="cum"><td class="lbl">累積CF</td>${cols(t=>nf(cumArr[t]))}<td class="tot">${nf(cumArr[T-1])}</td></tr>
+  </tbody></table>`;
+  const foot=`<div class="s-foot"><b>ご留意事項：</b>営農型太陽光の試算値であり、発電量・売電収入・税効果を保証するものではありません。営業利益は年間経費を売電収入とネット利回りから概算しています。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
+  return `<div class="sheet">${head}${spec}${kpis}${tbl}${foot}</div>`;
+}
+function setSheetHTML(c,cs){
+  if(!cs)return '';
+  const s=P.solar;
+  const solarInvIncl=s.price||Math.round(cs.solarInvEx*1.1);
+  const battInvIncl=Math.round(cs.battInvEx*1.1);
+  const battSaleAvg=Math.round(c.sumS/c.T);
+  const row=(lab,a,b,d,hl)=>`<tr class="${hl?'op':''}"><td class="lbl">${lab}</td><td>${a}</td><td>${b}</td><td class="tot">${d}</td></tr>`;
+  const head=`<div class="s-head"><div class="L"><div class="mk">③</div>
+    <div><div class="ttl">③ 営農型太陽光 ＋ 系統蓄電池 セット提案（合算）</div>
+    <div class="sub">安定の太陽光 ＋ 高利回りの蓄電池 ｜ 総合利回りで見る投資パッケージ</div></div></div>
+    <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}<br>${esc(P.name||'')}</div></div>`;
+  const kpis=`<div class="s-kpis">
+    <div class="s-kpi gold"><div class="l">総合表面利回り</div><div class="v">${pct(cs.setSurface)}</div></div>
+    <div class="s-kpi gold"><div class="l">総合ネット利回り</div><div class="v">${pct(cs.setNet)}</div></div>
+    <div class="s-kpi nv"><div class="l">合算投資額(税込)</div><div class="v">${yen(cs.totInvIncl)}</div></div>
+    <div class="s-kpi gold"><div class="l">合算回収年数</div><div class="v">${cs.payback!=null?cs.payback+'年':'—'}</div></div>
+    <div class="s-kpi"><div class="l">太陽光 税効果利回り</div><div class="v">${pct(cs.solarTax)}</div></div>
+    <div class="s-kpi nv"><div class="l">蓄電池 表面利回り</div><div class="v">${pct(cs.battSurface)}</div></div></div>`;
+  const cmp=`<div class="s-sec">3パターン比較</div><table class="st cmp"><thead><tr>
+    <th class="lbl">項目</th><th>① 営農型太陽光</th><th>② 系統蓄電池</th><th class="tot">③ セット合計</th></tr></thead><tbody>
+    ${row('投資額（税込）',nf(solarInvIncl)+' 円',nf(battInvIncl)+' 円',nf(cs.totInvIncl)+' 円')}
+    ${row('年間収益（目安）',nf(s.saleY1)+' 円/年',nf(battSaleAvg)+' 円/年',nf((s.saleY1||0)+battSaleAvg)+' 円/年')}
+    ${row('表面利回り',pct(cs.solarSurface),pct(cs.battSurface),pct(cs.setSurface),1)}
+    ${row('ネット利回り',pct(cs.solarNet),pct(c.netYAvg),pct(cs.setNet),1)}
+    ${row('税効果利回り',pct(cs.solarTax),'—','—')}
+    ${row('事業期間',(s.term||20)+' 年',c.T+' 年','—')}
+    ${row('投資回収年数','—','—',cs.payback!=null?cs.payback+' 年':'—')}
+  </tbody></table>
+  <div class="s-note-box">安定してキャッシュを生む<b>営農型太陽光（表面${pct(cs.solarSurface)}・税効果${pct(cs.solarTax)}）</b>に、高利回りの<b>系統蓄電池（表面${pct(cs.battSurface)}）</b>を組み合わせることで、<b>総合表面利回り${pct(cs.setSurface)}</b>の投資パッケージとなります。太陽光は20年FITの安定収入と節税効果、蓄電池は市場収益による高利回りと、性格の異なる2資産でリスク分散が図れます。</div>`;
+  const foot=`<div class="s-foot"><b>ご留意事項：</b>本セット試算は、別々の低圧連系を投資パッケージとして合算したものです。各数値は前提に基づく試算値であり保証するものではありません。税効果はお客様の所得状況により異なります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
+  return `<div class="sheet">${head}${kpis}${cmp}${foot}</div>`;
+}
 function buildSheet(){
   const c=compute(P),m=P.meta,f=P.fixed;
   const T=c.T;
@@ -548,15 +638,17 @@ function buildSheet(){
     <span class="chip nv">システム価格<b>${nf(m.sysPrice)} 円</b></span>
     <span class="chip nv">純投資額計<b>${nf(m.invest)} 円</b></span>
   </div>`;
-  const head1=`<div class="s-head"><div class="L"><div class="mk">B</div>
-    <div><div class="ttl">低圧系統蓄電事業シミュレーション（年別収支）</div>
+  const head1=`<div class="s-head"><div class="L"><div class="mk">①</div>
+    <div><div class="ttl">① 低圧系統蓄電事業シミュレーション（年別収支）</div>
     <div class="sub">蓄電所 ${esc(m.siteNo)} ｜ ${esc(m.area)} ｜ 蓄電池容量 ${nf(m.kwh)} kWh</div></div></div>
     <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}<br>${esc(P.name||'')}</div></div>`;
   const foot=`<div class="s-foot">${esc(P.note||'')}<br><b>ご留意事項：</b>本資料は市場前提に基づく試算値であり、記載の収益・利回り等を保証するものではありません。需給調整市場・スポット市場の価格、約定率、制度は変動します。最終的なご判断は専門家にご確認ください。　株式会社アースコム</div>`;
-  return `<div class="sheet">${head1}${spec}${kpis}${mkt}${pl}${cf}${foot}</div>`;
+  const page1=`<div class="sheet">${head1}${spec}${kpis}${mkt}${pl}${cf}${foot}</div>`;
+  if(P.solar&&P.solar.on){ return page1+solarSheetHTML()+setSheetHTML(c,computeSet(P,c)); }
+  return page1;
 }
 function codJ(cod){if(!cod)return'—';const m=String(cod).match(/(\d{4})\D(\d{1,2})/);return m?`${m[1]}年${+m[2]}月`:cod;}
-function openSheet(){$('#proot').innerHTML=buildSheet();$('#ov').classList.add('show');document.body.style.overflow='hidden';}
+function openSheet(){$('#proot').innerHTML=buildSheet();const t=document.querySelector('#ov .ovbar .t');if(t)t.textContent=(P.solar&&P.solar.on)?'📄 セット提案シート（①蓄電池 ②太陽光 ③合算・A4横3枚）':'📄 系統蓄電池 提案シート（A4横）';$('#ov').classList.add('show');document.body.style.overflow='hidden';}
 function closeSheet(){$('#ov').classList.remove('show');document.body.style.overflow='';}
 
 /* ---------- project ops ---------- */
