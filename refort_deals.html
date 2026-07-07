@@ -160,6 +160,14 @@ table.grid .lnk:hover{color:var(--gold);text-decoration:underline}
   background:var(--surface);color:var(--navy2);font-weight:700;font-size:12px;cursor:pointer}
 .url-open:hover:not(:disabled){border-color:var(--gold);background:var(--gold-soft);color:var(--navy)}
 .url-open:disabled{opacity:.4;cursor:not-allowed}
+.sync-ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sync-ctrl input{flex:1;min-width:200px}
+.sync-btn{flex:0 0 auto;white-space:nowrap;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;border:1px solid var(--line2)}
+.sync-btn.pull{background:#173d2a;color:#bff0d3;border-color:#173d2a}
+.sync-btn.push{background:var(--gold-soft);color:var(--navy);border-color:var(--gold)}
+.sync-btn:hover:not(:disabled){filter:brightness(1.08)}
+.sync-btn:disabled{opacity:.4;cursor:not-allowed}
+.sync-hint{font-size:11px;color:var(--muted);margin-top:4px;flex-basis:100%}
 .fld.full input,.fld.full textarea{text-align:left}
 .fld textarea{width:100%;padding:6px 9px;border:1px solid var(--line2);border-radius:6px;resize:vertical;min-height:42px}
 .auto-tag{font-size:9.5px;background:var(--gold-soft);color:#8a6d1e;padding:1px 5px;border-radius:4px;font-weight:700}
@@ -607,7 +615,7 @@ const REDFLAGS = [
 
 /* ---------- default inputs ---------- */
 function blankInputs(){return{
-  customer:'', location:'', mapUrl:'', ddSheetUrl:'', simSheetUrl:'', plantName:'', buyer:'', contractType:'FIT',
+  customer:'', location:'', mapUrl:'', ddSheetUrl:'', simSheetUrl:'', simSyncUrl:'', plantName:'', buyer:'', contractType:'FIT',
   gridDate:'', landType:'所有',
   fitPrice:36, sotsuFit:12, sotsuYears:10, sotsuApply:'適応',
   dcExisting:'', acExisting:'', panelMaker:'', pcsMaker:'', pcsCount:1, pcsReplaced:'無',
@@ -873,6 +881,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show'
 function uid(){return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function nav(v){$$('.view').forEach(x=>x.classList.remove('on'));$('#view-'+v).classList.add('on');
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.nav===v));
+  if(v!=='deal'&&typeof stopAutoSync==='function')stopAutoSync();
   window.scrollTo(0,0);}
 
 /* ---------- best verdict label for a deal ---------- */
@@ -1148,6 +1157,7 @@ const ACC=[
     ['customer','お客様名','text'],['location','所在地','text'],['mapUrl','位置URL','text'],
     ['ddSheetUrl','DDチェックリスト（原本URL）','url'],
     ['simSheetUrl','RFSKシミュレーション（原本URL）','url'],
+    ['simSyncUrl','RFSK連携（GAS URL・双方向同期）','sync'],
     ['plantName','発電所名','text'],['buyer','売電先','text'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
     ['gridDate','連系年月','month'],
@@ -1227,6 +1237,7 @@ function renderForm(){
   html+=ddCardHTML();
   col.innerHTML=html;
   wireForm();
+  startAutoSync();
 }
 function fldHTML(f){
   const [k,label,type,extra]=f;
@@ -1242,6 +1253,11 @@ function fldHTML(f){
   }
   if(type==='sel'){ return `<div class="fld"><label>${label}</label><div class="ctrl">
     <select data-k="${k}">${extra.map(o=>`<option ${String(val)===o?'selected':''}>${o}</option>`).join('')}</select></div></div>`; }
+  if(type==='sync'){ return `<div class="fld full"><label>${label}</label><div class="ctrl sync-ctrl">
+    <input data-k="${k}" type="url" value="${esc(val)}" placeholder="GASウェブアプリURL（…/exec）を貼り付け" style="text-align:left">
+    <button type="button" class="sync-btn pull" data-syncpull="1" ${val?'':'disabled'}>⭳ 読込</button>
+    <button type="button" class="sync-btn push" data-syncpush="1" ${val?'':'disabled'}>⭱ 書出</button></div>
+    <div class="sync-hint">🔄 URLを設定すると、案件を開いた時と45秒ごとに自動で読込します（編集中・未保存時は上書きしません）</div></div>`; }
   if(type==='url'){ return `<div class="fld full"><label>${label}</label><div class="ctrl url-ctrl">
     <input data-k="${k}" type="url" value="${esc(val)}" placeholder="https://docs.google.com/... を貼り付け" style="text-align:left">
     <button type="button" class="url-open" data-urlopen="${k}" ${val?'':'disabled'}>🔗 開く</button></div></div>`; }
@@ -1264,8 +1280,11 @@ function wireForm(){
       if(inp.type==='number') v=inp.value===''?'':v;
       setI(k,v);
       if(inp.type==='url'){const btn=inp.parentNode.querySelector('.url-open');if(btn)btn.disabled=!inp.value.trim();}
+      if(inp.dataset.k==='simSyncUrl'){inp.parentNode.querySelectorAll('.sync-btn').forEach(b=>b.disabled=!inp.value.trim());}
     });
   });
+  const spull=$('[data-syncpull]'); if(spull)spull.onclick=simSyncPull;
+  const spush=$('[data-syncpush]'); if(spush)spush.onclick=simSyncPush;
   $$('[data-urlopen]').forEach(btn=>btn.onclick=()=>{
     const inp=btn.parentNode.querySelector('input'); let u=(inp&&inp.value||'').trim();
     if(!u)return;
@@ -1827,7 +1846,7 @@ const XLSX_MAP={
   owner:'C92',
 };
 const XLSX_NAME_CELL='C7';
-const XLSX_TEXT_KEYS=new Set(['customer','location','mapUrl','ddSheetUrl','simSheetUrl','plantName','buyer','contractType',
+const XLSX_TEXT_KEYS=new Set(['customer','location','mapUrl','ddSheetUrl','simSheetUrl','simSyncUrl','plantName','buyer','contractType',
   'landType','panelMaker','pcsMaker','pcsReplaced','mount','orientation','sotsuApply',
   'propTaxApply','useLoan','pcsReplaceApply','rfRetireApply','owner']);
 function xCell(ws,addr){const c=ws[addr];return c?c.v:undefined;}
@@ -2240,6 +2259,79 @@ function riskPrefillScript(p){
     +'if(p.plant){var t=document.querySelector("title");if(t)t.textContent=p.plant+"\uFF5C\u653E\u7F6E\u30EA\u30B9\u30AF\u6BD4\u8F03";var b=document.createElement("div");b.style.cssText="font:700 13px/1.5 sans-serif;color:#B67E1E;padding:8px 18px 0";b.textContent="\u5BFE\u8C61\uFF1A"+p.plant;document.body.insertBefore(b,document.body.firstChild);}'
     +'var f=document.getElementById("gnow");if(f)f.dispatchEvent(new Event("input"));'
     +'}catch(e){}})();</scr'+'ipt>';
+}
+const SYNC_KEYS=['location','fitPrice','actualGen','dcExisting','acExisting','secSaleEx','secCostEx','gridDate'];
+const SYNC_TOKEN='earthcom';
+async function simSyncPull(){
+  if(!curDeal)return;
+  const url=(curDeal.inputs.simSyncUrl||'').trim();
+  if(!url){toast('RFSK連携URL（GAS）を入力してください');return;}
+  toast('スプレッドシートから読込中…');
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{method:'GET'});
+    const j=await res.json();
+    if(!j||!j.ok){toast('読込失敗：'+((j&&j.error)||'応答なし'));return;}
+    const d=j.data||{}; let cnt=0;
+    SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=d[k]; cnt++; } });
+    markDirty(); renderDeal();
+    toast('シートから読み込みました（'+cnt+'項目）※保存で確定');
+  }catch(e){ toast('読込エラー：'+(e.message||'ネット接続/URLをご確認ください')); }
+}
+async function simSyncPush(){
+  if(!curDeal)return;
+  const url=(curDeal.inputs.simSyncUrl||'').trim();
+  if(!url){toast('RFSK連携URL（GAS）を入力してください');return;}
+  if(!confirm('アプリの主要項目（所在地・FIT・発電量・容量・売価・原価・連系日）で\nスプレッドシートの原本を上書きします。よろしいですか？'))return;
+  const data={}; SYNC_KEYS.forEach(k=>{data[k]=curDeal.inputs[k];});
+  toast('スプレッドシートへ書出中…');
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:SYNC_TOKEN,data})});
+    let j=null; try{ j=await res.json(); }catch(_){}
+    if(j&&j.ok) toast('シートへ書き出しました（'+((j.wrote||[]).length)+'項目）');
+    else if(j&&j.error) toast('書出失敗：'+j.error);
+    else toast('書出を送信しました（シートをご確認ください）');
+  }catch(e){ toast('書出エラー：'+(e.message||'ネット接続/URLをご確認ください')); }
+}
+let autoSyncTimer=null, autoSyncBusy=false;
+function stopAutoSync(){ if(autoSyncTimer){clearInterval(autoSyncTimer);autoSyncTimer=null;} }
+function startAutoSync(){
+  stopAutoSync();
+  if(!curDeal || !(curDeal.inputs.simSyncUrl||'').trim()) return;
+  autoPull(true);                                    // 案件を開いた時に自動読込
+  autoSyncTimer=setInterval(()=>autoPull(false), 45000); // 数十秒ごと（45秒）に自動読込
+}
+function refreshFormValues(){
+  $$('#view-deal [data-k]').forEach(inp=>{
+    if(document.activeElement===inp) return;         // 入力中の欄は触らない
+    const k=inp.dataset.k, v=curDeal.inputs[k];
+    if(inp.type==='checkbox') return;
+    if(v!==undefined && v!==null && String(inp.value)!==String(v)) inp.value=v;
+    if(inp.type==='url'){const b=inp.parentNode.querySelector('.url-open');if(b)b.disabled=!inp.value.trim();}
+    if(inp.dataset.k==='simSyncUrl'){inp.parentNode.querySelectorAll('.sync-btn').forEach(b=>b.disabled=!inp.value.trim());}
+  });
+}
+async function autoPull(onOpen){
+  if(!curDeal) return;
+  const url=(curDeal.inputs.simSyncUrl||'').trim(); if(!url) return;
+  if(autoSyncBusy) return;
+  if(dirty && !onOpen) return;                        // 未保存の編集中は自動読込しない（上書き防止）
+  autoSyncBusy=true;
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN));
+    const j=await res.json();
+    if(j&&j.ok){
+      const d=j.data||{}; let changed=0;
+      SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
+        if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=d[k]; changed++; } } });
+      if(changed>0 && !dirty){
+        curDeal.updatedAt=Date.now(); saveDB(DB);
+        if(activeView()==='deal'){ refreshFormValues(); recompute(); }
+        toast('シートから自動反映（'+changed+'項目）');
+      }
+    }
+  }catch(e){/* silent */}
+  autoSyncBusy=false;
 }
 function openRiskCompare(deal){
   if(!deal)return;
