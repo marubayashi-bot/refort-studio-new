@@ -109,6 +109,11 @@ table.grid tr:hover td{background:var(--surface2)}
 table.grid .lnk{font-weight:700;color:var(--navy);cursor:pointer}
 table.grid .lnk:hover{color:var(--gold);text-decoration:underline}
 .list-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:13px;flex-wrap:wrap}
+.list-presets{display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+.preset-chip{font:inherit;font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:20px;cursor:pointer;
+  border:1px solid var(--line2);background:var(--surface);color:var(--navy2);transition:.12s}
+.preset-chip:hover{border-color:var(--gold);color:var(--navy)}
+.preset-chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .list-toolbar input,.list-toolbar select{padding:7px 10px;border:1px solid var(--line2);border-radius:7px;background:#fff}
 .list-toolbar input{min-width:200px}
 
@@ -986,14 +991,21 @@ function dealCard(d){
 }
 
 /* ==================== LIST ==================== */
-let listFilter={q:'',stage:'',owner:''};
+let listFilter={q:'',stage:'',owner:'',category:'',voltage:'',preset:''};
+function isHV(d){const kw=n(d.inputs.acExisting)||n(d.inputs.dcExisting)||0;return kw>=50;}
 let lastListRows=[];
 function renderList(){
   const v=$('#view-list');
-  let html=`<div class="page-h"><h1>案件一覧</h1><span class="sub">全${DB.deals.length}件</span></div>`;
+  let html=`<div class="page-h"><h1>案件一覧</h1><span class="sub" id="listCount">全${DB.deals.length}件</span></div>`;
   const owners=[...new Set(DB.deals.map(d=>d.inputs.owner).filter(Boolean))];
+  const LCAT=['セカンダリー','リフォート','セカンダリーリフォート','新規開発','蓄電池併設'];
+  const presets=[['','全件'],['secondary','セカンダリー物件'],['hv_refort','高圧リフォート進捗']];
+  html+=`<div class="list-presets">${presets.map(([k,label])=>
+    `<button class="preset-chip ${listFilter.preset===k?'on':''}" data-preset="${k}">${label}</button>`).join('')}</div>`;
   html+=`<div class="list-toolbar">
     <input id="lq" placeholder="🔍 案件名・所在地で検索" value="${esc(listFilter.q)}">
+    <select id="lcat"><option value="">全カテゴリ</option>${LCAT.map(c=>`<option ${listFilter.category===c?'selected':''}>${c}</option>`).join('')}</select>
+    <select id="lvolt"><option value="">全区分</option><option ${listFilter.voltage==='高圧'?'selected':''}>高圧</option><option ${listFilter.voltage==='低圧'?'selected':''}>低圧</option></select>
     <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
     <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
     <div style="flex:1"></div>
@@ -1001,6 +1013,15 @@ function renderList(){
     <button class="btn btn-line btn-sm" id="lcsv">CSV出力</button>
   </div>`;
   let rows=DB.deals.filter(d=>{
+    if(listFilter.preset==='secondary'&&!ledCat(d).includes('セカンダリー'))return false;
+    if(listFilter.preset==='hv_refort'){
+      if(!isHV(d))return false;
+      if(!ledCat(d).includes('リフォート'))return false;
+      if(['won','lost'].includes(d.stage))return false;
+    }
+    if(listFilter.category&&ledCat(d)!==listFilter.category)return false;
+    if(listFilter.voltage==='高圧'&&!isHV(d))return false;
+    if(listFilter.voltage==='低圧'&&isHV(d))return false;
     if(listFilter.stage&&d.stage!==listFilter.stage)return false;
     if(listFilter.owner&&d.inputs.owner!==listFilter.owner)return false;
     if(listFilter.q){const q=listFilter.q.toLowerCase();
@@ -1035,8 +1056,14 @@ function renderList(){
   v.innerHTML=html; wireList();
 }
 function wireList(){
+  const lc0=$('#listCount'); if(lc0){const shown=lastListRows.length,tot=DB.deals.length;
+    lc0.textContent=(shown===tot?('全'+tot+'件'):(shown+'件表示 ／ 全'+tot+'件'));}
   const q=$('#lq'); if(q)q.oninput=e=>{listFilter.q=e.target.value;renderListSoft();};
-  const ls=$('#lstage'); if(ls)ls.onchange=e=>{listFilter.stage=e.target.value;renderList();};
+  const lcat=$('#lcat'); if(lcat)lcat.onchange=e=>{listFilter.category=e.target.value;listFilter.preset='';renderList();};
+  const lvolt=$('#lvolt'); if(lvolt)lvolt.onchange=e=>{listFilter.voltage=e.target.value;listFilter.preset='';renderList();};
+  $$('[data-preset]').forEach(b=>b.onclick=()=>{listFilter.preset=b.dataset.preset;
+    listFilter.category='';listFilter.voltage='';listFilter.stage='';renderList();});
+  const ls=$('#lstage'); if(ls)ls.onchange=e=>{listFilter.stage=e.target.value;listFilter.preset='';renderList();};
   const lo=$('#lowner'); if(lo)lo.onchange=e=>{listFilter.owner=e.target.value;renderList();};
   const cs=$('#lcsv'); if(cs)cs.onclick=exportCSV;
   const sh=$('#lsheet'); if(sh)sh.onclick=()=>{
@@ -1118,9 +1145,9 @@ function renderDeal(){
 const ACC=[
   {id:'basic',t:'① 案件基本情報',open:true,fields:[
     ['customer','お客様名','text'],['location','所在地','text'],['mapUrl','位置URL','text'],
-    ['plantName','発電所名','text'],['buyer','売電先','text'],
     ['ddSheetUrl','DDチェックリスト（原本URL）','url'],
     ['simSheetUrl','RFSKシミュレーション（原本URL）','url'],
+    ['plantName','発電所名','text'],['buyer','売電先','text'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
     ['gridDate','連系年月','month'],
     ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
