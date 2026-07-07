@@ -873,6 +873,10 @@ const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function normDate(s){ s=String(s==null?'':s).trim(); if(!s)return '';
+  let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+  m=s.match(/^(\d{4})[-/.](\d{1,2})$/); if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-01';
+  return s; }
 let DB=load();
 let curDeal=null, dirty=false, resTab='judge';
 
@@ -1160,7 +1164,7 @@ const ACC=[
     ['simSyncUrl','RFSK連携（GAS URL・双方向同期）','sync'],
     ['plantName','発電所名','text'],['buyer','売電先','text'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
-    ['gridDate','連系年月','month'],
+    ['gridDate','連系日','date'],
     ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
   ]},
   {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
@@ -1264,6 +1268,8 @@ function fldHTML(f){
   if(type==='text'){ const full=['mapUrl'].includes(k);
     return `<div class="fld ${full?'full':''}"><label>${label}</label><div class="ctrl">
       <input data-k="${k}" type="text" value="${esc(val)}" style="text-align:left"></div></div>`; }
+  if(type==='date'){ return `<div class="fld"><label>${label}</label><div class="ctrl">
+    <input data-k="${k}" type="date" value="${esc(normDate(val))}" style="text-align:left"></div></div>`; }
   if(type==='month'){ return `<div class="fld"><label>${label}</label><div class="ctrl">
     <input data-k="${k}" type="month" value="${esc(val)}" style="text-align:left"></div></div>`; }
   // num
@@ -1853,6 +1859,17 @@ function xCell(ws,addr){const c=ws[addr];return c?c.v:undefined;}
 function xUrl(ws,addr){const c=ws[addr];if(!c)return '';
   if(c.l&&c.l.Target)return String(c.l.Target).trim(); // ハイパーリンク先を優先
   return c.v==null?'':String(c.v).trim();}
+function xDateFromCell(cell){
+  if(!cell)return'';
+  const v=cell.v;
+  if(v&&typeof v.getFullYear==='function')return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2);
+  if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2)+'-'+('0'+d.getUTCDate()).slice(-2);}
+  if(cell.w){const m=String(cell.w).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+    const m2=String(cell.w).match(/(\d{4})\D(\d{1,2})/);if(m2)return m2[1]+'-'+('0'+m2[2]).slice(-2)+'-01';}
+  if(typeof v==='string'){const m=v.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+    const m2=v.match(/(\d{4})\D(\d{1,2})/);if(m2)return m2[1]+'-'+('0'+m2[2]).slice(-2)+'-01';}
+  return '';
+}
 function xMonthFromCell(cell){
   if(!cell)return'';
   if(cell.w){const m=String(cell.w).match(/(\d{4})\D(\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);}
@@ -1894,7 +1911,7 @@ function parseTemplateA(wb,sheetName){
   const inp=blankInputs();
   let count=0;
   Object.keys(XLSX_MAP).forEach(key=>{
-    if(key==='gridDate'){const mv=xMonthFromCell(ws[XLSX_MAP.gridDate]);if(mv){inp.gridDate=mv;count++;}return;}
+    if(key==='gridDate'){const mv=xDateFromCell(ws[XLSX_MAP.gridDate]);if(mv){inp.gridDate=mv;count++;}return;}
     if(key==='mapUrl'){const u=xUrl(ws,XLSX_MAP.mapUrl);if(u){inp.mapUrl=u;count++;}return;}
     let v=xCell(ws,XLSX_MAP[key]);
     if(v===undefined||v===null||v==='')return;
@@ -1921,7 +1938,7 @@ function parseTemplateB(wb){
   const set=(k,v)=>{if(v!==''&&v!=null&&!(typeof v==='number'&&isNaN(v))){inp[k]=v;count++;}};
   set('location',str('C3'));               // 発電所名欄に所在地
   set('plantName',str('C3'));
-  const gm=xMonthFromCell(ws['C5']); if(gm)set('gridDate',gm);   // 連系日
+  const gm=xDateFromCell(ws['C5']); if(gm)set('gridDate',gm);   // 連系日
   set('fitPrice',num('C29'));              // 売電単価
   set('sotsuFit',num('F2'));               // 卒FIT単価
   inp.sotsuApply = num('F2')>0 ? '適応' : '不適合'; // 卒FIT単価が無ければ卒FIT非適用
@@ -1976,7 +1993,7 @@ function parseTemplateC(wb){
   const set=(k,v)=>{if(v!==''&&v!=null&&!(typeof v==='number'&&isNaN(v))){inp[k]=v;count++;}};
   set('location',str('D11')); set('mapUrl',xUrl(ws,'D12'));
   set('fitPrice',num('D13'));
-  const gm=xMonthFromCell(ws['D14']); if(gm)set('gridDate',gm);
+  const gm=xDateFromCell(ws['D14']); if(gm)set('gridDate',gm);
   set('dcExisting',num('D16')); set('acExisting',num('D17'));
   set('landType',str('D18')); set('landPrice',num('D19')); set('landRent',num('D20'));
   set('actualGen',num('D21')); set('pcsReplaced',str('D22'));
@@ -2010,7 +2027,7 @@ function importLedgerRows(wb){
     inp.plantName=name; inp.location=str('D',r);
     inp.dcExisting=num('E',r); inp.fitPrice=num('F',r); inp.actualGen=num('H',r);
     inp.secSaleEx=num('L',r); inp.secCostEx=num('M',r);
-    if(years>0)inp.gridDate=(thisY-Math.round(years))+'-01';
+    if(years>0)inp.gridDate=(thisY-Math.round(years))+'-01-01';
     inp.owner=str('T',r); inp.customer=str('U',r); inp.sotsuApply='不適合';
     const led={category:str('B',r), buyStatus:str('I',r)||'仕入検討中', sellStatus:str('J',r)||'販売準備中',
       priority:str('K',r)||'B', buyDate:xLedDate(gv('R',r)), sellDate:xLedDate(gv('S',r)), buyer:str('U',r)};
@@ -2280,7 +2297,7 @@ async function simSyncPull(){
     }
     if(!j.ok){toast('読込失敗：'+(j.error||'GAS側エラー'));return;}
     const d=j.data||{}; let cnt=0;
-    SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=d[k]; cnt++; } });
+    SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); cnt++; } });
     markDirty(); renderDeal();
     toast('シートから読み込みました（'+cnt+'項目）※保存で確定');
   }catch(e){ toast('読込エラー：接続がブロックされました。GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください'); }
@@ -2332,7 +2349,7 @@ async function autoPull(onOpen){
     if(j&&j.ok){
       const d=j.data||{}; let changed=0;
       SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
-        if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=d[k]; changed++; } } });
+        if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); changed++; } } });
       if(changed>0 && !dirty){
         curDeal.updatedAt=Date.now(); saveDB(DB);
         if(activeView()==='deal'){ refreshFormValues(); recompute(); }
