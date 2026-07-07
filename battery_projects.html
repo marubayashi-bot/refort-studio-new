@@ -171,6 +171,7 @@ table.st tr.cum td{background:#faf6ec}
     <button class="btn btn-ghost btn-sm" id="bSync">☁ 同期</button>
     <button class="btn btn-ghost btn-sm" id="bImport">復元</button>
     <button class="btn btn-ghost btn-sm" id="bExport">バックアップ</button>
+    <button class="btn btn-line btn-sm" id="bXlsx">📊 Excel取込</button>
     <button class="btn btn-gold" id="bSheet">📄 提案シート</button>
   </div>
 </header>
@@ -178,6 +179,7 @@ table.st tr.cum td{background:#faf6ec}
 
 <div class="toast" id="toast"></div>
 <input type="file" id="fileImp" accept="application/json" style="display:none">
+<input type="file" id="xlsxFile" accept=".xlsx,.xls" style="display:none">
 
 <div class="modal" id="syncModal"><div class="box">
   <div class="mh">☁ クラウド同期（社内共有）</div>
@@ -209,6 +211,7 @@ table.st tr.cum td{background:#faf6ec}
   <button class="btn btn-line btn-sm" id="ovClose">閉じる</button></div>
   <div id="proot"></div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 'use strict';
 (function(){
@@ -525,6 +528,68 @@ function importJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSO
 
 /* ---------- wiring ---------- */
 $('#projSel').onchange=e=>switchProj(e.target.value);
+/* ==================== Excel取込（お客様向け提案シート） ==================== */
+function importBatteryWorkbook(wb){
+  const enc=(r,c)=>XLSX.utils.encode_cell({r,c});
+  const isYear=v=>{if(v==null)return false;const s=String(v).trim();return /^\d{4}$/.test(s)&&+s>=2000&&+s<=2100;};
+  const num=v=>{if(v==null||v==='')return 0;const n=parseFloat(String(v).replace(/[,¥\s円]/g,''));return isNaN(n)?0:n;};
+  let ws=null;
+  for(const n of wb.SheetNames){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;
+    const rg=XLSX.utils.decode_range(w['!ref']);let ok=false;
+    for(let r=rg.s.r;r<=Math.min(rg.e.r,400);r++){const c=w[enc(r,0)];if(c&&String(c.v).trim()==='スポット市場'){ok=true;break;}}
+    if(ok){ws=w;break;}}
+  if(!ws)throw new Error('「スポット市場」の行が見つかりません。お客様向け提案シートをご確認ください。');
+  const rng=XLSX.utils.decode_range(ws['!ref']);
+  const labelRow={};for(let r=rng.s.r;r<=rng.e.r;r++){const c=ws[enc(r,0)];if(c&&c.v!=null){const k=String(c.v).trim();if(!(k in labelRow))labelRow[k]=r;}}
+  const exact=l=>(l in labelRow)?labelRow[l]:null;
+  const starts=p=>{for(const k in labelRow)if(k.indexOf(p)===0)return labelRow[k];return null;};
+  let yearCols=[],yrRow=-1;
+  for(let r=rng.s.r;r<=rng.e.r;r++){const yc=[];for(let c=2;c<=rng.e.c;c++){const cell=ws[enc(r,c)];if(cell&&isYear(cell.v))yc.push(c);}if(yc.length>=3){yrRow=r;yearCols=yc;break;}}
+  if(!yearCols.length)throw new Error('年（2027等）の見出し行が見つかりません。');
+  const term=yearCols.length;
+  const readRow=l=>{const r=exact(l);if(r==null)return null;return yearCols.map(c=>{const cell=ws[enc(r,c)];return cell?Math.round(num(cell.v)):0;});};
+  const readB=rw=>{if(rw==null)return null;const cell=ws[enc(rw,1)];return cell?cell.v:null;};
+  const ff=l=>{const a=readRow(l);return a?a[0]:0;};
+  const pcs=num(readB(starts('PCS容量')))||num(readB(starts('パワコン')));
+  const invest=Math.round(num(readB(starts('初期投資')))||num(readB(starts('純投資')))||num(readB(starts('設備投資'))));
+  const firstYear=parseInt(String(ws[enc(yrRow,yearCols[0])].v),10);
+  const cod=(firstYear||new Date().getFullYear())+'-01';
+  const hRow=readRow('発電側課金');const hatsudenRate=pcs?Math.round((hRow?hRow[0]:0)/(pcs*12)):120;
+  const nameCell=ws[enc(2,0)]||ws[enc(0,0)];
+  const need=['スポット市場','一次調整力市場','容量市場','充電費用','アグリゲーター費用','託送料','再エネ賦課金'];
+  const miss=need.filter(l=>exact(l)==null);
+  if(miss.length)throw new Error('必要な行が見つかりません：'+miss.join('・'));
+  return {name:nameCell?String(nameCell.v).trim():'取込案件',
+    meta:{siteNo:'',area:'',kwh:'',pcs:pcs,cod:cod,term:term,sysPrice:invest,invest:invest,disc:0.10},
+    fixed:{insurance:ff('保険'),om:ff('O&M費用'),balancing:ff('需給調整市場手数料'),elec:ff('設備電気代'),misc:ff('諸経費'),hatsudenRate:hatsudenRate},
+    rows:{spot:readRow('スポット市場'),fcr:readRow('一次調整力市場'),cap:readRow('容量市場'),charge:readRow('充電費用'),agg:readRow('アグリゲーター費用'),wheel:readRow('託送料'),levy:readRow('再エネ賦課金')},
+    note:'Excel「お客様向け提案」から取込'};
+}
+function handleXlsxFile(file){
+  if(!file)return;
+  if(typeof XLSX==='undefined'){toast('Excel読込ライブラリの読込に失敗（ネット接続をご確認ください）');return;}
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const base=importBatteryWorkbook(wb);
+      const proj=Object.assign({id:uid(),updatedAt:Date.now()},base);
+      DB.projects.push(proj);DB.curId=proj.id;P=proj;write(DB);
+      renderProjSel();renderApp();
+      toast('Excelから取込：'+proj.name+'（'+proj.meta.term+'年分）');
+    }catch(err){toast('取込エラー：'+(err.message||err));}
+  };
+  fr.onerror=()=>toast('ファイル読込に失敗しました');
+  fr.readAsArrayBuffer(file);
+}
+$('#bXlsx').onclick=()=>$('#xlsxFile').click();
+$('#xlsxFile').onchange=e=>{if(e.target.files[0])handleXlsxFile(e.target.files[0]);e.target.value='';};
+['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{
+  if(ev==='dragover'){e.preventDefault();return;}
+  e.preventDefault();
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(f&&/\.(xlsx|xls)$/i.test(f.name))handleXlsxFile(f);
+}));
 $('#bNew').onclick=newProj;$('#bDup').onclick=dupProj;$('#bDel').onclick=delProj;
 $('#bExport').onclick=exportJSON;$('#bImport').onclick=()=>$('#fileImp').click();
 $('#fileImp').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';};
