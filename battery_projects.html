@@ -290,6 +290,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','
 
 function renderApp(){
   const c=compute(P),m=P.meta;
+  ensureSolar(P); const cs=computeSet(P,c);
   let h=`<div class="page-h"><h1>${esc(P.name||'(無題案件)')}</h1><span class="sub">低圧系統蓄電事業シミュレーション（年別収支）</span></div>`;
   h+=`<div class="kpis">
     ${kpi('表面利回り',pct(c.surfaceY),'年平均売上÷投資',1)}
@@ -301,6 +302,19 @@ function renderApp(){
     ${kpi('NPV（割引率'+pct(m.disc,0)+'）',mil(c.npv),'正味現在価値')}
     ${kpi('投資倍率',pct(c.mult,0),'営業利益÷設備投資')}
   </div>`;
+  // ===== 太陽光＋蓄電池 セット合計 =====
+  if(cs){
+    h+=`<div class="sec-title">☀＋🔋 セット合計（営農型太陽光＋系統蓄電池）</div>
+    <div class="kpis set-kpis">
+      ${kpi('総合表面利回り',pct(cs.setSurface),'年間収益合計÷投資合計',1)}
+      ${kpi('総合ネット利回り',pct(cs.setNet),'営業利益合計÷投資合計',1)}
+      ${kpi('合算投資額（税込）',yen(cs.totInvIncl),'太陽光'+nf(P.solar.price)+'＋蓄電池')}
+      ${kpi('合算回収年数',cs.payback!=null?cs.payback+'年':'—','セット累積CF黒字化',1)}
+      ${kpi('太陽光 表面/税効果',pct(cs.solarSurface)+' / '+pct(cs.solarTax),'安定＋節税')}
+      ${kpi('蓄電池 表面利回り',pct(cs.battSurface),'高利回り市場収益')}
+    </div>
+    <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年FIT＋蓄電池${c.T}年市場収益）。太陽光は下部「☀ 太陽光（セット）」で編集できます。</div>`;
+  }
   // inputs
   h+=`<div class="sec-title">基本情報・前提</div><div class="grid2">
     <div class="card"><div class="hd"><span class="gi">▸</span> 案件・設備</div><div class="card-b">
@@ -330,6 +344,29 @@ function renderApp(){
       <div class="note" style="margin-top:10px">充電費用・アグリゲーター費用・託送料・再エネ賦課金は<b>市場連動の変動費</b>のため、下表で年別に入力（Excelから一括貼付可）。</div>
     </div></div>
   </div>`;
+  // ===== 太陽光（セット）編集 =====
+  const s=P.solar;
+  h+=`<div class="sec-title">☀ 太陽光（セット）<span class="tip">「概要書」Excelをドロップで自動取込／下で編集可</span></div>
+  <div class="card"><div class="card-b">
+    <div class="fld"><label>セットに含める</label><div class="ctrl"><input type="checkbox" data-son="1" ${s.on?'checked':''}></div><span class="u">${s.on?'含める':'含めない'}</span></div>
+    <div class="grid2" style="margin-top:8px">
+      <div>
+        ${fldS('name','物件名','text','',s.name)}
+        ${fldS('price','設備価格（税込）','num','円',s.price)}
+        ${fldS('capDC','発電容量(DC)','num','kW',s.capDC)}
+        ${fldS('gen1','年間発電量','num','kWh',s.gen1)}
+        ${fldS('saleY1','年間売電収入(税込)','num','円',s.saleY1)}
+      </div>
+      <div>
+        ${fldS('surfaceY','表面利回り','num','%（例7.0）',(s.surfaceY*100).toFixed(2))}
+        ${fldS('netY','ネット利回り','num','%',(s.netY*100).toFixed(2))}
+        ${fldS('taxY','税効果利回り','num','%',(s.taxY*100).toFixed(2))}
+        ${fldS('term','FIT期間','num','年',s.term)}
+        ${fldS('deg','劣化率','num','%/年',(s.deg*100).toFixed(2))}
+      </div>
+    </div>
+    <div class="note" style="margin-top:6px">利回り欄は%で入力（表面7.0など）。太陽光の「概要書」Excelをドロップすると自動で埋まります。</div>
+  </div></div>`;
   // year grid
   h+=`<div class="sec-title">年別データ入力 <span class="tip">セルを直接編集／Excelの行をコピーして先頭セルに貼付で一括入力</span>
     <span style="flex:1"></span><button class="btn btn-line btn-sm" id="bPaste">📋 一括貼付</button></div>`;
@@ -342,6 +379,7 @@ function kpi(l,v,s,hl){return `<div class="kpi ${hl?'hl':''}"><div class="l">${l
 function fld(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-p="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 function fldM(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-m="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 function fldF(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-f="${k}" type="text" class="num" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
+function fldS(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-s="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 
 function gridHTML(c){
   const T=P.meta.term;
@@ -382,6 +420,14 @@ function wireApp(){
     P.meta[k]=(i.type==='month')?e.target.value:(['siteNo','area','cod'].includes(k)?e.target.value:numv(e.target.value));
     if(k==='term'){saveP();renderApp();return;} liveCalc();saveP();});
   $$('[data-f]').forEach(i=>i.oninput=e=>{P.fixed[i.dataset.f]=numv(e.target.value);liveCalc();saveP();});
+  ensureSolar(P);
+  const sonEl=$('[data-son]'); if(sonEl)sonEl.onchange=e=>{P.solar.on=e.target.checked;saveP();renderApp();};
+  $$('[data-s]').forEach(i=>i.oninput=e=>{const k=i.dataset.s,val=e.target.value;
+    if(k==='name'){P.solar.name=val;}
+    else if(k==='surfaceY'||k==='netY'||k==='taxY'||k==='deg'){P.solar[k]=numv(val)/100;}
+    else if(k==='price'){P.solar.price=numv(val);P.solar.priceEx=Math.round(numv(val)/1.1);}
+    else{P.solar[k]=numv(val);}
+    liveCalc();saveP();});
   $$('[data-r]').forEach(inp=>{
     inp.oninput=e=>{P.rows[inp.dataset.r][+inp.dataset.i]=numv(e.target.value);liveCalc();saveP();};
     inp.addEventListener('paste',onCellPaste);
@@ -399,6 +445,10 @@ function liveCalc(){ // re-render just KPIs + computed rows without losing focus
   }
   // update computed rows + totals in grid (rebuild tbody calc rows + per-row totals)
   rebuildGridCalc(c);
+  // update セット合計 KPIs if present
+  const cs=computeSet(P,c);
+  if(cs){const sk=$$('.set-kpis .kpi .v');
+    if(sk.length>=6){sk[0].textContent=pct(cs.setSurface);sk[1].textContent=pct(cs.setNet);sk[2].textContent=yen(cs.totInvIncl);sk[3].textContent=cs.payback!=null?cs.payback+'年':'—';sk[4].textContent=pct(cs.solarSurface)+' / '+pct(cs.solarTax);sk[5].textContent=pct(cs.battSurface);}}
 }
 function rebuildGridCalc(c){
   const T=P.meta.term;
@@ -529,6 +579,51 @@ function importJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSO
 /* ---------- wiring ---------- */
 $('#projSel').onchange=e=>switchProj(e.target.value);
 /* ==================== Excel取込（お客様向け提案シート） ==================== */
+function ensureSolar(p){ if(!p.solar)p.solar={on:false,name:'',price:0,priceEx:0,capDC:0,gen1:0,saleY1:0,surfaceY:0,netY:0,taxY:0,deg:0.005,term:20}; return p.solar; }
+function num_(v){if(v==null||v==='')return 0;const n=parseFloat(String(v).replace(/[,¥%\s円]/g,''));return isNaN(n)?0:n;}
+function importSolarWorkbook(wb){
+  const enc=(r,c)=>XLSX.utils.encode_cell({r,c});
+  const order=[...wb.SheetNames].sort((a,b)=>(/概要書/.test(b)?1:0)-(/概要書/.test(a)?1:0));
+  let ws=null;
+  for(const n of order){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;const rg=XLSX.utils.decode_range(w['!ref']);let ok=false;
+    for(let r=rg.s.r;r<=Math.min(rg.e.r,80)&&!ok;r++)for(let c=rg.s.c;c<=Math.min(rg.e.c,16);c++){const cell=w[enc(r,c)];if(cell&&/発電容量|年間想定/.test(String(cell.v).replace(/\n/g,''))){ok=true;break;}}
+    if(ok){ws=w;break;}}
+  if(!ws)throw new Error('太陽光の概要書（発電容量・年間想定発電量）が見つかりません');
+  const rng=XLSX.utils.decode_range(ws['!ref']);
+  const rightOf=re=>{for(let r=rng.s.r;r<=rng.e.r;r++)for(let c=rng.s.c;c<=rng.e.c;c++){const cell=ws[enc(r,c)];if(cell&&re.test(String(cell.v).replace(/\n/g,''))){for(let cc=c+1;cc<=rng.e.c;cc++){const v=ws[enc(r,cc)];if(v&&typeof v.v==='number')return v.v;}}}return null;};
+  // netを全シートから探す
+  let netY=0;
+  for(const n of wb.SheetNames){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;const rg=XLSX.utils.decode_range(w['!ref']);
+    for(let r=rg.s.r;r<=Math.min(rg.e.r,60);r++)for(let c=rg.s.c;c<=Math.min(rg.e.c,10);c++){const cell=w[enc(r,c)];if(cell&&/利回り（NET|ネット利回り|NET利回り/.test(String(cell.v))){for(let cc=c+1;cc<=rg.e.c;cc++){const v=w[enc(r,cc)];if(v&&typeof v.v==='number'){netY=v.v>1?v.v/100:v.v;break;}}}}}
+  const price=Math.round(num_(rightOf(/設備価格（税込）/)));
+  const surfaceY=num_(rightOf(/^表面利回り/))/100;
+  const taxY=num_(rightOf(/税効果利回り/))/100;
+  let name='';
+  for(let r=rng.s.r;r<=Math.min(rng.e.r,10)&&!name;r++)for(let c=rng.s.c;c<=rng.e.c;c++){const cell=ws[enc(r,c)];if(cell&&typeof cell.v==='string'){const t=cell.v.replace(/\n/g,'').trim();if(/（.+）/.test(t)&&t.length>6&&!/種類|商品|概要|注意|オプション|所在地|追記|アースコム/.test(t)){name=t;break;}}}
+  return {on:true,name:name||'営農型太陽光',price:price,priceEx:Math.round(price/1.1),
+    capDC:num_(rightOf(/発電容量/)),gen1:Math.round(num_(rightOf(/年間想定発電量/))),
+    saleY1:Math.round(num_(rightOf(/年間想定売電収入/))),surfaceY:surfaceY,netY:netY||surfaceY*0.75,taxY:taxY,deg:0.005,term:20};
+}
+function isBatteryWB(wb){const enc=(r,c)=>XLSX.utils.encode_cell({r,c});for(const n of wb.SheetNames){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;const rg=XLSX.utils.decode_range(w['!ref']);for(let r=rg.s.r;r<=Math.min(rg.e.r,400);r++){const cA=w[enc(r,0)];if(cA&&String(cA.v).trim()==='スポット市場')return true;}}return false;}
+/* ---- 太陽光＋蓄電池 セット合算 ---- */
+function computeSet(p,c){
+  const s=p.solar; if(!s||!s.on)return null;
+  const solarInvEx=s.priceEx||Math.round((s.price||0)/1.1);
+  const battInvEx=c.inv;
+  const totInvEx=solarInvEx+battInvEx;
+  const totInvIncl=(s.price||Math.round(solarInvEx*1.1))+Math.round(battInvEx*1.1);
+  const solarSaleEx=(s.saleY1||0)/1.1;
+  const battSaleAvg=c.T?c.sumS/c.T:0;
+  const setSurface=totInvEx?(solarSaleEx+battSaleAvg)/totInvEx:0;
+  const solarOpEx=(s.netY||0)*solarInvEx;
+  const battOpAvg=c.T?c.sumOp/c.T:0;
+  const setNet=totInvEx?(solarOpEx+battOpAvg)/totInvEx:0;
+  let cum=-totInvEx,pb=null;const yrs=Math.max(s.term||20,c.T);
+  for(let t=0;t<yrs;t++){const so=solarOpEx*Math.pow(1-(s.deg||0.005),t);const bo=t<c.T?(c.op[t]||0):0;cum+=so+bo;if(pb==null&&cum>=0)pb=t+1;}
+  return {solarInvEx,battInvEx,totInvEx,totInvIncl,setSurface,setNet,payback:pb,
+    solarSurface:s.surfaceY,solarNet:s.netY,solarTax:s.taxY,solarSaleY1:s.saleY1,
+    setAnnualSaleEx:solarSaleEx+ (c.sales&&c.sales[0]||0),battSurface:c.surfaceY};
+}
 function importBatteryWorkbook(wb){
   const enc=(r,c)=>XLSX.utils.encode_cell({r,c});
   const isYear=v=>{if(v==null)return false;const s=String(v).trim();return /^\d{4}$/.test(s)&&+s>=2000&&+s<=2100;};
@@ -572,11 +667,19 @@ function handleXlsxFile(file){
   fr.onload=e=>{
     try{
       const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-      const base=importBatteryWorkbook(wb);
-      const proj=Object.assign({id:uid(),updatedAt:Date.now()},base);
-      DB.projects.push(proj);DB.curId=proj.id;P=proj;write(DB);
-      renderProjSel();renderApp();
-      toast('Excelから取込：'+proj.name+'（'+proj.meta.term+'年分）');
+      if(isBatteryWB(wb)){
+        const base=importBatteryWorkbook(wb);
+        const proj=Object.assign({id:uid(),updatedAt:Date.now()},base);
+        ensureSolar(proj);
+        DB.projects.push(proj);DB.curId=proj.id;P=proj;write(DB);
+        renderProjSel();renderApp();
+        toast('蓄電池Excelから取込：'+proj.name+'（'+proj.meta.term+'年分）');
+      }else{
+        const solar=importSolarWorkbook(wb);
+        ensureSolar(P); P.solar=solar; P.updatedAt=Date.now(); write(DB);
+        renderApp();
+        toast('太陽光をセットに取込：'+solar.name+'（表面'+(solar.surfaceY*100).toFixed(1)+'%）');
+      }
     }catch(err){toast('取込エラー：'+(err.message||err));}
   };
   fr.onerror=()=>toast('ファイル読込に失敗しました');
