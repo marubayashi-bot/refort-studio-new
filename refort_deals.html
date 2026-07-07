@@ -2266,16 +2266,24 @@ async function simSyncPull(){
   if(!curDeal)return;
   const url=(curDeal.inputs.simSyncUrl||'').trim();
   if(!url){toast('RFSK連携URL（GAS）を入力してください');return;}
+  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev は不可）');return;}
   toast('スプレッドシートから読込中…');
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{method:'GET'});
-    const j=await res.json();
-    if(!j||!j.ok){toast('読込失敗：'+((j&&j.error)||'応答なし'));return;}
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{method:'GET',redirect:'follow'});
+    const txt=await res.text();
+    let j=null; try{ j=JSON.parse(txt); }catch(_){}
+    if(!j){
+      if(/<html|<!doctype|accounts\.google|ログイン|sign ?in|authorization/i.test(txt))
+        toast('読込失敗：GASを「アクセス：全員」で再デプロイしてください（ログインが要求されています）');
+      else toast('読込失敗：GASの応答が不正です（URL・デプロイをご確認ください）');
+      return;
+    }
+    if(!j.ok){toast('読込失敗：'+(j.error||'GAS側エラー'));return;}
     const d=j.data||{}; let cnt=0;
     SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=d[k]; cnt++; } });
     markDirty(); renderDeal();
     toast('シートから読み込みました（'+cnt+'項目）※保存で確定');
-  }catch(e){ toast('読込エラー：'+(e.message||'ネット接続/URLをご確認ください')); }
+  }catch(e){ toast('読込エラー：接続がブロックされました。GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください'); }
 }
 async function simSyncPush(){
   if(!curDeal)return;
@@ -2285,13 +2293,14 @@ async function simSyncPush(){
   const data={}; SYNC_KEYS.forEach(k=>{data[k]=curDeal.inputs[k];});
   toast('スプレッドシートへ書出中…');
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},redirect:'follow',
       body:JSON.stringify({token:SYNC_TOKEN,data})});
-    let j=null; try{ j=await res.json(); }catch(_){}
+    const txt=await res.text(); let j=null; try{ j=JSON.parse(txt); }catch(_){}
     if(j&&j.ok) toast('シートへ書き出しました（'+((j.wrote||[]).length)+'項目）');
     else if(j&&j.error) toast('書出失敗：'+j.error);
+    else if(/<html|accounts\.google|ログイン/i.test(txt)) toast('書出失敗：GASを「アクセス：全員」で再デプロイしてください');
     else toast('書出を送信しました（シートをご確認ください）');
-  }catch(e){ toast('書出エラー：'+(e.message||'ネット接続/URLをご確認ください')); }
+  }catch(e){ toast('書出エラー：GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください'); }
 }
 let autoSyncTimer=null, autoSyncBusy=false;
 function stopAutoSync(){ if(autoSyncTimer){clearInterval(autoSyncTimer);autoSyncTimer=null;} }
@@ -2318,8 +2327,8 @@ async function autoPull(onOpen){
   if(dirty && !onOpen) return;                        // 未保存の編集中は自動読込しない（上書き防止）
   autoSyncBusy=true;
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN));
-    const j=await res.json();
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{redirect:'follow'});
+    const txt=await res.text(); let j=null; try{ j=JSON.parse(txt); }catch(_){}
     if(j&&j.ok){
       const d=j.data||{}; let changed=0;
       SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
