@@ -437,7 +437,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3e 重なるピンの分散表示</span></div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3f 御見積にPCS型番表示</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -1208,7 +1208,7 @@ function simulate(c){
   items.push({label:'架台改修部材（金具・レール等）', qty:kw, unit:'kW',
     cost:kw*Q.rack.cost, amt:kw*sell(Q.rack.cost,Q.rack.margin), margin:Q.rack.margin});
   if(pcsSwap){
-    items.push({label:'パワコン（PCS）交換', qty:Math.round(acCap), unit:'kW',
+    items.push({label:'パワコン（PCS）交換'+(h.pcsModel?'　'+h.pcsModel:''), qty:Math.round(acCap), unit:'kW',
       cost:Math.round(acCap)*Q.pcs.cost, amt:Math.round(acCap)*sell(Q.pcs.cost,Q.pcs.margin), margin:Q.pcs.margin});
   }
   items.push({label:'接続箱・ケーブル・電材', qty:kw, unit:'kW',
@@ -2196,6 +2196,7 @@ function importExcel(file){
           const pNv=+gv(I1,'C19'); if(pNv&&!c.hearing.panelCount) c.hearing.panelCount=pNv;
           const psN=+gv(I1,'C38'); if(psN&&!c.hearing.pcsCount) c.hearing.pcsCount=psN;
           const psU=+gv(I1,'C39'); if(psU&&!c.hearing.pcsUnit) c.hearing.pcsUnit=psU;
+          const psMd=gv(I1,'C57'); if(psMd) c.hearing.pcsModel=String(psMd).trim();
         }
       }catch(e){ console.error('V15 parse', e); }
       c.status=2; c.owner=OWNERS[0];
