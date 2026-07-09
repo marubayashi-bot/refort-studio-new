@@ -104,8 +104,10 @@ table.yr td.tot{background:var(--gold-soft);font-weight:700;color:#8a6d18}
   border-bottom:2px solid var(--gold);padding:11px 18px;flex-wrap:wrap}
 .ovbar .t{color:#fff;font-weight:700;font-size:13px}.ovbar .sp{flex:1}
 #proot{padding:22px 0 44px}
-.sheet{width:297mm;min-height:209mm;background:#fff;margin:0 auto;padding:9mm 10mm;box-sizing:border-box;
+.sheet{width:297mm;min-height:209mm;background:#fff;margin:0 auto 16px;padding:9mm 10mm;box-sizing:border-box;zoom:var(--pscale,1);
   color:#15202e;font-size:8.4px;box-shadow:0 8px 34px rgba(0,0,0,.32);display:flex;flex-direction:column}
+.ovscale{display:flex;align-items:center;gap:6px;color:#fff;font-size:12px;margin-right:6px}
+.ovscale select{padding:4px 8px;border-radius:6px;border:1px solid #46586c;background:#fff;font-size:12px}
 .s-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2.5px solid #c8a24a;padding-bottom:7px}
 .s-head .L{display:flex;align-items:center;gap:10px}
 .s-head .mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c8a24a,#e3c878);display:grid;place-items:center;color:#0d2340;font-weight:800;font-size:15px}
@@ -133,6 +135,12 @@ table.st th.lbl,table.st td.lbl{text-align:left;width:108px;background:#f5f8fb;f
 table.st td.tot{background:#f3ead0;font-weight:800;color:#8a6d18}
 table.st th.tot{background:#8a6d18}
 table.st tr.sum td{background:#eef3f8;font-weight:800;color:#0d2340}
+table.st.det{font-size:6.6px}
+table.st.det th,table.st.det td{padding:1px 2px}
+table.st tr.sub td{background:#fafcfe;color:#66788c}
+table.st tr.sub td.lbl{background:#eef3f8;font-weight:600;color:#5a6a7c}
+table.st tr.op td{background:#fff6e6;font-weight:800;color:#0d2340}
+table.st tr.cum td{font-weight:700}
 table.st.cmp{font-size:9px}
 table.st.cmp th,table.st.cmp td{padding:5px 8px}
 table.st.cmp th.lbl,table.st.cmp td.lbl{width:150px}
@@ -149,14 +157,31 @@ table.st tr.cum td{background:#faf6ec}
 .s-foot b{color:#46586c}
 @media print{
   @page{size:A4 landscape;margin:0}
-  html,body{background:#fff!important}
-  body *{visibility:hidden}
-  #ov,#ov *{visibility:visible}
-  #ov{position:static;background:#fff;overflow:visible;display:block}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  body>*:not(#ov){display:none!important}
+  #ov{display:block!important;position:static!important;inset:auto!important;background:#fff!important;overflow:visible!important;height:auto!important;margin:0!important;padding:0!important}
   .ovbar{display:none!important}
-  #proot{padding:0}
-  .sheet{box-shadow:none;margin:0;page-break-after:always}
-  .sheet:last-child{page-break-after:auto}
+  #proot{padding:0!important;margin:0!important}
+  .sheet{box-shadow:none!important;margin:0 auto!important;width:290mm;height:196mm;min-height:0;overflow:hidden;
+    page-break-inside:avoid;break-inside:avoid;page-break-after:auto;break-after:auto;zoom:var(--pscale,1)}
+  .sheet:not(:first-child){page-break-before:always;break-before:page}
+  /* 収まるように圧縮 */
+  .sheet{font-size:8px}
+  .s-head{padding-bottom:5px}
+  .s-head .mk{width:26px;height:26px;font-size:13px}
+  .s-head .ttl{font-size:13px}
+  .s-spec{margin:5px 0}.s-spec .chip{padding:2px 7px;font-size:8px}
+  .s-kpis{gap:4px;margin:5px 0}
+  .s-kpi{padding:4px 5px}.s-kpi .l{font-size:6.8px}.s-kpi .v{font-size:11.5px}
+  .s-sec{margin:5px 0 2px;font-size:8.5px}
+  table.st{font-size:6.5px}
+  table.st th,table.st td{padding:1.3px 2px}
+  table.st th.lbl,table.st td.lbl{width:88px}
+  table.st.cmp{font-size:8.5px}table.st.cmp th,table.st.cmp td{padding:4px 7px}
+  table.st.det{font-size:5.9px}table.st.det th,table.st.det td{padding:0.6px 1.5px}
+  .s-note-box{margin-top:6px;padding:7px 11px;font-size:8.5px;line-height:1.5}
+  .s-foot{padding-top:5px;font-size:6.6px}
 }
 .sync-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap}
 .sync-pill.local{background:rgba(255,255,255,.1);color:#b9c8da}
@@ -217,6 +242,16 @@ table.st tr.cum td{background:#faf6ec}
 </div></div>
 
 <div id="ov"><div class="ovbar"><span class="t">📄 系統蓄電池 提案シート（A4横）</span><span class="sp"></span>
+  <label class="ovscale">印刷サイズ
+    <select id="ovScale">
+      <option value="1">標準(100%)</option>
+      <option value="0.95">95%</option>
+      <option value="0.9">90%</option>
+      <option value="0.85">85%</option>
+      <option value="0.8">80%</option>
+      <option value="0.75">75%</option>
+    </select>
+  </label>
   <button class="btn btn-gold btn-sm" id="ovPrint">🖨 印刷 / PDF保存</button>
   <button class="btn btn-line btn-sm" id="ovClose">閉じる</button></div>
   <div id="proot"></div></div>
@@ -330,6 +365,7 @@ function renderApp(){
   }
   if(showSolar){ const sl=P.solar;
     h+=`<div class="sec-title">${mode==='set'?'② 営農型太陽光':'② 営農型太陽光（単体）'}${sl.detail?' <span class="tip">詳細CF取込済</span>':''}</div>
+    ${!sl.detail?`<div class="note" style="margin:0 0 8px;color:#a15c00;background:#fff6e6;border:1px solid #f0d9a8;padding:8px 12px;border-radius:8px">⚠ 詳細CF未取込（現在は概算表示）。太陽光の「概要書」Excelを<b>もう一度ドロップ</b>すると、100%シミュレーションの実数値（売上・経費内訳・営業利益・即時償却・税効果後CF）に切り替わります。</div>`:''}
     <div class="kpis solar-kpis">
       ${kpi('表面利回り',pct(sl.surfaceY),'年間売電÷投資',1)}
       ${kpi('ネット利回り',pct(sl.netY),'営業利益÷投資',1)}
@@ -548,27 +584,34 @@ function solarSheetHTML(){
   if(d&&d.sales&&d.sales.length){
     const N=Math.min(20,d.years);
     const col=arr=>{let x='';for(let t=0;t<N;t++)x+=`<td>${nf((arr&&arr[t])||0)}</td>`;return x;};
+    const colp=arr=>{let x='';for(let t=0;t<N;t++){const v=arr&&arr[t];if(v==null){x+='<td>—</td>';continue;}const p=(Math.abs(v)<=1?v*100:v);x+=`<td>${p.toFixed(2)}%</td>`;}return x;};
     const sumN=arr=>{let s2=0;for(let t=0;t<N;t++)s2+=(arr&&arr[t])||0;return s2;};
     const th=()=>{let x='<th class="lbl">期</th>';for(let i=1;i<=N;i++)x+=`<th>${i}</th>`;x+='<th class="tot">合計</th>';return x;};
+    const cRow=(i,lab)=>d.c&&d.c[i]?`<tr class="sub"><td class="lbl">　${lab}</td>${col(d.c[i])}<td class="tot">${nf(sumN(d.c[i]))}</td></tr>`:'';
     const sokujiY1=(d.sokuji&&d.sokuji[0])||s.priceEx||0;
-    const taxCfFinal=(d.taxCf55&&d.taxCf55[N-1])||0;
-    const pb=(()=>{if(!d.cumCf)return null;for(let t=0;t<N;t++)if(d.cumCf[t]>=0)return t+1;return null;})();
+    const taxCf55Final=(d.taxCf55&&d.taxCf55[N-1])||0;
+    const taxCf33Final=(d.taxCf33&&d.taxCf33[N-1])||0;
     const kpis=`<div class="s-kpis">
       <div class="s-kpi gold"><div class="l">表面利回り</div><div class="v">${pct(s.surfaceY)}</div></div>
       <div class="s-kpi gold"><div class="l">ネット利回り</div><div class="v">${pct(s.netY)}</div></div>
-      <div class="s-kpi gold"><div class="l">税効果利回り</div><div class="v">${pct(s.taxY)}</div></div>
+      <div class="s-kpi gold"><div class="l">税効果利回り(55%)</div><div class="v">${pct(s.taxY)}</div></div>
+      <div class="s-kpi gold"><div class="l">税効果利回り(33%)</div><div class="v">${s.tax33?pct(s.tax33):'—'}</div></div>
       <div class="s-kpi nv"><div class="l">即時償却費(初年度)</div><div class="v">${yen(sokujiY1)}</div></div>
-      <div class="s-kpi"><div class="l">税効果後CF累計(55%)</div><div class="v">${yen(taxCfFinal)}</div></div>
-      <div class="s-kpi gold"><div class="l">投資回収年数</div><div class="v">${pb!=null?pb+'年':'—'}</div></div></div>`;
-    const tbl=`<div class="s-sec">事業損益・キャッシュフロー（円・${N}年）</div><table class="st"><thead><tr>${th()}</tr></thead><tbody>
+      <div class="s-kpi"><div class="l">設備価格(税込)</div><div class="v">${yen(s.price)}</div></div></div>`;
+    const tbl=`<div class="s-sec">事業損益計算・キャッシュフロー（円・${N}年）</div><table class="st det"><thead><tr>${th()}</tr></thead><tbody>
+      ${d.gen?`<tr><td class="lbl">想定発電量(kWh)</td>${col(d.gen)}<td class="tot">${nf(sumN(d.gen))}</td></tr>`:''}
       <tr class="sum"><td class="lbl">売上高（売電収入）</td>${col(d.sales)}<td class="tot">${nf(sumN(d.sales))}</td></tr>
-      <tr><td class="lbl">経費計</td>${col(d.costTot)}<td class="tot">${nf(sumN(d.costTot))}</td></tr>
+      <tr><td class="lbl">累計経費（①〜⑧）</td>${col(d.costTot)}<td class="tot">${nf(sumN(d.costTot))}</td></tr>
+      ${cRow(0,'①償却資産税')}${cRow(1,'②固定資産税')}${cRow(2,'③管理費')}${cRow(3,'④パワコン電気代')}
+      ${cRow(4,'⑤土地賃料')}${cRow(5,'⑥寄付金')}${cRow(6,'⑦休業保険')}${cRow(7,'⑧動産補償')}
       <tr class="op"><td class="lbl">営業利益</td>${col(d.op)}<td class="tot">${nf(sumN(d.op))}</td></tr>
+      ${d.netYr?`<tr><td class="lbl">ネット利回り</td>${colp(d.netYr)}<td class="tot">—</td></tr>`:''}
       <tr><td class="lbl">即時償却費</td>${col(d.sokuji)}<td class="tot">${nf(sumN(d.sokuji))}</td></tr>
       <tr class="cum"><td class="lbl">累積CF（税引前）</td>${col(d.cumCf)}<td class="tot">${nf((d.cumCf&&d.cumCf[N-1])||0)}</td></tr>
-      <tr class="cum" style="background:#eaf6ee"><td class="lbl">税効果後CF累計(55%)</td>${col(d.taxCf55)}<td class="tot">${nf(taxCfFinal)}</td></tr>
+      <tr class="cum" style="background:#eaf6ee"><td class="lbl">税効果後CF累計(55%)</td>${col(d.taxCf55)}<td class="tot">${nf(taxCf55Final)}</td></tr>
+      ${d.taxCf33?`<tr class="cum" style="background:#f0f6ee"><td class="lbl">税効果後CF累計(33%)</td>${col(d.taxCf33)}<td class="tot">${nf(taxCf33Final)}</td></tr>`:''}
     </tbody></table>`;
-    const foot=`<div class="s-foot"><b>ご留意事項：</b>営農型太陽光の試算値であり、発電量・売電収入・税効果を保証するものではありません。累積CF・税効果後CFは「100%シミュレーション」の値です。税効果はお客様の所得状況（税率55%想定）により異なります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
+    const foot=`<div class="s-foot"><b>ご留意事項：</b>営農型太陽光の試算値であり、発電量・売電収入・税効果を保証するものではありません。損益・キャッシュフロー・税効果後CFは「100%シミュレーション」の値です。税効果はお客様の所得状況（税率55%／33%想定）により異なり、償却資産税の免税申請等はお客様ご自身の手続きとなります。出力抑制・パネル劣化(年0.5%)等の前提は変動します。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
     return `<div class="sheet">${head}${spec}${kpis}${tbl}${foot}</div>`;
   }
   // ---- フォールバック（詳細未取込：概算） ----
@@ -739,10 +782,13 @@ function importSolarDetail(wb){
   const yearCols=[];for(let c=2;c<=rng.e.c;c++){const cell=ws[enc(periodRow,c)];const v=cell&&cell.v;if(typeof v==='number'&&v>=1)yearCols.push(c);}
   if(!yearCols.length)return null;
   const rr=pred=>{const r=findRow(pred);if(r<0)return null;return yearCols.map(c=>{const cell=ws[enc(r,c)];return cell?Math.round(num(cell.v)):0;});};
+  const rrRaw=pred=>{const r=findRow(pred);if(r<0)return null;return yearCols.map(c=>{const cell=ws[enc(r,c)];return cell?num(cell.v):0;});};
   return {years:yearCols.length,
+    gen:rr(t=>/日射ロス考慮.*発電量/.test(t)||t==='想定発電量(kWh)'),
     sales:rr(t=>t==='売上高'),costTot:rr(t=>t==='累計経費'),op:rr(t=>/営業利益額/.test(t)),
+    netYr:rrRaw(t=>t==='ネット利回り'),
     sokuji:rr(t=>t==='即時償却費'),preTax:rr(t=>t==='税前当期利益'),
-    cumCf:rr(t=>t==='累計キャッシュフロー'),taxCf55:rr(t=>/税効果後CF.*55/.test(t)),
+    cumCf:rr(t=>t==='累計キャッシュフロー'),taxCf55:rr(t=>/税効果後CF.*55/.test(t)),taxCf33:rr(t=>/税効果後CF.*33/.test(t)),
     c:[rr(t=>/①.*償却資産税/.test(t)),rr(t=>/②.*固定資産税/.test(t)),rr(t=>/③.*管理費/.test(t)),rr(t=>/④.*電気代/.test(t)),rr(t=>/⑤.*土地賃料/.test(t)),rr(t=>/⑥.*寄付金/.test(t)),rr(t=>/⑦.*休業保険/.test(t)),rr(t=>/⑧.*動産補償/.test(t))]};
 }
 function num_(v){if(v==null||v==='')return 0;const n=parseFloat(String(v).replace(/[,¥%\s円]/g,''));return isNaN(n)?0:n;}
@@ -763,11 +809,14 @@ function importSolarWorkbook(wb){
   const price=Math.round(num_(rightOf(/設備価格（税込）/)));
   const surfaceY=num_(rightOf(/^表面利回り/))/100;
   const taxY=num_(rightOf(/税効果利回り/))/100;
+  let tax33=0;
+  for(const n of wb.SheetNames){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;const rg=XLSX.utils.decode_range(w['!ref']);
+    for(let r=rg.s.r;r<=Math.min(rg.e.r,60);r++)for(let c=rg.s.c;c<=Math.min(rg.e.c,16);c++){const cell=w[enc(r,c)];if(cell&&/税効果利回り（?\s*33/.test(String(cell.v))){for(let cc=c+1;cc<=rg.e.c;cc++){const v=w[enc(r,cc)];if(v&&typeof v.v==='number'){tax33=v.v>1?v.v/100:v.v;break;}}}}}
   let name='';
   for(let r=rng.s.r;r<=Math.min(rng.e.r,10)&&!name;r++)for(let c=rng.s.c;c<=rng.e.c;c++){const cell=ws[enc(r,c)];if(cell&&typeof cell.v==='string'){const t=cell.v.replace(/\n/g,'').trim();if(/（.+）/.test(t)&&t.length>6&&!/種類|商品|概要|注意|オプション|所在地|追記|アースコム/.test(t)){name=t;break;}}}
   return {on:true,name:name||'営農型太陽光',price:price,priceEx:Math.round(price/1.1),
     capDC:num_(rightOf(/発電容量/)),gen1:Math.round(num_(rightOf(/年間想定発電量/))),
-    saleY1:Math.round(num_(rightOf(/年間想定売電収入/))),surfaceY:surfaceY,netY:netY||surfaceY*0.75,taxY:taxY,deg:0.005,term:20};
+    saleY1:Math.round(num_(rightOf(/年間想定売電収入/))),surfaceY:surfaceY,netY:netY||surfaceY*0.75,taxY:taxY,tax33:tax33,deg:0.005,term:20};
 }
 function isBatteryWB(wb){const enc=(r,c)=>XLSX.utils.encode_cell({r,c});for(const n of wb.SheetNames){const w=wb.Sheets[n];if(!w||!w['!ref'])continue;const rg=XLSX.utils.decode_range(w['!ref']);for(let r=rg.s.r;r<=Math.min(rg.e.r,400);r++){const cA=w[enc(r,0)];if(cA&&String(cA.v).trim()==='スポット市場')return true;}}return false;}
 /* ---- 太陽光＋蓄電池 セット合算 ---- */
@@ -863,6 +912,7 @@ $('#bNew').onclick=newProj;$('#bDup').onclick=dupProj;$('#bDel').onclick=delProj
 $('#bExport').onclick=exportJSON;$('#bImport').onclick=()=>$('#fileImp').click();
 $('#fileImp').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';};
 $('#bSheet').onclick=openSheet;$('#ovClose').onclick=closeSheet;$('#ovPrint').onclick=()=>window.print();
+$('#ovScale').onchange=e=>{$('#proot').style.setProperty('--pscale',e.target.value);};
 $('#pCancel').onclick=()=>$('#pasteModal').classList.remove('show');$('#pApply').onclick=applyBulkPaste;
 $('#pasteModal').onclick=e=>{if(e.target.id==='pasteModal')$('#pasteModal').classList.remove('show');};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();$('#pasteModal').classList.remove('show');}});
