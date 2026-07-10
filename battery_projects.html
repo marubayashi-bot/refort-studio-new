@@ -199,6 +199,26 @@ table.st tr.cum td{background:#faf6ec}
 #syncModal label{display:block;font-size:12px;font-weight:700;color:var(--navy2);margin:10px 0 4px}
 #syncModal input{width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:7px;font:inherit;font-size:13px}
 #syncModal .st{font-size:12.5px;font-weight:700;margin-top:8px}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+.nav-tabs{display:flex;gap:4px;padding:0 18px;background:var(--navy,#0d2340);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav-tabs button{background:none;border:none;color:#9fb0c4;font-weight:700;font-size:13px;padding:11px 16px;cursor:pointer;border-bottom:2.5px solid transparent}
+.nav-tabs button.on{color:#fff;border-bottom-color:var(--gold,#c8a24a)}
+.nav-tabs button:hover{color:#fff}
+.listwrap{max-width:1200px;margin:0 auto;padding:18px}
+.ltable{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.ltable th,.ltable td{padding:9px 11px;text-align:right;border-bottom:1px solid #eef2f7}
+.ltable th{background:var(--navy,#0d2340);color:#fff;font-weight:600;font-size:12px;position:sticky;top:0}
+.ltable td.l,.ltable th.l{text-align:left}
+.ltable tbody tr{cursor:pointer}
+.ltable tbody tr:hover{background:#f5f9ff}
+.ltable .nm{font-weight:700;color:var(--navy,#0d2340)}
+.badge-set{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;background:#e8f3ea;color:#1c6b34}
+.badge-solo{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;background:#eef2f7;color:#5a6a7c}
+#mapView{height:calc(100vh - 150px);min-height:480px}
+.map-pop b{color:#0d2340}
+.map-pop button{margin-top:6px;padding:4px 10px;border:1px solid #c8a24a;background:#f6edd6;border-radius:6px;font-weight:700;cursor:pointer}
 </style></head>
 <body>
 <header class="top">
@@ -218,6 +238,11 @@ table.st tr.cum td{background:#faf6ec}
     <button class="btn btn-gold" id="bSheet">📄 提案シート</button>
   </div>
 </header>
+<nav class="nav-tabs">
+  <button data-view="sim" class="on">🧮 シミュレーター</button>
+  <button data-view="list">📋 案件一覧</button>
+  <button data-view="map">🗺 マップ</button>
+</nav>
 <main id="app"></main>
 
 <div class="toast" id="toast"></div>
@@ -265,6 +290,7 @@ table.st tr.cum td{background:#faf6ec}
   <div id="proot"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 'use strict';
 (function(){
@@ -384,6 +410,55 @@ function renderProjSel(){
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
+let curView='sim';
+function render(){ if(curView==='list')renderList(); else if(curView==='map')renderMap(); else renderApp(); }
+function setView(v){ curView=v; document.querySelectorAll('.nav-tabs button').forEach(b=>b.classList.toggle('on',b.dataset.view===v)); render(); }
+function openProjFromList(id){ const p=DB.projects.find(x=>x.id===id); if(!p)return; P=p; DB.curId=P.id; write(DB); renderProjSel(); setView('sim'); }
+window.openProjFromList=openProjFromList;
+const PREF={'北海道':[43.06,141.35],'青森':[40.82,140.74],'岩手':[39.70,141.15],'宮城':[38.27,140.87],'秋田':[39.72,140.10],'山形':[38.24,140.36],'福島':[37.75,140.47],'茨城':[36.34,140.45],'栃木':[36.57,139.88],'群馬':[36.39,139.06],'埼玉':[35.86,139.65],'千葉':[35.61,140.12],'東京':[35.69,139.69],'神奈川':[35.45,139.64],'新潟':[37.90,139.02],'富山':[36.70,137.21],'石川':[36.59,136.63],'福井':[36.07,136.22],'山梨':[35.66,138.57],'長野':[36.65,138.18],'岐阜':[35.39,136.72],'静岡':[34.98,138.38],'愛知':[35.18,136.91],'三重':[34.73,136.51],'滋賀':[35.00,135.87],'京都':[35.02,135.76],'大阪':[34.69,135.52],'兵庫':[34.69,135.18],'奈良':[34.69,135.83],'和歌山':[34.23,135.17],'鳥取':[35.50,134.24],'島根':[35.47,133.05],'岡山':[34.66,133.93],'広島':[34.40,132.46],'山口':[34.19,131.47],'徳島':[34.07,134.56],'香川':[34.34,134.04],'愛媛':[33.84,132.77],'高知':[33.56,133.53],'福岡':[33.61,130.42],'佐賀':[33.25,130.30],'長崎':[32.74,129.87],'熊本':[32.79,130.74],'大分':[33.24,131.61],'宮崎':[31.91,131.42],'鹿児島':[31.56,130.56],'沖縄':[26.21,127.68]};
+function prefOf(area){ if(!area)return null; area=String(area); for(const k in PREF){ if(area.indexOf(k)>=0)return PREF[k]; } return null; }
+function renderList(){
+  let h=`<div class="listwrap"><div class="page-h"><h1>案件一覧</h1><span class="sub">全${DB.projects.length}件</span></div>`;
+  h+=`<table class="ltable"><thead><tr>
+    <th class="l">案件名</th><th class="l">設置場所</th><th>容量(kWh)</th><th>PCS(kW)</th><th>投資額</th>
+    <th>表面利回り</th><th>ネット</th><th>IRR</th><th>回収</th><th>構成</th><th>更新</th></tr></thead><tbody>`;
+  DB.projects.forEach(p=>{ensureSolar(p);ensureMode(p);const c=compute(p),m=p.meta;
+    const set=(p.mode==='set'&&(+p.solar.price>0||+p.solar.saleY1>0));
+    const badge=set?'<span class="badge-set">セット</span>':'<span class="badge-solo">'+(p.mode==='solar'?'太陽光':'蓄電池')+'</span>';
+    h+=`<tr onclick="openProjFromList('${p.id}')">
+      <td class="l nm">${esc(p.name||'(無題)')}</td><td class="l">${esc(m.area||'')}</td>
+      <td>${nf(m.kwh)}</td><td>${nf(m.pcs)}</td><td>${yen(m.invest)}</td>
+      <td>${pct(c.surfaceY)}</td><td>${pct(c.netYAvg)}</td><td>${c.irr!=null?pct(c.irr):'—'}</td>
+      <td>${c.payback!=null?c.payback+'年':'—'}</td><td>${badge}</td>
+      <td>${p.updatedAt?new Date(p.updatedAt).toLocaleDateString('ja-JP'):'—'}</td></tr>`;
+  });
+  h+=`</tbody></table><div class="note" style="max-width:1200px;margin:10px auto 0">行をクリックするとその案件をシミュレーターで開きます。</div></div>`;
+  $('#app').innerHTML=h;
+}
+let _battMap=null;
+function renderMap(){
+  $('#app').innerHTML='<div id="mapView"></div>';
+  setTimeout(()=>{
+    if(typeof L==='undefined'){$('#mapView').innerHTML='<div style="padding:30px;color:#5a6a7c">地図ライブラリの読込に失敗しました（ネット接続をご確認ください）</div>';return;}
+    if(_battMap){try{_battMap.remove();}catch(e){} _battMap=null;}
+    const map=L.map('mapView').setView([37.8,138.2],5); _battMap=map;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+    const seen={},pts=[];
+    DB.projects.forEach(p=>{const base=prefOf(p.meta.area);if(!base)return;ensureMode(p);
+      const n=(seen[p.meta.area]=(seen[p.meta.area]||0)+1);const off=(n-1)*0.09;
+      const lat=base[0]+off*Math.cos(n*2.2),lng=base[1]+off*Math.sin(n*2.2);
+      const c=compute(p),set=(p.mode==='set');
+      const col=set?'#1c6b34':(p.mode==='solar'?'#b8860b':'#0d2340');
+      const mk=L.circleMarker([lat,lng],{radius:8,fillColor:col,color:'#fff',weight:2,fillOpacity:.9}).addTo(map);
+      mk.bindPopup(`<div class="map-pop"><b>${esc(p.name||'(無題)')}</b><br>${esc(p.meta.area||'')}｜容量 ${nf(p.meta.kwh)}kWh<br>投資 ${yen(p.meta.invest)}／表面 ${pct(c.surfaceY)}／IRR ${c.irr!=null?pct(c.irr):'—'}<br><button onclick="openProjFromList('${p.id}')">この案件を開く</button></div>`);
+      pts.push([lat,lng]);
+    });
+    if(pts.length)map.fitBounds(pts,{padding:[50,50],maxZoom:8});
+    setTimeout(()=>map.invalidateSize(),120);
+    const noloc=DB.projects.filter(p=>!prefOf(p.meta.area)).length;
+    if(noloc){const d=L.control({position:'bottomleft'});d.onAdd=()=>{const el=L.DomUtil.create('div');el.style.cssText='background:#fff;padding:6px 10px;border-radius:6px;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.2)';el.textContent='設置場所（都道府県）未設定：'+noloc+'件（地図に非表示）';return el;};d.addTo(map);}
+  },60);
+}
 function renderApp(){
   const c=compute(P),m=P.meta;
   ensureSolar(P); ensureMode(P);
@@ -810,12 +885,12 @@ function openSheet(){$('#proot').innerHTML=buildSheet();const t=document.querySe
 function closeSheet(){$('#ov').classList.remove('show');document.body.style.overflow='';}
 
 /* ---------- project ops ---------- */
-function switchProj(id){P=DB.projects.find(p=>p.id===id)||P;DB.curId=P.id;write(DB);renderProjSel();renderApp();}
+function switchProj(id){P=DB.projects.find(p=>p.id===id)||P;DB.curId=P.id;write(DB);renderProjSel();setView('sim');}
 function newProj(){const p=sample();p.id=uid();p.name='新規蓄電所案件';
   // blank arrays
   Object.keys(p.rows).forEach(k=>p.rows[k]=Array.from({length:p.meta.term},(_, i)=>k==='cap'?(i===0?0:240000):0));
-  DB.projects.unshift(p);DB.curId=p.id;write(DB);P=p;renderProjSel();renderApp();toast('新規案件を作成しました');}
-function dupProj(){const c=JSON.parse(JSON.stringify(P));c.id=uid();c.name=(P.name||'案件')+'（複製）';DB.projects.unshift(c);DB.curId=c.id;write(DB);P=c;renderProjSel();renderApp();toast('複製しました');}
+  DB.projects.unshift(p);DB.curId=p.id;write(DB);P=p;renderProjSel();setView('sim');toast('新規案件を作成しました');}
+function dupProj(){const c=JSON.parse(JSON.stringify(P));c.id=uid();c.name=(P.name||'案件')+'（複製）';DB.projects.unshift(c);DB.curId=c.id;write(DB);P=c;renderProjSel();setView('sim');toast('複製しました');}
 function delProj(){if(DB.projects.length<=1){toast('最後の案件は削除できません');return;}
   if(!confirm('「'+(P.name||'(無題)')+'」を削除しますか？'))return;
   DB.projects=DB.projects.filter(p=>p.id!==P.id);P=DB.projects[0];DB.curId=P.id;write(DB);renderProjSel();renderApp();toast('削除しました');}
@@ -949,13 +1024,13 @@ function handleXlsxFile(file){
         const proj=Object.assign({id:uid(),updatedAt:Date.now()},base);
         ensureSolar(proj); proj.mode='battery';
         DB.projects.push(proj);DB.curId=proj.id;P=proj;write(DB);
-        renderProjSel();renderApp();
+        renderProjSel();setView('sim');
         toast('蓄電池Excelから取込：'+proj.name+'（'+proj.meta.term+'年分）');
       }else{
         const solar=importSolarWorkbook(wb);
         solar.detail=importSolarDetail(wb)||null;
         ensureSolar(P); P.solar=solar; P.mode='set'; P.updatedAt=Date.now(); write(DB);
-        renderApp();
+        setView('sim');
         toast('太陽光をセットに取込：'+solar.name+'（表面'+(solar.surfaceY*100).toFixed(1)+'%'+(solar.detail?'／詳細CF取込済':'')+'）');
       }
     }catch(err){toast('取込エラー：'+(err.message||err));}
@@ -1025,6 +1100,7 @@ $('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast(
   if(sb){st.textContent='✅ 接続しました（社内共有を開始）';st.style.color='#1f8a55';toast('クラウド共有を開始しました');}
   else{st.textContent='⚠ 接続できませんでした。URL・key・テーブル作成をご確認ください';st.style.color='#c0392b';}};
 
+document.querySelectorAll('.nav-tabs button').forEach(b=>b.onclick=()=>setView(b.dataset.view));
 renderProjSel();renderApp();
 initCloud();
 })();
