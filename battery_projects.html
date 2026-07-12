@@ -48,6 +48,7 @@ main{max-width:1280px;margin:0 auto;padding:20px 22px 60px}
 .sync-btn{flex:0 0 auto;white-space:nowrap;padding:6px 11px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;border:1px solid var(--line2)}
 .sync-btn.pull{background:#173d2a;color:#bff0d3;border-color:#173d2a}
 .sync-btn.push{background:#f6edd6;color:#0d2340;border-color:#c8a24a}
+.sync-btn.open{background:#eef2f7;color:#0d2340;border-color:#c7d2df}
 .sync-btn:hover{filter:brightness(1.08)}
 .fld>label{width:130px;flex:0 0 130px;font-size:12px;color:var(--ink);font-weight:600}
 .fld .ctrl{flex:1;min-width:90px;display:flex;align-items:center;gap:6px}
@@ -576,6 +577,9 @@ function renderApp(){
         <button type="button" class="sync-btn pull" id="bSyncPull">⭳ 読込</button>
         <button type="button" class="sync-btn push" id="bSyncPush">⭱ 書出</button></div></div>
       <div class="note" style="margin:2px 0 6px">「お客様向け提案」シートに中継GASを設置→URLを貼付。読込＝シート→アプリ／書出＝アプリ→シート（確認あり）。</div>
+      <div class="fld"><label>蓄電池シートURL</label><div class="ctrl sync-ctrl">
+        <input data-p="sheetUrl" type="url" value="${esc(P.sheetUrl||'')}" placeholder="スプレッドシートのURLを貼付">
+        <button type="button" class="sync-btn open" id="bOpenSheetUrl">🔗 開く</button></div></div>
       <div class="sub-h">設備・投資</div>
       ${fldM('kwh','蓄電池容量','num','kWh',m.kwh)}
       ${fldM('pcs','パワコン出力','num','kW',m.pcs)}
@@ -609,6 +613,9 @@ function renderApp(){
       <button type="button" class="sync-btn pull" id="sSyncPull">⭳ 読込</button>
       <button type="button" class="sync-btn push" id="sSyncPush">⭱ 書出</button></div></div>
     <div class="note" style="margin:2px 0 6px">「概要書」「100%シミュレーション」シートに中継GASを設置→URLを貼付。読込＝シート→アプリ（詳細CFも取得）。</div>
+    <div class="fld"><label>太陽光シートURL</label><div class="ctrl sync-ctrl">
+      <input data-s="sheetUrl" type="url" value="${esc(s.sheetUrl||'')}" placeholder="スプレッドシートのURLを貼付">
+      <button type="button" class="sync-btn open" id="sOpenSheetUrl">🔗 開く</button></div></div>
     <div class="grid2" style="margin-top:8px">
       <div>
         ${fldS('name','物件名','text','',s.name)}
@@ -686,9 +693,12 @@ function wireApp(){
   const bpu=$('#bSyncPush'); if(bpu)bpu.onclick=battSyncPush;
   const sp=$('#sSyncPull'); if(sp)sp.onclick=solarSyncPull;
   const spu=$('#sSyncPush'); if(spu)spu.onclick=solarSyncPush;
+  const openUrl=u=>{u=(u||'').trim();if(!u){toast('スプレッドシートURLを入力してください');return;}if(!/^https?:\/\//.test(u)){toast('URLは https:// から始めてください');return;}window.open(u,'_blank','noopener');};
+  const bo=$('#bOpenSheetUrl'); if(bo)bo.onclick=()=>openUrl(P.sheetUrl);
+  const so=$('#sOpenSheetUrl'); if(so)so.onclick=()=>openUrl(P.solar&&P.solar.sheetUrl);
   const sonEl=$('[data-son]'); if(sonEl)sonEl.onchange=e=>{P.solar.on=e.target.checked;saveP();renderApp();};
   $$('[data-s]').forEach(i=>i.oninput=e=>{const k=i.dataset.s,val=e.target.value;
-    if(k==='name'||k==='syncUrl'){P.solar[k]=val;}
+    if(k==='name'||k==='syncUrl'||k==='sheetUrl'){P.solar[k]=val;}
     else if(k==='surfaceY'||k==='netY'||k==='taxY'||k==='deg'){P.solar[k]=numv(val)/100;}
     else if(k==='price'){P.solar.price=numv(val);P.solar.priceEx=Math.round(numv(val)/1.1);}
     else{P.solar[k]=numv(val);}
