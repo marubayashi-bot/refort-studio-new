@@ -459,6 +459,56 @@ function renderMap(){
     if(noloc){const d=L.control({position:'bottomleft'});d.onAdd=()=>{const el=L.DomUtil.create('div');el.style.cssText='background:#fff;padding:6px 10px;border-radius:6px;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.2)';el.textContent='設置場所（都道府県）未設定：'+noloc+'件（地図に非表示）';return el;};d.addTo(map);}
   },60);
 }
+/* ==================== 太陽光 スプレッドシート連携（GAS） ==================== */
+async function solarSyncPull(){
+  ensureSolar(P);
+  const url=(P.solar.syncUrl||'').trim();
+  if(!url){toast('太陽光の連携URL（GAS）を入力してください');return;}
+  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  toast('太陽光シートから読込中…');
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(BSYNC_TOKEN),{method:'GET',redirect:'follow'});
+    const txt=await res.text(); let j=null; try{j=JSON.parse(txt);}catch(_){}
+    if(!j){ if(/<html|<!doctype|accounts\.google|ログイン|sign ?in/i.test(txt))toast('読込失敗：GASを「アクセス：全員」で再デプロイしてください');else toast('読込失敗：GASの応答が不正です');return;}
+    if(!j.ok){toast('読込失敗：'+(j.error||'GAS側エラー'));return;}
+    const d=j.data||{}, s=P.solar;
+    if(d.name)s.name=d.name;
+    if(d.price!=null){s.price=Math.round(+d.price);s.priceEx=Math.round(+d.price/1.1);}
+    if(d.capDC!=null)s.capDC=+d.capDC;
+    if(d.gen1!=null)s.gen1=Math.round(+d.gen1);
+    if(d.saleY1!=null)s.saleY1=Math.round(+d.saleY1);
+    if(d.surfaceY!=null)s.surfaceY=(+d.surfaceY>1?+d.surfaceY/100:+d.surfaceY);
+    if(d.taxY!=null)s.taxY=(+d.taxY>1?+d.taxY/100:+d.taxY);
+    if(d.tax33!=null)s.tax33=(+d.tax33>1?+d.tax33/100:+d.tax33);
+    if(d.detail&&d.detail.sales){
+      s.detail=d.detail; s.detail.years=s.detail.years||(d.detail.sales||[]).length;
+      applyMgmtTax(s.detail);
+      const base=s.price||0;
+      if(base&&s.detail.op){s.detail.netYr=s.detail.op.map(v=>v/base);s.netY=s.detail.netYr[0]||s.netY;}
+    }
+    s.on=true; if(!P.mode||P.mode==='battery')P.mode='set';
+    saveP(); renderApp();
+    toast('太陽光シートから読み込みました'+(s.detail?'（詳細CF込み）':''));
+  }catch(e){toast('読込エラー：GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください');}
+}
+async function solarSyncPush(){
+  ensureSolar(P);
+  const url=(P.solar.syncUrl||'').trim();
+  if(!url){toast('太陽光の連携URL（GAS）を入力してください');return;}
+  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  if(!confirm('アプリの太陽光内容で、スプレッドシートを上書きします。\nよろしいですか？'))return;
+  const s=P.solar;
+  const data={name:s.name,price:s.price,capDC:s.capDC,gen1:s.gen1,saleY1:s.saleY1,
+    surfaceY:s.surfaceY,netY:s.netY,taxY:s.taxY,tax33:s.tax33};
+  toast('太陽光シートへ書出中…');
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},redirect:'follow',body:JSON.stringify({token:BSYNC_TOKEN,data})});
+    const txt=await res.text(); let j=null; try{j=JSON.parse(txt);}catch(_){}
+    if(j&&j.ok)toast('太陽光シートへ書き出しました（'+((j.wrote||[]).length)+'項目）');
+    else if(j&&j.error)toast('書出失敗：'+j.error);
+    else toast('書出を送信しました（シートをご確認ください）');
+  }catch(e){toast('書出エラー：GASを「アクセス：全員」で再デプロイしてください');}
+}
 function renderApp(){
   const c=compute(P),m=P.meta;
   ensureSolar(P); ensureMode(P);
@@ -511,7 +561,7 @@ function renderApp(){
       ${kpi('太陽光 表面/税効果',pct(cs.solarSurface)+' / '+pct(cs.solarTax),'安定＋節税')}
       ${kpi('蓄電池 表面利回り',pct(cs.battSurface),'高利回り市場収益')}
     </div>
-    <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年FIT＋蓄電池${c.T}年市場収益）。提案シートは①蓄電池・②太陽光・③合算の3枚が出力されます。</div>`;
+    <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年（非FIT）＋蓄電池${c.T}年市場収益）。提案シートは①蓄電池・②太陽光・③合算の3枚が出力されます。</div>`;
   }
   // inputs
   h+=`<div class="sec-title">基本情報・前提</div><div class="grid2">
@@ -553,6 +603,12 @@ function renderApp(){
   h+=`<div class="sec-title">☀ 太陽光（セット）<span class="tip">「概要書」Excelをドロップで自動取込／下で編集可</span></div>
   <div class="card"><div class="card-b">
     <div class="fld"><label>セットに含める</label><div class="ctrl"><input type="checkbox" data-son="1" ${s.on?'checked':''}></div><span class="u">${s.on?'含める':'含めない'}</span></div>
+    <div class="sub-h">🔗 太陽光スプレッドシート連携（双方向）</div>
+    <div class="fld"><label>連携URL(GAS)</label><div class="ctrl sync-ctrl">
+      <input data-s="syncUrl" type="url" value="${esc(s.syncUrl||'')}" placeholder="太陽光シートのGAS URL（…/exec）を貼付">
+      <button type="button" class="sync-btn pull" id="sSyncPull">⭳ 読込</button>
+      <button type="button" class="sync-btn push" id="sSyncPush">⭱ 書出</button></div></div>
+    <div class="note" style="margin:2px 0 6px">「概要書」「100%シミュレーション」シートに中継GASを設置→URLを貼付。読込＝シート→アプリ（詳細CFも取得）。</div>
     <div class="grid2" style="margin-top:8px">
       <div>
         ${fldS('name','物件名','text','',s.name)}
@@ -565,7 +621,7 @@ function renderApp(){
         ${fldS('surfaceY','表面利回り','num','%（例7.0）',(s.surfaceY*100).toFixed(2))}
         ${fldS('netY','ネット利回り','num','%',(s.netY*100).toFixed(2))}
         ${fldS('taxY','税効果利回り','num','%',(s.taxY*100).toFixed(2))}
-        ${fldS('term','FIT期間','num','年',s.term)}
+        ${fldS('term','事業期間','num','年',s.term)}
         ${fldS('deg','劣化率','num','%/年',(s.deg*100).toFixed(2))}
       </div>
     </div>
@@ -628,9 +684,11 @@ function wireApp(){
   const modeEl=$('#modeSel'); if(modeEl)modeEl.onchange=e=>{P.mode=e.target.value;saveP();renderApp();};
   const bp=$('#bSyncPull'); if(bp)bp.onclick=battSyncPull;
   const bpu=$('#bSyncPush'); if(bpu)bpu.onclick=battSyncPush;
+  const sp=$('#sSyncPull'); if(sp)sp.onclick=solarSyncPull;
+  const spu=$('#sSyncPush'); if(spu)spu.onclick=solarSyncPush;
   const sonEl=$('[data-son]'); if(sonEl)sonEl.onchange=e=>{P.solar.on=e.target.checked;saveP();renderApp();};
   $$('[data-s]').forEach(i=>i.oninput=e=>{const k=i.dataset.s,val=e.target.value;
-    if(k==='name'){P.solar.name=val;}
+    if(k==='name'||k==='syncUrl'){P.solar[k]=val;}
     else if(k==='surfaceY'||k==='netY'||k==='taxY'||k==='deg'){P.solar[k]=numv(val)/100;}
     else if(k==='price'){P.solar.price=numv(val);P.solar.priceEx=Math.round(numv(val)/1.1);}
     else{P.solar[k]=numv(val);}
@@ -710,12 +768,13 @@ function solarSheetHTML(){
   const d=s.detail;
   const head=`<div class="s-head"><div class="L"><div class="mk">②</div>
     <div><div class="ttl">② 営農型太陽光発電 収支シミュレーション</div>
-    <div class="sub">${esc(s.name||'')} ｜ 発電容量 ${nf(s.capDC)} kW ｜ 20年FIT売電</div></div></div>
+    <div class="sub">${esc(s.name||'')} ｜ 発電容量 ${nf(s.capDC)} kW ｜ 非FIT（20年事業）</div></div></div>
     <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}</div></div>`;
   const spec=`<div class="s-spec">
     <span class="chip">発電容量(DC)<b>${nf(s.capDC)} kW</b></span>
     <span class="chip">年間発電量<b>${nf(s.gen1)} kWh</b></span>
-    <span class="chip">FIT期間<b>20 年</b></span>
+    <span class="chip">売電区分<b>非FIT</b></span>
+    <span class="chip">事業期間<b>20 年</b></span>
     <span class="chip">土地<b>賃貸</b></span>
     <span class="chip nv">設備価格(税込)<b>${nf(s.price)} 円</b></span>
     <span class="chip nv">設備価格(税抜)<b>${nf(s.priceEx)} 円</b></span></div>`;
@@ -807,7 +866,7 @@ function setSheetHTML(c,cs){
     ${row('事業期間',(s.term||20)+' 年',c.T+' 年','—')}
     ${row('投資回収年数','—','—',cs.payback!=null?cs.payback+' 年':'—')}
   </tbody></table>
-  <div class="s-note-box">安定してキャッシュを生む<b>営農型太陽光（表面${pct(cs.solarSurface)}・税効果${pct(cs.solarTax)}）</b>に、高利回りの<b>系統蓄電池（表面${pct(cs.battSurface)}）</b>を組み合わせることで、<b>総合表面利回り${pct(cs.setSurface)}</b>の投資パッケージとなります。太陽光は20年FITの安定収入と節税効果、蓄電池は市場収益による高利回りと、性格の異なる2資産でリスク分散が図れます。</div>`;
+  <div class="s-note-box">安定してキャッシュを生む<b>営農型太陽光（表面${pct(cs.solarSurface)}・税効果${pct(cs.solarTax)}）</b>に、高利回りの<b>系統蓄電池（表面${pct(cs.battSurface)}）</b>を組み合わせることで、<b>総合表面利回り${pct(cs.setSurface)}</b>の投資パッケージとなります。太陽光は20年間（非FIT）の安定収入と節税効果、蓄電池は市場収益による高利回りと、性格の異なる2資産でリスク分散が図れます。</div>`;
   const foot=`<div class="s-foot"><b>ご留意事項：</b>本セット試算は、別々の低圧連系を投資パッケージとして合算したものです。各数値は前提に基づく試算値であり保証するものではありません。税効果はお客様の所得状況により異なります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
   return `<div class="sheet">${head}${kpis}${cmp}${foot}</div>`;
 }
@@ -929,6 +988,22 @@ function importSolarDetail(wb){
     cumCf:rr(t=>t==='累計キャッシュフロー'),taxCf55:rr(t=>/税効果後CF.*55/.test(t)),taxCf33:rr(t=>/税効果後CF.*33/.test(t)),
     c:[rr(t=>/①.*償却資産税/.test(t)),rr(t=>/②.*固定資産税/.test(t)),rr(t=>/③.*管理費/.test(t)),rr(t=>/④.*電気代/.test(t)),rr(t=>/⑤.*土地賃料/.test(t)),rr(t=>/⑥.*寄付金/.test(t)),rr(t=>/⑦.*休業保険/.test(t)),rr(t=>/⑧.*動産補償/.test(t))]};
 }
+/* 管理費は税抜で入っているため税込(×1.1)へ補正し、累計経費・営業利益・CFを再計算 */
+function applyMgmtTax(d){
+  if(!d||!d.c||!d.c[2])return d;
+  const mg=d.c[2], N=d.years, delta=[];
+  for(let t=0;t<N;t++){const ex=+mg[t]||0;const incl=Math.round(ex*1.1);delta.push(incl-ex);mg[t]=incl;}
+  const bump=(arr,sign)=>{if(!arr)return;for(let t=0;t<N;t++)arr[t]=Math.round((+arr[t]||0)+sign*delta[t]);};
+  const bumpCum=(arr,sign)=>{if(!arr)return;let run=0;for(let t=0;t<N;t++){run+=delta[t];arr[t]=Math.round((+arr[t]||0)+sign*run);}};
+  bump(d.costTot,+1);          // 経費は増える
+  bump(d.op,-1);               // 営業利益は減る
+  bump(d.preTax,-1);
+  bumpCum(d.cumCf,-1);         // 累計CFは累積で減る
+  bumpCum(d.taxCf55,-1);
+  bumpCum(d.taxCf33,-1);
+  if(d.netYr&&d.opInvEx){}     // netYrは下で再計算
+  return d;
+}
 function num_(v){if(v==null||v==='')return 0;const n=parseFloat(String(v).replace(/[,¥%\s円]/g,''));return isNaN(n)?0:n;}
 function importSolarWorkbook(wb){
   const enc=(r,c)=>XLSX.utils.encode_cell({r,c});
@@ -1029,6 +1104,14 @@ function handleXlsxFile(file){
       }else{
         const solar=importSolarWorkbook(wb);
         solar.detail=importSolarDetail(wb)||null;
+        if(solar.detail){
+          applyMgmtTax(solar.detail);
+          const base=solar.price||0;   // Excelのネット利回りは税込設備価格ベース
+          if(base&&solar.detail.op){
+            solar.detail.netYr=solar.detail.op.map(v=>v/base);
+            solar.netY=solar.detail.netYr[0]||solar.netY;
+          }
+        }
         ensureSolar(P); P.solar=solar; P.mode='set'; P.updatedAt=Date.now(); write(DB);
         setView('sim');
         toast('太陽光をセットに取込：'+solar.name+'（表面'+(solar.surfaceY*100).toFixed(1)+'%'+(solar.detail?'／詳細CF取込済':'')+'）');
