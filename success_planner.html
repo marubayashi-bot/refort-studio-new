@@ -420,8 +420,9 @@ details.sec .body{padding:12px 14px;}
     <div class="row">
       <button class="addbtn" onclick="addSched()">＋ 予定を追加</button>
       <button class="addbtn ghost" onclick="fillSchedTemplate()">🗂 7:00〜21:00の枠を作成</button>
+      <button class="goldbtn" onclick="importCalendar()">📥 Googleカレンダー取得</button>
     </div>
-    <div class="hint">Googleカレンダー連携はフェーズ3で対応予定。当面は枠作成ボタン→予定の貼り付けで運用してください。</div>
+    <div class="hint">カレンダー取得には「目的・目標」タブの外部連携設定が必要です。取得した予定にゴールイメージとGIVEを書き足してください。</div>
   </div>
 </div>
 
@@ -438,8 +439,11 @@ details.sec .body{padding:12px 14px;}
   <div class="card">
     <h2>人生の成功を加速させるアクション <span class="mini">実行時間・結果・次に活かすこと</span></h2>
     <div id="actList"></div>
-    <button class="addbtn" onclick="addAction()">＋ アクションを追加</button>
-    <div class="hint">未着手・実行中・保留のまま日付が変わると、翌日のホームに「昨日からの引継ぎ」として表示されます。</div>
+    <div class="row">
+      <button class="addbtn" onclick="addAction()">＋ アクションを追加</button>
+      <button class="goldbtn" onclick="importTasks()">📥 Google ToDo取得</button>
+    </div>
+    <div class="hint">未着手・実行中・保留のまま日付が変わると、翌日のホームに「昨日からの引継ぎ」として表示されます。Google ToDoから取り込んだタスクは、ここで完了にするとGoogle側も完了になります。</div>
   </div>
 </div>
 
@@ -588,6 +592,19 @@ details.sec .body{padding:12px 14px;}
     <div class="lbl">🎯 フォーカスKPI（最大2個。達成の鍵となる数字だけを追う）</div>
     <div class="hint" style="margin-bottom:6px">名前／単位／目標値を設定。実績はホーム画面からいつでも更新できます。</div>
     <div id="kpiEdit"></div>
+  </div>
+
+  <div class="card">
+    <h2>外部連携 <span class="mini">Googleカレンダー・Google ToDo（GAS経由・丸林さんのアカウントのみ）</span></h2>
+    <div class="lbl">GAS ウェブアプリURL</div>
+    <input type="text" id="ig_url" style="width:100%" placeholder="https://script.google.com/macros/s/XXXX/exec" onchange="updInteg()">
+    <div class="lbl">合言葉（GASコード内のTOKENと同じ文字列）</div>
+    <input type="text" id="ig_token" style="width:100%" placeholder="例：earthcom2026" onchange="updInteg()">
+    <div class="row" style="margin-top:10px">
+      <button class="addbtn ghost" onclick="testInteg()">🔌 接続テスト</button>
+      <span class="hint" id="igStatus"></span>
+    </div>
+    <div class="hint" style="margin-top:8px">設定手順は「連携セットアップ手順」の資料を参照してください。設定後、スケジュール画面に「📥 カレンダー取得」、アクション画面に「📥 ToDo取得」ボタンが有効になります。アプリでアクションを完了にすると、Google ToDo側も自動で完了になります。</div>
   </div>
 
   <div class="card">
@@ -823,6 +840,7 @@ async function boot(){
   if(!profile.breakthrough)profile.breakthrough=dp.breakthrough;
   if(!profile.focusKpi)profile.focusKpi=dp.focusKpi;
   profile.focusKpi.forEach(k=>{if(!k.hist)k.hist=[];});
+  if(!profile.integ)profile.integ={gasUrl:'',gasToken:''};
   problems=lsGet('problems')||[];
   const cpb=await cloudGet('problems');
   if(cpb)problems=cpb;
@@ -841,6 +859,8 @@ async function boot(){
   }
   buildProfileUI();buildQ6UI();buildPStepsUI();
   el('p_ns').value=profile.northStar||'';
+  el('ig_url').value=(profile.integ&&profile.integ.gasUrl)||'';
+  el('ig_token').value=(profile.integ&&profile.integ.gasToken)||'';
   buildBgEdit();buildKpiEdit();
   renderLife();
   await loadDay(curDate);
@@ -959,7 +979,7 @@ function renderActions(){
   });
 }
 function addAction(pre){day.actions.push(Object.assign({time:'',action:'',result:'',learn:'',status:'未着手'},pre||{}));renderActions();markDirty();updateStats();}
-function updAct(i,k,v){day.actions[i][k]=v;if(k==='status')renderActions();markDirty();updateStats();}
+function updAct(i,k,v){day.actions[i][k]=v;if(k==='status'){renderActions();if(v==='完了')syncTaskComplete(day.actions[i]);}markDirty();updateStats();}
 function delAct(i){day.actions.splice(i,1);renderActions();markDirty();updateStats();}
 
 /* ---- carryover ---- */
@@ -1461,6 +1481,78 @@ function renderNextPlan(){
   el('n_goal').value=n.goal||'';
   el('n_ka1').value=n.ka[0]||'';el('n_ka2').value=n.ka[1]||'';el('n_ka3').value=n.ka[2]||'';
   el('n_prep').value=n.prep||'';
+}
+
+/* ================= Google integration (GAS) ================= */
+function integOK(){return profile.integ&&profile.integ.gasUrl&&/^https:\/\/script\.google\.com\//.test(profile.integ.gasUrl);}
+function updInteg(){
+  profile.integ={gasUrl:el('ig_url').value.trim(),gasToken:el('ig_token').value.trim()};
+  lsSet('profile',profile);cloudSet('profile',profile);
+}
+async function gasGet(params){
+  const u=profile.integ.gasUrl+'?token='+encodeURIComponent(profile.integ.gasToken||'')+'&'+params;
+  const r=await fetch(u,{redirect:'follow'});
+  const j=await r.json();
+  if(j.error)throw new Error(j.error);
+  return j;
+}
+async function gasPost(body){
+  body.token=profile.integ.gasToken||'';
+  const r=await fetch(profile.integ.gasUrl,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(j.error)throw new Error(j.error);
+  return j;
+}
+async function testInteg(){
+  updInteg();
+  if(!integOK()){el('igStatus').textContent='❌ URLの形式が正しくありません';return;}
+  el('igStatus').textContent='接続中…';
+  try{
+    const j=await gasGet('mode=calendar&date='+curDate);
+    el('igStatus').textContent='✅ 接続成功（今日の予定 '+(j.events||[]).length+'件を確認）';
+  }catch(e){el('igStatus').textContent='❌ 接続失敗：'+(e.message==='unauthorized'?'合言葉が一致しません':e.message);}
+}
+async function importCalendar(){
+  if(!integOK()){toast('先に「目的・目標」タブで外部連携を設定してください');showTab('purpose');return;}
+  toast('カレンダーを取得しています…');
+  try{
+    const j=await gasGet('mode=calendar&date='+curDate);
+    const evs=j.events||[];
+    if(!evs.length){toast('今日の予定はありませんでした');return;}
+    let added=0;
+    evs.forEach(ev=>{
+      if(ev.id&&day.schedule.some(s=>s.gcalId===ev.id))return;
+      day.schedule.push({time:ev.allday?'':ev.start,plan:(ev.allday?'【終日】':'')+ev.title+(ev.allday?'':'（〜'+ev.end+'）'),goal:'',give:'',result:'',done:false,gcalId:ev.id||''});
+      added++;
+    });
+    day.schedule.sort((a,b)=>(a.time||'99')<(b.time||'99')?-1:1);
+    renderSched();markDirty();updateStats();
+    toast(added?added+'件の予定を取り込みました。ゴールとGIVEを書き足してください':'すべて取込済みです');
+  }catch(e){console.warn(e);toast('取得に失敗しました：'+e.message);}
+}
+async function importTasks(){
+  if(!integOK()){toast('先に「目的・目標」タブで外部連携を設定してください');showTab('purpose');return;}
+  toast('Google ToDoを取得しています…');
+  try{
+    const j=await gasGet('mode=tasks');
+    const ts=j.tasks||[];
+    if(!ts.length){toast('未完了のToDoはありませんでした');return;}
+    let added=0;
+    ts.forEach(t=>{
+      if(day.actions.some(a=>a.gtaskId===t.id))return;
+      day.actions.push({time:'',action:t.title+(t.notes?'｜'+t.notes:''),result:'',learn:'',status:'未着手',gtaskId:t.id,gtaskList:j.listId});
+      added++;
+    });
+    renderActions();markDirty();updateStats();
+    toast(added?added+'件のToDoを取り込みました':'すべて取込済みです');
+  }catch(e){console.warn(e);toast('取得に失敗しました：'+e.message);}
+}
+async function syncTaskComplete(a){
+  if(!a.gtaskId||!integOK())return;
+  try{
+    await gasPost({mode:'completeTask',listId:a.gtaskList,taskId:a.gtaskId});
+    toast('Google ToDo側も完了にしました');
+  }catch(e){console.warn(e);toast('Google ToDoの完了同期に失敗しました');}
 }
 
 /* ================= daily report copy ================= */
