@@ -365,12 +365,21 @@ function calcIRR(cf){let lo=-0.95,hi=3;const f=r=>cf.reduce((s,c,i)=>s+c/Math.po
 function saveP(){P.updatedAt=Date.now();write(DB);}
 /* ==================== スプレッドシート双方向連携（GAS） ==================== */
 const BSYNC_TOKEN='earthcom';
+/* GAS URLを自動整形：全角/半角スペース・改行除去、?token=…や余分なクエリを除去、/exec を正しく認識 */
+function normGasUrl(u){
+  if(!u)return '';
+  u=String(u).replace(/[\s\u3000]+/g,'').trim();      // 空白・改行を全部除去
+  const m=u.match(/^(https?:\/\/[^?#]*?\/exec)/i);    // /exec までを抽出
+  if(m)return m[1];
+  return u.replace(/[?#].*$/,'');
+}
+
 const BSYNC_ROWS=['spot','fcr','cap','charge','agg','wheel','levy'];
 const BSYNC_FIXED=['insurance','om','balancing','elec','misc','hatsudenRate'];
 async function battSyncPull(){
-  const url=(P.syncUrl||'').trim();
+  const url=normGasUrl(P.syncUrl);
   if(!url){toast('連携URL（GAS）を入力してください');return;}
-  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  if(!/\/exec$/i.test(url)){toast('GASのデプロイURL（末尾 /exec）を貼ってください。/dev は不可です');return;}
   toast('スプレッドシートから読込中…');
   try{
     const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(BSYNC_TOKEN),{method:'GET',redirect:'follow'});
@@ -389,9 +398,9 @@ async function battSyncPull(){
   }catch(e){toast('読込エラー：接続がブロックされました。GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください');}
 }
 async function battSyncPush(){
-  const url=(P.syncUrl||'').trim();
+  const url=normGasUrl(P.syncUrl);
   if(!url){toast('連携URL（GAS）を入力してください');return;}
-  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  if(!/\/exec$/i.test(url)){toast('GASのデプロイURL（末尾 /exec）を貼ってください。/dev は不可です');return;}
   if(!confirm('アプリの内容で、スプレッドシート「お客様向け提案」を上書きします。\nよろしいですか？'))return;
   const m=P.meta,f=P.fixed,data={pcs:m.pcs,invest:m.invest,term:m.term,cod:m.cod};
   BSYNC_FIXED.forEach(k=>data[k]=f[k]);
@@ -463,9 +472,9 @@ function renderMap(){
 /* ==================== 太陽光 スプレッドシート連携（GAS） ==================== */
 async function solarSyncPull(){
   ensureSolar(P);
-  const url=(P.solar.syncUrl||'').trim();
+  const url=normGasUrl(P.solar.syncUrl);
   if(!url){toast('太陽光の連携URL（GAS）を入力してください');return;}
-  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  if(!/\/exec$/i.test(url)){toast('GASのデプロイURL（末尾 /exec）を貼ってください。/dev は不可です');return;}
   toast('太陽光シートから読込中…');
   try{
     const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(BSYNC_TOKEN),{method:'GET',redirect:'follow'});
@@ -494,9 +503,9 @@ async function solarSyncPull(){
 }
 async function solarSyncPush(){
   ensureSolar(P);
-  const url=(P.solar.syncUrl||'').trim();
+  const url=normGasUrl(P.solar.syncUrl);
   if(!url){toast('太陽光の連携URL（GAS）を入力してください');return;}
-  if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev不可）');return;}
+  if(!/\/exec$/i.test(url)){toast('GASのデプロイURL（末尾 /exec）を貼ってください。/dev は不可です');return;}
   if(!confirm('アプリの太陽光内容で、スプレッドシートを上書きします。\nよろしいですか？'))return;
   const s=P.solar;
   const data={name:s.name,price:s.price,capDC:s.capDC,gen1:s.gen1,saleY1:s.saleY1,
@@ -540,15 +549,15 @@ function renderApp(){
       ${kpi('投資倍率',pct(c.mult,0),'営業利益÷設備投資')}
     </div>`;
   }
-  if(showSolar){ const sl=P.solar;
+  if(showSolar){ const sl=P.solar; const tc=taxCalc(sl,sl.taxRate);
     h+=`<div class="sec-title">${mode==='set'?'② 営農型太陽光':'② 営農型太陽光（単体）'}${sl.detail?' <span class="tip">詳細CF取込済</span>':''}</div>
     ${!sl.detail?`<div class="note" style="margin:0 0 8px;color:#a15c00;background:#fff6e6;border:1px solid #f0d9a8;padding:8px 12px;border-radius:8px">⚠ 詳細CF未取込（現在は概算表示）。太陽光の「概要書」Excelを<b>もう一度ドロップ</b>すると、100%シミュレーションの実数値（売上・経費内訳・営業利益・即時償却・税効果後CF）に切り替わります。</div>`:''}
     <div class="kpis solar-kpis">
       ${kpi('表面利回り',pct(sl.surfaceY),'年間売電÷投資',1)}
       ${kpi('ネット利回り',pct(sl.netY),'営業利益÷投資',1)}
-      ${kpi('税効果利回り',pct(sl.taxY),'即時償却の節税',1)}
-      ${kpi('年間売電収入',yen(sl.saleY1),'税込・初年度')}
-      ${kpi('設備価格',yen(sl.price),'税込')}
+      ${kpi('税効果利回り',pct(tc.taxY),'税率'+Math.round(sl.taxRate*100)+'%で計算',1)}
+      ${kpi('償却メリット（節税額）',yen(tc.taxBenefit),'即時償却'+nf(tc.sokuji)+'×'+Math.round(sl.taxRate*100)+'%',1)}
+      ${kpi('実質投資額（税抜）',yen(tc.netInvEx),'税抜'+nf(sl.priceEx)+'−節税額')}
       ${kpi('発電容量',nf(sl.capDC)+' kW','年間'+nf(sl.gen1)+'kWh')}
     </div>`;
   }
@@ -559,7 +568,7 @@ function renderApp(){
       ${kpi('総合ネット利回り',pct(cs.setNet),'営業利益合計÷投資合計',1)}
       ${kpi('合算投資額（税込）',yen(cs.totInvIncl),'太陽光'+nf(P.solar.price)+'＋蓄電池')}
       ${kpi('合算回収年数',cs.payback!=null?cs.payback+'年':'—','セット累積CF黒字化',1)}
-      ${kpi('太陽光 表面/税効果',pct(cs.solarSurface)+' / '+pct(cs.solarTax),'安定＋節税')}
+      ${kpi('太陽光 表面/税効果',pct(cs.solarSurface)+' / '+pct(taxCalc(P.solar,P.solar.taxRate).taxY),'税率'+Math.round((P.solar.taxRate||0.55)*100)+'%')}
       ${kpi('蓄電池 表面利回り',pct(cs.battSurface),'高利回り市場収益')}
     </div>
     <div class="note" style="margin-bottom:14px">別々の低圧連系を投資パッケージとしてセット販売する前提の合算です（太陽光20年（非FIT）＋蓄電池${c.T}年市場収益）。提案シートは①蓄電池・②太陽光・③合算の3枚が出力されます。</div>`;
@@ -630,6 +639,10 @@ function renderApp(){
         ${fldS('taxY','税効果利回り','num','%',(s.taxY*100).toFixed(2))}
         ${fldS('term','事業期間','num','年',s.term)}
         ${fldS('deg','劣化率','num','%/年',(s.deg*100).toFixed(2))}
+        <div class="fld"><label>お客様の税率</label><div class="ctrl">
+          <select data-taxrate="1">
+            ${[['0.55','55%（所得税+住民税 最高税率）'],['0.50','50%'],['0.45','45%'],['0.40','40%'],['0.35','35%'],['0.33','33%（法人実効税率）'],['0.30','30%'],['0.25','25%'],['0.20','20%'],['0.15','15%']].map(([v,l])=>`<option value="${v}" ${Math.abs(s.taxRate-parseFloat(v))<0.001?'selected':''}>${l}</option>`).join('')}
+          </select></div><span class="u">償却メリットの計算に使用</span></div>
       </div>
     </div>
     <div class="note" style="margin-top:6px">利回り欄は%で入力（表面7.0など）。太陽光の「概要書」Excelをドロップすると自動で埋まります。</div>
@@ -691,6 +704,7 @@ function wireApp(){
   const modeEl=$('#modeSel'); if(modeEl)modeEl.onchange=e=>{P.mode=e.target.value;saveP();renderApp();};
   const bp=$('#bSyncPull'); if(bp)bp.onclick=battSyncPull;
   const bpu=$('#bSyncPush'); if(bpu)bpu.onclick=battSyncPush;
+  const trEl=$('[data-taxrate]'); if(trEl)trEl.onchange=e=>{P.solar.taxRate=parseFloat(e.target.value);saveP();renderApp();};
   const sp=$('#sSyncPull'); if(sp)sp.onclick=solarSyncPull;
   const spu=$('#sSyncPush'); if(spu)spu.onclick=solarSyncPush;
   const openUrl=u=>{u=(u||'').trim();if(!u){toast('スプレッドシートURLを入力してください');return;}if(!/^https?:\/\//.test(u)){toast('URLは https:// から始めてください');return;}window.open(u,'_blank','noopener');};
@@ -796,14 +810,15 @@ function solarSheetHTML(){
     const th=()=>{let x='<th class="lbl">期</th>';for(let i=1;i<=N;i++)x+=`<th>${i}</th>`;x+='<th class="tot">合計</th>';return x;};
     const cRow=(i,lab)=>d.c&&d.c[i]?`<tr class="sub"><td class="lbl">　${lab}</td>${col(d.c[i])}<td class="tot">${nf(sumN(d.c[i]))}</td></tr>`:'';
     const sokujiY1=(d.sokuji&&d.sokuji[0])||s.priceEx||0;
-    const taxCf55Final=(d.taxCf55&&d.taxCf55[N-1])||0;
-    const taxCf33Final=(d.taxCf33&&d.taxCf33[N-1])||0;
+    const tc=taxCalc(s,s.taxRate);
+    const rp=Math.round(s.taxRate*100);
+    const taxCumFinal=tc.cum.length?tc.cum[N-1]:0;
     const kpis=`<div class="s-kpis">
       <div class="s-kpi gold"><div class="l">表面利回り</div><div class="v">${pct(s.surfaceY)}</div></div>
       <div class="s-kpi gold"><div class="l">ネット利回り</div><div class="v">${pct(s.netY)}</div></div>
-      <div class="s-kpi gold"><div class="l">税効果利回り(55%)</div><div class="v">${pct(s.taxY)}</div></div>
-      <div class="s-kpi gold"><div class="l">税効果利回り(33%)</div><div class="v">${s.tax33?pct(s.tax33):'—'}</div></div>
-      <div class="s-kpi nv"><div class="l">即時償却費(初年度)</div><div class="v">${yen(sokujiY1)}</div></div>
+      <div class="s-kpi gold"><div class="l">税効果利回り(${rp}%)</div><div class="v">${pct(tc.taxY)}</div></div>
+      <div class="s-kpi gold"><div class="l">償却メリット(節税額)</div><div class="v">${yen(tc.taxBenefit)}</div></div>
+      <div class="s-kpi nv"><div class="l">実質投資額(税抜)</div><div class="v">${yen(tc.netInvEx)}</div></div>
       <div class="s-kpi"><div class="l">設備価格(税込)</div><div class="v">${yen(s.price)}</div></div></div>`;
     const tbl=`<div class="s-sec">事業損益計算・キャッシュフロー（円・${N}年）</div><table class="st det"><thead><tr>${th()}</tr></thead><tbody>
       ${d.gen?`<tr><td class="lbl">想定発電量(kWh)</td>${col(d.gen)}<td class="tot">${nf(sumN(d.gen))}</td></tr>`:''}
@@ -815,10 +830,10 @@ function solarSheetHTML(){
       ${d.netYr?`<tr><td class="lbl">ネット利回り</td>${colp(d.netYr)}<td class="tot">—</td></tr>`:''}
       <tr><td class="lbl">即時償却費</td>${col(d.sokuji)}<td class="tot">${nf(sumN(d.sokuji))}</td></tr>
       <tr class="cum"><td class="lbl">累積CF（税引前）</td>${col(d.cumCf)}<td class="tot">${nf((d.cumCf&&d.cumCf[N-1])||0)}</td></tr>
-      <tr class="cum" style="background:#eaf6ee"><td class="lbl">税効果後CF累計(55%)</td>${col(d.taxCf55)}<td class="tot">${nf(taxCf55Final)}</td></tr>
-      ${d.taxCf33?`<tr class="cum" style="background:#f0f6ee"><td class="lbl">税効果後CF累計(33%)</td>${col(d.taxCf33)}<td class="tot">${nf(taxCf33Final)}</td></tr>`:''}
-    </tbody></table>`;
-    const foot=`<div class="s-foot"><b>ご留意事項：</b>営農型太陽光の試算値であり、発電量・売電収入・税効果を保証するものではありません。損益・キャッシュフロー・税効果後CFは「100%シミュレーション」の値です。税効果はお客様の所得状況（税率55%／33%想定）により異なり、償却資産税の免税申請等はお客様ご自身の手続きとなります。出力抑制・パネル劣化(年0.5%)等の前提は変動します。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
+      <tr class="cum" style="background:#eaf6ee"><td class="lbl">税効果後CF累計(${rp}%)</td>${col(tc.cum)}<td class="tot">${nf(taxCumFinal)}</td></tr>
+    </tbody></table>
+    <div class="s-note-box" style="margin-top:6px">お客様の税率<b>${rp}%</b>で計算：即時償却 ${nf(tc.sokuji)}円 × ${rp}% ＝ <b>節税額 ${nf(tc.taxBenefit)}円</b>。設備価格(税抜) ${nf(s.priceEx)}円 − 節税額 ＝ <b>実質投資額 ${nf(tc.netInvEx)}円（税抜）</b>。消費税還付 ${nf(tc.vatRefund)}円を含め、初年度の実質負担は ${nf(Math.abs(tc.cf0))}円となります。</div>`;
+    const foot=`<div class="s-foot"><b>ご留意事項：</b>営農型太陽光の試算値であり、発電量・売電収入・税効果を保証するものではありません。損益・キャッシュフロー・税効果後CFは「100%シミュレーション」の値です。税効果はお客様の税率（本試算の税率設定）により異なり、償却資産税の免税申請等はお客様ご自身の手続きとなります。出力抑制・パネル劣化(年0.5%)等の前提は変動します。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
     return `<div class="sheet">${head}${spec}${kpis}${tbl}${foot}</div>`;
   }
   // ---- フォールバック（詳細未取込：概算） ----
@@ -864,7 +879,7 @@ function setSheetHTML(c,cs){
     <div class="s-kpi gold"><div class="l">総合ネット利回り</div><div class="v">${pct(cs.setNet)}</div></div>
     <div class="s-kpi nv"><div class="l">合算投資額(税込)</div><div class="v">${yen(cs.totInvIncl)}</div></div>
     <div class="s-kpi gold"><div class="l">合算回収年数</div><div class="v">${cs.payback!=null?cs.payback+'年':'—'}</div></div>
-    <div class="s-kpi"><div class="l">太陽光 税効果利回り</div><div class="v">${pct(cs.solarTax)}</div></div>
+    <div class="s-kpi"><div class="l">太陽光 税効果利回り</div><div class="v">${pct(taxCalc(P.solar,P.solar.taxRate).taxY)}</div></div>
     <div class="s-kpi nv"><div class="l">蓄電池 表面利回り</div><div class="v">${pct(cs.battSurface)}</div></div></div>`;
   const cmp=`<div class="s-sec">3パターン比較</div><table class="st cmp"><thead><tr>
     <th class="lbl">項目</th><th>① 営農型太陽光</th><th>② 系統蓄電池</th><th class="tot">③ セット合計</th></tr></thead><tbody>
@@ -872,11 +887,11 @@ function setSheetHTML(c,cs){
     ${row('年間収益（目安）',nf(s.saleY1)+' 円/年',nf(battSaleAvg)+' 円/年',nf((s.saleY1||0)+battSaleAvg)+' 円/年')}
     ${row('表面利回り',pct(cs.solarSurface),pct(cs.battSurface),pct(cs.setSurface),1)}
     ${row('ネット利回り',pct(cs.solarNet),pct(c.netYAvg),pct(cs.setNet),1)}
-    ${row('税効果利回り',pct(cs.solarTax),'—','—')}
+    ${row('税効果利回り（税率'+Math.round((P.solar.taxRate||0.55)*100)+'%）',pct(taxCalc(P.solar,P.solar.taxRate).taxY),'—','—')}
     ${row('事業期間',(s.term||20)+' 年',c.T+' 年','—')}
     ${row('投資回収年数','—','—',cs.payback!=null?cs.payback+' 年':'—')}
   </tbody></table>
-  <div class="s-note-box">安定してキャッシュを生む<b>営農型太陽光（表面${pct(cs.solarSurface)}・税効果${pct(cs.solarTax)}）</b>に、高利回りの<b>系統蓄電池（表面${pct(cs.battSurface)}）</b>を組み合わせることで、<b>総合表面利回り${pct(cs.setSurface)}</b>の投資パッケージとなります。太陽光は20年間（非FIT）の安定収入と節税効果、蓄電池は市場収益による高利回りと、性格の異なる2資産でリスク分散が図れます。</div>`;
+  <div class="s-note-box">安定してキャッシュを生む<b>営農型太陽光（表面${pct(cs.solarSurface)}・税効果${pct(taxCalc(P.solar,P.solar.taxRate).taxY)}）</b>に、高利回りの<b>系統蓄電池（表面${pct(cs.battSurface)}）</b>を組み合わせることで、<b>総合表面利回り${pct(cs.setSurface)}</b>の投資パッケージとなります。太陽光は20年間（非FIT）の安定収入と節税効果、蓄電池は市場収益による高利回りと、性格の異なる2資産でリスク分散が図れます。</div>`;
   const foot=`<div class="s-foot"><b>ご留意事項：</b>本セット試算は、別々の低圧連系を投資パッケージとして合算したものです。各数値は前提に基づく試算値であり保証するものではありません。税効果はお客様の所得状況により異なります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;
   return `<div class="sheet">${head}${kpis}${cmp}${foot}</div>`;
 }
@@ -973,7 +988,29 @@ function importJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSO
 /* ---------- wiring ---------- */
 $('#projSel').onchange=e=>switchProj(e.target.value);
 /* ==================== Excel取込（お客様向け提案シート） ==================== */
-function ensureSolar(p){ if(!p.solar)p.solar={on:false,name:'',price:0,priceEx:0,capDC:0,gen1:0,saleY1:0,surfaceY:0,netY:0,taxY:0,deg:0.005,term:20}; return p.solar; }
+function ensureSolar(p){ if(!p.solar)p.solar={on:false,name:'',price:0,priceEx:0,capDC:0,gen1:0,saleY1:0,surfaceY:0,netY:0,taxY:0,deg:0.005,term:20}; if(p.solar.taxRate==null)p.solar.taxRate=0.55; return p.solar; }
+/* 任意税率での償却メリット（Excelの定義に一致）
+   税効果額      = 即時償却費 × 税率
+   差引投資(税抜) = 設備価格(税抜) − 税効果額
+   税効果利回り   = 年間売電収入(税込) ÷ 差引投資(税抜)
+   税効果後CF 0期 = −設備価格(税込) + 税効果額 + 消費税還付(税込−税抜)
+   以降        = 前年累計 + 営業利益 */
+function taxCalc(s,rate){
+  const priceEx=+s.priceEx||0, priceIncl=+s.price||Math.round(priceEx*1.1);
+  const d=s.detail;
+  const sokuji=(d&&d.sokuji&&d.sokuji[0])||priceEx;
+  const taxBenefit=Math.round(sokuji*rate);          // 税効果額（節税額）
+  const netInvEx=priceEx-taxBenefit;                  // 税効果額差引金額(税抜)
+  const vatRefund=priceIncl-priceEx;                  // 消費税還付
+  const taxY=netInvEx>0?((+s.saleY1||0)/netInvEx):0;  // 税効果利回り
+  let cum=[], run=-priceIncl+taxBenefit+vatRefund;    // 0期
+  const cf0=run;
+  if(d&&d.op){ for(let t=0;t<d.op.length;t++){ run+=(+d.op[t]||0); cum.push(Math.round(run)); } }
+  const N=Math.min(20,cum.length);
+  const totalMerit=cum.length?cum[N-1]:0;
+  const roi=priceIncl?(totalMerit+priceIncl)/priceIncl:0;
+  return {rate,taxBenefit,netInvEx,vatRefund,taxY,cf0:Math.round(cf0),cum,totalMerit,roi,sokuji};
+}
 function ensureMode(p){ if(!p.mode)p.mode=(p.solar&&p.solar.on)?'set':'battery'; return p.mode; }
 function importSolarDetail(wb){
   const enc=(r,c)=>XLSX.utils.encode_cell({r,c});
