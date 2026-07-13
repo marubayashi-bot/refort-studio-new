@@ -182,6 +182,25 @@ details.sec .body{padding:12px 14px;}
 #imgView img{max-width:100%;max-height:92vh;border-radius:8px;}
 #imgView .x{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.15);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;}
 
+/* ===== pyramid ===== */
+.pyr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,42,74,.05);}
+.pyr .ns{font-size:11px;color:var(--gold);letter-spacing:.14em;font-weight:700;}
+.pyr .nsb{font-size:13px;color:var(--navy);font-weight:700;line-height:1.6;margin:3px 0 10px;white-space:pre-wrap;}
+.pyr .bg-chips{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.bg-chip{display:flex;gap:8px;align-items:flex-start;background:var(--goldbg);border:1px solid var(--gold2);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;color:var(--navy);line-height:1.5;}
+.bg-chip .n{flex:0 0 20px;height:20px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.fkpi{margin-bottom:10px;}
+.fkpi .fh{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:3px;flex-wrap:wrap;}
+.fkpi .fh b{color:var(--navy);font-size:13px;}
+.fkpi .fh .rate{margin-left:auto;font-weight:700;font-size:15px;}
+.rate.ok{color:var(--ok);} .rate.warn{color:var(--warn);} .rate.bad{color:var(--bad);}
+.fkpi .fbar{height:10px;background:#e8edf3;border-radius:999px;overflow:hidden;position:relative;}
+.fkpi .fbar>i{display:block;height:100%;border-radius:999px;transition:width .3s;}
+.fkpi .upd{background:none;border:none;color:var(--info);font-size:11px;text-decoration:underline;padding:2px 0;}
+.kpi-edit{display:grid;grid-template-columns:1fr 70px 90px 90px 34px;gap:6px;align-items:center;margin-bottom:6px;}
+.kpi-edit input{width:100%;font-size:13px;}
+@media(max-width:640px){.kpi-edit{grid-template-columns:1fr 60px;} .kpi-edit input:nth-child(3),.kpi-edit input:nth-child(4){grid-column:auto;}}
+
 /* toast */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:200;box-shadow:0 4px 14px rgba(0,0,0,.3);}
 #toast.show{opacity:1;}
@@ -274,6 +293,15 @@ details.sec .body{padding:12px 14px;}
     <button class="qbtn" onclick="rollQuote()">↻ 別の項目を表示</button>
   </div>
 
+  <div class="pyr" id="pyrCard">
+    <div class="ns">⭐ ノーススター（最終目的地）</div>
+    <div class="nsb" id="pyrNS"></div>
+    <div class="ns">🚀 今年のブレイクスルーゴール</div>
+    <div class="bg-chips" id="pyrBG" style="margin-top:5px"></div>
+    <div class="ns">🎯 フォーカスKPI</div>
+    <div id="pyrKPI" style="margin-top:5px"></div>
+  </div>
+
   <div class="card">
     <h2>今日の進捗 <span class="mini">アクション・スケジュールの完了状況</span></h2>
     <div class="stats">
@@ -285,7 +313,7 @@ details.sec .body{padding:12px 14px;}
   </div>
 
   <div class="card" id="coCard" style="display:none;">
-    <h2>昨日からの引継ぎ <span class="mini">前日の未完了・繰越アクション</span></h2>
+    <h2>昨日からの引継ぎ <span class="mini">昨夜の「明日の設計」と未完了アクション</span></h2>
     <div id="coList"></div>
     <button class="goldbtn" onclick="importCarry()">⤵ 今日のアクションに取り込む</button>
   </div>
@@ -388,6 +416,18 @@ details.sec .body{padding:12px 14px;}
       <button class="goldbtn" onclick="copyDaily()">📋 日報として文章化してコピー</button>
     </div>
   </div>
+
+  <div class="card">
+    <h2>明日の設計 <span class="mini">夜に設計し、朝に再確認する。翌朝ワンタップで取り込めます</span></h2>
+    <div class="lbl">明日の最重要ゴール</div>
+    <textarea id="n_goal"></textarea>
+    <div class="lbl">明日の重点行動 3つ</div>
+    <div class="ka"><span class="num">1</span><input type="text" id="n_ka1"></div>
+    <div class="ka"><span class="num">2</span><input type="text" id="n_ka2"></div>
+    <div class="ka"><span class="num">3</span><input type="text" id="n_ka3"></div>
+    <div class="lbl">明日までに必要な準備</div>
+    <textarea id="n_prep" placeholder="例：会議資料の事前確認／比較表の用意"></textarea>
+  </div>
 </div>
 
 <!-- ============ HEALTH ============ -->
@@ -478,6 +518,17 @@ details.sec .body{padding:12px 14px;}
 <!-- ============ PURPOSE ============ -->
 <div class="tab" id="tab-purpose">
   <div class="card">
+    <h2>目標ピラミッド <span class="mini">ノーススター → 突破口1〜3個 → 鍵となる数字1〜2個</span></h2>
+    <div class="lbl">⭐ ノーススター（人生・会社で変わらない最終目的。笑われるほど大きく、数字で具体的に）</div>
+    <textarea id="p_ns" style="min-height:70px" onchange="profile.northStar=this.value;markDirty();renderPyramid()"></textarea>
+    <div class="lbl">🚀 今年のブレイクスルーゴール（最大3個。「これ以外の道はない」と決断できるもの）</div>
+    <div id="bgEdit"></div>
+    <div class="lbl">🎯 フォーカスKPI（最大2個。達成の鍵となる数字だけを追う）</div>
+    <div class="hint" style="margin-bottom:6px">名前／単位／目標値を設定。実績はホーム画面からいつでも更新できます。</div>
+    <div id="kpiEdit"></div>
+  </div>
+
+  <div class="card">
     <h2>人生・仕事における目的と目標 <span class="mini">初回登録後は毎朝自動表示。月1回見直し</span></h2>
     <div class="hint" style="margin-bottom:10px">この内容がホーム画面の「今日の原点」として毎日1項目ずつ表示されます。Success Planning 2026 の記入内容を初期登録済みです。</div>
     <div id="profWrap"></div>
@@ -534,6 +585,9 @@ function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 
 /* ================= default data (Success Planning 2026 記入事例) ================= */
 function defaultProfile(){return {
+northStar:"日本の再生可能エネルギー資産を守り、再生し、未来につなぐ。\n売上1,000億円企業となり、持続可能なエネルギーインフラと挑戦する企業文化を次世代に残す。",
+breakthrough:["ReFortを業界標準にする","低圧系統用蓄電池の市場を先行獲得する（アライアンスモデル完成）","セカンダリー案件の仕入・販売モデルを完成させる"],
+focusKpi:[{name:"現調申込から20日以内の受注率",unit:"％",target:80,actual:"",hist:[]},{name:"PH04以降の進行案件数",unit:"件",target:30,actual:"",hist:[]}],
 mission:"再生可能エネルギーを通じて、次の世代に誇れる社会と会社を残す。\n社員一人ひとりが仕事を通じて成長し、物心両面の豊かさを得られる会社をつくる。\n家族、社員、お客様、取引先、地域社会から、「丸林と出会えてよかった」と思っていただける人生を生きる。",
 purpose:"日本の再生可能エネルギー資産を守り、再生し、未来につなぐため。\nアースコムを、太陽光発電を販売する会社から、エネルギー資産の価値を最大化する会社へ進化させるため。\n社員が夢を持ち、挑戦し、成長し続けられる舞台をつくるため。",
 remembered:"「誰よりも未来を信じ、人の可能性を信じ、挑戦し続けた経営者」\n「社員とその家族を本気で大切にした社長」\n「日本のエネルギー業界に、新しい市場と仕組みを残した人」\n「丸林さんがいたから、今の自分と会社がある」と言われる人。",
@@ -592,7 +646,7 @@ const PSTEPS=[
 
 function emptyDay(dateStr){return {date:dateStr,theme:'',topGoal:'',ka:['','',''],give:'',caution:'',message:'',
  schedule:[],image:['','','','','',''],actions:[],review:{seika:'',mikan:'',success:'',fail:'',tomorrow:'',system:'',priority:''},
- health:emptyHealth(),photos:[],carryImported:false};}
+ health:emptyHealth(),photos:[],nextPlan:{goal:'',ka:['','',''],prep:''},carryImported:false};}
 function emptyHealth(){return {sleepStart:'',sleepEnd:'',sleepH:null,weight:'',steps:'',alcohol:'',cond:0,exercise:'',memo:''};}
 
 const LIFE_AREAS=['仕事・事業','家族','健康・体力','お金・資産','学び・成長','趣味（ゴルフ等）','人間関係','社会貢献'];
@@ -635,6 +689,11 @@ async function boot(){
   const cp=await cloudGet('profile');
   if(cp)profile=cp;
   if(!profile){profile=defaultProfile();lsSet('profile',profile);if(cloudOn)cloudSet('profile',profile);}
+  const dp=defaultProfile();
+  if(profile.northStar===undefined)profile.northStar=dp.northStar;
+  if(!profile.breakthrough)profile.breakthrough=dp.breakthrough;
+  if(!profile.focusKpi)profile.focusKpi=dp.focusKpi;
+  profile.focusKpi.forEach(k=>{if(!k.hist)k.hist=[];});
   problems=lsGet('problems')||[];
   const cpb=await cloudGet('problems');
   if(cpb)problems=cpb;
@@ -644,6 +703,8 @@ async function boot(){
   if(!life){life=defaultLife();lsSet('life',life);}
   if(!life.bucket)life.bucket=[];if(!life.visionImgs)life.visionImgs=[];
   buildProfileUI();buildQ6UI();buildPStepsUI();
+  el('p_ns').value=profile.northStar||'';
+  buildBgEdit();buildKpiEdit();
   renderLife();
   await loadDay(curDate);
   renderProblems();
@@ -662,6 +723,7 @@ async function loadDay(dateStr){
   day.schedule=day.schedule||[];day.actions=day.actions||[];
   day.health=Object.assign(emptyHealth(),day.health||{});
   day.photos=day.photos||[];
+  if(!day.nextPlan)day.nextPlan={goal:'',ka:['','',''],prep:''};
   renderDate();renderDay();
   await renderCarry();
   updateStats();
@@ -692,14 +754,17 @@ function renderDay(){
   const r=day.review;
   el('r_seika').value=r.seika||'';el('r_mikan').value=r.mikan||'';el('r_success').value=r.success||'';
   el('r_fail').value=r.fail||'';el('r_tomorrow').value=r.tomorrow||'';el('r_system').value=r.system||'';el('r_priority').value=r.priority||'';
-  renderSched();renderActions();renderHealth();renderPhotos('day');rollQuote(true);
+  renderSched();renderActions();renderHealth();renderPhotos('day');renderNextPlan();renderPyramid();rollQuote(true);
   buildHealthChart();
 }
 
 /* ---- quote ---- */
 let quoteIdx=null;
 function rollQuote(deterministic){
-  const items=PROFILE_FIELDS.filter(f=>profile[f[0]]&&profile[f[0]].trim());
+  const items=PROFILE_FIELDS.filter(f=>profile[f[0]]&&profile[f[0]].trim()).map(f=>({label:f[1],body:profile[f[0]]}));
+  if(profile.northStar&&profile.northStar.trim())items.unshift({label:'ノーススター（最終目的地）',body:profile.northStar});
+  const bg=(profile.breakthrough||[]).filter(x=>x&&x.trim());
+  if(bg.length)items.splice(1,0,{label:'今年のブレイクスルーゴール',body:bg.map((b,i)=>(i+1)+'. '+b).join('\n')});
   if(!items.length){el('qBody').textContent='「目的・目標」タブから登録してください。';return;}
   if(deterministic){
     const seed=curDate.split('-').join('');quoteIdx=Number(seed)%items.length;
@@ -707,8 +772,8 @@ function rollQuote(deterministic){
     quoteIdx=(quoteIdx===null?0:quoteIdx+1)%items.length;
   }
   const f=items[quoteIdx];
-  el('qTitle').textContent='今日の原点｜'+f[1];
-  const body=profile[f[0]];
+  el('qTitle').textContent='今日の原点｜'+f.label;
+  const body=f.body;
   el('qBody').textContent=body.length>300?body.slice(0,300)+'…':body;
 }
 
@@ -761,26 +826,45 @@ function updAct(i,k,v){day.actions[i][k]=v;if(k==='status')renderActions();markD
 function delAct(i){day.actions.splice(i,1);renderActions();markDirty();updateStats();}
 
 /* ---- carryover ---- */
-let carryItems=[];
+let carryItems=[],carryPlan=null;
 async function renderCarry(){
   const[y,m,d]=curDate.split('-').map(Number);
   const prev=todayStr(new Date(y,m-1,d-1));
   let pd=lsGet('day_'+prev);
   const cpd=await cloudGet('day_'+prev);
   if(cpd)pd=cpd;
-  carryItems=[];
+  carryItems=[];carryPlan=null;
   if(pd&&pd.actions)carryItems=pd.actions.filter(a=>a.action&&a.status!=='完了');
-  if(pd&&pd.review&&pd.review.priority)carryItems.unshift({time:'',action:'【昨日決めた最優先】'+pd.review.priority,status:'未着手',result:'',learn:'',_prio:true});
+  if(pd&&pd.nextPlan&&(pd.nextPlan.goal||(pd.nextPlan.ka||[]).some(x=>x)))carryPlan=pd.nextPlan;
+  else if(pd&&pd.review&&pd.review.priority)carryPlan={goal:pd.review.priority,ka:['','',''],prep:''};
   const card=el('coCard');
-  if(!carryItems.length||day.carryImported){card.style.display='none';return;}
+  if((!carryItems.length&&!carryPlan)||day.carryImported){card.style.display='none';return;}
   card.style.display='block';
-  el('coList').innerHTML=carryItems.map(a=>'<div class="co-item"><span class="chip">'+esc(a.status)+'</span><div class="t">'+esc(a.action)+'</div></div>').join('');
+  let h='';
+  if(carryPlan){
+    h+='<div class="co-item"><span class="chip">昨夜の設計</span><div class="t"><b>'+esc(carryPlan.goal)+'</b>';
+    const ka=(carryPlan.ka||[]).filter(x=>x);
+    if(ka.length)h+='<br>'+ka.map((k,i)=>(i+1)+'. '+esc(k)).join('<br>');
+    if(carryPlan.prep)h+='<br><span style="color:var(--sub)">準備：'+esc(carryPlan.prep)+'</span>';
+    h+='</div></div>';
+  }
+  h+=carryItems.map(a=>'<div class="co-item"><span class="chip">'+esc(a.status)+'</span><div class="t">'+esc(a.action)+'</div></div>').join('');
+  el('coList').innerHTML=h;
 }
 function importCarry(){
-  carryItems.forEach(a=>{day.actions.push({time:'',action:a.action.replace(/^【昨日決めた最優先】/,''),result:'',learn:'',status:'未着手'});});
+  let n=0;
+  if(carryPlan){
+    if(!el('f_topGoal').value.trim()&&carryPlan.goal){el('f_topGoal').value=carryPlan.goal;day.topGoal=carryPlan.goal;}
+    ['f_ka1','f_ka2','f_ka3'].forEach((id,i)=>{
+      if(!el(id).value.trim()&&carryPlan.ka&&carryPlan.ka[i]){el(id).value=carryPlan.ka[i];day.ka[i]=carryPlan.ka[i];}
+    });
+    if(carryPlan.prep&&!el('f_caution').value.trim()){el('f_caution').value='準備：'+carryPlan.prep;day.caution=el('f_caution').value;}
+    n++;
+  }
+  carryItems.forEach(a=>{day.actions.push({time:'',action:a.action,result:'',learn:'',status:'未着手'});n++;});
   day.carryImported=true;
   el('coCard').style.display='none';
-  renderActions();markDirty();updateStats();toast(carryItems.length+'件を取り込みました');
+  renderActions();markDirty();updateStats();toast('昨日の設計・未完了を取り込みました');
 }
 
 /* ---- stats ---- */
@@ -1084,6 +1168,69 @@ async function onPhotoPick(input,kind){
   toast('写真を保存しました');
 }
 
+/* ================= pyramid (north star / breakthrough / focus KPI) ================= */
+function renderPyramid(){
+  el('pyrNS').textContent=profile.northStar||'「目的・目標」タブで登録してください';
+  const bg=(profile.breakthrough||[]).filter(x=>x&&x.trim());
+  el('pyrBG').innerHTML=bg.length?bg.map((b,i)=>'<div class="bg-chip"><span class="n">'+(i+1)+'</span><span>'+esc(b)+'</span></div>').join(''):'<div class="hint">未設定</div>';
+  const ks=(profile.focusKpi||[]).filter(k=>k.name);
+  el('pyrKPI').innerHTML=ks.length?ks.map((k,i)=>{
+    const t=parseFloat(k.target),a=parseFloat(k.actual);
+    const has=!isNaN(t)&&t>0&&!isNaN(a);
+    const rate=has?Math.round(a/t*100):null;
+    const cls=rate===null?'':(rate>=100?'ok':(rate>=80?'warn':'bad'));
+    const col=rate===null?'#c9d4e0':(rate>=100?'#2e8b57':(rate>=80?'#d97706':'#c0392b'));
+    return '<div class="fkpi"><div class="fh"><b>'+esc(k.name)+'</b><span>'+(isNaN(a)?'ー':a)+' / '+(isNaN(t)?'ー':t)+' '+esc(k.unit||'')+'</span>'+
+      '<span class="rate '+cls+'">'+(rate===null?'':'達成率 '+rate+'％')+'</span></div>'+
+      '<div class="fbar"><i style="width:'+(rate===null?0:Math.min(rate,100))+'%;background:'+col+'"></i></div>'+
+      '<button class="upd" onclick="quickKpi('+i+')">実績を更新する</button></div>';
+  }).join(''):'<div class="hint">未設定</div>';
+}
+function quickKpi(i){
+  const k=profile.focusKpi[i];
+  const v=prompt('「'+k.name+'」の現在の実績を入力してください（'+(k.unit||'数値')+'）',k.actual||'');
+  if(v===null)return;
+  k.actual=v;
+  k.hist=k.hist||[];
+  k.hist.push({d:curDate,v:v});
+  if(k.hist.length>120)k.hist=k.hist.slice(-120);
+  lsSet('profile',profile);cloudSet('profile',profile);
+  renderPyramid();buildKpiEdit();toast('実績を更新しました');
+}
+function buildBgEdit(){
+  const arr=profile.breakthrough||['','',''];
+  while(arr.length<3)arr.push('');
+  profile.breakthrough=arr;
+  el('bgEdit').innerHTML=arr.map((b,i)=>
+    '<div class="ka"><span class="num">'+(i+1)+'</span><input type="text" value="'+esc(b)+'" placeholder="ブレイクスルーゴール '+(i+1)+'" onchange="profile.breakthrough['+i+']=this.value;markDirty();renderPyramid()"></div>').join('');
+}
+function buildKpiEdit(){
+  const arr=profile.focusKpi||[];
+  while(arr.length<2)arr.push({name:'',unit:'',target:'',actual:'',hist:[]});
+  profile.focusKpi=arr.slice(0,2);
+  el('kpiEdit').innerHTML=profile.focusKpi.map((k,i)=>
+    '<div class="kpi-edit">'+
+    '<input type="text" value="'+esc(k.name)+'" placeholder="KPI名（例：20日以内受注率）" onchange="updKpi('+i+',\'name\',this.value)">'+
+    '<input type="text" value="'+esc(k.unit)+'" placeholder="単位" onchange="updKpi('+i+',\'unit\',this.value)">'+
+    '<input type="number" step="any" value="'+esc(k.target)+'" placeholder="目標値" onchange="updKpi('+i+',\'target\',this.value)">'+
+    '<input type="number" step="any" value="'+esc(k.actual)+'" placeholder="現在実績" onchange="updKpi('+i+',\'actual\',this.value)">'+
+    '<span></span></div>').join('');
+}
+function updKpi(i,f,v){
+  const k=profile.focusKpi[i];
+  k[f]=v;
+  if(f==='actual'&&v!==''){k.hist=k.hist||[];k.hist.push({d:curDate,v:v});if(k.hist.length>120)k.hist=k.hist.slice(-120);}
+  markDirty();renderPyramid();
+}
+
+/* ================= tomorrow plan ================= */
+function renderNextPlan(){
+  const n=day.nextPlan;
+  el('n_goal').value=n.goal||'';
+  el('n_ka1').value=n.ka[0]||'';el('n_ka2').value=n.ka[1]||'';el('n_ka3').value=n.ka[2]||'';
+  el('n_prep').value=n.prep||'';
+}
+
 /* ================= daily report copy ================= */
 function copyDaily(){
   flushCollect();
@@ -1112,6 +1259,13 @@ function copyDaily(){
   if(r.system)out+='■ 再発防止の仕組み\n'+r.system+'\n\n';
   if(r.tomorrow)out+='■ 明日に活かすこと\n'+r.tomorrow+'\n\n';
   if(r.priority)out+='■ 明日の最優先事項\n'+r.priority+'\n';
+  const np=day.nextPlan||{};
+  if(np.goal||(np.ka||[]).some(x=>x)){
+    out+='\n■ 明日の設計\n';
+    if(np.goal)out+='ゴール：'+np.goal+'\n';
+    (np.ka||[]).filter(x=>x).forEach((k,i)=>{out+=(i+1)+'. '+k+'\n';});
+    if(np.prep)out+='準備：'+np.prep+'\n';
+  }
   copyText(out,'日報をコピーしました（Chatworkに貼り付けできます）');
 }
 
@@ -1121,6 +1275,15 @@ function printSheet(){
   const r=day.review;
   const pv=s=>'<div class="pv">'+esc(s||'')+'</div>';
   let h='<h1>Success Planning 2026 デイリーシート　'+el('dMain').textContent+' '+el('dDow').textContent+'</h1>';
+  if(profile.northStar||((profile.breakthrough||[]).some(x=>x))){
+    h+='<h2>目標ピラミッド</h2><table>';
+    if(profile.northStar)h+='<tr><th style="width:22%">ノーススター</th><td class="pv">'+esc(profile.northStar)+'</td></tr>';
+    const bg=(profile.breakthrough||[]).filter(x=>x);
+    if(bg.length)h+='<tr><th>ブレイクスルーゴール</th><td>'+bg.map((b,i)=>(i+1)+'. '+esc(b)).join('<br>')+'</td></tr>';
+    const ks=(profile.focusKpi||[]).filter(k=>k.name);
+    if(ks.length)h+='<tr><th>フォーカスKPI</th><td>'+ks.map(k=>esc(k.name)+'：'+esc(k.actual||'ー')+' / '+esc(k.target||'ー')+esc(k.unit||'')).join('<br>')+'</td></tr>';
+    h+='</table>';
+  }
   h+='<h2>今日の原点</h2>'+pv(el('qBody').textContent);
   h+='<h2>本日の最重要ゴール</h2>'+pv(day.topGoal);
   h+='<table><tr><th style="width:20%">テーマ</th><td>'+esc(day.theme)+'</td></tr>';
@@ -1164,6 +1327,7 @@ function flushCollect(){
   day.give=el('f_give').value;day.caution=el('f_caution').value;day.message=el('f_message').value;
   for(let i=0;i<6;i++){const t=el('q6_'+i);if(t)day.image[i]=t.value;}
   day.review={seika:el('r_seika').value,mikan:el('r_mikan').value,success:el('r_success').value,fail:el('r_fail').value,tomorrow:el('r_tomorrow').value,system:el('r_system').value,priority:el('r_priority').value};
+  day.nextPlan={goal:el('n_goal').value,ka:[el('n_ka1').value,el('n_ka2').value,el('n_ka3').value],prep:el('n_prep').value};
   const h=day.health;
   h.sleepStart=el('h_sleepStart').value;h.sleepEnd=el('h_sleepEnd').value;
   h.sleepH=calcSleepH(h.sleepStart,h.sleepEnd);
