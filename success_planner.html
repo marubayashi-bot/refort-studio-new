@@ -5,13 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EARTHCOM SUCCESS PLANNER</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --navy:#0e2a4a; --navy2:#16395f; --navy3:#1e4a78;
-  --gold:#c9a04e; --gold2:#e0bc74; --goldbg:#fdf8ee;
-  --bg:#f4f6f9; --card:#ffffff; --line:#dde4ec; --txt:#1b2a3a; --sub:#6b7a8d;
+  --gold:#c9a04e; --gold2:#e0bc74; --gold3:#f0d9a8; --goldbg:#fbf6ea;
+  --bg:#f2ede2; --card:#fffdf7; --line:#e2d9c6; --txt:#241d14; --sub:#7a6f5c;
   --ok:#2e8b57; --warn:#d97706; --bad:#c0392b; --info:#2563eb;
+  --leather:radial-gradient(120% 90% at 12% 8%, rgba(28,72,60,.85), transparent 55%),
+            radial-gradient(140% 110% at 88% 92%, rgba(112,62,20,.85), transparent 60%),
+    radial-gradient(90% 70% at 50% 50%, rgba(70,48,22,.35), transparent 70%),
+            linear-gradient(135deg,#17251f 0%, #201b13 45%, #3a2411 78%, #100c08 100%);
 }
+.goldtext{background:linear-gradient(100deg,#a97f35 0%,#e8cd8e 30%,#c9a04e 55%,#f4e3b2 78%,#a97f35 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.serif-en{font-family:'Cinzel',serif;letter-spacing:.14em;}
+.serif-jp{font-family:'Shippori Mincho',serif;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;}
 body{background:var(--bg);color:var(--txt);font-size:14px;-webkit-text-size-adjust:100%;}
 textarea,input,select,button{font-size:14px;color:var(--txt);}
@@ -21,30 +30,30 @@ input[type=text],input[type=time],input[type=date],input[type=email],input[type=
 button{cursor:pointer;border:none;border-radius:8px;}
 
 /* ===== header ===== */
-header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 70%,var(--navy3) 100%);color:#fff;padding:10px 14px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(14,42,74,.25);}
+header{background:var(--leather);color:#f0e6d2;padding:12px 14px;position:sticky;top:0;z-index:50;box-shadow:0 3px 12px rgba(10,8,4,.45);border-bottom:1px solid rgba(201,160,78,.45);}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.brand{display:flex;flex-direction:column;line-height:1.15;}
-.brand b{font-size:15px;letter-spacing:.06em;}
-.brand small{color:var(--gold2);font-size:10px;letter-spacing:.14em;}
+.brand{display:flex;flex-direction:column;line-height:1.2;}
+.brand b{font-size:15px;font-family:'Cinzel',serif;letter-spacing:.12em;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.brand small{color:#b39355;font-size:9px;letter-spacing:.22em;font-family:'Cinzel',serif;}
 .spacer{flex:1;}
-.badge{font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);}
-.badge.on{background:rgba(46,139,87,.85);border-color:transparent;}
-.hbtn{background:rgba(255,255,255,.14);color:#fff;padding:6px 12px;font-size:12px;border:1px solid rgba(255,255,255,.25);}
-.hbtn:hover{background:rgba(255,255,255,.25);}
-.hbtn.gold{background:var(--gold);border-color:var(--gold);color:var(--navy);font-weight:700;}
+.badge{font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(240,230,210,.08);border:1px solid rgba(201,160,78,.4);color:#d9c9a5;}
+.badge.on{background:rgba(46,139,87,.7);border-color:transparent;color:#fff;}
+.hbtn{background:rgba(240,230,210,.08);color:#e8d9b8;padding:6px 12px;font-size:12px;border:1px solid rgba(201,160,78,.45);}
+.hbtn:hover{background:rgba(201,160,78,.25);}
+.hbtn.gold{background:linear-gradient(120deg,#b98f3e,#e0bc74);border-color:transparent;color:#241d0e;font-weight:700;}
 
 /* date bar */
-.datebar{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
-.datebar .dnav{background:rgba(255,255,255,.15);color:#fff;width:34px;height:34px;font-size:16px;border-radius:8px;}
-.datebar .dmain{font-size:17px;font-weight:700;letter-spacing:.03em;}
-.datebar .dow{color:var(--gold2);font-size:13px;margin-left:2px;}
-.datebar input[type=date]{background:rgba(255,255,255,.9);padding:5px 8px;font-size:13px;}
-.todaybtn{background:var(--gold);color:var(--navy);font-weight:700;padding:6px 12px;font-size:12px;}
+.datebar{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap;}
+.datebar .dnav{background:rgba(240,230,210,.1);color:#e8d9b8;width:34px;height:34px;font-size:16px;border-radius:8px;border:1px solid rgba(201,160,78,.3);}
+.datebar .dmain{font-size:17px;font-weight:700;letter-spacing:.04em;font-family:'Shippori Mincho',serif;color:#f0e2c2;}
+.datebar .dow{color:#c9a04e;font-size:13px;margin-left:2px;}
+.datebar input[type=date]{background:rgba(255,252,242,.92);padding:5px 8px;font-size:13px;}
+.todaybtn{background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;font-weight:700;padding:6px 12px;font-size:12px;}
 
 /* tabs */
-nav{display:flex;gap:2px;overflow-x:auto;background:var(--navy);padding:0 8px;position:sticky;top:0;z-index:49;-webkit-overflow-scrolling:touch;}
-nav button{flex:0 0 auto;background:transparent;color:rgba(255,255,255,.7);padding:11px 14px;font-size:13px;border-radius:0;border-bottom:3px solid transparent;white-space:nowrap;}
-nav button.act{color:#fff;border-bottom-color:var(--gold);font-weight:700;}
+nav{display:flex;gap:2px;overflow-x:auto;background:#171310;padding:0 8px;position:sticky;top:0;z-index:49;-webkit-overflow-scrolling:touch;border-bottom:1px solid rgba(201,160,78,.35);}
+nav button{flex:0 0 auto;background:transparent;color:rgba(232,217,184,.6);padding:11px 14px;font-size:13px;border-radius:0;border-bottom:3px solid transparent;white-space:nowrap;}
+nav button.act{color:#f0e2c2;border-bottom-color:var(--gold);font-weight:700;}
 
 main{max-width:1080px;margin:0 auto;padding:14px 12px 90px;}
 .tab{display:none;}
@@ -60,11 +69,11 @@ main{max-width:1080px;margin:0 auto;padding:14px 12px 90px;}
 .hint{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.5;}
 
 /* purpose quote */
-.quote{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff;border-radius:12px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden;}
-.quote::after{content:"“";position:absolute;right:12px;top:-18px;font-size:90px;color:rgba(201,160,78,.25);font-family:Georgia,serif;}
-.quote .qt{font-size:11px;color:var(--gold2);letter-spacing:.12em;margin-bottom:6px;}
-.quote .qb{font-size:14px;line-height:1.7;white-space:pre-wrap;}
-.quote .qbtn{margin-top:8px;background:rgba(255,255,255,.15);color:#fff;font-size:11px;padding:4px 10px;border:1px solid rgba(255,255,255,.3);}
+.quote{background:var(--leather);color:#efe3c8;border-radius:14px;padding:18px 16px;margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(201,160,78,.5);box-shadow:0 4px 16px rgba(20,14,6,.3);}
+.quote::after{content:"“";position:absolute;right:12px;top:-18px;font-size:90px;color:rgba(201,160,78,.28);font-family:Georgia,serif;}
+.quote .qt{font-size:10px;color:#c9a04e;letter-spacing:.24em;margin-bottom:8px;font-family:'Cinzel',serif;}
+.quote .qb{font-size:14px;line-height:1.85;white-space:pre-wrap;font-family:'Shippori Mincho',serif;}
+.quote .qbtn{margin-top:10px;background:rgba(201,160,78,.15);color:#e0c98f;font-size:11px;padding:4px 12px;border:1px solid rgba(201,160,78,.5);}
 
 /* key action rows */
 .ka{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
@@ -141,6 +150,49 @@ details.sec .body{padding:12px 14px;}
 /* output box */
 .outbox{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:420px;overflow:auto;}
 
+/* ===== life design: best10 ===== */
+.b10-wrap{background:var(--leather);border:1px solid rgba(201,160,78,.5);border-radius:14px;padding:16px;box-shadow:0 4px 16px rgba(20,14,6,.3);}
+.b10-title{text-align:center;font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;letter-spacing:.12em;margin-bottom:2px;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.b10-sub{text-align:center;font-size:9px;color:#b39355;letter-spacing:.3em;font-family:'Cinzel',serif;margin-bottom:14px;}
+.b10-item{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(201,160,78,.22);}
+.b10-item:last-child{border-bottom:none;}
+.b10-item .medal{flex:0 0 30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#8a6524,#e0bc74 45%,#a97f35);color:#241d0e;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);font-family:'Cinzel',serif;}
+.b10-item .bd{flex:1;min-width:0;}
+.b10-item .bt{font-size:14px;font-weight:700;color:#f0e2c2;font-family:'Shippori Mincho',serif;line-height:1.5;background:transparent;border:none;width:100%;padding:0;}
+.b10-item .bw{font-size:12px;color:#b8a67f;line-height:1.6;background:transparent;border:none;width:100%;padding:0;resize:none;min-height:20px;font-family:inherit;}
+.b10-item .bt::placeholder,.b10-item .bw::placeholder{color:rgba(184,166,127,.4);}
+.b10-item.dn .bt{text-decoration:line-through;color:#8f8265;}
+.b10-item .bchk{width:20px;height:20px;margin-top:5px;accent-color:var(--gold);}
+
+/* ===== life design: dreams ===== */
+.dream-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.dcat{padding:6px 13px;border-radius:999px;font-size:12px;background:#fff;border:1px solid var(--line);color:var(--sub);cursor:pointer;}
+.dcat.act{background:var(--navy);color:#f0e2c2;border-color:var(--navy);font-weight:700;}
+.dream-card{display:flex;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--card);box-shadow:0 1px 4px rgba(60,45,20,.06);}
+.dream-card .dimg{flex:0 0 92px;width:92px;height:92px;border-radius:10px;overflow:hidden;background:var(--leather);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;}
+.dream-card .dimg img{width:100%;height:100%;object-fit:cover;}
+.dream-card .dimg .noimg{color:#c9a04e;font-size:24px;opacity:.7;}
+.dream-card .dbody{flex:1;min-width:0;}
+.dream-card .dcatchip{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;background:var(--goldbg);border:1px solid var(--gold2);color:#8a6524;font-weight:700;margin-bottom:3px;}
+.dream-card .dtitle{font-size:14px;font-weight:700;color:var(--navy);line-height:1.45;font-family:'Shippori Mincho',serif;}
+.dream-card.dn .dtitle{text-decoration:line-through;color:var(--sub);}
+.dream-card .dwhy{font-size:12px;color:var(--sub);line-height:1.55;margin-top:3px;}
+.dream-card .dmeta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:11px;}
+.dl-chip{padding:2px 9px;border-radius:999px;font-weight:700;font-size:11px;}
+.dl-ok{background:#e8f3ec;color:#256b45;}
+.dl-soon{background:#fdf0dd;color:#a05a08;}
+.dl-over{background:#fce8e6;color:#a33025;}
+.dl-done{background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;}
+.dlink{color:var(--info);text-decoration:none;font-size:11px;border:1px solid #c5d4ee;background:#f0f5fd;border-radius:999px;padding:2px 9px;}
+.dbtns{display:flex;flex-direction:column;gap:6px;}
+.dsm{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:13px;}
+.dsm.done{background:linear-gradient(120deg,#b98f3e,#e0bc74);border-color:transparent;}
+.dream-add{width:100%;border:2px dashed var(--gold);background:var(--goldbg);color:#8a6524;font-weight:700;padding:12px;font-size:13px;border-radius:12px;}
+.dmodal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:640px){.dmodal-grid{grid-template-columns:1fr;}}
+.dphoto-pick{width:120px;height:120px;border-radius:12px;overflow:hidden;background:var(--leather);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#c9a04e;font-size:28px;border:1px solid rgba(201,160,78,.5);}
+.dphoto-pick img{width:100%;height:100%;object-fit:cover;}
+
 /* ===== health ===== */
 .hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
 .hcell{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;}
@@ -183,20 +235,21 @@ details.sec .body{padding:12px 14px;}
 #imgView .x{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.15);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;}
 
 /* ===== pyramid ===== */
-.pyr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,42,74,.05);}
-.pyr .ns{font-size:11px;color:var(--gold);letter-spacing:.14em;font-weight:700;}
-.pyr .nsb{font-size:13px;color:var(--navy);font-weight:700;line-height:1.6;margin:3px 0 10px;white-space:pre-wrap;}
-.pyr .bg-chips{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
-.bg-chip{display:flex;gap:8px;align-items:flex-start;background:var(--goldbg);border:1px solid var(--gold2);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;color:var(--navy);line-height:1.5;}
-.bg-chip .n{flex:0 0 20px;height:20px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
-.fkpi{margin-bottom:10px;}
-.fkpi .fh{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:3px;flex-wrap:wrap;}
-.fkpi .fh b{color:var(--navy);font-size:13px;}
+.pyr{background:var(--leather);border:1px solid rgba(201,160,78,.5);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 4px 16px rgba(20,14,6,.3);}
+.pyr .ns{font-size:10px;color:#c9a04e;letter-spacing:.22em;font-weight:700;font-family:'Cinzel',serif;}
+.pyr .nsb{font-size:13px;color:#f0e2c2;font-weight:600;line-height:1.75;margin:4px 0 12px;white-space:pre-wrap;font-family:'Shippori Mincho',serif;}
+.pyr .bg-chips{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.bg-chip{display:flex;gap:8px;align-items:flex-start;background:rgba(201,160,78,.12);border:1px solid rgba(201,160,78,.45);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;color:#ecdcb6;line-height:1.55;}
+.bg-chip .n{flex:0 0 20px;height:20px;border-radius:50%;background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.fkpi{margin-bottom:12px;}
+.fkpi .fh{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:4px;flex-wrap:wrap;}
+.fkpi .fh b{color:#f0e2c2;font-size:13px;}
+.fkpi .fh span{color:#b8a67f;}
 .fkpi .fh .rate{margin-left:auto;font-weight:700;font-size:15px;}
-.rate.ok{color:var(--ok);} .rate.warn{color:var(--warn);} .rate.bad{color:var(--bad);}
-.fkpi .fbar{height:10px;background:#e8edf3;border-radius:999px;overflow:hidden;position:relative;}
+.rate.ok{color:#6fcf97;} .rate.warn{color:#e8a94e;} .rate.bad{color:#e0716a;}
+.fkpi .fbar{height:10px;background:rgba(240,226,194,.15);border-radius:999px;overflow:hidden;position:relative;}
 .fkpi .fbar>i{display:block;height:100%;border-radius:999px;transition:width .3s;}
-.fkpi .upd{background:none;border:none;color:var(--info);font-size:11px;text-decoration:underline;padding:2px 0;}
+.fkpi .upd{background:none;border:none;color:#c9a04e;font-size:11px;text-decoration:underline;padding:3px 0;}
 .kpi-edit{display:grid;grid-template-columns:1fr 70px 90px 90px 34px;gap:6px;align-items:center;margin-bottom:6px;}
 .kpi-edit input{width:100%;font-size:13px;}
 @media(max-width:640px){.kpi-edit{grid-template-columns:1fr 60px;} .kpi-edit input:nth-child(3),.kpi-edit input:nth-child(4){grid-column:auto;}}
@@ -206,14 +259,15 @@ details.sec .body{padding:12px 14px;}
 #toast.show{opacity:1;}
 
 /* login overlay */
-#loginOv{position:fixed;inset:0;background:linear-gradient(140deg,var(--navy),var(--navy3));z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;}
-.loginbox{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.35);}
-.loginbox h1{font-size:18px;color:var(--navy);text-align:center;letter-spacing:.05em;}
-.loginbox .sub{font-size:11px;color:var(--gold);text-align:center;letter-spacing:.16em;margin:4px 0 20px;}
-.loginbox input{width:100%;margin-bottom:10px;padding:11px 12px;}
-.loginbox .go{width:100%;background:var(--navy);color:#fff;padding:12px;font-weight:700;font-size:14px;margin-top:4px;}
-.loginbox .skip{width:100%;background:#fff;border:1px solid var(--line);color:var(--sub);padding:10px;font-size:12px;margin-top:8px;}
-.loginbox .err{color:var(--bad);font-size:12px;margin-top:8px;text-align:center;min-height:16px;}
+#loginOv{position:fixed;inset:0;background:var(--leather);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;}
+.loginbox{background:transparent;border:1px solid rgba(201,160,78,.55);border-radius:4px;padding:44px 28px;width:100%;max-width:400px;box-shadow:inset 0 0 0 3px rgba(201,160,78,.18), 0 10px 50px rgba(0,0,0,.5);}
+.loginbox h1{font-size:24px;text-align:center;letter-spacing:.14em;font-family:'Cinzel',serif;line-height:1.4;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.loginbox .sub{font-size:11px;color:#b39355;text-align:center;letter-spacing:.3em;margin:10px 0 8px;font-family:'Cinzel',serif;}
+.loginbox .owner{font-size:15px;color:#d9c08a;text-align:center;letter-spacing:.1em;margin-bottom:26px;font-family:'Cinzel',serif;font-style:italic;}
+.loginbox input{width:100%;margin-bottom:10px;padding:12px;background:rgba(255,252,242,.94);border:1px solid rgba(201,160,78,.5);}
+.loginbox .go{width:100%;background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;padding:13px;font-weight:700;font-size:14px;margin-top:6px;letter-spacing:.08em;}
+.loginbox .skip{width:100%;background:transparent;border:1px solid rgba(201,160,78,.4);color:#b8a67f;padding:10px;font-size:12px;margin-top:10px;}
+.loginbox .err{color:#e0836a;font-size:12px;margin-top:10px;text-align:center;min-height:16px;}
 
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(14,42,74,.55);z-index:150;display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;}
@@ -242,8 +296,9 @@ details.sec .body{padding:12px 14px;}
 <!-- ===== login ===== -->
 <div id="loginOv">
   <div class="loginbox">
-    <h1>EARTHCOM SUCCESS PLANNER</h1>
-    <div class="sub">SUCCESS PLANNING 2026</div>
+    <h1>LIFE DESIGN<br>PLANNER</h1>
+    <div class="sub">EARTHCOM SUCCESS PLANNING 2026</div>
+    <div class="owner">Nobuhiro Marubayashi</div>
     <input type="email" id="lgEmail" placeholder="メールアドレス" autocomplete="username">
     <input type="password" id="lgPass" placeholder="パスワード" autocomplete="current-password">
     <button class="go" onclick="doLogin()">ログインして開始</button>
@@ -278,7 +333,7 @@ details.sec .body{padding:12px 14px;}
   <button data-t="acts" onclick="showTab('acts')">✅ アクション</button>
   <button data-t="review" onclick="showTab('review')">🌙 振り返り</button>
   <button data-t="health" onclick="showTab('health')">💪 健康</button>
-  <button data-t="life" onclick="showTab('life')">🌈 人生ナビ</button>
+  <button data-t="life" onclick="showTab('life')">🏆 ライフデザイン</button>
   <button data-t="problem" onclick="showTab('problem')">🧩 問題解決</button>
   <button data-t="purpose" onclick="showTab('purpose')">🧭 目的・目標</button>
 </nav>
@@ -487,6 +542,19 @@ details.sec .body{padding:12px 14px;}
 
 <!-- ============ LIFE ============ -->
 <div class="tab" id="tab-life">
+  <div class="b10-wrap" style="margin-bottom:14px">
+    <div class="b10-title">死ぬまでにやりたいこと ベスト10</div>
+    <div class="b10-sub">LIFE DESIGN — BUCKET LIST BEST 10</div>
+    <div id="b10List"></div>
+  </div>
+
+  <div class="card">
+    <h2>ドリームリスト <span class="mini">欲しいもの・行きたいところ・したいこと・なりたい姿を、期限と写真で具体化する</span></h2>
+    <div class="dream-cats" id="dreamCats"></div>
+    <div id="dreamList"></div>
+    <button class="dream-add" onclick="openDream(null)">＋ 夢を追加する（期限・写真・リンク付き）</button>
+  </div>
+
   <div class="card">
     <h2>ライフバランス <span class="mini">8つの領域の現在地。月1回更新</span></h2>
     <div id="radarWrap" style="text-align:center"></div>
@@ -494,13 +562,7 @@ details.sec .body{padding:12px 14px;}
   </div>
 
   <div class="card">
-    <h2>人生でやりたいことリスト <span class="mini">仕事以外も含めて。達成したらチェック</span></h2>
-    <div id="bkList"></div>
-    <button class="addbtn" onclick="addBucket()">＋ やりたいことを追加</button>
-  </div>
-
-  <div class="card">
-    <h2>ビジョンボード <span class="mini">目標・理想の暮らし・行きたい場所の写真</span></h2>
+    <h2>ビジョンボード <span class="mini">理想の暮らし・行きたい場所の写真</span></h2>
     <div class="thumbs" id="visionThumbs"></div>
     <input type="file" id="visionPhotoInput" accept="image/*" multiple style="display:none" onchange="onPhotoPick(this,'vision')">
   </div>
@@ -561,6 +623,46 @@ details.sec .body{padding:12px 14px;}
     <div class="outbox" id="pb_out">「報告文を生成」を押すと、入力内容からChatwork・会議用の報告文を作成します。</div>
     <div class="row" style="margin-top:12px">
       <button class="addbtn" onclick="saveProblem()">保存して閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- dream modal -->
+<div class="modal-bg" id="dModal">
+  <div class="modal" style="max-width:640px">
+    <button class="mclose" onclick="closeDream()">✕</button>
+    <h3>🏆 夢の登録・編集</h3>
+    <div class="row" style="align-items:flex-start;margin-bottom:10px">
+      <div class="dphoto-pick" id="dPhotoPick" onclick="el('dPhotoInput').click()">＋</div>
+      <input type="file" id="dPhotoInput" accept="image/*" style="display:none" onchange="onDreamPhoto(this)">
+      <div style="flex:1;min-width:220px">
+        <div class="lbl" style="margin-top:0">カテゴリ</div>
+        <select id="d_cat" style="width:100%">
+          <option value="want">🛍 欲しいもの</option>
+          <option value="place">🌍 行きたいところ</option>
+          <option value="do">🎯 したいこと</option>
+          <option value="be">👤 なりたい姿</option>
+        </select>
+        <div class="lbl">タイトル</div>
+        <input type="text" id="d_title" style="width:100%" placeholder="例：家族全員で世界一周クルーズ180日間">
+      </div>
+    </div>
+    <div class="dmodal-grid">
+      <div>
+        <div class="lbl">いつまでに（期限）</div>
+        <input type="date" id="d_deadline" style="width:100%">
+      </div>
+      <div>
+        <div class="lbl">参考リンク（商品ページ・場所・情報）</div>
+        <input type="text" id="d_url" style="width:100%" placeholder="https://...">
+      </div>
+    </div>
+    <div class="lbl">背景・意味（なぜ叶えたいのか）</div>
+    <textarea id="d_why" placeholder="例：家族との時間こそ人生最大の資産。「一緒に見る世界」を共有したい"></textarea>
+    <div class="row" style="margin-top:14px">
+      <button class="goldbtn" onclick="saveDream()">保存する</button>
+      <div class="spacer"></div>
+      <button class="delbtn" style="width:auto;padding:0 12px" id="dDelBtn" onclick="deleteDream()">🗑 削除</button>
     </div>
   </div>
 </div>
@@ -650,9 +752,36 @@ function emptyDay(dateStr){return {date:dateStr,theme:'',topGoal:'',ka:['','',''
 function emptyHealth(){return {sleepStart:'',sleepEnd:'',sleepH:null,weight:'',steps:'',alcohol:'',cond:0,exercise:'',memo:''};}
 
 const LIFE_AREAS=['仕事・事業','家族','健康・体力','お金・資産','学び・成長','趣味（ゴルフ等）','人間関係','社会貢献'];
+const DCATS={want:'🛍 欲しいもの',place:'🌍 行きたいところ',do:'🎯 したいこと',be:'👤 なりたい姿'};
+function defaultBest10(){return [
+ {title:'グループ年商1000億円を達成する',why:'社会に“希望インフラ”を残す経営者としての人生の集大成',done:false},
+ {title:'家族全員で世界一周クルーズ180日間',why:'家族との時間こそ人生最大の資産。「一緒に見る世界」を共有したい',done:false},
+ {title:'自分の名前を冠した財団を創設する（再エネ×教育×金融）',why:'次世代の挑戦に“種銭”と“言葉”を残す仕組みを作る',done:false},
+ {title:'高校生・大学生1000人に向けて“夢とお金”について直接講演する',why:'「働く・生きる・夢を持つ」を支える考え方を伝えることが社会投資の一歩',done:false},
+ {title:'富士山で家族と一緒にご来光を見る',why:'感謝と原点回帰。「大切な人と大地と太陽を一緒に感じる」瞬間を味わう',done:false},
+ {title:'社員から10人の経営者を輩出する',why:'1人の成功ではなく“仕組みと文化”で成長をつなぐ',done:false},
+ {title:'家族史・会社史・人生哲学を本にまとめ出版する',why:'「なぜ働くか」「なぜ夢を追うか」を未来に残すために言語化したい',done:false},
+ {title:'ホノルルマラソン サブ4完走＆子どもと並走',why:'健康と挑戦を“体現”として示す。年齢を理由に諦めない背中を見せたい',done:false},
+ {title:'スイスかノルウェーで1か月リモート暮らし',why:'思考と自然、日常と非日常を融合させる“心のゆとり”を実践する',done:false},
+ {title:'両親の夢を叶える1日を全力プロデュースする',why:'自分の夢の源である“親”への感謝を行動で返す',done:false}
+];}
+function defaultDreams(){const mk=(cat,title,why)=>({id:'dm_'+Math.random().toString(36).slice(2,9),cat,title,why:why||'',deadline:'',url:'',photo:null,done:false,doneDate:''});
+return [
+ mk('place','日本の世界遺産巡り'),
+ mk('place','ヨーロッパ一周の旅'),
+ mk('place','オーロラを見ながら仲間と乾杯'),
+ mk('place','ハワイの別荘でBBQ'),
+ mk('do','ホノルルマラソン完走'),
+ mk('do','キャンピングカーで日本一周'),
+ mk('do','ハーレーで九州一周ツーリング'),
+ mk('do','豪華客船でクルージング'),
+ mk('do','超一流とのゴルフ'),
+ mk('do','冬の別荘で仲間と団欒'),
+ mk('be','品格のあるビジネスマン')
+];}
 function defaultLife(){return {
  areas:LIFE_AREAS.map(n=>({name:n,score:5,vision:'',action:''})),
- bucket:[],visionImgs:[]};}
+ best10:defaultBest10(),dreams:defaultDreams(),visionImgs:[]};}
 
 /* ================= storage ================= */
 function lsGet(k){try{const v=localStorage.getItem(LS_PREFIX+k);return v?JSON.parse(v):null;}catch(e){return null;}}
@@ -701,7 +830,15 @@ async function boot(){
   const cl=await cloudGet('life');
   if(cl)life=cl;
   if(!life){life=defaultLife();lsSet('life',life);}
-  if(!life.bucket)life.bucket=[];if(!life.visionImgs)life.visionImgs=[];
+  if(!life.visionImgs)life.visionImgs=[];
+  if(!life.best10)life.best10=defaultBest10();
+  if(!life.dreams){
+    life.dreams=defaultDreams();
+    if(life.bucket&&life.bucket.length){
+      life.bucket.forEach(b=>{if(b.text)life.dreams.push({id:'dm_'+Math.random().toString(36).slice(2,9),cat:'do',title:b.text,why:'',deadline:'',url:'',photo:null,done:!!b.done,doneDate:''});});
+      delete life.bucket;
+    }
+  }
   buildProfileUI();buildQ6UI();buildPStepsUI();
   el('p_ns').value=profile.northStar||'';
   buildBgEdit();buildKpiEdit();
@@ -1069,7 +1206,7 @@ function renderLife(){
     '<textarea placeholder="理想の状態" onchange="updArea('+i+',\'vision\',this.value)">'+esc(a.vision)+'</textarea>'+
     '<textarea placeholder="今月やること" style="margin-top:6px" onchange="updArea('+i+',\'action\',this.value)">'+esc(a.action)+'</textarea>'+
     '</div></div>').join('');
-  renderBucket();renderPhotos('vision');
+  renderBest10();renderDreams();renderPhotos('vision');
 }
 function updArea(i,k,v){
   life.areas[i][k]=(k==='score')?Number(v):v;
@@ -1080,25 +1217,120 @@ function renderRadar(){
   const N=life.areas.length,R=95,C=125;
   const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/N;return [C+r*Math.cos(a),C+r*Math.sin(a)];};
   let svg='<svg width="250" height="250" viewBox="0 0 250 250">';
-  for(let g=2;g<=10;g+=2){svg+='<polygon points="'+life.areas.map((_,i)=>pt(i,R*g/10).join(',')).join(' ')+'" fill="none" stroke="#e0e6ee"/>';}
-  life.areas.forEach((_,i)=>{const[px,py]=pt(i,R);svg+='<line x1="'+C+'" y1="'+C+'" x2="'+px+'" y2="'+py+'" stroke="#e0e6ee"/>';});
+  for(let g=2;g<=10;g+=2){svg+='<polygon points="'+life.areas.map((_,i)=>pt(i,R*g/10).join(',')).join(' ')+'" fill="none" stroke="#e0d6c0"/>';}
+  life.areas.forEach((_,i)=>{const[px,py]=pt(i,R);svg+='<line x1="'+C+'" y1="'+C+'" x2="'+px+'" y2="'+py+'" stroke="#e0d6c0"/>';});
   svg+='<polygon points="'+life.areas.map((a,i)=>pt(i,R*(a.score||0)/10).join(',')).join(' ')+'" fill="rgba(201,160,78,.35)" stroke="#c9a04e" stroke-width="2"/>';
   life.areas.forEach((a,i)=>{const[px,py]=pt(i,R+16);svg+='<text x="'+px+'" y="'+py+'" font-size="10" fill="#0e2a4a" font-weight="700" text-anchor="middle">'+esc(a.name.split('（')[0])+'</text>';});
   svg+='</svg>';
   el('radarWrap').innerHTML=svg;
 }
-function renderBucket(){
-  const w=el('bkList');
-  if(!life.bucket.length){w.innerHTML='<div class="hint">例：家族で海外旅行／ゴルフでベストスコア更新／富士山登頂…</div>';return;}
-  w.innerHTML=life.bucket.map((b,i)=>
-    '<div class="bk-item'+(b.done?' done':'')+'">'+
-    '<input type="checkbox" '+(b.done?'checked':'')+' onchange="updBucket('+i+',\'done\',this.checked)">'+
-    '<input type="text" value="'+esc(b.text)+'" onchange="updBucket('+i+',\'text\',this.value)">'+
-    '<button class="delbtn" onclick="delBucket('+i+')">✕</button></div>').join('');
+
+/* ---- best10 ---- */
+function renderBest10(){
+  while(life.best10.length<10)life.best10.push({title:'',why:'',done:false});
+  el('b10List').innerHTML=life.best10.slice(0,10).map((b,i)=>
+    '<div class="b10-item'+(b.done?' dn':'')+'">'+
+    '<div class="medal">'+(i+1)+'</div>'+
+    '<div class="bd">'+
+      '<input class="bt" value="'+esc(b.title)+'" placeholder="やりたいこと '+(i+1)+'" onchange="updB10('+i+',\'title\',this.value)">'+
+      '<textarea class="bw" rows="1" placeholder="背景・意味（なぜ叶えたいのか）" onchange="updB10('+i+',\'why\',this.value)">'+esc(b.why)+'</textarea>'+
+    '</div>'+
+    '<input type="checkbox" class="bchk" '+(b.done?'checked':'')+' onchange="updB10('+i+',\'done\',this.checked)" title="達成">'+
+    '</div>').join('');
 }
-function addBucket(){life.bucket.push({text:'',done:false});renderBucket();saveLife();const inputs=el('bkList').querySelectorAll('input[type=text]');if(inputs.length)inputs[inputs.length-1].focus();}
-function updBucket(i,k,v){life.bucket[i][k]=v;if(k==='done')renderBucket();saveLife();}
-function delBucket(i){life.bucket.splice(i,1);renderBucket();saveLife();}
+function updB10(i,k,v){life.best10[i][k]=v;if(k==='done')renderBest10();saveLife();}
+
+/* ---- dreams ---- */
+let dreamFilter='all',curDreamId=null,dreamPhotoTemp=undefined;
+function dlLabel(d){
+  if(d.done)return '<span class="dl-chip dl-done">✔ 達成'+(d.doneDate?'（'+d.doneDate+'）':'')+'</span>';
+  if(!d.deadline)return '';
+  const[y,m,dd]=d.deadline.split('-').map(Number);
+  const diff=Math.ceil((new Date(y,m-1,dd)-new Date(curDate.split('-')[0],curDate.split('-')[1]-1,curDate.split('-')[2]))/86400000);
+  const ds=d.deadline.replace(/-/g,'/');
+  if(diff<0)return '<span class="dl-chip dl-over">📅 '+ds+'（'+Math.abs(diff)+'日超過）</span>';
+  if(diff<=90)return '<span class="dl-chip dl-soon">📅 '+ds+'（あと'+diff+'日）</span>';
+  return '<span class="dl-chip dl-ok">📅 '+ds+'（あと'+diff+'日）</span>';
+}
+function renderDreams(){
+  const cats=[['all','すべて'],['want',DCATS.want],['place',DCATS.place],['do',DCATS.do],['be',DCATS.be],['done','✔ 達成済み']];
+  el('dreamCats').innerHTML=cats.map(c=>'<button class="dcat'+(dreamFilter===c[0]?' act':'')+'" onclick="dreamFilter=\''+c[0]+'\';renderDreams()">'+c[1]+'</button>').join('');
+  let list=life.dreams.slice();
+  if(dreamFilter==='done')list=list.filter(d=>d.done);
+  else if(dreamFilter!=='all')list=list.filter(d=>d.cat===dreamFilter&&!d.done);
+  else list=list.filter(d=>!d.done);
+  list.sort((a,b)=>(a.deadline||'9999')<(b.deadline||'9999')?-1:1);
+  el('dreamList').innerHTML=list.length?list.map(d=>{
+    const url=/^https?:\/\//.test(d.url||'')?d.url:'';
+    return '<div class="dream-card'+(d.done?' dn':'')+'">'+
+    '<div class="dimg" onclick="'+(d.photo?'viewUrl(\''+esc(d.photo.url)+'\')':'openDream(\''+d.id+'\')')+'">'+(d.photo?'<img src="'+esc(d.photo.url)+'" loading="lazy">':'<span class="noimg">✦</span>')+'</div>'+
+    '<div class="dbody">'+
+      '<span class="dcatchip">'+(DCATS[d.cat]||'')+'</span>'+
+      '<div class="dtitle">'+esc(d.title)+'</div>'+
+      (d.why?'<div class="dwhy">'+esc(d.why)+'</div>':'')+
+      '<div class="dmeta">'+dlLabel(d)+(url?'<a class="dlink" href="'+esc(url)+'" target="_blank" rel="noopener">🔗 リンクを開く</a>':'')+'</div>'+
+    '</div>'+
+    '<div class="dbtns">'+
+      '<button class="dsm done" title="達成にする" onclick="toggleDreamDone(\''+d.id+'\')">'+(d.done?'↩':'✔')+'</button>'+
+      '<button class="dsm" title="編集" onclick="openDream(\''+d.id+'\')">✎</button>'+
+    '</div></div>';
+  }).join(''):'<div class="hint" style="margin-bottom:10px">この分類にはまだ登録がありません。</div>';
+}
+function viewUrl(u){el('imgViewImg').src=u;el('imgView').classList.add('show');}
+function toggleDreamDone(id){
+  const d=life.dreams.find(x=>x.id===id);if(!d)return;
+  d.done=!d.done;d.doneDate=d.done?curDate:'';
+  saveLife();renderDreams();
+  if(d.done)toast('🎉 達成おめでとうございます！');
+}
+function openDream(id){
+  curDreamId=id;dreamPhotoTemp=undefined;
+  const d=id?life.dreams.find(x=>x.id===id):null;
+  el('d_cat').value=d?d.cat:'want';
+  el('d_title').value=d?d.title:'';
+  el('d_deadline').value=d?d.deadline:'';
+  el('d_url').value=d?d.url:'';
+  el('d_why').value=d?d.why:'';
+  el('dDelBtn').style.display=id?'block':'none';
+  el('dPhotoPick').innerHTML=(d&&d.photo)?'<img src="'+esc(d.photo.url)+'">':'＋';
+  el('dModal').classList.add('show');
+}
+function closeDream(){el('dModal').classList.remove('show');}
+async function onDreamPhoto(input){
+  const f=input.files&&input.files[0];input.value='';
+  if(!f)return;
+  toast('写真を処理しています…');
+  try{
+    const blob=await compressImage(f,1000);
+    if(cloudOn){
+      const path='dream/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.jpg';
+      const{error}=await sb.storage.from(IMG_BUCKET).upload(path,blob,{contentType:'image/jpeg'});
+      if(error)throw error;
+      const{data}=sb.storage.from(IMG_BUCKET).getPublicUrl(path);
+      dreamPhotoTemp={url:data.publicUrl,path};
+    }else{
+      dreamPhotoTemp={url:await blobToDataURL(blob)};
+    }
+    el('dPhotoPick').innerHTML='<img src="'+esc(dreamPhotoTemp.url)+'">';
+  }catch(e){console.warn(e);toast('写真の保存に失敗しました');}
+}
+function saveDream(){
+  const title=el('d_title').value.trim();
+  if(!title){toast('タイトルを入力してください');return;}
+  let d=curDreamId?life.dreams.find(x=>x.id===curDreamId):null;
+  if(!d){d={id:'dm_'+Date.now(),done:false,doneDate:'',photo:null};life.dreams.push(d);}
+  d.cat=el('d_cat').value;d.title=title;d.deadline=el('d_deadline').value;
+  d.url=el('d_url').value.trim();d.why=el('d_why').value;
+  if(dreamPhotoTemp!==undefined)d.photo=dreamPhotoTemp;
+  saveLife();renderDreams();closeDream();toast('夢を保存しました');
+}
+function deleteDream(){
+  if(!confirm('この夢を削除しますか？'))return;
+  const d=life.dreams.find(x=>x.id===curDreamId);
+  if(d&&d.photo&&d.photo.path&&cloudOn){sb.storage.from(IMG_BUCKET).remove([d.photo.path]).catch(e=>console.warn(e));}
+  life.dreams=life.dreams.filter(x=>x.id!==curDreamId);
+  saveLife();renderDreams();closeDream();
+}
 function saveLife(){lsSet('life',life);cloudSet('life',life);}
 
 /* ================= photos ================= */
