@@ -646,6 +646,16 @@ function renderApp(){
       </div>
     </div>
     <div class="note" style="margin-top:6px">利回り欄は%で入力（表面7.0など）。太陽光の「概要書」Excelをドロップすると自動で埋まります。</div>
+    ${s.detail?`
+    <div class="sub-h">💰 年間経費（①〜⑧・毎年同額で適用）</div>
+    <div class="grid2">
+      ${SOLAR_COSTS.map((c,i)=>{const arr=s.detail.c&&s.detail.c[i];const v=arr?(+arr[0]||0):0;
+        const vary=arr&&arr.some(x=>Math.round(+x||0)!==Math.round(v));
+        return `<div class="fld"><label>${c[0]}</label><div class="ctrl">
+          <input data-cost="${i}" type="text" class="num" value="${nf(v)}">
+        </div><span class="u">${vary?'⚠年次変動あり':(c[1]||'円/年')}</span></div>`;}).join('')}
+    </div>
+    <div class="note" style="margin:4px 0 0">入力すると<b>全年に同額</b>で反映し、累計経費・営業利益・ネット利回り・累積CF・税効果後CFを自動で再計算します。<br>※①償却資産税は本来<b>年々逓減</b>します（Excel取込時の年次推移を保持）。ここで数値を入れると全年同額になるためご注意ください。</div>`:''}
   </div></div>`;
   // year grid
   h+=`<div class="sec-title">年別データ入力 <span class="tip">セルを直接編集／Excelの行をコピーして先頭セルに貼付で一括入力</span>
@@ -705,6 +715,10 @@ function wireApp(){
   const bp=$('#bSyncPull'); if(bp)bp.onclick=battSyncPull;
   const bpu=$('#bSyncPush'); if(bpu)bpu.onclick=battSyncPush;
   const trEl=$('[data-taxrate]'); if(trEl)trEl.onchange=e=>{P.solar.taxRate=parseFloat(e.target.value);saveP();renderApp();};
+  $$('[data-cost]').forEach(i=>i.onchange=e=>{
+    const idx=+i.dataset.cost, val=numv(e.target.value);
+    setSolarCost(P.solar,idx,val); saveP(); renderApp();
+  });
   const sp=$('#sSyncPull'); if(sp)sp.onclick=solarSyncPull;
   const spu=$('#sSyncPush'); if(spu)spu.onclick=solarSyncPush;
   const openUrl=u=>{u=(u||'').trim();if(!u){toast('スプレッドシートURLを入力してください');return;}if(!/^https?:\/\//.test(u)){toast('URLは https:// から始めてください');return;}window.open(u,'_blank','noopener');};
@@ -995,6 +1009,34 @@ function ensureSolar(p){ if(!p.solar)p.solar={on:false,name:'',price:0,priceEx:0
    税効果利回り   = 年間売電収入(税込) ÷ 差引投資(税抜)
    税効果後CF 0期 = −設備価格(税込) + 税効果額 + 消費税還付(税込−税抜)
    以降        = 前年累計 + 営業利益 */
+/* ①〜⑧の内訳から 累計経費・営業利益・ネット利回り・累積CF を再計算 */
+function recalcSolarDetail(s){
+  const d=s&&s.detail; if(!d||!d.sales)return;
+  const N=d.years||d.sales.length;
+  const priceEx=+s.priceEx||0, priceIncl=+s.price||0;
+  d.costTot=[]; d.op=[]; d.netYr=[]; d.cumCf=[];
+  let cum=-priceIncl;
+  for(let t=0;t<N;t++){
+    let cost=0;
+    for(let i=0;i<8;i++){ const a=d.c&&d.c[i]; cost+=a?(+a[t]||0):0; }
+    const sales=+d.sales[t]||0, op=sales-cost;
+    d.costTot.push(Math.round(cost));
+    d.op.push(Math.round(op));
+    d.netYr.push(priceIncl?op/priceIncl:0);
+    cum+=op; d.cumCf.push(Math.round(cum));
+  }
+  s.netY=d.netYr[0]||s.netY;
+}
+/* 経費項目を全年同額でセット（①のみ空欄なら元の年次推移を維持） */
+function setSolarCost(s,idx,val){
+  const d=s&&s.detail; if(!d)return;
+  const N=d.years||(d.sales?d.sales.length:0); if(!N)return;
+  if(!d.c)d.c=[];
+  if(!d.c[idx])d.c[idx]=Array.from({length:N},()=>0);
+  for(let t=0;t<N;t++)d.c[idx][t]=Math.round(+val||0);
+  recalcSolarDetail(s);
+}
+const SOLAR_COSTS=[['①償却資産税','年々逓減（通常は編集不要）'],['②固定資産税',''],['③管理費（O&M）','税込'],['④パワコン電気代',''],['⑤土地賃料',''],['⑥寄付金',''],['⑦休業保険',''],['⑧動産補償','']];
 function taxCalc(s,rate){
   const priceEx=+s.priceEx||0, priceIncl=+s.price||Math.round(priceEx*1.1);
   const d=s.detail;
