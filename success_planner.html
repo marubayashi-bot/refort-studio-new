@@ -322,6 +322,8 @@ details.sec .body{padding:12px 14px;}
     <input type="date" id="dPick" onchange="pickDay(this.value)">
     <button class="todaybtn" onclick="goToday()">今日へ</button>
     <div class="spacer"></div>
+    <button class="dnav" id="undoBtn" onclick="doUndo()" title="元に戻す（Ctrl+Z）" style="opacity:.4">↩ 戻す</button>
+    <button class="dnav" id="redoBtn" onclick="doRedo()" title="やり直す（Ctrl+Y）" style="opacity:.4">↪</button>
     <span class="badge" id="saveState">保存済み</span>
   </div>
 </header>
@@ -696,6 +698,60 @@ const LS_PREFIX='esp_';
 let sb=null, cloudOn=false, curDate=todayStr(), day=null, profile=null, problems=[], life=null;
 let curProblemId=null, saveTimer=null, dirty=false;
 
+/* ================= undo / redo（当日データが対象） ================= */
+let undoStack=[], redoStack=[];
+const UNDO_MAX=30;
+function snapUndo(){
+  if(!day)return;
+  try{
+    const s=JSON.stringify(day);
+    if(undoStack.length&&undoStack[undoStack.length-1]===s)return;
+    undoStack.push(s);
+    if(undoStack.length>UNDO_MAX)undoStack.shift();
+    redoStack=[];
+    updateUndoBtns();
+  }catch(e){}
+}
+function doUndo(){
+  if(!undoStack.length){toast('元に戻す変更はありません');return;}
+  flushCollect();
+  const cur=JSON.stringify(day);
+  let prev=undoStack.pop();
+  while(prev===cur&&undoStack.length)prev=undoStack.pop(); // 現状と同じスナップショットは飛ばす
+  if(prev===cur){updateUndoBtns();toast('元に戻す変更はありません');return;}
+  redoStack.push(cur);
+  day=JSON.parse(prev);
+  renderDay();markDirty();updateStats();updateUndoBtns();
+  toast('元に戻しました');
+}
+function doRedo(){
+  if(!redoStack.length){toast('やり直す変更はありません');return;}
+  flushCollect();
+  undoStack.push(JSON.stringify(day));
+  day=JSON.parse(redoStack.pop());
+  renderDay();markDirty();updateStats();updateUndoBtns();
+  toast('やり直しました');
+}
+function updateUndoBtns(){
+  const u=el('undoBtn'),r=el('redoBtn');
+  if(u)u.style.opacity=undoStack.length?'1':'.4';
+  if(r)r.style.opacity=redoStack.length?'1':'.4';
+}
+/* 入力フィールドにフォーカスした瞬間の状態をスナップショット（編集前の状態を保持） */
+document.addEventListener('focusin',e=>{
+  const t=e.target;
+  if(!t.matches('input,textarea,select'))return;
+  if(t.closest('#tab-home')||t.closest('#tab-sched')||t.closest('#tab-image')||t.closest('#tab-acts')||t.closest('#tab-review')||t.closest('#tab-health')){
+    if(day){flushCollect();snapUndo();}
+  }
+});
+/* Ctrl+Z / Ctrl+Y（入力欄の外でのみ。入力中はブラウザ標準のUndoを優先） */
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,select'))return;
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();doUndo();}
+  else if(((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y')||((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='z')){e.preventDefault();doRedo();}
+});
+
 const el=id=>document.getElementById(id);
 function todayStr(d){const x=d||new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
 function toast(m){const t=el('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('show'),2200);}
@@ -870,6 +926,7 @@ async function boot(){
 async function loadDay(dateStr){
   flushSave();
   curDate=dateStr;
+  undoStack=[];redoStack=[];updateUndoBtns();
   let d=lsGet('day_'+dateStr);
   const cd=await cloudGet('day_'+dateStr);
   if(cd)d=cd;
@@ -951,14 +1008,15 @@ function renderSched(){
     tb.appendChild(tr);
   });
 }
-function addSched(){day.schedule.push({time:'',plan:'',goal:'',give:'',result:'',done:false});renderSched();markDirty();}
+function addSched(){snapUndo();day.schedule.push({time:'',plan:'',goal:'',give:'',result:'',done:false});renderSched();markDirty();}
 function fillSchedTemplate(){
   if(day.schedule.length&&!confirm('現在の予定に加えて 7:00〜21:00 の枠を追加します。よろしいですか？'))return;
+  snapUndo();
   for(let h=7;h<=21;h++){day.schedule.push({time:String(h).padStart(2,'0')+':00',plan:'',goal:'',give:'',result:'',done:false});}
   renderSched();markDirty();
 }
-function updSched(i,k,v){day.schedule[i][k]=v;if(k==='done')renderSched();markDirty();updateStats();}
-function delSched(i){day.schedule.splice(i,1);renderSched();markDirty();updateStats();}
+function updSched(i,k,v){snapUndo();day.schedule[i][k]=v;if(k==='done')renderSched();markDirty();updateStats();}
+function delSched(i){snapUndo();day.schedule.splice(i,1);renderSched();markDirty();updateStats();toast('予定を削除しました（↩ 戻す で復元できます）');}
 
 /* ---- actions ---- */
 const STS=['未着手','実行中','完了','保留','繰越'];
@@ -978,9 +1036,9 @@ function renderActions(){
     w.appendChild(div);
   });
 }
-function addAction(pre){day.actions.push(Object.assign({time:'',action:'',result:'',learn:'',status:'未着手'},pre||{}));renderActions();markDirty();updateStats();}
-function updAct(i,k,v){day.actions[i][k]=v;if(k==='status'){renderActions();if(v==='完了')syncTaskComplete(day.actions[i]);}markDirty();updateStats();}
-function delAct(i){day.actions.splice(i,1);renderActions();markDirty();updateStats();}
+function addAction(pre){snapUndo();day.actions.push(Object.assign({time:'',action:'',result:'',learn:'',status:'未着手'},pre||{}));renderActions();markDirty();updateStats();}
+function updAct(i,k,v){snapUndo();day.actions[i][k]=v;if(k==='status'){renderActions();if(v==='完了')syncTaskComplete(day.actions[i]);}markDirty();updateStats();}
+function delAct(i){snapUndo();day.actions.splice(i,1);renderActions();markDirty();updateStats();toast('アクションを削除しました（↩ 戻す で復元できます）');}
 
 /* ---- carryover ---- */
 let carryItems=[],carryPlan=null;
@@ -1008,7 +1066,7 @@ async function renderCarry(){
   h+=carryItems.map(a=>'<div class="co-item"><span class="chip">'+esc(a.status)+'</span><div class="t">'+esc(a.action)+'</div></div>').join('');
   el('coList').innerHTML=h;
 }
-function importCarry(){
+function importCarry(){snapUndo();
   let n=0;
   if(carryPlan){
     if(!el('f_topGoal').value.trim()&&carryPlan.goal){el('f_topGoal').value=carryPlan.goal;day.topGoal=carryPlan.goal;}
@@ -1146,7 +1204,7 @@ function renderCond(){
   const btns=el('h_cond').querySelectorAll('button');
   btns.forEach((b,i)=>b.classList.toggle('sel',day.health.cond===i+1));
 }
-function setCond(n){day.health.cond=(day.health.cond===n?0:n);renderCond();markDirty();}
+function setCond(n){snapUndo();day.health.cond=(day.health.cond===n?0:n);renderCond();markDirty();}
 function updHealth(){
   const h=day.health;
   h.sleepStart=el('h_sleepStart').value;h.sleepEnd=el('h_sleepEnd').value;
@@ -1368,7 +1426,7 @@ function viewImg(kind,i){
   el('imgViewImg').src=arr[i].url;
   el('imgView').classList.add('show');
 }
-function delPhoto(kind,i){
+function delPhoto(kind,i){if(kind==='day')snapUndo();
   if(!confirm('この写真を削除しますか？'))return;
   const arr=(kind==='day')?day.photos:life.visionImgs;
   const p=arr.splice(i,1)[0];
@@ -1519,6 +1577,7 @@ async function importCalendar(){
     const j=await gasGet('mode=calendar&date='+curDate);
     const evs=j.events||[];
     if(!evs.length){toast('今日の予定はありませんでした');return;}
+    snapUndo();
     let added=0;
     evs.forEach(ev=>{
       if(ev.id&&day.schedule.some(s=>s.gcalId===ev.id))return;
@@ -1535,6 +1594,7 @@ async function importTasks(){
   toast('Google ToDoを取得しています…');
   try{
     const j=await gasGet('mode=tasks');
+    snapUndo();
     const ts=j.tasks||[];
     if(!ts.length){toast('未完了のToDoはありませんでした');return;}
     let added=0;
