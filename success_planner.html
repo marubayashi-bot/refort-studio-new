@@ -141,6 +141,36 @@ table{width:100%;border-collapse:collapse;}
 
 /* profile sections */
 details.sec{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:#fff;overflow:hidden;}
+/* ===== 計画ビュー ===== */
+.pv-switch{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.pv-switch button{padding:7px 16px;border:1px solid var(--line);background:#fff;font-weight:700;border-radius:20px;font-size:13px;}
+.pv-switch button.act2{background:var(--navy);color:#fff;border-color:var(--navy);}
+.pv-nav{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+.pv-nav .lbl{font-weight:800;font-size:15px;color:var(--navy);min-width:150px;text-align:center;}
+.pv-nav button{padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:8px;font-weight:700;}
+.pw-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+@media(max-width:900px){.pw-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.pw-grid{grid-template-columns:1fr;}}
+.pw-day{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px;display:flex;flex-direction:column;gap:5px;}
+.pw-day.today{border:2px solid var(--gold);background:var(--goldbg);}
+.pw-day.wknd .pw-head span{color:var(--bad);}
+.pw-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:12.5px;color:var(--navy);}
+.pw-open{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;padding:2px 8px;}
+.pw-goal{min-height:52px;font-size:12.5px;padding:6px;}
+.pw-ka{width:100%;font-size:12px;padding:5px 8px;}
+.pw-stat{font-size:11px;color:var(--sub);min-height:14px;}
+.pw-dot{color:var(--gold);font-size:10px;margin-left:3px;}
+.pm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.pm-dow{font-size:11.5px;font-weight:800;text-align:center;color:var(--navy);padding:4px 0;}
+.pm-dow.wknd{color:var(--bad);}
+.pm-cell{border:1px solid var(--line);border-radius:8px;background:#fff;min-height:72px;padding:5px;cursor:pointer;overflow:hidden;}
+.pm-cell:hover{border-color:var(--gold);background:var(--goldbg);}
+.pm-cell.empty{border:none;background:transparent;cursor:default;}
+.pm-cell.today{border:2px solid var(--gold);background:var(--goldbg);}
+.pm-d{font-weight:800;font-size:12px;color:var(--navy);}
+.pm-goal{font-size:10.5px;line-height:1.35;color:var(--txt);margin-top:2px;word-break:break-all;}
+.pm-act{font-size:10px;color:var(--ok);font-weight:700;margin-top:2px;}
+@media(max-width:560px){.pm-cell{min-height:56px;padding:3px;}.pm-goal{display:none;}}
 details.sec summary{list-style:none;cursor:pointer;padding:11px 14px;font-weight:700;font-size:13px;color:var(--navy);background:#f7f9fc;display:flex;align-items:center;gap:8px;}
 details.sec summary::-webkit-details-marker{display:none;}
 details.sec summary::before{content:"▸";color:var(--gold);transition:transform .15s;}
@@ -322,7 +352,7 @@ details.sec .body{padding:12px 14px;}
     <input type="date" id="dPick" onchange="pickDay(this.value)">
     <button class="todaybtn" onclick="goToday()">今日へ</button>
     <div class="spacer"></div>
-    <button class="dnav" id="undoBtn" onclick="doUndo()" title="元に戻す（Ctrl+Z）" style="opacity:.4">↩ 戻す</button>
+    <button class="dnav" id="undoBtn" onclick="doUndo()" title="元に戻す（Ctrl+Z）" style="opacity:.4">↩</button>
     <button class="dnav" id="redoBtn" onclick="doRedo()" title="やり直す（Ctrl+Y）" style="opacity:.4">↪</button>
     <span class="badge" id="saveState">保存済み</span>
   </div>
@@ -334,6 +364,7 @@ details.sec .body{padding:12px 14px;}
   <button data-t="image" onclick="showTab('image')">💭 最高イメージ</button>
   <button data-t="acts" onclick="showTab('acts')">✅ アクション</button>
   <button data-t="review" onclick="showTab('review')">🌙 振り返り</button>
+  <button data-t="plan" onclick="showTab('plan')">📋 計画</button>
   <button data-t="health" onclick="showTab('health')">💪 健康</button>
   <button data-t="life" onclick="showTab('life')">🏆 ライフデザイン</button>
   <button data-t="problem" onclick="showTab('problem')">🧩 問題解決</button>
@@ -446,6 +477,45 @@ details.sec .body{padding:12px 14px;}
       <button class="goldbtn" onclick="importTasks()">📥 Google ToDo取得</button>
     </div>
     <div class="hint">未着手・実行中・保留のまま日付が変わると、翌日のホームに「昨日からの引継ぎ」として表示されます。Google ToDoから取り込んだタスクは、ここで完了にするとGoogle側も完了になります。</div>
+  </div>
+</div>
+
+<!-- ============ PLAN (週間・月間) ============ -->
+<div class="tab" id="tab-plan">
+  <div class="card">
+    <h2>計画 <span class="mini">週で設計し、月で俯瞰する（月曜始まり）</span></h2>
+    <div class="pv-switch">
+      <button id="pvWeekBtn" class="act2" onclick="switchPlanView('week')">📆 週間</button>
+      <button id="pvMonthBtn" onclick="switchPlanView('month')">🗓 月間</button>
+    </div>
+
+    <div id="planWeek">
+      <div class="pv-nav">
+        <button onclick="movePlanWeek(-1)">◀ 前週</button>
+        <span class="lbl" id="pwLabel">-</span>
+        <button onclick="movePlanWeek(1)">翌週 ▶</button>
+        <button onclick="goPlanThisWeek()">今週へ</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px" class="pwmeta">
+        <div><div class="hint" style="margin:0 0 3px;font-weight:700">今週の目標</div>
+          <textarea id="pw_goal" style="min-height:48px" placeholder="今週、何が達成できれば勝ちか" onchange="updWeekMeta('goal',this.value)"></textarea></div>
+        <div><div class="hint" style="margin:0 0 3px;font-weight:700">今週のGIVE</div>
+          <textarea id="pw_give" style="min-height:48px" placeholder="今週、誰に何をGIVEするか" onchange="updWeekMeta('give',this.value)"></textarea></div>
+      </div>
+      <div class="pw-grid" id="pwDays"></div>
+      <div class="hint">各日のゴール・重点行動はここで先行入力でき、当日そのままホーム画面に表示されます。「開く」でその日のシートへ移動します。日曜の夜に翌週分を設計する運用がおすすめです。</div>
+    </div>
+
+    <div id="planMonth" style="display:none">
+      <div class="pv-nav">
+        <button onclick="movePlanMonth(-1)">◀ 前月</button>
+        <span class="lbl" id="pmLabel">-</span>
+        <button onclick="movePlanMonth(1)">翌月 ▶</button>
+        <button onclick="goPlanThisMonth()">今月へ</button>
+      </div>
+      <div class="pm-grid" id="pmGrid"></div>
+      <div class="hint">● は記入済みの日。日付をタップするとその日のシートへ移動します（未来の日付も先行入力できます）。</div>
+    </div>
   </div>
 </div>
 
@@ -1581,7 +1651,7 @@ async function importCalendar(){
     let added=0;
     evs.forEach(ev=>{
       if(ev.id&&day.schedule.some(s=>s.gcalId===ev.id))return;
-      day.schedule.push({time:ev.allday?'':ev.start,plan:(ev.allday?'【終日】':'')+ev.title+(ev.allday?'':'（〜'+ev.end+'）'),goal:'',give:'',result:'',done:false,gcalId:ev.id||''});
+      day.schedule.push({time:ev.allday?'':ev.start,plan:(ev.allday?'【終日】':'')+ev.title+(ev.allday?'':'（〜'+ev.end+'）'),goal:(ev.description||''),give:'',result:'',done:false,gcalId:ev.id||''});
       added++;
     });
     day.schedule.sort((a,b)=>(a.time||'99')<(b.time||'99')?-1:1);
@@ -1734,12 +1804,129 @@ document.addEventListener('input',e=>{
   if(e.target.closest('#tab-home')||e.target.closest('#tab-review')||e.target.closest('#tab-image')||e.target.closest('#tab-purpose'))markDirty();
 });
 
+/* ================= 計画ビュー（週間・月間／月曜始まり） ================= */
+let planView='week', planWeekMon=null, planMonthStr=null, pwDayCache={}, pwMeta=null;
+function addDaysStr(ds,n){const[y,m,d]=ds.split('-').map(Number);const dt=new Date(y,m-1,d+n);return todayStr(dt);}
+function mondayOf(ds){const[y,m,d]=ds.split('-').map(Number);const dt=new Date(y,m-1,d);const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return todayStr(dt);}
+function fmtMD(ds){const p2=ds.split('-');return Number(p2[1])+'/'+Number(p2[2]);}
+async function cloudGetMany(keys){
+  if(!cloudOn)return {};
+  try{const{data,error}=await sb.from(TBL).select('key,value').in('key',keys);if(error)throw error;
+    const o={};(data||[]).forEach(r=>o[r.key]=r.value);return o;
+  }catch(e){console.warn('cloudGetMany',e);return {};}
+}
+function switchPlanView(v){
+  planView=v;
+  el('pvWeekBtn').classList.toggle('act2',v==='week');
+  el('pvMonthBtn').classList.toggle('act2',v==='month');
+  el('planWeek').style.display=v==='week'?'':'none';
+  el('planMonth').style.display=v==='month'?'':'none';
+  renderPlan();
+}
+function renderPlan(){flushSave();if(planView==='week')renderPlanWeek();else renderPlanMonth();}
+function movePlanWeek(n){planWeekMon=addDaysStr(planWeekMon||mondayOf(todayStr()),n*7);renderPlanWeek();}
+function goPlanThisWeek(){planWeekMon=mondayOf(todayStr());renderPlanWeek();}
+async function renderPlanWeek(){
+  if(!planWeekMon)planWeekMon=mondayOf(todayStr());
+  const dates=[0,1,2,3,4,5,6].map(i=>addDaysStr(planWeekMon,i));
+  el('pwLabel').textContent=fmtMD(dates[0])+'（月）〜 '+fmtMD(dates[6])+'（日）';
+  const wkKey='week_'+planWeekMon;
+  pwMeta=lsGet(wkKey)||{goal:'',give:''};
+  const cm=await cloudGet(wkKey);if(cm)pwMeta=cm;
+  el('pw_goal').value=pwMeta.goal||'';el('pw_give').value=pwMeta.give||'';
+  pwDayCache={};
+  dates.forEach(d=>{const v=lsGet('day_'+d);if(v)pwDayCache[d]=v;});
+  const cd=await cloudGetMany(dates.map(d=>'day_'+d));
+  Object.keys(cd).forEach(k=>{if(cd[k])pwDayCache[k.slice(4)]=cd[k];});
+  if(dates.indexOf(curDate)>=0&&day){flushCollect();pwDayCache[curDate]=day;}
+  const dows=['月','火','水','木','金','土','日'];
+  el('pwDays').innerHTML=dates.map(function(d,i){
+    const dd=pwDayCache[d]||{};
+    const ka=dd.ka||['','',''];
+    const acts=dd.actions||[];
+    const done=acts.filter(a=>a.status==='完了').length;
+    const filled=(dd.topGoal||'').trim()||acts.length||(dd.review&&(dd.review.seika||'').trim());
+    const stat=[];
+    if((dd.schedule||[]).length)stat.push('予定'+dd.schedule.length+'件');
+    if(acts.length)stat.push('行動'+done+'/'+acts.length);
+    return '<div class="pw-day'+(d===todayStr()?' today':'')+(i>=5?' wknd':'')+'">'+
+      '<div class="pw-head"><span>'+fmtMD(d)+'（'+dows[i]+'）'+(filled?'<span class="pw-dot">●</span>':'')+'</span>'+
+      '<button class="pw-open" onclick="jumpToDay(\''+d+'\')">開く</button></div>'+
+      '<textarea class="pw-goal" placeholder="最重要ゴール" onchange="updPlanDay(\''+d+'\',\'topGoal\',this.value)">'+esc(dd.topGoal||'')+'</textarea>'+
+      [0,1,2].map(j=>'<input type="text" class="pw-ka" placeholder="重点行動'+(j+1)+'" value="'+esc(ka[j]||'')+'" onchange="updPlanDay(\''+d+'\',\'ka'+j+'\',this.value)">').join('')+
+      '<div class="pw-stat">'+(stat.join('・')||'')+'</div>'+
+    '</div>';
+  }).join('');
+}
+function updPlanDay(dateStr,k,v){
+  if(dateStr===curDate&&day){
+    if(k==='topGoal'){day.topGoal=v;el('f_topGoal').value=v;}
+    else{const j=Number(k.slice(2));if(!day.ka)day.ka=['','',''];day.ka[j]=v;el('f_ka'+(j+1)).value=v;}
+    markDirty();pwDayCache[dateStr]=day;return;
+  }
+  let d=pwDayCache[dateStr]||lsGet('day_'+dateStr)||emptyDay(dateStr);
+  if(!d.ka)d.ka=['','',''];
+  if(k==='topGoal')d.topGoal=v;else d.ka[Number(k.slice(2))]=v;
+  pwDayCache[dateStr]=d;
+  lsSet('day_'+dateStr,d);cloudSet('day_'+dateStr,d);
+  toast(fmtMD(dateStr)+' の計画を保存しました');
+}
+function updWeekMeta(k,v){
+  if(!pwMeta)pwMeta={goal:'',give:''};
+  pwMeta[k]=v;
+  const key='week_'+(planWeekMon||mondayOf(todayStr()));
+  lsSet(key,pwMeta);cloudSet(key,pwMeta);
+  toast('今週の計画を保存しました');
+}
+function jumpToDay(d){loadDay(d);showTab('home');}
+function movePlanMonth(n){
+  let parts=(planMonthStr||todayStr().slice(0,7)).split('-').map(Number);
+  let y=parts[0],m=parts[1]+n;
+  if(m<1){m=12;y--;}if(m>12){m=1;y++;}
+  planMonthStr=y+'-'+String(m).padStart(2,'0');
+  renderPlanMonth();
+}
+function goPlanThisMonth(){planMonthStr=todayStr().slice(0,7);renderPlanMonth();}
+async function renderPlanMonth(){
+  if(!planMonthStr)planMonthStr=todayStr().slice(0,7);
+  const[y,m]=planMonthStr.split('-').map(Number);
+  el('pmLabel').textContent=y+'年'+m+'月';
+  const last=new Date(y,m,0).getDate();
+  const dates=[];for(let i=1;i<=last;i++)dates.push(planMonthStr+'-'+String(i).padStart(2,'0'));
+  const info={};
+  dates.forEach(d=>{const v=lsGet('day_'+d);if(v)info[d]={topGoal:v.topGoal||'',acts:v.actions||[],seika:(v.review&&v.review.seika)||''};});
+  if(cloudOn){
+    try{
+      const{data,error}=await sb.from(TBL).select("key,tg:value->>topGoal,acts:value->actions,seika:value->review->>seika").in('key',dates.map(d=>'day_'+d));
+      if(!error&&data)data.forEach(r=>{info[r.key.slice(4)]={topGoal:r.tg||'',acts:r.acts||[],seika:r.seika||''};});
+    }catch(e){console.warn('planMonth',e);}
+  }
+  if(dates.indexOf(curDate)>=0&&day){flushCollect();info[curDate]={topGoal:day.topGoal||'',acts:day.actions||[],seika:(day.review&&day.review.seika)||''};}
+  const dows=['月','火','水','木','金','土','日'];
+  let cells=dows.map((w,i)=>'<div class="pm-dow'+(i>=5?' wknd':'')+'">'+w+'</div>').join('');
+  const firstDow=(new Date(y,m-1,1).getDay()+6)%7;
+  for(let i=0;i<firstDow;i++)cells+='<div class="pm-cell empty"></div>';
+  dates.forEach(function(d){
+    const inf=info[d]||{};
+    const acts=inf.acts||[];
+    const done=acts.filter(a=>a.status==='完了').length;
+    const filled=(inf.topGoal||'').trim()||acts.length||(inf.seika||'').trim();
+    cells+='<div class="pm-cell'+(d===todayStr()?' today':'')+'" onclick="jumpToDay(\''+d+'\')">'+
+      '<div class="pm-d">'+Number(d.slice(8))+(filled?'<span class="pw-dot">●</span>':'')+'</div>'+
+      ((inf.topGoal||'').trim()?'<div class="pm-goal">'+esc(String(inf.topGoal).slice(0,24))+'</div>':'')+
+      (acts.length?'<div class="pm-act">行動 '+done+'/'+acts.length+'</div>':'')+
+    '</div>';
+  });
+  el('pmGrid').innerHTML=cells;
+}
+
 /* ================= tabs ================= */
 function showTab(t){
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('act'));
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('act',x.dataset.t===t));
   el('tab-'+t).classList.add('act');
   if(t==='health'){flushCollect();buildHealthChart();}
+  if(t==='plan'){renderPlan();}
   window.scrollTo({top:0});
 }
 
