@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>環境整備 本番点検｜EARTHCOM</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#1b2a24;
+  --ink2:#5a6b63;
+  --bg:#f2f4f0;
+  --card:#ffffff;
+  --line:#dde3dc;
+  --green:#1a7a4c;
+  --green-d:#115c38;
+  --green-l:#e5f3ec;
+  --red:#c8442c;
+  --red-l:#fbeae6;
+  --amber:#b07d1e;
+  --amber-l:#faf3e0;
+  --navy:#22333f;
+  --radius:14px;
+  --shadow:0 1px 3px rgba(27,42,36,.08), 0 4px 14px rgba(27,42,36,.06);
+  font-size:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;padding-bottom:90px}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,textarea,select{font-family:inherit;font-size:16px}
+img{display:block}
+
+/* ===== ヘッダー ===== */
+header{background:var(--navy);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px}
+header .logo{width:34px;height:34px;border-radius:9px;background:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;letter-spacing:.5px;flex-shrink:0}
+header .ttl{font-size:15px;font-weight:700;letter-spacing:.03em}
+header .sub{font-size:11px;opacity:.65}
+header .sp{flex:1}
+header .hbtn{color:#fff;font-size:12px;padding:7px 12px;border:1px solid rgba(255,255,255,.3);border-radius:8px}
+
+/* ===== ログイン ===== */
+.login-wrap{max-width:400px;margin:60px auto;padding:0 20px}
+.login-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px}
+.login-card h1{font-size:19px;margin-bottom:4px}
+.login-card p{font-size:13px;color:var(--ink2);margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:5px}
+.field input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fafbf9}
+.field input:focus{outline:none;border-color:var(--green)}
+.btn-primary{width:100%;background:var(--green);color:#fff;font-weight:700;font-size:15px;padding:14px;border-radius:10px}
+.btn-primary:active{background:var(--green-d)}
+.login-err{color:var(--red);font-size:13px;margin-top:10px;display:none}
+
+/* ===== セットアップSQL ===== */
+.setup{max-width:760px;margin:24px auto;padding:0 16px}
+.setup .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+.setup h2{font-size:16px;margin-bottom:8px}
+.setup p{font-size:13px;color:var(--ink2);margin-bottom:12px}
+.setup pre{background:#1d2822;color:#cfe8d8;font-size:11.5px;padding:14px;border-radius:10px;overflow-x:auto;line-height:1.6;white-space:pre;margin-bottom:12px}
+.setup .btn-primary{width:auto;padding:10px 22px}
+
+/* ===== メイン ===== */
+main{max-width:820px;margin:0 auto;padding:14px 12px}
+
+/* サイクルバー */
+.cycle-bar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.cycle-bar select{flex:1;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;font-size:14px}
+.cycle-bar .hbtn2{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;color:var(--green-d);white-space:nowrap}
+
+/* タブ */
+.tabs{display:flex;background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:4px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 4px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--ink2)}
+.tabs button.on{background:var(--green);color:#fff}
+
+/* 部署チップ */
+.dept-scroll{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dept-scroll::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:9px 15px;border-radius:999px;background:var(--card);border:1.5px solid var(--line);font-size:13px;font-weight:700;color:var(--ink2);flex-shrink:0;position:relative}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:1px}
+.chip .dot.done{background:#37c07f}
+.chip .dot.part{background:#eab308}
+.chip .dot.none{background:#c9d2cb}
+
+/* スコアボード */
+.scoreboard{background:linear-gradient(135deg,var(--navy),#2e4a3c);color:#fff;border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow)}
+.scoreboard .big{font-size:38px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.scoreboard .big small{font-size:16px;font-weight:700;opacity:.7}
+.scoreboard .meta{flex:1}
+.scoreboard .meta .nm{font-size:14px;font-weight:700;margin-bottom:2px}
+.scoreboard .meta .pct{font-size:12px;opacity:.75}
+.gauge{height:7px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;margin-top:7px}
+.gauge i{display:block;height:100%;background:#37c07f;border-radius:99px;transition:width .4s}
+.grade-badge{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);flex-shrink:0}
+
+/* 点検情報 */
+.info-row{display:flex;gap:8px;margin-bottom:14px}
+.info-row .f{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px}
+.info-row .f label{display:block;font-size:10.5px;font-weight:700;color:var(--ink2)}
+.info-row .f input{width:100%;border:none;background:none;font-size:14px;font-weight:700;padding:2px 0}
+.info-row .f input:focus{outline:none}
+
+/* 項目カード */
+.item{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px;border-left:4px solid var(--line);transition:border-color .2s}
+.item.ok{border-left-color:var(--green)}
+.item.ng{border-left-color:var(--red)}
+.item.half{border-left-color:var(--amber)}
+.item-head{display:flex;gap:10px;align-items:flex-start}
+.item-no{width:32px;height:32px;border-radius:9px;background:var(--green-l);color:var(--green-d);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.item-body{flex:1;min-width:0}
+.item-tags{display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef1ed;color:var(--ink2)}
+.tag.cat{background:var(--green-l);color:var(--green-d)}
+.item-text{font-size:14px;font-weight:600;word-break:break-word;white-space:pre-wrap}
+.item-pts{font-size:12px;color:var(--ink2);margin-top:3px;font-weight:700}
+.item-score{font-size:15px;font-weight:800;flex-shrink:0;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.item-score.ok{color:var(--green)}
+.item-score.ng{color:var(--red)}
+.item-score.half{color:var(--amber)}
+
+.eval-row{display:flex;gap:8px;margin-top:12px}
+.eval-btn{flex:1;padding:12px 4px;border-radius:11px;border:1.5px solid var(--line);background:#fafbf9;font-size:17px;font-weight:800;color:var(--ink2);transition:all .12s}
+.eval-btn.o.on{background:var(--green);border-color:var(--green);color:#fff}
+.eval-btn.x.on{background:var(--red);border-color:var(--red);color:#fff}
+.eval-btn.a.on{background:var(--green);border-color:var(--green);color:#fff}
+.eval-btn.b.on{background:var(--amber);border-color:var(--amber);color:#fff}
+.eval-btn.c.on{background:var(--red);border-color:var(--red);color:#fff}
+
+/* 写真 */
+.photo-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.photo-add{width:64px;height:64px;border:1.5px dashed #b8c4bb;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink2);font-size:9.5px;font-weight:700;gap:2px;background:#fafbf9}
+.photo-add svg{width:20px;height:20px;stroke:var(--ink2)}
+.photo-add.busy{opacity:.5;pointer-events:none}
+.thumb{width:64px;height:64px;border-radius:11px;overflow:hidden;position:relative;border:1.5px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .del{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+
+/* メモ */
+.memo-toggle{margin-top:10px;font-size:12px;font-weight:700;color:var(--green-d)}
+.memo-box{margin-top:8px}
+.memo-box textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px;font-size:13.5px;min-height:60px;resize:vertical;background:#fafbf9}
+.memo-box textarea:focus{outline:none;border-color:var(--green)}
+
+/* 宿題 */
+.hw-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:14px 0}
+.hw-card h3{font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.hw-card h3::before{content:"";width:4px;height:16px;background:var(--green);border-radius:2px}
+.hw-card textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:14px;min-height:70px;resize:vertical;background:#fafbf9}
+.hw-card textarea:focus{outline:none;border-color:var(--green)}
+.hw-card .lbl{font-size:12px;font-weight:700;color:var(--ink2);margin:10px 0 5px}
+
+/* サマリー */
+.sum-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.sum-card h3{font-size:15px;margin-bottom:12px}
+.sum-total{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.sum-total .n{font-size:42px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--green-d)}
+.sum-total .d{font-size:16px;color:var(--ink2);font-weight:700}
+.sum-total .p{font-size:15px;font-weight:800;color:var(--green);margin-left:auto}
+.sum-row{padding:12px 0;border-top:1px solid var(--line)}
+.sum-row .top{display:flex;align-items:center;gap:8px}
+.sum-row .nm{font-size:14px;font-weight:700;flex:1}
+.sum-row .sc{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+.sum-row .gr{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+.gr.A{background:var(--green)} .gr.B{background:var(--amber)} .gr.C{background:var(--red)} .gr.N{background:#aab5ac}
+.sum-bar{height:8px;background:#edf0ec;border-radius:99px;overflow:hidden;margin-top:8px}
+.sum-bar i{display:block;height:100%;border-radius:99px;transition:width .4s}
+.sum-lost{font-size:12px;color:var(--red);margin-top:7px;line-height:1.6}
+.sum-hw{font-size:12px;color:var(--ink2);margin-top:4px;line-height:1.6}
+.sum-hw b{color:var(--ink)}
+.sum-row .open{font-size:11.5px;font-weight:700;color:var(--green-d);padding:4px 10px;border:1px solid var(--line);border-radius:7px}
+.sum-photos{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+.sum-photos::-webkit-scrollbar{display:none}
+.sum-photos img{width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid var(--line)}
+
+/* 編集モード */
+.edit-toggle-row{display:flex;justify-content:flex-end;margin-bottom:10px}
+.edit-toggle{font-size:12px;font-weight:700;color:var(--ink2);padding:7px 14px;border:1.5px solid var(--line);border-radius:9px;background:var(--card)}
+.edit-toggle.on{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+.item-edit{margin-top:10px;display:grid;grid-template-columns:1fr 80px 100px;gap:8px}
+.item-edit textarea{grid-column:1/-1;border:1.5px solid var(--amber);border-radius:9px;padding:8px;font-size:13px;min-height:54px;resize:vertical}
+.item-edit input,.item-edit select{border:1.5px solid var(--amber);border-radius:9px;padding:8px;font-size:13px}
+.item-del{grid-column:1/-1;text-align:right}
+.item-del button{color:var(--red);font-size:12px;font-weight:700}
+.add-item-btn{width:100%;padding:13px;border:1.5px dashed #b8c4bb;border-radius:var(--radius);color:var(--ink2);font-weight:700;font-size:13.5px;background:transparent;margin-bottom:10px}
+
+/* 保存ステータス */
+.save-pill{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:60;display:none;align-items:center;gap:7px}
+.save-pill .sdot{width:8px;height:8px;border-radius:50%;background:#eab308}
+.save-pill.saved .sdot{background:#37c07f}
+.save-pill.err{background:var(--red)}
+
+/* ライトボックス */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.lightbox img{max-width:100%;max-height:88vh;border-radius:10px;object-fit:contain}
+.lightbox .close{position:absolute;top:16px;right:16px;color:#fff;font-size:28px;width:44px;height:44px}
+
+/* モーダル */
+.modal-bg{position:fixed;inset:0;background:rgba(27,42,36,.5);z-index:90;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.center{align-items:center;padding:20px}
+.modal{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:22px 20px 30px}
+.modal-bg.center .modal{border-radius:18px}
+.modal h3{font-size:16px;margin-bottom:14px}
+.modal .row{display:flex;gap:10px;margin-top:18px}
+.modal .row button{flex:1;padding:13px;border-radius:10px;font-weight:700;font-size:14px}
+.modal .cancel{background:#eef1ed;color:var(--ink2)}
+.modal .go{background:var(--green);color:#fff}
+
+.empty{text-align:center;padding:50px 20px;color:var(--ink2);font-size:14px}
+.empty b{display:block;font-size:16px;color:var(--ink);margin-bottom:6px}
+.hidden{display:none!important}
+@media(min-width:640px){
+  .eval-btn{max-width:120px}
+  .photo-add,.thumb{width:76px;height:76px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">環境</div>
+  <div>
+    <div class="ttl">環境整備 本番点検</div>
+    <div class="sub">EARTHCOM ／ 18期</div>
+  </div>
+  <div class="sp"></div>
+  <button class="hbtn hidden" id="logoutBtn">ログアウト</button>
+</header>
+
+<!-- ログイン -->
+<div class="login-wrap" id="loginView">
+  <div class="login-card">
+    <h1>ログイン</h1>
+    <p>共有アカウントでログインしてください。</p>
+    <div class="field">
+      <label>メールアドレス</label>
+      <input type="email" id="loginEmail" value="hankyo@earthcom-eco.jp" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>パスワード</label>
+      <input type="password" id="loginPass" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="loginBtn">ログイン</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- セットアップ（テーブル未作成時） -->
+<div class="setup hidden" id="setupView">
+  <div class="card">
+    <h2>初回セットアップが必要です</h2>
+    <p>Supabaseの <b>SQL Editor</b> で以下を1回実行してから「再読み込み」を押してください。（テーブルと写真保存用バケットを作成します）</p>
+    <pre id="setupSql">-- 点検データ本体
+create table if not exists kankyo_inspections (
+  id uuid primary key default gen_random_uuid(),
+  cycle text not null,
+  inspection_date date,
+  department text not null,
+  sort_order int default 0,
+  items jsonb not null default '[]',
+  homework text default '',
+  prev_homework text default '',
+  updated_at timestamptz default now(),
+  unique (cycle, department)
+);
+alter table kankyo_inspections enable row level security;
+create policy "kankyo auth all" on kankyo_inspections
+  for all to authenticated using (true) with check (true);
+
+-- 写真保存用バケット（公開）
+insert into storage.buckets (id, name, public)
+values ('kankyo-photos','kankyo-photos', true)
+on conflict (id) do nothing;
+
+create policy "kankyo photo insert" on storage.objects
+  for insert to authenticated with check (bucket_id = 'kankyo-photos');
+create policy "kankyo photo select" on storage.objects
+  for select using (bucket_id = 'kankyo-photos');
+create policy "kankyo photo delete" on storage.objects
+  for delete to authenticated using (bucket_id = 'kankyo-photos');</pre>
+    <button class="btn-primary" onclick="location.reload()">再読み込み</button>
+  </div>
+</div>
+
+<!-- メイン -->
+<main class="hidden" id="appView">
+  <div class="cycle-bar">
+    <select id="cycleSelect"></select>
+    <button class="hbtn2" id="newCycleBtn">＋ 新規サイクル</button>
+  </div>
+
+  <div class="tabs">
+    <button class="on" data-tab="inspect">点検入力</button>
+    <button data-tab="summary">サマリー</button>
+  </div>
+
+  <!-- 点検入力タブ -->
+  <div id="inspectTab">
+    <div class="dept-scroll" id="deptChips"></div>
+    <div id="deptBody"></div>
+  </div>
+
+  <!-- サマリータブ -->
+  <div id="summaryTab" class="hidden"></div>
+</main>
+
+<div class="save-pill" id="savePill"><span class="sdot"></span><span id="saveText">保存中…</span></div>
+
+<div class="lightbox" id="lightbox" onclick="this.style.display='none'">
+  <button class="close">×</button>
+  <img id="lightboxImg" alt="">
+</div>
+
+<!-- 新規サイクルモーダル -->
+<div class="modal-bg" id="cycleModal">
+  <div class="modal">
+    <h3>新規サイクルを作成</h3>
+    <div class="field">
+      <label>サイクル名</label>
+      <input type="text" id="newCycleName" placeholder="例：18期9サイクル">
+    </div>
+    <div class="field">
+      <label>点検日</label>
+      <input type="date" id="newCycleDate">
+    </div>
+    <p style="font-size:12px;color:var(--ink2)">※ 全部署のチェック項目（最新版テンプレート）が自動でセットされます。前回サイクルがある場合、「今回の宿題」が「前回の宿題」に引き継がれます。</p>
+    <div class="row">
+      <button class="cancel" onclick="closeModal('cycleModal')">キャンセル</button>
+      <button class="go" id="createCycleGo">作成する</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="photoInput" accept="image/*" multiple class="hidden">
+
+<script>
+/* ================= Supabase ================= */
+const SB_URL = 'https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY = 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+const TABLE = 'kankyo_inspections';
+const BUCKET = 'kankyo-photos';
+
+/* ================= 部署テンプレート（18期8サイクル基準） ================= */
+/* type: 'ox' = ◯/✕、'grade' = A/B/C（A=満点 B=半分 C=0） */
+const K = (no,cat,text,pts,ins,type)=>({no,cat,text,pts,inspector:ins,type:type||'ox'});
+const DEPT_TEMPLATES = [
+{ name:'CS／経理', items:[
+K(1,'礼儀','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','トイレがきれい。定位置管理されている。',10,'社長'),
+K(3,'清潔','床が綺麗。ゴミが落ちていない。',10,'社長'),
+K(4,'整頓','会議室①チラシが最新の情報になっているか。',5,'社長'),
+K(5,'清潔','窓ガラス①〜③が綺麗か。',5,'社長'),
+K(6,'規律','住民説明会の進捗が見える化され、運用されているか。',5,'社長'),
+K(7,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(8,'規律','掲示物は水平で4点留めされている。',5,'社長'),
+K(9,'清潔','車両がきれいか。私物が車内にないか。バッテリーの交換など車両点検は済んでいるか。（アルトバン）',10,'社長'),
+K(10,'清潔','デスク・椅子はきれいか。',5,'A'),
+K(11,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(12,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(13,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(14,'規律','全社売上年計グラフが記入されているか。（16期・17期）',5,'A'),
+K(15,'整頓','共通の文房具が二定管理されているか。',5,'A'),
+K(16,'規律','粗大ごみ・不燃ごみの期日通り回収がされているか。',5,'A'),
+K(17,'整頓','環境整備道具ロッカー①が三定管理されているか。',5,'A'),
+K(18,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(19,'整頓','バックヤードが整頓されている。（1階 バックヤード全体）',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'FE（古河店）', items:[
+K(1,'礼儀','名札を付けて点検時に全員が挨拶ができているか ❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'副社長'),
+K(2,'規律','ロープレを実施してスタッフの接客レベルを把握できているか',5,'副社長'),
+K(3,'清潔','トイレは綺麗か',10,'副社長'),
+K(4,'清潔','ストレッチエリアにゴミが落ちていないか',5,'副社長'),
+K(5,'清潔','玄関マットがきれいか',5,'副社長'),
+K(6,'規律','月間行動予定表に基づき、清掃を実施できているか',10,'副社長'),
+K(7,'清潔','床は綺麗か【指定箇所④】',10,'A'),
+K(8,'清潔','自動ドアの窓やサッシは綺麗か？【傷は含まない】',5,'A'),
+K(9,'規律','Instagramの投稿で、画像投稿だけでなく動画投稿もできているか',5,'A'),
+K(10,'規律','キャンペーンのお知らせや設備に関する投稿が出来ているか',5,'A'),
+K(11,'整頓','環境整備道具ロッカーが三定管理されているか。',5,'A'),
+K(12,'清潔','パウダールーム【女性】洗面台は綺麗か？【ゴミ汚れがないか？】',5,'A'),
+K(13,'規律','オピニオンボックスの返信が全てできているか',5,'A'),
+K(14,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'副社長'),
+K(15,'規律','各サーバー（水素水・プロテイン・コーヒー）の衛生チェックシートが全て記入されているか',5,'副社長'),
+K(16,'規律','トレッドミル（ランニングマシン）にホコリがないか',5,'副社長'),
+K(17,'規律','乾燥機フィルターはきれいか',5,'副社長'),
+K(18,'整頓','ラウンジスペースが定位置管理をされているか？',5,'副社長'),
+K(19,'規律','実行計画の実績が記入されているか',5,'副社長'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'副社長','grade')
+]},
+{ name:'FE（西浦和店）', items:[
+K(1,'礼儀','名札を付けて点検時に全員が挨拶ができているか ❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','玄関マット・自動ドアがきれいか',5,'社長'),
+K(3,'清潔','事務所内の窓やサッシはきれいか',5,'社長'),
+K(4,'整頓','事務所内の流しが二定管理されているか',5,'社長'),
+K(5,'清潔','床は綺麗か【指定箇所：エリア⑪】',10,'社長'),
+K(6,'清潔','トイレは綺麗か',10,'社長'),
+K(7,'整頓','環境整備道具ロッカーが三定管理されているか。',5,'社長'),
+K(8,'規律','月間行動予定表に基づき、清掃を実施できているか',10,'社長'),
+K(9,'規律','ロープレを実施してスタッフの接客レベルを把握できているか',5,'社長'),
+K(10,'規律','キャンペーンのお知らせや設備に関する投稿が出来ているか',5,'社長'),
+K(11,'規律','Instagramの投稿で、画像投稿だけでなく動画投稿もできているか',5,'社長'),
+K(12,'整頓','文房具が二定管理されているか',5,'A'),
+K(13,'整頓','ラウンジスペースが定位置管理をされているか？',5,'A'),
+K(14,'清潔','パウダールーム【女性】洗面台は綺麗か？【ゴミ汚れがないか？】',5,'A'),
+K(15,'規律','オピニオンボックスの返信が全てできているか',5,'A'),
+K(16,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(17,'規律','各サーバー（水素水・プロテイン・コーヒー）の衛生チェックシートが全て記入されているか',5,'A'),
+K(18,'清潔','乾燥機のフィルターはきれいか（乾燥機内のフィルターのみ）',5,'A'),
+K(19,'規律','実行計画の実績が記入されているか',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'営業', items:[
+K(1,'礼儀','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','トイレ③が綺麗か。',10,'社長'),
+K(3,'清潔','車両（EKワゴン）がきれいか。私物が車内にないか。バッテリー交換など車両点検は済んでいるか。',5,'社長'),
+K(4,'清潔','2階床（レストルーム・営業ルーム奥半分・商談ルーム）が綺麗か。ゴミが落ちていない。',10,'社長'),
+K(5,'清潔','レストルームの流しが綺麗か',5,'社長'),
+K(6,'清潔','デスク・椅子はきれいか。',5,'社長'),
+K(7,'規律','キャンペーングラフが運用されている。提案中の場合は、失点対象',10,'社長'),
+K(8,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(9,'清潔','2階窓ガラスが綺麗か。①営業入口、②営業の入口の隣の窓、③副社長室窓、④⑤商談ルーム',5,'社長'),
+K(10,'整頓','環境整備道具ロッカー②が三定管理されているか。',5,'A'),
+K(11,'規律','入退室チェック表が記入され管理されている。',5,'A'),
+K(12,'規律','2階レストルームのごみが分別され管理されているか。',5,'A'),
+K(13,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(14,'規律','掲示物がルール通り更新され、風景になっていない。',5,'A'),
+K(15,'規律','全社売上年計表がルール通り更新されている。',5,'A'),
+K(16,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(17,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(18,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(19,'規律','掲示物は水平で4点留めされている。',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'関東アセット（営業）', items:[
+K(1,'礼儀','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','トイレ①が綺麗か。',10,'社長'),
+K(3,'清潔','車両（ムーブ）がきれいか。私物が車内にないか。バッテリー交換など車両点検は済んでいるか。',5,'社長'),
+K(4,'清潔','2階床（セミナールーム・営業ルーム手前半分・踊り場・階段）が綺麗か。ゴミが落ちていない。',10,'社長'),
+K(5,'清潔','レストルームの流しが綺麗か',5,'社長'),
+K(6,'清潔','デスク・椅子はきれいか。',5,'社長'),
+K(7,'規律','キャンペーングラフが運用されている。提案中の場合は、失点対象',10,'社長'),
+K(8,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(9,'清潔','2階窓ガラスが綺麗か。①セミナー入り口、②③④セミナールーム窓',5,'社長'),
+K(10,'整頓','環境整備道具ロッカー②が三定管理されているか。',5,'A'),
+K(11,'規律','入退室チェック表が記入され管理されている。',5,'A'),
+K(12,'規律','2階セミナールームのごみが分別され管理されているか。',5,'A'),
+K(13,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(14,'規律','掲示物がルール通り更新され、風景になっていない。',5,'A'),
+K(15,'規律','全社売上年計表がルール通り更新されている。',5,'A'),
+K(16,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(17,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(18,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(19,'規律','掲示物は水平で4点留めされている。',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'関東東北アセット（内勤）', items:[
+K(1,'規律','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','水回りがきれい。『1階水回り』',5,'社長'),
+K(3,'整理','ごみの分別がされているか。（1Fトイレ側入り口）ゴミ箱裏汚れがないか。',5,'社長'),
+K(4,'清潔','トイレがきれい。定位置管理されている。',10,'社長'),
+K(5,'清潔','床が綺麗。ゴミが落ちていない',10,'社長'),
+K(6,'規律','掲示物は水平で4点留めされている。',5,'社長'),
+K(7,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(8,'整頓','共通の文房具が二定管理されている。',5,'社長'),
+K(9,'清潔','倉庫側入り口が綺麗か',5,'社長'),
+K(10,'清潔','車両がきれいか。私物が車内にないか。バッテリーの交換など車両点検は済んでいるか。',10,'社長'),
+K(11,'清潔','正面玄関（門）が綺麗か。',5,'A'),
+K(12,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(13,'清潔','デスク・椅子はきれいか。',5,'A'),
+K(14,'整頓','1階大会議室が定位置管理されている。',5,'A'),
+K(15,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(16,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(17,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(18,'規律','掲示物がルール通り運用され、風景になっていない',5,'A'),
+K(19,'清潔','入口玄関がきれい。',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'開発／総務', items:[
+K(1,'規律','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','水回りがきれい。『1階水回り』',5,'社長'),
+K(3,'整理','ごみの分別がされているか。（1Fトイレ側入り口）ゴミ箱裏汚れがないか。',5,'社長'),
+K(4,'清潔','トイレがきれい。定位置管理されている。',10,'社長'),
+K(5,'清潔','床が綺麗。ゴミが落ちていない',10,'社長'),
+K(6,'規律','掲示物は水平で4点留めされている。',5,'社長'),
+K(7,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(8,'整頓','共通の文房具が二定管理されている。',5,'社長'),
+K(9,'清潔','倉庫側入り口が綺麗か',5,'社長'),
+K(10,'清潔','車両がきれいか。私物が車内にないか。バッテリーの交換など車両点検は済んでいるか。（AQUA）',10,'社長'),
+K(11,'清潔','正面玄関（門）が綺麗か。',5,'A'),
+K(12,'規律','トイレ側冷蔵庫の中に誰のものか分からない不明なものはない。',5,'A'),
+K(13,'規律','入退室チェック表が記入され管理されている。',5,'A'),
+K(14,'整頓','1階大会議室が定位置管理されている。',5,'A'),
+K(15,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(16,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(17,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(18,'規律','掲示物がルール通り運用され、風景になっていない',5,'A'),
+K(19,'清潔','入口玄関がきれい。',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'生産管理', items:[
+K(1,'礼儀','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'清潔','トイレがきれい。定位置管理されている。',10,'社長'),
+K(3,'清潔','床がきれい。ゴミが落ちていない。',10,'社長'),
+K(4,'清潔','水回りがきれい。',5,'社長'),
+K(5,'清潔','窓ガラスがきれい。',5,'社長'),
+K(6,'清潔','車両がきれいか。私物が車内にないか。バッテリーの交換など車両点検は済んでいるか（カーゴ 3535）',10,'社長'),
+K(7,'規律','掲示物は水平で4点留めされている。',5,'社長'),
+K(8,'整頓','環境整備道具ロッカーが三定管理されているか。',5,'社長'),
+K(9,'規律','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'社長'),
+K(10,'整頓','【本社】本社倉庫の備品が床に置いていないか。',5,'A'),
+K(11,'整頓','【本社】本社の倉庫の備品が二定管理されているか。エリア『使用頻度：高』',5,'A'),
+K(12,'規律','パソコン・アイフォン・アイパッドの画面（カバー含む）破損がない。',5,'A'),
+K(13,'規律','宿舎の印象（〇・×のみ）',5,'A'),
+K(14,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(15,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(16,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(17,'規律','掲示物がルール通り運用され、風景になっていない。',5,'A'),
+K(18,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(19,'規律','キャンペーングラフの運用はされているか。提案中の場合は、失点対象',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]},
+{ name:'富岡支社', items:[
+K(1,'礼儀','巡視の際、挨拶ができている。（名札をつけている。）❶車両点検表❷事前点検チェック❸前回の社長の宿題があるか。',5,'社長'),
+K(2,'整理','床が綺麗。ゴミが落ちていない。',10,'社長'),
+K(3,'清潔','窓ガラスがきれい。',5,'社長'),
+K(4,'規律','キャンペーングラフの運用はされているか。提案中の場合は、失点対象',5,'社長'),
+K(5,'整頓','環境整備道具ロッカーが三定管理されているか。',5,'社長'),
+K(6,'規律','掲示物は水平で4点留めされている。',5,'社長'),
+K(7,'規律','掲示物がルール通り運用され、風景になっていない',5,'社長'),
+K(8,'清潔','トイレがきれいか',10,'社長'),
+K(9,'清潔','車両（ミライース 9993）がきれいか。私物が車内にないか。バッテリーの交換など車両点検は済んでいるか。',10,'社長'),
+K(10,'整頓','クレーム対応進捗・ルールの更新の見える化をしているか。',5,'A'),
+K(11,'規律','改善事項が3回分掲示されているか。',5,'A'),
+K(12,'規律','環境整備のテリトリー地図に実績（作業分担表と相違がない）が記入されている。',5,'A'),
+K(13,'規律','実行計画・スコアボードがルール通り記入されている。',5,'A'),
+K(14,'整頓','ゴミは分別され管理されているか。',5,'A'),
+K(15,'整頓','ガソリンカードの管理がされている。返却の可視化がされている。',5,'A'),
+K(16,'整頓','書類ロッカーは整頓されているか。',5,'A'),
+K(17,'整頓','スキルアップ表は掲示されルール通りに運用されているか（実施・未実施・次回の計画が記載されていること）',5,'A'),
+K(18,'規律','パソコン・アイフォン・アイパッドの画面（カバー含む）破損がない。',5,'A'),
+K(19,'規律','入退室チェック表が記入され管理されている。',5,'A'),
+K(20,'規律','全体の印象 A10点 B5点 C0点',10,'社長','grade')
+]}
+];
+const DEPT_ORDER = DEPT_TEMPLATES.map(d=>d.name);
+
+/* ================= 状態 ================= */
+let rows = [];          // 現在サイクルの全部署行
+let cycles = [];        // [{cycle, inspection_date}]
+let curCycle = null;
+let curDept = null;
+let editMode = false;
+let photoTargetItemNo = null;
+let saveTimers = {};
+
+const $ = id => document.getElementById(id);
+const esc = s => (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= 採点ロジック ================= */
+function itemScore(it){
+  if(it.type==='grade'){
+    if(it.eval==='A') return it.pts;
+    if(it.eval==='B') return Math.round(it.pts/2);
+    if(it.eval==='C') return 0;
+    return null;
+  }
+  if(it.eval==='o') return it.pts;
+  if(it.eval==='x') return 0;
+  return null;
+}
+function deptStats(row){
+  const items = row.items||[];
+  const max = items.reduce((s,i)=>s+(Number(i.pts)||0),0);
+  let got=0, answered=0, lost=[];
+  items.forEach(it=>{
+    const sc = itemScore(it);
+    if(sc!==null){ answered++; got+=sc;
+      if(sc < it.pts) lost.push(`No${it.no} ${it.text.length>26?it.text.slice(0,26)+'…':it.text}（${sc}/${it.pts}）`);
+    }
+  });
+  const grade = (items.find(i=>i.type==='grade')||{}).eval || null;
+  return {max, got, answered, total:items.length, lost, grade, pct: max? got/max : 0};
+}
+
+/* ================= 認証 ================= */
+$('loginBtn').onclick = async ()=>{
+  const err=$('loginErr'); err.style.display='none';
+  $('loginBtn').textContent='ログイン中…';
+  const {error} = await sb.auth.signInWithPassword({email:$('loginEmail').value.trim(), password:$('loginPass').value});
+  $('loginBtn').textContent='ログイン';
+  if(error){ err.textContent='ログインに失敗しました：'+error.message; err.style.display='block'; return; }
+  boot();
+};
+$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});
+$('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ $('loginView').classList.remove('hidden'); return; }
+  $('loginView').classList.add('hidden');
+  $('logoutBtn').classList.remove('hidden');
+
+  // テーブル存在チェック
+  const {error} = await sb.from(TABLE).select('id',{head:true,count:'exact'}).limit(1);
+  if(error && (error.code==='42P01' || /does not exist|relation/i.test(error.message||''))){
+    $('setupView').classList.remove('hidden'); return;
+  }
+  $('appView').classList.remove('hidden');
+  await loadCycles();
+}
+
+/* ================= サイクル ================= */
+async function loadCycles(){
+  const {data} = await sb.from(TABLE).select('cycle,inspection_date').order('updated_at',{ascending:false});
+  const seen = new Map();
+  (data||[]).forEach(r=>{ if(!seen.has(r.cycle)) seen.set(r.cycle, r.inspection_date); });
+  cycles = [...seen.entries()].map(([cycle,d])=>({cycle,inspection_date:d}));
+  cycles.sort((a,b)=> b.cycle.localeCompare(a.cycle,'ja',{numeric:true}));
+  renderCycleSelect();
+  if(cycles.length){ curCycle = cycles[0].cycle; $('cycleSelect').value=curCycle; await loadCycleRows(); }
+  else { $('deptBody').innerHTML = '<div class="empty"><b>サイクルがまだありません</b>右上の「＋ 新規サイクル」から作成してください。</div>'; $('deptChips').innerHTML=''; }
+}
+function renderCycleSelect(){
+  $('cycleSelect').innerHTML = cycles.map(c=>`<option value="${esc(c.cycle)}">${esc(c.cycle)}${c.inspection_date?'（'+c.inspection_date+'）':''}</option>`).join('');
+}
+$('cycleSelect').onchange = async e=>{ curCycle=e.target.value; await loadCycleRows(); };
+
+$('newCycleBtn').onclick = ()=>{
+  // ラベル推測：直近の「Nサイクル」から+1
+  let guess='18期サイクル';
+  if(cycles.length){
+    const m = cycles[0].cycle.match(/^(.*?)(\d+)(サイクル)$/);
+    if(m) guess = m[1]+(Number(m[2])+1)+m[3]; else guess = cycles[0].cycle;
+  }
+  $('newCycleName').value=guess;
+  $('newCycleDate').value=new Date().toISOString().slice(0,10);
+  openModal('cycleModal');
+};
+$('createCycleGo').onclick = async ()=>{
+  const name=$('newCycleName').value.trim(), date=$('newCycleDate').value||null;
+  if(!name){alert('サイクル名を入力してください');return;}
+  if(cycles.some(c=>c.cycle===name)){alert('同名のサイクルが既に存在します');return;}
+  $('createCycleGo').textContent='作成中…';
+
+  // 前回サイクルの「今回の宿題」→ 新サイクルの「前回の宿題」に引き継ぐ
+  let prevHw = {};
+  if(cycles.length){
+    const {data} = await sb.from(TABLE).select('department,homework').eq('cycle',cycles[0].cycle);
+    (data||[]).forEach(r=>prevHw[r.department]=r.homework||'');
+  }
+  const inserts = DEPT_TEMPLATES.map((d,i)=>({
+    cycle:name, inspection_date:date, department:d.name, sort_order:i,
+    items: d.items.map(it=>({...it, eval:null, memo:'', photos:[]})),
+    homework:'', prev_homework: prevHw[d.name]||''
+  }));
+  const {error} = await sb.from(TABLE).insert(inserts);
+  $('createCycleGo').textContent='作成する';
+  if(error){alert('作成に失敗しました：'+error.message);return;}
+  closeModal('cycleModal');
+  await loadCycles();
+  $('cycleSelect').value=name; curCycle=name; await loadCycleRows();
+};
+
+async function loadCycleRows(){
+  const {data,error} = await sb.from(TABLE).select('*').eq('cycle',curCycle).order('sort_order');
+  if(error){alert('読み込みエラー：'+error.message);return;}
+  rows = data||[];
+  rows.sort((a,b)=>DEPT_ORDER.indexOf(a.department)-DEPT_ORDER.indexOf(b.department));
+  if(!curDept || !rows.some(r=>r.department===curDept)) curDept = rows[0]?.department||null;
+  renderChips(); renderDept(); renderSummary();
+}
+
+/* ================= 点検入力描画 ================= */
+function renderChips(){
+  $('deptChips').innerHTML = rows.map(r=>{
+    const st=deptStats(r);
+    const cls = st.answered===0?'none': st.answered===st.total?'done':'part';
+    return `<button class="chip ${r.department===curDept?'on':''}" onclick="selDept('${esc(r.department)}')">${esc(r.department)}<span class="dot ${cls}"></span></button>`;
+  }).join('');
+}
+window.selDept = d=>{ curDept=d; renderChips(); renderDept(); window.scrollTo({top:0}); };
+
+function renderDept(){
+  const row = rows.find(r=>r.department===curDept);
+  if(!row){ $('deptBody').innerHTML=''; return; }
+  const st = deptStats(row);
+  const gradeCls = st.grade||'';
+  let html = `
+  <div class="scoreboard">
+    <div class="meta">
+      <div class="nm">${esc(row.department)}</div>
+      <div class="pct">達成率 ${(st.pct*100).toFixed(1)}%　・　入力 ${st.answered}/${st.total}項目</div>
+      <div class="gauge"><i style="width:${st.pct*100}%"></i></div>
+    </div>
+    <div class="big">${st.got}<small>/${st.max}</small></div>
+    <div class="grade-badge">${st.grade||'–'}</div>
+  </div>
+  <div class="info-row">
+    <div class="f"><label>点検日</label><input type="date" value="${row.inspection_date||''}" onchange="setDate(this.value)"></div>
+  </div>
+  <div class="edit-toggle-row">
+    <button class="edit-toggle ${editMode?'on':''}" onclick="toggleEdit()">${editMode?'✓ 項目編集を終了':'項目を編集'}</button>
+  </div>`;
+
+  (row.items||[]).forEach(it=>{
+    const sc=itemScore(it);
+    const stateCls = sc===null?'': sc===it.pts?'ok': sc===0?'ng':'half';
+    const scCls = stateCls;
+    let evalBtns;
+    if(it.type==='grade'){
+      evalBtns = ['A','B','C'].map(g=>`<button class="eval-btn ${g.toLowerCase()} ${it.eval===g?'on':''}" onclick="setEval(${it.no},'${g}')">${g}<span style="font-size:11px;font-weight:700;display:block">${g==='A'?it.pts:g==='B'?Math.round(it.pts/2):0}点</span></button>`).join('');
+    }else{
+      evalBtns = `<button class="eval-btn o ${it.eval==='o'?'on':''}" onclick="setEval(${it.no},'o')">◯</button>
+                  <button class="eval-btn x ${it.eval==='x'?'on':''}" onclick="setEval(${it.no},'x')">✕</button>`;
+    }
+    const photos = (it.photos||[]).map((p,pi)=>`
+      <div class="thumb"><img src="${esc(p.url)}" loading="lazy" onclick="showLightbox('${esc(p.url)}')">
+      <button class="del" onclick="delPhoto(${it.no},${pi})">×</button></div>`).join('');
+    const editBlock = editMode?`
+      <div class="item-edit">
+        <textarea onchange="editItem(${it.no},'text',this.value)">${esc(it.text)}</textarea>
+        <input type="number" value="${it.pts}" min="0" onchange="editItem(${it.no},'pts',this.value)" title="配点">
+        <select onchange="editItem(${it.no},'inspector',this.value)">
+          ${['社長','副社長','A'].map(x=>`<option ${it.inspector===x?'selected':''}>${x}</option>`).join('')}
+        </select>
+        <select onchange="editItem(${it.no},'cat',this.value)">
+          ${['整理','整頓','清潔','礼儀','規律'].map(x=>`<option ${it.cat===x?'selected':''}>${x}</option>`).join('')}
+        </select>
+        <div class="item-del"><button onclick="delItem(${it.no})">この項目を削除</button></div>
+      </div>`:'';
+    html += `
+    <div class="item ${stateCls}">
+      <div class="item-head">
+        <div class="item-no">${it.no}</div>
+        <div class="item-body">
+          <div class="item-tags"><span class="tag cat">${esc(it.cat)}</span><span class="tag">点検者：${esc(it.inspector)}</span></div>
+          <div class="item-text">${esc(it.text)}</div>
+          <div class="item-pts">配点 ${it.pts}点</div>
+        </div>
+        <div class="item-score ${scCls}">${sc===null?'–':sc+'点'}</div>
+      </div>
+      <div class="eval-row">${evalBtns}</div>
+      <div class="photo-row">
+        ${photos}
+        <button class="photo-add" onclick="addPhoto(${it.no})" id="pAdd${it.no}">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" d="M6.8 7h-1A2.8 2.8 0 003 9.8v7.4A2.8 2.8 0 005.8 20h12.4a2.8 2.8 0 002.8-2.8V9.8A2.8 2.8 0 0018.2 7h-1l-1.2-2.2A1.5 1.5 0 0014.7 4H9.3a1.5 1.5 0 00-1.3.8L6.8 7z"/><circle cx="12" cy="13" r="3.4"/></svg>
+          写真追加
+        </button>
+      </div>
+      <button class="memo-toggle" onclick="toggleMemo(${it.no})">${it.memo?'✎ メモあり':'＋ メモ'}</button>
+      <div class="memo-box ${it.memo?'':'hidden'}" id="memo${it.no}">
+        <textarea placeholder="失点理由・指摘内容など" onchange="setMemo(${it.no},this.value)">${esc(it.memo||'')}</textarea>
+      </div>
+      ${editBlock}
+    </div>`;
+  });
+
+  if(editMode){
+    html += `<button class="add-item-btn" onclick="addItem()">＋ チェック項目を追加</button>`;
+  }
+
+  html += `
+  <div class="hw-card">
+    <h3>社長の宿題</h3>
+    <div class="lbl">前回の宿題（確認用）</div>
+    <textarea onchange="setHw('prev_homework',this.value)" placeholder="前回サイクルの宿題">${esc(row.prev_homework||'')}</textarea>
+    <div class="lbl">今回の社長の宿題</div>
+    <textarea onchange="setHw('homework',this.value)" placeholder="例：ホワイトボードの汚れ除去 ／ キャンペーングラフの修正">${esc(row.homework||'')}</textarea>
+  </div>`;
+
+  $('deptBody').innerHTML = html;
+}
+
+/* ================= 操作 ================= */
+function curRow(){ return rows.find(r=>r.department===curDept); }
+window.setEval = (no,val)=>{
+  const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
+  it.eval = (it.eval===val)? null : val;
+  renderDept(); renderChips(); queueSave(row);
+};
+window.setMemo = (no,val)=>{ const row=curRow(); const it=row.items.find(i=>i.no===no); if(it){it.memo=val; queueSave(row);} };
+window.toggleMemo = no=>{ $('memo'+no).classList.toggle('hidden'); };
+window.setDate = val=>{ const row=curRow(); row.inspection_date=val||null; queueSave(row); };
+window.setHw = (key,val)=>{ const row=curRow(); row[key]=val; queueSave(row); renderSummary(); };
+window.toggleEdit = ()=>{ editMode=!editMode; renderDept(); };
+window.editItem = (no,key,val)=>{
+  const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
+  it[key] = key==='pts'? (Number(val)||0) : val;
+  queueSave(row); renderDept(); renderChips();
+};
+window.delItem = no=>{
+  if(!confirm('項目 No'+no+' を削除しますか？'))return;
+  const row=curRow();
+  row.items = row.items.filter(i=>i.no!==no);
+  row.items.forEach((it,idx)=>it.no=idx+1);
+  queueSave(row); renderDept(); renderChips();
+};
+window.addItem = ()=>{
+  const row=curRow();
+  row.items.push({no:row.items.length+1,cat:'規律',text:'新しいチェック項目',pts:5,inspector:'社長',type:'ox',eval:null,memo:'',photos:[]});
+  queueSave(row); renderDept();
+};
+window.showLightbox = url=>{ $('lightboxImg').src=url; $('lightbox').style.display='flex'; };
+
+/* ================= 写真 ================= */
+window.addPhoto = no=>{ photoTargetItemNo=no; $('photoInput').value=''; $('photoInput').click(); };
+$('photoInput').addEventListener('change', async e=>{
+  const files=[...e.target.files]; if(!files.length)return;
+  const row=curRow(); const it=row.items.find(i=>i.no===photoTargetItemNo); if(!it)return;
+  const btn=$('pAdd'+photoTargetItemNo); if(btn)btn.classList.add('busy');
+  showSave('写真アップロード中…',false);
+  try{
+    for(const f of files){
+      const blob = await compressImage(f);
+      const path = `${slug(curCycle)}/${slug(curDept)}/no${it.no}_${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+      const {error} = await sb.storage.from(BUCKET).upload(path, blob, {contentType:'image/jpeg'});
+      if(error) throw error;
+      const {data} = sb.storage.from(BUCKET).getPublicUrl(path);
+      it.photos = it.photos||[];
+      it.photos.push({url:data.publicUrl, path});
+    }
+    await saveRow(row);
+    renderDept();
+  }catch(err){
+    showSave('写真の保存に失敗：'+err.message, false, true);
+    setTimeout(hideSave, 4000);
+    if(btn)btn.classList.remove('busy');
+    return;
+  }
+  if(btn)btn.classList.remove('busy');
+});
+window.delPhoto = async (no,pi)=>{
+  if(!confirm('この写真を削除しますか？'))return;
+  const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
+  const p=it.photos[pi];
+  it.photos.splice(pi,1);
+  renderDept(); queueSave(row);
+  if(p&&p.path) sb.storage.from(BUCKET).remove([p.path]);
+};
+function slug(s){ return (s||'').replace(/[^\w\-]+/g,'_').slice(0,60) || 'x'; }
+function compressImage(file){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1400;
+      let w=img.width,h=img.height;
+      if(Math.max(w,h)>MAX){ const r=MAX/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=> b?res(b):rej(new Error('画像変換に失敗')), 'image/jpeg', .82);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror=()=>rej(new Error('画像を読み込めません'));
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+/* ================= 保存 ================= */
+function queueSave(row){
+  showSave('保存中…',false);
+  clearTimeout(saveTimers[row.department]);
+  saveTimers[row.department]=setTimeout(()=>saveRow(row), 700);
+}
+async function saveRow(row){
+  const {error} = await sb.from(TABLE).update({
+    items:row.items, homework:row.homework, prev_homework:row.prev_homework,
+    inspection_date:row.inspection_date, updated_at:new Date().toISOString()
+  }).eq('id',row.id);
+  if(error){ showSave('保存に失敗：'+error.message,false,true); setTimeout(hideSave,4000); return; }
+  showSave('保存しました',true); setTimeout(hideSave,1500);
+  renderSummary();
+}
+function showSave(t,ok,err){ const p=$('savePill'); p.style.display='flex'; p.classList.toggle('saved',!!ok); p.classList.toggle('err',!!err); $('saveText').textContent=t; }
+function hideSave(){ $('savePill').style.display='none'; }
+
+/* ================= サマリー ================= */
+function renderSummary(){
+  if(!rows.length){ $('summaryTab').innerHTML='<div class="empty">データがありません</div>'; return; }
+  let totMax=0, totGot=0;
+  const rowsHtml = rows.map(r=>{
+    const st=deptStats(r);
+    totMax+=st.max; totGot+=st.got;
+    const barColor = st.answered===0 ? '#c9d2cb' : st.pct>=0.95?'var(--green)': st.pct>=0.85?'var(--amber)':'var(--red)';
+    const lostHtml = st.answered===0 ? '<div class="sum-hw">未点検</div>'
+      : st.lost.length ? `<div class="sum-lost">失点 ${st.lost.length}項目：${st.lost.map(esc).join(' ／ ')}</div>`
+      : '<div class="sum-hw" style="color:var(--green);font-weight:700">満点 🎉</div>';
+    const hwHtml = r.homework ? `<div class="sum-hw"><b>宿題：</b>${esc(r.homework)}</div>` : '';
+    const allPhotos = (r.items||[]).flatMap(i=>i.photos||[]);
+    const photosHtml = allPhotos.length? `<div class="sum-photos">${allPhotos.slice(0,12).map(p=>`<img src="${esc(p.url)}" loading="lazy" onclick="showLightbox('${esc(p.url)}')">`).join('')}</div>`:'';
+    return `
+    <div class="sum-row">
+      <div class="top">
+        <span class="gr ${st.grade||'N'}">${st.grade||'–'}</span>
+        <span class="nm">${esc(r.department)}</span>
+        <span class="sc">${st.answered===0?'–':st.got}/${st.max}　<span style="color:var(--ink2);font-size:12px">${st.answered===0?'':(st.pct*100).toFixed(1)+'%'}</span></span>
+        <button class="open" onclick="jumpDept('${esc(r.department)}')">開く</button>
+      </div>
+      <div class="sum-bar"><i style="width:${st.pct*100}%;background:${barColor}"></i></div>
+      ${lostHtml}${hwHtml}${photosHtml}
+    </div>`;
+  }).join('');
+  const totPct = totMax? (totGot/totMax*100):0;
+  $('summaryTab').innerHTML = `
+  <div class="sum-card">
+    <h3>全社サマリー｜${esc(curCycle||'')}</h3>
+    <div class="sum-total">
+      <span class="n">${totGot}</span><span class="d">/ ${totMax}点</span>
+      <span class="p">${totPct.toFixed(1)}%</span>
+    </div>
+    <div class="sum-bar"><i style="width:${totPct}%;background:var(--green)"></i></div>
+  </div>
+  <div class="sum-card">${rowsHtml}</div>`;
+}
+window.jumpDept = d=>{
+  curDept=d;
+  document.querySelector('[data-tab="inspect"]').click();
+  renderChips(); renderDept(); window.scrollTo({top:0});
+};
+
+/* ================= タブ・モーダル ================= */
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    $('inspectTab').classList.toggle('hidden', b.dataset.tab!=='inspect');
+    $('summaryTab').classList.toggle('hidden', b.dataset.tab!=='summary');
+    if(b.dataset.tab==='summary') renderSummary();
+  };
+});
+function openModal(id){ $(id).style.display='flex'; }
+window.closeModal = id=>{ $(id).style.display='none'; };
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.style.display='none';}));
+
+boot();
+</script>
+</body>
+</html>
