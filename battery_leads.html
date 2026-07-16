@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商談パイプラインボード | EARTHCOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.39.7/supabase.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#0e2a4a; --navy2:#163a63; --gold:#c9a04e; --gold-soft:#f3e8d2;
+  --bg:#f4f6f9; --card:#ffffff; --line:#dde4ec; --tx:#1c2733; --tx2:#5b6b7c;
+  --red:#c94a4a; --green:#2f8f5b; --amber:#d98b24; --blue:#3068a8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+header h1{font-size:16px;font-weight:900;letter-spacing:.04em}
+header h1 span{color:var(--gold);font-size:11px;font-weight:700;display:block;letter-spacing:.18em}
+.hbtns{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:#2a4a71;color:#ffd98a}
+.badge.on{background:#1f5c3d;color:#a9f0c8}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:7px;font-size:13px;font-weight:700}
+.btn{background:var(--gold);color:var(--navy);padding:8px 14px}
+.btn.ghost{background:transparent;color:#fff;border:1px solid #4a648a;padding:7px 12px}
+.btn.gray{background:#e8edf3;color:var(--tx);padding:8px 12px}
+.btn.danger{background:#f7e2e2;color:var(--red)}
+.tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px}
+.tabs button{background:transparent;color:#8fa5bf;padding:11px 16px;border-radius:0;border-bottom:3px solid transparent;font-size:13px}
+.tabs button.act{color:#fff;border-bottom-color:var(--gold)}
+main{padding:16px 18px;max-width:1500px;margin:0 auto}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi .l{font-size:11px;color:var(--tx2);font-weight:700}
+.kpi .v{font-size:24px;font-weight:900;color:var(--navy)}
+.kpi .v small{font-size:12px;font-weight:700;color:var(--tx2)}
+/* filter bar */
+.fbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.fbar select,.fbar input{font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.fbar input[type=text]{min-width:180px}
+.fcount{margin-left:auto;font-size:12px;color:var(--tx2);font-weight:700}
+/* table */
+.tblwrap{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:1150px}
+th{background:var(--navy);color:#fff;font-size:11px;padding:9px 8px;text-align:left;white-space:nowrap;position:sticky;top:0;cursor:pointer;user-select:none}
+th .arw{color:var(--gold)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+tr.row:hover td{background:#f7f9fc;cursor:pointer}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:12px;white-space:nowrap}
+.name{font-weight:700}
+.sub{font-size:11px;color:var(--tx2)}
+.due-over{color:var(--red);font-weight:700}
+.due-soon{color:var(--amber);font-weight:700}
+.temp{font-weight:900}
+/* kanban */
+.kb{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(215px,1fr);gap:10px;overflow-x:auto;padding-bottom:8px;align-items:start}
+.kcol{background:#eaeff5;border-radius:10px;padding:8px;min-height:120px}
+.kcol h3{font-size:12px;font-weight:900;color:var(--navy);padding:4px 6px 8px;display:flex;justify-content:space-between}
+.kcol h3 em{font-style:normal;color:var(--tx2);font-weight:700}
+.kcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:8px;padding:9px 10px;margin-bottom:8px;cursor:grab;font-size:12px}
+.kcard .n{font-weight:700;font-size:13px}
+.kcard .m{color:var(--tx2);margin-top:3px;line-height:1.5}
+.kcol.dragover{outline:2px dashed var(--gold);outline-offset:-4px}
+/* referrer view */
+.refgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.refcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.refcard h3{font-size:15px;font-weight:900;color:var(--navy);display:flex;justify-content:space-between;align-items:baseline}
+.refcard h3 small{font-size:11px;color:var(--tx2);font-weight:700}
+.refcard .stats{display:flex;gap:14px;margin:8px 0;font-size:12px;color:var(--tx2)}
+.refcard .stats b{color:var(--navy);font-size:16px}
+.refcard ul{list-style:none;margin-top:6px}
+.refcard li{padding:6px 0;border-top:1px dashed var(--line);font-size:12px;display:flex;justify-content:space-between;gap:8px;cursor:pointer}
+.refcard li:hover{background:#f7f9fc}
+/* modal */
+.ovl{position:fixed;inset:0;background:rgba(10,20,35,.55);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow:auto;padding:24px 12px}
+.ovl.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:860px;padding:20px 22px}
+.modal h2{font-size:16px;font-weight:900;color:var(--navy);border-left:4px solid var(--gold);padding-left:10px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 14px}
+.fld label{display:block;font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:3px}
+.fld input,.fld select,.fld textarea{width:100%;font-family:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line);border-radius:7px}
+.fld textarea{resize:vertical;min-height:56px}
+.sect{font-size:12px;font-weight:900;color:var(--gold);letter-spacing:.1em;margin:16px 0 8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.mfoot{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;align-items:center}
+.logbox{background:#f5f7fa;border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-height:180px;overflow:auto;margin-top:6px}
+.logbox p{font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.logbox p b{color:var(--navy)}
+.addlog{display:flex;gap:6px;margin-top:6px}
+.addlog input{flex:1}
+.empty{text-align:center;color:var(--tx2);padding:40px 10px;font-size:13px}
+.propcheck{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;max-height:170px;overflow:auto;background:#f5f7fa;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.propcheck label{display:flex;gap:7px;align-items:flex-start;font-size:12px;cursor:pointer;padding:3px 2px}
+.propcheck input{margin-top:2px}
+.propcheck .ps{color:var(--tx2);font-size:11px}
+.ptag{display:inline-block;font-size:11px;font-weight:700;background:var(--gold-soft);color:#8a6a20;border-radius:10px;padding:1px 8px;margin:1px 3px 1px 0}
+#map{height:62vh;min-height:420px;border:1px solid var(--line);border-radius:10px;background:#eef2f6}
+.maplegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px;padding:0 2px}
+.maplegend span i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.leaflet-popup-content{font-family:'Noto Sans JP',sans-serif;font-size:12px;line-height:1.6;margin:10px 12px}
+.leaflet-popup-content b{font-size:13px;color:var(--navy)}
+.leaflet-popup-content .plink{display:inline-block;margin-top:5px;background:var(--gold);color:var(--navy);font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer}
+/* 3Qフォーカス */
+.focushead{background:linear-gradient(100deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:14px;display:flex;gap:26px;flex-wrap:wrap;align-items:center}
+.focushead .cd{font-size:13px;font-weight:700;color:#ffd98a}
+.focushead .cd b{font-size:34px;color:#fff;margin:0 4px}
+.focushead .fh{font-size:12px;color:#a9bdd4;font-weight:700}
+.focushead .fh b{display:block;font-size:22px;color:#fff}
+.focushead .fh b.gold{color:var(--gold)}
+.fsec{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.fsec>h3{font-size:13px;font-weight:900;padding:10px 14px;background:#f2f5f9;color:var(--navy);display:flex;justify-content:space-between;align-items:center}
+.fsec>h3 small{font-weight:700;color:var(--tx2)}
+.frow{display:flex;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer;flex-wrap:wrap}
+.frow:hover{background:#f7f9fc}
+.frow .rank{font-size:16px;font-weight:900;color:var(--gold);min-width:26px}
+.frow .who{min-width:200px;flex:1}
+.frow .who .n{font-weight:700;font-size:14px}
+.frow .who .s{font-size:11px;color:var(--tx2)}
+.frow .amt{font-size:16px;font-weight:900;color:var(--navy);min-width:110px;text-align:right}
+.frow .amt small{font-size:11px;color:var(--tx2);font-weight:700}
+.frow .act2{min-width:220px;flex:1;font-size:12px}
+.frow .act2 .a{font-weight:700}
+.rbadge{display:inline-block;font-size:11px;font-weight:900;border-radius:4px;padding:2px 7px;margin-left:4px}
+.rb-red{background:#fdeaea;color:var(--red)}
+.rb-amber{background:#fcf1de;color:var(--amber)}
+.rb-green{background:#e6f4ec;color:var(--green)}
+.rb-gray{background:#eef1f5;color:var(--tx2)}
+/* 担当別フォーカス */
+.ownerfocus{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-bottom:14px}
+.ofcard{background:#fff;border:2px solid var(--gold);border-radius:12px;padding:12px 14px;cursor:pointer;position:relative}
+.ofcard:hover{box-shadow:0 4px 14px rgba(14,42,74,.12)}
+.ofcard .ow{font-size:11px;font-weight:900;color:#8a6a20;background:var(--gold-soft);display:inline-block;padding:2px 10px;border-radius:12px}
+.ofcard .dn{font-size:15px;font-weight:900;color:var(--navy);margin:6px 0 2px}
+.ofcard .dm{font-size:12px;color:var(--tx2);line-height:1.6}
+.ofcard .da{font-size:12px;font-weight:700;margin-top:5px;border-top:1px dashed var(--line);padding-top:5px}
+.ofttl{font-size:13px;font-weight:900;color:var(--navy);margin:2px 0 8px}
+.gasnote{font-size:11px;color:var(--tx2);font-weight:700;margin-left:4px}
+@media(max-width:700px){ main{padding:10px} table{min-width:900px} }
+@media print{ header,.tabs,.fbar,.hbtns{display:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>EARTHCOM</span>商談パイプラインボード</h1>
+  <div class="hbtns">
+    <span class="badge" id="syncBadge">● ローカル</span>
+    <button class="btn ghost" id="btnReload">↺ 最新を取得</button>
+    <button class="btn ghost" id="btnCsv">CSV出力</button>
+    <button class="btn ghost" id="btnXlsx">⬆ Excel取込</button>
+    <input type="file" id="xlsxFile" accept=".xlsx,.xlsm" style="display:none">
+    <button class="btn ghost" id="btnGas">📗 シート連動</button>
+    <span class="gasnote" id="gasStatus" style="color:#a9f0c8"></span>
+    <button class="btn" id="btnNew">＋ 商談登録</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="act" data-tab="focus">🎯 3Qフォーカス</button>
+  <button data-tab="list">一覧</button>
+  <button data-tab="funnel">ファネル</button>
+  <button data-tab="ref">紹介者別</button>
+  <button data-tab="prop">物件</button>
+  <button data-tab="map">地図</button>
+</div>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="fbar" id="fbar">
+    <input type="text" id="fQ" placeholder="🔍 顧客名・紹介者・メモを検索">
+    <select id="fBiz"><option value="">事業：全て</option></select>
+    <select id="fKubun"><option value="">区分：全て</option></select>
+    <select id="fStatus"><option value="">ステータス：全て</option></select>
+    <select id="fRef"><option value="">紹介者：全て</option></select>
+    <select id="fOwner"><option value="">社内担当：全て</option></select>
+    <select id="fTemp"><option value="">温度感：全て</option><option>A</option><option>B</option><option>C</option></select>
+    <span class="fcount" id="fCount"></span>
+  </div>
+
+  <div id="viewFocus">
+    <div class="focushead" id="focushead"></div>
+    <div id="focusbody"></div>
+  </div>
+
+  <div id="viewList" style="display:none"><div class="tblwrap"><table id="tbl"><thead></thead><tbody></tbody></table></div></div>
+  <div id="viewFunnel" style="display:none"><div class="kb" id="kb"></div></div>
+  <div id="viewRef" style="display:none"><div class="refgrid" id="refgrid"></div></div>
+
+  <div id="viewProp" style="display:none">
+    <div class="fbar">
+      <input type="text" id="pQ" placeholder="🔍 物件名・所在地を検索">
+      <select id="pStatus"><option value="">販売状況：全て</option></select>
+      <select id="pVolt"><option value="">電圧区分：全て</option></select>
+      <select id="pSell"><option value="">販売形態：全て</option></select>
+      <span class="fcount" id="pCount"></span>
+      <button class="btn gray" id="btnImportBB" style="margin-left:8px">⬇ battery-boardから取込</button>
+      <button class="btn" id="btnNewProp">＋ 物件登録</button>
+    </div>
+    <div class="refgrid" id="propgrid"></div>
+  </div>
+
+  <div id="viewMap" style="display:none">
+    <div class="fbar">
+      <span style="font-size:12px;font-weight:700;color:var(--tx2)">物件の所在地から自動でピンを立てます（初回のみ位置取得に数秒かかります）</span>
+      <span class="fcount" id="geoStatus"></span>
+      <button class="btn gray" id="btnGeo">📍 位置を再取得</button>
+    </div>
+    <div class="maplegend" id="maplegend"></div>
+    <div id="map"></div>
+    <div class="refcard" id="unplotted" style="display:none;margin-top:10px"></div>
+  </div>
+</main>
+
+<!-- 編集モーダル -->
+<div class="ovl" id="ovl">
+  <div class="modal">
+    <h2 id="mTitle">見込み登録</h2>
+
+    <div class="sect">顧客情報</div>
+    <div class="grid2">
+      <div class="fld"><label>顧客名（会社名／個人名）＊</label><input id="i_name"></div>
+      <div class="fld"><label>担当者名（先方）</label><input id="i_contact"></div>
+      <div class="fld"><label>顧客種別</label><select id="i_type"></select></div>
+      <div class="fld"><label>連絡先（TEL / メール）</label><input id="i_tel"></div>
+      <div class="fld"><label>所在地（都道府県）</label><input id="i_area" placeholder="例：埼玉県"></div>
+    </div>
+
+    <div class="sect">紹介経路</div>
+    <div class="grid2">
+      <div class="fld"><label>紹介者名</label><input id="i_ref" list="refList" placeholder="例：〇〇銀行 △△様"><datalist id="refList"></datalist></div>
+      <div class="fld"><label>経路種別</label><select id="i_route"></select></div>
+      <div class="fld"><label>紹介日</label><input type="date" id="i_refdate"></div>
+      <div class="fld"><label>紹介料の取決め</label><select id="i_reffee"><option>なし</option><option>あり（取決め済）</option><option>要協議</option></select></div>
+    </div>
+
+    <div class="sect">商談内容</div>
+    <div class="grid2">
+      <div class="fld"><label>事業区分＊</label><select id="i_biz"></select></div>
+      <div class="fld"><label>商談区分＊（刈り取り／種まき）</label><select id="i_kubun"></select></div>
+      <div class="fld"><label>ニーズ詳細</label><select id="i_need"></select></div>
+      <div class="fld"><label>商談金額 PQ（万円）</label><input type="number" id="i_budget" placeholder="3000"></div>
+      <div class="fld"><label>MQ・粗利（万円）※未入力時は商談金額で計算</label><input type="number" id="i_mq" placeholder="600"></div>
+      <div class="fld"><label>支払方法</label><select id="i_finance"></select></div>
+      <div class="fld"><label>入金・受注予定日</label><input type="date" id="i_payday"></div>
+      <div class="fld"><label>希望エリア・対象発電所など</label><input id="i_wantarea" placeholder="例：関東一円 / 〇〇発電所"></div>
+      <div class="fld"><label>希望時期</label><input id="i_when" placeholder="例：2027年春"></div>
+      <div class="fld bizbat"><label>電圧区分（蓄電池）</label><select id="i_volt"></select></div>
+      <div class="fld bizbat"><label>対象商品（蓄電池）</label><select id="i_product"></select></div>
+      <div class="fld bizbat"><label>制度</label><select id="i_scheme"><option>未定</option><option>FIP</option><option>非FIT（相対・市場）</option><option>FIT併設</option></select></div>
+      <div class="fld bizbat"><label>希望容量（kWh）</label><input type="number" id="i_kwh" placeholder="216"></div>
+      <div class="fld bizbat"><label>希望台数・件数</label><input type="number" id="i_units" placeholder="1"></div>
+    </div>
+
+    <div class="sect">販売管理</div>
+    <div class="grid2">
+      <div class="fld"><label>ステータス＊</label><select id="i_status"></select></div>
+      <div class="fld"><label>温度感</label><select id="i_temp"><option>A（高い・即動く）</option><option>B（中・検討中）</option><option>C（低・情報収集）</option></select></div>
+      <div class="fld"><label>社内担当＊</label><input id="i_owner" list="ownerList"><datalist id="ownerList"></datalist></div>
+      <div class="fld"><label>次回アクション</label><input id="i_next" placeholder="例：EAR-A-168提案書を送付"></div>
+      <div class="fld"><label>アクション期限</label><input type="date" id="i_due"></div>
+      <div class="fld"><label>失注・保留理由</label><input id="i_lost" placeholder="失注/保留の場合のみ"></div>
+    </div>
+    <div class="fld" style="margin-top:10px"><label>メモ</label><textarea id="i_memo"></textarea></div>
+
+    <div class="sect">提案物件（該当物件にチェック）</div>
+    <div class="propcheck" id="propCheck"></div>
+
+    <div class="sect">活動ログ</div>
+    <div class="logbox" id="logbox"></div>
+    <div class="addlog"><input id="i_log" placeholder="例：7/12 電話。提案書送付済み、来週再連絡"><button class="btn gray" id="btnAddLog">追加</button></div>
+
+    <div class="mfoot">
+      <button class="btn danger" id="btnDel" style="margin-right:auto">削除</button>
+      <button class="btn gray" id="btnClose">閉じる</button>
+      <button class="btn" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 物件モーダル -->
+<div class="ovl" id="povl">
+  <div class="modal">
+    <h2 id="pTitle">物件登録</h2>
+    <div class="grid2">
+      <div class="fld"><label>物件名＊</label><input id="p_name" placeholder="例：栃木〇〇 蓄電池案件"></div>
+      <div class="fld"><label>都道府県</label><input id="p_pref" placeholder="例：栃木県"></div>
+      <div class="fld"><label>所在地</label><input id="p_addr"></div>
+      <div class="fld"><label>電圧区分＊</label><select id="p_volt"></select></div>
+      <div class="fld"><label>容量（kWh）</label><input type="number" id="p_kwh" placeholder="216"></div>
+      <div class="fld"><label>PCS出力（kW）</label><input type="number" id="p_kw"></div>
+      <div class="fld"><label>権利状況</label><select id="p_rights"></select></div>
+      <div class="fld"><label>販売形態＊</label><select id="p_sell"></select></div>
+      <div class="fld"><label>販売価格（万円）</label><input type="number" id="p_price"></div>
+      <div class="fld"><label>制度</label><select id="p_scheme"><option>未定</option><option>FIP</option><option>非FIT（相対・市場）</option><option>FIT併設</option></select></div>
+      <div class="fld"><label>連系予定時期</label><input id="p_when" placeholder="例：2027年夏"></div>
+      <div class="fld"><label>販売状況＊</label><select id="p_status"></select></div>
+    </div>
+    <div class="fld" style="margin-top:10px"><label>備考</label><textarea id="p_memo"></textarea></div>
+    <div class="mfoot">
+      <button class="btn danger" id="btnPDel" style="margin-right:auto">削除</button>
+      <button class="btn gray" id="btnPClose">閉じる</button>
+      <button class="btn" id="btnPSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- battery-board取込ログイン -->
+<div class="ovl" id="bbovl">
+  <div class="modal" style="max-width:420px">
+    <h2>battery-board 取込</h2>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:12px">battery-boardのデータは共有アカウントで保護されています。いつものアカウントでログインしてください（このブラウザに記憶されます）。</p>
+    <div class="fld"><label>メールアドレス</label><input id="bb_email" value="hankyo@earthcom-eco.jp"></div>
+    <div class="fld" style="margin-top:8px"><label>パスワード</label><input type="password" id="bb_pass"></div>
+    <p id="bb_err" style="color:var(--red);font-size:12px;font-weight:700;margin-top:8px"></p>
+    <div class="mfoot">
+      <button class="btn gray" id="bbClose">閉じる</button>
+      <button class="btn" id="bbLogin">ログインして取込</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Supabase 設定 ===== */
+const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY_HARD='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa'; // 共有プロジェクトの Publishable key
+const TABLE='battery_leads';
+let sb=null, cloud=false;
+
+/* ===== マスタ ===== */
+const Q3_END='2026-08-31';
+const STATUSES=['新規','初回接触','ヒアリング済','提案中','条件交渉','申込','契約','入金済','保留','失注'];
+const ST_COLOR={'新規':'#8a97a8','初回接触':'#3068a8','ヒアリング済':'#2f7fa8','提案中':'#d98b24','条件交渉':'#c9762b','申込':'#7a5cb8','契約':'#2f8f5b','入金済':'#1f6e46','保留':'#9a8f6b','失注':'#c94a4a'};
+const BIZ=['系統用蓄電池','ReFort','セカンダリー','パネル洗浄・O&M','サンキーパー','アセット','その他'];
+const BIZ_COLOR={'系統用蓄電池':'#3068a8','ReFort':'#c9762b','セカンダリー':'#2f8f5b','パネル洗浄・O&M':'#2f7fa8','サンキーパー':'#d98b24','アセット':'#7a5cb8','その他':'#8a97a8'};
+const KUBUN=['刈り取り（3Q・8/31まで）','刈り取り（来期以降）','種まき（中長期）'];
+const FINANCE=['現金','融資（申込前）','融資（審査中）','融資（内諾済）','融資（実行待ち）','リース・割賦','未確認'];
+const NEEDS_BY_BIZ={
+  '系統用蓄電池':['権利のみ購入','権利＋EPC','EPCのみ','完成品購入（投資商品）','土地売却・賃貸','共同開発','情報収集'],
+  'ReFort':['再資産化（全面）','部分改修・リパワリング','蓄電池併設','検討中・診断希望'],
+  'セカンダリー':['購入希望','売却希望','買替（売却＋購入）','査定依頼'],
+  'パネル洗浄・O&M':['パネル洗浄（定期）','パネル洗浄（スポット）','除草・フェンス等','O&M切替'],
+  'サンキーパー':['新規導入','追加導入','デモ・資料請求'],
+  'アセット':['売却相談','購入希望','査定依頼','借換・組換相談'],
+  'その他':['その他']
+};
+const VOLTS=['低圧','高圧','特別高圧','未定'];
+const NEEDS=[...new Set(Object.values(NEEDS_BY_BIZ).flat())];
+const TYPES=['法人投資家','個人投資家','発電事業者','地主','EPC・施工業者','金融機関・士業','その他'];
+const ROUTES=['既存顧客の紹介','金融機関','税理士・会計士','セミナー・講演','HP問合せ','展示会','社員の紹介','代理店','その他'];
+const PRODUCTS=['EAR-A-168（低圧216kWh）','高圧系統用（開発案件）','低圧 その他','未定'];
+const getBiz=l=> l.biz||'系統用蓄電池';
+const getKubun=l=> l.kubun||'';
+const is3Q=l=> getKubun(l).startsWith('刈り取り（3Q');
+const finRisk=l=>{ const f=l.finance||''; return f.startsWith('融資') && !f.includes('内諾') && !f.includes('実行待ち'); };
+const MQ_GOAL_DEFAULT=40000; // 万円（=400百万円）
+const mqOf=l=> (Number(l.mq)||0) || (Number(l.budget)||0)*(Number(l.units)||1);
+const mqGoal=()=> Number(settings.mqGoal)||MQ_GOAL_DEFAULT;
+const fmtOku=v=> v>=10000? (v/10000).toFixed(2).replace(/\.?0+$/,'')+'億円' : v.toLocaleString()+'万円';
+const PTABLE='battery_props';
+const RIGHTS=['申請準備中','申請中','権利確保済','連系承諾済','EPC工事中','完成・稼働中'];
+const SELLS=['権利のみ','権利＋EPC','完成品'];
+const PSTATUS=['販売中','商談中','申込あり','成約','取下げ'];
+const PS_COLOR={'販売中':'#2f8f5b','商談中':'#d98b24','申込あり':'#7a5cb8','成約':'#3068a8','取下げ':'#8a97a8'};
+
+/* ===== 状態 ===== */
+let leads=[]; let props=[]; let editId=null; let editPropId=null; let editLogs=[]; let sortKey='updated', sortAsc=false;
+const $=id=>document.getElementById(id);
+const uid=()=> 'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=> new Date().toISOString().slice(0,10);
+const fmtMan=v=> v? Number(v).toLocaleString()+'万円' : '—';
+
+/* ===== 保存・同期 ===== */
+function saveLocal(){ localStorage.setItem('battery_leads_v1', JSON.stringify(leads)); localStorage.setItem('battery_props_v1', JSON.stringify(props)); }
+function loadLocal(){
+  try{ leads=JSON.parse(localStorage.getItem('battery_leads_v1')||'[]'); }catch(e){ leads=[]; }
+  try{ props=JSON.parse(localStorage.getItem('battery_props_v1')||'[]'); }catch(e){ props=[]; }
+}
+
+async function initCloud(){
+  try{
+    sb=window.supabase.createClient(SB_URL, SB_KEY_HARD);
+    const {data,error}=await sb.from(TABLE).select('id,data,updated_at');
+    if(error) throw error;
+    cloud=true; $('syncBadge').textContent='● 共有中'; $('syncBadge').classList.add('on');
+    const rowsL=(data||[]).filter(r=>r.id!=='_settings');
+    const setRow=(data||[]).find(r=>r.id==='_settings');
+    if(setRow) settings=setRow.data||{};
+    if(rowsL.length){ leads=rowsL.map(r=>r.data); }
+    else if(leads.length){ for(const l of leads){ await pushLead(l); } } // 初回投入
+    try{
+      const pr=await sb.from(PTABLE).select('id,data');
+      if(!pr.error){
+        if(pr.data && pr.data.length){ props=pr.data.map(r=>r.data); }
+        else if(props.length){ for(const p of props){ await pushProp(p); } }
+      }
+    }catch(e){ console.warn('props table:',e.message||e); }
+    saveLocal(); renderAll();
+    if(settings.gasUrl) syncSheet(true);
+  }catch(e){
+    cloud=false; $('syncBadge').textContent='● ローカル';
+    console.warn('cloud off:',e.message||e);
+  }
+}
+async function pushLead(l){ if(!cloud) return; try{ await sb.from(TABLE).upsert({id:l.id, data:l, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
+async function removeLead(id){ if(!cloud) return; try{ await sb.from(TABLE).delete().eq('id',id); }catch(e){ console.warn(e); } }
+async function pushProp(p){ if(!cloud) return; try{ await sb.from(PTABLE).upsert({id:p.id, data:p, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
+async function removeProp(id){ if(!cloud) return; try{ await sb.from(PTABLE).delete().eq('id',id); }catch(e){ console.warn(e); } }
+async function reload(){
+  if(!cloud){ initCloud(); return; }
+  const {data}=await sb.from(TABLE).select('id,data'); if(data) leads=data.filter(r=>r.id!=='_settings').map(r=>r.data);
+  try{ const pr=await sb.from(PTABLE).select('data'); if(!pr.error && pr.data) props=pr.data.map(r=>r.data); }catch(e){}
+  saveLocal(); renderAll();
+}
+function propName(id){ const p=props.find(x=>x.id===id); return p? p.name : ''; }
+function leadProps(l){ return (l.props||[]).map(propName).filter(Boolean); }
+
+/* ===== フィルタ ===== */
+function filtered(){
+  const q=$('fQ').value.trim().toLowerCase();
+  return leads.filter(l=>{
+    if($('fStatus').value && l.status!==$('fStatus').value) return false;
+    if($('fBiz').value && getBiz(l)!==$('fBiz').value) return false;
+    if($('fKubun').value && (getKubun(l)||'（未設定）')!==$('fKubun').value) return false;
+    if($('fRef').value && (l.ref||'（紹介者なし）')!==$('fRef').value) return false;
+    if($('fOwner').value && l.owner!==$('fOwner').value) return false;
+    if($('fTemp').value && (l.temp||'').charAt(0)!==$('fTemp').value) return false;
+    if(q){ const hay=[l.name,l.contact,l.ref,l.memo,l.next,l.area,l.wantarea,getBiz(l),(l.logs||[]).map(g=>g.t).join(' ')].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+}
+
+/* ===== KPI ===== */
+function amt(l){ return (Number(l.budget)||0)*(Number(l.units)||1); }
+function renderKpis(){
+  const f=filtered();
+  const q3=f.filter(is3Q);
+  const q3done=q3.filter(l=>l.status==='入金済');
+  const q3won=q3.filter(l=>l.status==='契約');
+  const q3live=q3.filter(l=>!['入金済','契約','失注','保留'].includes(l.status));
+  const risk=q3.filter(l=> !['入金済','失注'].includes(l.status) && (finRisk(l) || (l.due && l.due<today())));
+  const seeds=f.filter(l=> getKubun(l).startsWith('種まき') && !['失注'].includes(l.status));
+  const sum=a=>a.reduce((s,l)=>s+mqOf(l),0);
+  const goal=mqGoal(); const fixed=sum(q3done)+sum(q3won);
+  $('kpis').innerHTML=`
+    <div class="kpi"><div class="l">3Q MQ目標／確定</div><div class="v">${fmtOku(fixed)}<small> / ${fmtOku(goal)}</small></div></div>
+    <div class="kpi"><div class="l">3Q 入金済MQ（実績）</div><div class="v" style="color:var(--green)">${sum(q3done).toLocaleString()}<small> 万円・${q3done.length}件</small></div></div>
+    <div class="kpi"><div class="l">3Q 契約済・入金待ちMQ</div><div class="v">${sum(q3won).toLocaleString()}<small> 万円・${q3won.length}件</small></div></div>
+    <div class="kpi"><div class="l">3Q 商談中MQ（見込み）</div><div class="v">${sum(q3live).toLocaleString()}<small> 万円・${q3live.length}件</small></div></div>
+    <div class="kpi"><div class="l">⚠ リスクあり（融資未内諾・期限超過）</div><div class="v" style="color:${risk.length?'var(--red)':'var(--navy)'}">${risk.length}<small> 件</small></div></div>
+    <div class="kpi"><div class="l">種まき（中長期）</div><div class="v">${seeds.length}<small> 件</small></div></div>`;
+}
+
+/* ===== 一覧 ===== */
+const COLS=[
+  ['name','顧客名'],['biz','事業'],['kubun','区分'],['status','ステータス'],['temp','温度'],
+  ['mq','MQ（粗利）'],['budget','PQ（金額）'],['finance','支払'],['payday','入金予定'],['ref','紹介者'],['owner','担当'],['next','次回アクション'],['due','期限'],['updated','更新']
+];
+function renderTable(){
+  const thead=$('tbl').querySelector('thead');
+  thead.innerHTML='<tr>'+COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${sortKey===c[0]? `<span class="arw">${sortAsc?' ▲':' ▼'}</span>`:''}</th>`).join('')+'</tr>';
+  thead.querySelectorAll('th').forEach(th=> th.onclick=()=>{ const k=th.dataset.k; if(sortKey===k) sortAsc=!sortAsc; else {sortKey=k; sortAsc=true;} renderTable(); });
+
+  let f=filtered();
+  f.sort((a,b)=>{
+    let x=a[sortKey]??'', y=b[sortKey]??'';
+    if(sortKey==='budget'){x=amt(a);y=amt(b);}
+    if(sortKey==='mq'){x=mqOf(a);y=mqOf(b);}
+    if(sortKey==='biz'){x=getBiz(a);y=getBiz(b);}
+    if(sortKey==='kubun'){x=getKubun(a);y=getKubun(b);}
+    if(sortKey==='status'){x=STATUSES.indexOf(a.status);y=STATUSES.indexOf(b.status);}
+    return (x<y?-1:x>y?1:0)*(sortAsc?1:-1);
+  });
+  const tb=$('tbl').querySelector('tbody');
+  if(!f.length){ tb.innerHTML=`<tr><td colspan="${COLS.length}"><div class="empty">該当する商談がありません。「＋ 見込み登録」から追加してください。</div></td></tr>`; $('fCount').textContent='0件'; return; }
+  tb.innerHTML=f.map(l=>{
+    const dueCls = l.due? (l.due<today()?'due-over': (l.due<=addDays(today(),3)?'due-soon':'')) :'';
+    const kb=getKubun(l);
+    const kShort=kb.startsWith('刈り取り（3Q')?'刈3Q':kb.startsWith('刈り取り')?'刈・来期':kb.startsWith('種まき')?'種まき':'未設定';
+    return `<tr class="row" data-id="${l.id}">
+      <td><span class="name">${esc(l.name)}</span><div class="sub">${esc(l.type||'')}${l.need?'・'+esc(l.need):''}${leadProps(l).length? ' '+leadProps(l).map(n=>`<span class="ptag">${esc(n)}</span>`).join(''):''}</div></td>
+      <td><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span></td>
+      <td><span class="pill" style="background:${kShort==='刈3Q'?'#fdeaea':kShort==='種まき'?'#e6f4ec':'#eef1f5'};color:${kShort==='刈3Q'?'var(--red)':kShort==='種まき'?'var(--green)':'var(--tx2)'}">${kShort}</span></td>
+      <td><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></td>
+      <td class="temp" style="color:${l.temp&&l.temp[0]==='A'?'var(--red)':l.temp&&l.temp[0]==='B'?'var(--amber)':'var(--tx2)'}">${l.temp?l.temp[0]:'—'}</td>
+      <td><b>${mqOf(l)? mqOf(l).toLocaleString()+'万円':'—'}</b>${!Number(l.mq)&&amt(l)? '<div class="sub">PQから仮計上</div>':''}</td>
+      <td>${amt(l)? amt(l).toLocaleString()+'万円':'—'}</td>
+      <td>${esc(l.finance||'—')}${finRisk(l)&&!['入金済','契約','失注'].includes(l.status)? '<span class="rbadge rb-red">未内諾</span>':''}</td>
+      <td>${l.payday? l.payday.slice(5).replace('-','/'):'—'}</td>
+      <td>${esc(l.ref||'—')}<div class="sub">${esc(l.route||'')}</div></td>
+      <td>${esc(l.owner||'—')}</td>
+      <td>${esc(l.next||'—')}</td>
+      <td class="${dueCls}">${l.due? l.due.slice(5).replace('-','/'):'—'}</td>
+      <td class="sub">${(l.updated||'').slice(5,10).replace('-','/')}</td>
+    </tr>`;
+  }).join('');
+  tb.querySelectorAll('tr.row').forEach(tr=> tr.onclick=()=> openModal(tr.dataset.id));
+  $('fCount').textContent=f.length+'件';
+}
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
+function shortProd(p){ return (p||'').replace('（低圧216kWh）','').replace('（開発案件）','').replace('（投資商品）',''); }
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ===== 3Qフォーカス ===== */
+function daysLeft(){ return Math.max(0, Math.ceil((new Date(Q3_END)-new Date(today()))/86400000)); }
+function riskBadges(l){
+  const b=[];
+  if(finRisk(l)) b.push('<span class="rbadge rb-red">融資未内諾</span>');
+  if(l.due && l.due<today()) b.push('<span class="rbadge rb-red">期限超過</span>');
+  if(!l.next) b.push('<span class="rbadge rb-amber">次アクション未設定</span>');
+  if(!l.payday) b.push('<span class="rbadge rb-amber">入金予定日なし</span>');
+  else if(l.payday>Q3_END) b.push('<span class="rbadge rb-amber">入金予定が8/31超</span>');
+  return b.join('');
+}
+function frow(l,i){
+  return `<div class="frow" data-id="${l.id}">
+    <span class="rank">${i!=null? i+1 : ''}</span>
+    <div class="who"><div class="n">${esc(l.name)}</div>
+      <div class="s"><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span>
+      <span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span>
+      ${esc(l.type||'')}　担当：${esc(l.owner||'—')}　${esc(l.finance||'')}</div></div>
+    <div class="amt">${mqOf(l)? mqOf(l).toLocaleString():'—'}<small> 万円<b style="color:var(--gold)">MQ</b></small><br><small>入金予定 ${l.payday? l.payday.slice(5).replace('-','/'):'—'}</small></div>
+    <div class="act2"><span class="a">▶ ${esc(l.next||'次回アクション未設定')}</span>${l.due? `<span class="${l.due<today()?'due-over':''}">（期限 ${l.due.slice(5).replace('-','/')}）</span>`:''}<br>${riskBadges(l)}</div>
+  </div>`;
+}
+function renderFocus(){
+  const f=filtered();
+  const q3=f.filter(is3Q);
+  const done=q3.filter(l=>l.status==='入金済');
+  const won=q3.filter(l=>l.status==='契約');
+  const live=q3.filter(l=>!['入金済','契約','失注','保留'].includes(l.status));
+  const sumMq=a=>a.reduce((s,l)=>s+mqOf(l),0);
+  const goal=mqGoal();
+  const fixed=sumMq(done)+sumMq(won);
+  const gap=Math.max(0, goal-fixed);
+  const pipe=sumMq(live);
+  const shortage=Math.max(0, gap-pipe);
+  const needRate=(pipe>0 && gap>0)? Math.min(999,Math.round(gap/pipe*100)) : 0;
+  const weeks=Math.max(1, Math.ceil(daysLeft()/7));
+  const perWeek=Math.ceil(gap/weeks);
+  const pctFixed=Math.min(100, goal? fixed/goal*100:0);
+  const pctPipe=Math.min(100-pctFixed, goal? pipe/goal*100:0);
+  $('focushead').innerHTML=`
+    <div style="flex:1;min-width:280px">
+      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
+        <div class="cd">3Q締め（8/31）まで<b>${daysLeft()}</b>日</div>
+        <div class="fh">3Q MQ目標 <b class="gold">${fmtOku(goal)}</b><span id="goalEdit" style="cursor:pointer;color:#8fa5bf;font-size:11px;margin-left:6px">✎ 変更</span></div>
+        <div class="fh">確定MQ（入金済＋契約）<b>${fmtOku(fixed)}</b></div>
+        <div class="fh">目標までのギャップ<b style="color:${gap? '#ff9d9d':'#a9f0c8'}">${gap? fmtOku(gap):'達成！'}</b></div>
+        <div class="fh">商談中MQ<b>${fmtOku(pipe)}</b></div>
+        ${gap? `<div class="fh">必要決定率<b style="color:${needRate>100?'#ff9d9d':'#fff'}">${pipe? needRate+'%':'—'}</b></div>
+        <div class="fh">週あたり必要決定<b>${fmtOku(perWeek)}</b></div>`:''}
+      </div>
+      <div style="margin-top:10px;background:#0a1e36;border-radius:8px;height:16px;overflow:hidden;display:flex">
+        <div style="width:${pctFixed}%;background:var(--gold)"></div>
+        <div style="width:${pctPipe}%;background:#4a7fb5;opacity:.75"></div>
+      </div>
+      <div style="font-size:11px;color:#a9bdd4;font-weight:700;margin-top:4px">
+        ■<span style="color:var(--gold)">確定 ${Math.round(pctFixed)}%</span>　■<span style="color:#7fb0e0">商談中を全部決めても ${Math.round(pctFixed+pctPipe)}%</span>
+        ${shortage? `　<span style="color:#ff9d9d">⚠ 商談総額が ${fmtOku(shortage)} 不足 ── 全件決めても届きません。新規商談の積み増しが必要です</span>`:''}
+      </div>
+    </div>`;
+  const ge=$('goalEdit'); if(ge) ge.onclick=async ()=>{
+    const v=prompt('3QのMQ目標を万円で入力してください（例：40000 ＝ 4億円）', String(goal));
+    if(!v||!Number(v)) return;
+    settings.mqGoal=Number(v); await saveSettings(); renderAll();
+  };
+
+  const rank=st=>({'申込':0,'条件交渉':1,'提案中':2,'ヒアリング済':3,'初回接触':4,'新規':5}[st]??9);
+  const sorted=live.slice().sort((a,b)=>{
+    const r=rank(a.status)-rank(b.status); if(r) return r;
+    const pa=a.payday||'9999-12-31', pb=b.payday||'9999-12-31';
+    if(pa!==pb) return pa<pb? -1:1;
+    return amt(b)-amt(a);
+  });
+  // 担当別・最優先1件
+  const byOwner={};
+  sorted.forEach(l=>{ const o=l.owner||'未設定'; if(!byOwner[o]) byOwner[o]=l; });
+  const ofHtml=Object.keys(byOwner).length? `<div class="ofttl">👤 担当別・今週の最優先商談（まずこれを動かす）</div>
+    <div class="ownerfocus">${Object.entries(byOwner).map(([o,l])=>`
+      <div class="ofcard" data-id="${l.id}">
+        <span class="ow">${esc(o)}</span>
+        <div class="dn">${esc(l.name)}</div>
+        <div class="dm"><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span>
+        <span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span>
+        <b>${mqOf(l)? 'MQ '+mqOf(l).toLocaleString()+'万円':''}</b>${l.payday? '　入金予定 '+l.payday.slice(5).replace('-','/'):''}</div>
+        <div class="da">▶ ${esc(l.next||'次回アクション未設定')}${l.due? `<span class="${l.due<today()?'due-over':''}">（${l.due.slice(5).replace('-','/')}）</span>`:''}<br>${riskBadges(l)}</div>
+      </div>`).join('')}</div>` : '';
+  const close=sorted.filter(l=>['申込','条件交渉'].includes(l.status));
+  const push=sorted.filter(l=>['提案中','ヒアリング済'].includes(l.status));
+  const early=sorted.filter(l=>['新規','初回接触'].includes(l.status));
+  const waitPay=won;
+  const unset=f.filter(l=> !getKubun(l) && !['失注','入金済'].includes(l.status));
+  const sec=(title,arr,note)=> arr.length? `<div class="fsec"><h3>${title}<small>${arr.length}件・MQ ${sumMq(arr).toLocaleString()}万円</small></h3>${arr.map((l,i)=>frow(l,i)).join('')}</div>` : '';
+  $('focusbody').innerHTML=
+    ofHtml
+    + sec('🔥 クロージング段階（申込・条件交渉）── 最優先で決め切る', close)
+    + sec('💰 契約済・入金待ち ── 入金予定日と融資実行を確認', waitPay)
+    + sec('📣 追い込み（提案中・ヒアリング済）── 8/31から逆算して今週動かす', push)
+    + sec('🌱 立ち上げ（新規・初回接触）── 早期にヒアリングを完了させる', early)
+    + (unset.length? `<div class="fsec"><h3>⚠ 商談区分が未設定<small>${unset.length}件 ── 刈り取りか種まきかを設定してください</small></h3>${unset.map(l=>frow(l,null)).join('')}</div>`:'')
+    + (!close.length&&!push.length&&!early.length&&!waitPay.length&&!unset.length? '<div class="empty">3Q対象（刈り取り・8/31まで）の商談がありません。各商談の「商談区分」を設定してください。</div>':'');
+  $('focusbody').querySelectorAll('.frow,.ofcard').forEach(r=> r.onclick=()=> openModal(r.dataset.id));
+}
+
+/* ===== ファネル ===== */
+function renderKanban(){
+  const f=filtered();
+  $('kb').innerHTML=STATUSES.map(st=>{
+    const items=f.filter(l=>l.status===st);
+    return `<div class="kcol" data-st="${st}">
+      <h3><span style="color:${ST_COLOR[st]}">■</span>${st}<em>${items.length}</em></h3>
+      ${items.map(l=>`<div class="kcard" draggable="true" data-id="${l.id}" style="border-left-color:${ST_COLOR[st]}">
+        <div class="n">${esc(l.name)}</div>
+        <div class="m"><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span> ${amt(l)? amt(l).toLocaleString()+'万円':''}<br>紹介：${esc(l.ref||'—')}　担当：${esc(l.owner||'—')}<br>${leadProps(l).map(n=>`<span class="ptag">${esc(n)}</span>`).join('')}${l.next? '▶ '+esc(l.next):''}${l.due? `<span class="${l.due<today()?'due-over':''}">（${l.due.slice(5).replace('-','/')}）</span>`:''}</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+  $('kb').querySelectorAll('.kcard').forEach(c=>{
+    c.ondragstart=e=> e.dataTransfer.setData('text/plain', c.dataset.id);
+    c.onclick=()=> openModal(c.dataset.id);
+  });
+  $('kb').querySelectorAll('.kcol').forEach(col=>{
+    col.ondragover=e=>{ e.preventDefault(); col.classList.add('dragover'); };
+    col.ondragleave=()=> col.classList.remove('dragover');
+    col.ondrop=e=>{
+      e.preventDefault(); col.classList.remove('dragover');
+      const id=e.dataTransfer.getData('text/plain'); const l=leads.find(x=>x.id===id);
+      if(l && l.status!==col.dataset.st){
+        l.status=col.dataset.st; l.updated=today();
+        (l.logs=l.logs||[]).push({d:today(), t:'ステータスを「'+col.dataset.st+'」に変更'});
+        saveLocal(); pushLead(l); renderAll();
+      }
+    };
+  });
+}
+
+/* ===== 紹介者別 ===== */
+function renderRef(){
+  const f=filtered();
+  const map={};
+  f.forEach(l=>{ const k=l.ref||'（紹介者なし）'; (map[k]=map[k]||[]).push(l); });
+  const keys=Object.keys(map).sort((a,b)=> map[b].length-map[a].length);
+  if(!keys.length){ $('refgrid').innerHTML='<div class="empty">データがありません。</div>'; return; }
+  $('refgrid').innerHTML=keys.map(k=>{
+    const arr=map[k];
+    const won=arr.filter(l=>l.status==='契約').length;
+    const nego=arr.filter(l=>['提案中','条件交渉','申込'].includes(l.status)).length;
+    const amt=arr.filter(l=>!['失注'].includes(l.status)).reduce((s,l)=> s+(Number(l.budget)||0)*(Number(l.units)||1),0);
+    const route=arr[0].route||'';
+    return `<div class="refcard"><h3>${esc(k)}<small>${esc(route)}</small></h3>
+      <div class="stats"><span>紹介 <b>${arr.length}</b>件</span><span>商談中 <b>${nego}</b></span><span>契約 <b>${won}</b></span><span>想定 <b>${amt.toLocaleString()}</b>万円</span></div>
+      <ul>${arr.map(l=>`<li data-id="${l.id}"><span>${esc(l.name)}<span class="sub">（${esc(l.volt||'')}・${esc(l.need||'')}）</span></span><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></li>`).join('')}</ul>
+    </div>`;
+  }).join('');
+  $('refgrid').querySelectorAll('li').forEach(li=> li.onclick=()=> openModal(li.dataset.id));
+}
+
+/* ===== 物件 ===== */
+function filteredProps(){
+  const q=$('pQ').value.trim().toLowerCase();
+  return props.filter(p=>{
+    if($('pStatus').value && p.pstatus!==$('pStatus').value) return false;
+    if($('pVolt').value && p.volt!==$('pVolt').value) return false;
+    if($('pSell').value && p.sell!==$('pSell').value) return false;
+    if(q){ const hay=[p.name,p.pref,p.addr,p.memo].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+}
+function renderProps(){
+  const f=filteredProps();
+  $('pCount').textContent=f.length+'件（在庫合計：販売中 '+props.filter(p=>p.pstatus==='販売中').length+'／商談中 '+props.filter(p=>p.pstatus==='商談中').length+'／成約 '+props.filter(p=>p.pstatus==='成約').length+'）';
+  if(!f.length){ $('propgrid').innerHTML='<div class="empty">物件がありません。「＋ 物件登録」から追加してください。</div>'; return; }
+  $('propgrid').innerHTML=f.map(p=>{
+    const linked=leads.filter(l=>(l.props||[]).includes(p.id));
+    return `<div class="refcard" data-id="${p.id}" style="cursor:pointer">
+      <h3>${esc(p.name)}${p.src==='bb'? ' <span class="ptag">board連携</span>':''}<small>${esc(p.pref||'')}</small></h3>
+      <div class="stats">
+        <span><span class="pill" style="background:${PS_COLOR[p.pstatus]}22;color:${PS_COLOR[p.pstatus]}">${p.pstatus}</span></span>
+        <span>${esc(p.volt||'')}</span>
+        <span>${p.kwh? Number(p.kwh).toLocaleString()+'kWh':''}</span>
+        <span><b>${p.price? Number(p.price).toLocaleString():'—'}</b>万円</span>
+      </div>
+      <div class="sub">販売形態：${esc(p.sell||'—')}　権利：${esc(p.rights||'—')}　${esc(p.scheme||'')}${p.when? '　連系予定：'+esc(p.when):''}</div>
+      <ul>${linked.length? linked.map(l=>`<li data-lead="${l.id}"><span>${esc(l.name)}<span class="sub">（担当：${esc(l.owner||'—')}）</span></span><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></li>`).join('') : '<li><span class="sub">紐づく見込み客はまだありません</span></li>'}</ul>
+    </div>`;
+  }).join('');
+  $('propgrid').querySelectorAll('.refcard').forEach(c=> c.onclick=e=>{
+    const li=e.target.closest('li[data-lead]');
+    if(li){ openModal(li.dataset.lead); } else { openPropModal(c.dataset.id); }
+  });
+}
+function openPropModal(id){
+  editPropId=id||null;
+  const p=id? props.find(x=>x.id===id) : null;
+  $('pTitle').textContent=p? '物件編集：'+p.name : '物件登録';
+  $('btnPDel').style.display=p? '':'none';
+  const set=(k,v)=> $(k).value=v??'';
+  set('p_name',p?.name); set('p_pref',p?.pref); set('p_addr',p?.addr);
+  $('p_volt').value=p?.volt||'低圧'; set('p_kwh',p?.kwh); set('p_kw',p?.kw);
+  $('p_rights').value=p?.rights||RIGHTS[0]; $('p_sell').value=p?.sell||SELLS[0];
+  set('p_price',p?.price); $('p_scheme').value=p?.scheme||'未定'; set('p_when',p?.when);
+  $('p_status').value=p?.pstatus||'販売中'; set('p_memo',p?.memo);
+  $('povl').classList.add('show');
+}
+$('btnPClose').onclick=()=> $('povl').classList.remove('show');
+$('povl').onclick=e=>{ if(e.target===$('povl')) $('povl').classList.remove('show'); };
+$('btnPSave').onclick=()=>{
+  const name=$('p_name').value.trim();
+  if(!name){ alert('物件名は必須です'); return; }
+  const p= editPropId? props.find(x=>x.id===editPropId) : {id:'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), created:today()};
+  Object.assign(p,{
+    name, pref:$('p_pref').value.trim(), addr:$('p_addr').value.trim(), volt:$('p_volt').value,
+    kwh:$('p_kwh').value, kw:$('p_kw').value, rights:$('p_rights').value, sell:$('p_sell').value,
+    price:$('p_price').value, scheme:$('p_scheme').value, when:$('p_when').value.trim(),
+    pstatus:$('p_status').value, memo:$('p_memo').value, updated:today()
+  });
+  if(!editPropId) props.unshift(p);
+  saveLocal(); pushProp(p);
+  $('povl').classList.remove('show'); renderAll();
+};
+$('btnPDel').onclick=()=>{
+  if(!editPropId) return;
+  const p=props.find(x=>x.id===editPropId);
+  const linked=leads.filter(l=>(l.props||[]).includes(editPropId)).length;
+  if(!confirm('「'+p.name+'」を削除します。'+(linked? '紐づく見込み客 '+linked+'件からも紐付けが外れます。':'')+'よろしいですか？')) return;
+  props=props.filter(x=>x.id!==editPropId);
+  leads.forEach(l=>{ if(l.props){ l.props=l.props.filter(x=>x!==editPropId); pushLead(l); } });
+  saveLocal(); removeProp(editPropId);
+  $('povl').classList.remove('show'); renderAll();
+};
+$('btnNewProp').onclick=()=> openPropModal(null);
+['pQ','pStatus','pVolt','pSell'].forEach(id=> $(id).addEventListener('input',renderProps));
+
+/* ===== 地図（国土地理院） ===== */
+let map=null, mapLayer=null, geoBusy=false;
+let geoCache={}; try{ geoCache=JSON.parse(localStorage.getItem('battery_leads_geo_v1')||'{}'); }catch(e){ geoCache={}; }
+function saveGeo(){ localStorage.setItem('battery_leads_geo_v1', JSON.stringify(geoCache)); }
+function geoKey(p){ return ((p.addr||'')+(p.pref||'')).trim(); }
+async function gsiSearch(q){
+  try{
+    const r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
+    const j=await r.json();
+    if(j && j.length){ const c=j[0].geometry.coordinates; return {lat:c[1], lng:c[0]}; }
+  }catch(e){}
+  return null;
+}
+async function geocodeProp(p){
+  const key=geoKey(p);
+  if(!key) return null;
+  if(geoCache[key]) return geoCache[key];
+  let addr=(p.addr||'').replace(/〒?\s*\d{3}-?\d{4}/,'').trim();
+  const tries=[];
+  if(addr) tries.push((p.pref&&!addr.startsWith(p.pref)? p.pref:'')+addr);
+  if(addr) tries.push(((p.pref&&!addr.startsWith(p.pref)? p.pref:'')+addr).replace(/[\d０-９\-－ー番地号,、\s]+$/,''));
+  if(p.pref) tries.push(p.pref);
+  for(const q of tries){
+    if(!q) continue;
+    const c=await gsiSearch(q);
+    if(c){ geoCache[key]=c; saveGeo(); return c; }
+    await new Promise(r=>setTimeout(r,120));
+  }
+  geoCache[key]='NG'; saveGeo(); return null;
+}
+async function geocodeAll(force){
+  if(geoBusy) return; geoBusy=true;
+  const targets=props.filter(p=>geoKey(p));
+  let done=0;
+  for(const p of targets){
+    const key=geoKey(p);
+    if(force) delete geoCache[key];
+    if(!geoCache[key]){ $('geoStatus').textContent='位置取得中… '+(done+1)+'/'+targets.length; await geocodeProp(p); await new Promise(r=>setTimeout(r,120)); }
+    done++;
+  }
+  geoBusy=false; $('geoStatus').textContent='';
+  renderMap();
+}
+function renderMap(){
+  if(!window.L) return;
+  if(!map){
+    map=L.map('map').setView([36.3,139.6],8);
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{attribution:'地理院タイル',maxZoom:18}).addTo(map);
+    mapLayer=L.layerGroup().addTo(map);
+  }
+  $('maplegend').innerHTML=PSTATUS.map(s=>`<span><i style="background:${PS_COLOR[s]}"></i>${s}</span>`).join('');
+  mapLayer.clearLayers();
+  const pts=[]; const miss=[]; const seen={};
+  props.forEach(p=>{
+    const c=geoCache[geoKey(p)];
+    if(!c || c==='NG'){ miss.push(p); return; }
+    const k=c.lat.toFixed(4)+','+c.lng.toFixed(4);
+    const n=seen[k]=(seen[k]||0)+1;
+    const lat=c.lat+(n-1)*0.0007, lng=c.lng+(n-1)*0.0007;
+    const linked=leads.filter(l=>(l.props||[]).includes(p.id));
+    const m=L.circleMarker([lat,lng],{radius:9,color:'#fff',weight:2,fillColor:PS_COLOR[p.pstatus]||'#888',fillOpacity:.95}).addTo(mapLayer);
+    m.bindPopup(`<b>${esc(p.name)}</b>（${esc(p.pstatus||'')}）<br>${esc(p.pref||'')}${esc(p.addr||'')}<br>${esc(p.volt||'')}　${p.kwh? Number(p.kwh).toLocaleString()+'kWh':''}　${p.price? Number(p.price).toLocaleString()+'万円':'価格未定'}<br>販売形態：${esc(p.sell||'—')}／権利：${esc(p.rights||'—')}<br>見込み客：${linked.length? linked.map(l=>esc(l.name)+'（'+l.status+'）').join('、'):'なし'}<br><span class="plink" onclick="openPropModal('${p.id}')">物件を開く</span>`);
+    pts.push([lat,lng]);
+  });
+  if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:12});
+  if(miss.length){
+    $('unplotted').style.display='';
+    $('unplotted').innerHTML='<h3>ピンを立てられなかった物件 <small>所在地を入力し「📍 位置を再取得」を押してください</small></h3><ul>'+miss.map(p=>`<li onclick="openPropModal('${p.id}')"><span>${esc(p.name)}</span><span class="sub">${esc(p.pref||'')}${esc(p.addr||'')||'所在地未入力'}</span></li>`).join('')+'</ul>';
+  } else { $('unplotted').style.display='none'; }
+}
+$('btnGeo').onclick=()=> geocodeAll(true);
+
+/* ===== battery-board 取込 ===== */
+const BB_TABLE='battery_board';
+function pick(o,keys){ if(!o) return ''; for(const k of keys){ if(o[k]!=null && String(o[k]).trim()!=='') return o[k]; } return ''; }
+function derivePref(addr){ const m=String(addr||'').match(/^(東京都|北海道|京都府|大阪府|.{2,3}?県)/); return m? m[1] : ''; }
+function mapSite(s,idx){
+  const name=pick(s,['name','物件名','案件名','title','site_name','siteName','土地名','地名']) || ('battery-board物件 '+(idx+1));
+  const addr=String(pick(s,['address','addr','住所','所在地','location'])||'');
+  const pref=pick(s,['pref','prefecture','都道府県','県']) || derivePref(addr);
+  const price=pick(s,['price','PQ','pq','pq_price','pqPrice','価格','販売価格','金額','amount']);
+  const kwh=pick(s,['kwh','kWh','容量','capacity','capacity_kwh','capacityKwh']);
+  const kw=pick(s,['kw','kW','pcs','pcs_kw','output','出力']);
+  const st=pick(s,['status','ステータス','状況','state']);
+  const staff=pick(s,['tantou','担当','担当者','owner','staff','sales']);
+  const memoParts=[];
+  if(st) memoParts.push('状況：'+st);
+  if(staff) memoParts.push('担当：'+staff);
+  const sid=pick(s,['id','ID','no','No','番号']) || name;
+  return { bbid:'BB_'+String(sid).replace(/\s/g,''), name:String(name), pref:String(pref), addr:addr.replace(pref,'').trim()||addr,
+    kwh, kw, price, memoAdd:memoParts.join('　') };
+}
+async function readBBRows(){
+  const {data,error}=await sb.from(BB_TABLE).select('key,value');
+  if(error) throw error;
+  return data||[];
+}
+function extractSites(rows){
+  let sites=[];
+  const main=rows.find(r=>r.key==='sites_data');
+  if(main && main.value && Array.isArray(main.value.sites)) sites=main.value.sites.slice();
+  const singles=rows.filter(r=>/^site_/.test(r.key));
+  singles.forEach(r=>{
+    const v=r.value; if(!v||typeof v!=='object') return;
+    const vid=v.id??v.ID??r.key.replace('site_','');
+    const i=sites.findIndex(s=>String(s.id??s.ID??'')===String(vid));
+    if(i>=0) sites[i]=Object.assign({},sites[i],v); else sites.push(v);
+  });
+  return sites;
+}
+function applyImport(sites){
+  let added=0, updated=0;
+  sites.forEach((s,idx)=>{
+    const m=mapSite(s,idx);
+    let p=props.find(x=>x.id===m.bbid);
+    if(p){
+      Object.assign(p,{name:m.name, pref:m.pref, addr:m.addr, kwh:m.kwh||p.kwh, kw:m.kw||p.kw, price:m.price||p.price, updated:today()});
+      if(m.memoAdd && !(p.memo||'').includes(m.memoAdd)) p.memo=((p.memo||'').replace(/【board取込】.*$/m,'').trim()+'\n【board取込】'+m.memoAdd).trim();
+      updated++;
+    }else{
+      p={id:m.bbid, created:today(), updated:today(), name:m.name, pref:m.pref, addr:m.addr,
+        volt:'高圧', kwh:m.kwh, kw:m.kw, rights:'申請準備中', sell:'権利のみ', price:m.price,
+        scheme:'未定', when:'', pstatus:'販売中', memo:m.memoAdd? '【board取込】'+m.memoAdd:'', src:'bb'};
+      props.push(p); added++;
+    }
+    p.src='bb';
+    pushProp(p);
+  });
+  saveLocal(); renderAll();
+  alert('取込完了：新規 '+added+'件／更新 '+updated+'件\n※更新時、販売状況・販売形態・見込み客との紐付けは保持されます。');
+}
+async function importBB(){
+  if(!cloud){ alert('クラウド未接続のため取込できません。通信環境をご確認のうえ「↺ 最新を取得」を押してから再度お試しください。'); return; }
+  try{
+    const rows=await readBBRows();
+    const sites=extractSites(rows);
+    if(!sites.length){ alert('battery-boardに物件データが見つかりませんでした。'); return; }
+    if(!confirm('battery-boardから '+sites.length+' 件を取り込みます。\n取込済みの物件は所在地・価格・容量が最新に更新されます（こちらで入力した販売状況・備考・見込み客との紐付けは保持）。\nよろしいですか？')) return;
+    applyImport(sites);
+  }catch(e){
+    // RLSでブロックされた場合はログインして再試行
+    $('bb_err').textContent=''; $('bbovl').classList.add('show');
+  }
+}
+$('btnImportBB').onclick=importBB;
+$('bbClose').onclick=()=> $('bbovl').classList.remove('show');
+$('bbLogin').onclick=async ()=>{
+  $('bb_err').textContent='';
+  try{
+    const {error}=await sb.auth.signInWithPassword({email:$('bb_email').value.trim(), password:$('bb_pass').value});
+    if(error) throw error;
+    const rows=await readBBRows();
+    const sites=extractSites(rows);
+    $('bbovl').classList.remove('show');
+    if(!sites.length){ alert('battery-boardに物件データが見つかりませんでした。'); return; }
+    if(!confirm('battery-boardから '+sites.length+' 件を取り込みます。\n取込済みの物件は所在地・価格・容量が最新に更新されます（こちらで入力した販売状況・備考・見込み客との紐付けは保持）。\nよろしいですか？')) return;
+    applyImport(sites);
+  }catch(e){
+    $('bb_err').textContent='取込できませんでした：'+(e.message||e)+'（パスワードをご確認ください）';
+  }
+};
+
+/* ===== モーダル ===== */
+function fillSelect(id,arr,withEmpty){ $(id).innerHTML=(withEmpty?'<option value=""></option>':'')+arr.map(v=>`<option>${v}</option>`).join(''); }
+function setSelectValue(id,v){ const el=$(id); if(v && ![...el.options].some(o=>o.value===v)){ const o=document.createElement('option'); o.textContent=v; el.appendChild(o); } el.value=v||el.value; }
+function updateNeedOptions(keepVal){
+  const biz=$('i_biz').value;
+  fillSelect('i_need', NEEDS_BY_BIZ[biz]||NEEDS_BY_BIZ['その他']);
+  if(keepVal) setSelectValue('i_need',keepVal);
+  document.querySelectorAll('.bizbat').forEach(d=> d.style.display = biz==='系統用蓄電池'? '':'none');
+  const showProps = biz==='系統用蓄電池';
+  const propSect=[...document.querySelectorAll('#ovl .sect')].find(s=>s.textContent.includes('提案物件'));
+  if(propSect){ propSect.style.display=showProps?'':'none'; $('propCheck').style.display=showProps?'':'none'; }
+}
+function openModal(id){
+  editId=id||null;
+  const l=id? leads.find(x=>x.id===id) : null;
+  $('mTitle').textContent=l? '商談編集：'+l.name : '商談登録';
+  $('btnDel').style.display=l? '':'none';
+  const set=(k,v)=> $(k).value=v??'';
+  set('i_name',l?.name); set('i_contact',l?.contact); set('i_tel',l?.tel); set('i_area',l?.area);
+  $('i_type').value=l?.type||TYPES[0];
+  set('i_ref',l?.ref); $('i_route').value=l?.route||ROUTES[0]; set('i_refdate',l?.refdate||today()); $('i_reffee').value=l?.reffee||'なし';
+  $('i_biz').value=getBiz(l||{}); $('i_kubun').value=l?.kubun||KUBUN[0];
+  updateNeedOptions(l?.need);
+  $('i_volt').value=l?.volt||'低圧'; setSelectValue('i_product',l?.product||PRODUCTS[0]); $('i_scheme').value=l?.scheme||'未定';
+  set('i_wantarea',l?.wantarea); set('i_kwh',l?.kwh); set('i_units',l?.units??1); set('i_budget',l?.budget); set('i_mq',l?.mq); set('i_when',l?.when);
+  setSelectValue('i_finance', l?.finance||'未確認'); set('i_payday',l?.payday);
+  $('i_status').value=l?.status||'新規'; $('i_temp').value=l?.temp||'B（中・検討中）'; set('i_owner',l?.owner); set('i_next',l?.next); set('i_due',l?.due); set('i_lost',l?.lost); set('i_memo',l?.memo);
+  editLogs=(l?.logs||[]).slice(); renderLogs(); $('i_log').value='';
+  const sel=new Set(l?.props||[]);
+  $('propCheck').innerHTML= props.length? props.map(p=>
+    `<label><input type="checkbox" value="${p.id}" ${sel.has(p.id)?'checked':''}><span>${esc(p.name)}<span class="ps">（${esc(p.volt||'')}・${esc(p.sell||'')}・${p.price?Number(p.price).toLocaleString()+'万円':'価格未定'}・${esc(p.pstatus||'')}）</span></span></label>`
+  ).join('') : '<span class="sub" style="font-size:12px">物件が未登録です。「物件」タブから登録すると、ここで紐づけできます。</span>';
+  $('ovl').classList.add('show');
+}
+function renderLogs(){
+  $('logbox').innerHTML=editLogs.length? editLogs.slice().reverse().map(g=>`<p><b>${g.d}</b>　${esc(g.t)}</p>`).join('') : '<p class="sub">まだ記録がありません。</p>';
+}
+$('btnAddLog').onclick=()=>{ const t=$('i_log').value.trim(); if(!t) return; editLogs.push({d:today(),t}); $('i_log').value=''; renderLogs(); };
+$('btnClose').onclick=()=> $('ovl').classList.remove('show');
+$('ovl').onclick=e=>{ if(e.target===$('ovl')) $('ovl').classList.remove('show'); };
+
+$('btnSave').onclick=()=>{
+  const name=$('i_name').value.trim();
+  if(!name){ alert('顧客名は必須です'); return; }
+  if(!$('i_owner').value.trim()){ alert('社内担当は必須です'); return; }
+  const l= editId? leads.find(x=>x.id===editId) : {id:uid(), created:today()};
+  const prevFin=l.finance, prevSt=l.status;
+  Object.assign(l,{
+    name, contact:$('i_contact').value.trim(), tel:$('i_tel').value.trim(), type:$('i_type').value, area:$('i_area').value.trim(),
+    ref:$('i_ref').value.trim(), route:$('i_route').value, refdate:$('i_refdate').value, reffee:$('i_reffee').value,
+    biz:$('i_biz').value, kubun:$('i_kubun').value,
+    volt:$('i_volt').value, need:$('i_need').value, product:$('i_product').value, scheme:$('i_scheme').value,
+    wantarea:$('i_wantarea').value.trim(), kwh:$('i_kwh').value, units:$('i_units').value||1, budget:$('i_budget').value, mq:$('i_mq').value, when:$('i_when').value.trim(),
+    finance:$('i_finance').value, payday:$('i_payday').value,
+    status:$('i_status').value, temp:$('i_temp').value, owner:$('i_owner').value.trim(), next:$('i_next').value.trim(), due:$('i_due').value, lost:$('i_lost').value.trim(), memo:$('i_memo').value,
+    props:[...$('propCheck').querySelectorAll('input:checked')].map(c=>c.value),
+    logs:editLogs, updated:today()
+  });
+  if(editId && prevFin && prevFin!==l.finance) (l.logs=l.logs||[]).push({d:today(), t:'支払方法を「'+prevFin+'」→「'+l.finance+'」に変更'});
+  if(editId && prevSt && prevSt!==l.status) (l.logs=l.logs||[]).push({d:today(), t:'ステータスを「'+l.status+'」に変更'});
+  if(!editId) leads.unshift(l);
+  saveLocal(); pushLead(l);
+  $('ovl').classList.remove('show'); renderAll();
+};
+$('btnDel').onclick=()=>{
+  if(!editId) return;
+  const l=leads.find(x=>x.id===editId);
+  if(!confirm('「'+l.name+'」を削除します。よろしいですか？（共有データからも削除されます）')) return;
+  leads=leads.filter(x=>x.id!==editId);
+  saveLocal(); removeLead(editId);
+  $('ovl').classList.remove('show'); renderAll();
+};
+
+/* ===== CSV ===== */
+$('btnCsv').onclick=()=>{
+  const H=['顧客名','担当者','種別','連絡先','所在地','事業区分','商談区分','紹介者','経路種別','紹介日','紹介料','ニーズ詳細','商談金額PQ万円','MQ粗利万円','台数','支払方法','入金予定日','希望エリア','希望時期','電圧区分','対象商品','制度','希望容量kWh','提案物件','ステータス','温度感','社内担当','次回アクション','期限','失注保留理由','メモ','登録日','更新日'];
+  const rows=filtered().map(l=>[l.name,l.contact,l.type,l.tel,l.area,getBiz(l),getKubun(l),l.ref,l.route,l.refdate,l.reffee,l.need,l.budget,mqOf(l),l.units,l.finance,l.payday,l.wantarea,l.when,l.volt,l.product,l.scheme,l.kwh,leadProps(l).join('、'),l.status,l.temp,l.owner,l.next,l.due,l.lost,(l.memo||'').replace(/\n/g,' '),l.created,l.updated]);
+  const csv='\uFEFF'+[H,...rows].map(r=> r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='蓄電池見込みリスト_'+today()+'.csv'; a.click();
+};
+
+/* ===== Excel取込（週次見込み管理リスト様式） ===== */
+function xBiz(prod){
+  const s=String(prod||'');
+  if(/蓄電池/.test(s)) return '系統用蓄電池';
+  if(/RF|リフォート|ReFort/i.test(s)) return 'ReFort';
+  if(/セカンダリー|償却/.test(s)) return 'セカンダリー';
+  if(/洗浄/.test(s)) return 'パネル洗浄・O&M';
+  if(/サンキーパー/.test(s)) return 'サンキーパー';
+  if(/アセット/.test(s)) return 'アセット';
+  return 'その他';
+}
+function xFinance(v){
+  const s=String(v||'');
+  if(/無し|なし|不要/.test(s)) return '現金';
+  if(/内諾/.test(s)) return '融資（内諾済）';
+  if(/実行/.test(s)) return '融資（実行待ち）';
+  if(/審査|相談中/.test(s)) return '融資（審査中）';
+  if(/あり|有り|検討|確認中/.test(s)) return '融資（申込前）';
+  return '未確認';
+}
+function xTemp(k){
+  let v=Number(String(k||'').replace('%',''));
+  if(!isFinite(v)) return 'B（中・検討中）';
+  if(v<=1) v=v*100;
+  return v>=70? 'A（高い・即動く）' : v>=40? 'B（中・検討中）' : 'C（低・情報収集）';
+}
+function xDue(v){
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  const s=String(v||'');
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(iso) return iso[1]+'-'+iso[2]+'-'+iso[3];
+  const m=s.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})/);
+  if(m){ const y=new Date().getFullYear(); return y+'-'+String(m[1]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0'); }
+  return '';
+}
+function xKubun(v){
+  const s=String(v||'');
+  if(/来/.test(s)) return '刈り取り（来期以降）';
+  if(/種/.test(s)) return '種まき（中長期）';
+  return '刈り取り（3Q・8/31まで）';
+}
+function parseLeadRows(rows){
+  let idx=null, section='', parsed=[];
+  rows.forEach(r=>{
+    const a=String(r[0]||'').trim();
+    if(a.startsWith('【今月決定')) { section='close'; return; }
+    if(a.startsWith('【条件')) { section='cond'; return; }
+    if(a==='顧客名'){
+      idx={};
+      r.forEach((h,i)=>{
+        const t=String(h||'');
+        if(t.includes('顧客名')) idx.name=i;
+        else if(t.includes('提案商品')) idx.prod=i;
+        else if(t.includes('見込金額')||t.includes('金額')) idx.amt=i;
+        else if(t.includes('自己資金')) idx.cash=i;
+        else if(t.includes('融資の必要')) idx.fin=i;
+        else if(t.includes('融資相談先')) idx.bank=i;
+        else if(t.includes('決裁者')) idx.who=i;
+        else if(t.includes('決裁条件')) idx.cond=i;
+        else if(t.includes('確度')) idx.prob=i;
+        else if(t.includes('阻害')) idx.block=i;
+        else if(t.includes('次回アクション')) idx.next=i;
+        else if(t.includes('担当者')) idx.owner=i;
+        else if(t.includes('期限')) idx.due=i;
+        else if(t.includes('分類')||t.includes('3Q')) idx.kubun=i;
+      });
+      return;
+    }
+    if(!idx || !a || a.startsWith('【') || a.startsWith('③')) return;
+    const g=k=> idx[k]!=null? r[idx[k]] : '';
+    const manYen=Math.round((Number(g('amt'))||0)*100); // 百万円→万円
+    const memoParts=[];
+    if(g('prod')) memoParts.push('提案商品：'+String(g('prod')).replace(/\n/g,' '));
+    if(g('cash')) memoParts.push('自己資金：'+String(g('cash')).replace(/\n/g,' '));
+    if(g('bank')&&String(g('bank'))!=='無し') memoParts.push('融資相談先：'+String(g('bank')).replace(/\n/g,' '));
+    if(g('who')) memoParts.push('決裁者：'+String(g('who')).replace(/\n/g,' '));
+    if(g('cond')) memoParts.push('決裁条件：'+String(g('cond')).replace(/\n/g,' '));
+    if(g('block')&&!/確認中/.test(String(g('block')))) memoParts.push('阻害要因：'+String(g('block')).replace(/\n/g,' '));
+    parsed.push({
+      name:a.replace(/\s*様\s*$/,'').trim(),
+      type:/株式会社|有限会社|合同会社|（株）|\(株\)/.test(a)? '法人投資家':'個人投資家',
+      biz:xBiz(g('prod')), need:'', volt:/高圧/.test(String(g('prod')))?'高圧':(/蓄電池|低圧/.test(String(g('prod')))?'低圧':'未定'),
+      budget:manYen, mq:manYen, units:1,
+      finance:xFinance(g('fin')), temp:xTemp(g('prob')),
+      kubun:xKubun(g('kubun')),
+      status: section==='close'? '条件交渉':'提案中',
+      next:String(g('next')||'').replace(/\n/g,' '), due:xDue(g('due')),
+      owner:String(g('owner')||'').trim()||'未設定',
+      memo:memoParts.join('\n'), route:'その他'
+    });
+  });
+  return parsed;
+}
+function applyParsedLeads(parsed, srcLabel){
+  let added=0,updated=0;
+  parsed.forEach(x=>{
+    let l=leads.find(v=>v.name===x.name);
+    if(l){
+      const changed = l.next!==x.next || l.due!==x.due || String(l.budget)!==String(x.budget) || l.finance!==x.finance;
+      Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner});
+      if(x.memo && !(l.memo||'').includes(x.memo)) l.memo=((l.memo||'')+'\n'+x.memo).trim();
+      if(changed){ l.updated=today(); (l.logs=l.logs||[]).push({d:today(),t:srcLabel+'で更新'}); updated++; pushLead(l); }
+    }else{
+      l=Object.assign({id:uid(),created:today(),updated:today(),logs:[{d:today(),t:srcLabel+'で登録'}]},x);
+      leads.unshift(l); added++; pushLead(l);
+    }
+  });
+  saveLocal(); renderAll();
+  return {added,updated};
+}
+function importXlsx(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const shName=wb.SheetNames.find(n=>/見込み管理/.test(n)) || wb.SheetNames[wb.SheetNames.length-1];
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[shName],{header:1,defval:''});
+      const parsed=parseLeadRows(rows);
+      if(!parsed.length){ alert('取込対象が見つかりませんでした。「③見込み管理リスト」シート（顧客名〜期限の表）がある週次様式のExcelをご使用ください。'); return; }
+      if(!confirm(shName+' から '+parsed.length+' 件を読み取りました。取り込みますか？\n・同名の商談は「次回アクション・期限・金額・温度感・支払方法」を最新に更新（ステータスと活動ログは保持）\n・金額は 百万円→万円 に自動換算します')) return;
+      const r=applyParsedLeads(parsed,'Excel取込');
+      alert('取込完了：新規 '+r.added+'件／更新 '+r.updated+'件\n※入金・受注予定日はExcelにないため未設定です。3Qフォーカスの「入金予定日なし」バッジを目印に各担当が入力してください。');
+    }catch(err){ alert('取込エラー：'+(err.message||err)); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+$('btnXlsx').onclick=()=> $('xlsxFile').click();
+$('xlsxFile').addEventListener('change',e=>{ if(e.target.files[0]) importXlsx(e.target.files[0]); e.target.value=''; });
+
+/* ===== Googleスプレッドシート連動（GAS） ===== */
+let settings={}; 
+async function loadSettings(){ 
+  if(!cloud) return;
+  try{ const {data}=await sb.from(TABLE).select('data').eq('id','_settings'); if(data&&data[0]) settings=data[0].data||{}; }catch(e){}
+}
+async function saveSettings(){ 
+  if(!cloud){ alert('クラウド未接続のため保存できません'); return; }
+  try{ await sb.from(TABLE).upsert({id:'_settings', data:settings, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); }
+}
+async function syncSheet(silent){
+  if(!settings.gasUrl){
+    if(silent) return;
+    const u=prompt('スプレッドシート連動用のGAS WebアプリURLを貼り付けてください。\n（設定方法は手順書参照。一度設定すれば全員に共有されます）');
+    if(!u) return;
+    settings.gasUrl=u.trim(); await saveSettings();
+  }
+  try{
+    if(!silent) $('gasStatus').textContent='取得中…';
+    const res=await fetch(settings.gasUrl,{redirect:'follow'});
+    const j=JSON.parse(await res.text());
+    const parsed=parseLeadRows(j.rows||[]);
+    if(!parsed.length){ if(!silent) alert('スプレッドシートに取込対象が見つかりませんでした。テンプレートの列見出し（顧客名〜分類）をご確認ください。'); $('gasStatus').textContent=''; return; }
+    const r=applyParsedLeads(parsed,'シート連動');
+    $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+((r.added+r.updated)? '（新規'+r.added+'・更新'+r.updated+'）':'');
+  }catch(e){
+    $('gasStatus').textContent='';
+    if(!silent) alert('シート連動エラー：'+(e.message||e)+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
+  }
+}
+$('btnGas').onclick=()=> syncSheet(false);
+
+/* ===== タブ・共通 ===== */
+document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('act'));
+  b.classList.add('act');
+  const t=b.dataset.tab;
+  $('viewFocus').style.display= t==='focus'?'':'none';
+  $('viewList').style.display= t==='list'?'':'none';
+  $('viewFunnel').style.display= t==='funnel'?'':'none';
+  $('viewRef').style.display= t==='ref'?'':'none';
+  $('viewProp').style.display= t==='prop'?'':'none';
+  $('viewMap').style.display= t==='map'?'':'none';
+  $('fbar').style.display= (t==='prop'||t==='map')?'none':'';
+  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus')?'none':'';
+  if(t==='map'){ renderMap(); setTimeout(()=>{ if(map) map.invalidateSize(); },60); geocodeAll(false); }
+});
+$('btnNew').onclick=()=> openModal(null);
+$('btnReload').onclick=reload;
+['fQ','fBiz','fKubun','fStatus','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
+$('i_biz').addEventListener('change',()=> updateNeedOptions());
+
+function refreshFilterOptions(){
+  const keep=(el,vals,label)=>{ const cur=el.value; el.innerHTML=`<option value="">${label}：全て</option>`+vals.map(v=>`<option>${v}</option>`).join(''); el.value=cur; };
+  keep($('fBiz'),BIZ,'事業');
+  keep($('fKubun'),[...KUBUN,'（未設定）'],'区分');
+  keep($('fStatus'),STATUSES,'ステータス');
+  keep($('fRef'),[...new Set(leads.map(l=>l.ref||'（紹介者なし）'))].sort(),'紹介者');
+  keep($('fOwner'),[...new Set(leads.map(l=>l.owner).filter(Boolean))].sort(),'社内担当');
+  $('refList').innerHTML=[...new Set(leads.map(l=>l.ref).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
+  $('ownerList').innerHTML=[...new Set(leads.map(l=>l.owner).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
+  const keepP=(el,vals,label)=>{ const cur=el.value; el.innerHTML=`<option value="">${label}：全て</option>`+vals.map(v=>`<option>${v}</option>`).join(''); el.value=cur; };
+  keepP($('pStatus'),PSTATUS,'販売状況'); keepP($('pVolt'),VOLTS,'電圧区分'); keepP($('pSell'),SELLS,'販売形態');
+}
+function renderAll(){ refreshFilterOptions(); renderKpis(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
+
+/* ===== 初期化 ===== */
+fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
+fillSelect('i_biz',BIZ); fillSelect('i_kubun',KUBUN); fillSelect('i_finance',FINANCE);
+fillSelect('i_need',NEEDS_BY_BIZ['系統用蓄電池']); fillSelect('i_product',PRODUCTS); fillSelect('i_status',STATUSES);
+fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS);
+loadLocal();
+if(!leads.length){
+  leads=[{id:uid(),created:today(),updated:today(),name:'サンプル商事株式会社',contact:'山本様',type:'法人投資家',area:'埼玉県',
+    ref:'〇〇銀行 佐藤様',route:'金融機関',refdate:today(),reffee:'なし',
+    biz:'系統用蓄電池',kubun:'刈り取り（3Q・8/31まで）',
+    volt:'低圧',need:'完成品購入（投資商品）',product:'EAR-A-168（低圧216kWh）',scheme:'非FIT（相対・市場）',
+    wantarea:'関東一円',kwh:216,units:1,budget:3000,when:'2027年春',finance:'融資（審査中）',payday:'2026-08-20',
+    status:'提案中',temp:'A（高い・即動く）',owner:'奥田',next:'予約申込書を送付',due:addDays(today(),5),
+    memo:'※動作確認用のサンプルです。不要なら削除してください。',logs:[{d:today(),t:'サンプル登録'}]}];
+  saveLocal();
+}
+renderAll();
+initCloud();
+</script>
+</body>
+</html>
