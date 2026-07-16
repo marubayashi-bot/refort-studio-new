@@ -1027,6 +1027,8 @@ function parseLeadRows(rows){
     const a=String(r[0]||'').trim();
     if(a.startsWith('【今月決定')) { section='close'; return; }
     if(a.startsWith('【条件')) { section='cond'; return; }
+    if(a.startsWith('【来')) { section='next'; return; }
+    if(a.startsWith('【')) { return; }
     if(a==='顧客名'){
       idx={};
       r.forEach((h,i)=>{
@@ -1048,7 +1050,7 @@ function parseLeadRows(rows){
       });
       return;
     }
-    if(!idx || !a || a.startsWith('【') || a.startsWith('③')) return;
+    if(!idx || !a || a.startsWith('【') || a.startsWith('③') || a.includes('記入例')) return;
     const g=k=> idx[k]!=null? r[idx[k]] : '';
     const manYen=Math.round((Number(g('amt'))||0)*100); // 百万円→万円
     const memoParts=[];
@@ -1064,7 +1066,7 @@ function parseLeadRows(rows){
       biz:xBiz(g('prod')), need:'', volt:/高圧/.test(String(g('prod')))?'高圧':(/蓄電池|低圧/.test(String(g('prod')))?'低圧':'未定'),
       budget:manYen, mq:manYen, units:1,
       finance:xFinance(g('fin')), temp:xTemp(g('prob')),
-      kubun:xKubun(g('kubun')),
+      kubun: String(g('kubun')||'').trim()? xKubun(g('kubun')) : (section==='next'? '刈り取り（来期以降）':'刈り取り（3Q・8/31まで）'),
       status: section==='close'? '条件交渉':'提案中',
       next:String(g('next')||'').replace(/\n/g,' '), due:xDue(g('due')),
       owner:String(g('owner')||'').trim()||'未設定',
