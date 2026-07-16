@@ -329,7 +329,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
 const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
 const SB_KEY_HARD='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa'; // 共有プロジェクトの Publishable key
 const TABLE='battery_leads';
-let sb=null, cloud=false;
+let sb=null, cloud=false, cloudErr='';
 
 /* ===== マスタ ===== */
 const Q3_END='2026-08-31';
@@ -402,10 +402,16 @@ async function initCloud(){
     saveLocal(); renderAll();
     if(settings.gasUrl) syncSheet(true);
   }catch(e){
-    cloud=false; $('syncBadge').textContent='● ローカル';
-    console.warn('cloud off:',e.message||e);
+    cloud=false; cloudErr=(e && (e.message||e.error_description||JSON.stringify(e)))||'不明なエラー';
+    $('syncBadge').textContent='● ローカル（⚠タップで原因）';
+    console.warn('cloud off:',cloudErr);
   }
 }
+$('syncBadge').style.cursor='pointer';
+$('syncBadge').onclick=()=>{
+  if(cloud){ alert('クラウド接続は正常です（共有中）'); return; }
+  alert('クラウド接続エラーの内容：\n\n'+(cloudErr||'まだ接続を試行していません')+'\n\n【対処のヒント】\n・「Invalid API key」等 → SupabaseのAPIキーが変わっています。Project Settings → API Keys の sb_publishable_... をコピーして共有してください\n・「Failed to fetch」→ 通信環境（社内ネットワーク制限等）の可能性\n・上記を↺最新を取得で再試行できます');
+};
 async function pushLead(l){ if(!cloud) return; try{ await sb.from(TABLE).upsert({id:l.id, data:l, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
 async function removeLead(id){ if(!cloud) return; try{ await sb.from(TABLE).delete().eq('id',id); }catch(e){ console.warn(e); } }
 async function pushProp(p){ if(!cloud) return; try{ await sb.from(PTABLE).upsert({id:p.id, data:p, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
