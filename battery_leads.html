@@ -201,6 +201,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
       <button class="btn gray" id="btnImportBB" style="margin-left:8px">⬇ battery-boardから取込</button>
       <button class="btn" id="btnNewProp">＋ 物件登録</button>
     </div>
+    <div class="focushead" id="propFunnel" style="display:none"></div>
     <div class="refgrid" id="propgrid"></div>
   </div>
 
@@ -301,6 +302,20 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
       <div class="fld"><label>販売状況＊</label><select id="p_status"></select></div>
     </div>
     <div class="fld" style="margin-top:10px"><label>備考</label><textarea id="p_memo"></textarea></div>
+    <div class="sect">仕入れフェーズ管理（通過率・リードタイム自動集計）</div>
+    <div class="grid2">
+      <div class="fld"><label>フェーズ＊</label><select id="p_phase"></select></div>
+      <div class="fld"><label>想定MQ・粗利（万円）</label><input type="number" id="p_mq"></div>
+      <div class="fld"><label>担当者</label><input id="p_owner"></div>
+      <div class="fld"><label>情報取得日</label><input type="date" id="p_d0"></div>
+      <div class="fld"><label>現調日</label><input type="date" id="p_d1"></div>
+      <div class="fld"><label>受付日</label><input type="date" id="p_d2"></div>
+      <div class="fld"><label>合意書取得日（担保）</label><input type="date" id="p_d3"></div>
+      <div class="fld"><label>電力申請日</label><input type="date" id="p_d4"></div>
+      <div class="fld"><label>契約日</label><input type="date" id="p_d5"></div>
+      <div class="fld"><label>次回アクション</label><input id="p_next"></div>
+      <div class="fld"><label>期限</label><input type="date" id="p_due"></div>
+    </div>
     <div class="mfoot">
       <button class="btn danger" id="btnPDel" style="margin-right:auto">削除</button>
       <button class="btn gray" id="btnPClose">閉じる</button>
@@ -364,8 +379,12 @@ const fmtOku=v=> v>=10000? (v/10000).toFixed(2).replace(/\.?0+$/,'')+'億円' : 
 const PTABLE='battery_props';
 const RIGHTS=['申請準備中','申請中','権利確保済','連系承諾済','EPC工事中','完成・稼働中'];
 const SELLS=['権利のみ','権利＋EPC','完成品'];
-const PSTATUS=['販売中','商談中','申込あり','成約','取下げ'];
-const PS_COLOR={'販売中':'#2f8f5b','商談中':'#d98b24','申込あり':'#7a5cb8','成約':'#3068a8','取下げ':'#8a97a8'};
+const PSTATUS=['仕入中','販売中','商談中','申込あり','成約','取下げ'];
+const PS_COLOR={'仕入中':'#5b6b7c','販売中':'#2f8f5b','商談中':'#d98b24','申込あり':'#7a5cb8','成約':'#3068a8','取下げ':'#8a97a8'};
+const PHASES=['情報取得','現調','受付','合意書取得','電力申請','契約','断念'];
+const PH_COLOR={'情報取得':'#8a97a8','現調':'#3068a8','受付':'#2f7fa8','合意書取得':'#2f8f5b','電力申請':'#d98b24','契約':'#1f6e46','断念':'#c94a4a'};
+const phaseIdx=p=> PHASES.indexOf(p.phase||'情報取得');
+const mqP=p=> Number(p.mq)||0;
 
 /* ===== 状態 ===== */
 let leads=[]; let props=[]; let editId=null; let editPropId=null; let editLogs=[]; let sortKey='updated', sortAsc=false;
@@ -544,7 +563,8 @@ function renderFocus(){
   const fixed=sumMq(done)+sumMq(won);
   const gap=Math.max(0, goal-fixed);
   const pipe=sumMq(live);
-  const shortage=Math.max(0, gap-pipe);
+  const stock=stockMqUnlinked();
+  const shortage=Math.max(0, gap-pipe-stock);
   const needRate=(pipe>0 && gap>0)? Math.min(999,Math.round(gap/pipe*100)) : 0;
   const weeks=Math.max(1, Math.ceil(daysLeft()/7));
   const perWeek=Math.ceil(gap/weeks);
@@ -558,16 +578,18 @@ function renderFocus(){
         <div class="fh">確定MQ（入金済＋契約）<b>${fmtOku(fixed)}</b></div>
         <div class="fh">目標までのギャップ<b style="color:${gap? '#ff9d9d':'#a9f0c8'}">${gap? fmtOku(gap):'達成！'}</b></div>
         <div class="fh">商談中MQ<b>${fmtOku(pipe)}</b></div>
+        ${stock? `<div class="fh">担保済み在庫MQ<br>（物件・未商談化）<b style="color:#7fe0c0">${fmtOku(stock)}</b></div>`:''}
         ${gap? `<div class="fh">必要決定率<b style="color:${needRate>100?'#ff9d9d':'#fff'}">${pipe? needRate+'%':'—'}</b></div>
         <div class="fh">週あたり必要決定<b>${fmtOku(perWeek)}</b></div>`:''}
       </div>
       <div style="margin-top:10px;background:#0a1e36;border-radius:8px;height:16px;overflow:hidden;display:flex">
         <div style="width:${pctFixed}%;background:var(--gold)"></div>
         <div style="width:${pctPipe}%;background:#4a7fb5;opacity:.75"></div>
+        <div style="width:${Math.min(100-pctFixed-pctPipe, goal? stock/goal*100:0)}%;background:#2f8f7a;opacity:.6"></div>
       </div>
       <div style="font-size:11px;color:#a9bdd4;font-weight:700;margin-top:4px">
-        ■<span style="color:var(--gold)">確定 ${Math.round(pctFixed)}%</span>　■<span style="color:#7fb0e0">商談中を全部決めても ${Math.round(pctFixed+pctPipe)}%</span>
-        ${shortage? `　<span style="color:#ff9d9d">⚠ 商談総額が ${fmtOku(shortage)} 不足 ── 全件決めても届きません。新規商談の積み増しが必要です</span>`:''}
+        ■<span style="color:var(--gold)">確定 ${Math.round(pctFixed)}%</span>　■<span style="color:#7fb0e0">商談中を全部決めても ${Math.round(pctFixed+pctPipe)}%</span>${stock? `　■<span style="color:#7fe0c0">＋担保在庫を全部商談化・成約で ${Math.min(100,Math.round(pctFixed+pctPipe+(goal? stock/goal*100:0)))}%</span>`:''}
+        ${shortage? `　<span style="color:#ff9d9d">⚠ 商談＋在庫でも ${fmtOku(shortage)} 不足 ── 情報取得（種）の積み増しが必要です</span>`:''}
       </div>
     </div>`;
   const ge=$('goalEdit'); if(ge) ge.onclick=async ()=>{
@@ -667,6 +689,33 @@ function renderRef(){
 }
 
 /* ===== 物件 ===== */
+function renderPropFunnel(){
+  const alive=props.filter(p=>(p.phase||'')!=='断念' && p.pstatus!=='取下げ');
+  const anyPhase=props.some(p=>p.phase);
+  if(!anyPhase){ $('propFunnel').style.display='none'; return; }
+  $('propFunnel').style.display='';
+  const stages=PHASES.slice(0,6); // 情報取得〜契約
+  const reached=stages.map((s,i)=> alive.filter(p=> phaseIdx(p)>=i).length);
+  const cells=stages.map((s,i)=>{
+    const rate=i>0 && reached[i-1]? Math.round(reached[i]/reached[i-1]*100) : null;
+    return `<div class="fh" style="text-align:center">${s}${s==='合意書取得'?'<br><span style="font-size:10px">（担保）</span>':''}<b style="color:#fff">${reached[i]}</b>${rate!=null? `<span style="font-size:10px;color:#a9bdd4">▶ ${rate}%</span>`:''}</div>`;
+  }).join('<div style="color:#4a648a;font-weight:900">→</div>');
+  const overall=reached[0]? Math.round(reached[4]/reached[0]*100):0;
+  const lt=alive.filter(p=>p.d0&&p.d3).map(p=> Math.round((new Date(p.d3)-new Date(p.d0))/86400000));
+  const ltAvg=lt.length? Math.round(lt.reduce((a,b)=>a+b,0)/lt.length):null;
+  const lt7=lt.length? Math.round(lt.filter(d=>d<=7).length/lt.length*100):null;
+  $('propFunnel').innerHTML=`
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:1">
+      ${cells}
+      <div class="fh" style="margin-left:14px">全体通過率<br>（情報取得→電力申請）<b class="gold">${overall}%</b></div>
+      <div class="fh">合意書リードタイム<br>（目標7日）<b style="color:${ltAvg!=null&&ltAvg<=7?'#a9f0c8':'#ff9d9d'}">${ltAvg!=null? '平均'+ltAvg+'日':'—'}</b>${lt7!=null? `<span style="font-size:10px;color:#a9bdd4">7日以内 ${lt7}%</span>`:''}</div>
+      <div class="fh">担保済み在庫MQ<br>（未商談化）<b>${fmtOku(stockMqUnlinked())}</b></div>
+    </div>`;
+}
+function stockMqUnlinked(){
+  return props.filter(p=> p.phase && phaseIdx(p)>=3 && p.phase!=='断念' && !['成約','取下げ'].includes(p.pstatus) && !leads.some(l=>(l.props||[]).includes(p.id))).reduce((s,p)=>s+mqP(p),0);
+}
+
 function filteredProps(){
   const q=$('pQ').value.trim().toLowerCase();
   return props.filter(p=>{
@@ -678,20 +727,23 @@ function filteredProps(){
   });
 }
 function renderProps(){
+  renderPropFunnel();
   const f=filteredProps();
-  $('pCount').textContent=f.length+'件（在庫合計：販売中 '+props.filter(p=>p.pstatus==='販売中').length+'／商談中 '+props.filter(p=>p.pstatus==='商談中').length+'／成約 '+props.filter(p=>p.pstatus==='成約').length+'）';
-  if(!f.length){ $('propgrid').innerHTML='<div class="empty">物件がありません。「＋ 物件登録」から追加してください。</div>'; return; }
+  $('pCount').textContent=f.length+'件（合意書取得済 '+props.filter(p=>p.phase&&phaseIdx(p)>=3&&p.phase!=='断念').length+'／土地契約済 '+props.filter(p=>p.phase==='契約').length+'／販売成約 '+props.filter(p=>p.pstatus==='成約').length+'）';
+  if(!f.length){ $('propgrid').innerHTML='<div class="empty">物件がありません。「＋ 物件登録」または物件管理シートへの入力で追加してください。</div>'; return; }
   $('propgrid').innerHTML=f.map(p=>{
     const linked=leads.filter(l=>(l.props||[]).includes(p.id));
     return `<div class="refcard" data-id="${p.id}" style="cursor:pointer">
       <h3>${esc(p.name)}${p.src==='bb'? ' <span class="ptag">board連携</span>':''}<small>${esc(p.pref||'')}</small></h3>
       <div class="stats">
-        <span><span class="pill" style="background:${PS_COLOR[p.pstatus]}22;color:${PS_COLOR[p.pstatus]}">${p.pstatus}</span></span>
+        ${p.phase? `<span><span class="pill" style="background:${PH_COLOR[p.phase]}22;color:${PH_COLOR[p.phase]}">${p.phase}</span></span>`:''}
+        <span><span class="pill" style="background:${PS_COLOR[p.pstatus]}22;color:${PS_COLOR[p.pstatus]}">${p.pstatus||'—'}</span></span>
         <span>${esc(p.volt||'')}</span>
         <span>${p.kwh? Number(p.kwh).toLocaleString()+'kWh':''}</span>
-        <span><b>${p.price? Number(p.price).toLocaleString():'—'}</b>万円</span>
+        <span><b>${p.price? Number(p.price).toLocaleString():'—'}</b>万円${mqP(p)? ' <span style="color:#8a6a20">MQ '+mqP(p).toLocaleString()+'万円</span>':''}</span>
       </div>
-      <div class="sub">販売形態：${esc(p.sell||'—')}　権利：${esc(p.rights||'—')}　${esc(p.scheme||'')}${p.when? '　連系予定：'+esc(p.when):''}</div>
+      <div class="sub">販売形態：${esc(p.sell||'—')}　権利：${esc(p.rights||'—')}　${esc(p.scheme||'')}${p.when? '　連系予定：'+esc(p.when):''}${p.owner? '　担当：'+esc(p.owner):''}</div>
+      ${p.next? `<div class="sub" style="font-weight:700">▶ ${esc(p.next)}${p.due? `<span class="${p.due<today()?'due-over':''}">（${p.due.slice(5).replace('-','/')}）</span>`:''}</div>`:''}
       <ul>${linked.length? linked.map(l=>`<li data-lead="${l.id}"><span>${esc(l.name)}<span class="sub">（担当：${esc(l.owner||'—')}）</span></span><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></li>`).join('') : '<li><span class="sub">紐づく見込み客はまだありません</span></li>'}</ul>
     </div>`;
   }).join('');
@@ -710,7 +762,10 @@ function openPropModal(id){
   $('p_volt').value=p?.volt||'低圧'; set('p_kwh',p?.kwh); set('p_kw',p?.kw);
   $('p_rights').value=p?.rights||RIGHTS[0]; $('p_sell').value=p?.sell||SELLS[0];
   set('p_price',p?.price); $('p_scheme').value=p?.scheme||'未定'; set('p_when',p?.when);
-  $('p_status').value=p?.pstatus||'販売中'; set('p_memo',p?.memo);
+  $('p_status').value=p?.pstatus||'仕入中'; set('p_memo',p?.memo);
+  $('p_phase').value=p?.phase||'情報取得'; set('p_mq',p?.mq); set('p_owner',p?.owner);
+  set('p_d0',p?.d0); set('p_d1',p?.d1); set('p_d2',p?.d2); set('p_d3',p?.d3); set('p_d4',p?.d4); set('p_d5',p?.d5);
+  set('p_next',p?.next); set('p_due',p?.due);
   $('povl').classList.add('show');
 }
 $('btnPClose').onclick=()=> $('povl').classList.remove('show');
@@ -723,7 +778,10 @@ $('btnPSave').onclick=()=>{
     name, pref:$('p_pref').value.trim(), addr:$('p_addr').value.trim(), volt:$('p_volt').value,
     kwh:$('p_kwh').value, kw:$('p_kw').value, rights:$('p_rights').value, sell:$('p_sell').value,
     price:$('p_price').value, scheme:$('p_scheme').value, when:$('p_when').value.trim(),
-    pstatus:$('p_status').value, memo:$('p_memo').value, updated:today()
+    pstatus:$('p_status').value, memo:$('p_memo').value,
+    phase:$('p_phase').value, mq:$('p_mq').value, owner:$('p_owner').value.trim(),
+    d0:$('p_d0').value, d1:$('p_d1').value, d2:$('p_d2').value, d3:$('p_d3').value, d4:$('p_d4').value, d5:$('p_d5').value,
+    next:$('p_next').value.trim(), due:$('p_due').value, updated:today()
   });
   if(!editPropId) props.unshift(p);
   saveLocal(); pushProp(p);
@@ -1117,6 +1175,72 @@ function importXlsx(file){
 $('btnXlsx').onclick=()=> $('xlsxFile').click();
 $('xlsxFile').addEventListener('change',e=>{ if(e.target.files[0]) importXlsx(e.target.files[0]); e.target.value=''; });
 
+function parsePropRows(rows){
+  let idx=null, parsed=[];
+  (rows||[]).forEach(r=>{
+    const a=String(r[0]||'').trim();
+    if(a==='物件名'){
+      idx={};
+      r.forEach((h,i)=>{
+        const t=String(h||'');
+        if(t.includes('物件名')) idx.name=i;
+        else if(t.includes('都道府県')) idx.pref=i;
+        else if(t.includes('所在地')) idx.addr=i;
+        else if(t.includes('電圧')) idx.volt=i;
+        else if(t.includes('容量')) idx.kwh=i;
+        else if(t.includes('フェーズ')) idx.phase=i;
+        else if(t.includes('情報取得')) idx.d0=i;
+        else if(t.includes('現調')) idx.d1=i;
+        else if(t.includes('受付')) idx.d2=i;
+        else if(t.includes('合意書')) idx.d3=i;
+        else if(t.includes('電力申請')) idx.d4=i;
+        else if(t.includes('契約日')) idx.d5=i;
+        else if(t.includes('PQ')) idx.pq=i;
+        else if(t.includes('MQ')) idx.mq=i;
+        else if(t.includes('担当')) idx.owner=i;
+        else if(t.includes('次回アクション')) idx.next=i;
+        else if(t.includes('期限')) idx.due=i;
+        else if(t.includes('備考')) idx.memo=i;
+      });
+      return;
+    }
+    if(!idx || !a || a.startsWith('【') || a.includes('記入例') || a.includes('入力シート')) return;
+    const g=k=> idx[k]!=null? r[idx[k]] : '';
+    const ph=String(g('phase')||'').trim();
+    parsed.push({
+      name:a, pref:String(g('pref')||'').trim(), addr:String(g('addr')||'').trim(),
+      volt:String(g('volt')||'').trim()||'高圧', kwh:g('kwh'),
+      phase: PHASES.includes(ph)? ph : (PHASES.find(x=>ph.includes(x))||'情報取得'),
+      d0:xDue(g('d0')), d1:xDue(g('d1')), d2:xDue(g('d2')), d3:xDue(g('d3')), d4:xDue(g('d4')), d5:xDue(g('d5')),
+      price:Math.round((Number(g('pq'))||0)*100), mq:Math.round((Number(g('mq'))||0)*100),
+      owner:String(g('owner')||'').trim(), next:String(g('next')||'').replace(/\n/g,' '), due:xDue(g('due')),
+      memoAdd:String(g('memo')||'').replace(/\n/g,' ')
+    });
+  });
+  return parsed;
+}
+function applyParsedProps(parsed){
+  let added=0, updated=0;
+  parsed.forEach(x=>{
+    let p=props.find(v=>v.name===x.name);
+    if(p){
+      Object.assign(p,{pref:x.pref||p.pref, addr:x.addr||p.addr, volt:x.volt||p.volt, kwh:x.kwh||p.kwh,
+        phase:x.phase, d0:x.d0,d1:x.d1,d2:x.d2,d3:x.d3,d4:x.d4,d5:x.d5,
+        price:x.price||p.price, mq:x.mq||p.mq, owner:x.owner||p.owner, next:x.next, due:x.due, updated:today()});
+      if(x.memoAdd && !(p.memo||'').includes(x.memoAdd)) p.memo=((p.memo||'')+'\n'+x.memoAdd).trim();
+      updated++;
+    }else{
+      p={id:'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), created:today(), updated:today(),
+        name:x.name, pref:x.pref, addr:x.addr, volt:x.volt, kwh:x.kwh, rights:'申請準備中', sell:'権利のみ',
+        price:x.price, scheme:'未定', when:'', pstatus:'仕入中', memo:x.memoAdd||'',
+        phase:x.phase, d0:x.d0,d1:x.d1,d2:x.d2,d3:x.d3,d4:x.d4,d5:x.d5, mq:x.mq, owner:x.owner, next:x.next, due:x.due};
+      props.push(p); added++;
+    }
+    pushProp(p);
+  });
+  return {added,updated};
+}
+
 /* ===== Googleスプレッドシート連動（GAS） ===== */
 let settings={}; 
 async function loadSettings(){ 
@@ -1139,9 +1263,12 @@ async function syncSheet(silent){
     const res=await fetch(settings.gasUrl,{redirect:'follow'});
     const j=JSON.parse(await res.text());
     const parsed=parseLeadRows(j.rows||[]);
-    if(!parsed.length){ if(!silent) alert('スプレッドシートに取込対象が見つかりませんでした。テンプレートの列見出し（顧客名〜分類）をご確認ください。'); $('gasStatus').textContent=''; return; }
-    const r=applyParsedLeads(parsed,'シート連動');
-    $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+((r.added+r.updated)? '（新規'+r.added+'・更新'+r.updated+'）':'');
+    const parsedP=parsePropRows(j.propRows||[]);
+    if(!parsed.length && !parsedP.length){ if(!silent) alert('スプレッドシートに取込対象が見つかりませんでした。テンプレートの列見出しをご確認ください。'); $('gasStatus').textContent=''; return; }
+    const r=parsed.length? applyParsedLeads(parsed,'シート連動') : {added:0,updated:0};
+    const rp=parsedP.length? applyParsedProps(parsedP) : {added:0,updated:0};
+    saveLocal(); renderAll();
+    $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+((r.added+r.updated+rp.added+rp.updated)? '（商談'+(r.added+r.updated)+'・物件'+(rp.added+rp.updated)+'）':'');
   }catch(e){
     $('gasStatus').textContent='';
     if(!silent) alert('シート連動エラー：'+(e.message||e)+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
@@ -1187,7 +1314,7 @@ function renderAll(){ refreshFilterOptions(); renderKpis(); renderFocus(); rende
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
 fillSelect('i_biz',BIZ); fillSelect('i_kubun',KUBUN); fillSelect('i_finance',FINANCE);
 fillSelect('i_need',NEEDS_BY_BIZ['系統用蓄電池']); fillSelect('i_product',PRODUCTS); fillSelect('i_status',STATUSES);
-fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS);
+fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS); fillSelect('p_phase',PHASES);
 loadLocal();
 if(!leads.length){
   leads=[{id:uid(),created:today(),updated:today(),name:'サンプル商事株式会社',contact:'山本様',type:'法人投資家',area:'埼玉県',
