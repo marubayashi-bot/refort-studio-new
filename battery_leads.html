@@ -194,6 +194,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <div id="viewProp" style="display:none">
     <div class="fbar">
       <input type="text" id="pQ" placeholder="🔍 物件名・所在地を検索">
+      <select id="pCat"><option value="">カテゴリー：全て</option></select>
+      <select id="pOwner"><option value="">担当者：全て</option></select>
       <select id="pStatus"><option value="">販売状況：全て</option></select>
       <select id="pVolt"><option value="">電圧区分：全て</option></select>
       <select id="pSell"><option value="">販売形態：全て</option></select>
@@ -289,6 +291,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <h2 id="pTitle">物件登録</h2>
     <div class="grid2">
       <div class="fld"><label>物件名＊</label><input id="p_name" placeholder="例：栃木〇〇 蓄電池案件"></div>
+      <div class="fld"><label>カテゴリー＊</label><select id="p_cat"></select></div>
       <div class="fld"><label>都道府県</label><input id="p_pref" placeholder="例：栃木県"></div>
       <div class="fld"><label>所在地</label><input id="p_addr"></div>
       <div class="fld"><label>電圧区分＊</label><select id="p_volt"></select></div>
@@ -382,6 +385,9 @@ const SELLS=['権利のみ','権利＋EPC','完成品'];
 const PSTATUS=['仕入中','販売中','商談中','申込あり','成約','取下げ'];
 const PS_COLOR={'仕入中':'#5b6b7c','販売中':'#2f8f5b','商談中':'#d98b24','申込あり':'#7a5cb8','成約':'#3068a8','取下げ':'#8a97a8'};
 const PHASES=['情報取得','現調','受付','合意書取得','電力申請','契約','断念'];
+const CATS=['蓄電池','リエネ','太陽光','その他'];
+const CAT_COLOR={'蓄電池':'#3068a8','リエネ':'#2f8f5b','太陽光':'#d98b24','その他':'#8a97a8'};
+const catOf=p=>{ if(p.cat) return p.cat; const n=String(p.name||''); if(n.includes('リエネ')) return 'リエネ'; if(n.includes('蓄電池')) return '蓄電池'; return 'その他'; };
 const PH_COLOR={'情報取得':'#8a97a8','現調':'#3068a8','受付':'#2f7fa8','合意書取得':'#2f8f5b','電力申請':'#d98b24','契約':'#1f6e46','断念':'#c94a4a'};
 const phaseIdx=p=> PHASES.indexOf(p.phase||'情報取得');
 const mqP=p=> Number(p.mq)||0;
@@ -690,7 +696,8 @@ function renderRef(){
 
 /* ===== 物件 ===== */
 function renderPropFunnel(){
-  const alive=props.filter(p=>(p.phase||'')!=='断念' && p.pstatus!=='取下げ');
+  const base=filteredProps();
+  const alive=base.filter(p=>(p.phase||'')!=='断念' && p.pstatus!=='取下げ');
   const anyPhase=props.some(p=>p.phase);
   if(!anyPhase){ $('propFunnel').style.display='none'; return; }
   $('propFunnel').style.display='';
@@ -719,10 +726,12 @@ function stockMqUnlinked(){
 function filteredProps(){
   const q=$('pQ').value.trim().toLowerCase();
   return props.filter(p=>{
+    if($('pCat').value && catOf(p)!==$('pCat').value) return false;
+    if($('pOwner').value && (p.owner||'（担当未設定）')!==$('pOwner').value) return false;
     if($('pStatus').value && p.pstatus!==$('pStatus').value) return false;
     if($('pVolt').value && p.volt!==$('pVolt').value) return false;
     if($('pSell').value && p.sell!==$('pSell').value) return false;
-    if(q){ const hay=[p.name,p.pref,p.addr,p.memo].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    if(q){ const hay=[p.name,p.pref,p.addr,p.memo,p.owner,catOf(p)].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
   });
 }
@@ -736,6 +745,7 @@ function renderProps(){
     return `<div class="refcard" data-id="${p.id}" style="cursor:pointer">
       <h3>${esc(p.name)}${p.src==='bb'? ' <span class="ptag">board連携</span>':''}<small>${esc(p.pref||'')}</small></h3>
       <div class="stats">
+        <span><span class="pill" style="background:${CAT_COLOR[catOf(p)]}22;color:${CAT_COLOR[catOf(p)]}">${catOf(p)}</span></span>
         ${p.phase? `<span><span class="pill" style="background:${PH_COLOR[p.phase]}22;color:${PH_COLOR[p.phase]}">${p.phase}</span></span>`:''}
         <span><span class="pill" style="background:${PS_COLOR[p.pstatus]}22;color:${PS_COLOR[p.pstatus]}">${p.pstatus||'—'}</span></span>
         <span>${esc(p.volt||'')}</span>
@@ -758,7 +768,7 @@ function openPropModal(id){
   $('pTitle').textContent=p? '物件編集：'+p.name : '物件登録';
   $('btnPDel').style.display=p? '':'none';
   const set=(k,v)=> $(k).value=v??'';
-  set('p_name',p?.name); set('p_pref',p?.pref); set('p_addr',p?.addr);
+  set('p_name',p?.name); $('p_cat').value=p? catOf(p) : '蓄電池'; set('p_pref',p?.pref); set('p_addr',p?.addr);
   $('p_volt').value=p?.volt||'低圧'; set('p_kwh',p?.kwh); set('p_kw',p?.kw);
   $('p_rights').value=p?.rights||RIGHTS[0]; $('p_sell').value=p?.sell||SELLS[0];
   set('p_price',p?.price); $('p_scheme').value=p?.scheme||'未定'; set('p_when',p?.when);
@@ -775,7 +785,7 @@ $('btnPSave').onclick=()=>{
   if(!name){ alert('物件名は必須です'); return; }
   const p= editPropId? props.find(x=>x.id===editPropId) : {id:'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), created:today()};
   Object.assign(p,{
-    name, pref:$('p_pref').value.trim(), addr:$('p_addr').value.trim(), volt:$('p_volt').value,
+    name, cat:$('p_cat').value, pref:$('p_pref').value.trim(), addr:$('p_addr').value.trim(), volt:$('p_volt').value,
     kwh:$('p_kwh').value, kw:$('p_kw').value, rights:$('p_rights').value, sell:$('p_sell').value,
     price:$('p_price').value, scheme:$('p_scheme').value, when:$('p_when').value.trim(),
     pstatus:$('p_status').value, memo:$('p_memo').value,
@@ -798,7 +808,7 @@ $('btnPDel').onclick=()=>{
   $('povl').classList.remove('show'); renderAll();
 };
 $('btnNewProp').onclick=()=> openPropModal(null);
-['pQ','pStatus','pVolt','pSell'].forEach(id=> $(id).addEventListener('input',renderProps));
+['pQ','pCat','pOwner','pStatus','pVolt','pSell'].forEach(id=> $(id).addEventListener('input',renderProps));
 
 /* ===== 地図（国土地理院） ===== */
 let map=null, mapLayer=null, geoBusy=false;
@@ -850,7 +860,9 @@ function renderMap(){
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{attribution:'地理院タイル',maxZoom:18}).addTo(map);
     mapLayer=L.layerGroup().addTo(map);
   }
-  $('maplegend').innerHTML=PSTATUS.map(s=>`<span><i style="background:${PS_COLOR[s]}"></i>${s}</span>`).join('');
+  $('maplegend').innerHTML=CATS.map(c=>`<span><i style="background:${CAT_COLOR[c]}"></i>${c}</span>`).join('')
+    +'<span style="margin-left:10px;color:#8a97a8">｜枠色：</span>'
+    +'<span><i style="background:#fff;border:2px solid #2f8f5b;width:9px;height:9px"></i>担保済（合意書以降）</span>';
   mapLayer.clearLayers();
   const pts=[]; const miss=[]; const seen={};
   props.forEach(p=>{
@@ -860,8 +872,9 @@ function renderMap(){
     const n=seen[k]=(seen[k]||0)+1;
     const lat=c.lat+(n-1)*0.0007, lng=c.lng+(n-1)*0.0007;
     const linked=leads.filter(l=>(l.props||[]).includes(p.id));
-    const m=L.circleMarker([lat,lng],{radius:9,color:'#fff',weight:2,fillColor:PS_COLOR[p.pstatus]||'#888',fillOpacity:.95}).addTo(mapLayer);
-    m.bindPopup(`<b>${esc(p.name)}</b>（${esc(p.pstatus||'')}）<br>${esc(p.pref||'')}${esc(p.addr||'')}<br>${esc(p.volt||'')}　${p.kwh? Number(p.kwh).toLocaleString()+'kWh':''}　${p.price? Number(p.price).toLocaleString()+'万円':'価格未定'}<br>販売形態：${esc(p.sell||'—')}／権利：${esc(p.rights||'—')}<br>見込み客：${linked.length? linked.map(l=>esc(l.name)+'（'+l.status+'）').join('、'):'なし'}<br><span class="plink" onclick="openPropModal('${p.id}')">物件を開く</span>`);
+    const secured=p.phase && phaseIdx(p)>=3 && p.phase!=='断念';
+    const m=L.circleMarker([lat,lng],{radius:9,color:secured?'#1f6e46':'#fff',weight:secured?3:2,fillColor:CAT_COLOR[catOf(p)]||'#888',fillOpacity:.95}).addTo(mapLayer);
+    m.bindPopup(`<b>${esc(p.name)}</b><br><span style="color:${CAT_COLOR[catOf(p)]};font-weight:700">■ ${catOf(p)}</span>　${p.phase? 'フェーズ：'+esc(p.phase):''}　${esc(p.pstatus||'')}<br>${esc(p.pref||'')}${esc(p.addr||'')}<br>${esc(p.volt||'')}　${p.kwh? Number(p.kwh).toLocaleString()+'kWh':''}　${p.price? Number(p.price).toLocaleString()+'万円':'価格未定'}${mqP(p)? '　MQ '+mqP(p).toLocaleString()+'万円':''}<br>担当：${esc(p.owner||'—')}${p.next? '　▶ '+esc(p.next):''}<br>見込み客：${linked.length? linked.map(l=>esc(l.name)+'（'+l.status+'）').join('、'):'なし'}<br><span class="plink" onclick="openPropModal('${p.id}')">物件を開く</span>`);
     pts.push([lat,lng]);
   });
   if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:12});
@@ -1184,6 +1197,7 @@ function parsePropRows(rows){
       r.forEach((h,i)=>{
         const t=String(h||'');
         if(t.includes('物件名')) idx.name=i;
+        else if(t.includes('カテゴリ')) idx.cat=i;
         else if(t.includes('都道府県')) idx.pref=i;
         else if(t.includes('所在地')) idx.addr=i;
         else if(t.includes('電圧')) idx.volt=i;
@@ -1208,7 +1222,8 @@ function parsePropRows(rows){
     const g=k=> idx[k]!=null? r[idx[k]] : '';
     const ph=String(g('phase')||'').trim();
     parsed.push({
-      name:a, pref:String(g('pref')||'').trim(), addr:String(g('addr')||'').trim(),
+      name:a, cat:(()=>{const cv=String(g('cat')||'').trim(); if(CATS.includes(cv)) return cv; if(cv) return CATS.find(x=>cv.includes(x))||'その他'; return '';})(),
+      pref:String(g('pref')||'').trim(), addr:String(g('addr')||'').trim(),
       volt:String(g('volt')||'').trim()||'高圧', kwh:g('kwh'),
       phase: PHASES.includes(ph)? ph : (PHASES.find(x=>ph.includes(x))||'情報取得'),
       d0:xDue(g('d0')), d1:xDue(g('d1')), d2:xDue(g('d2')), d3:xDue(g('d3')), d4:xDue(g('d4')), d5:xDue(g('d5')),
@@ -1224,14 +1239,14 @@ function applyParsedProps(parsed){
   parsed.forEach(x=>{
     let p=props.find(v=>v.name===x.name);
     if(p){
-      Object.assign(p,{pref:x.pref||p.pref, addr:x.addr||p.addr, volt:x.volt||p.volt, kwh:x.kwh||p.kwh,
+      Object.assign(p,{cat:x.cat||p.cat, pref:x.pref||p.pref, addr:x.addr||p.addr, volt:x.volt||p.volt, kwh:x.kwh||p.kwh,
         phase:x.phase, d0:x.d0,d1:x.d1,d2:x.d2,d3:x.d3,d4:x.d4,d5:x.d5,
         price:x.price||p.price, mq:x.mq||p.mq, owner:x.owner||p.owner, next:x.next, due:x.due, updated:today()});
       if(x.memoAdd && !(p.memo||'').includes(x.memoAdd)) p.memo=((p.memo||'')+'\n'+x.memoAdd).trim();
       updated++;
     }else{
       p={id:'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), created:today(), updated:today(),
-        name:x.name, pref:x.pref, addr:x.addr, volt:x.volt, kwh:x.kwh, rights:'申請準備中', sell:'権利のみ',
+        name:x.name, cat:x.cat, pref:x.pref, addr:x.addr, volt:x.volt, kwh:x.kwh, rights:'申請準備中', sell:'権利のみ',
         price:x.price, scheme:'未定', when:'', pstatus:'仕入中', memo:x.memoAdd||'',
         phase:x.phase, d0:x.d0,d1:x.d1,d2:x.d2,d3:x.d3,d4:x.d4,d5:x.d5, mq:x.mq, owner:x.owner, next:x.next, due:x.due};
       props.push(p); added++;
@@ -1307,6 +1322,8 @@ function refreshFilterOptions(){
   $('ownerList').innerHTML=[...new Set(leads.map(l=>l.owner).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
   const keepP=(el,vals,label)=>{ const cur=el.value; el.innerHTML=`<option value="">${label}：全て</option>`+vals.map(v=>`<option>${v}</option>`).join(''); el.value=cur; };
   keepP($('pStatus'),PSTATUS,'販売状況'); keepP($('pVolt'),VOLTS,'電圧区分'); keepP($('pSell'),SELLS,'販売形態');
+  keepP($('pCat'),CATS,'カテゴリー');
+  keepP($('pOwner'),[...new Set(props.map(p=>p.owner||'（担当未設定）'))].sort(),'担当者');
 }
 function renderAll(){ refreshFilterOptions(); renderKpis(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
 
@@ -1314,7 +1331,7 @@ function renderAll(){ refreshFilterOptions(); renderKpis(); renderFocus(); rende
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
 fillSelect('i_biz',BIZ); fillSelect('i_kubun',KUBUN); fillSelect('i_finance',FINANCE);
 fillSelect('i_need',NEEDS_BY_BIZ['系統用蓄電池']); fillSelect('i_product',PRODUCTS); fillSelect('i_status',STATUSES);
-fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS); fillSelect('p_phase',PHASES);
+fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS); fillSelect('p_phase',PHASES); fillSelect('p_cat',CATS);
 loadLocal();
 if(!leads.length){
   leads=[{id:uid(),created:today(),updated:today(),name:'サンプル商事株式会社',contact:'山本様',type:'法人投資家',area:'埼玉県',
