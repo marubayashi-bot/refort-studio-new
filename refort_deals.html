@@ -366,6 +366,19 @@ table.st tr.op td.tot{background:#8a6d18;color:#fff}
 table.st tr.cum td{background:#faf6ec}
 table.st td.neg{color:#c0392b}
 table.st tr.hl td{background:#fff6e8}
+table.st tr.fitband th{padding:2.6px 2px;font-size:6.6px;letter-spacing:0;text-align:center;font-weight:800;border-color:#cfd8e3}
+table.st tr.fitband th.bf{background:#1c6b34;color:#fff}
+table.st tr.fitband th.bp{background:#8393a6;color:#fff}
+table.st tr.fitband th.lbl{background:#f5f8fb;color:#5a6a7c;text-align:left}
+table.st tr.fitband th.tot{background:#8a6d18}
+table.st thead th.pf{background:#4d6076}
+table.st td.pf{background:#f1f4f8}
+table.st tr.sum td.pf{background:#e4eaf1}
+table.st tr.op td.pf{background:#1b2e45}
+table.st tr.cum td.pf{background:#f4f1e9}
+table.st .fitedge{border-right:2.2px solid #1c6b34}
+.sh-spec .chip.fit{background:#e8f3ea;border-color:#bcdcc4}
+.sh-spec .chip.fit b{color:#1c6b34}
 table.st tr.hl td.lbl{color:#b9770e}
 .sh-msg{background:#f7f9fc;border:1px solid #e8edf3;border-left:3px solid #c8a24a;border-radius:7px;padding:7px 11px;font-size:8.8px;color:#36475c;margin:7px 0;line-height:1.55}
 .sh-msg b{color:#0d2340}
@@ -1648,13 +1661,27 @@ function shSpec(chips){return `<div class="sh-spec">${chips.map(c=>`<span class=
 function shKpiTiles(arr){return `<div class="sh-kpis">${arr.map(k=>`<div class="sh-kpi ${k.cls||''}"><div class="l">${k.l}</div><div class="v">${k.v}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('')}</div>`;}
 function shMsg(html){return `<div class="sh-msg">${html}</div>`;}
 function shFoot(){return `<div class="sh-foot"><b>ご留意事項：</b>本資料は現地調査・ヒアリング情報に基づく想定シミュレーションであり、記載の発電量・収益・利回り・税制効果等を保証するものではありません。FIT／FIP制度・税制・出力制御等の前提は変動する可能性があります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;}
-function shYearTable(secTitle,N,defs){
-  let head='<th class="lbl">期</th>';for(let i=1;i<=N;i++)head+=`<th>${i}</th>`;head+='<th class="tot">合計</th>';
-  let h=`<div class="sh-sec">${secTitle}</div><table class="st"><thead><tr>${head}</tr></thead><tbody>`;
+function shYearTable(secTitle,N,defs,fit){
+  // fit={residual,endYear} を渡すと FIT期間／卒FIT後 を帯と色で区別表示
+  const R=(fit&&fit.residual>0)?Math.min(fit.residual,N):0;
+  const post=(R>0&&R<N);
+  const cf=i=>{const a=[];if(R>0&&i>R)a.push('pf');if(post&&i===R)a.push('fitedge');return a;};
+  let band='';
+  if(post){
+    band=`<tr class="fitband"><th class="lbl">区分</th>`
+      +`<th class="bf fitedge" colspan="${R}">FIT期間 残${R}年${fit.endYear?`（${fit.endYear}年まで）`:''}</th>`
+      +`<th class="bp" colspan="${N-R}">卒FIT後 ${N-R}年</th>`
+      +`<th class="tot"></th></tr>`;
+  }
+  let head='<th class="lbl">期</th>';
+  for(let i=1;i<=N;i++)head+=`<th class="${cf(i).join(' ')}">${i}</th>`;
+  head+='<th class="tot">合計</th>';
+  let h=`<div class="sh-sec">${secTitle}</div><table class="st"><thead>${band}<tr>${head}</tr></thead><tbody>`;
   defs.forEach(r=>{
     const pctRow=!!r.pct;let cells='',sum=0;
     for(let i=0;i<N;i++){const v=r.arr[i]||0;sum+=v;
-      cells+=`<td class="${(!pctRow&&v<0)?'neg':''}">${pctRow?pct(v):(v?nfn(v):'–')}</td>`;}
+      const cls=cf(i+1);if(!pctRow&&v<0)cls.push('neg');
+      cells+=`<td class="${cls.join(' ')}">${pctRow?pct(v):(v?nfn(v):'–')}</td>`;}
     const tot=(r.tot!==undefined)?r.tot:(r.noTot?'–':nfn(sum));
     h+=`<tr class="${r.cls||''}"><td class="lbl">${r.lbl}</td>${cells}<td class="tot">${tot}</td></tr>`;
   });
@@ -1666,7 +1693,8 @@ function sheetM3(deal){
   const spec=shSpec([
     ['所在地',esc(I.location||'—')],
     ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
-    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['連系年',(d.gridYear?d.gridYear+'年':'—')],
+    ['残FIT期間','残'+d.residual+'年'+(d.gridYear?`（${d.gridYear+20}年まで）`:''),'fit'],
     ['パネルDC/AC',(n(I.dcExisting)?nfn(I.dcExisting):'—')+' / '+(n(I.acExisting)?nfn(I.acExisting):'—')+' kW'],
     ['想定発電量',kwh(d.gen)+' kWh'],
     ['発電量UP率',pct(d.rfGenRate),'up'],
@@ -1675,9 +1703,11 @@ function sheetM3(deal){
   const kpis=shKpiTiles([
     {l:'発電量アップ率',v:pct(d.rfGenRate),cls:'nv'},
     {l:'リフォート費用(税込)',v:yen(s.rfIn)},
-    {l:'20年 売電収益増加',v:yen(s.incomeTotal),cls:'gold'},
+    {l:'20年 売電収益増加',v:yen(s.incomeTotal),s:`FIT期間${d.residual}年＋卒FIT後${Math.max(20-d.residual,0)}年`,cls:'gold'},
     {l:'20年 純増効果',v:yen(s.netGain20),s:'投資差引後',cls:'gold'},
-    {l:'投資回収',v:s.payback!=null?s.payback.toFixed(1)+'年':'—'},
+    {l:'投資回収',v:s.payback!=null?s.payback.toFixed(1)+'年':'—',
+      s:(s.payback!=null&&d.residual)?(s.payback<=d.residual?`残FIT${d.residual}年以内に回収`:`残FIT${d.residual}年を超過`):'',
+      cls:(s.payback!=null&&d.residual&&s.payback<=d.residual)?'gold':''},
     {l:'強化税制ROI',v:pct(s.roi),s:s.roiOK?'適用可能':'要確認'},
     {l:'即時償却 見込',v:yen(s.immediateDep),s:'RF費用×30%目安'},
     {l:'税額控除 見込',v:yen(s.taxCredit),s:'RF費用×7%目安'},
@@ -1686,14 +1716,14 @@ function sheetM3(deal){
     {lbl:'リフォート前 発電量',arr:s.rows.RF前発電},
     {lbl:'リフォート後 発電量',arr:s.rows.RF後発電},
     {lbl:'発電量 増加',arr:s.rows.発電増加,cls:'sum'},
-  ]);
+  ],{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null});
   const t2=shYearTable('リフォート投資効果（円）',N,[
     {lbl:'売電収益 増加',arr:s.rows.売電収益増加},
     {lbl:'RF減価償却',arr:s.rows.RF減価償却},
     {lbl:'特別損失（除却損）',arr:s.rows.除却損},
     {lbl:'累積効果（投資対効果）',arr:s.rows.累積効果,cls:'op'},
-  ]);
-  const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年）での投資回収を目指せます。`);
+  ],{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null});
+  const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は売電単価が下がるため、収益増加額も小さくなります。</span>`);
   const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
     <table class="st" style="table-layout:auto"><thead><tr><th class="lbl" style="width:auto">項目</th><th>現状維持のまま</th><th>リフォート実施後</th><th class="tot">差額（年間）</th></tr></thead><tbody>
     <tr><td class="lbl" style="width:auto">年間 売電収入</td><td>${nfn(s.cur.rev)}</td><td>${nfn(s.aft.rev)}</td><td class="tot">+${nfn(s.aft.rev-s.cur.rev)}</td></tr>
@@ -1707,7 +1737,7 @@ function sheetM1(deal){
   const spec=shSpec([
     ['所在地',esc(I.location||'—')],
     ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
-    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['残FIT期間','残'+d.residual+'年'+(d.gridYear?`（${d.gridYear}年連系→${d.gridYear+20}年まで）`:''),'fit'],
     ['想定発電量',kwh(d.gen)+' kWh'],
     ['設備利用率',j.util!=null?pct(j.util):'—'],
     ['取得価格',nfn(s.inv)+' 円(税込)','nv'],
@@ -1743,7 +1773,7 @@ function sheetM1(deal){
   if(s.useLoan){defs.push({lbl:'ローン返済',arr:s.rows.ローン返済});defs.push({lbl:'返済後CF',arr:s.rows.返済後CF,cls:'sum'});}
   defs.push({lbl:'累積CF',arr:cum,cls:'cum',tot:nfn(cum[N-1])});
   defs.push({lbl:'実質利回り(IRR)',arr:y1,pct:true,tot:s.dealIRR!=null?pct(s.dealIRR):'—'});
-  const tbl=shYearTable('年別収支（円）',N,defs);
+  const tbl=shYearTable('年別収支（円）',N,defs,{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null});
   const msg=shMsg(`<b>ご提案の要点：</b>既存設備のまま取得・運用した場合の収支です。残FIT <b>${d.residual}年</b>の安定した売電収入をベースに、想定IRR <b>${s.dealIRR!=null?pct(s.dealIRR):'—'}</b> を見込みます。`);
   return spec+kpis+msg+tbl;
 }
@@ -1752,7 +1782,7 @@ function sheetM2(deal){
   const spec=shSpec([
     ['所在地',esc(I.location||'—')],
     ['FIT単価',d.fit?d.fit+'円/kWh':'—'],
-    ['連系/残FIT',(d.gridYear?d.gridYear+'年':'—')+' / 残'+d.residual+'年'],
+    ['残FIT期間','残'+d.residual+'年'+(d.gridYear?`（${d.gridYear}年連系→${d.gridYear+20}年まで）`:''),'fit'],
     ['発電量 RF前→後',kwh(d.gen)+'→'+kwh(d.rfGenAfter)+' kWh'],
     ['発電量UP率',pct(d.rfGenRate),'up'],
     ['総投資額',nfn(s.totalInv)+' 円(税込)','nv'],
@@ -1787,7 +1817,7 @@ function sheetM2(deal){
     {lbl:'営業CF(税引前)',arr:s.rows.営業CF,cls:'op'},
     {lbl:'累積CF',arr:s.rows.累積CF,cls:'cum',tot:nfn(s.rows.累積CF[N-1])},
     {lbl:'実質利回り(IRR)',arr:y2,pct:true,tot:s.dealIRR!=null?pct(s.dealIRR):'—'},
-  ]);
+  ],{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null});
   const msg=shMsg(`<b>ご提案の要点：</b>取得後にリフォートを実施し、発電量を <b>${pct(d.rfGenRate)}</b> 高めて運用する想定です。リフォート部分は生産性向上設備として強化税制（即時償却・税額控除）の対象となる可能性があります（中古取得分は対象外）。`);
   return spec+kpis+msg+tbl;
 }
