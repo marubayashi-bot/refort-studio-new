@@ -406,6 +406,8 @@ table.st tr.hl td{background:#fff6e8}
 table.st td.q-desc,table.st th.q-desc{text-align:left;width:auto;background:#fff;font-weight:400;color:#36475c;letter-spacing:0}
 table.st.qt{table-layout:auto;font-size:8.3px}
 table.st.qt td{white-space:nowrap}
+table.st.qt tr.disc td{background:#fafafa;color:#5a6a7c;font-weight:600}
+table.st.qt tr.disc td.tot{color:#16212e}
 table.st.qt td.q-desc,table.st.qt td.lbl{white-space:normal}
 table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .mon-chart{border:1px solid #e3e9f0;border-radius:8px;padding:4px 6px;background:#fff}
@@ -2176,17 +2178,21 @@ function sheetEST(deal){
     {l:'消費税（10%）',v:yen(tax)},
     {l:'発電量アップ（想定）',v:pct(d.rfGenRate),s:nfn(d.gen)+' → '+nfn(d.rfGenAfter)+' kWh',cls:'nv'},
   ]);
-  const qnum=v=>{v=+v||0; return (Math.abs(v%1)>0.004)? v.toLocaleString('ja-JP',{minimumFractionDigits:2,maximumFractionDigits:2}) : Math.round(v).toLocaleString('ja-JP');};
+  const qnum=v=>Math.round(+v||0).toLocaleString('ja-JP');
+  const yn=v=>'¥'+Math.round(+v||0).toLocaleString('ja-JP');
+  const body=rows.filter(r=>!r.d), disc=rows.filter(r=>r.d);
   let tb='<div class="sh-sec">工事内訳（名称・仕様・数量）</div><table class="st qt"><thead><tr>'
-    +'<th class="lbl" style="width:22px">No</th><th class="lbl" style="width:120px">名称</th>'
-    +'<th class="lbl q-desc">仕様</th><th style="width:62px">単価</th><th style="width:58px">数量</th>'
-    +'<th style="width:34px">単位</th><th class="tot" style="width:92px">金額（税抜）</th></tr></thead><tbody>';
-  rows.forEach((r,i)=>{tb+='<tr><td class="lbl">'+(i+1)+'</td><td class="lbl">'+esc(r.n||'')+'</td>'
-    +'<td class="q-desc">'+esc(r.s||'')+'</td><td>'+(r.p?nfn(r.p):'—')+'</td><td>'+qnum(r.q||1)+'</td>'
-    +'<td>'+esc(r.u||'一式')+'</td><td class="tot">'+nfn(Math.round(r.a))+'</td></tr>';});
-  tb+='<tr class="sum"><td class="lbl" colspan="6">小計（税抜）</td><td class="tot">'+nfn(sub)+'</td></tr>'
-    +'<tr><td class="lbl" colspan="6">消費税（10%）</td><td class="tot">'+nfn(tax)+'</td></tr>'
-    +'<tr class="op"><td class="lbl" colspan="6">合計（税込）</td><td class="tot">'+nfn(tot)+'</td></tr></tbody></table>';
+    +'<th class="lbl" style="width:22px">NO</th><th class="lbl" style="width:118px">名称</th>'
+    +'<th class="lbl q-desc">仕様</th><th style="width:70px">単価</th><th style="width:58px">数量</th>'
+    +'<th style="width:34px">単位</th><th class="tot" style="width:96px">金額</th></tr></thead><tbody>';
+  body.forEach((r,i)=>{tb+='<tr><td class="lbl">'+(i+1)+'</td><td class="lbl">'+esc(r.n||'')+'</td>'
+    +'<td class="q-desc">'+esc(r.s||'')+'</td><td>'+(r.p?yn(r.p):'')+'</td><td>'+(r.q!=null?qnum(r.q):'')+'</td>'
+    +'<td>'+esc(r.u||'')+'</td><td class="tot">'+yn(r.a)+'</td></tr>';});
+  disc.forEach(r=>{tb+='<tr class="disc"><td class="lbl" colspan="6">'+esc(r.n||'')+'</td>'
+    +'<td class="tot">'+(r.a?yn(r.a):'')+'</td></tr>';});
+  tb+='<tr class="sum"><td class="lbl" colspan="6">小計</td><td class="tot">'+yn(sub)+'</td></tr>'
+    +'<tr><td class="lbl" colspan="6">消費税（10%）</td><td class="tot">'+yn(tax)+'</td></tr>'
+    +'<tr class="op"><td class="lbl" colspan="6">合計</td><td class="tot">'+yn(tot)+'</td></tr></tbody></table>';
   const note=shMsg('<b>工事の目的：</b>経年により低下した発電量を回復させるため、パワーコンディショナ・パネルを中心に設備を更新し、架台・配線・環境まで含めて総合的に改善します。工事により年間発電量は <b>'+nfn(d.gen)+' kWh → '+nfn(d.rfGenAfter)+' kWh（'+pct(d.rfGenRate)+'）</b> を想定しています。'+(inp.workNote?'<br>'+esc(inp.workNote):''));
   const tr=(k,v)=>'<tr><td class="lbl" style="width:96px">'+k+'</td><td class="q-desc">'+v+'</td></tr>';
   const terms='<div class="sh-sec">お見積条件</div><table class="st" style="table-layout:auto"><tbody>'
@@ -2485,15 +2491,15 @@ function parseQuoteSheets(wb){
     if(useB){ unit=num(cell(src,'E'+r)); qty=num(cell(src,'F'+r)); uni=str(cell(src,'G'+r)); amt=num(cell(src,'H'+r)); }
     else    { unit=num(cell(src,'G'+r)); qty=num(cell(src,'H'+r)); uni=str(cell(src,'I'+r)); amt=num(cell(src,'K'+r)); }
     if(!name && !spec && !amt) continue;
-    items.push({n:name||spec||('項目'+no), s:(name?spec:''), u:uni||'式', q:qty||1, p:unit||0, a:amt});
+    items.push({n:name, s:spec, u:uni||'式', q:qty||1, p:unit||0, a:amt});
   }
   if(!items.length) return null;
-  // 特別値引き・調整値引き（端数調整）を明細に反映
+  // 特別値引き・調整値引き（端数調整）は明細ではなく「値引き行」として保持（d:1）
   for(let r=16;r<=60;r++){
     const b=str(cell(src,'B'+r));
     if(/特別値引|調整値引/.test(b)){
       const amt=useB?num(cell(src,'H'+r)):num(cell(src,'K'+r));
-      if(amt) items.push({n:b, s:'', u:'式', q:1, p:0, a:amt});
+      items.push({n:b, s:'', u:'', q:1, p:0, a:amt, d:1});
     }
   }
   // 備考（●で始まる注記を集約）
