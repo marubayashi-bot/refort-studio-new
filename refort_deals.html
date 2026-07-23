@@ -323,6 +323,7 @@ table.sim td.col-tot{background:var(--surface2);font-weight:700;border-left:1px 
 .all-picks .pick input{accent-color:#d6af5a;margin:0;cursor:pointer}
 .all-picks .pick.warn{border-color:rgba(214,175,90,.45);color:#e8c987}
 .all-picks .pick em{font-style:normal;font-size:10.5px;color:#c9a75f;margin-left:2px}
+#allOverlay .hint .fname{display:block;font-size:11px;color:#c9a75f;margin-top:1px}
 .risk-sheet{padding:0!important;overflow:hidden}
 .risk-sheet iframe{width:100%;height:196mm;border:0;background:#fff;display:block}
 .sheet-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:11px;
@@ -3090,9 +3091,8 @@ function renderAllSheets(){
   $('#allRoot').innerHTML=html||'<div class="sheet"><div style="padding:60px;text-align:center;color:#8a939c">出力するシートを1つ以上選んでください。</div></div>';
   const cnt=ALL_SHEETS.filter(([k])=>ALL_OPT[k]).length;
   const noQuote=ALL_OPT.est&&!quoteRows(deal.inputs).length;
-  $('#allHint').textContent = noQuote
-    ? '見積明細が未作成です（Excel取込 または ⑩ で作成してください）'
-    : cnt+'枚を出力します';
+  const msg = noQuote ? '見積明細が未作成です（Excel取込 または ⑩ で作成してください）' : cnt+'枚を出力します';
+  $('#allHint').innerHTML = esc(msg)+'<span class="fname">保存名：'+esc(allFileName(deal))+'.pdf</span>';
 }
 function sheetWrap(deal,cls,inner){return inner;}
 function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').innerHTML=''; document.body.style.overflow=''; }
@@ -3114,7 +3114,30 @@ $('#shPrint').onclick=()=>window.print();
 $('#riskClose').onclick=closeRisk;
 $('#riskPrint').onclick=()=>{try{const w=$('#riskFrame').contentWindow;w.focus();w.print();}catch(e){window.print();}};
 $('#allClose').onclick=closeAll;
-$('#allPrint').onclick=()=>window.print();
+function allFileName(deal){
+  const I=(deal&&deal.inputs)||{};
+  const cust=String(I.customer||'').replace(/\s*様\s*$/,'').trim();
+  const plant=String(I.plantName||(deal&&deal.name)||'').trim();
+  const d=new Date();
+  const ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  const parts=[];
+  if(cust) parts.push(cust+'様');
+  if(plant) parts.push(plant);
+  if(!parts.length) parts.push('リフォート提案');
+  else parts.push('リフォート提案');
+  parts.push(ymd);
+  // ファイル名に使えない文字を除去
+  return parts.join('_').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'');
+}
+function printAllSheets(){
+  const keep=document.title;
+  document.title=allFileName(allCurDeal);
+  const restore=()=>{document.title=keep;window.removeEventListener('afterprint',restore);};
+  window.addEventListener('afterprint',restore);
+  setTimeout(restore,60000);
+  window.print();
+}
+$('#allPrint').onclick=printAllSheets;
 $('#shOwner').onchange=renderSheets;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheetOverlay').classList.contains('show'))closeSheet();});
 
