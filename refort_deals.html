@@ -316,6 +316,11 @@ table.sim td.col-tot{background:var(--surface2);font-weight:700;border-left:1px 
 #allOverlay{display:none;position:fixed;inset:0;z-index:200;background:#566173;overflow:auto}
 #allOverlay.show{display:block}
 #allOverlay .hint{margin-left:4px}
+.all-picks{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-left:6px}
+.all-picks .pick{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#dbe4ef;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;cursor:pointer;user-select:none;white-space:nowrap}
+.all-picks .pick:hover{background:rgba(255,255,255,.17)}
+.all-picks .pick:has(input:checked){background:rgba(214,175,90,.22);border-color:rgba(214,175,90,.55);color:#f4e6c4}
+.all-picks .pick input{accent-color:#d6af5a;margin:0;cursor:pointer}
 .risk-sheet{padding:0!important;overflow:hidden}
 .risk-sheet iframe{width:100%;height:196mm;border:0;background:#fff;display:block}
 .sheet-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:11px;
@@ -707,7 +712,8 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
 <div id="allOverlay" aria-hidden="true">
   <div class="sheet-bar">
     <span class="t">📦 リフォート提案（一括）</span>
-    <span class="hint" id="allHint" style="font-size:12px;color:#9fb0c4">発電シミュレーション・お見積書・リフォート提案・放置リスク比較 を1クリックで出力</span>
+    <span class="all-picks" id="allPicks"></span>
+    <span class="hint" id="allHint" style="font-size:12px;color:#9fb0c4"></span>
     <span class="sp"></span>
     <button class="btn btn-gold btn-sm" id="allPrint">🖨 まとめて印刷 / PDF保存</button>
     <button class="btn btn-line btn-sm" id="allClose">閉じる</button>
@@ -3046,21 +3052,38 @@ function riskParamsFor(deal){
     ctotal:rfCost, cpcs:Math.round(rfCost*0.25), cpanel:Math.round(rfCost*0.75),
     plant:(I.plantName||deal.name||'発電所')};
 }
+/* 一括提案：出力するシートの選択（現調前は見積を外す等） */
+const ALL_SHEETS=[['cover','表紙'],['mon','発電シミュ'],['est','お見積'],['m3','リフォート提案'],['risk','放置リスク比較']];
+let ALL_OPT={cover:true,mon:true,est:true,m3:true,risk:true};
 function openAllSheets(deal){
   if(!deal)return;
-  const showOwner=$('#shOwner')&&$('#shOwner').checked;
-  // 表紙 → 発電シミュ → お見積 → リフォート提案 → 放置リスク比較（すべてネイティブ描画）
-  let html=sheetWrap(deal,'cover',sheetCover(deal));
-  html+=buildSheet(deal,'mon',showOwner);
-  html+=buildSheet(deal,'est',showOwner);
-  html+=buildSheet(deal,'m3',showOwner);
-  html+=sheetRisk(deal);
-  $('#allRoot').innerHTML=html;
-  const missing=[];
-  if(!quoteRows(deal.inputs).length)missing.push('お見積（Excel取込 または ⑩で作成）');
-  if(!deal.inputs.sitePhoto)missing.push('現地画像（①で取込／表紙に表示）');
-  $('#allHint').textContent = missing.length? ('未設定：'+missing.join('／')+'（無くても出力できます）') : '表紙・発電シミュ・お見積・リフォート提案・放置リスク比較 の5枚を出力します';
+  allCurDeal=deal;
+  // 見積明細が無い案件（現調前など）は初回に自動でOFF
+  if(!quoteRows(deal.inputs).length) ALL_OPT.est=false;
+  $('#allPicks').innerHTML=ALL_SHEETS.map(([k,t])=>
+    `<label class="pick"><input type="checkbox" data-all="${k}"${ALL_OPT[k]?' checked':''}>${t}</label>`).join('');
+  $$('[data-all]').forEach(cb=>cb.onchange=e=>{
+    ALL_OPT[e.target.dataset.all]=e.target.checked; renderAllSheets();
+  });
+  renderAllSheets();
   $('#allOverlay').classList.add('show'); document.body.style.overflow='hidden';
+}
+let allCurDeal=null;
+function renderAllSheets(){
+  const deal=allCurDeal; if(!deal)return;
+  const showOwner=$('#shOwner')&&$('#shOwner').checked;
+  let html='';
+  if(ALL_OPT.cover) html+=sheetCover(deal);
+  if(ALL_OPT.mon)   html+=buildSheet(deal,'mon',showOwner);
+  if(ALL_OPT.est)   html+=buildSheet(deal,'est',showOwner);
+  if(ALL_OPT.m3)    html+=buildSheet(deal,'m3',showOwner);
+  if(ALL_OPT.risk)  html+=sheetRisk(deal);
+  $('#allRoot').innerHTML=html||'<div class="sheet"><div style="padding:60px;text-align:center;color:#8a939c">出力するシートを1つ以上選んでください。</div></div>';
+  const cnt=ALL_SHEETS.filter(([k])=>ALL_OPT[k]).length;
+  const noQuote=ALL_OPT.est&&!quoteRows(deal.inputs).length;
+  $('#allHint').textContent = noQuote
+    ? '見積明細が未作成です（Excel取込 または ⑩ で作成してください）'
+    : cnt+'枚を出力します';
 }
 function sheetWrap(deal,cls,inner){return inner;}
 function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').innerHTML=''; document.body.style.overflow=''; }
