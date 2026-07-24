@@ -394,7 +394,7 @@ function seedCohort28(){
         mendan:[{date:'2026-05-10',owner:'石野',note:'営業職希望を再確認'},{date:'2026-06-15',owner:'村田',note:'入社後のキャリアに前向き'}],
         parent:{father:'賛成',mother:'賛成',concerns:''},
         riskFlags:{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false},
-        kudoki:'若手責任者になりたい / 営業で稼ぎたい',ng:'転勤は要相談',
+        kudoki:'若手責任者になりたい / 営業で稼ぎたい',ng:'転勤は要相談',jinbutsu:{sunao:5,chosen:4,kansha:4,stress:4,sekinin:4,memo:'指摘を素直に受け止め、翌日には行動を修正していた'},
         handoff:{video:'',q1:'明るく素直。再エネ志望度が高い',q2:'特になし',q3:'低',q4:'若手で責任あるポジション',q5:'村田が継続フォロー'}},
       {id:'p2',name:'佐藤 花子',route:'HR team',temp:'中',tempStar:3,university:'文教大学',faculty:'人間科学部',gradYear:'2027卒',owner:'村田',offerDate:'2026-03-12',acceptDate:'2026-03-25',joinDate:'2027-04-01',lastContact:'2026-05-30',memo:'返信やや遅め',
         setsumeikai:{date:'2025-09-05',impression:'雰囲気が良いと好印象'},kobetsu:{count:1,note:'事務職にも興味'},intern:{count:1,eval:'B'},konshinkai:{count:1},eventHist:{count:1},kanbujuku:{status:'未参加'},
@@ -403,7 +403,7 @@ function seedCohort28(){
         mendan:[{date:'2026-05-12',owner:'村田',note:'比較中の他社あり'}],
         parent:{father:'中立',mother:'やや不安',concerns:'通勤 / 将来性'},
         riskFlags:{otherOffer:false,lessContact:true,eventAbsent:false,noArbeit:true,kadaiUn:true,parentNg:false},
-        kudoki:'安定した成長企業',ng:'残業が不安',
+        kudoki:'安定した成長企業',ng:'残業が不安',jinbutsu:{sunao:4,chosen:2,kansha:4,stress:2,sekinin:3,memo:'丁寧だが自分から動く場面が少ない'},
         handoff:{video:'',q1:'真面目だが温度感が中程度',q2:'親が将来性を心配',q3:'中',q4:'働きやすさ・成長環境',q5:'村田'}},
       {id:'p3',name:'鈴木 一郎',route:'リアステージ',temp:'低',tempStar:2,university:'城西大学',faculty:'経営学部',gradYear:'2027卒',owner:'石野',offerDate:'2026-03-15',acceptDate:'',joinDate:'2027-04-01',lastContact:'2026-05-10',memo:'内定式以降連絡が途絶え気味',
         setsumeikai:{date:'2025-10-01',impression:''},kobetsu:{count:0,note:''},intern:{count:0,eval:''},konshinkai:{count:0},eventHist:{count:0},kanbujuku:{status:'未参加'},
@@ -412,7 +412,7 @@ function seedCohort28(){
         mendan:[],
         parent:{father:'やや不安',mother:'反対',concerns:'県外就職 / 給与'},
         riskFlags:{otherOffer:true,lessContact:true,eventAbsent:true,noArbeit:true,kadaiUn:true,parentNg:true},
-        kudoki:'',ng:'厳しい上下関係が苦手',
+        kudoki:'',ng:'厳しい上下関係が苦手',jinbutsu:{sunao:2,chosen:2,kansha:2,stress:2,sekinin:1,memo:'課題・連絡ともに反応が乏しい'},
         handoff:{video:'',q1:'おとなしいタイプ。接触が減っている',q2:'他社内定＋保護者反対',q3:'高',q4:'未確定',q5:'石野→（要・幹部面談）'}},
       {id:'p4',name:'笹川 さくら',route:'kimete個別',temp:'高',tempStar:5,university:'獨協大学',faculty:'外国語学部',gradYear:'2027卒',owner:'石野',offerDate:'2026-02-28',acceptDate:'2026-03-05',joinDate:'2027-04-01',lastContact:'2026-06-18',memo:'非常に意欲的',
         setsumeikai:{date:'2025-07-30',impression:'社長の話に感銘'},kobetsu:{count:4,note:'営業で早期に成果を出したい'},intern:{count:3,eval:'A'},konshinkai:{count:3},eventHist:{count:4},kanbujuku:{status:'参加'},
@@ -421,7 +421,7 @@ function seedCohort28(){
         mendan:[{date:'2026-04-02',owner:'石野',note:'目標が明確'},{date:'2026-05-20',owner:'村田',note:'入社確定の意思'},{date:'2026-06-18',owner:'石野',note:'後輩内定者のフォローも自発的に'}],
         parent:{father:'賛成',mother:'賛成',concerns:''},
         riskFlags:{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false},
-        kudoki:'営業で稼ぎたい / 再エネ業界に興味 / 成長企業で働きたい',ng:'',
+        kudoki:'営業で稼ぎたい / 再エネ業界に興味 / 成長企業で働きたい',ng:'',jinbutsu:{sunao:5,chosen:5,kansha:5,stress:4,sekinin:5,memo:'後輩内定者のフォローも自発的に行う'},
         handoff:{video:'',q1:'全項目で高エンゲージのトップ内定者',q2:'特になし',q3:'極低',q4:'成長環境と裁量',q5:'石野（活躍人材として早期戦力化）'}},
     ],
     events:[
@@ -552,6 +552,7 @@ function renderDash(){
     kpi('注意',`<span style="color:#9a6f00">${warn}</span><small> 名</small>`),
     kpi('平均エンゲージ',(avgEng==null?'—':Math.round(avgEng))+'<small> 点</small>'),
     kpi('平均入社確率',(avgJoin==null?'—':Math.round(avgJoin))+'<small>%</small>'),
+    kpi('平均人物像フィット',(()=>{const a=ppl.map(p=>fitScore(p).score).filter(x=>x!=null);return a.length?Math.round(a.reduce((s,x)=>s+x,0)/a.length)+'<small>%</small>':'—';})()),
     kpi('幹部面談対象',`<span style="color:${kanbu?'var(--danger)':'var(--ok)'}">${kanbu}</span><small> 名（60点未満）</small>`),
     kpi('平均課題完了率',pct(avgTask)),
   ].join('');
@@ -772,10 +773,27 @@ function normalizePerson(p){
   p.parent=p.parent||{father:'',mother:'',concerns:''};
   p.riskFlags=p.riskFlags||{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false};
   p.kudoki=p.kudoki||'';p.ng=p.ng||'';
+  p.jinbutsu=p.jinbutsu||{sunao:0,chosen:0,kansha:0,stress:0,sekinin:0,memo:''};
   p.handoff=p.handoff||{video:'',q1:'',q2:'',q3:'',q4:'',q5:''};
   return p;
 }
 function normalizeAll(){['28','27'].forEach(c=>{if(S.cohorts[c]&&S.cohorts[c].people)S.cohorts[c].people.forEach(normalizePerson);});}
+
+/* ---- アースコムの求める人物像【5項目】 ---- */
+const JINBUTSU=[
+  ['sunao','素直','人の意見や指摘を素直に受け止め、嘘やごまかしをせず、正しいことを誠実に実行できる人'],
+  ['chosen','挑戦心・行動力','失敗を恐れず、まず行動し、変化や新しい仕事にも前向きに挑戦できる人'],
+  ['kansha','感謝','仲間やお客様に関心を持ち、相手の立場を考え、周囲への感謝を忘れない人'],
+  ['stress','ストレス耐性','予期せぬトラブルやストレスが生じても、柔軟に思考を切り替え、自らの役割を淡々と果たせる人'],
+  ['sekinin','責任感','現状に満足せず、目標に向かって学び続け、困難があっても諦めずに成果までやり抜ける人'],
+];
+function fitScore(p){
+  const j=p.jinbutsu||{};let s=0,n=0;const detail=[];
+  JINBUTSU.forEach(([k,lab])=>{const v=+j[k]||0;if(v>0){s+=v;n++;}detail.push([lab,v||null]);});
+  const score=n?Math.round(s/n/5*100):null;
+  const lv=score==null?'未評価':score>=80?'高適合':score>=60?'適合':'要確認';
+  return{score,lv,detail,rated:n};
+}
 
 function evRateTypes(pid,types){let p=0,t=0;cur().events.forEach(e=>{if(types.includes(e.type)){const c=evPersonCounts(e,pid);p+=c.p;t+=c.t;}});return t?(p/t):null;}
 function kadaiRate(p){if(p.kadai&&p.kadai.length){let s=0;p.kadai.forEach(k=>{s+=k.submit==='○'?1:k.submit==='△'?0.5:0;});return s/p.kadai.length;}return taskRate(p.id);}
@@ -804,6 +822,7 @@ function successProb(p){
   if(/A|優|高/.test((p.intern&&p.intern.eval)||''))v+=8;
   if(/参加|済|出席/.test((p.kanbujuku&&p.kanbujuku.status)||''))v+=5;
   v+=engagement(p).score*0.12;
+  const f=fitScore(p);if(f.score!=null)v+=(f.score-60)*0.30; /* 求める人物像フィットを反映 */
   return Math.max(5,Math.min(98,Math.round(v)));
 }
 const TL_STAGES=['説明会','面接','内定','課題','アルバイト','研修','入社式'];
@@ -831,7 +850,7 @@ function renderKarte(){
   if(!S.karteSel||!ppl.find(p=>p.id===S.karteSel))S.karteSel=ppl[0].id;
   sel.innerHTML=ppl.map(p=>`<option value="${p.id}" ${p.id===S.karteSel?'selected':''}>${esc(p.name)}（${esc(p.university||'大学未入力')}）</option>`).join('');
   const p=normalizePerson(ppl.find(x=>x.id===S.karteSel));
-  const eng=engagement(p),jp=joinProb(p),sp=successProb(p),tl=timeline(p);
+  const eng=engagement(p),jp=joinProb(p),sp=successProb(p),tl=timeline(p),fit=fitScore(p);
   const TEMPLAB={5:'★★★★★ 絶対入社',4:'★★★★☆ ほぼ確定',3:'★★★☆☆ 比較中',2:'★★☆☆☆ 辞退リスク有',1:'★☆☆☆☆ 高リスク'};
   const engLvCls=eng.score>=80?'ok':eng.score>=60?'warn':'danger';
   document.getElementById('karteBody').innerHTML=`
@@ -846,6 +865,7 @@ function renderKarte(){
         ${ringHtml(eng.score,'エンゲージ','')}
         ${ringHtml(jp,'入社確率','%')}
         ${ringHtml(sp,'活躍確率','%')}
+        ${fit.score==null?'<div class="ring" style="background:#eef1f6"><div class="inner"><b style="color:#8b96a8;font-size:13px">未評価</b><span>人物像</span></div></div>':ringHtml(fit.score,'人物像','%')}
       </div>
     </div>
     <div class="engbar">${eng.detail.map(d=>`<div class="c">${d[0]}<b>${d[1]==null?'—':d[1]+'%'}</b></div>`).join('')}</div>
@@ -929,6 +949,24 @@ function renderKarte(){
       <textarea class="in" onchange="kset('${p.id}','ng',this.value)" placeholder="例：厳しい上下関係苦手 / 転勤NG / 残業不安">${esc(p.ng)}</textarea></div>
   </div>
 
+  <div class="k-sec"><h4><span class="no">⑪</span>アースコムの求める人物像【5項目】評価
+    ${fit.score==null?'<span class="pill gray">未評価</span>':`<span class="pill ${fit.score>=80?'ok':fit.score>=60?'warn':'danger'}">${fit.score}% ${fit.lv}</span>`}</h4>
+    <p class="hint" style="margin:-4px 0 10px">面談・アルバイト・イベントでの様子をもとに5段階で評価します（1＝課題あり／5＝非常に当てはまる）。評価は活躍確率に反映されます。</p>
+    <table><thead><tr><th style="width:34px">例</th><th style="width:150px">求める人物要件</th><th>要件説明</th><th style="width:150px">評価</th></tr></thead><tbody>
+    ${JINBUTSU.map(([k,lab,desc],i)=>{const v=+((p.jinbutsu||{})[k])||0;return `<tr>
+      <td class="muted">${i+1}</td>
+      <td><b>${lab}</b></td>
+      <td class="small muted">${desc}</td>
+      <td><select class="in" onchange="ksetNum('${p.id}','jinbutsu.${k}',this.value)">
+        <option value="0" ${!v?'selected':''}>—（未評価）</option>
+        ${[1,2,3,4,5].map(n=>`<option value="${n}" ${v==n?'selected':''}>${'★'.repeat(n)}（${n}）</option>`).join('')}
+      </select></td></tr>`;}).join('')}
+    </tbody></table>
+    <div class="engbar" style="margin-top:10px">${fit.detail.map(d=>`<div class="c">${d[0]}<b>${d[1]==null?'—':'★'+d[1]}</b></div>`).join('')}</div>
+    <div class="kfield" style="margin-top:10px"><label>評価コメント（具体的なエピソード）</label>
+      <textarea class="in" onchange="kset('${p.id}','jinbutsu.memo',this.value)" placeholder="例：指摘に対して素直に受け止め、翌日には行動を修正していた">${esc((p.jinbutsu||{}).memo||'')}</textarea></div>
+  </div>
+
   <div class="k-sec"><h4><span class="no">⇄</span>引継ぎ（担当変更時の必須事項）</h4>
     <div class="note" style="margin-bottom:10px">担当変更時は<b>5分動画</b>を必須化。下のURL欄に格納し、5つの観点を埋めてください。「引継ぎカードをコピー」でサマリーを書き出せます。</div>
     <div class="kfield" style="margin-bottom:8px"><label>引継ぎ動画 URL（5分）</label><input class="in" value="${esc(p.handoff.video)}" placeholder="https://… （Google Drive / YouTube限定公開 等）" onchange="kset('${p.id}','handoff.video',this.value)"></div>
@@ -948,18 +986,21 @@ function kfSel(pid,path,lab,val,opts){return `<div class="kfield"><label>${lab}<
 function kfStar(pid,path,lab,val){let h=`<div class="kfield"><label>${lab}</label><select class="in" onchange="ksetNum('${pid}','${path}',this.value)">`;h+=`<option value="0" ${!val?'selected':''}>—</option>`;for(let i=1;i<=5;i++)h+=`<option value="${i}" ${val==i?'selected':''}>${'★'.repeat(i)}（${i}）</option>`;return h+'</select></div>';}
 function rfChk(pid,key,lab,on){return `<label class="chk ${on?'on':''}"><input type="checkbox" ${on?'checked':''} onchange="ksetBool('${pid}','riskFlags.${key}',this.checked)">${lab}</label>`;}
 function handoffText(p){
-  const eng=engagement(p),jp=joinProb(p),sp=successProb(p);
+  const eng=engagement(p),jp=joinProb(p),sp=successProb(p),fit=fitScore(p);
   const rf=p.riskFlags||{};const risks=[];
   if(rf.otherOffer)risks.push('他社内定');if(rf.lessContact)risks.push('連絡減少');if(rf.eventAbsent)risks.push('イベント欠席');if(rf.noArbeit)risks.push('アルバイト不参加');if(rf.kadaiUn)risks.push('課題未提出');if(rf.parentNg)risks.push('保護者反対');
+  const fitLine=fit.score==null?'未評価':`${fit.score}%（${fit.lv}）｜`+fit.detail.map(d=>`${d[0]}${d[1]==null?'—':'★'+d[1]}`).join('・');
   return `【内定者 引継ぎカード】${p.name}（${p.university||''} ${p.faculty||''} / ${p.gradYear||''}）
 担当：${p.owner||'未設定'} ／ 温度感：${'★'.repeat(p.tempStar||0)}
 エンゲージ ${eng.score}点（${eng.lv}） ／ 入社確率 ${jp}% ／ 活躍確率 ${sp}%
+求める人物像：${fitLine}
 ① どんな学生か：${p.handoff.q1||'—'}
 ② 悩み：${p.handoff.q2||'—'}
 ③ 辞退リスク：${p.handoff.q3||'—'}${risks.length?'（チェック：'+risks.join('・')+'）':''}
 ④ 入社決定要因：${p.handoff.q4||'—'}
 ⑤ 次の担当：${p.handoff.q5||'—'}
 口説き：${p.kudoki||'—'} ／ NG：${p.ng||'—'}
+人物像コメント：${(p.jinbutsu&&p.jinbutsu.memo)||'—'}
 動画：${p.handoff.video||'（未登録）'}`;
 }
 function setKarte(id){S.karteSel=id;save();renderKarte();}
