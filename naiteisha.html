@@ -149,6 +149,8 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 .engbar .c b{font-size:16px;color:var(--navy);display:block}
 .handoff-card{background:#0f2747;color:#dbe7ff;border-radius:10px;padding:13px 14px;font-size:12.5px;white-space:pre-wrap;margin-top:8px;line-height:1.7}
 .k-sec table input.in,.k-sec table select.in{font-size:12px}
+.mcard{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fbfcfe}
+.mcard .kgrid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 .chk-inline{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--navy);font-weight:700;background:#f1f5fc;border:1px solid #d6e0f2;border-radius:8px;padding:5px 9px;white-space:nowrap}
 .chk-inline input{accent-color:var(--navy)}
 .sess{display:inline-flex;align-items:center;gap:3px;background:#f6f8fc;border:1px solid var(--line);border-radius:8px;padding:2px 4px}
@@ -212,6 +214,7 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
       <span class="muted small">対象</span>
       <select class="in" id="karteSel" style="max-width:260px" onchange="setKarte(this.value)"></select>
       <button class="btn ghost sm" onclick="copyHandoff()">引継ぎカードをコピー</button>
+      <button class="btn ghost sm" onclick="importMendan()">月次面談ドキュメントを取り込む</button>
     </div>
     <div id="karteBody"></div>
   </section>
@@ -633,6 +636,11 @@ function renderAlerts(){
     if(nc!=null&&nc>=30)logs.push([p.name,'未接触30日以上',`${nc}日接触なし`]);
     if(hasDelay(p.id))logs.push([p.name,'課題遅延','期限超過の課題あり']);
     if(!p.acceptDate)logs.push([p.name,'承諾日未入力','内定承諾が未確定']);
+    const lm=lastMendan(p);
+    if(!lm)logs.push([p.name,'月次面談 未実施','面談記録が1件もありません']);
+    else{const dd=daysBetween(lm.date,S.baseDate);
+      if(dd!=null&&dd>30)logs.push([p.name,'月次面談 未実施',`直近面談から${dd}日経過（月1回ルール未達）`]);
+      if(!lm.next)logs.push([p.name,'次回面談日 未設定','面談時に次回日程を決めるルール❶未実施']);}
   });
   document.getElementById('anomalyTbl').innerHTML=logs.length?`<table><thead><tr><th>氏名</th><th>異常値</th><th>詳細</th></tr></thead><tbody>`+logs.map(l=>`<tr class="flagrow"><td>${esc(l[0])}</td><td><b>${l[1]}</b></td><td class="small">${l[2]}</td></tr>`).join('')+`</tbody></table>`:'<p class="muted">異常値はありません。</p>';
 }
@@ -912,15 +920,25 @@ function renderKarte(){
     <button class="btn ghost sm" style="margin-top:8px" onclick="kadaiAdd('${p.id}')">＋ 課題を追加</button>
   </div>
 
-  <div class="k-sec"><h4><span class="no">⑥</span>面談履歴</h4>
-    <table><thead><tr><th style="width:130px">日時</th><th style="width:120px">担当者</th><th>内容</th><th style="width:60px"></th></tr></thead><tbody>
-    ${p.mendan.map((m,i)=>`<tr>
-      <td><input class="in" type="date" value="${m.date||''}" onchange="mendanUpd('${p.id}',${i},'date',this.value)"></td>
-      <td><input class="in" value="${esc(m.owner||'')}" onchange="mendanUpd('${p.id}',${i},'owner',this.value)"></td>
-      <td><input class="in" value="${esc(m.note||'')}" onchange="mendanUpd('${p.id}',${i},'note',this.value)"></td>
-      <td><button class="btn ghost sm" onclick="mendanDel('${p.id}',${i})">削除</button></td></tr>`).join('')}
-    </tbody></table>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="mendanAdd('${p.id}')">＋ 面談を追加</button>
+  <div class="k-sec"><h4><span class="no">⑥</span>面談履歴（月次面談）
+    ${(()=>{const m=lastMendan(p);if(!m)return '<span class="pill danger">未実施</span>';const d=daysBetween(m.date,S.baseDate);return `<span class="pill ${d>30?'danger':d>21?'warn':'ok'}">直近 ${esc(m.date)}（${d}日前）</span>`+(m.next?`<span class="pill gray">次回 ${esc(m.next)}</span>`:'<span class="pill danger">次回日程 未設定</span>');})()}</h4>
+    <p class="hint" style="margin:-4px 0 10px">月1回実施。面談時に必ず次回日程を決めます（ルール❶）。月次面談ドキュメントの①〜⑦をそのまま記録できます。</p>
+    ${p.mendan.length?p.mendan.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(m=>{const i=p.mendan.indexOf(m);return `<div class="mcard">
+      <div class="row" style="margin-bottom:8px;align-items:center">
+        <span class="muted small">実施日</span><input class="in" type="date" style="width:145px" value="${m.date||''}" onchange="mendanUpd('${p.id}',${i},'date',this.value)">
+        <span class="muted small">実施者</span><input class="in" style="width:110px" placeholder="例：東田" value="${esc(m.owner||'')}" onchange="mendanUpd('${p.id}',${i},'owner',this.value)">
+        <span class="muted small">①次回面談日</span><input class="in" type="date" style="width:145px" value="${m.next||''}" onchange="mendanUpd('${p.id}',${i},'next',this.value)">
+        <button class="btn ghost sm right" onclick="mendanDel('${p.id}',${i})">削除</button></div>
+      <div class="kgrid">
+        ${mfield(p.id,i,'kinkyo','②近況確認（アルバイト回数・学校）',m.kinkyo)}
+        ${mfield(p.id,i,'kadai','③内定課題の進捗確認',m.kadai)}
+        ${mfield(p.id,i,'priv','④プライベート（共通点を探す）',m.priv)}
+        ${mfield(p.id,i,'kankei','⑤他の内定者との関係性',m.kankei)}
+        ${mfield(p.id,i,'shinpai','⑥心配なこと',m.shinpai)}
+        ${mfield(p.id,i,'mokuhyo','⑦成長計画の来月の目標',m.mokuhyo)}
+        ${mfield(p.id,i,'note','⑧確認事項・所感',m.note)}
+      </div></div>`;}).join(''):'<p class="muted small">面談記録がありません。</p>'}
+    <button class="btn ghost sm" style="margin-top:8px" onclick="mendanAdd('${p.id}')">＋ 月次面談を追加</button>
   </div>
 
   <div class="k-sec"><h4><span class="no">⑦</span>保護者情報</h4>
@@ -1001,7 +1019,57 @@ function handoffText(p){
 ⑤ 次の担当：${p.handoff.q5||'—'}
 口説き：${p.kudoki||'—'} ／ NG：${p.ng||'—'}
 人物像コメント：${(p.jinbutsu&&p.jinbutsu.memo)||'—'}
+直近面談：${(function(){const m=lastMendan(p);return m?`${m.date}（${m.owner||'担当不明'}）心配なこと：${m.shinpai||'—'} ／ 次回：${m.next||'未設定'}`:'未実施';})()}
 動画：${p.handoff.video||'（未登録）'}`;
+}
+/* ---- 月次面談ドキュメントからの抽出データ（27内定者） ----
+   出典：内定者フォロー　月次面談27内定者（Googleドキュメント）
+   ※年の記載が無いため、1〜8月＝2026年／9〜12月＝2025年として取り込み */
+const MENDAN_DOC=[
+ {name:'太田',owner:'東田',recs:[
+  {date:'2026-07-08',owner:'東田',next:'2026-08-04',kinkyo:'8月のアルバイトは9回',kadai:'',priv:'引っ越しを12月くらいにしたい。これから長く住む場所なので出し惜しみせず探したい（条件は未定）',kankei:'皆同じくらい喋る。磯邊館さんは積極的に発言・提案、宮部さんはプライベート優先。本人は「プライベートを優先したいのかな」と感じている',shinpai:'引っ越しが初めてなので漠然とした不安',mokuhyo:'課題図書3完了',note:''},
+  {date:'2026-06-02',owner:'東田',next:'2026-07-01',kinkyo:'会社脳レンタル',kadai:'1冊目終了。6/2に会社脳をレンタル',priv:'ドトール・ブックオフ・アースコムとアルバイトを3つ掛け持ち。眠いことがある。月に20万稼いでいる',kankei:'まだあまり話したことは無い',shinpai:'特になし',mokuhyo:'',note:''},
+  {date:'2025-09-17',owner:'',next:'2025-10-14',kinkyo:'経営計画発表会OK／アカデミーOK',kadai:'転記課題。ルール1項目のみ提出済み。毎週木曜日に進捗報告',priv:'大学の授業が9/19開始、週5。アースコムのバイトは15:00〜18:00。理系で実験あり、3年だが4年の単位も取る予定で忙しい見込み。自宅から大学まで自転車30分、雨の日は電車。アースコムでのアルバイトは3回目でセールスフォースを覚え始めているが、業務の意味は理解しきれていない。普段は睡眠か実験レポートに時間を使う',kankei:'「これからどんどん同期が増えてくるのが楽しみですね」',shinpai:'学業が忙しく、大学とアルバイト・課題の両立が大変そう。交通費の高さを気にしている（往復1,500〜2,000円、勤務3時間の日もあり申し訳ないと感じている）→経験の方が大事なので気にせず申請してと説明済み。ボイス送信7時の直前にバイトがあり不安→アプリに慣れたら7時に送る',mokuhyo:'',note:''}]},
+ {name:'茅島',owner:'東田',recs:[
+  {date:'2026-07-01',owner:'東田',next:'2026-08-01',kinkyo:'7月アルバイト回数10回',kadai:'',priv:'絵の制作をしている',kankei:'みんな同じくらい仲がいい。誰が話しやすいということはない',shinpai:'お金を貯められるかどうか。キャリアは自主的に学びに行っており立場的に行かねばならない時もある。交流できて楽しいがお金が出ていくことが問題ない訳ではない',mokuhyo:'貯金5万',note:'確認事項：キャリアはどのように生かせるか。行くこと・勉強することが目的になっていないか。目的意識が無いと自己成長している気になってしまう。何のために勉強をしに行くのか'},
+  {date:'2026-06-05',owner:'東田',next:'2026-07-01',kinkyo:'河口湖研修参加可能',kadai:'6/8課題図書着手予定。1週間に1章を読むペース',priv:'学祭は11月。友人次第でまだ出るかは不明',kankei:'太田さんは良く話す。磯邊館さんはキャリアで会うことがある',shinpai:'特に無し。本を計画通りに読めるかどうか',mokuhyo:'',note:'次回は終日アルバイト'},
+  {date:'2026-04-27',owner:'東田',next:'2026-05-16',kinkyo:'課題図書を4/28に着手予定',kadai:'',priv:'',kankei:'',shinpai:'',mokuhyo:'',note:''},
+  {date:'2026-04-09',owner:'東田',next:'2026-05-07',kinkyo:'',kadai:'課題図書未着手→次回アルバイト時に確定（4/15）',priv:'キャリアに週3程通っている。引っ越しをして家が八王子になった。神保町のカラオケ館のバイトを始めた',kankei:'磯邊館さんとはアースコムでもキャリアでもよく合う',shinpai:'朝の起床時間',mokuhyo:'',note:''},
+  {date:'2025-10-28',owner:'東田',next:'',kinkyo:'12/3経営計画発表会。学校があるが進捗確認の会議が多いので行かなくても大丈夫かもしれない（確認中）',kadai:'',priv:'キャリアで10/25に橙帯試験を受けた（次の青帯試験は12月）。リーダーを目指しているが面接に2回落ちており10/31に再挑戦。担当内では本人のブロックが一番大きい',kankei:'太田さんとは話す。26内定者の岩井さん・怜未さん・陸さんとはまだ話したことが無い',shinpai:'大学・キャリア・アースコムの両立。11/1の学祭に向けた準備がまだ何も決まっていない。ボイスは朝が弱く5度寝してしまうため直前の6:50に録っている。アラームは5〜10分毎。6:55に採用担当のメッセージへレスが無ければ電話をかける',mokuhyo:'',note:''}]},
+ {name:'宮部',owner:'東田',recs:[
+  {date:'2026-07-13',owner:'東田',next:'2026-08-03',kinkyo:'8月のお盆期間に13連勤をするかもしれない（居酒屋も含めて）。アースコムのバイトは月8回参加',kadai:'課題図書2冊目完了。EGが太田さん・茅島さんに貸し出し中で読めない',priv:'お盆に彼女と旅行に行くかも。テストの最終日は7/28。新宿で会うことが多い。同棲は2年目からできたらと考えている',kankei:'内定者とはみんな仲がいい。太田さん・磯邊館さんはよく話す',shinpai:'貯金ができるかどうか',mokuhyo:'課題図書3冊目着手',note:''},
+  {date:'2026-06-08',owner:'大河原',next:'2026-07-01',kinkyo:'来月のシフトは未入力だが7/1なら来られる。大学の特殊なカリキュラム（週2授業で1ヶ月半で終了）のため明日テスト。経営戦略論は持ち込み可だが落とすと後期に再履修。今月末の内定者プレゼン大会は方向性が決まっている',kadai:'会社脳は7/1期限。最初の10ページほどで完了見込みは7/1。他の内定者がギリギリで進める中、順調で一番早い。前倒しでの実施を推奨',priv:'自転車：雨の日もレインコートを着て乗っている。事故後のイップス期間は1〜2週間で現在は楽しく乗れている。彼女は1個下の社会人で遠距離（小平）のため新宿・渋谷で会うことが多い。綺麗好きで泊まり先でも黙々と家事をやるタイプ',kankei:'太田さん・茅島さんとはシフトが被ることがあり話す。最近入った小林さんとは選考中に一度昼食を共にした',shinpai:'本人は特にないとのこと。kimeteへの連絡のレスポンスが遅れており心配されていたことを共有。就活時より優先順位が下がっているとのことだが返信はしっかり行うよう注意喚起済み',mokuhyo:'アルバイト回数を目標とする',note:''},
+  {date:'2026-05-25',owner:'',next:'2026-06-08',kinkyo:'',kadai:'6月の最初に会社脳を読み始める',priv:'彼女と9カ月付き合っている。ディズニーに行った',kankei:'太田さん・茅島さんは話しやすい',shinpai:'貯金を毎月一万円貯めているが引っ越しができるか不安',mokuhyo:'',note:''},
+  {date:'2026-03-30',owner:'',next:'2026-04-14',kinkyo:'',kadai:'課題図書未着手。4/14に本レンタル',priv:'彼女の誕生日で熱海に行った',kankei:'あまりバイトに入れず茅島さんと関われていない',shinpai:'残業や給料についての質問が多い→経営計画書の評価制度を見て話をした',mokuhyo:'',note:''},
+  {date:'2026-02-04',owner:'',next:'2026-03-02',kinkyo:'先週は発熱して来れなかった',kadai:'2/9が転記の期限。内定者ルールが終わり全社ルールの11ページ目まで完了しているので9日までには完了できそう',priv:'2月に彼女の誕生日があり2泊3日で熱海に行く。3月には彼女・友達と2回スノボの予定。テレアポ以外の飲食アルバイトで店長とトラブルがあり辞めるか悩んでいる。テストが終わり今後は週1回アースコムのアルバイトに入れそう',kankei:'太田さん・茅島さんがどんな人かまだ分からない。レクや集まりにはできるだけ参加したい',shinpai:'働き方のイメージがついておらず不安になることがある（今のテレアポのバイト先は社員の残業が月40時間）。全社ルールの転記でルールが多く本当に全部覚えられるか不安。実際の働き方が知りたい',mokuhyo:'',note:''}]},
+ {name:'磯邊館',owner:'東田',recs:[
+  {date:'2026-07-06',owner:'東田',next:'2026-08-04',kinkyo:'7月アルバイト回数は4回',kadai:'丸林社長書籍①を50ページくらいまで読んだ',priv:'しがくを続けようか悩んでいる。楽しい・辞めづらいという感情で続けているなら無駄な出費になるため勧めないと助言。続けるなら会社で何が生かせるかを考えて続けるよう伝えた',kankei:'宮部さんとは思ったより仲良くなれた。お互いに自分を飾らない姿勢が関わりやすいとのこと',shinpai:'心配ではないが、しがくは迷っている',mokuhyo:'27内定者全体でボイスミスゼロ',note:''},
+  {date:'2026-06-22',owner:'東田',next:'2026-07-13',kinkyo:'',kadai:'社長書籍を本日レンタル',priv:'キャリアに週2回程通っている',kankei:'バランスはいいと思う',shinpai:'宮部さんの意識が低いこと→形から入って心に至るため、ボイスのミスがない状態であれば徐々にチーム力を高めていければよいと回答',mokuhyo:'チームでのボイスジャスト回数',note:''},
+  {date:'2026-05-18',owner:'東田',next:'2026-06-01',kinkyo:'月曜日は大学が無くアースコムに入れる。火〜木は学校（残単位30単位）',kadai:'転記終了',priv:'キャリアには土日に通っている。5月末に橙帯試験',kankei:'話したことがそんなにない。レスが遅いとは思っている',shinpai:'特に無し',mokuhyo:'',note:''},
+  {date:'2026-04-27',owner:'東田',next:'2026-05-18',kinkyo:'週に1回アルバイト',kadai:'4月末に転記完了予定。課題図書は持っており5月着手予定',priv:'来月橙帯試験。3〜4月の就活等で忙しくクレジットカードが払えず親に立て替えてもらった。引っ越しも2月にあるため貯金について話をした',kankei:'笹川さんとは初対面。この後の懇親会で初めてしっかりと話す',shinpai:'特になし',mokuhyo:'',note:''}]},
+ {name:'笹川',owner:'東田',recs:[
+  {date:'2026-07-03',owner:'東田',next:'2026-08-03',kinkyo:'来月アルバイト回数7回予定',kadai:'本日から「会社脳」着手',priv:'8月は帰省をするためアルバイト回数が減るかもしれない。11/26・27の内定者研修にゼミの卒論チェックがあるが休むことは可能',kankei:'茅島さんとは少し合わない。話がかみ合わず、テンション感が違う',shinpai:'貯金、ボイスメール',mokuhyo:'7月の目標：ボイスミス・遅刻ゼロ',note:''},
+  {date:'2026-06-02',owner:'東田',next:'2026-07-03',kinkyo:'アースコムアワードは9:00から参加可能',kadai:'丸林社長の書籍①を読み始める',priv:'最近は大学（週3）とバイトで忙しい',kankei:'まだあまり話していない',shinpai:'貯金。アースコムのバイトに入ってから居酒屋のバイトまでの間に寝てしまう',mokuhyo:'',note:''},
+  {date:'2026-05-18',owner:'東田',next:'2026-06-01',kinkyo:'アルバイトは6回予定',kadai:'転記は5/19完了予定',priv:'ギャンブルが好き。友達と飲みに行く',kankei:'話したことがほとんどない',shinpai:'特に無し',mokuhyo:'',note:''}]},
+ {name:'小林',owner:'東田',recs:[
+  {date:'2026-07-08',owner:'東田',next:'2026-08-01',kinkyo:'8月は3日間くらいシフトを入れて宿舎も利用しながらアルバイトをしたい',kadai:'丸林社長書籍進行中',priv:'8月に帰省をする（お盆期間予定）。磯邊館さんはキャリアの担当が一緒だが担当ではそんなに話さない。しがくに誘われているが入会を迷っている。寮の門限や研究室があり、アースコムの内定者アルバイトに力を入れたいため、これ以上スケジュールを増やすと全部おろそかになりそうと感じている',kankei:'まだ誰がどんな性格なのかは分からない。宮部さんと波長が合うトークと合わないトークがある',shinpai:'とくにない',mokuhyo:'課題図書①完了',note:''}]},
+];
+function importMendan(){
+  if(!confirm('月次面談ドキュメントの記録を取り込みます。\n対象：27内定者（太田・茅島・宮部・磯邊館・笹川・小林）\n同じ実施日の記録は重複させません。よろしいですか？'))return;
+  const before=S.cohort;S.cohort='27';const c=cur();let added=0,newp=0;
+  MENDAN_DOC.forEach(src=>{
+    let p=c.people.find(x=>(x.name||'').replace(/\s/g,'').indexOf(src.name)===0);
+    if(!p){p=normalizePerson({id:uid('p'),name:src.name+'さん',route:'',temp:'中',tempStar:3,gradYear:'2027卒',owner:src.owner,offerDate:'',acceptDate:'',joinDate:'2027-04-01',lastContact:'',memo:'月次面談ドキュメントから自動作成'});c.people.push(p);newp++;}
+    normalizePerson(p);if(!p.owner)p.owner=src.owner;
+    src.recs.forEach(r=>{
+      if(p.mendan.some(m=>m.date===r.date))return;
+      p.mendan.push(Object.assign({},r));added++;
+    });
+    const lm=lastMendan(p);
+    if(lm&&(!p.lastContact||p.lastContact<lm.date))p.lastContact=lm.date;
+  });
+  save();S.cohort='27';document.getElementById('cohortSel').value='27';renderAll();show('p-karte');
+  alert('取り込みが完了しました。\n面談記録 '+added+'件／新規作成した内定者 '+newp+'名\n※日付は 1〜8月＝2026年、9〜12月＝2025年として取り込んでいます。');
 }
 function setKarte(id){S.karteSel=id;save();renderKarte();}
 function setStar(pid,n){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.tempStar=n;p.temp=n>=4?'高':n===3?'中':'低';save();renderKarte();renderPeople();renderDash();}
@@ -1011,7 +1079,9 @@ function ksetBool(pid,path,val){kset(pid,path,val);}
 function kadaiAdd(pid){const p=cur().people.find(x=>x.id===pid);p.kadai.push({item:'新規課題',submit:'×',evalc:''});save();renderKarte();}
 function kadaiUpd(pid,i,f,v){const p=cur().people.find(x=>x.id===pid);p.kadai[i][f]=v;save();renderKarte();renderDash();}
 function kadaiDel(pid,i){const p=cur().people.find(x=>x.id===pid);p.kadai.splice(i,1);save();renderKarte();}
-function mendanAdd(pid){const p=cur().people.find(x=>x.id===pid);p.mendan.push({date:S.baseDate,owner:'',note:''});save();renderKarte();}
+function mendanAdd(pid){const p=cur().people.find(x=>x.id===pid);p.mendan.push({date:S.baseDate,owner:'',next:'',kinkyo:'',kadai:'',priv:'',kankei:'',shinpai:'',mokuhyo:'',note:''});save();renderKarte();}
+function mfield(pid,i,f,lab,val){return `<div class="kfield"><label>${lab}</label><textarea class="in" style="min-height:52px" onchange="mendanUpd('${pid}',${i},'${f}',this.value)">${esc(val||'')}</textarea></div>`;}
+function lastMendan(p){const a=(p.mendan||[]).filter(m=>m.date).slice().sort((x,y)=>(y.date||'').localeCompare(x.date||''));return a[0]||null;}
 function mendanUpd(pid,i,f,v){const p=cur().people.find(x=>x.id===pid);p.mendan[i][f]=v;save();renderKarte();renderDash();}
 function mendanDel(pid,i){const p=cur().people.find(x=>x.id===pid);p.mendan.splice(i,1);save();renderKarte();}
 function copyHandoff(){const p=cur().people.find(x=>x.id===S.karteSel);if(!p){return;}const t=handoffText(p);navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('引継ぎカードをコピーしました。Chatwork等に貼り付けできます。'),()=>{});}
