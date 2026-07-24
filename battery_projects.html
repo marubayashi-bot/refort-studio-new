@@ -124,6 +124,7 @@ table.yr td.tot{background:var(--gold-soft);font-weight:700;color:#8a6d18}
 .s-head .sub{font-size:9px;color:#46586c;margin-top:1px}
 .s-head .R{text-align:right;font-size:8px;color:#6a7787;line-height:1.5}
 .s-spec{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0}
+.s-spec .chip small{font-size:.78em;color:#7b8794;margin-left:3px}
 .s-spec .chip{background:#f3ead0;border:1px solid #ecdcb4;border-radius:6px;padding:3px 9px;font-size:8.5px}
 .s-spec .chip b{color:#0d2340;font-weight:800;margin-left:4px}
 .s-spec .chip.nv{background:#0d2340;border-color:#0d2340;color:#fff}
@@ -313,7 +314,7 @@ function write(db){MEM=db;try{localStorage.setItem(KEY,JSON.stringify(db));}catc
 function sample(){
   const S=(...a)=>a;
   return {id:uid(),name:'サンプル：東京 216kWh案件',
-    meta:{siteNo:'0000-0',area:'東京都',kwh:216,pcs:49.5,cod:'2027-01',term:15,sysPrice:22000000,invest:22000000,disc:0.10},
+    meta:{siteNo:'0000-0',area:'東京都',blocks:1,kwh:216,pcs:49.5,cod:'2027-01',term:15,sysPrice:22000000,invest:22000000,disc:0.10},
     fixed:{insurance:120000,om:180000,balancing:60000,elec:120000,misc:120000,hatsudenRate:120},
     rows:{
       spot:S(0,0,235681,325582,345118,367576,304469,324857,270686,347466,329395,296643,308579,262980,241075),
@@ -328,6 +329,7 @@ function sample(){
 }
 let DB=read();
 if(!DB||!DB.projects||!DB.projects.length){DB={projects:[sample()],curId:null};DB.curId=DB.projects[0].id;write(DB);}
+DB.projects.forEach(p=>{if(p.meta&&(p.meta.blocks==null))p.meta.blocks=1;});
 let P=DB.projects.find(p=>p.id===DB.curId)||DB.projects[0];
 
 /* ---------- compute ---------- */
@@ -335,17 +337,20 @@ function blankArr(n){return Array.from({length:n},()=>0);}
 function fixArrays(p){const T=p.meta.term;Object.keys(p.rows).forEach(k=>{const a=p.rows[k]||[];
   if(a.length<T)while(a.length<T)a.push(k==='cap'?(a.length===0?0:240000):0);
   if(a.length>T)a.length=T;p.rows[k]=a;});}
+function nfd(v){v=+v||0;return (Math.abs(v%1)>0.004)?v.toLocaleString("ja-JP",{minimumFractionDigits:1,maximumFractionDigits:1}):Math.round(v).toLocaleString("ja-JP");}
+function blocksOf(p){const n=Math.round(+((p.meta&&p.meta.blocks))||1);return Math.min(21,Math.max(1,n||1));}
 function compute(p){
   fixArrays(p);
-  const T=p.meta.term, inv=+p.meta.invest||0, disc=+p.meta.disc||0;
+  const NB=blocksOf(p);
+  const T=p.meta.term, inv=(+p.meta.invest||0)*NB, disc=+p.meta.disc||0;
   const f=p.fixed;
-  const fixedSum=(+f.insurance||0)+(+f.om||0)+(+f.balancing||0)+(+f.elec||0)+(+f.misc||0);
-  const hatsuden=Math.round((+p.meta.pcs||0)*(+f.hatsudenRate||0)*12);
+  const fixedSum=((+f.insurance||0)+(+f.om||0)+(+f.balancing||0)+(+f.elec||0)+(+f.misc||0))*NB;
+  const hatsuden=Math.round((+p.meta.pcs||0)*(+f.hatsudenRate||0)*12)*NB;
   const r=p.rows;
   const sales=[],cost=[],op=[],netY=[],cum=[-inv];
   for(let t=0;t<T;t++){
-    const s=(+r.spot[t]||0)+(+r.fcr[t]||0)+(+r.cap[t]||0);
-    const c=(+r.charge[t]||0)+(+r.agg[t]||0)+(+r.wheel[t]||0)+(+r.levy[t]||0)+fixedSum+hatsuden;
+    const s=((+r.spot[t]||0)+(+r.fcr[t]||0)+(+r.cap[t]||0))*NB;
+    const c=((+r.charge[t]||0)+(+r.agg[t]||0)+(+r.wheel[t]||0)+(+r.levy[t]||0))*NB+fixedSum+hatsuden;
     sales.push(s);cost.push(c);op.push(s-c);netY.push(inv?(s-c)/inv:0);
     cum.push(cum[cum.length-1]+(s-c));
   }
@@ -355,8 +360,10 @@ function compute(p){
   let pb=null;for(let t=1;t<cum.length;t++){if(cum[t]>=0){pb=t;break;}}
   const irr=calcIRR([-inv,...op]);
   const npv=-inv+op.reduce((s,c,i)=>s+c/Math.pow(1+disc,i+1),0);
+  const NBk=blocksOf(p);
   return {T,inv,hatsuden,fixedSum,sales,cost,op,netY,cum,sumS,sumC,sumOp,surfaceY,netYAvg,
-    payback:pb,irr,npv,mult:inv?sumOp/inv:0};
+    payback:pb,irr,npv,mult:inv?sumOp/inv:0,
+    blocks:NBk, kwhTotal:(+p.meta.kwh||0)*NBk, pcsTotal:(+p.meta.pcs||0)*NBk};
 }
 function calcIRR(cf){let lo=-0.95,hi=3;const f=r=>cf.reduce((s,c,i)=>s+c/Math.pow(1+r,i),0);
   if(f(lo)*f(hi)>0)return null;for(let k=0;k<200;k++){const m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m;}return (lo+hi)/2;}
@@ -528,7 +535,7 @@ function renderApp(){
   const showSolar=(mode==='solar'||mode==='set')&&hasSolar;
   const showSet=(mode==='set')&&hasSolar;
   const cs=showSet?computeSet(P,c):null;
-  let h=`<div class="page-h"><h1>${esc(P.name||'(無題案件)')}</h1><span class="sub">低圧系統蓄電事業シミュレーション（年別収支）</span></div>`;
+  let h=`<div class="page-h"><h1>${esc(P.name||'(無題案件)')}</h1><span class="sub">低圧系統蓄電事業シミュレーション（年別収支）${c.blocks>1?`｜${c.blocks}区画 合算 ${nf(c.kwhTotal)}kWh / ${nfd(c.pcsTotal)}kW`:''}</span></div>`;
   h+=`<div class="mode-bar"><span class="mb-l">商品構成</span>
     <select id="modeSel">
       <option value="battery" ${mode==='battery'?'selected':''}>① 蓄電池 単体（提案シート1枚）</option>
@@ -537,13 +544,13 @@ function renderApp(){
     </select>
     <span class="mode-hint">${mode==='set'&&!hasSolar?'※太陽光Excel（概要書）をドロップするとセットが有効になります':'表示KPI・提案シートの枚数が切り替わります'}</span></div>`;
   if(showBatt){
-    if(mode==='set')h+=`<div class="sec-title">① 系統蓄電池</div>`;
+    if(mode==='set')h+=`<div class="sec-title">① 系統蓄電池${c.blocks>1?`（${c.blocks}区画 合算）`:''}</div>`;
     h+=`<div class="kpis batt-kpis">
       ${kpi('表面利回り',pct(c.surfaceY),'年平均売上÷投資',1)}
       ${kpi('ネット利回り',pct(c.netYAvg),'年平均営業利益÷投資',1)}
       ${kpi('IRR（内部収益率）',c.irr!=null?pct(c.irr):'—','期間'+c.T+'年',0)}
       ${kpi('投資回収年数',c.payback!=null?c.payback+'年':'—','累積CFがプラス転換',1)}
-      ${kpi('設備投資額',yen(c.inv),'税抜')}
+      ${kpi('設備投資額',yen(c.inv),c.blocks>1?('税抜／'+nf(P.meta.invest)+'円×'+c.blocks+'区画'):'税抜')}
       ${kpi('営業利益（'+c.T+'年計）',yen(c.sumOp),'売上'+nf(c.sumS)+'−費用'+nf(c.sumC))}
       ${kpi('NPV（割引率'+pct(m.disc,0)+'）',mil(c.npv),'正味現在価値')}
       ${kpi('投資倍率',pct(c.mult,0),'営業利益÷設備投資')}
@@ -590,12 +597,13 @@ function renderApp(){
         <input data-p="sheetUrl" type="url" value="${esc(P.sheetUrl||'')}" placeholder="スプレッドシートのURLを貼付">
         <button type="button" class="sync-btn open" id="bOpenSheetUrl">🔗 開く</button></div></div>
       <div class="sub-h">設備・投資</div>
-      ${fldM('kwh','蓄電池容量','num','kWh',m.kwh)}
-      ${fldM('pcs','パワコン出力','num','kW',m.pcs)}
+      ${fldM('blocks','区画数','sel21','区画',m.blocks||1)}
+      ${fldM('kwh','蓄電池容量','num','kWh／1区画',m.kwh)}
+      ${fldM('pcs','パワコン出力','num','kW／1区画',m.pcs)}
       ${fldM('cod','COD（運開）','month','',m.cod)}
       ${fldM('term','期間','num','年',m.term)}
-      ${fldM('sysPrice','システム価格','num','円(税抜)',m.sysPrice)}
-      ${fldM('invest','純投資額計','num','円(税抜)',m.invest)}
+      ${fldM('sysPrice','システム価格','num','円(税抜)／1区画',m.sysPrice)}
+      ${fldM('invest','純投資額','num','円(税抜)／1区画',m.invest)}
       ${fldM('disc','NPV割引率','num','（例 0.10）',m.disc)}
     </div></div>
     <div class="card"><div class="hd"><span class="gi">▸</span> 年間固定費・前提</div><div class="card-b">
@@ -667,7 +675,10 @@ function renderApp(){
 }
 function kpi(l,v,s,hl){return `<div class="kpi ${hl?'hl':''}"><div class="l">${l}</div><div class="v num">${v}</div><div class="s">${s||''}</div></div>`;}
 function fld(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-p="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
-function fldM(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-m="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
+function fldM(k,l,t,u,v){
+  if(t==='sel21'){let o='';for(let i=1;i<=21;i++)o+=`<option value="${i}"${(+v||1)===i?' selected':''}>${i}</option>`;
+    return `<div class="fld"><label>${l}</label><div class="ctrl"><select data-m="${k}" class="l blocks-sel">${o}</select></div><span class="u">${u||''}</span></div>`;}
+  return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-m="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 function fldF(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-f="${k}" type="text" class="num" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 function fldS(k,l,t,u,v){return `<div class="fld"><label>${l}</label><div class="ctrl"><input data-s="${k}" type="${t==='num'?'text':t}" class="${t==='num'?'num':'l'}" value="${esc(v)}"></div><span class="u">${u||''}</span></div>`;}
 
@@ -706,9 +717,13 @@ function gridHTML(c){
 function wireApp(){
   $('#bPaste').onclick=()=>{$('#pasteArea').value='';$('#pasteModal').classList.add('show');};
   $$('[data-p]').forEach(i=>i.oninput=e=>{P[i.dataset.p]=e.target.value;saveP();renderProjSel();});
-  $$('[data-m]').forEach(i=>i.oninput=e=>{const k=i.dataset.m;
-    P.meta[k]=(i.type==='month')?e.target.value:(['siteNo','area','cod'].includes(k)?e.target.value:numv(e.target.value));
-    if(k==='term'){saveP();renderApp();return;} liveCalc();saveP();});
+  $$('[data-m]').forEach(i=>{
+    const isSel=(i.tagName==='SELECT');
+    const h=e=>{const k=i.dataset.m;
+      P.meta[k]=(i.type==='month')?e.target.value:(['siteNo','area','cod'].includes(k)?e.target.value:numv(e.target.value));
+      if(k==='term'||k==='blocks'){saveP();renderApp();return;} liveCalc();saveP();};
+    if(isSel)i.onchange=h; else i.oninput=h;
+  });
   $$('[data-f]').forEach(i=>i.oninput=e=>{P.fixed[i.dataset.f]=numv(e.target.value);liveCalc();saveP();});
   ensureSolar(P);
   const modeEl=$('#modeSel'); if(modeEl)modeEl.onchange=e=>{P.mode=e.target.value;saveP();renderApp();};
@@ -957,18 +972,20 @@ function buildSheet(){
     <div class="s-kpi"><div class="l">NPV（${pct(m.disc,0)}）</div><div class="v">${mil(c.npv)}</div></div>
     <div class="s-kpi nv"><div class="l">投資倍率</div><div class="v">${pct(c.mult,0)}</div></div>
   </div>`;
+  const NB=c.blocks;
   const spec=`<div class="s-spec">
-    <span class="chip">蓄電池容量<b>${nf(m.kwh)} kWh</b></span>
-    <span class="chip">パワコン出力<b>${m.pcs} kW</b></span>
+    ${NB>1?`<span class="chip">区画数<b>${NB} 区画</b></span>`:''}
+    <span class="chip">蓄電池容量<b>${nf(c.kwhTotal)} kWh</b>${NB>1?`<small>（${nf(m.kwh)}×${NB}）</small>`:''}</span>
+    <span class="chip">パワコン出力<b>${nfd(c.pcsTotal)} kW</b>${NB>1?`<small>（${m.pcs}×${NB}）</small>`:''}</span>
     <span class="chip">設置場所<b>${esc(m.area)}</b></span>
     <span class="chip">COD<b>${codJ(m.cod)}</b></span>
     <span class="chip">期間<b>${m.term} 年</b></span>
-    <span class="chip nv">システム価格<b>${nf(m.sysPrice)} 円</b></span>
-    <span class="chip nv">純投資額計<b>${nf(m.invest)} 円</b></span>
+    <span class="chip nv">システム価格<b>${nf(m.sysPrice*NB)} 円</b></span>
+    <span class="chip nv">純投資額計<b>${nf(c.inv)} 円</b></span>
   </div>`;
   const head1=`<div class="s-head"><div class="L"><div class="mk">①</div>
     <div><div class="ttl">① 低圧系統蓄電事業シミュレーション（年別収支）</div>
-    <div class="sub">蓄電所 ${esc(m.siteNo)} ｜ ${esc(m.area)} ｜ 蓄電池容量 ${nf(m.kwh)} kWh</div></div></div>
+    <div class="sub">蓄電所 ${esc(m.siteNo)} ｜ ${esc(m.area)} ｜ 蓄電池容量 ${nf(c.kwhTotal)} kWh${NB>1?`（${NB}区画 合算）`:''}</div></div></div>
     <div class="R">株式会社アースコム<br>作成日：${new Date().toLocaleDateString('ja-JP')}<br>${esc(P.name||'')}</div></div>`;
   const foot=`<div class="s-foot">${esc(P.note||'')}<br><b>ご留意事項：</b>本資料は市場前提に基づく試算値であり、記載の収益・利回り等を保証するものではありません。需給調整市場・スポット市場の価格、約定率、制度は変動します。最終的なご判断は専門家にご確認ください。　株式会社アースコム</div>`;
   const page1=`<div class="sheet">${head1}${spec}${kpis}${mkt}${pl}${cf}${foot}</div>`;
