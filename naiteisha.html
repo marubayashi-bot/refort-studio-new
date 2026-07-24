@@ -202,7 +202,7 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
   <section class="page" id="p-people">
     <h2 class="title">内定者一覧</h2>
     <p class="lead">基本情報・志望温度・最終接触日を管理。参加率／課題完了率／辞退リスクは自動計算されます。</p>
-    <div class="row" style="margin-bottom:12px"><button class="btn gold" onclick="addPerson()">＋ 内定者を追加</button><span class="muted small right" id="peopleCount"></span></div>
+    <div class="row" style="margin-bottom:12px"><button class="btn gold" onclick="addPerson()">＋ 内定者を追加</button><button class="btn ghost" onclick="moveAllPeople()" id="moveAllBtn">全員をもう一方の対象期へ移動</button><span class="muted small right" id="peopleCount"></span></div>
     <div class="card" style="padding:0;overflow:auto"><table id="peopleTbl"></table></div>
   </section>
 
@@ -576,8 +576,9 @@ function donut(d,w,o){const tot=d+w+o||1;const seg=[['危険',d,'#d23b3b'],['注
 function renderPeople(){
   const ppl=cur().people;
   document.getElementById('peopleCount').textContent=`${S.cohort}内定者 / ${ppl.length}名`;
+  const mb=document.getElementById('moveAllBtn');if(mb)mb.textContent=`全員を${otherCohort()}内定者へ移動`;
   const t=document.getElementById('peopleTbl');
-  t.innerHTML=`<thead><tr><th>氏名</th><th>経路</th><th>志望温度</th><th>内定日</th><th>承諾日</th><th>最終接触</th><th>参加率</th><th>課題</th><th>リスク</th><th>メモ</th><th></th></tr></thead><tbody>`+
+  t.innerHTML=`<thead><tr><th>氏名</th><th>経路</th><th>志望温度</th><th>内定日</th><th>承諾日</th><th>最終接触</th><th>参加率</th><th>課題</th><th>リスク</th><th>メモ</th><th>対象期</th><th></th></tr></thead><tbody>`+
   ppl.map(p=>{const r=riskScore(p);return `<tr>
     <td><input class="in" value="${esc(p.name)}" onchange="upd('people','${p.id}','name',this.value)"></td>
     <td><input class="in" value="${esc(p.route||'')}" style="width:110px" onchange="upd('people','${p.id}','route',this.value)"></td>
@@ -588,6 +589,7 @@ function renderPeople(){
     <td>${pct(partRate(p.id))}</td><td>${pct(taskRate(p.id))}</td>
     <td><span class="pill ${lvClass(r.lv)}">${r.lv} ${r.score}</span></td>
     <td><input class="in" value="${esc(p.memo||'')}" style="width:130px" onchange="upd('people','${p.id}','memo',this.value)"></td>
+    <td><button class="btn ghost sm" onclick="movePerson('${p.id}')">${otherCohort()}へ移動</button></td>
     <td><button class="btn ghost sm" onclick="del('people','${p.id}')">削除</button></td></tr>`;}).join('')+`</tbody>`;
 }
 function renderEvents(){
@@ -1072,6 +1074,54 @@ function importMendan(){
   alert('取り込みが完了しました。\n面談記録 '+added+'件／新規作成した内定者 '+newp+'名\n※日付は 1〜8月＝2026年、9〜12月＝2025年として取り込んでいます。');
 }
 function setKarte(id){S.karteSel=id;save();renderKarte();}
+/* ---- 対象期（コホート）の移動：面談履歴・課題・イベント参加記録ごと移す ---- */
+function otherCohort(){return S.cohort==='28'?'27':'28';}
+function movePersonTo(pid,to){
+  const from=S.cohort;if(to===from)return false;
+  const src=S.cohorts[from],dst=S.cohorts[to];
+  const idx=src.people.findIndex(x=>x.id===pid);if(idx<0)return false;
+  const person=src.people[idx];
+  /* イベント参加記録 */
+  src.events.forEach(e=>{
+    if(!e.att||e.att[pid]===undefined)return;
+    let de=dst.events.find(x=>x.name===e.name&&x.type===e.type);
+    if(!de){de={id:uid('e'),type:e.type,name:e.name,date:e.date||'',att:{}};
+      if(e.recurring){de.recurring=true;de.sessions=(e.sessions||[]).map(s=>({id:s.id,date:s.date}));}
+      dst.events.push(de);}
+    else if(e.recurring&&!de.recurring){de.recurring=true;de.sessions=(e.sessions||[]).map(s=>({id:s.id,date:s.date}));}
+    else if(e.recurring&&de.recurring){(e.sessions||[]).forEach(s=>{if(!de.sessions.some(x=>x.id===s.id))de.sessions.push({id:s.id,date:s.date});});}
+    de.att=de.att||{};
+    const v=e.att[pid];de.att[pid]=(v&&typeof v==='object')?Object.assign({},v):v;
+    delete e.att[pid];
+  });
+  /* 課題 */
+  src.tasks.forEach(t=>{
+    const has=(t.st&&t.st[pid]!==undefined)||(t.done&&t.done[pid]!==undefined)||(t.dueBy&&t.dueBy[pid]!==undefined);
+    if(!has)return;
+    let dt=dst.tasks.find(x=>x.name===t.name);
+    if(!dt){dt={id:uid('t'),name:t.name,due:t.due||'',dueBy:{},st:{},done:{}};dst.tasks.push(dt);}
+    dt.st=dt.st||{};dt.done=dt.done||{};dt.dueBy=dt.dueBy||{};
+    if(t.st&&t.st[pid]!==undefined){dt.st[pid]=t.st[pid];delete t.st[pid];}
+    if(t.done&&t.done[pid]!==undefined){dt.done[pid]=t.done[pid];delete t.done[pid];}
+    if(t.dueBy&&t.dueBy[pid]!==undefined){dt.dueBy[pid]=t.dueBy[pid];delete t.dueBy[pid];}
+  });
+  /* 本人（カルテ・面談履歴・人物像評価などは person 内に入っているので一緒に移動） */
+  src.people.splice(idx,1);dst.people.push(person);
+  return true;
+}
+function movePerson(pid){
+  const to=otherCohort();const p=cur().people.find(x=>x.id===pid);if(!p)return;
+  if(!confirm(p.name+' さんを「'+to+'内定者」へ移動します。\n面談履歴・内定者課題・イベント参加記録も一緒に移動します。\nよろしいですか？'))return;
+  if(movePersonTo(pid,to)){if(S.karteSel===pid)S.karteSel=null;save();renderAll();alert(p.name+' さんを '+to+'内定者 へ移動しました。\n対象期を「'+to+'内定者」に切り替えると確認できます。');}
+}
+function moveAllPeople(){
+  const to=otherCohort();const ppl=cur().people.slice();
+  if(!ppl.length){alert('移動できる内定者がいません。');return;}
+  if(!confirm('現在の「'+S.cohort+'内定者」に登録されている '+ppl.length+'名 全員を「'+to+'内定者」へ移動します。\n\n対象：'+ppl.map(p=>p.name).join('、')+'\n\n面談履歴・課題・イベント参加記録も一緒に移動します。よろしいですか？'))return;
+  let n=0;ppl.forEach(p=>{if(movePersonTo(p.id,to))n++;});
+  S.karteSel=null;save();renderAll();
+  alert(n+'名を '+to+'内定者 へ移動しました。\n対象期を「'+to+'内定者」に切り替えて確認してください。');
+}
 function setStar(pid,n){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.tempStar=n;p.temp=n>=4?'高':n===3?'中':'低';save();renderKarte();renderPeople();renderDash();}
 function kset(pid,path,val){const p=cur().people.find(x=>x.id===pid);if(!p)return;const a=path.split('.');let o=p;for(let i=0;i<a.length-1;i++){o[a[i]]=o[a[i]]||{};o=o[a[i]];}o[a[a.length-1]]=val;save();renderKarte();renderDash();renderPeople();}
 function ksetNum(pid,path,val){kset(pid,path,val===''?0:(+val));}
