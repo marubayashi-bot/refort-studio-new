@@ -149,6 +149,8 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
 .map-legend .lg-dot{width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
 .map-pop{font-size:12.5px;line-height:1.6;min-width:190px}
 .map-pop .mp-name{font-weight:800;color:var(--navy);font-size:13px}
+.map-pop .mp-tag{display:inline-block;font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:#eef2f8;color:var(--navy);margin-bottom:4px}
+.map-pop .mp-tag.owner{background:#c9a14a;color:#fff}
 .map-pop .mp-sub{color:var(--sub);font-size:11.5px;margin:2px 0 6px}
 .map-pop .mp-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #eef2f8;padding:2px 0}
 .map-pop .mp-open{display:inline-block;margin-top:8px;background:var(--navy);color:#fff;padding:6px 12px;border-radius:7px;font-weight:700;cursor:pointer;text-align:center;width:100%}
@@ -410,6 +412,7 @@ table.grid tr:hover td{background:#f8fafd}
     <div class="filters no-print">
       <button class="btn ghost" id="geoLocate">📍 現在地を取得</button>
       <div class="fld"><label>半径</label><select id="mapRadius"><option value="0">指定なし（全件）</option><option value="10">10 km</option><option value="20">20 km</option><option value="30">30 km</option><option value="40">40 km</option><option value="50">50 km</option></select></div>
+      <div class="fld"><label>地図に表示</label><select id="mapBasis"><option value="site">発電所の所在地</option><option value="owner">オーナー住所</option><option value="both">両方（発電所＋オーナー）</option></select></div>
       <div class="fld"><label>ピンの色分け</label><select id="mapColor"><option value="score">優先度スコア</option><option value="status">ステータス</option><option value="price">FIT単価</option></select></div>
       <div class="fld"><label>FIT単価 下限</label><input type="number" id="mapPriceMin" placeholder="例:30" min="0" step="1" style="min-width:80px"></div>
       <div class="right">
@@ -498,6 +501,7 @@ const SB_KEY="sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
 const DEFAULT_MEMBERS=["丸林","大澤","奥田","狐塚","増田"];
 let sb=null, currentUser="";
 let geoCache={}, geocoding=false, map=null, markerLayer=null, radiusCircle=null, myMarker=null, myLatLng=null, mapInited=false;
+let geoOwner={}; // オーナー住所の座標キャッシュ（オーナー名→{lat,lng}）
 let store={},members=[...DEFAULT_MEMBERS],gov={};
 const getA=no=>store[no]||{};
 
@@ -515,6 +519,7 @@ async function loadCloud(){
       if(r.key==='members'&&Array.isArray(r.value))members=r.value;
       if(r.key==='gset'&&r.value&&typeof r.value==='object')gov=r.value;
       if(r.key==='geo'&&r.value&&typeof r.value==='object'&&!geocoding)geoCache=r.value;
+      if(r.key==='geo_owner'&&r.value&&typeof r.value==='object'&&!geocoding)geoOwner=r.value;
     });
   }catch(e){toast('クラウド読込に失敗しました（通信をご確認ください）');}
 }
@@ -993,16 +998,19 @@ function pinColor(r,mode){
   if(mode==='price'){ const p=r.price||0; if(p>=30)return '#1f9d6b'; if(p>=18)return '#d9962b'; return '#2f6fd2'; }
   const s=r.score||0; if(s>=300)return '#d24b4b'; if(s>=150)return '#d9962b'; return '#0f2547';
 }
-function renderLegend(mode){
+function renderLegend(mode,basis){
   const sets={
     score:[['#d24b4b','高（300+）'],['#d9962b','中（150-299）'],['#0f2547','低（0-149）']],
     status:[['#1f9d6b','受注'],['#d9962b','商談中・活動中'],['#d24b4b','失注'],['#5b6678','未着手ほか']],
     price:[['#1f9d6b','30円以上'],['#d9962b','18-29円'],['#2f6fd2','17円以下']]
   };
-  const items=sets[mode]||sets.score;
-  document.getElementById('mapLegend').innerHTML='<span style="font-weight:800;color:var(--navy)">凡例：</span>'+
-    items.map(([c,l])=>`<span class="lg-item"><span class="lg-dot" style="background:${c}"></span>${l}</span>`).join('')+
-    (myLatLng?'<span class="lg-item"><span class="lg-dot" style="background:#2f6fd2;width:15px;height:15px"></span>現在地</span>':'');
+  let html='';
+  if(basis!=='owner'){ const items=sets[mode]||sets.score;
+    html+='<span style="font-weight:800;color:var(--navy)">発電所：</span>'+items.map(([c,l])=>`<span class="lg-item"><span class="lg-dot" style="background:${c}"></span>${l}</span>`).join(''); }
+  if(basis==='owner'||basis==='both'){
+    html+='<span class="lg-item" style="margin-left:8px"><span class="lg-dot" style="background:#c9a14a;border-color:#0f2547;width:15px;height:15px"></span><b>オーナー住所</b></span>'; }
+  if(myLatLng) html+='<span class="lg-item"><span class="lg-dot" style="background:#2f6fd2;width:15px;height:15px"></span>現在地</span>';
+  document.getElementById('mapLegend').innerHTML=html;
 }
 function openMapTab(){
   if(!window.L){ document.getElementById('mapStatus').textContent='地図ライブラリを読み込めませんでした（通信をご確認ください）'; return; }
@@ -1016,47 +1024,84 @@ function openMapTab(){
   plotPins(true);
 }
 window.openProposalFromMap=function(no){ document.querySelector('.tab[data-view="proposal"]').click(); showProposal(no); };
+window.openOwnerFromMap=function(i){ const owner=(window._mapOwnerNames||[])[i]; if(owner==null)return;
+  document.querySelector('.tab[data-view="pipeline"]').click();
+  document.getElementById('chkOwnerAgg').checked=false; document.getElementById('pSearch').value=owner; activeStatusFilter=false; page=1; renderPipeline(); scrollToTable(); };
 function plotPins(fit){
   if(!map)return;
   const mode=document.getElementById('mapColor').value;
+  const basis=document.getElementById('mapBasis').value;
   const radius=parseFloat(document.getElementById('mapRadius').value)||0;
   const pmin=parseFloat(document.getElementById('mapPriceMin').value);
-  renderLegend(mode);
+  renderLegend(mode,basis);
   markerLayer.clearLayers();
   if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null;}
   if(myMarker){map.removeLayer(myMarker);myMarker=null;}
   const all=enrich();
-  let shown=0, geocoded=0, inRadius=0;
+  const inRad=(lat,lng)=>!(myLatLng&&radius>0)|| (haversine(myLatLng[0],myLatLng[1],lat,lng)<=radius);
   const bounds=[];
-  all.forEach(r=>{
-    const g=geoCache[r.no]; if(!g||g.lat==null)return; geocoded++;
-    if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return;
-    if(myLatLng&&radius>0){ const d=haversine(myLatLng[0],myLatLng[1],g.lat,g.lng); if(d>radius)return; inRadius++; }
-    const color=pinColor(r,mode);
-    const mk=L.circleMarker([g.lat,g.lng],{radius:6,color:'#fff',weight:1.5,fillColor:color,fillOpacity:.9});
-    const recTxt=r.recover==null?'–':(r.recover?'○ 回収可':'× 不可');
-    mk.bindPopup(`<div class="map-pop"><div class="mp-name">No.${r.no}　${esc(r.name)}</div>
-      <div class="mp-sub">${esc(r.owner)}<br>${esc(r.siteAddr)}</div>
-      <div class="mp-row"><span>残FIT</span><b>${r.remFit!=null?r.remFit.toFixed(1):'–'}年</b></div>
-      <div class="mp-row"><span>買取単価</span><b>${r.price??'–'}円</b></div>
-      <div class="mp-row"><span>年間改善</span><b>${r.annUp!=null?man(r.annUp)+'万円':'–'}</b></div>
-      <div class="mp-row"><span>優先度 / 回収</span><b>${Math.round(r.score)} / ${recTxt}</b></div>
-      <div class="mp-row"><span>ステータス / 担当</span><b>${esc(r.status)}${r.assignee?' / '+esc(r.assignee):''}</b></div>
-      <div class="mp-open" onclick="openProposalFromMap(${r.no})">この案件を開く ›</div></div>`);
-    markerLayer.addLayer(mk); shown++; bounds.push([g.lat,g.lng]);
-  });
+  let siteShown=0, ownerShown=0, siteGeo=0, ownerGeo=0;
+
+  // 発電所ピン
+  if(basis==='site'||basis==='both'){
+    all.forEach(r=>{
+      const g=geoCache[r.no]; if(!g||g.lat==null)return; siteGeo++;
+      if(!isNaN(pmin)&&!(r.price!=null&&r.price>=pmin))return;
+      if(!inRad(g.lat,g.lng))return;
+      const color=pinColor(r,mode);
+      const mk=L.circleMarker([g.lat,g.lng],{radius:6,color:'#fff',weight:1.5,fillColor:color,fillOpacity:.9});
+      const recTxt=r.recover==null?'–':(r.recover?'○ 回収可':'× 不可');
+      mk.bindPopup(`<div class="map-pop"><div class="mp-tag">発電所</div><div class="mp-name">No.${r.no}　${esc(r.name)}</div>
+        <div class="mp-sub">${esc(r.owner)}<br>${esc(r.siteAddr)}</div>
+        <div class="mp-row"><span>残FIT</span><b>${r.remFit!=null?r.remFit.toFixed(1):'–'}年</b></div>
+        <div class="mp-row"><span>買取単価</span><b>${r.price??'–'}円</b></div>
+        <div class="mp-row"><span>年間改善</span><b>${r.annUp!=null?man(r.annUp)+'万円':'–'}</b></div>
+        <div class="mp-row"><span>優先度 / 回収</span><b>${Math.round(r.score)} / ${recTxt}</b></div>
+        <div class="mp-row"><span>ステータス / 担当</span><b>${esc(r.status)}${r.assignee?' / '+esc(r.assignee):''}</b></div>
+        <div class="mp-open" onclick="openProposalFromMap(${r.no})">この案件を開く ›</div></div>`);
+      markerLayer.addLayer(mk); siteShown++; bounds.push([g.lat,g.lng]);
+    });
+  }
+  // オーナー住所ピン（オーナー単位で集約）
+  if(basis==='owner'||basis==='both'){
+    window._mapOwnerNames=[];
+    const om={};
+    all.forEach(r=>{ const o=r.owner; if(!o)return; const g=geoOwner[o]; if(!g||g.lat==null)return;
+      const e=om[o]||(om[o]={owner:o,lat:g.lat,lng:g.lng,hold:0,cum:0,as:new Set(),addr:r.ownerAddr,maxPrice:0,won:0});
+      e.hold=Math.max(e.hold,r.ownerCnt||0); e.cum+=r.cumUp||0; if(r.assignee)e.as.add(r.assignee);
+      e.maxPrice=Math.max(e.maxPrice,r.price||0); if(r.wonAmount!=null)e.won++; });
+    Object.values(om).forEach(e=>{ ownerGeo++;
+      if(!isNaN(pmin)&&!(e.maxPrice>=pmin))return;
+      if(!inRad(e.lat,e.lng))return;
+      const oi=window._mapOwnerNames.push(e.owner)-1;
+      const mk=L.circleMarker([e.lat,e.lng],{radius:8,color:'#0f2547',weight:2,fillColor:'#c9a14a',fillOpacity:.95});
+      mk.bindPopup(`<div class="map-pop"><div class="mp-tag owner">オーナー</div><div class="mp-name">${esc(e.owner)}</div>
+        <div class="mp-sub">${esc(e.addr||'')}</div>
+        <div class="mp-row"><span>保有件数</span><b>${e.hold} 件</b></div>
+        <div class="mp-row"><span>残FIT改善累計</span><b>${man(e.cum)}万円</b></div>
+        <div class="mp-row"><span>受注</span><b>${e.won} 件</b></div>
+        <div class="mp-row"><span>担当</span><b>${[...e.as].join('・')||'—'}</b></div>
+        <div class="mp-open" onclick="openOwnerFromMap(${oi})">この物件一覧を見る ›</div></div>`);
+      markerLayer.addLayer(mk); ownerShown++; bounds.push([e.lat,e.lng]);
+    });
+  }
+
   if(myLatLng){
     myMarker=L.circleMarker(myLatLng,{radius:9,color:'#fff',weight:2,fillColor:'#2f6fd2',fillOpacity:1}).addTo(map).bindPopup('現在地');
     if(radius>0){ radiusCircle=L.circle(myLatLng,{radius:radius*1000,color:'#2f6fd2',weight:1.5,fillColor:'#2f6fd2',fillOpacity:.06}).addTo(map);
       map.fitBounds(radiusCircle.getBounds(),{padding:[20,20]}); }
   } else if(fit&&bounds.length){ map.fitBounds(bounds,{padding:[30,30],maxZoom:12}); }
-  const total=ROWS.length, missing=total-geocoded;
-  let msg=`表示 ${shown} 件 / 位置取得済 ${geocoded} 件`;
-  if(myLatLng&&radius>0) msg=`半径${radius}km内 ${inRadius} 件（表示 ${shown}件）`;
-  if(missing>0) msg+=` ｜ 未取得 ${missing} 件`;
+
+  const parts=[];
+  if(basis==='site'||basis==='both') parts.push(`発電所 ${siteShown}件`);
+  if(basis==='owner'||basis==='both') parts.push(`オーナー ${ownerShown}名`);
+  let msg=parts.join(' / ');
+  if(myLatLng&&radius>0) msg=`半径${radius}km内　`+msg;
+  const siteMiss=ROWS.length-siteGeo;
+  if((basis==='site'||basis==='both')&&siteMiss>0) msg+=` ｜ 発電所 未取得 ${siteMiss}件`;
   document.getElementById('mapStatus').textContent=msg;
 }
-['mapColor','mapRadius','mapPriceMin'].forEach(id=>document.getElementById(id).addEventListener('input',()=>plotPins(false)));
+['mapColor','mapRadius','mapPriceMin','mapBasis'].forEach(id=>document.getElementById(id).addEventListener('input',()=>plotPins(false)));
 document.getElementById('geoLocate').onclick=()=>{
   if(!navigator.geolocation){toast('この端末では現在地を取得できません');return;}
   document.getElementById('mapStatus').textContent='現在地を取得中…';
@@ -1079,23 +1124,29 @@ async function geocodeAddr(addr){
 }
 document.getElementById('geoFetch').onclick=async()=>{
   if(geocoding)return;
-  const missing=ROWS.filter(r=>r.siteAddr&&(!geoCache[r.no]||geoCache[r.no].lat==null));
-  if(!missing.length){toast('全案件の位置を取得済みです');return;}
-  if(!confirm(`未取得の ${missing.length} 件の位置を住所から取得します。数分かかる場合があります。開始しますか？`))return;
+  const siteMissing=ROWS.filter(r=>r.siteAddr&&(!geoCache[r.no]||geoCache[r.no].lat==null));
+  const ownerAddrMap={}; ROWS.forEach(r=>{ if(r.owner&&r.ownerAddr&&!ownerAddrMap[r.owner]) ownerAddrMap[r.owner]=r.ownerAddr; });
+  const ownerMissing=Object.keys(ownerAddrMap).filter(o=>!geoOwner[o]||geoOwner[o].lat==null);
+  const total=siteMissing.length+ownerMissing.length;
+  if(!total){toast('発電所・オーナー住所とも位置を取得済みです');return;}
+  if(!confirm(`未取得の位置（発電所 ${siteMissing.length}件・オーナー ${ownerMissing.length}名）を住所から取得します。数分かかる場合があります。開始しますか？`))return;
   geocoding=true; const btn=document.getElementById('geoFetch'); btn.disabled=true;
   let done=0,ok=0;
-  for(const r of missing){
-    const g=await geocodeAddr(r.siteAddr);
-    if(g){ geoCache[r.no]=g; ok++; }
-    else { geoCache[r.no]={lat:null,lng:null}; } // 失敗も記録して再取得を避ける
-    done++;
-    if(done%15===0){ document.getElementById('mapStatus').textContent=`位置取得中… ${done}/${missing.length}（成功 ${ok}）`;
-      await cloudUpsertConfig('geo',geoCache); plotPins(false); }
+  const prog=()=>{document.getElementById('mapStatus').textContent=`位置取得中… ${done}/${total}（成功 ${ok}）`;};
+  for(const r of siteMissing){
+    const g=await geocodeAddr(r.siteAddr); if(g){geoCache[r.no]=g;ok++;}else{geoCache[r.no]={lat:null,lng:null};}
+    done++; if(done%15===0){prog();await cloudUpsertConfig('geo',geoCache);plotPins(false);}
     await new Promise(z=>setTimeout(z,120));
   }
   await cloudUpsertConfig('geo',geoCache);
+  for(const o of ownerMissing){
+    const g=await geocodeAddr(ownerAddrMap[o]); if(g){geoOwner[o]=g;ok++;}else{geoOwner[o]={lat:null,lng:null};}
+    done++; if(done%15===0){prog();await cloudUpsertConfig('geo_owner',geoOwner);plotPins(false);}
+    await new Promise(z=>setTimeout(z,120));
+  }
+  await cloudUpsertConfig('geo_owner',geoOwner);
   geocoding=false; btn.disabled=false; plotPins(true);
-  toast(`位置取得が完了しました（成功 ${ok} / ${missing.length} 件）`);
+  toast(`位置取得が完了しました（成功 ${ok} / ${total}）`);
 };
 
 
