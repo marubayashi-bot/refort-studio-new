@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EARTHCOM 社内アプリ盤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16202B; --ink-2:#22303E; --paper:#EDF1F3; --card:#FFFFFF;
+  --amber:#E8A317; --teal:#1F6F6B; --rust:#A8452F; --violet:#7A5AA8;
+  --line:#C9D2D8; --muted:#65767F; --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Noto Sans JP",system-ui,sans-serif;background:var(--paper);color:var(--ink);
+  font-size:14px;line-height:1.7;padding-bottom:64px}
+.mono{font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:"Zen Kaku Gothic New",sans-serif}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+.rack{background:var(--ink);color:#fff;position:sticky;top:0;z-index:40}
+.rack-top{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand .mark{font-family:"Roboto Mono",monospace;font-weight:700;font-size:11px;letter-spacing:.18em;
+  color:var(--ink);background:var(--amber);padding:3px 7px;border-radius:2px}
+.brand h1{font-size:19px;font-weight:900;letter-spacing:.04em}
+.brand .sub{font-size:11px;color:#93A5AF;letter-spacing:.08em}
+.rack-nav{margin-left:auto;display:flex;gap:4px;background:rgba(255,255,255,.07);padding:4px;border-radius:4px}
+.rack-nav button{padding:7px 16px;border-radius:3px;font-size:13px;font-weight:700;color:#B7C6CE;transition:.15s;position:relative}
+.rack-nav button[aria-selected="true"]{background:var(--paper);color:var(--ink)}
+.pip{display:inline-block;min-width:17px;height:17px;line-height:17px;border-radius:100px;background:var(--rust);
+  color:#fff;font-size:10px;font-family:"Roboto Mono",monospace;text-align:center;margin-left:5px;padding:0 4px}
+.whoami,.lockbtn{display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:4px;
+  font-size:12.5px;font-weight:700;color:#B7C6CE;border:1px solid rgba(255,255,255,.18);transition:.15s}
+.whoami:hover,.lockbtn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+.lockbtn.open{color:var(--ink);background:var(--amber);border-color:var(--amber)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+.strip{background:var(--ink-2);border-top:1px solid rgba(255,255,255,.08)}
+.strip-in{max-width:1240px;margin:0 auto;padding:16px 20px 20px;display:grid;grid-template-columns:1fr auto;gap:20px 32px;align-items:end}
+.gauge-label{font-size:11px;letter-spacing:.12em;color:#93A5AF;margin-bottom:6px}
+.gauge-val{display:flex;align-items:baseline;gap:8px;color:#fff}
+.gauge-val .n{font-family:"Roboto Mono",monospace;font-size:32px;font-weight:700;letter-spacing:-.02em}
+.gauge-val .u{font-size:12px;color:#93A5AF}
+.gauge-bar{margin-top:10px;height:14px;background:#0E1720;border-radius:2px;overflow:hidden}
+.gauge-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--amber));transition:width .6s cubic-bezier(.2,.7,.3,1)}
+.gauge-ticks{display:flex;justify-content:space-between;margin-top:5px;font-family:"Roboto Mono",monospace;font-size:10px;color:#6D808C}
+.readouts{display:flex;gap:26px}
+.readout{text-align:right}
+.readout .k{font-size:10px;letter-spacing:.1em;color:#93A5AF}
+.readout .v{font-family:"Roboto Mono",monospace;font-size:20px;font-weight:700;color:#fff}
+.readout .v.hl{color:var(--amber);font-size:15px;font-family:"Noto Sans JP";max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px}
+.panel-hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.panel-hd h2{font-size:14px;font-weight:700;letter-spacing:.04em}
+.panel-hd .note{font-size:11.5px;color:var(--muted);font-weight:400}
+.panel-bd{padding:16px}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--radius);padding:9px 12px}
+.search input{border:none;outline:none;width:100%;background:none}
+.search svg{flex:none;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 13px;border:1px solid var(--line);background:var(--card);border-radius:100px;
+  font-size:12px;font-weight:500;color:var(--muted);transition:.15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.appcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;
+  display:flex;flex-direction:column;gap:11px;position:relative;transition:.15s}
+.appcard:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 6px 18px rgba(22,32,43,.08)}
+.appcard.off{opacity:.62}
+.appcard.ltd{border-color:#B4A3D0;background:linear-gradient(180deg,#FBFAFE,#fff)}
+.appcard.fresh{border-color:var(--amber)}
+.ac-top{display:flex;gap:12px;align-items:flex-start}
+.tape{flex:none;width:46px;height:46px;border-radius:3px;display:grid;place-items:center;
+  font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:15px;line-height:1.1;color:#fff;text-align:center}
+.ac-title{flex:1;min-width:0}
+.ac-title h3{font-size:15px;font-weight:700;line-height:1.45}
+.ac-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.lamp{flex:none;width:9px;height:9px;border-radius:50%;background:#B9C4CB;margin-top:6px}
+.lamp.on{background:var(--amber);box-shadow:0 0 0 3px rgba(232,163,23,.2)}
+.lamp.prep{background:#7FA0B3}
+.lamp.stop{background:var(--rust)}
+.ac-desc{font-size:12.5px;color:#4A5A64;line-height:1.65;flex:1}
+.ac-news{font-size:11.5px;color:#7A5C0A;background:rgba(232,163,23,.1);border-left:3px solid var(--amber);
+  padding:6px 10px;border-radius:0 3px 3px 0;line-height:1.5}
+.ac-foot{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:11px}
+.ac-use{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);flex:1;line-height:1.4}
+.ac-use b{color:var(--teal);font-size:14px}
+.ac-links{display:flex;gap:14px;font-size:11.5px;margin-top:-3px}
+.ac-links button{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.ac-links button:hover{color:var(--ink)}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:100px}
+.tag.new{background:var(--amber);color:var(--ink)}
+.tag.upd{background:rgba(31,111,107,.14);color:var(--teal)}
+.tag.ltd{background:rgba(122,90,168,.13);color:#5B3E86}
+.tag.crown{background:rgba(232,163,23,.18);color:#8A5F00}
+.star{position:absolute;top:10px;right:10px;font-size:15px;color:#C9D2D8;line-height:1;padding:4px}
+.star.on{color:var(--amber)}
+
+.btn{padding:8px 14px;border-radius:4px;font-size:12.5px;font-weight:700;background:var(--ink);color:#fff;
+  transition:.15s;white-space:nowrap;display:inline-block;text-decoration:none}
+.btn:hover{background:#2C3E4F}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--paper)}
+.btn.sm{padding:5px 10px;font-size:11.5px}
+.btn:disabled{background:#B9C4CB;cursor:not-allowed}
+.empty{border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-weight:700;margin-bottom:4px;font-family:"Zen Kaku Gothic New",sans-serif}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px}
+.kpi .k{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.kpi .v{font-family:"Roboto Mono",monospace;font-size:23px;font-weight:700;margin-top:3px;letter-spacing:-.02em}
+.kpi .s{font-size:10.5px;color:var(--muted)}
+.kpi.hero{background:var(--ink);border-color:var(--ink);color:#fff;grid-column:span 2}
+.kpi.hero .k{color:#93A5AF}
+.kpi.hero .v{color:var(--amber);font-size:22px;font-family:"Zen Kaku Gothic New";font-weight:900;line-height:1.3}
+.kpi.hero .s{color:#93A5AF}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.barrow{display:grid;grid-template-columns:130px 1fr 88px;align-items:center;gap:10px;margin-bottom:9px}
+.barrow .nm{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bartrack{height:20px;background:var(--paper);border-radius:2px;overflow:hidden}
+.barfill{height:100%;background:var(--teal);transition:width .5s}
+.barfill.top{background:var(--amber)}
+.barfill.user{background:var(--ink-2)}
+.barfill.dept{background:var(--violet)}
+.barrow .vl{font-family:"Roboto Mono",monospace;font-size:11.5px;text-align:right;color:var(--muted)}
+
+/* 月次推移 */
+.months{display:flex;gap:10px;align-items:flex-end;height:170px;padding-top:8px}
+.mcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+.mbar{width:100%;max-width:56px;background:var(--teal);border-radius:3px 3px 0 0;transition:height .5s;min-height:2px}
+.mcol:last-child .mbar{background:var(--amber)}
+.mval{font-family:"Roboto Mono",monospace;font-size:12px;font-weight:700}
+.mlab{font-size:11px;color:var(--muted);white-space:nowrap}
+.msub{font-size:10px;color:var(--muted);font-family:"Roboto Mono",monospace}
+.delta{font-family:"Roboto Mono",monospace;font-size:11.5px;font-weight:700}
+.delta.up{color:var(--teal)} .delta.down{color:var(--rust)}
+
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:16px 32px}
+.slider label{display:block;font-size:12px;font-weight:500;margin-bottom:6px}
+.slider label b{font-family:"Roboto Mono",monospace;color:var(--teal)}
+input[type=range]{width:100%;accent-color:var(--ink);height:22px}
+
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:12.5px;vertical-align:middle}
+th{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.04em;white-space:nowrap}
+td.num,th.num{font-family:"Roboto Mono",monospace;text-align:right}
+tbody tr:hover{background:#F7FAFB}
+.tbl-wrap{overflow-x:auto}
+.matrix th.rot{writing-mode:vertical-rl;text-orientation:mixed;height:96px;padding:6px 2px;font-size:11px;vertical-align:bottom}
+.matrix td.c{text-align:center;font-family:"Roboto Mono",monospace;font-weight:700}
+.matrix td.z{color:#D3DBE0;font-weight:400}
+.matrix td.hot{background:rgba(232,163,23,.18)}
+.matrix td.warm{background:rgba(232,163,23,.08)}
+.matrix th.rowh{font-size:12.5px;color:var(--ink);font-weight:700;white-space:nowrap}
+.badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10.5px;font-weight:700}
+.badge.on{background:rgba(232,163,23,.16);color:#8A5F00}
+.badge.prep{background:rgba(31,111,107,.12);color:var(--teal)}
+.badge.stop{background:rgba(168,69,47,.12);color:var(--rust)}
+.badge.tag{background:rgba(31,111,107,.12);color:var(--teal)}
+.badge.notag{background:var(--paper);color:var(--muted)}
+.badge.req{background:rgba(168,69,47,.14);color:var(--rust)}
+.badge.doing{background:rgba(232,163,23,.18);color:#8A5F00}
+.badge.done{background:var(--paper);color:var(--muted)}
+.log{list-style:none;font-size:12.5px}
+.log li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--paper)}
+.log time{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);flex:none;width:88px}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700}
+.status i{width:9px;height:9px;border-radius:50%;background:#B9C4CB}
+.status.ok i{background:var(--teal);box-shadow:0 0 0 3px rgba(31,111,107,.18)}
+.status.ng i{background:var(--rust)}
+pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-family:"Roboto Mono",monospace;
+  font-size:11.5px;line-height:1.65;overflow-x:auto;white-space:pre;margin-top:8px}
+.steps{list-style:none;counter-reset:s;margin-top:6px}
+.steps li{counter-increment:s;display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--paper);font-size:13px}
+.steps li::before{content:counter(s);flex:none;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;
+  font-family:"Roboto Mono",monospace;font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:2px}
+
+.mask{position:fixed;inset:0;background:rgba(22,32,43,.55);display:grid;place-items:center;padding:20px;z-index:60}
+.modal{background:var(--card);border-radius:8px;width:100%;max-width:620px;max-height:88vh;overflow-y:auto}
+.modal.wide{max-width:800px}
+.modal-hd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.modal-hd h2{font-size:15px;font-weight:900}
+.modal-hd button{margin-left:auto;font-size:20px;color:var(--muted);line-height:1}
+.modal-bd{padding:20px}
+.modal-ft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:4px;background:#fff;outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ink)}
+.field textarea{resize:vertical;min-height:80px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.hint{font-size:11px;color:var(--muted);margin-top:4px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:11px 20px;border-radius:4px;font-size:13px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.savenote{font-size:11px;color:var(--muted);margin-left:auto;font-family:"Roboto Mono",monospace}
+.report{width:100%;min-height:240px;font-family:"Roboto Mono",monospace;font-size:12px;line-height:1.8;
+  padding:14px;border:1px solid var(--line);border-radius:5px;resize:vertical}
+
+@media (max-width:820px){
+  .strip-in{grid-template-columns:1fr}
+  .readouts{justify-content:space-between;gap:12px}
+  .two,.sliders,.f2{grid-template-columns:1fr}
+  .kpi.hero{grid-column:span 1}
+  .gauge-val .n{font-size:26px}
+  .barrow{grid-template-columns:100px 1fr 72px}
+  .months{height:140px;gap:5px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="rack">
+  <div class="rack-top">
+    <div class="brand"><span class="mark">EARTHCOM</span><h1>社内アプリ盤</h1><span class="sub">APP PORTAL</span></div>
+    <nav class="rack-nav" role="tablist">
+      <button id="tabUse" role="tab" aria-selected="true" onclick="setTab('use')">アプリを使う</button>
+      <button id="tabAdmin" role="tab" aria-selected="false" onclick="setTab('admin')" hidden>活用状況<span id="navPip"></span></button>
+    </nav>
+    <button class="whoami" id="whoBtn" onclick="askName()">名前を設定</button>
+    <button class="lockbtn" id="lockBtn" onclick="lockClick()">🔒 管理キー</button>
+  </div>
+  <div class="strip">
+    <div class="strip-in">
+      <div>
+        <div class="gauge-label">今月 使われたアプリ（公開中のうち）</div>
+        <div class="gauge-val"><span class="n mono" id="gUsed">0</span>
+          <span class="u">/ <span class="mono" id="gLive">0</span> 本　活用率 <span class="mono" id="gRate">0%</span></span></div>
+        <div class="gauge-bar"><div class="gauge-fill" id="gFill" style="width:0%"></div></div>
+        <div class="gauge-ticks"><span>0</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+      </div>
+      <div class="readouts">
+        <div class="readout"><div class="k">今月の利用</div><div class="v mono" id="rCount">0</div></div>
+        <div class="readout"><div class="k">前月比</div><div class="v mono" id="rDelta">—</div></div>
+        <div class="readout"><div class="k">今月の一番人気</div><div class="v hl" id="rTop">—</div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="viewUse">
+    <div class="filters">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="アプリ名・業務内容で探す" oninput="render()">
+      </div>
+      <div class="chips" id="catChips"></div>
+      <div class="chips">
+        <button class="chip" id="newChip" aria-pressed="false" onclick="toggleNewOnly()">新着・更新</button>
+        <button class="chip" id="favChip" aria-pressed="false" onclick="toggleFavOnly()">★ お気に入り</button>
+      </div>
+    </div>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section id="viewAdmin" hidden>
+    <div class="panel">
+      <div class="panel-hd">
+        <h2>集計期間</h2>
+        <div class="chips" id="periodChips"></div>
+        <button class="btn ghost sm" onclick="openAnnounce()">社員向けの案内文をつくる</button>
+        <button class="btn sm" onclick="openReport()">Chatwork用の報告文をつくる</button>
+        <span class="savenote" id="saveNote"></span>
+      </div>
+      <div class="panel-bd">
+        <div class="kpis">
+          <div class="kpi hero"><div class="k">一番使われているアプリ</div><div class="v" id="kTop">—</div><div class="s" id="kTopSub">&nbsp;</div></div>
+          <div class="kpi"><div class="k">利用回数</div><div class="v mono" id="kCount">0</div><div class="s" id="kPerDay">—</div></div>
+          <div class="kpi"><div class="k">使った人</div><div class="v mono" id="kUsers">0</div><div class="s" id="kTopUser">—</div></div>
+          <div class="kpi"><div class="k">使われたアプリ</div><div class="v mono" id="kUsed">0</div><div class="s" id="kUnused">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>月次の推移</h2><span class="note">直近6ヶ月の利用回数（期間の指定に関わらず表示）</span>
+        <span class="delta" id="mDelta" style="margin-left:auto"></span></div>
+      <div class="panel-bd">
+        <div class="months" id="months"></div>
+        <div class="tbl-wrap" style="margin-top:18px"><table id="monthTable"></table></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-hd"><h2>アプリ別 利用回数</h2><span class="note">多い順</span></div>
+        <div class="panel-bd" id="appRank"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><h2>部署別 利用状況</h2><span class="note">回数と、使った人数</span></div>
+        <div class="panel-bd" id="deptRank"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2 id="matrixTitle">誰が どのアプリを 何回</h2>
+        <div class="chips" style="margin-left:auto">
+          <button class="chip" id="mxUser" aria-pressed="true" onclick="setMatrix('user')">社員別</button>
+          <button class="chip" id="mxDept" aria-pressed="false" onclick="setMatrix('dept')">部署別</button>
+        </div></div>
+      <div class="panel-bd tbl-wrap" id="matrix"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>社員からの要望・不具合</h2>
+        <div class="chips" style="margin-left:auto">
+          <button class="chip" id="rqOpen" aria-pressed="true" onclick="setReqFilter('open')">未対応・対応中</button>
+          <button class="chip" id="rqAll" aria-pressed="false" onclick="setReqFilter('all')">すべて</button>
+        </div></div>
+      <div class="panel-bd" id="reqList"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-hd"><h2>社員別 利用回数</h2></div>
+        <div class="panel-bd" id="userRank"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><h2>使われていないアプリ</h2><span class="note">この期間の利用ゼロ</span></div>
+        <div class="panel-bd" id="unused"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>直近の利用</h2><span class="note" id="srcNote"></span></div>
+      <div class="panel-bd"><ul class="log" id="recent"></ul></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>実績ベースの効果</h2><span class="note">利用回数 × 1回あたりの削減時間</span></div>
+      <div class="panel-bd">
+        <div class="sliders" style="margin-bottom:16px">
+          <div class="slider"><label>利用者の時給 <b id="wUserL">2,000</b> 円</label>
+            <input type="range" id="wUser" min="1000" max="6000" step="100" value="2000" oninput="onWage()"></div>
+          <div class="slider"><label>作成者の時給 <b id="wDevL">2,000</b> 円</label>
+            <input type="range" id="wDev" min="1000" max="10000" step="100" value="2000" oninput="onWage()"></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi hero"><div class="k">生産性（削減金額 − 作成コスト）</div>
+            <div class="v mono" id="kProd" style="font-family:'Roboto Mono';font-size:26px">¥0</div>
+            <div class="s">プラスなら投資回収完了</div></div>
+          <div class="kpi"><div class="k">削減時間（実績）</div><div class="v mono" id="kHours">0 h</div><div class="s" id="kHoursSub">—</div></div>
+          <div class="kpi"><div class="k">削減金額</div><div class="v mono" id="kSave">¥0</div></div>
+          <div class="kpi"><div class="k">作成コスト（累計）</div><div class="v mono" id="kCost">¥0</div><div class="s" id="kBuild">0 h</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>登録アプリ</h2>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ghost sm" onclick="exportJson()">JSONで書き出し</button>
+          <button class="btn ghost sm" onclick="document.getElementById('importFile').click()">JSONを読み込む</button>
+          <input type="file" id="importFile" accept="application/json" hidden onchange="importJson(event)">
+          <button class="btn sm" onclick="openEditor()">＋ アプリを追加</button>
+        </div></div>
+      <div class="panel-bd tbl-wrap">
+        <table><thead><tr>
+          <th>アプリ</th><th>公開範囲</th><th>担当</th><th>状態</th><th>計測</th>
+          <th class="num">利用</th><th class="num">要望</th><th class="num">1回の削減(分)</th><th></th>
+        </tr></thead><tbody id="adminRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>計測の設定</h2><span class="status" id="sbStatus"><i></i>未接続</span></div>
+      <div class="panel-bd">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">
+          Supabaseにつなぐと、ブックマークから直接開かれた分も記録できます。未接続のあいだは、このポータルの「開く」を押した分だけを共有保存に記録します。</p>
+        <div class="f2">
+          <div class="field"><label>Supabase URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co"></div>
+          <div class="field"><label>公開キー（anon / publishable）</label><input id="sbKey" placeholder="sb_publishable_..."></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn sm" onclick="saveSb(true)">接続して読み込む</button>
+          <button class="btn ghost sm" onclick="saveSb(false)">接続を解除</button>
+          <button class="btn ghost sm" onclick="showSql()">テーブル作成SQLを見る</button>
+          <span class="hint" style="margin:0">計測タグは各アプリの行の「計測タグ」から取得します。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>名簿（社員と部署）</h2><span class="note">計測タグ経由の記録に部署を補います</span></div>
+      <div class="panel-bd">
+        <div id="roster" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="field" style="margin:0;flex:1;min-width:130px"><label>氏名</label><input id="rName" placeholder="例：村田"></div>
+          <div class="field" style="margin:0;flex:1;min-width:130px"><label>部署</label>
+            <input id="rDept" list="deptList" placeholder="例：営業部"><datalist id="deptList"></datalist></div>
+          <button class="btn ghost sm" onclick="addRoster()">名簿に追加</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><h2>設定</h2></div>
+      <div class="panel-bd" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0;max-width:220px;flex:1">
+          <label>管理キーを変更する</label><input id="newKey" type="text" autocomplete="off" placeholder="4文字以上"></div>
+        <button class="btn ghost sm" onclick="changeKey()">キーを変更</button>
+        <button class="btn ghost sm" onclick="seedDemo()">サンプルの利用データを入れる</button>
+        <button class="btn ghost sm" onclick="clearUsage()">利用ログを全消去</button>
+        <div class="hint" style="flex:1;min-width:200px;margin:0">記録するのは 名前・部署・アプリ・日時 の4点だけです。</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="modalHost"></div>
+<div id="toastHost"></div>
+
+<script>
+/* =========================================================
+   ★ ここだけ書き換えてから社内サーバー／GitHub Pagesに置いてください ★
+   Supabaseの URL と公開キーを入れると、全社員で同じ一覧・同じ集計を共有できます。
+   空のままだと、この画面（Claude）の中でしか共有されません。
+   ========================================================= */
+const SB_URL = "";   /* 例：https://xxxxxxxx.supabase.co */
+const SB_KEY = "";   /* 例：sb_publishable_xxxxxxxx      */
+
+/* =========================================================
+   定数
+   ========================================================= */
+const KEY_APPS='earthcom-portal:catalog', KEY_USAGE='earthcom-portal:usage',
+      KEY_REQ='earthcom-portal:requests', KEY_FAV='earthcom-portal:favorites', KEY_ME='earthcom-portal:me';
+const CATS={'営業支援':'#1F6F6B','現場・工事':'#A8452F','経営管理':'#16202B','採用・人事':'#7A5AA8','商品企画':'#B8860B'};
+const STATUS={'公開中':{cls:'on'},'準備中':{cls:'prep'},'停止中':{cls:'stop'}};
+const PERIODS={'今月':'month','直近30日':'d30','全期間':'all'};
+const DEPTS=['営業部','工事部','商品企画部','管理部','社長室'];
+const REQ_TYPES=['改善してほしい','うまく動かない','使い方が分からない'];
+const REQ_STATES=['未対応','対応中','完了'];
+const FRESH_DAYS=14;
+
+const SEED=[
+  {id:'a1',name:'ReFortスタジオ',tape:'ReF',cat:'営業支援',owner:'商品企画部',
+   desc:'Excelを取り込んでキャッシュフローを算出し、提案書（PowerPoint）まで自動生成します。',url:'',status:'公開中',perUse:45,build:900,
+   howto:['対象物件のExcelを用意する','画面にドラッグして取り込む','内容を確認してPowerPointを書き出す']},
+  {id:'a2',name:'ReFort現場判断ボード',tape:'現場\n判断',cat:'営業支援',owner:'営業部',
+   desc:'5県分の案件を一覧化し、現場・内勤どちらからでも進捗と次の一手を確認できます。',url:'',status:'公開中',perUse:15,build:600,
+   howto:['県を選ぶ','担当案件を開く','状況を更新して保存する']},
+  {id:'a3',name:'セカンダリースタジオ',tape:'2nd',cat:'営業支援',owner:'営業部',
+   desc:'セカンダリー物件のExcelを解析し、そのまま提案書を出力します。',url:'',status:'公開中',perUse:40,build:540,
+   howto:['物件資料のExcelを取り込む','利回りと条件を確認する','提案書を書き出す']},
+  {id:'a4',name:'系統蓄電池 提案シミュレーター',tape:'蓄電',cat:'商品企画',owner:'商品企画部',
+   desc:'太陽光とのセット提案を試算。Excel取込とスプレッドシート連携に対応しています。',url:'',status:'公開中',perUse:35,build:720,
+   howto:['容量と単価を入力する','セット提案の有無を選ぶ','試算結果を保存する']},
+  {id:'a5',name:'商談パイプラインボード',tape:'商談',cat:'営業支援',owner:'営業部',
+   desc:'全社の商談を1枚で把握。四半期フォーカス・物件情報・地図表示をまとめています。',url:'',status:'公開中',perUse:12,build:660,
+   howto:['自分の担当で絞り込む','動いた案件のステージを動かす','次回アクションの日付を入れる']},
+  {id:'a6',name:'工事進捗報告システム',tape:'進捗',cat:'現場・工事',owner:'工事部',
+   desc:'スタッフが入力した進捗を、お客様が専用リンクからそのまま閲覧できます。',url:'',status:'公開中',perUse:20,build:840,
+   howto:['現場を選ぶ','写真と進捗を入力する','お客様用リンクを発行して送る']},
+  {id:'a7',name:'内定者オンボーディング管理',tape:'内定',cat:'採用・人事',owner:'村田',
+   desc:'内定者カルテと辞退リスクを可視化。27卒・28卒のコホート単位で管理します。',url:'',status:'公開中',perUse:18,build:600,
+   howto:['卒年を選ぶ','面談内容をカルテに記録する','リスクが高い人から連絡する']},
+  {id:'a8',name:'EARTHCOM SUCCESS PLANNER',tape:'日次',cat:'経営管理',owner:'社長室',
+   desc:'朝と夕方の日次運用ツール。その日の狙いと結果を1本の流れで記録します。',url:'',status:'公開中',perUse:10,build:720,
+   scope:'限定',members:'丸林のみ',howto:['朝、今日の狙いを書く','日中、動いたことを追記する','夕方、結果を振り返る']},
+  {id:'a9',name:'外勤スケジュール＆エリアマップ',tape:'外勤',cat:'営業支援',owner:'営業部',
+   desc:'外勤予定を地図上に重ねて、訪問エリアの重複と空きを見つけます。',url:'',status:'準備中',perUse:15,build:0},
+  {id:'a10',name:'引渡し遅延ゼロ（工程アラート）',tape:'工程',cat:'現場・工事',owner:'工事部',
+   desc:'受注日を起点に工程を自動作成し、遅れそうな工程を先にアラートします。',url:'',status:'準備中',perUse:25,build:0}
+];
+
+let state={apps:SEED.map(a=>({...a})),wUser:2000,wDev:2000,adminKey:'earth2276',keyVersion:2,
+           roster:{},sb:{url:SB_URL,key:SB_KEY,on:!!(SB_URL&&SB_KEY)}};
+let usage=[], reqs=[], me={name:'',dept:''}, favs=[], sbLive=false;
+let tab='use', filterCat='すべて', favOnly=false, newOnly=false, period='month',
+    matrixBy='user', reqFilter='open';
+let editing=null, unlocked=false;
+
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+const scopeOf=a=>a.scope==='限定'?'限定':'全社';
+const appById=id=>state.apps.find(a=>a.id===id);
+const deptOf=e=>e.d||state.roster[e.u]||'未設定';
+const isNewApp=a=>a.createdAt&&(Date.now()-a.createdAt)<FRESH_DAYS*864e5;
+const isUpdated=a=>!isNewApp(a)&&a.updatedAt&&(Date.now()-a.updatedAt)<FRESH_DAYS*864e5&&a.changelog;
+const openReqs=id=>reqs.filter(r=>r.a===id&&r.st!=='完了').length;
+
+/* =========================================================
+   保存・読み込み
+   ========================================================= */
+async function loadAll(){
+  try{const r=await window.storage.get(KEY_APPS,true); if(r&&r.value){const d=JSON.parse(r.value);
+      state={...state,...d,sb:{...state.sb,...(d.sb||{})}};}}catch(e){}
+  try{const r=await window.storage.get(KEY_USAGE,true); if(r&&r.value) usage=JSON.parse(r.value);}catch(e){}
+  try{const r=await window.storage.get(KEY_REQ,true); if(r&&r.value) reqs=JSON.parse(r.value);}catch(e){}
+  try{const r=await window.storage.get(KEY_FAV,false); if(r&&r.value) favs=JSON.parse(r.value);}catch(e){}
+  try{const r=await window.storage.get(KEY_ME,false); if(r&&r.value){const m=JSON.parse(r.value);
+      me=typeof m==='string'?{name:m,dept:''}:{...me,...m};}}catch(e){}
+  if(state.sb.on&&state.sb.url&&state.sb.key){
+    const ok=await sbConfigLoad();
+    await sbLoad(); await sbReqLoad();
+    sbLive=sbLive&&ok;
+  }
+  if(state.keyVersion!==2){state.adminKey='earth2276';state.keyVersion=2;}
+  state.apps.forEach(a=>{if(a.perUse===undefined) a.perUse=a.save?Math.max(5,Math.round(a.save/10)):15;});
+}
+async function saveApps(msg){
+  if(state.sb.on&&sbLive){
+    const ok=await sbConfigSave();
+    note(ok?(msg||'保存しました（全社共有）'):'Supabaseに保存できませんでした');
+    return;
+  }
+  try{await window.storage.set(KEY_APPS,JSON.stringify(state),true); note(msg||'保存しました（この画面内で共有）');}
+  catch(e){note('この画面では保存できません。JSONで書き出して残してください');}
+}
+async function saveUsage(){try{await window.storage.set(KEY_USAGE,JSON.stringify(usage.slice(-4000)),true);}catch(e){}}
+async function saveReqs(){try{await window.storage.set(KEY_REQ,JSON.stringify(reqs.slice(-600)),true);}catch(e){}}
+async function saveFavs(){try{await window.storage.set(KEY_FAV,JSON.stringify(favs),false);}catch(e){}}
+async function saveMe(){try{await window.storage.set(KEY_ME,JSON.stringify(me),false);}catch(e){}}
+function note(t){const el=document.getElementById('saveNote'); if(!el)return;
+  el.textContent=t; clearTimeout(note._t); note._t=setTimeout(()=>el.textContent='',3200);}
+function toast(t){document.getElementById('toastHost').innerHTML='<div class="toast">'+esc(t)+'</div>';
+  clearTimeout(toast._t); toast._t=setTimeout(()=>document.getElementById('toastHost').innerHTML='',2600);}
+
+/* =========================================================
+   計測：Supabase
+   ========================================================= */
+function sbHeaders(){return{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key,
+  'Content-Type':'application/json',Prefer:'return=minimal'};}
+async function sbLoad(){
+  try{
+    const url=state.sb.url.replace(/\/+$/,'')+'/rest/v1/app_usage?select=app_id,user_name,dept,used_at&order=used_at.desc&limit=5000';
+    const r=await fetch(url,{headers:{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key}});
+    if(!r.ok) throw new Error(r.status);
+    const rows=await r.json();
+    usage=rows.map(x=>({a:x.app_id,u:x.user_name||'未設定',d:x.dept||'',t:new Date(x.used_at).getTime(),s:'tag'}))
+              .sort((p,q)=>p.t-q.t);
+    sbLive=true;
+  }catch(e){sbLive=false;}
+  updateSbStatus();
+}
+async function sbLog(a){
+  try{await fetch(state.sb.url.replace(/\/+$/,'')+'/rest/v1/app_usage',{method:'POST',headers:sbHeaders(),
+      body:JSON.stringify({app_id:a.id,app_name:a.name,user_name:me.name,dept:me.dept||''})}); return true;}
+  catch(e){return false;}
+}
+const sbBase=()=>state.sb.url.replace(/\/+$/,'')+'/rest/v1/';
+/* --- カタログ・名簿・設定（1行のJSONとして保存） --- */
+async function sbConfigLoad(){
+  try{
+    const r=await fetch(sbBase()+'app_portal_config?id=eq.1&select=data',
+      {headers:{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key}});
+    if(!r.ok) throw new Error(r.status);
+    const rows=await r.json();
+    if(rows.length&&rows[0].data){
+      const d=rows[0].data;
+      state={...state,...d,sb:state.sb};   /* 接続情報はファイル側の設定を優先 */
+    }
+    return true;
+  }catch(e){ return false; }
+}
+async function sbConfigSave(){
+  const {sb,...rest}=state;
+  try{
+    const r=await fetch(sbBase()+'app_portal_config?on_conflict=id',{method:'POST',
+      headers:{...sbHeaders(),Prefer:'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({id:1,data:rest,updated_at:new Date().toISOString()})});
+    return r.ok;
+  }catch(e){ return false; }
+}
+/* --- 要望・不具合 --- */
+async function sbReqLoad(){
+  try{
+    const r=await fetch(sbBase()+'app_requests?select=*&order=created_at.desc&limit=600',
+      {headers:{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key}});
+    if(!r.ok) throw new Error(r.status);
+    reqs=(await r.json()).map(x=>({id:x.id,a:x.app_id,u:x.user_name,d:x.dept||'',
+      type:x.req_type,text:x.body,t:new Date(x.created_at).getTime(),st:x.state}))
+      .sort((p,q)=>p.t-q.t);
+    return true;
+  }catch(e){ return false; }
+}
+async function sbReqInsert(r){
+  try{await fetch(sbBase()+'app_requests',{method:'POST',headers:sbHeaders(),
+    body:JSON.stringify({id:r.id,app_id:r.a,user_name:r.u,dept:r.d,req_type:r.type,body:r.text,state:r.st})});
+    return true;}catch(e){return false;}
+}
+async function sbReqUpdate(id,st){
+  try{await fetch(sbBase()+'app_requests?id=eq.'+encodeURIComponent(id),{method:'PATCH',
+    headers:sbHeaders(),body:JSON.stringify({state:st})}); return true;}catch(e){return false;}
+}
+async function sbReqDelete(id){
+  try{await fetch(sbBase()+'app_requests?id=eq.'+encodeURIComponent(id),{method:'DELETE',
+    headers:sbHeaders()}); return true;}catch(e){return false;}
+}
+function updateSbStatus(){
+  const el=document.getElementById('sbStatus'); if(!el)return;
+  if(!state.sb.on){el.className='status'; el.innerHTML='<i></i>未接続（このポータル内で記録）'; return;}
+  el.className='status '+(sbLive?'ok':'ng');
+  el.innerHTML='<i></i>'+(sbLive?'Supabaseに接続中':'接続できません。URLとキーを確認してください');
+  const s=document.getElementById('srcNote'); if(s) s.textContent=sbLive?'Supabaseの記録を表示しています':'';
+}
+async function saveSb(on){
+  state.sb={url:document.getElementById('sbUrl').value.trim(),
+            key:document.getElementById('sbKey').value.trim(),on:!!on};
+  if(on){if(!state.sb.url||!state.sb.key){toast('URLとキーの両方を入れてください');return;}
+    await sbLoad();
+    if(sbLive){ await sbReqLoad(); await sbConfigSave(); }
+    toast(sbLive?'接続しました。今の一覧をSupabaseに保存しました':'接続できませんでした');}
+  else{sbLive=false; updateSbStatus(); toast('接続を解除しました');}
+  saveApps(); render();
+}
+function showSql(){
+  showCode('テーブル作成SQL',`-- Supabase の SQL Editor で1度だけ実行してください
+
+-- ① 利用ログ
+create table if not exists app_usage (
+  id        bigserial primary key,
+  app_id    text not null,
+  app_name  text,
+  user_name text,
+  dept      text,
+  used_at   timestamptz not null default now()
+);
+create index if not exists app_usage_used_at_idx on app_usage (used_at desc);
+
+-- ② アプリ一覧・名簿・設定（1行のJSON）
+create table if not exists app_portal_config (
+  id         int primary key,
+  data       jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- ③ 要望・不具合
+create table if not exists app_requests (
+  id         text primary key,
+  app_id     text not null,
+  user_name  text,
+  dept       text,
+  req_type   text,
+  body       text,
+  state      text default '未対応',
+  created_at timestamptz not null default now()
+);
+
+alter table app_usage         enable row level security;
+alter table app_portal_config enable row level security;
+alter table app_requests      enable row level security;
+
+create policy "usage read"   on app_usage         for select to anon using (true);
+create policy "usage insert" on app_usage         for insert to anon with check (true);
+create policy "config read"  on app_portal_config for select to anon using (true);
+create policy "config write" on app_portal_config for all    to anon using (true) with check (true);
+create policy "req read"     on app_requests      for select to anon using (true);
+create policy "req write"    on app_requests      for all    to anon using (true) with check (true);`,
+  'このSQLを1回実行すれば準備完了です。社内利用を前提に、公開キーで読み書きできる設定にしています。実行後、この画面のURLとキーを入れて「接続して読み込む」を押してください。');
+}
+function trackTag(id){
+  const a=appById(id);
+  if(!state.sb.url||!state.sb.key){toast('先に計測の設定でSupabaseのURLとキーを入れてください');return;}
+  const code=`<!-- 社内アプリ盤 利用計測タグ：${a.name} -->
+<script>
+(function(){
+  var SB  = "${state.sb.url.replace(/\/+$/,'')}";
+  var KEY = "${state.sb.key}";
+  var APP = "${a.id}", NAME = "${a.name}";
+  var who = localStorage.getItem("earthcom_user");
+  if(!who){ who = prompt("お名前を入力してください（社内アプリの利用集計に使います）") || "";
+            if(who) localStorage.setItem("earthcom_user", who); }
+  fetch(SB+"/rest/v1/app_usage",{method:"POST",
+    headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json",Prefer:"return=minimal"},
+    body:JSON.stringify({app_id:APP,app_name:NAME,user_name:who||"未設定"})}).catch(function(){});
+})();
+<\/script>`;
+  showCode('計測タグ：'+a.name,code,
+    'このアプリのHTMLの &lt;/body&gt; の直前に貼り付けてください。起動のたびに1件記録されます。貼り終えたら、編集画面で「計測タグを入れた」にチェックを入れてください。');
+}
+function showCode(title,code,desc){
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <div class="modal-hd"><h2>${esc(title)}</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd"><p style="font-size:12.5px;color:var(--muted)">${desc}</p>
+        <pre class="code" id="codeBox">${esc(code)}</pre></div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">閉じる</button>
+        <button class="btn" onclick="copyCode()">コピーする</button></div>
+    </div></div>`;
+}
+function copyCode(){navigator.clipboard.writeText(document.getElementById('codeBox').textContent)
+  .then(()=>toast('コピーしました'),()=>toast('コピーできませんでした'));}
+
+/* =========================================================
+   利用の記録
+   ========================================================= */
+function openApp(id){
+  const a=appById(id); if(!a||!a.url) return;
+  if(!me.name){askName(id);return;}
+  recordUse(a); window.open(a.url,'_blank','noopener');
+}
+async function recordUse(a){
+  if(state.sb.on&&sbLive){
+    if(a.tracked) return;
+    if(await sbLog(a)) await sbLoad();
+    render(); return;
+  }
+  try{const r=await window.storage.get(KEY_USAGE,true);
+      if(r&&r.value){const l=JSON.parse(r.value); if(l.length>=usage.length) usage=l;}}catch(e){}
+  usage.push({a:a.id,u:me.name,d:me.dept||'',t:Date.now(),s:'portal'});
+  await saveUsage(); render();
+}
+
+/* =========================================================
+   使い方メモ
+   ========================================================= */
+function showHowto(id){
+  const a=appById(id);
+  const steps=(a.howto||[]).filter(Boolean);
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:460px">
+      <div class="modal-hd"><h2>${esc(a.name)} の使い方</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd">
+        ${steps.length?`<ol class="steps">${steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`
+          :`<div class="empty"><b>使い方はまだ登録されていません</b>担当の${esc(a.owner||'部署')}に聞くか、要望から知らせてください。</div>`}
+        <p style="font-size:12px;color:var(--muted);margin-top:12px">困ったら「要望を出す」から知らせてください。担当が確認します。</p>
+      </div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">閉じる</button>
+        ${a.url&&a.status==='公開中'?`<button class="btn" onclick="closeModal();openApp('${a.id}')">開く</button>`:''}</div>
+    </div></div>`;
+}
+
+/* =========================================================
+   要望・不具合
+   ========================================================= */
+function openRequest(id){
+  if(!me.name){askName();return;}
+  const a=appById(id);
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:480px">
+      <div class="modal-hd"><h2>${esc(a.name)} への要望</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd">
+        <div class="field"><label>種類</label><select id="rqType">
+          ${REQ_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div>
+        <div class="field"><label>内容</label>
+          <textarea id="rqText" placeholder="どの画面で、何をしたときに、どうなってほしいか"></textarea>
+          <div class="hint">${esc(me.name)}${me.dept?'（'+esc(me.dept)+'）':''} として送ります。</div></div>
+      </div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
+        <button class="btn" onclick="sendRequest('${a.id}')">送る</button></div>
+    </div></div>`;
+  setTimeout(()=>document.getElementById('rqText').focus(),30);
+}
+async function sendRequest(id){
+  const text=document.getElementById('rqText').value.trim();
+  if(!text){toast('内容を入れてください');return;}
+  const rec={id:'r'+Date.now(),a:id,u:me.name,d:me.dept||'',
+             type:document.getElementById('rqType').value,text,t:Date.now(),st:'未対応'};
+  if(state.sb.on&&sbLive){ await sbReqInsert(rec); reqs.push(rec); }
+  else{
+    try{const r=await window.storage.get(KEY_REQ,true);
+        if(r&&r.value){const l=JSON.parse(r.value); if(l.length>=reqs.length) reqs=l;}}catch(e){}
+    reqs.push(rec); await saveReqs();
+  }
+  closeModal(); render(); toast('送りました。ありがとうございます');
+}
+function cycleReq(rid){
+  const r=reqs.find(x=>x.id===rid);
+  r.st=REQ_STATES[(REQ_STATES.indexOf(r.st)+1)%REQ_STATES.length];
+  if(state.sb.on&&sbLive) sbReqUpdate(rid,r.st); else saveReqs();
+  render();
+}
+function delReq(rid){
+  if(!confirm('この要望を削除します。よろしいですか？')) return;
+  reqs=reqs.filter(x=>x.id!==rid);
+  if(state.sb.on&&sbLive) sbReqDelete(rid); else saveReqs();
+  render();
+}
+function setReqFilter(v){reqFilter=v;
+  document.getElementById('rqOpen').setAttribute('aria-pressed',v==='open');
+  document.getElementById('rqAll').setAttribute('aria-pressed',v==='all');
+  render();}
+
+/* =========================================================
+   集計
+   ========================================================= */
+function periodStart(){
+  const n=new Date();
+  if(period==='month') return new Date(n.getFullYear(),n.getMonth(),1).getTime();
+  if(period==='d30') return Date.now()-30*864e5;
+  return 0;
+}
+function stats(from,to){
+  const start=from!==undefined?from:periodStart(), end=to!==undefined?to:Infinity;
+  const ev=usage.filter(e=>e.t>=start&&e.t<end&&appById(e.a)&&(unlocked||scopeOf(appById(e.a))==='全社'));
+  const byApp={},byUser={},byDept={},cross={},crossD={},deptUsers={};
+  ev.forEach(e=>{
+    const d=deptOf(e);
+    byApp[e.a]=(byApp[e.a]||0)+1; byUser[e.u]=(byUser[e.u]||0)+1; byDept[d]=(byDept[d]||0)+1;
+    (deptUsers[d]=deptUsers[d]||new Set()).add(e.u);
+    (cross[e.u]=cross[e.u]||{})[e.a]=(cross[e.u][e.a]||0)+1;
+    (crossD[d]=crossD[d]||{})[e.a]=(crossD[d][e.a]||0)+1;
+  });
+  const pool=state.apps.filter(a=>unlocked||scopeOf(a)==='全社');
+  const live=pool.filter(a=>a.status==='公開中');
+  const appRank=Object.entries(byApp).sort((x,y)=>y[1]-x[1]);
+  const userRank=Object.entries(byUser).sort((x,y)=>y[1]-x[1]);
+  const deptRank=Object.entries(byDept).sort((x,y)=>y[1]-x[1]);
+  const savedMin=ev.reduce((s,e)=>s+(+appById(e.a).perUse||0),0);
+  const buildMin=pool.reduce((s,a)=>s+(+a.build||0),0);
+  return {ev,byApp,byUser,byDept,cross,crossD,deptUsers,pool,live,appRank,userRank,deptRank,
+          count:ev.length,users:userRank.length,usedApps:appRank.length,savedH:savedMin/60,buildH:buildMin/60};
+}
+function monthly(n){
+  const out=[], now=new Date();
+  for(let i=n-1;i>=0;i--){
+    const s=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const e=new Date(now.getFullYear(),now.getMonth()-i+1,1);
+    const st=stats(s.getTime(),e.getTime());
+    out.push({label:(s.getMonth()+1)+'月',ym:s.getFullYear()+'-'+(s.getMonth()+1),
+              count:st.count,users:st.users,byApp:st.byApp});
+  }
+  return out;
+}
+
+/* =========================================================
+   描画
+   ========================================================= */
+function render(){
+  const s=stats();
+  const mo=monthly(6), cur=mo[5], prev=mo[4];
+  const m=stats(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime());
+  const rate=m.live.length?m.usedApps/m.live.length*100:0;
+  document.getElementById('gUsed').textContent=m.usedApps;
+  document.getElementById('gLive').textContent=m.live.length;
+  document.getElementById('gRate').textContent=Math.round(rate)+'%';
+  document.getElementById('gFill').style.width=rate+'%';
+  document.getElementById('rCount').textContent=cur.count;
+  const dEl=document.getElementById('rDelta');
+  if(prev.count){const p=Math.round((cur.count-prev.count)/prev.count*100);
+    dEl.textContent=(p>=0?'+':'')+p+'%'; dEl.style.color=p>=0?'var(--amber)':'#E88A8A';}
+  else{dEl.textContent='—'; dEl.style.color='#fff';}
+  document.getElementById('rTop').textContent=m.appRank[0]?appById(m.appRank[0][0]).name:'—';
+  document.getElementById('whoBtn').textContent=me.name?('👤 '+me.name+(me.dept?'・'+me.dept:'')):'名前を設定';
+  const pip=document.getElementById('navPip');
+  const openCount=reqs.filter(r=>r.st!=='完了').length;
+  pip.outerHTML=`<span id="navPip">${openCount?`<span class="pip">${openCount}</span>`:''}</span>`;
+  renderChips(); renderCards();
+  if(tab==='admin') renderAdmin(s,mo);
+}
+function renderChips(){
+  document.getElementById('catChips').innerHTML=['すべて',...Object.keys(CATS)].map(k=>
+    `<button class="chip" aria-pressed="${filterCat===k}" onclick="setCat('${k}')">${k}</button>`).join('');
+  document.getElementById('periodChips').innerHTML=Object.entries(PERIODS).map(([l,v])=>
+    `<button class="chip" aria-pressed="${period===v}" onclick="setPeriod('${v}')">${l}</button>`).join('');
+}
+function setCat(k){filterCat=k;render();}
+function setPeriod(v){period=v;render();}
+function setMatrix(v){matrixBy=v;
+  document.getElementById('mxUser').setAttribute('aria-pressed',v==='user');
+  document.getElementById('mxDept').setAttribute('aria-pressed',v==='dept');
+  document.getElementById('matrixTitle').textContent=v==='user'?'誰が どのアプリを 何回':'どの部署が どのアプリを 何回';
+  render();}
+function toggleFavOnly(){favOnly=!favOnly;document.getElementById('favChip').setAttribute('aria-pressed',favOnly);render();}
+function toggleNewOnly(){newOnly=!newOnly;document.getElementById('newChip').setAttribute('aria-pressed',newOnly);render();}
+
+function visibleApps(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  return state.apps.filter(a=>{
+    if(scopeOf(a)==='限定'&&!unlocked) return false;
+    if(a.status==='停止中'&&tab==='use') return false;
+    if(filterCat!=='すべて'&&a.cat!==filterCat) return false;
+    if(favOnly&&!favs.includes(a.id)) return false;
+    if(newOnly&&!(isNewApp(a)||isUpdated(a))) return false;
+    if(q&&!((a.name+a.desc+a.owner+a.cat).toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((x,y)=>((isNewApp(y)||isUpdated(y))?1:0)-((isNewApp(x)||isUpdated(x))?1:0));
+}
+function renderCards(){
+  const s=stats(), topId=s.appRank[0]?s.appRank[0][0]:null, list=visibleApps();
+  const host=document.getElementById('cards');
+  if(!list.length){host.innerHTML=`<div class="empty" style="grid-column:1/-1"><b>該当するアプリはありません</b>
+    検索語や絞り込みを変えてください。</div>`; return;}
+  host.innerHTML=list.map(a=>{
+    const st=STATUS[a.status]||STATUS['準備中'], on=favs.includes(a.id), ltd=scopeOf(a)==='限定';
+    const ready=a.status==='公開中'&&a.url, cnt=s.byApp[a.id]||0, mine=(s.cross[me.name]||{})[a.id]||0;
+    const nw=isNewApp(a), up=isUpdated(a);
+    return `<article class="appcard ${a.status!=='公開中'?'off':''} ${ltd?'ltd':''} ${nw||up?'fresh':''}">
+      <button class="star ${on?'on':''}" aria-label="お気に入り" onclick="toggleFav('${a.id}')">${on?'★':'☆'}</button>
+      <div class="ac-top">
+        <div class="tape" style="background:${CATS[a.cat]||'#65767F'}">${esc(a.tape||a.name.slice(0,2)).replace(/\n/g,'<br>')}</div>
+        <div class="ac-title"><h3>${esc(a.name)}</h3>
+          <div class="ac-meta">${esc(a.cat)}　/　${esc(a.owner||'担当未設定')}</div>
+          <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">
+            ${nw?'<span class="tag new">NEW</span>':''}
+            ${up?'<span class="tag upd">更新しました</span>':''}
+            ${a.id===topId&&cnt>0?'<span class="tag crown">よく使われています</span>':''}
+            ${ltd?`<span class="tag ltd">🔒 限定公開${a.members?'：'+esc(a.members):''}</span>`:''}</div>
+        </div>
+        <span class="lamp ${st.cls}" title="${esc(a.status)}"></span>
+      </div>
+      <p class="ac-desc">${esc(a.desc)}</p>
+      ${up&&a.changelog?`<div class="ac-news">${esc(a.changelog)}</div>`:''}
+      <div class="ac-links">
+        <button onclick="showHowto('${a.id}')">使い方${(a.howto||[]).filter(Boolean).length?'':'（未登録）'}</button>
+        <button onclick="openRequest('${a.id}')">要望を出す</button>
+        ${ready?`<button onclick="copyUrl('${a.id}')">URLをコピー</button>`:''}
+      </div>
+      <div class="ac-foot">
+        <div class="ac-use">全社 <b>${cnt}</b> 回${me.name?`<br>あなた ${mine} 回`:''}</div>
+        ${ready?`<button class="btn sm" onclick="openApp('${a.id}')">開く</button>`
+               :`<button class="btn sm" disabled>${a.status==='公開中'?'URL未設定':esc(a.status)}</button>`}
+      </div></article>`;
+  }).join('');
+}
+function toggleFav(id){favs=favs.includes(id)?favs.filter(x=>x!==id):[...favs,id];saveFavs();render();}
+function copyUrl(id){navigator.clipboard.writeText(appById(id).url)
+  .then(()=>toast('URLをコピーしました'),()=>toast('コピーできませんでした'));}
+
+function bar(name,val,max,cls,unit,sub){
+  return `<div class="barrow"><div class="nm" title="${esc(name)}">${esc(name)}</div>
+    <div class="bartrack"><div class="barfill ${cls}" style="width:${max?val/max*100:0}%"></div></div>
+    <div class="vl">${val.toLocaleString('ja-JP')}${unit}${sub?'<br>'+sub:''}</div></div>`;
+}
+function renderAdmin(s,mo){
+  /* 月次推移 */
+  const maxM=Math.max(1,...mo.map(m=>m.count));
+  document.getElementById('months').innerHTML=mo.map(m=>`
+    <div class="mcol"><div class="mval">${m.count}</div>
+      <div class="mbar" style="height:${m.count/maxM*100}%"></div>
+      <div class="mlab">${m.label}</div><div class="msub">${m.users}人</div></div>`).join('');
+  const cur=mo[5],prev=mo[4];
+  const dl=document.getElementById('mDelta');
+  if(prev.count){const p=Math.round((cur.count-prev.count)/prev.count*100);
+    dl.className='delta '+(p>=0?'up':'down'); dl.textContent=`前月比 ${p>=0?'+':''}${p}%（${prev.count}→${cur.count}回）`;}
+  else{dl.className='delta'; dl.textContent='前月の記録がありません';}
+  const topApps=s.appRank.slice(0,5).map(([id])=>id);
+  document.getElementById('monthTable').innerHTML=topApps.length?`
+    <thead><tr><th>アプリ</th>${mo.map(m=>`<th class="num">${m.label}</th>`).join('')}</tr></thead>
+    <tbody>${topApps.map(id=>`<tr><td>${esc(appById(id).name)}</td>
+      ${mo.map(m=>`<td class="num">${m.byApp[id]||'·'}</td>`).join('')}</tr>`).join('')}</tbody>`:'';
+
+  const days=period==='month'?new Date().getDate():(period==='d30'?30:Math.max(1,Math.ceil((Date.now()-(usage[0]?usage[0].t:Date.now()))/864e5)));
+  const top=s.appRank[0];
+  document.getElementById('kTop').textContent=top?appById(top[0]).name:'まだ記録がありません';
+  document.getElementById('kTopSub').textContent=top
+    ?`${top[1]} 回 ／ ${new Set(s.ev.filter(e=>e.a===top[0]).map(e=>e.u)).size} 人が利用`
+    :'「開く」を押すか、計測タグを入れると記録されます';
+  document.getElementById('kCount').textContent=s.count.toLocaleString('ja-JP');
+  document.getElementById('kPerDay').textContent=s.count?`1日あたり ${(s.count/days).toFixed(1)} 回`:'—';
+  document.getElementById('kUsers').textContent=s.users;
+  document.getElementById('kTopUser').textContent=s.userRank[0]?`最多は ${s.userRank[0][0]}（${s.userRank[0][1]}回）`:'—';
+  document.getElementById('kUsed').textContent=`${s.usedApps} / ${s.live.length}`;
+  const unusedList=s.live.filter(a=>!s.byApp[a.id]);
+  document.getElementById('kUnused').textContent=unusedList.length?`未使用 ${unusedList.length} 本`:'すべて使われています';
+
+  const maxA=s.appRank[0]?s.appRank[0][1]:0;
+  document.getElementById('appRank').innerHTML=s.appRank.length
+    ?s.appRank.map(([id,v],i)=>bar(appById(id).name,v,maxA,i===0?'top':'','回')).join('')
+    :'<div class="empty"><b>まだ利用の記録がありません</b>「開く」または計測タグから積み上がります。</div>';
+  const maxD=s.deptRank[0]?s.deptRank[0][1]:0;
+  document.getElementById('deptRank').innerHTML=s.deptRank.length
+    ?s.deptRank.map(([d,v])=>bar(d,v,maxD,'dept','回',`<span style="font-size:10px">${s.deptUsers[d].size}人</span>`)).join('')
+    :'<div class="empty"><b>部署の記録がありません</b>名簿に社員と部署を登録すると集計されます。</div>';
+  const maxU=s.userRank[0]?s.userRank[0][1]:0;
+  document.getElementById('userRank').innerHTML=s.userRank.length
+    ?s.userRank.map(([u,v])=>bar(u+(state.roster[u]?'（'+state.roster[u]+'）':''),v,maxU,'user','回')).join('')
+    :'<div class="empty"><b>まだ利用者がいません</b>各自が右上で名前を設定すると集計されます。</div>';
+
+  const cols=s.appRank.slice(0,8).map(([id])=>id);
+  const rows=matrixBy==='user'?s.userRank.slice(0,15).map(([u])=>u):s.deptRank.map(([d])=>d);
+  const src=matrixBy==='user'?s.cross:s.crossD, tot=matrixBy==='user'?s.byUser:s.byDept;
+  document.getElementById('matrix').innerHTML=rows.length?`
+    <table class="matrix"><thead><tr><th class="rowh">${matrixBy==='user'?'社員':'部署'}</th>
+      ${cols.map(id=>`<th class="rot">${esc(appById(id).name)}</th>`).join('')}<th class="num">合計</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><th class="rowh">${esc(r)}</th>
+        ${cols.map(id=>{const v=(src[r]||{})[id]||0;
+          return `<td class="c ${v===0?'z':(v>=maxA*0.4?'hot':'warm')}">${v||'·'}</td>`;}).join('')}
+        <td class="c">${tot[r]}</td></tr>`).join('')}</tbody></table>`
+    :'<div class="empty"><b>表示できる記録がありません</b>期間を「全期間」に広げてみてください。</div>';
+
+  /* 要望 */
+  const rl=reqs.filter(r=>appById(r.a)&&(unlocked||scopeOf(appById(r.a))==='全社'))
+               .filter(r=>reqFilter==='all'||r.st!=='完了')
+               .sort((x,y)=>y.t-x.t);
+  document.getElementById('reqList').innerHTML=rl.length?`
+    <div class="tbl-wrap"><table><thead><tr><th>アプリ</th><th>種類</th><th>内容</th><th>出した人</th><th>状態</th><th></th></tr></thead>
+    <tbody>${rl.map(r=>`<tr>
+      <td><b>${esc(appById(r.a).name)}</b></td>
+      <td>${esc(r.type)}</td>
+      <td style="max-width:380px">${esc(r.text)}</td>
+      <td style="white-space:nowrap">${esc(r.u)}${r.d?'<br><span style="font-size:10.5px;color:var(--muted)">'+esc(r.d)+'</span>':''}
+        <div style="font-size:10.5px;color:var(--muted)">${ago(r.t)}</div></td>
+      <td><button class="badge ${r.st==='未対応'?'req':(r.st==='対応中'?'doing':'done')}" onclick="cycleReq('${r.id}')"
+          title="押すと状態が変わります">${r.st}</button></td>
+      <td style="text-align:right"><button class="btn ghost sm" onclick="delReq('${r.id}')">削除</button></td>
+    </tr>`).join('')}</tbody></table></div>`
+    :'<div class="empty"><b>要望はありません</b>社員がカードの「要望を出す」から送るとここに集まります。</div>';
+
+  document.getElementById('recent').innerHTML=usage.slice(-20).reverse()
+    .filter(e=>appById(e.a)&&(unlocked||scopeOf(appById(e.a))==='全社'))
+    .map(e=>`<li><time>${ago(e.t)}</time><span><b>${esc(e.u)}</b>${state.roster[e.u]||e.d?`（${esc(deptOf(e))}）`:''} が ${esc(appById(e.a).name)}</span></li>`).join('')
+    ||'<div class="empty"><b>記録はまだありません</b></div>';
+
+  document.getElementById('unused').innerHTML=unusedList.length
+    ?unusedList.map(a=>`<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--paper)">
+       <span style="flex:1;font-size:12.5px"><b>${esc(a.name)}</b><br>
+       <span style="color:var(--muted);font-size:11px">${esc(a.owner||'担当未設定')}</span></span>
+       <button class="btn ghost sm" onclick="openEditor('${a.id}')">見直す</button></div>`).join('')
+    :'<div class="empty"><b>公開中のアプリはすべて使われています</b></div>';
+
+  const money=s.savedH*state.wUser, cost=s.buildH*state.wDev;
+  document.getElementById('kProd').textContent=(money-cost>=0?'+':'−')+yen(Math.abs(money-cost));
+  document.getElementById('kHours').textContent=s.savedH.toFixed(1)+' h';
+  document.getElementById('kHoursSub').textContent=`${s.count} 回分の合計`;
+  document.getElementById('kSave').textContent=yen(money);
+  document.getElementById('kCost').textContent=yen(cost);
+  document.getElementById('kBuild').textContent=s.buildH.toFixed(1)+' h';
+
+  document.getElementById('adminRows').innerHTML=state.apps.map(a=>{
+    const or=openReqs(a.id);
+    return `<tr><td><b>${esc(a.name)}</b>${isNewApp(a)?' <span class="tag new">NEW</span>':(isUpdated(a)?' <span class="tag upd">更新</span>':'')}
+      <div style="font-size:11px;color:var(--muted)">${a.url?esc(a.url.slice(0,36)):'URL未設定'}</div></td>
+      <td>${scopeOf(a)==='限定'?'<span class="tag ltd">🔒 限定</span>':'<span style="color:var(--muted)">全社</span>'}</td>
+      <td>${esc(a.owner||'—')}</td>
+      <td><span class="badge ${STATUS[a.status].cls}">${esc(a.status)}</span></td>
+      <td><span class="badge ${a.tracked?'tag':'notag'}">${a.tracked?'タグ導入済':'ポータル経由'}</span></td>
+      <td class="num"><b>${(s.byApp[a.id]||0).toLocaleString('ja-JP')}</b></td>
+      <td class="num">${or?`<span class="badge req">${or}</span>`:'—'}</td>
+      <td class="num">${+a.perUse||0}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <button class="btn ghost sm" onclick="trackTag('${a.id}')">計測タグ</button>
+        <button class="btn ghost sm" onclick="openEditor('${a.id}')">編集</button>
+        <button class="btn ghost sm" onclick="removeApp('${a.id}')">削除</button></td></tr>`;}).join('');
+
+  const rs=Object.entries(state.roster);
+  document.getElementById('roster').innerHTML=rs.length
+    ?rs.map(([n,d])=>`<span class="badge notag" style="margin:0 6px 6px 0;padding:5px 10px;font-size:12px">
+       ${esc(n)}：${esc(d)} <button onclick="delRoster('${esc(n)}')" style="color:var(--muted);margin-left:4px">×</button></span>`).join('')
+    :'<div class="hint" style="margin:0">まだ登録がありません。氏名と部署を追加すると、部署別の集計ができます。</div>';
+  document.getElementById('deptList').innerHTML=[...new Set([...DEPTS,...Object.values(state.roster)])]
+    .map(d=>`<option value="${esc(d)}">`).join('');
+  document.getElementById('sbUrl').value=state.sb.url||'';
+  document.getElementById('sbKey').value=state.sb.key||'';
+  updateSbStatus();
+}
+function ago(t){
+  const d=(Date.now()-t)/1000;
+  if(d<3600) return Math.max(1,Math.floor(d/60))+'分前';
+  if(d<86400) return Math.floor(d/3600)+'時間前';
+  if(d<7*86400) return Math.floor(d/86400)+'日前';
+  return new Date(t).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
+}
+function onWage(){
+  state.wUser=+document.getElementById('wUser').value; state.wDev=+document.getElementById('wDev').value;
+  document.getElementById('wUserL').textContent=state.wUser.toLocaleString('ja-JP');
+  document.getElementById('wDevL').textContent=state.wDev.toLocaleString('ja-JP');
+  render(); clearTimeout(onWage._t); onWage._t=setTimeout(()=>saveApps(),700);
+}
+
+/* =========================================================
+   名簿・報告文
+   ========================================================= */
+function addRoster(){
+  const n=document.getElementById('rName').value.trim(), d=document.getElementById('rDept').value.trim();
+  if(!n||!d){toast('氏名と部署の両方を入れてください');return;}
+  state.roster[n]=d;
+  document.getElementById('rName').value=''; document.getElementById('rDept').value='';
+  saveApps('名簿に追加しました'); render();
+}
+function delRoster(n){delete state.roster[n]; saveApps('名簿から外しました'); render();}
+
+function buildReport(){
+  const s=stats(), mo=monthly(6), cur=mo[5], prev=mo[4];
+  const label=Object.entries(PERIODS).find(([,v])=>v===period)[0];
+  const n=new Date();
+  const head=period==='month'?`${n.getFullYear()}年${n.getMonth()+1}月`:label;
+  const L=[];
+  L.push(`[info][title]社内アプリ 活用状況（${head}）[/title]`);
+  L.push(`利用 ${s.count}回 ／ 使った人 ${s.users}名 ／ 活用率 ${s.live.length?Math.round(s.usedApps/s.live.length*100):0}%（${s.usedApps}/${s.live.length}本）`);
+  if(period==='month'&&prev.count) L.push(`前月比 ${cur.count-prev.count>=0?'+':''}${Math.round((cur.count-prev.count)/prev.count*100)}%（${prev.count}→${cur.count}回）`);
+  L.push('');
+  if(s.appRank.length){
+    L.push('■ よく使われたアプリ');
+    s.appRank.slice(0,3).forEach(([id,v],i)=>
+      L.push(`${i+1}. ${appById(id).name}　${v}回 / ${new Set(s.ev.filter(e=>e.a===id).map(e=>e.u)).size}名`));
+    L.push('');
+  }
+  if(s.deptRank.length){
+    L.push('■ 部署別');
+    s.deptRank.forEach(([d,v])=>L.push(`・${d}　${v}回 / ${s.deptUsers[d].size}名`));
+    L.push('');
+  }
+  const fresh=state.apps.filter(a=>(unlocked||scopeOf(a)==='全社')&&(isNewApp(a)||isUpdated(a)));
+  if(fresh.length){
+    L.push('■ 新しく入った・更新したアプリ');
+    fresh.forEach(a=>L.push(`・${a.name}${a.changelog?'（'+a.changelog+'）':''}`));
+    L.push('');
+  }
+  const unusedList=s.live.filter(a=>!s.byApp[a.id]);
+  if(unusedList.length){
+    L.push('■ この期間 使われていないアプリ');
+    unusedList.forEach(a=>L.push(`・${a.name}（担当：${a.owner||'未設定'}）`));
+    L.push('→ 担当部署で、使い方を一度共有してください。');
+    L.push('');
+  }
+  const open=reqs.filter(r=>r.st!=='完了'&&appById(r.a));
+  if(open.length){
+    L.push(`■ 未対応の要望 ${open.length}件`);
+    open.slice(0,5).forEach(r=>L.push(`・${appById(r.a).name}：${r.text.slice(0,40)}（${r.u}）`));
+    L.push('');
+  }
+  L.push(`■ 実績効果　削減 ${s.savedH.toFixed(1)}時間 ／ ${yen(s.savedH*state.wUser)}相当`);
+  L.push('[/info]');
+  return L.join('\n');
+}
+function buildAnnounce(){
+  const live=state.apps.filter(a=>a.status==='公開中'&&scopeOf(a)==='全社');
+  const L=[];
+  L.push('[info][title]社内アプリ盤をはじめます[/title]');
+  L.push('社内で作ったアプリを1か所にまとめました。ここから開いて使ってください。');
+  L.push('');
+  L.push('▼ 社内アプリ盤');
+  L.push(location.href.split('#')[0]);
+  L.push('');
+  L.push('■ 最初にすること（1分）');
+  L.push('1. 上のURLを開く');
+  L.push('2. 右上の「名前を設定」で氏名と部署を入れる');
+  L.push('3. このページをブックマーク（スマホはホーム画面に追加）');
+  L.push('');
+  L.push(`■ いま置いてあるアプリ（${live.length}本）`);
+  live.forEach(a=>L.push(`・${a.name}　…　${(a.desc||'').slice(0,40)}`));
+  L.push('');
+  L.push('■ お願い');
+  L.push('・アプリは必ずこのページから開いてください（どれが使われているかを見て、改善の順番を決めます）');
+  L.push('・各アプリの「使い方」に3行の手順があります。最初の1回はそこを見てください');
+  L.push('・直してほしいこと、動かないことは「要望を出す」から送ってください');
+  L.push('[/info]');
+  return L.join('\n');
+}
+function openAnnounce(){
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <div class="modal-hd"><h2>社員向けの案内文</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Chatworkの全社グループにそのまま貼れます。URLは公開先のものに直してください。</p>
+        <textarea class="report" id="reportBox">${esc(buildAnnounce())}</textarea>
+      </div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">閉じる</button>
+        <button class="btn" onclick="copyReport()">コピーする</button></div>
+    </div></div>`;
+}
+function openReport(){
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <div class="modal-hd"><h2>Chatwork用の報告文</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Chatworkの[info]記法で書き出しています。そのまま貼るか、手直ししてから送ってください。</p>
+        <textarea class="report" id="reportBox">${esc(buildReport())}</textarea>
+      </div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">閉じる</button>
+        <button class="btn" onclick="copyReport()">コピーする</button></div>
+    </div></div>`;
+}
+function copyReport(){
+  const t=document.getElementById('reportBox');
+  navigator.clipboard.writeText(t.value).then(()=>{toast('コピーしました');closeModal();},
+    ()=>{t.select();toast('選択しました。手動でコピーしてください');});
+}
+
+/* =========================================================
+   名前・鍵・編集
+   ========================================================= */
+function askName(thenOpen){
+  const depts=[...new Set([...DEPTS,...Object.values(state.roster)])];
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:430px">
+      <div class="modal-hd"><h2>あなたの名前と部署</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd"><div class="f2">
+        <div class="field"><label>氏名</label><input id="fMe" value="${esc(me.name)}" placeholder="例：村田"></div>
+        <div class="field"><label>部署</label><input id="fDept" value="${esc(me.dept)}" list="deptPick" placeholder="例：営業部">
+          <datalist id="deptPick">${depts.map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div></div>
+        <div class="hint">どの部署でどのアプリが使われているかを集計するために使います。この端末に保存されます。</div></div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
+        <button class="btn" onclick="saveName('${thenOpen||''}')">決定</button></div>
+    </div></div>`;
+  setTimeout(()=>document.getElementById('fMe').focus(),30);
+}
+function saveName(thenOpen){
+  const v=document.getElementById('fMe').value.trim(), d=document.getElementById('fDept').value.trim();
+  if(!v){toast('名前を入れてください');return;}
+  me={name:v,dept:d}; saveMe();
+  if(d&&state.roster[v]!==d){state.roster[v]=d; saveApps();}
+  closeModal(); render();
+  if(thenOpen) openApp(thenOpen);
+}
+function closeModal(){document.getElementById('modalHost').innerHTML='';editing=null;}
+
+function lockClick(){unlocked?relock():askKey();}
+function askKey(){
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:400px">
+      <div class="modal-hd"><h2>管理キーを入力</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd"><div class="field"><label>管理キー</label>
+        <input id="fKey" type="password" autocomplete="off" onkeydown="if(event.key==='Enter')tryKey()">
+        <div class="hint">キーを開けている間だけ、限定公開のアプリと活用状況タブが表示されます。開けた状態はこのブラウザだけで、ページを開き直すと元に戻ります。</div></div>
+        <div id="keyErr" style="color:var(--rust);font-size:12px"></div></div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
+        <button class="btn" onclick="tryKey()">開く</button></div>
+    </div></div>`;
+  setTimeout(()=>document.getElementById('fKey').focus(),30);
+}
+function tryKey(){
+  if(document.getElementById('fKey').value!==state.adminKey){
+    document.getElementById('keyErr').textContent='キーが違います。もう一度入力してください。'; return;}
+  unlocked=true; closeModal(); applyLockUI(); render(); toast('管理キーを開きました');
+}
+function relock(){unlocked=false; if(tab==='admin') setTab('use'); applyLockUI(); render(); toast('管理キーを閉じました');}
+function applyLockUI(){
+  const b=document.getElementById('lockBtn');
+  b.textContent=unlocked?'🔓 閉じる':'🔒 管理キー';
+  b.classList.toggle('open',unlocked);
+  document.getElementById('tabAdmin').hidden=!unlocked;
+}
+function changeKey(){
+  const v=document.getElementById('newKey').value.trim();
+  if(v.length<4){toast('4文字以上にしてください');return;}
+  state.adminKey=v; document.getElementById('newKey').value=''; saveApps('管理キーを変更しました');
+}
+
+function openEditor(id){
+  editing=id?{...appById(id)}:{id:'a'+Date.now(),name:'',tape:'',cat:'営業支援',owner:'',desc:'',url:'',
+    status:'準備中',perUse:15,build:0,howto:[]};
+  const isNew=!id, ltd=scopeOf(editing)==='限定', h=editing.howto||[];
+  document.getElementById('modalHost').innerHTML=`
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-hd"><h2>${isNew?'アプリを追加':'アプリを編集'}</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
+      <div class="modal-bd">
+        <div class="field"><label>アプリ名</label><input id="fName" value="${esc(editing.name)}" placeholder="例：工事進捗報告システム"></div>
+        <div class="field"><label>何ができるか（社員が読む説明）</label>
+          <textarea id="fDesc" placeholder="誰が、どの業務で、何を短縮できるかを1〜2文で">${esc(editing.desc)}</textarea></div>
+        <div class="field"><label>使い方（3行）</label>
+          <input id="fH1" value="${esc(h[0]||'')}" placeholder="1. 最初にすること" style="margin-bottom:6px">
+          <input id="fH2" value="${esc(h[1]||'')}" placeholder="2. 次にすること" style="margin-bottom:6px">
+          <input id="fH3" value="${esc(h[2]||'')}" placeholder="3. 最後にすること">
+          <div class="hint">最初の1回を通過させる分だけ。マニュアルは書かないでください。</div></div>
+        <div class="field"><label>公開URL</label><input id="fUrl" value="${esc(editing.url)}" placeholder="https://..."></div>
+        <div class="f2">
+          <div class="field"><label>公開範囲</label><select id="fScope" onchange="onScopeChange()">
+            <option value="全社" ${!ltd?'selected':''}>全社に公開</option>
+            <option value="限定" ${ltd?'selected':''}>限定公開（管理キーが必要）</option></select></div>
+          <div class="field"><label>閲覧できる人（メモ）</label>
+            <input id="fMembers" value="${esc(editing.members||'')}" placeholder="例：丸林のみ" ${ltd?'':'disabled'}></div>
+        </div>
+        <div class="hint" id="scopeHint" style="margin:-6px 0 14px">${ltd
+          ?'管理キーを入れていない社員には、一覧にも検索にも出ません。'
+          :'社員全員のアプリ一覧に表示されます。'}</div>
+        <div class="field"><label>今回の更新内容（1行・カードに2週間表示されます）</label>
+          <input id="fChange" value="${esc(editing.changelog||'')}" placeholder="例：地図表示を追加しました"></div>
+        <div class="f2">
+          <div class="field"><label>カテゴリ</label><select id="fCat">
+            ${Object.keys(CATS).map(k=>`<option ${editing.cat===k?'selected':''}>${k}</option>`).join('')}</select></div>
+          <div class="field"><label>状態</label><select id="fStatus">
+            ${Object.keys(STATUS).map(k=>`<option ${editing.status===k?'selected':''}>${k}</option>`).join('')}</select></div>
+          <div class="field"><label>担当（部署または氏名）</label><input id="fOwner" value="${esc(editing.owner)}" placeholder="例：営業部 / 村田"></div>
+          <div class="field"><label>アイコン表記（2〜4文字）</label><input id="fTape" value="${esc(editing.tape)}" maxlength="4" placeholder="例：進捗"></div>
+          <div class="field"><label>1回あたりの削減時間（分）</label><input id="fPerUse" type="number" min="0" value="${+editing.perUse||0}"></div>
+          <div class="field"><label>作成にかけた工数（分）</label><input id="fBuild" type="number" min="0" value="${+editing.build||0}"></div>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12.5px">
+          <input type="checkbox" id="fTracked" ${editing.tracked?'checked':''} style="width:auto">
+          このアプリに計測タグを入れた（アプリ側で記録するので、ポータルでは二重に数えません）</label>
+      </div>
+      <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
+        <button class="btn" onclick="saveApp()">保存する</button></div>
+    </div></div>`;
+  setTimeout(()=>document.getElementById('fName').focus(),30);
+}
+function onScopeChange(){
+  const ltd=document.getElementById('fScope').value==='限定';
+  document.getElementById('fMembers').disabled=!ltd;
+  document.getElementById('scopeHint').textContent=ltd
+    ?'管理キーを入れていない社員には、一覧にも検索にも出ません。'
+    :'社員全員のアプリ一覧に表示されます。';
+}
+function saveApp(){
+  const g=id=>document.getElementById(id).value;
+  const name=g('fName').trim();
+  if(!name){toast('アプリ名を入れてください');document.getElementById('fName').focus();return;}
+  const changelog=g('fChange').trim();
+  const isNew=!state.apps.some(x=>x.id===editing.id);
+  const a={...editing,name,desc:g('fDesc').trim(),url:g('fUrl').trim(),cat:g('fCat'),status:g('fStatus'),
+    owner:g('fOwner').trim(),tape:g('fTape').trim()||name.slice(0,2),perUse:+g('fPerUse')||0,build:+g('fBuild')||0,
+    scope:g('fScope'),members:g('fScope')==='限定'?g('fMembers').trim():'',
+    howto:[g('fH1').trim(),g('fH2').trim(),g('fH3').trim()].filter(Boolean),
+    changelog,tracked:document.getElementById('fTracked').checked,
+    createdAt:editing.createdAt||(isNew?Date.now():undefined)};
+  if(changelog&&changelog!==editing.changelog) a.updatedAt=Date.now();
+  const i=state.apps.findIndex(x=>x.id===a.id);
+  if(i>=0) state.apps[i]=a; else state.apps.push(a);
+  closeModal(); render(); saveApps(); toast('保存しました');
+}
+function removeApp(id){
+  const a=appById(id);
+  if(!confirm(`「${a.name}」を一覧から削除します。よろしいですか？`)) return;
+  state.apps=state.apps.filter(x=>x.id!==id); render(); saveApps(); toast('削除しました');
+}
+
+/* =========================================================
+   ログ操作・入出力
+   ========================================================= */
+function seedDemo(){
+  if(!confirm('表示確認用のサンプルデータ（利用ログ・要望）を追加します。よろしいですか？')) return;
+  const people={'村田':'管理部','石野':'管理部','山田知子':'管理部','奥田':'商品企画部','狐塚':'営業部','増田':'営業部','丸林':'社長室'};
+  Object.assign(state.roster,people);
+  const names=Object.keys(people);
+  const live=state.apps.filter(a=>a.status==='公開中'&&scopeOf(a)==='全社');
+  const w=[9,7,5,4,3,2,2];
+  live.forEach((a,i)=>{
+    const n=(w[i]||2)*5;
+    for(let k=0;k<n;k++){
+      const u=names[Math.floor(Math.random()*names.length)];
+      usage.push({a:a.id,u,d:people[u],t:Date.now()-Math.floor(Math.random()*150*864e5),s:'portal'});
+    }
+  });
+  usage.sort((x,y)=>x.t-y.t);
+  if(live[0]) reqs.push({id:'r'+Date.now(),a:live[0].id,u:'狐塚',d:'営業部',type:'改善してほしい',
+    text:'案件を県ごとに並べ替えできるようにしてほしい',t:Date.now()-3*864e5,st:'未対応'});
+  if(live[1]) reqs.push({id:'r'+(Date.now()+1),a:live[1].id,u:'奥田',d:'商品企画部',type:'うまく動かない',
+    text:'Excelを取り込むと金額が空欄になることがある',t:Date.now()-864e5,st:'未対応'});
+  saveUsage(); saveReqs(); saveApps(); render(); toast('サンプルを入れました');
+}
+function clearUsage(){
+  if(!confirm('利用ログをすべて消します。元に戻せません。よろしいですか？')) return;
+  usage=[]; saveUsage(); render(); toast('利用ログを消去しました');
+}
+function exportJson(){
+  const blob=new Blob([JSON.stringify({...state,usage,reqs},null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='earthcom-app-portal-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); URL.revokeObjectURL(a.href); toast('JSONを書き出しました');
+}
+function importJson(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!Array.isArray(d.apps)) throw 0;
+      if(Array.isArray(d.usage)){usage=d.usage;saveUsage();}
+      if(Array.isArray(d.reqs)){reqs=d.reqs;saveReqs();}
+      delete d.usage; delete d.reqs; state={...state,...d};
+      syncControls(); render(); saveApps(); toast('読み込みました');
+    }catch(e){toast('このファイルは読み込めません。書き出したJSONを選んでください');}
+    ev.target.value='';
+  };
+  r.readAsText(f);
+}
+
+/* =========================================================
+   タブ・初期化
+   ========================================================= */
+function setTab(t){
+  tab=t;
+  document.getElementById('tabUse').setAttribute('aria-selected',t==='use');
+  document.getElementById('tabAdmin').setAttribute('aria-selected',t==='admin');
+  document.getElementById('viewUse').hidden=t!=='use';
+  document.getElementById('viewAdmin').hidden=t!=='admin';
+  render();
+}
+function syncControls(){
+  document.getElementById('wUser').value=state.wUser;
+  document.getElementById('wDev').value=state.wDev;
+  document.getElementById('wUserL').textContent=state.wUser.toLocaleString('ja-JP');
+  document.getElementById('wDevL').textContent=state.wDev.toLocaleString('ja-JP');
+}
+(async function init(){await loadAll(); syncControls(); applyLockUI(); render();})();
+</script>
+</body>
+</html>
