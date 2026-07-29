@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EXPO GROWTH 360｜株式会社アースコム</title>
+<style>
+:root{
+  --paper:#EDF1EE; --surface:#FFFFFF; --surface-2:#F7F9F7;
+  --ink:#12211D; --ink-2:#4C5C57; --ink-3:#7C8A85;
+  --line:#D6DED9; --line-2:#E7ECE8;
+  --brand:#0B6B5B; --brand-d:#084C41; --brand-l:#E3F0EC;
+  --deep:#0D1F1B;
+  --rS:#0B6B5B; --rA:#2C6E9E; --rB:#C0821A; --rC:#8A9490;
+  --warn:#B32B22; --amber:#DF9A16; --ok:#0B6B5B;
+  --r:10px; --sh:0 1px 2px rgba(18,33,29,.06),0 6px 18px rgba(18,33,29,.05);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --jp:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic Medium","Yu Gothic",Meiryo,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--jp);font-size:14px;line-height:1.65;-webkit-text-size-adjust:100%}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em;font-feature-settings:"tnum" 1}
+button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
+a{color:var(--brand)}
+
+/* ---------- header ---------- */
+header.top{background:var(--deep);color:#EAF2EF;position:sticky;top:0;z-index:40;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.top-in{max-width:1400px;margin:0 auto;padding:10px 16px 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+.brandmark{font-weight:800;font-size:17px;letter-spacing:.10em}
+.brandmark small{display:block;font-size:9.5px;letter-spacing:.34em;color:#7FA79C;font-weight:600;margin-top:1px}
+.evt{font-size:11.5px;color:#8FB3A9;letter-spacing:.04em;margin-left:auto;text-align:right}
+.evt b{color:#D6E8E2;font-weight:700}
+nav.tabs{max-width:1400px;margin:0 auto;padding:8px 8px 0;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{background:none;border:0;color:#8FB3A9;padding:9px 13px 10px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;font-weight:700;font-size:12.5px;letter-spacing:.02em;border-bottom:3px solid transparent}
+nav.tabs button:hover{color:#DCEDE8}
+nav.tabs button.on{background:var(--paper);color:var(--ink);border-bottom-color:var(--paper)}
+nav.tabs button .cnt{display:inline-block;min-width:17px;padding:0 4px;margin-left:5px;background:rgba(255,255,255,.14);border-radius:9px;font-size:10.5px;line-height:16px;text-align:center}
+nav.tabs button.on .cnt{background:var(--brand);color:#fff}
+
+/* ---------- layout ---------- */
+main{max-width:1400px;margin:0 auto;padding:16px 16px 90px}
+section.view{display:none;animation:fade .18s ease}
+section.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h2.vt{font-size:15px;margin:0 0 3px;letter-spacing:.02em}
+p.vs{margin:0 0 16px;color:var(--ink-3);font-size:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:14px}
+.card>h3{margin:0;padding:11px 14px;font-size:12.5px;letter-spacing:.04em;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card>h3 .sub{font-weight:400;color:var(--ink-3);font-size:11px;letter-spacing:0}
+.card>h3 .rt{margin-left:auto;display:flex;gap:6px}
+.pad{padding:14px}
+.grid{display:grid;gap:14px}
+@media(min-width:900px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g21{grid-template-columns:2fr 1fr}}
+
+/* ---------- signature: pipeline bar ---------- */
+.hero{background:var(--deep);color:#E7F1ED;border-radius:var(--r);padding:16px 16px 14px;margin-bottom:14px;box-shadow:var(--sh)}
+.hero .lab{font-size:10.5px;letter-spacing:.26em;color:#7FA79C;font-weight:700}
+.hero .big{font-size:clamp(30px,7vw,50px);font-weight:800;line-height:1.05;margin:4px 0 2px}
+.hero .big span{font-size:.42em;font-weight:700;color:#9CC3B8;margin-left:6px;letter-spacing:.02em}
+.hero .note{font-size:11.5px;color:#8FB3A9}
+.pipe{display:flex;height:26px;border-radius:5px;overflow:hidden;margin:14px 0 8px;background:rgba(255,255,255,.07)}
+.pipe i{display:block;height:100%;position:relative;transition:width .5s cubic-bezier(.2,.7,.3,1)}
+.pipe i span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;font-style:normal;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.plegend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:11.5px;color:#9CC3B8}
+.plegend b{color:#EAF2EF}
+.plegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line-2)}
+@media(min-width:640px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--surface);padding:11px 12px 12px}
+.kpi .k{font-size:10.5px;color:var(--ink-3);letter-spacing:.06em;font-weight:700}
+.kpi .v{font-size:23px;font-weight:800;line-height:1.15}
+.kpi .v em{font-style:normal;font-size:12px;color:var(--ink-3);font-weight:700;margin-left:3px}
+.bar{height:4px;background:var(--line-2);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:2px}
+.bar.over i{background:var(--amber)}
+.kpi .t{font-size:10.5px;color:var(--ink-3);margin-top:4px}
+
+/* ---------- table ---------- */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line-2);white-space:nowrap;vertical-align:middle}
+th{font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);background:var(--surface-2);font-weight:700;position:sticky;top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#F4F8F6}
+tbody tr.clk{cursor:pointer}
+.empty{padding:34px 16px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.empty b{display:block;color:var(--ink-2);font-size:13.5px;margin-bottom:4px}
+
+/* ---------- chips / badges ---------- */
+.rk{display:inline-block;min-width:20px;text-align:center;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:800;color:#fff;letter-spacing:.04em}
+.rk.S{background:var(--rS)}.rk.A{background:var(--rA)}.rk.B{background:var(--rB)}.rk.C{background:var(--rC)}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10.5px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.tag.b{background:var(--brand-l);border-color:#C2DCD4;color:var(--brand-d)}
+.tag.w{background:#FDF2E3;border-color:#F0DCB6;color:#8A5B08}
+.tag.r{background:#FBEAE8;border-color:#F1CBC7;color:var(--warn)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.ph{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;background:var(--deep);color:#CFE3DD;padding:1px 6px;border-radius:4px;letter-spacing:.02em}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700;font-size:12.5px;transition:.12s}
+.btn:hover{border-color:#B8C6C0;background:var(--surface-2)}
+.btn.p{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.p:hover{background:var(--brand-d);border-color:var(--brand-d)}
+.btn.d{background:var(--deep);border-color:var(--deep);color:#DCEDE8}
+.btn.dg{color:var(--warn);border-color:#EAC9C5}
+.btn.sm{padding:4px 9px;font-size:11.5px;border-radius:6px}
+.btn.blk{width:100%}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ---------- forms ---------- */
+label.f{display:block;margin-bottom:11px}
+label.f>span{display:block;font-size:11px;font-weight:700;color:var(--ink-2);margin-bottom:3px;letter-spacing:.03em}
+label.f>span i{font-style:normal;color:var(--brand);font-size:10px;margin-left:4px}
+input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],input[type=datetime-local],input[type=time],select,textarea{
+ width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(11,107,91,.13)}
+textarea{min-height:66px;resize:vertical;line-height:1.6}
+.fg{display:grid;gap:0 12px}
+@media(min-width:700px){.fg{grid-template-columns:1fr 1fr}.fg .wide{grid-column:1/-1}}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:12px;font-weight:700;color:var(--ink-2)}
+.seg button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line-2);background:var(--surface-2)}
+.filters select,.filters input{width:auto;min-width:118px;padding:6px 9px;font-size:12px}
+.filters .sp{margin-left:auto}
+
+/* ---------- modal ---------- */
+.ovl{position:fixed;inset:0;background:rgba(13,31,27,.5);backdrop-filter:blur(2px);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
+.ovl.on{display:flex}
+.modal{background:var(--paper);border-radius:12px;width:100%;max-width:820px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:pop .18s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+.mh{background:var(--surface);padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2}
+.mh h4{margin:0;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mh .x{background:none;border:0;font-size:22px;line-height:1;cursor:pointer;color:var(--ink-3);padding:0 4px}
+.mb{padding:14px;max-height:calc(100vh - 170px);overflow-y:auto}
+.mf{background:var(--surface);padding:11px 14px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ---------- misc ---------- */
+.alert{border-left:3px solid var(--amber);background:#FDF6E9;padding:9px 12px;border-radius:0 7px 7px 0;font-size:12.5px;margin-bottom:8px}
+.alert.r{border-color:var(--warn);background:#FBEDEB}
+.alert.g{border-color:var(--brand);background:var(--brand-l)}
+.list{list-style:none;margin:0;padding:0}
+.list li{padding:9px 14px;border-bottom:1px solid var(--line-2);display:flex;gap:10px;align-items:center;font-size:12.5px}
+.list li:last-child{border-bottom:0}
+.list li .gr{flex:1;min-width:0}
+.list li .gr b{display:block;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .gr small{color:var(--ink-3);font-size:11px}
+.mini{font-size:11px;color:var(--ink-3)}
+.hr{height:1px;background:var(--line-2);margin:12px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}
+.kv dt{color:var(--ink-3);font-size:11px;padding-top:2px}
+.kv dd{margin:0;font-weight:600}
+.stack{display:flex;flex-direction:column;gap:9px}
+.trk{display:flex;gap:2px;margin-top:5px}
+.trk i{flex:1;height:5px;background:var(--line-2);border-radius:2px}
+.trk i.on{background:var(--brand)}
+.trk i.warn{background:var(--amber)}
+.trk i.bad{background:var(--warn)}
+.scan{background:#000;border-radius:9px;overflow:hidden;min-height:200px;display:flex;align-items:center;justify-content:center;color:#7FA79C;font-size:12px}
+#qrbox{width:100%}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--deep);color:#EAF2EF;padding:10px 18px;border-radius:9px;font-size:12.5px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;z-index:90;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.qrimg{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:8px;border:1px solid var(--line)}
+.rankbox{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.rankbox .hd{padding:12px 14px;color:#fff;display:flex;align-items:center;gap:10px}
+.rankbox .hd b{font-size:26px;font-weight:800;line-height:1}
+.rankbox .hd .sc{margin-left:auto;font-size:12px;opacity:.9;font-weight:700}
+.rankbox .bd{padding:12px 14px;background:var(--surface);font-size:12.5px}
+.act{counter-reset:a;list-style:none;margin:0;padding:0}
+.act li{counter-increment:a;position:relative;padding:5px 0 5px 30px;font-size:12.5px;border-bottom:1px dashed var(--line-2)}
+.act li:last-child{border-bottom:0}
+.act li:before{content:counter(a);position:absolute;left:0;top:6px;width:19px;height:19px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.act li em{font-style:normal;color:var(--ink-3);font-size:11px;margin-left:6px}
+.thumb{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+.sticky-b{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:35;box-shadow:0 -3px 14px rgba(18,33,29,.07)}
+@media(min-width:900px){.sticky-b{position:static;border:0;box-shadow:none;padding:0;background:none;margin-top:12px}}
+@media print{header.top,nav.tabs,.sticky-b{display:none}}
+*:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brandmark">EXPO GROWTH 360<small>EARTHCOM SALES OPERATIONS</small></div>
+    <div class="evt" id="evtInfo"></div>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main>
+  <section class="view" id="v-dash"></section>
+  <section class="view" id="v-invite"></section>
+  <section class="view" id="v-reception"></section>
+  <section class="view" id="v-leads"></section>
+  <section class="view" id="v-deals"></section>
+  <section class="view" id="v-referral"></section>
+  <section class="view" id="v-analytics"></section>
+  <section class="view" id="v-settings"></section>
+</main>
+<div class="ovl" id="ovl"><div class="modal"><div class="mh"><h4 id="mTitle"></h4><button class="x" id="mX">&times;</button></div><div class="mb" id="mBody"></div><div class="mf" id="mFoot"></div></div></div>
+<div class="toast" id="toast"></div>
+<script>
+/* ============================================================
+   EXPO GROWTH 360 / EARTHCOM  -- Phase1 MVP (single file)
+   ============================================================ */
+const KEY='expo_growth_360_v1';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const nowISO=()=>new Date().toISOString();
+const dOnly=v=>v?String(v).slice(0,10):'';
+const days=(a,b)=>Math.floor((new Date(dOnly(b)||todayISO())-new Date(dOnly(a)))/864e5);
+const dAgo=v=>v?days(v,todayISO()):null;
+function fmtY(n){n=Number(n)||0;if(Math.abs(n)>=1e8)return (n/1e8).toFixed(2).replace(/\.?0+$/,'')+'億円';if(Math.abs(n)>=1e4)return Math.round(n/1e4).toLocaleString()+'万円';return n.toLocaleString()+'円';}
+function pct(a,b){return b>0?Math.round(a/b*100):0;}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200);}
+
+/* ---------- master data ---------- */
+const PRODUCTS=['高圧ReFort','低圧ReFort','蓄電池','アセット開発','提携・紹介'];
+const GP_DEFAULT={'高圧ReFort':20000000,'低圧ReFort':3000000,'蓄電池':8900000,'アセット開発':16700000,'提携・紹介':0};
+const PH=['PH01 案件見極め','PH02 初回接触','PH03 課題確認','PH04 提案準備','PH05 提案','PH06 条件調整','PH07 最終判断','PH08 受注'];
+const INV_STATUS=['未連絡','招待済み','返信あり','来場予定','来場確定','当日来場','商談化'];
+const INV_CATEGORY=['既存顧客','過去商談顧客','発電所オーナー','金融機関','税理士・会計事務所','不動産会社','土地所有者','経営者仲間','提携候補企業','投資家','発電事業者'];
+const LOST_REASONS=['価格','投資回収','資金・融資','時期','競合','決裁者不在','商品条件不一致','土地・設備条件','営業対応の遅れ','提案不足','信頼不足','連絡不通','顧客都合','その他'];
+const RANK_COLOR={S:'var(--rS)',A:'var(--rA)',B:'var(--rB)',C:'var(--rC)'};
+
+/* ---------- hearing schema : 共通60点 + 商品40点 = 100点 ---------- */
+const H_COMMON=[
+ {k:'purpose',l:'来場目的',t:'text',ph:'例）発電量低下の相談'},
+ {k:'issue',l:'現在抱えている課題',t:'textarea',pts:{_filled:8},ph:'お客様の言葉のまま残す'},
+ {k:'timing',l:'投資・導入予定時期',t:'sel',o:['未定','1年以内','半年以内','3カ月以内'],pts:{'3カ月以内':15,'半年以内':10,'1年以内':5,'未定':0}},
+ {k:'budget',l:'予算・融資の目途',t:'sel',o:['なし','検討中','目途あり'],pts:{'目途あり':10,'検討中':5,'なし':0}},
+ {k:'decider',l:'意思決定者か',t:'sel',o:['不明','担当者','決裁関与','決裁者本人'],pts:{'決裁者本人':12,'決裁関与':8,'担当者':3,'不明':0}},
+ {k:'compete',l:'他社との比較状況',t:'sel',o:['なし','情報収集中','見積取得済']},
+ {k:'nextok',l:'次回面談の可否',t:'sel',o:['不可','検討','可'],pts:{'可':10,'検討':4,'不可':0}},
+ {k:'refer',l:'紹介できる方がいるか',t:'sel',o:['なし','可能性あり','紹介可'],pts:{'紹介可':5,'可能性あり':2,'なし':0}}
+];
+const H_REFORT=[
+ {k:'site',l:'発電所の所在地',t:'text'},
+ {k:'class',l:'低圧・高圧',t:'sel',o:['低圧','高圧','両方']},
+ {k:'count',l:'所有発電所数',t:'sel',o:['0','1〜2','3〜5','6以上'],pts:{'6以上':8,'3〜5':8,'1〜2':5,'0':0}},
+ {k:'fit',l:'FIT単価（円/kWh）',t:'num'},
+ {k:'rest',l:'FIT残存期間',t:'sel',o:['4年未満','4〜6年','7年以上'],pts:{'7年以上':10,'4〜6年':6,'4年未満':2}},
+ {k:'start',l:'発電開始年月',t:'text',ph:'例）2015年8月'},
+ {k:'panel',l:'パネル容量（kW）',t:'num'},
+ {k:'pcs',l:'PCS容量（kW）',t:'num'},
+ {k:'down',l:'発電量低下の有無',t:'sel',o:['なし','不明','あり（〜10%）','あり（10%以上）'],pts:{'あり（10%以上）':10,'あり（〜10%）':7,'不明':2,'なし':0}},
+ {k:'trouble',l:'故障・盗難の経験',t:'sel',o:['なし','あり']},
+ {k:'plan',l:'パネル・PCS交換予定',t:'sel',o:['なし','検討中','予定あり']},
+ {k:'survey',l:'現地調査の可否',t:'sel',o:['不可','検討','可'],pts:{'可':12,'検討':5,'不可':0}}
+];
+const H_BATTERY=[
+ {k:'land',l:'土地の保有状況',t:'sel',o:['なし','探している','保有'],pts:{'保有':10,'探している':4,'なし':0}},
+ {k:'grid',l:'系統連系の進捗',t:'sel',o:['未着手','事前相談中','回答済／契約申込'],pts:{'回答済／契約申込':8,'事前相談中':4,'未着手':0}},
+ {k:'amount',l:'投資可能額',t:'sel',o:['未定','〜5千万円','5千万〜1億円','1億円以上'],pts:{'1億円以上':10,'5千万〜1億円':8,'〜5千万円':5,'未定':0}},
+ {k:'entity',l:'法人・個人',t:'sel',o:['個人','法人']},
+ {k:'loan',l:'融資利用の希望',t:'sel',o:['未定','自己資金','融資希望'],pts:{'自己資金':4,'融資希望':4,'未定':0}},
+ {k:'yield',l:'希望利回り（%）',t:'num'},
+ {k:'multi',l:'複数案件への関心',t:'sel',o:['なし','あり'],pts:{'あり':8,'なし':0}},
+ {k:'exit',l:'出口・運用に対する不安',t:'textarea'}
+];
+const H_ASSET=[
+ {k:'landinfo',l:'土地情報の有無',t:'sel',o:['なし','情報あり','複数あり'],pts:{'複数あり':12,'情報あり':9,'なし':0}},
+ {k:'owner',l:'地主との関係',t:'sel',o:['なし','面識あり','契約交渉可'],pts:{'契約交渉可':8,'面識あり':5,'なし':0}},
+ {k:'loc',l:'所在地',t:'text'},
+ {k:'area',l:'土地面積（㎡）',t:'num'},
+ {k:'chimoku',l:'地目',t:'text'},
+ {k:'gridinfo',l:'系統情報',t:'sel',o:['なし','調査中','取得済'],pts:{'取得済':8,'調査中':4,'なし':0}},
+ {k:'around',l:'近隣状況',t:'text'},
+ {k:'cont',l:'案件紹介の継続可能性',t:'sel',o:['なし','あり'],pts:{'あり':12,'なし':0}},
+ {k:'permonth',l:'月間紹介可能件数',t:'num'}
+];
+const H_PARTNER=[
+ {k:'seg',l:'顧客層',t:'text',ph:'例）地場の中小企業オーナー'},
+ {k:'num',l:'紹介可能な顧客数',t:'sel',o:['未定','1〜5社','6〜20社','21社以上'],pts:{'21社以上':14,'6〜20社':11,'1〜5社':6,'未定':0}},
+ {k:'need',l:'顧客が抱える課題',t:'textarea'},
+ {k:'theme',l:'節税・投資・事業承継ニーズ',t:'sel',o:['不明','一部あり','強い']},
+ {k:'study',l:'勉強会開催の可否',t:'sel',o:['不可','検討','可'],pts:{'可':10,'検討':4,'不可':0}},
+ {k:'unit',l:'支店単位・本部連携',t:'sel',o:['未定','支店単位','本部連携'],pts:{'本部連携':8,'支店単位':5,'未定':0}},
+ {k:'nextdate',l:'次回打ち合わせ候補日',t:'date',pts:{_filled:8}}
+];
+const H_PRODUCT={'高圧ReFort':H_REFORT,'低圧ReFort':H_REFORT,'蓄電池':H_BATTERY,'アセット開発':H_ASSET,'提携・紹介':H_PARTNER};
+
+/* ---------- scoring ---------- */
+function scoreOf(lead){
+  const h=lead.hearing||{}; let c=0,p=0;
+  const add=(fs,isC)=>fs.forEach(f=>{
+    if(!f.pts)return; const v=h[f.k];
+    let g=0;
+    if(f.pts._filled!==undefined) g = (v!==undefined&&String(v).trim().length>=(f.t==='textarea'?8:1))?f.pts._filled:0;
+    else g = f.pts[v]||0;
+    if(isC)c+=g;else p+=g;
+  });
+  add(H_COMMON,true); add(H_PRODUCT[lead.product]||[],false);
+  return {common:c,prod:p,total:c+p};
+}
+function rankOf(total){return total>=80?'S':total>=60?'A':total>=35?'B':'C';}
+function probOf(lead){
+  const base={S:.55,A:.35,B:.15,C:.05}[lead.rank||'C'];
+  const ph=Number(lead.ph||1);
+  let v=base+(ph-1)*.05;
+  if(lead.nextDue)v+=.04;
+  if(lead.status==='won')return 1; if(lead.status==='lost')return 0;
+  return Math.max(.02,Math.min(.95,v));
+}
+function recalc(lead){
+  const s=scoreOf(lead); lead.score=s.total; lead.rank=rankOf(s.total); lead.prob=probOf(lead); return lead;
+}
+/* 追客シナリオ（ランク別） */
+const SCENARIO={
+ S:[['当日','お礼メール送信',0],['翌日','担当者から電話',1],['3日以内','商談または現地調査',3],['7日以内','概算提案の提示',7],['14日以内','条件調整',14],['20日以内','受注判断',20]],
+ A:[['当日','お礼メール送信',0],['2日以内','電話フォロー',2],['7日以内','オンライン商談',7],['14日以内','資料・事例の提供',14],['20日以内','商談ランクの再判定',20]],
+ B:[['当日','お礼メール送信',0],['7日以内','商品別資料の配信',7],['14日以内','セミナー・導入事例の案内',14],['30日ごと','状況確認',30]],
+ C:[['当日','お礼メール送信',0],['随時','メールマガジン配信',14],['次回','エキスポ案内・長期育成リストへ登録',60]]
+};
+/* 20日ルール判定 */
+function ruleState(lead){
+  if(lead.status!=='open')return{lv:0,label:'—',rest:null,idle:null};
+  const start=lead.startAt||lead.checkinAt||lead.createdAt;
+  const rest=start?20-days(start,todayISO()):null;
+  const idle=lead.lastActionAt?dAgo(lead.lastActionAt):(start?dAgo(start):null);
+  let lv=0,label='正常';
+  if(rest!==null&&rest<0){lv=4;label='20日超過';}
+  else if(idle!==null&&idle>=14){lv=3;label='14日停滞';}
+  else if(rest!==null&&rest<=3){lv=3;label='残り'+rest+'日';}
+  else if(idle!==null&&idle>=7){lv=2;label='7日停滞';}
+  else if(idle!==null&&idle>=3){lv=1;label='3日停滞';}
+  return{lv,label,rest,idle};
+}
+const LVTAG=['','w','w','r','r'];
+const LVCOLOR=['var(--ok)','var(--amber)','#E07B1B','var(--warn)','var(--warn)'];
+
+/* ---------- store ---------- */
+const DEFAULT={
+  meta:{event:'PV EXPO 2026',dates:'',venue:'東京ビッグサイト',
+        targets:{leads:500,valid:300,priority:150,appt:100,survey:50,order:20,referral:50}},
+  staff:[], invitees:[], leads:[], referrals:[], seq:1
+};
+let db=load();
+function load(){try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);return Object.assign(structuredClone(DEFAULT),o);}}catch(e){console.warn(e)}return structuredClone(DEFAULT);}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){toast('保存に失敗しました。写真の枚数を減らしてください');}}
+function staffName(id){const s=db.staff.find(x=>x.id===id);return s?s.name:'未割当';}
+function nextCode(){const n=db.seq++;return 'EX-'+String(n).padStart(4,'0');}
+
+/* 想定粗利パイプライン */
+function pipeline(scope){
+  const src=(scope||db.leads).filter(l=>l.status==='open');
+  const by={S:0,A:0,B:0,C:0};
+  src.forEach(l=>{by[l.rank||'C']+=Number(l.gp||0);});
+  const w=src.reduce((a,l)=>a+Number(l.gp||0)*probOf(l),0);
+  const total=by.S+by.A+by.B+by.C;
+  return{by,total,weighted:w,count:src.length};
+}
+</script>
+<script>
+/* ============================ UI 基盤 ============================ */
+const TABS=[
+ {id:'dash',n:'ダッシュボード'},{id:'invite',n:'事前集客'},{id:'reception',n:'受付'},
+ {id:'leads',n:'リード一覧'},{id:'deals',n:'商談・20日ルール'},{id:'referral',n:'紹介'},
+ {id:'analytics',n:'分析'},{id:'settings',n:'設定'}
+];
+let TAB='dash';
+function tabCount(id){
+  if(id==='invite')return db.invitees.length;
+  if(id==='leads')return db.leads.length;
+  if(id==='deals')return db.leads.filter(l=>l.status==='open'&&ruleState(l).lv>=1).length;
+  if(id==='referral')return db.referrals.length;
+  return 0;
+}
+function drawTabs(){
+  $('#tabs').innerHTML=TABS.map(t=>{const c=tabCount(t.id);
+    return `<button data-t="${t.id}" class="${t.id===TAB?'on':''}">${t.n}${c?`<span class="cnt num">${c}</span>`:''}</button>`}).join('');
+  $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+  $('#evtInfo').innerHTML=`<b>${esc(db.meta.event||'イベント未設定')}</b>${db.meta.dates?' ／ '+esc(db.meta.dates):''}<br>リード <b class="num">${db.leads.length}</b>／目標 <b class="num">${db.meta.targets.leads}</b>　受注 <b class="num">${db.leads.filter(l=>l.status==='won').length}</b>／<b class="num">${db.meta.targets.order}</b>`;
+}
+function go(id){TAB=id;render();window.scrollTo({top:0,behavior:'instant'});}
+function render(){
+  drawTabs();
+  $$('section.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+TAB));
+  ({dash:vDash,invite:vInvite,reception:vReception,leads:vLeads,deals:vDeals,referral:vReferral,analytics:vAnalytics,settings:vSettings})[TAB]();
+}
+/* modal */
+let mFootFn=null;
+function modal(title,body,foot){
+  $('#mTitle').textContent=title;$('#mBody').innerHTML=body;$('#mFoot').innerHTML=foot||'';
+  $('#ovl').classList.add('on');document.body.style.overflow='hidden';
+}
+function closeModal(){$('#ovl').classList.remove('on');document.body.style.overflow='';}
+$('#mX').onclick=closeModal;
+$('#ovl').onclick=e=>{if(e.target===$('#ovl'))closeModal()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ovl').classList.contains('on'))closeModal()});
+
+/* form builders */
+function fld(f,val){
+  const id='f_'+f.k, v=val??'';
+  let inner='';
+  if(f.t==='sel')inner=`<select id="${id}" data-k="${f.k}"><option value="">—</option>${f.o.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else if(f.t==='textarea')inner=`<textarea id="${id}" data-k="${f.k}" placeholder="${esc(f.ph||'')}">${esc(v)}</textarea>`;
+  else if(f.t==='num')inner=`<input type="number" step="any" id="${id}" data-k="${f.k}" value="${esc(v)}" placeholder="${esc(f.ph||'')}">`;
+  else if(f.t==='date')inner=`<input type="date" id="${id}" data-k="${f.k}" value="${esc(v)}">`;
+  else inner=`<input type="text" id="${id}" data-k="${f.k}" value="${esc(v)}" placeholder="${esc(f.ph||'')}">`;
+  const scored=f.pts?'<i>判定項目</i>':'';
+  return `<label class="f ${f.t==='textarea'?'wide':''}"><span>${esc(f.l)}${scored}</span>${inner}</label>`;
+}
+function collect(root,fields){const o={};fields.forEach(f=>{const el=$('#f_'+f.k,root);if(el)o[f.k]=el.value;});return o;}
+function selOpts(arr,cur){return arr.map(o=>`<option ${o===cur?'selected':''}>${esc(o)}</option>`).join('')}
+function staffOpts(cur){return `<option value="">未割当</option>`+db.staff.map(s=>`<option value="${s.id}" ${s.id===cur?'selected':''}>${esc(s.name)}</option>`).join('')}
+
+/* ============================ ① ダッシュボード ============================ */
+function vDash(){
+  const P=pipeline(), T=db.meta.targets, L=db.leads;
+  const valid=L.filter(l=>l.score>0).length;
+  const prio=L.filter(l=>l.rank==='S'||l.rank==='A').length;
+  const appt=L.filter(l=>l.nextDue).length;
+  const survey=L.filter(l=>l.ph>=4).length;
+  const won=L.filter(l=>l.status==='won');
+  const ref=db.referrals.length;
+  const inTime=L.filter(l=>l.status==='open'&&ruleState(l).lv<=1).length;
+  const seg=k=>P.total?Math.max(P.by[k]/P.total*100,P.by[k]>0?6:0):0;
+  const alerts=dashAlerts();
+
+  const kpi=(k,v,t,unit)=>`<div class="kpi"><div class="k">${k}</div><div class="v num">${v.toLocaleString()}<em>${unit||'件'}</em></div>
+    <div class="bar ${v>=t?'over':''}"><i style="width:${Math.min(100,pct(v,t))}%"></i></div><div class="t num">目標 ${t.toLocaleString()}　達成 ${pct(v,t)}%</div></div>`;
+
+  $('#v-dash').innerHTML=`
+  <div class="hero">
+    <div class="lab">確度別 想定粗利パイプライン</div>
+    <div class="big num">${fmtY(P.total)}<span>／ 確度加重 ${fmtY(P.weighted)}</span></div>
+    <div class="note">進行中 <b class="num">${P.count}</b>件。受注確定 <b class="num">${fmtY(won.reduce((a,l)=>a+Number(l.gp||0),0))}</b>（${won.length}件）</div>
+    <div class="pipe">
+      ${['S','A','B','C'].map(k=>`<i style="width:${seg(k)}%;background:${RANK_COLOR[k]}">${seg(k)>10?`<span>${k}　${fmtY(P.by[k])}</span>`:''}</i>`).join('')}
+    </div>
+    <div class="plegend">${['S','A','B','C'].map(k=>`<span><i style="background:${RANK_COLOR[k]}"></i>${k}ランク <b class="num">${L.filter(l=>l.rank===k&&l.status==='open').length}件</b> ${fmtY(P.by[k])}</span>`).join('')}</div>
+  </div>
+
+  <div class="card"><h3>集客〜受注ファネル<span class="sub">目標対比</span></h3>
+    <div class="kpis">
+      ${kpi('獲得リード',L.length,T.leads)}
+      ${kpi('有効リード',valid,T.valid)}
+      ${kpi('優先リード（S・A）',prio,T.priority)}
+      ${kpi('アポイント',appt,T.appt)}
+      ${kpi('現地調査・詳細提案',survey,T.survey)}
+      ${kpi('受注',won.length,T.order)}
+      ${kpi('紹介獲得',ref,T.referral)}
+      <div class="kpi"><div class="k">20日以内で進行中</div><div class="v num">${pct(inTime,L.filter(l=>l.status==='open').length)}<em>%</em></div>
+        <div class="bar ${pct(inTime,L.filter(l=>l.status==='open').length)>=90?'':'over'}"><i style="width:${pct(inTime,L.filter(l=>l.status==='open').length)}%"></i></div>
+        <div class="t num">目標 90%　停滞 ${L.filter(l=>l.status==='open').length-inTime}件</div></div>
+    </div>
+  </div>
+
+  <div class="grid g21">
+    <div class="card"><h3>商品別パイプライン</h3><div class="tw"><table>
+      <thead><tr><th>商品</th><th class="n">リード</th><th class="n">S</th><th class="n">アポ</th><th class="n">想定粗利</th><th class="n">加重</th></tr></thead>
+      <tbody>${PRODUCTS.map(p=>{const g=L.filter(l=>l.product===p);const op=g.filter(l=>l.status==='open');
+        return `<tr><td><b>${esc(p)}</b></td><td class="n num">${g.length}</td><td class="n num">${g.filter(l=>l.rank==='S').length}</td>
+        <td class="n num">${g.filter(l=>l.nextDue).length}</td><td class="n num">${fmtY(op.reduce((a,l)=>a+Number(l.gp||0),0))}</td>
+        <td class="n num">${fmtY(op.reduce((a,l)=>a+Number(l.gp||0)*probOf(l),0))}</td></tr>`}).join('')}
+      </tbody></table></div></div>
+
+    <div class="card"><h3>本日対応すべき案件<span class="sub">毎朝ここから</span></h3><div class="pad">
+      ${alerts.length?alerts.map(a=>`<div class="alert ${a.lv>=3?'r':''}"><b>${esc(a.title)}：<span class="num">${a.items.length}</span>件</b><div class="mini">${a.items.slice(0,4).map(l=>esc(l.company||l.name)).join('、')}${a.items.length>4?' ほか':''}</div></div>`).join(''):'<div class="alert g">停滞している案件はありません。</div>'}
+      <button class="btn blk" onclick="go('deals')">商談・20日ルールを開く</button>
+    </div></div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card"><h3>担当者ランキング<span class="sub">枚数ではなく前進で評価</span></h3><div class="tw"><table>
+      <thead><tr><th>担当</th><th class="n">接客</th><th class="n">有効</th><th class="n">S獲得</th><th class="n">次回確定</th><th class="n">紹介</th><th class="n">想定粗利</th></tr></thead>
+      <tbody>${rankingRows()}</tbody></table></div></div>
+    <div class="card"><h3>来場状況</h3><div class="tw"><table>
+      <thead><tr><th>ステータス</th><th class="n">件数</th></tr></thead><tbody>
+      ${INV_STATUS.map(s=>`<tr><td>${esc(s)}</td><td class="n num">${db.invitees.filter(i=>i.status===s).length}</td></tr>`).join('')}
+      <tr><td><b>当日飛び込み</b></td><td class="n num">${db.leads.filter(l=>!l.inviteeId).length}</td></tr>
+      </tbody></table></div></div>
+  </div>`;
+}
+function dashAlerts(){
+  const op=db.leads.filter(l=>l.status==='open');
+  const A=[];
+  const sNo=op.filter(l=>l.rank==='S'&&!l.lastActionAt); if(sNo.length)A.push({title:'Sランク未対応',items:sNo,lv:3});
+  const noNext=op.filter(l=>(l.rank==='S'||l.rank==='A')&&!l.nextDue); if(noNext.length)A.push({title:'次回予定が未設定（S・A）',items:noNext,lv:3});
+  const noOwner=op.filter(l=>!l.ownerId); if(noOwner.length)A.push({title:'担当者が未割当',items:noOwner,lv:2});
+  const st=op.filter(l=>ruleState(l).idle>=7); if(st.length)A.push({title:'7日以上の停滞',items:st,lv:2});
+  const near=op.filter(l=>{const r=ruleState(l);return r.rest!==null&&r.rest<=3&&r.rest>=0}); if(near.length)A.push({title:'20日ルール 残り3日以内',items:near,lv:3});
+  const over=op.filter(l=>{const r=ruleState(l);return r.rest!==null&&r.rest<0}); if(over.length)A.push({title:'20日ルール超過',items:over,lv:4});
+  const due=op.filter(l=>l.nextDue&&l.nextDue<=todayISO()); if(due.length)A.push({title:'本日期限の次回行動',items:due,lv:2});
+  return A;
+}
+function rankingRows(){
+  const rows=db.staff.map(s=>{
+    const g=db.leads.filter(l=>l.ownerId===s.id);
+    return{n:s.name,c:g.length,v:g.filter(l=>l.score>0).length,S:g.filter(l=>l.rank==='S').length,
+      nx:g.filter(l=>l.nextDue).length,rf:db.referrals.filter(r=>r.ownerId===s.id).length,
+      gp:g.filter(l=>l.status!=='lost').reduce((a,l)=>a+Number(l.gp||0),0)};
+  }).sort((a,b)=>b.gp-a.gp||b.S-a.S);
+  if(!rows.length)return `<tr><td colspan="7" class="empty">設定タブでスタッフを登録すると集計されます。</td></tr>`;
+  return rows.map(r=>`<tr><td><b>${esc(r.n)}</b></td><td class="n num">${r.c}</td><td class="n num">${r.v}</td>
+    <td class="n num">${r.S}</td><td class="n num">${r.nx}</td><td class="n num">${r.rf}</td><td class="n num">${fmtY(r.gp)}</td></tr>`).join('');
+}
+</script>
+<script>
+/* ============================ ② 事前集客管理 ============================ */
+let invF={status:'',cat:'',owner:'',q:''};
+function vInvite(){
+  const rows=db.invitees.filter(i=>
+    (!invF.status||i.status===invF.status)&&(!invF.cat||i.category===invF.cat)&&
+    (!invF.owner||i.ownerId===invF.owner)&&
+    (!invF.q||[i.company,i.name,i.tel,i.email,i.source].join(' ').includes(invF.q)));
+  const cnt=s=>db.invitees.filter(i=>i.status===s).length;
+  $('#v-invite').innerHTML=`
+  <h2 class="vt">事前集客管理</h2><p class="vs">招待から来場確定までを、担当者つきで前に進める。QRコードは受付でそのまま読み取れます。</p>
+  <div class="card"><h3>招待ステータス<span class="rt"><button class="btn sm p" onclick="editInvitee()">＋ 招待者を登録</button><button class="btn sm" onclick="importInviteeCSV()">CSV取込</button><button class="btn sm" onclick="exportCSV('invitees')">CSV出力</button></span></h3>
+    <div class="tw"><table><thead><tr>${INV_STATUS.map(s=>`<th class="n">${esc(s)}</th>`).join('')}</tr></thead>
+    <tbody><tr>${INV_STATUS.map(s=>`<td class="n num" style="font-size:17px;font-weight:800">${cnt(s)}</td>`).join('')}</tr></tbody></table></div>
+    <div class="filters">
+      <select onchange="invF.status=this.value;vInvite()"><option value="">全ステータス</option>${selOpts(INV_STATUS,invF.status)}</select>
+      <select onchange="invF.cat=this.value;vInvite()"><option value="">全区分</option>${selOpts(INV_CATEGORY,invF.cat)}</select>
+      <select onchange="invF.owner=this.value;vInvite()"><option value="">全担当</option>${db.staff.map(s=>`<option value="${s.id}" ${s.id===invF.owner?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+      <input type="text" placeholder="会社名・氏名で検索" value="${esc(invF.q)}" oninput="invF.q=this.value;clearTimeout(window._it);window._it=setTimeout(vInvite,250)">
+      <span class="sp mini num">${rows.length}件</span>
+    </div>
+    <div class="tw"><table><thead><tr><th>受付コード</th><th>会社・氏名</th><th>区分</th><th>関心商品</th><th>紹介元</th><th>担当</th><th>来場予定</th><th>ステータス</th><th></th></tr></thead>
+    <tbody>${rows.length?rows.map(i=>`<tr class="clk" onclick="editInvitee('${i.id}')">
+      <td><span class="ph">${esc(i.code)}</span></td>
+      <td><b>${esc(i.company||'—')}</b><div class="mini">${esc(i.name||'')} ${esc(i.title||'')}</div></td>
+      <td>${esc(i.category||'')}</td><td>${esc(i.interest||'')}</td><td>${esc(i.source||'')}</td>
+      <td>${esc(staffName(i.ownerId))}</td><td class="num">${esc(i.visitPlan||'')}</td>
+      <td><span class="tag ${i.status==='当日来場'||i.status==='商談化'?'b':''}">${esc(i.status)}</span></td>
+      <td><button class="btn sm" onclick="event.stopPropagation();showQR('${i.id}')">QR</button></td></tr>`).join('')
+      :`<tr><td colspan="9" class="empty"><b>招待者がまだいません</b>「＋ 招待者を登録」から、既存顧客・金融機関・税理士などを積み上げます。</td></tr>`}
+    </tbody></table></div>
+  </div>
+  <div class="card"><h3>リマインド対象<span class="sub">来場予定・返信待ち</span></h3>
+    <ul class="list">${db.invitees.filter(i=>['招待済み','返信あり','来場予定','来場確定'].includes(i.status)).slice(0,20).map(i=>`
+      <li><span class="dot" style="background:${i.status==='来場確定'?'var(--ok)':'var(--amber)'}"></span>
+      <div class="gr"><b>${esc(i.company||i.name)}</b><small>${esc(i.status)}／担当 ${esc(staffName(i.ownerId))}${i.visitPlan?'／来場 '+esc(i.visitPlan):''}</small></div>
+      <button class="btn sm" onclick="remindMail('${i.id}')">案内メール</button></li>`).join('')||'<li class="mini">対象はありません。</li>'}</ul>
+  </div>`;
+}
+function editInvitee(id){
+  const i=id?db.invitees.find(x=>x.id===id):{id:'',company:'',name:'',title:'',tel:'',email:'',category:'',ownerId:'',status:'未連絡',visitPlan:'',interest:'',source:'',memo:'',code:''};
+  modal(id?'招待者を編集':'招待者を登録',`
+   <div class="card"><div class="pad"><div class="fg">
+    <label class="f"><span>会社名</span><input type="text" id="i_company" value="${esc(i.company)}"></label>
+    <label class="f"><span>氏名</span><input type="text" id="i_name" value="${esc(i.name)}"></label>
+    <label class="f"><span>役職</span><input type="text" id="i_title" value="${esc(i.title)}"></label>
+    <label class="f"><span>区分</span><select id="i_category"><option value="">—</option>${selOpts(INV_CATEGORY,i.category)}</select></label>
+    <label class="f"><span>電話</span><input type="tel" id="i_tel" value="${esc(i.tel)}"></label>
+    <label class="f"><span>メール</span><input type="email" id="i_email" value="${esc(i.email)}"></label>
+    <label class="f"><span>関心商品</span><select id="i_interest"><option value="">—</option>${selOpts(PRODUCTS,i.interest)}</select></label>
+    <label class="f"><span>紹介元</span><input type="text" id="i_source" value="${esc(i.source)}" placeholder="例）〇〇銀行 △△支店"></label>
+    <label class="f"><span>担当者</span><select id="i_owner">${staffOpts(i.ownerId)}</select></label>
+    <label class="f"><span>ステータス</span><select id="i_status">${selOpts(INV_STATUS,i.status)}</select></label>
+    <label class="f"><span>来場予定日時</span><input type="text" id="i_visit" value="${esc(i.visitPlan)}" placeholder="例）11/12 13:00"></label>
+    <label class="f wide"><span>連絡履歴・メモ</span><textarea id="i_memo">${esc(i.memo)}</textarea></label>
+   </div>${id?`<div class="mini">受付コード <span class="ph">${esc(i.code)}</span></div>`:''}</div></div>`,
+   `${id?`<button class="btn dg" onclick="delInvitee('${id}')">削除</button>`:''}
+    <button class="btn" onclick="closeModal()">閉じる</button>
+    <button class="btn p" onclick="saveInvitee('${id||''}')">保存</button>`);
+}
+function saveInvitee(id){
+  const g=k=>$('#i_'+k).value.trim();
+  let o=id?db.invitees.find(x=>x.id===id):null;
+  if(!o){o={id:uid('inv'),code:nextCode(),createdAt:nowISO()};db.invitees.push(o);}
+  Object.assign(o,{company:g('company'),name:g('name'),title:g('title'),category:g('category'),tel:g('tel'),email:g('email'),
+    interest:g('interest'),source:g('source'),ownerId:g('owner'),status:g('status'),visitPlan:g('visit'),memo:g('memo')});
+  save();closeModal();render();toast('招待者を保存しました');
+}
+function delInvitee(id){if(!confirm('この招待者を削除します。よろしいですか？'))return;db.invitees=db.invitees.filter(x=>x.id!==id);save();closeModal();render();toast('削除しました');}
+function showQR(id){
+  const i=db.invitees.find(x=>x.id===id);
+  modal('受付QRコード｜'+(i.company||i.name),`
+   <div class="card"><div class="pad" style="text-align:center">
+     <div class="qrimg"><div id="qrHolder"></div></div>
+     <div style="font-size:22px;font-weight:800;letter-spacing:.14em;margin-top:10px" class="num">${esc(i.code)}</div>
+     <div class="mini">${esc(i.company||'')} ${esc(i.name||'')}様</div>
+     <div class="hr"></div>
+     <div class="mini">招待状・メールにこのコードを記載してください。受付では QR 読み取り、または受付コードの手入力で来場登録できます。</div>
+   </div></div>`,`<button class="btn" onclick="closeModal()">閉じる</button><button class="btn p" onclick="window.print()">印刷</button>`);
+  drawQR($('#qrHolder'),i.code);
+}
+function drawQR(el,text){
+  if(window.QRCode){try{new QRCode(el,{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}}
+  el.innerHTML=`<div style="padding:24px;font-size:12px;color:#7C8A85">QR描画ライブラリを読み込めませんでした。<br>受付コードの手入力で運用できます。</div>`;
+}
+function remindMail(id){
+  const i=db.invitees.find(x=>x.id===id);
+  const sub=encodeURIComponent(`【${db.meta.event}】ご来場のご案内（受付コード ${i.code}）`);
+  const body=encodeURIComponent(`${i.company||''} ${i.name||''} 様\n\nいつもお世話になっております。株式会社アースコムでございます。\n${db.meta.event}へのご来場、誠にありがとうございます。\n\n■ 会場：${db.meta.venue||''}\n■ ご来場予定：${i.visitPlan||'（当日ご都合の良い時間）'}\n■ 受付コード：${i.code}\n\n受付にて上記コード、またはQRコードをご提示ください。担当がご案内いたします。\n当日は${i.interest||'ご関心のテーマ'}について、具体的な数字でご説明できるよう準備しております。\n\n担当：${staffName(i.ownerId)}\n株式会社アースコム`);
+  location.href=`mailto:${i.email||''}?subject=${sub}&body=${body}`;
+}
+
+/* ============================ ③ QR受付・来場管理 ============================ */
+let scanner=null;
+function vReception(){
+  const today=db.leads.filter(l=>dOnly(l.checkinAt)===todayISO());
+  $('#v-reception').innerHTML=`
+  <h2 class="vt">QR受付・来場管理</h2><p class="vs">受付でコードを読み取ると、招待者・紹介元・関心商品・過去履歴がその場で出ます。接客担当をここで決めます。</p>
+  <div class="grid g2">
+    <div class="card"><h3>受付する</h3><div class="pad">
+      <div class="scan" id="scanWrap"><div id="qrbox"></div><span id="scanMsg">カメラを起動して QR を読み取ります</span></div>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn p" id="btnScan" onclick="toggleScan()">カメラを起動</button>
+        <button class="btn" onclick="walkIn()">招待なしの来場者を登録</button>
+      </div>
+      <div class="hr"></div>
+      <label class="f"><span>受付コードを手入力</span>
+        <div style="display:flex;gap:8px"><input type="text" id="codeIn" placeholder="EX-0001" style="text-transform:uppercase">
+        <button class="btn p" onclick="checkIn($('#codeIn').value.trim().toUpperCase())">受付</button></div></label>
+      <div class="mini">カメラが使えない環境でも、コード入力だけで受付できます。</div>
+    </div></div>
+    <div class="card"><h3>本日の来場<span class="sub">新しい順</span><span class="rt"><span class="tag b num">${today.length}名</span></span></h3>
+      <ul class="list">${today.slice().reverse().map(l=>`<li>
+        <span class="rk ${l.rank||'C'}">${l.rank||'-'}</span>
+        <div class="gr"><b>${esc(l.company||l.name||'—')}</b><small>${new Date(l.checkinAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}／${esc(l.product||'商品未選択')}／接客 ${esc(staffName(l.ownerId))}</small></div>
+        <button class="btn sm p" onclick="openLead('${l.id}')">ヒアリング</button></li>`).join('')||'<li class="mini">まだ来場者がいません。</li>'}</ul>
+    </div>
+  </div>`;
+}
+function toggleScan(){
+  if(scanner){stopScan();return;}
+  if(!window.Html5Qrcode){toast('カメラ機能を読み込めません。受付コードの手入力をご利用ください');return;}
+  $('#scanMsg').style.display='none';
+  scanner=new Html5Qrcode('qrbox');
+  scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},
+    t=>{stopScan();checkIn(String(t).trim().toUpperCase());},()=>{})
+   .then(()=>{$('#btnScan').textContent='カメラを停止';})
+   .catch(()=>{toast('カメラを起動できません。手入力をご利用ください');$('#scanMsg').style.display='';scanner=null;});
+}
+function stopScan(){if(!scanner)return;scanner.stop().catch(()=>{}).finally(()=>{scanner.clear&&scanner.clear();scanner=null;const b=$('#btnScan');if(b)b.textContent='カメラを起動';const m=$('#scanMsg');if(m)m.style.display='';});}
+function checkIn(code){
+  if(!code)return toast('受付コードを入力してください');
+  const inv=db.invitees.find(i=>i.code===code);
+  if(!inv)return toast('該当する受付コードがありません：'+code);
+  let lead=db.leads.find(l=>l.inviteeId===inv.id);
+  if(!lead){
+    lead={id:uid('ld'),code:inv.code,inviteeId:inv.id,company:inv.company,name:inv.name,title:inv.title,tel:inv.tel,email:inv.email,
+      product:inv.interest||'',ownerId:inv.ownerId,source:inv.source,checkinAt:nowISO(),createdAt:nowISO(),startAt:todayISO(),
+      hearing:{},score:0,rank:'C',ph:1,gp:GP_DEFAULT[inv.interest]||0,status:'open',notes:[]};
+    db.leads.push(lead);
+  }
+  inv.status='当日来場';save();
+  receptionCard(lead,inv);
+}
+function receptionCard(lead,inv){
+  const past=db.leads.filter(l=>l.id!==lead.id&&l.company&&l.company===lead.company);
+  modal('受付完了',`
+  <div class="hero" style="margin-bottom:12px">
+    <div class="lab">来場受付</div>
+    <div class="big" style="font-size:clamp(22px,5.5vw,34px)">${esc(lead.company||lead.name||'—')}</div>
+    <div class="note">${esc(lead.name||'')} ${esc(lead.title||'')}　${new Date(lead.checkinAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} 受付</div>
+  </div>
+  <div class="card"><div class="pad">
+    <dl class="kv">
+      <dt>来場予定</dt><dd>${esc(inv?.visitPlan||'—')}</dd>
+      <dt>招待者</dt><dd>${esc(staffName(inv?.ownerId))}</dd>
+      <dt>紹介元</dt><dd>${esc(lead.source||'—')}</dd>
+      <dt>関心商品</dt><dd>${esc(lead.product||'未選択')}</dd>
+      <dt>区分</dt><dd>${esc(inv?.category||'—')}</dd>
+      <dt>過去商談</dt><dd>${past.length?past.length+'件あり（既存・過去商談先）':'なし'}</dd>
+    </dl>
+    ${(inv?.category==='既存顧客'||past.length)?'<div class="alert">初対面ではありません。前回の話の続きから入ってください。</div>':''}
+    <div class="hr"></div>
+    <div class="fg">
+      <label class="f"><span>接客担当</span><select id="rc_owner">${staffOpts(lead.ownerId)}</select></label>
+      <label class="f"><span>商品</span><select id="rc_product"><option value="">—</option>${selOpts(PRODUCTS,lead.product)}</select></label>
+    </div>
+  </div></div>`,
+  `<button class="btn" onclick="closeModal();render()">閉じる</button>
+   <button class="btn p" onclick="assignAndHear('${lead.id}')">担当を割り当ててヒアリングへ</button>`);
+}
+function assignAndHear(id){
+  const l=db.leads.find(x=>x.id===id);
+  l.ownerId=$('#rc_owner').value; l.product=$('#rc_product').value;
+  if(!l.gp)l.gp=GP_DEFAULT[l.product]||0;
+  save();closeModal();openLead(id);
+}
+function walkIn(){
+  modal('招待なしの来場者を登録',`
+  <div class="card"><div class="pad">
+   <div class="mini" style="margin-bottom:10px">名刺を撮影して添付できます。文字は下の欄に手で入れてください（自動読取はフェーズ2で追加）。</div>
+   <label class="f"><span>名刺の写真</span><input type="file" accept="image/*" capture="environment" id="w_photo" onchange="prevPhoto(this)"></label>
+   <div id="w_prev"></div>
+   <div class="fg">
+    <label class="f"><span>会社名</span><input type="text" id="w_company"></label>
+    <label class="f"><span>氏名</span><input type="text" id="w_name"></label>
+    <label class="f"><span>役職</span><input type="text" id="w_title"></label>
+    <label class="f"><span>電話</span><input type="tel" id="w_tel"></label>
+    <label class="f"><span>メール</span><input type="email" id="w_email"></label>
+    <label class="f"><span>紹介元・ブース</span><input type="text" id="w_source"></label>
+    <label class="f"><span>商品</span><select id="w_product"><option value="">—</option>${selOpts(PRODUCTS,'')}</select></label>
+    <label class="f"><span>接客担当</span><select id="w_owner">${staffOpts('')}</select></label>
+   </div>
+  </div></div>`,`<button class="btn" onclick="closeModal()">閉じる</button><button class="btn p" onclick="saveWalkIn()">登録してヒアリングへ</button>`);
+}
+let _photo=null;
+function prevPhoto(inp){
+  const f=inp.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>{
+    const c=document.createElement('canvas'),m=720,sc=Math.min(1,m/Math.max(img.width,img.height));
+    c.width=img.width*sc;c.height=img.height*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    _photo=c.toDataURL('image/jpeg',.6);$('#w_prev').innerHTML=`<img class="thumb" src="${_photo}" alt="名刺">`;};img.src=e.target.result;};
+  r.readAsDataURL(f);
+}
+function saveWalkIn(){
+  const g=k=>$('#w_'+k).value.trim();
+  if(!g('company')&&!g('name'))return toast('会社名または氏名を入力してください');
+  const dup=db.leads.find(l=>(g('email')&&l.email===g('email'))||(g('tel')&&l.tel===g('tel'))||(g('company')&&l.company===g('company')));
+  const l={id:uid('ld'),code:nextCode(),company:g('company'),name:g('name'),title:g('title'),tel:g('tel'),email:g('email'),
+    source:g('source'),product:g('product'),ownerId:g('owner'),photo:_photo,checkinAt:nowISO(),createdAt:nowISO(),startAt:todayISO(),
+    hearing:{},score:0,rank:'C',ph:1,gp:GP_DEFAULT[g('product')]||0,status:'open',notes:[]};
+  db.leads.push(l);_photo=null;save();closeModal();
+  if(dup)toast('同じ会社・連絡先の登録があります。既存顧客の可能性を確認してください');
+  openLead(l.id);
+}
+</script>
+<script>
+/* ============================ ④ リード一覧 + ヒアリング ============================ */
+let ldF={rank:'',product:'',owner:'',status:'open',q:'',sort:'gp'};
+function filteredLeads(){
+  let r=db.leads.filter(l=>
+    (!ldF.rank||l.rank===ldF.rank)&&(!ldF.product||l.product===ldF.product)&&
+    (!ldF.owner||l.ownerId===ldF.owner)&&(!ldF.status||l.status===ldF.status)&&
+    (!ldF.q||[l.company,l.name,l.tel,l.email,l.source,l.code].join(' ').includes(ldF.q)));
+  const S={S:0,A:1,B:2,C:3};
+  r.sort((a,b)=>ldF.sort==='rank'?(S[a.rank]-S[b.rank])||b.gp-a.gp
+    :ldF.sort==='due'?String(a.nextDue||'9999').localeCompare(String(b.nextDue||'9999'))
+    :ldF.sort==='idle'?(ruleState(b).idle||0)-(ruleState(a).idle||0)
+    :Number(b.gp||0)*probOf(b)-Number(a.gp||0)*probOf(a));
+  return r;
+}
+function vLeads(){
+  const rows=filteredLeads(), P=pipeline(rows);
+  $('#v-leads').innerHTML=`
+  <h2 class="vt">リード一覧</h2><p class="vs">ヒアリングを入れるとランクが自動判定されます。次回行動と期限のない案件を残さないでください。</p>
+  <div class="card">
+    <div class="filters">
+      <select onchange="ldF.status=this.value;vLeads()"><option value="open" ${ldF.status==='open'?'selected':''}>進行中</option><option value="" ${ldF.status===''?'selected':''}>すべて</option><option value="won" ${ldF.status==='won'?'selected':''}>受注</option><option value="lost" ${ldF.status==='lost'?'selected':''}>失注</option></select>
+      <select onchange="ldF.rank=this.value;vLeads()"><option value="">全ランク</option>${selOpts(['S','A','B','C'],ldF.rank)}</select>
+      <select onchange="ldF.product=this.value;vLeads()"><option value="">全商品</option>${selOpts(PRODUCTS,ldF.product)}</select>
+      <select onchange="ldF.owner=this.value;vLeads()"><option value="">全担当</option>${db.staff.map(s=>`<option value="${s.id}" ${s.id===ldF.owner?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+      <select onchange="ldF.sort=this.value;vLeads()"><option value="gp" ${ldF.sort==='gp'?'selected':''}>加重粗利順</option><option value="rank" ${ldF.sort==='rank'?'selected':''}>ランク順</option><option value="due" ${ldF.sort==='due'?'selected':''}>次回期限順</option><option value="idle" ${ldF.sort==='idle'?'selected':''}>停滞日数順</option></select>
+      <input type="text" placeholder="会社名・氏名で検索" value="${esc(ldF.q)}" oninput="ldF.q=this.value;clearTimeout(window._lt);window._lt=setTimeout(vLeads,250)">
+      <span class="sp mini num">${rows.length}件／想定粗利 ${fmtY(P.total)}</span>
+      <button class="btn sm" onclick="exportCSV('leads')">CSV出力</button>
+      <button class="btn sm p" onclick="walkIn()">＋ リード追加</button>
+    </div>
+    <div class="tw"><table><thead><tr>
+      <th>ランク</th><th>顧客</th><th>商品</th><th>担当</th><th>PH</th><th class="n">想定粗利</th><th class="n">確度</th><th>次回行動</th><th class="n">期限</th><th>20日</th></tr></thead>
+    <tbody>${rows.length?rows.map(l=>{const r=ruleState(l);return `<tr class="clk" onclick="openLead('${l.id}')">
+      <td><span class="rk ${l.rank||'C'}">${l.rank||'C'}</span> <span class="mini num">${l.score||0}</span></td>
+      <td><b>${esc(l.company||l.name||'—')}</b><div class="mini">${esc(l.name||'')}${l.source?'／'+esc(l.source):''}</div></td>
+      <td>${esc(l.product||'—')}</td><td>${esc(staffName(l.ownerId))}</td>
+      <td><span class="ph">${String(l.ph||1).padStart(2,'0')}</span></td>
+      <td class="n num">${fmtY(l.gp)}</td><td class="n num">${Math.round(probOf(l)*100)}%</td>
+      <td>${l.nextAction?esc(l.nextAction):'<span class="tag r">未設定</span>'}</td>
+      <td class="n num">${esc(l.nextDue||'—')}</td>
+      <td>${l.status==='open'?`<span class="tag ${LVTAG[r.lv]||''}">${esc(r.label)}</span>`:`<span class="tag ${l.status==='won'?'b':''}">${l.status==='won'?'受注':'失注'}</span>`}</td></tr>`}).join('')
+      :`<tr><td colspan="10" class="empty"><b>リードがありません</b>受付タブで来場登録するか、「＋ リード追加」で名刺を登録してください。</td></tr>`}
+    </tbody></table></div>
+  </div>`;
+}
+
+/* ---------- リード詳細 ---------- */
+let curLead=null;
+function openLead(id){
+  const l=db.leads.find(x=>x.id===id); if(!l)return; curLead=l; recalc(l);
+  const pf=H_PRODUCT[l.product]||[];
+  const s=scoreOf(l);
+  modal((l.company||l.name||'リード'),`
+  <div id="rankBox">${rankHTML(l,s)}</div>
+  <div class="card"><h3>顧客情報<span class="rt"><span class="ph">${esc(l.code||'')}</span></span></h3><div class="pad">
+    <div class="fg">
+      <label class="f"><span>会社名</span><input type="text" id="l_company" value="${esc(l.company||'')}"></label>
+      <label class="f"><span>氏名</span><input type="text" id="l_name" value="${esc(l.name||'')}"></label>
+      <label class="f"><span>役職</span><input type="text" id="l_title" value="${esc(l.title||'')}"></label>
+      <label class="f"><span>電話</span><input type="tel" id="l_tel" value="${esc(l.tel||'')}"></label>
+      <label class="f"><span>メール</span><input type="email" id="l_email" value="${esc(l.email||'')}"></label>
+      <label class="f"><span>紹介元</span><input type="text" id="l_source" value="${esc(l.source||'')}"></label>
+      <label class="f"><span>商品</span><select id="l_product" onchange="changeProduct('${l.id}',this.value)"><option value="">—</option>${selOpts(PRODUCTS,l.product)}</select></label>
+      <label class="f"><span>担当者</span><select id="l_owner">${staffOpts(l.ownerId)}</select></label>
+      <label class="f"><span>想定粗利（円）</span><input type="number" id="l_gp" value="${Number(l.gp||0)}" step="10000"></label>
+      <label class="f"><span>商談開始日（20日ルール起点）</span><input type="date" id="l_start" value="${dOnly(l.startAt)||todayISO()}"></label>
+    </div>
+    ${l.photo?`<img class="thumb" src="${l.photo}" alt="名刺">`:''}
+  </div></div>
+
+  <div class="card"><h3>共通ヒアリング<span class="sub">60点</span></h3><div class="pad"><div class="fg">
+    ${H_COMMON.map(f=>fld(f,(l.hearing||{})[f.k])).join('')}
+  </div></div></div>
+
+  <div class="card"><h3>${esc(l.product||'商品')}のヒアリング<span class="sub">40点</span></h3><div class="pad">
+    ${pf.length?`<div class="fg">${pf.map(f=>fld(f,(l.hearing||{})[f.k])).join('')}</div>`:'<div class="mini">上で商品を選ぶと、その商品専用の質問が出ます。</div>'}
+  </div></div>
+
+  <div class="card"><h3>次回の予定<span class="sub">会場で確定する</span></h3><div class="pad"><div class="fg">
+    <label class="f"><span>次回行動</span><input type="text" id="l_nact" value="${esc(l.nextAction||'')}" placeholder="例）現地調査の日程確定"></label>
+    <label class="f"><span>期限</span><input type="date" id="l_ndue" value="${esc(l.nextDue||'')}"></label>
+    <label class="f"><span>次回商談日時</span><input type="datetime-local" id="l_napp" value="${esc(l.nextAppt||'')}"></label>
+    <label class="f"><span>フェーズ</span><select id="l_ph">${PH.map((p,i)=>`<option value="${i+1}" ${Number(l.ph||1)===i+1?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+    <label class="f wide"><span>メモ・議事録</span><textarea id="l_memo" placeholder="お客様の言葉で残す">${esc(l.memo||'')}</textarea></label>
+  </div>
+  <div class="btnrow">
+    <button class="btn" onclick="gcal('${l.id}')">Googleカレンダーに登録</button>
+    <button class="btn" onclick="thanksMail('${l.id}')">お礼メールを作成</button>
+    <button class="btn" onclick="addReferral('${l.id}')">紹介を登録</button>
+  </div></div></div>`,
+  `<button class="btn dg" onclick="markLost('${l.id}')">失注</button>
+   <button class="btn d" onclick="markWon('${l.id}')">受注</button>
+   <button class="btn" onclick="closeModal();render()">閉じる</button>
+   <button class="btn p" onclick="saveLead('${l.id}')">保存して判定</button>`);
+  bindLive(l);
+}
+function bindLive(l){
+  $$('#mBody [data-k]').forEach(el=>el.addEventListener('change',()=>{
+    const tmp={product:$('#l_product').value,hearing:collect($('#mBody'),H_COMMON.concat(H_PRODUCT[$('#l_product').value]||[]))};
+    const s=scoreOf(tmp); tmp.rank=rankOf(s.total); tmp.ph=Number($('#l_ph').value||1); tmp.nextDue=$('#l_ndue').value; tmp.status='open';
+    $('#rankBox').innerHTML=rankHTML(Object.assign({},l,tmp,{score:s.total}),s);
+  }));
+}
+function rankHTML(l,s){
+  const r=l.rank||'C', sc=SCENARIO[r]||[];
+  const why=whyLines(l);
+  return `<div class="rankbox"><div class="hd" style="background:${RANK_COLOR[r]}">
+    <b>${r}</b><div><div style="font-size:11px;letter-spacing:.16em;opacity:.85;font-weight:700">見込み度判定</div>
+    <div style="font-size:12.5px">受注確率の目安 <b class="num">${Math.round(probOf(l)*100)}%</b>／想定粗利 <b class="num">${fmtY(l.gp)}</b></div></div>
+    <div class="sc num">${s.total}点<div style="font-size:10.5px;opacity:.85;font-weight:600">共通 ${s.common}／商品 ${s.prod}</div></div></div>
+    <div class="bd">
+      <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;margin-bottom:3px">判定理由</div>
+      <div style="margin-bottom:10px">${why.length?why.map(w=>`<span class="tag ${w[1]}">${esc(w[0])}</span> `).join(''):'<span class="mini">ヒアリングが未入力です。</span>'}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;margin-bottom:3px">推奨アクション</div>
+      <ol class="act">${sc.map(x=>`<li>${esc(x[1])}<em>${esc(x[0])}${x[2]!==undefined?'（'+dueLabel(l,x[2])+'）':''}</em></li>`).join('')}</ol>
+    </div></div>`;
+}
+function dueLabel(l,offset){
+  const base=dOnly(l.startAt)||dOnly(l.checkinAt)||todayISO();
+  const d=new Date(base); d.setDate(d.getDate()+offset);
+  return d.toISOString().slice(5,10).replace('-','/');
+}
+function whyLines(l){
+  const h=l.hearing||{},out=[];
+  const push=(t,c)=>out.push([t,c||'']);
+  if(h.decider==='決裁者本人')push('決裁者本人','b'); else if(h.decider==='不明'||!h.decider)push('決裁者が不明','w');
+  if(h.timing==='3カ月以内')push('3カ月以内に検討','b'); else if(h.timing==='未定'||!h.timing)push('時期が未定','w');
+  if(h.budget==='目途あり')push('予算・融資の目途あり','b');
+  if(h.nextok==='可')push('次回面談OK','b'); else push('次回面談が未確約','w');
+  if(h.refer==='紹介可')push('紹介が見込める','b');
+  if(h.survey==='可')push('現地調査OK','b');
+  if(h.down&&h.down.startsWith('あり'))push('発電量低下 '+h.down.replace('あり',''),'b');
+  if(h.rest==='7年以上')push('FIT残7年以上','b');
+  if(h.count&&h.count!=='0')push('発電所 '+h.count+'カ所','b');
+  if(h.land==='保有')push('土地を保有','b');
+  if(h.amount&&h.amount!=='未定')push('投資可能額 '+h.amount,'b');
+  if(h.num&&h.num!=='未定')push('紹介可能 '+h.num,'b');
+  if(h.landinfo&&h.landinfo!=='なし')push('土地情報 '+h.landinfo,'b');
+  if(!l.ownerId)push('担当者が未割当','r');
+  return out;
+}
+function changeProduct(id,v){
+  const l=db.leads.find(x=>x.id===id);
+  const g=k=>{const e=$('#l_'+k);return e?e.value:''};
+  const keep=Object.assign({},l.hearing,collect($('#mBody'),H_COMMON.concat(H_PRODUCT[l.product]||[])));
+  Object.assign(l,{company:g('company').trim(),name:g('name').trim(),title:g('title').trim(),tel:g('tel').trim(),
+    email:g('email').trim(),source:g('source').trim(),ownerId:g('owner'),startAt:g('start'),
+    nextAction:g('nact').trim(),nextDue:g('ndue'),nextAppt:g('napp'),ph:Number(g('ph')||1),memo:g('memo'),hearing:keep});
+  l.product=v;
+  if(!l.gp||l.gp===0)l.gp=GP_DEFAULT[v]||0;
+  recalc(l);save();openLead(id);
+}
+function saveLead(id){
+  const l=db.leads.find(x=>x.id===id), g=k=>$('#l_'+k).value;
+  Object.assign(l,{company:g('company').trim(),name:g('name').trim(),title:g('title').trim(),tel:g('tel').trim(),
+    email:g('email').trim(),source:g('source').trim(),product:g('product'),ownerId:g('owner'),
+    gp:Number(g('gp')||0),startAt:g('start'),nextAction:g('nact').trim(),nextDue:g('ndue'),nextAppt:g('napp'),
+    ph:Number(g('ph')||1),memo:g('memo'),lastActionAt:todayISO()});
+  l.hearing=collect($('#mBody'),H_COMMON.concat(H_PRODUCT[l.product]||[]));
+  recalc(l);
+  if(l.inviteeId){const i=db.invitees.find(x=>x.id===l.inviteeId);if(i&&l.score>0)i.status='商談化';}
+  save();
+  if((l.rank==='S'||l.rank==='A')&&!l.nextDue){
+    modal('次回予定が未設定です',`<div class="card"><div class="pad">
+      <div class="alert r"><b>${l.rank}ランクです。</b>次回の予定を決めずに接客を終えると、この案件は止まります。</div>
+      <div class="mini">会場で次回商談日または現地調査日まで確定するのが運用ルールです。</div></div></div>`,
+      `<button class="btn" onclick="closeModal();render();toast('保存しました')">このまま終了する</button>
+       <button class="btn p" onclick="openLead('${l.id}')">次回予定を入れる</button>`);
+    return;
+  }
+  closeModal();render();toast(`保存しました（${l.rank}ランク／${l.score}点）`);
+}
+function markWon(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!confirm('この案件を受注として確定します。よろしいですか？'))return;
+  l.status='won';l.ph=8;l.wonAt=todayISO();l.lastActionAt=todayISO();recalc(l);save();closeModal();render();toast('受注として記録しました');
+}
+function markLost(id){
+  const l=db.leads.find(x=>x.id===id);
+  modal('失注の登録',`<div class="card"><div class="pad">
+    <label class="f"><span>失注理由（必須）</span><select id="lost_r"><option value="">—</option>${selOpts(LOST_REASONS,'')}</select></label>
+    <label class="f"><span>詳細</span><textarea id="lost_m" placeholder="どの段階で、何が足りなかったか"></textarea></label>
+    <div class="mini">理由を残すことで、商品別・担当者別の改善点が分析タブに出ます。</div>
+  </div></div>`,`<button class="btn" onclick="openLead('${id}')">戻る</button>
+   <button class="btn dg" onclick="doLost('${id}')">失注として記録</button>`);
+}
+function doLost(id){
+  const r=$('#lost_r').value; if(!r)return toast('失注理由を選んでください');
+  const l=db.leads.find(x=>x.id===id);
+  l.status='lost';l.lostReason=r;l.lostMemo=$('#lost_m').value;l.lostAt=todayISO();save();closeModal();render();toast('失注として記録しました');
+}
+function gcal(id){
+  const l=db.leads.find(x=>x.id===id);
+  const v=$('#l_napp').value; if(!v)return toast('次回商談日時を入力してください');
+  const s=new Date(v), e=new Date(s.getTime()+60*60*1000);
+  const f=d=>d.toISOString().replace(/[-:]|\.\d{3}/g,'');
+  const txt=encodeURIComponent(`【${l.product||'商談'}】${l.company||l.name}`);
+  const det=encodeURIComponent(`${db.meta.event} からの商談\n担当：${staffName($('#l_owner').value)}\nランク：${l.rank}／想定粗利：${fmtY($('#l_gp').value)}\n次回行動：${$('#l_nact').value}\n課題：${(l.hearing||{}).issue||''}`);
+  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${txt}&dates=${f(s)}/${f(e)}&details=${det}`,'_blank');
+}
+function thanksMail(id){
+  const l=db.leads.find(x=>x.id===id);
+  const h=l.hearing||{};
+  const sub=encodeURIComponent(`【御礼】${db.meta.event}ご来場ありがとうございました`);
+  const body=encodeURIComponent(`${l.company||''} ${l.name||''} 様
+
+本日は${db.meta.event}のアースコムブースにお立ち寄りいただき、誠にありがとうございました。
+${h.issue?`\n「${h.issue}」について伺いました。この点について、次回具体的な数字でご説明いたします。\n`:''}
+■ 次回のご予定：${l.nextAppt?new Date(l.nextAppt).toLocaleString('ja-JP'):'（調整中）'}
+■ 次回までに当社が行うこと：${l.nextAction||'ご提案資料の準備'}
+
+引き続きよろしくお願いいたします。
+
+担当：${staffName($('#l_owner')?.value||l.ownerId)}
+株式会社アースコム`);
+  location.href=`mailto:${l.email||''}?subject=${sub}&body=${body}`;
+  l.lastActionAt=todayISO();save();
+}
+</script>
+<script>
+/* ============================ ⑤ 商談・20日ルール ============================ */
+function vDeals(){
+  const op=db.leads.filter(l=>l.status==='open');
+  const buckets=[
+    {t:'20日超過',c:'r',f:l=>ruleState(l).lv===4},
+    {t:'残り3日以内・14日停滞',c:'r',f:l=>ruleState(l).lv===3},
+    {t:'7日停滞',c:'w',f:l=>ruleState(l).lv===2},
+    {t:'3日停滞',c:'w',f:l=>ruleState(l).lv===1},
+  ];
+  const phCnt=i=>op.filter(l=>Number(l.ph||1)===i+1);
+  $('#v-deals').innerHTML=`
+  <h2 class="vt">商談・20日ルール</h2><p class="vs">具体商談の開始から20日以内に、受注か明確な判断まで進めます。停滞は色で分かるようにしています。</p>
+  <div class="card"><h3>PH別パイプライン<span class="sub">進行中 ${op.length}件</span></h3><div class="tw"><table>
+    <thead><tr>${PH.map(p=>`<th class="n">${esc(p.slice(0,4))}<div class="mini" style="font-weight:400">${esc(p.slice(5))}</div></th>`).join('')}</tr></thead>
+    <tbody><tr>${PH.map((p,i)=>{const g=phCnt(i);return `<td class="n"><div class="num" style="font-size:18px;font-weight:800">${g.length}</div><div class="mini num">${fmtY(g.reduce((a,l)=>a+Number(l.gp||0),0))}</div></td>`}).join('')}</tr></tbody>
+  </table></div></div>
+  ${buckets.map(b=>{const g=op.filter(b.f);if(!g.length)return '';
+    return `<div class="card"><h3><span class="dot" style="background:${b.c==='r'?'var(--warn)':'var(--amber)'}"></span>${esc(b.t)}<span class="rt"><span class="tag ${b.c} num">${g.length}件</span></span></h3>
+    <div class="tw"><table><thead><tr><th>顧客</th><th>ランク</th><th>商品</th><th>担当</th><th>PH</th><th>次回行動</th><th class="n">期限</th><th class="n">停滞</th><th class="n">残日数</th><th class="n">想定粗利</th></tr></thead>
+    <tbody>${g.map(l=>{const r=ruleState(l);return `<tr class="clk" onclick="openLead('${l.id}')">
+      <td><b>${esc(l.company||l.name)}</b></td><td><span class="rk ${l.rank}">${l.rank}</span></td>
+      <td>${esc(l.product||'—')}</td><td>${esc(staffName(l.ownerId))}</td><td><span class="ph">${String(l.ph||1).padStart(2,'0')}</span></td>
+      <td>${esc(l.nextAction||'—')}</td><td class="n num">${esc(l.nextDue||'—')}</td>
+      <td class="n num" style="color:${LVCOLOR[r.lv]};font-weight:700">${r.idle??'—'}日</td>
+      <td class="n num" style="color:${LVCOLOR[r.lv]};font-weight:700">${r.rest??'—'}</td>
+      <td class="n num">${fmtY(l.gp)}</td></tr>`}).join('')}</tbody></table></div></div>`}).join('')
+    ||'<div class="card"><div class="empty"><b>停滞している案件はありません</b>この状態を維持してください。</div></div>'}
+  <div class="card"><h3>進行中のすべての案件<span class="sub">20日トラック</span></h3>
+    <ul class="list">${op.length?op.slice().sort((a,b)=>(ruleState(a).rest??99)-(ruleState(b).rest??99)).map(l=>{const r=ruleState(l);
+      const passed=r.rest===null?0:Math.max(0,Math.min(20,20-r.rest));
+      return `<li onclick="openLead('${l.id}')" style="cursor:pointer">
+      <span class="rk ${l.rank}">${l.rank}</span>
+      <div class="gr"><b>${esc(l.company||l.name)}</b><small>${esc(l.product||'—')}／${esc(staffName(l.ownerId))}／${esc(l.nextAction||'次回行動が未設定')}</small>
+      <div class="trk">${Array.from({length:20},(_,i)=>`<i class="${i<passed?(r.lv>=3?'bad':r.lv>=1?'warn':'on'):''}"></i>`).join('')}</div></div>
+      <div style="text-align:right"><div class="num" style="font-weight:800;color:${LVCOLOR[r.lv]}">${r.rest!==null?(r.rest<0?'超過':'残'+r.rest+'日'):'—'}</div><div class="mini num">${fmtY(l.gp)}</div></div></li>`}).join('')
+      :'<li class="mini">進行中の案件はありません。</li>'}</ul>
+  </div>`;
+}
+
+/* ============================ ⑥ 紹介管理 ============================ */
+function vReferral(){
+  $('#v-referral').innerHTML=`
+  <h2 class="vt">紹介管理</h2><p class="vs">会った本人だけでなく、その方から広がる案件を残します。紹介元への成果報告まで管理します。</p>
+  <div class="card"><h3>紹介案件<span class="rt"><button class="btn sm p" onclick="addReferral()">＋ 紹介を登録</button></span></h3>
+  <div class="tw"><table><thead><tr><th>紹介元</th><th>紹介先</th><th>商品</th><th>理由</th><th>担当</th><th class="n">紹介予定</th><th>お礼</th><th>進捗</th><th></th></tr></thead>
+  <tbody>${db.referrals.length?db.referrals.map(r=>`<tr>
+    <td><b>${esc(r.fromName||'—')}</b></td><td>${esc(r.toCompany||'—')}</td><td>${esc(r.product||'—')}</td>
+    <td>${esc(r.reason||'')}</td><td>${esc(staffName(r.ownerId))}</td><td class="n num">${esc(r.plannedAt||'—')}</td>
+    <td>${r.thanked?'<span class="tag b">済</span>':'<span class="tag w">未</span>'}</td>
+    <td><span class="tag">${esc(r.status||'紹介予定')}</span></td>
+    <td><button class="btn sm" onclick="addReferral(null,'${r.id}')">編集</button></td></tr>`).join('')
+    :`<tr><td colspan="9" class="empty"><b>紹介の記録がありません</b>接客の最後に必ず紹介を依頼し、その場で登録します。</td></tr>`}
+  </tbody></table></div></div>
+  <div class="card"><h3>紹介依頼トーク<span class="sub">そのまま使えます</span></h3><div class="pad">
+    <div class="alert g">本日のお話と同じように、発電所の発電量低下やPCS交換でお困りの方は、周囲にいらっしゃいますか？</div>
+    <div class="alert g">投資や節税についてご相談を受けている経営者様がいらっしゃれば、一度情報提供の機会をいただけませんか？</div>
+  </div></div>`;
+}
+function addReferral(leadId,refId){
+  const r=refId?db.referrals.find(x=>x.id===refId):{fromLeadId:leadId||'',fromName:'',toCompany:'',reason:'',product:'',plannedAt:'',method:'',thanked:false,status:'紹介予定',ownerId:''};
+  if(leadId&&!refId){const l=db.leads.find(x=>x.id===leadId);r.fromName=l.company||l.name;r.ownerId=l.ownerId;}
+  modal(refId?'紹介を編集':'紹介を登録',`<div class="card"><div class="pad"><div class="fg">
+    <label class="f"><span>紹介元（誰から）</span><input type="text" id="r_from" value="${esc(r.fromName)}"></label>
+    <label class="f"><span>紹介先企業</span><input type="text" id="r_to" value="${esc(r.toCompany)}"></label>
+    <label class="f"><span>関心商品</span><select id="r_product"><option value="">—</option>${selOpts(PRODUCTS,r.product)}</select></label>
+    <label class="f"><span>紹介予定日</span><input type="date" id="r_date" value="${esc(r.plannedAt)}"></label>
+    <label class="f"><span>紹介方法</span><select id="r_method">${selOpts(['同席','電話','メール','チャット','訪問同行'],r.method)}</select></label>
+    <label class="f"><span>担当</span><select id="r_owner">${staffOpts(r.ownerId)}</select></label>
+    <label class="f"><span>進捗</span><select id="r_status">${selOpts(['紹介予定','紹介済み','商談化','受注','見送り'],r.status)}</select></label>
+    <label class="f"><span>紹介元へのお礼</span><select id="r_thanks"><option value="0" ${!r.thanked?'selected':''}>未</option><option value="1" ${r.thanked?'selected':''}>済</option></select></label>
+    <label class="f wide"><span>紹介理由・背景</span><textarea id="r_reason">${esc(r.reason)}</textarea></label>
+  </div></div></div>`,
+  `${refId?`<button class="btn dg" onclick="db.referrals=db.referrals.filter(x=>x.id!=='${refId}');save();closeModal();render()">削除</button>`:''}
+   <button class="btn" onclick="closeModal()">閉じる</button><button class="btn p" onclick="saveReferral('${refId||''}','${leadId||''}')">保存</button>`);
+}
+function saveReferral(refId,leadId){
+  let r=refId?db.referrals.find(x=>x.id===refId):null;
+  if(!r){r={id:uid('rf'),fromLeadId:leadId,createdAt:nowISO()};db.referrals.push(r);}
+  Object.assign(r,{fromName:$('#r_from').value.trim(),toCompany:$('#r_to').value.trim(),product:$('#r_product').value,
+    plannedAt:$('#r_date').value,method:$('#r_method').value,ownerId:$('#r_owner').value,status:$('#r_status').value,
+    thanked:$('#r_thanks').value==='1',reason:$('#r_reason').value.trim()});
+  save();closeModal();render();toast('紹介を保存しました');
+}
+
+/* ============================ ⑦ 分析 ============================ */
+function vAnalytics(){
+  const L=db.leads, lost=L.filter(l=>l.status==='lost'), won=L.filter(l=>l.status==='won');
+  const rate=(a,b)=>b>0?pct(a,b)+'%':'—';
+  const byLost={}; lost.forEach(l=>byLost[l.lostReason||'その他']=(byLost[l.lostReason||'その他']||0)+1);
+  const maxL=Math.max(1,...Object.values(byLost));
+  $('#v-analytics').innerHTML=`
+  <h2 class="vt">分析</h2><p class="vs">名刺の枚数ではなく、どこで止まっているかを見ます。</p>
+  <div class="card"><h3>転換率</h3><div class="kpis">
+    ${[['有効リード率',rate(L.filter(l=>l.score>0).length,L.length)],['優先リード率',rate(L.filter(l=>['S','A'].includes(l.rank)).length,L.length)],
+       ['商談化率（PH03以上）',rate(L.filter(l=>l.ph>=3).length,L.length)],['提案率（PH05以上）',rate(L.filter(l=>l.ph>=5).length,L.length)],
+       ['受注率',rate(won.length,L.length)],['失注率',rate(lost.length,L.length)],
+       ['紹介率',rate(db.referrals.length,L.length)],['次回予定設定率',rate(L.filter(l=>l.nextDue).length,L.length)]
+      ].map(x=>`<div class="kpi"><div class="k">${x[0]}</div><div class="v num">${x[1]}</div></div>`).join('')}
+  </div></div>
+  <div class="grid g2">
+    <div class="card"><h3>失注理由</h3><div class="pad">
+      ${Object.keys(byLost).length?Object.entries(byLost).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <div style="width:120px;font-size:12px">${esc(k)}</div>
+          <div style="flex:1;height:14px;background:var(--line-2);border-radius:3px;overflow:hidden"><i style="display:block;height:100%;width:${v/maxL*100}%;background:var(--warn)"></i></div>
+          <div class="num" style="width:34px;text-align:right;font-weight:700">${v}</div></div>`).join('')
+      :'<div class="mini">失注データがありません。失注時は必ず理由を選択してください。</div>'}
+      ${lost.length?`<div class="hr"></div><div class="mini">失注金額合計 <b class="num">${fmtY(lost.reduce((a,l)=>a+Number(l.gp||0),0))}</b></div>`:''}
+    </div></div>
+    <div class="card"><h3>商品別の詰まり</h3><div class="tw"><table>
+      <thead><tr><th>商品</th><th class="n">リード</th><th class="n">S・A率</th><th class="n">提案到達</th><th class="n">受注</th><th class="n">失注</th></tr></thead>
+      <tbody>${PRODUCTS.map(p=>{const g=L.filter(l=>l.product===p);
+        return `<tr><td>${esc(p)}</td><td class="n num">${g.length}</td>
+        <td class="n num">${rate(g.filter(l=>['S','A'].includes(l.rank)).length,g.length)}</td>
+        <td class="n num">${g.filter(l=>l.ph>=5).length}</td><td class="n num">${g.filter(l=>l.status==='won').length}</td>
+        <td class="n num">${g.filter(l=>l.status==='lost').length}</td></tr>`}).join('')}</tbody></table></div></div>
+  </div>
+  <div class="card"><h3>担当者別の進捗</h3><div class="tw"><table>
+    <thead><tr><th>担当</th><th class="n">担当件数</th><th class="n">次回設定率</th><th class="n">平均停滞日数</th><th class="n">20日超過</th><th class="n">受注</th><th class="n">加重粗利</th></tr></thead>
+    <tbody>${db.staff.map(s=>{const g=L.filter(l=>l.ownerId===s.id),op=g.filter(l=>l.status==='open');
+      const idles=op.map(l=>ruleState(l).idle).filter(x=>x!==null);
+      return `<tr><td><b>${esc(s.name)}</b></td><td class="n num">${g.length}</td>
+      <td class="n num">${rate(g.filter(l=>l.nextDue).length,g.length)}</td>
+      <td class="n num">${idles.length?Math.round(idles.reduce((a,b)=>a+b,0)/idles.length):'—'}</td>
+      <td class="n num">${op.filter(l=>ruleState(l).lv===4).length}</td>
+      <td class="n num">${g.filter(l=>l.status==='won').length}</td>
+      <td class="n num">${fmtY(op.reduce((a,l)=>a+Number(l.gp||0)*probOf(l),0))}</td></tr>`}).join('')||`<tr><td colspan="7" class="empty">スタッフが未登録です。</td></tr>`}
+    </tbody></table></div></div>`;
+}
+</script>
+<script>
+/* ============================ ⑧ 設定 ============================ */
+function vSettings(){
+  const T=db.meta.targets;
+  $('#v-settings').innerHTML=`
+  <h2 class="vt">設定</h2><p class="vs">イベント情報、目標、スタッフ、データの出し入れ。</p>
+  <div class="grid g2">
+    <div class="card"><h3>イベント</h3><div class="pad"><div class="fg">
+      <label class="f"><span>イベント名</span><input type="text" id="s_event" value="${esc(db.meta.event)}"></label>
+      <label class="f"><span>会期</span><input type="text" id="s_dates" value="${esc(db.meta.dates)}" placeholder="例）2026/11/11〜11/13"></label>
+      <label class="f wide"><span>会場</span><input type="text" id="s_venue" value="${esc(db.meta.venue)}"></label>
+    </div></div></div>
+    <div class="card"><h3>目標</h3><div class="pad"><div class="fg">
+      ${[['leads','獲得リード'],['valid','有効リード'],['priority','優先リード'],['appt','アポイント'],['survey','現地調査・詳細提案'],['order','受注'],['referral','紹介獲得']]
+        .map(([k,l])=>`<label class="f"><span>${l}</span><input type="number" id="t_${k}" value="${T[k]}"></label>`).join('')}
+    </div></div></div>
+  </div>
+  <div class="btnrow" style="margin-bottom:14px"><button class="btn p" onclick="saveSettings()">イベント・目標を保存</button></div>
+
+  <div class="card"><h3>スタッフ<span class="rt"><button class="btn sm p" onclick="addStaff()">＋ スタッフ追加</button></span></h3>
+    <div class="tw"><table><thead><tr><th>氏名</th><th>チーム</th><th>役割</th><th class="n">担当リード</th><th></th></tr></thead>
+    <tbody>${db.staff.length?db.staff.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.team||'')}</td><td>${esc(s.role||'')}</td>
+      <td class="n num">${db.leads.filter(l=>l.ownerId===s.id).length}</td>
+      <td><button class="btn sm" onclick="addStaff('${s.id}')">編集</button></td></tr>`).join('')
+      :`<tr><td colspan="5" class="empty"><b>スタッフが未登録です</b>接客担当を割り当てるために、先に登録してください。</td></tr>`}
+    </tbody></table></div></div>
+
+  <div class="card"><h3>データ</h3><div class="pad">
+    <div class="btnrow">
+      <button class="btn" onclick="exportCSV('leads')">リードCSV</button>
+      <button class="btn" onclick="exportCSV('invitees')">招待者CSV</button>
+      <button class="btn" onclick="exportCSV('referrals')">紹介CSV</button>
+      <button class="btn d" onclick="backup()">全データをJSONで保存</button>
+      <button class="btn" onclick="$('#restoreFile').click()">JSONから復元</button>
+      <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restore(this)">
+    </div>
+    <div class="hr"></div>
+    <div class="btnrow">
+      <button class="btn" onclick="seed()">デモデータを入れる</button>
+      <button class="btn dg" onclick="wipe()">全データを消去</button>
+    </div>
+    <div class="mini" style="margin-top:8px">データはこの端末のブラウザに保存されます。会期の終わりに必ずJSONで書き出し、共有フォルダに置いてください。</div>
+  </div></div>
+
+  <div class="card"><h3>運用ルール<span class="sub">アプリだけでは成果は出ません</span></h3>
+    <ol class="act" style="padding:12px 14px">
+      <li>名刺交換後、5分以内に最低限のヒアリングを入力する<em>受付→ヒアリング</em></li>
+      <li>S・Aランクは、会場で次回予定を確定する<em>未設定なら警告が出ます</em></li>
+      <li>担当者が決まっていないリードを残さない<em>ダッシュボードに出ます</em></li>
+      <li>次回行動と期限がない案件を登録完了にしない<em>リード一覧が赤くなります</em></li>
+      <li>当日中にお礼連絡を完了する<em>リード詳細のお礼メール</em></li>
+      <li>毎朝、未対応・停滞案件を確認する<em>ダッシュボード上段</em></li>
+      <li>エキスポ後20日間は、毎日進捗を追う<em>商談・20日ルール</em></li>
+    </ol></div>`;
+}
+function saveSettings(){
+  db.meta.event=$('#s_event').value.trim();db.meta.dates=$('#s_dates').value.trim();db.meta.venue=$('#s_venue').value.trim();
+  ['leads','valid','priority','appt','survey','order','referral'].forEach(k=>db.meta.targets[k]=Number($('#t_'+k).value||0));
+  save();render();toast('設定を保存しました');
+}
+function addStaff(id){
+  const s=id?db.staff.find(x=>x.id===id):{name:'',team:'',role:'営業担当'};
+  modal(id?'スタッフを編集':'スタッフを追加',`<div class="card"><div class="pad"><div class="fg">
+    <label class="f"><span>氏名</span><input type="text" id="st_name" value="${esc(s.name)}"></label>
+    <label class="f"><span>チーム</span><select id="st_team">${selOpts(['営業','インサイドセールス','開発','金融機関連携','ReFort','蓄電池','受付'],s.team)}</select></label>
+    <label class="f wide"><span>役割</span><select id="st_role">${selOpts(['社長・経営者','マネージャー','営業担当','受付担当','外部協力者'],s.role)}</select></label>
+  </div></div></div>`,
+  `${id?`<button class="btn dg" onclick="db.staff=db.staff.filter(x=>x.id!=='${id}');save();closeModal();render()">削除</button>`:''}
+   <button class="btn" onclick="closeModal()">閉じる</button><button class="btn p" onclick="saveStaff('${id||''}')">保存</button>`);
+}
+function saveStaff(id){
+  const n=$('#st_name').value.trim(); if(!n)return toast('氏名を入力してください');
+  let s=id?db.staff.find(x=>x.id===id):null;
+  if(!s){s={id:uid('st')};db.staff.push(s);}
+  s.name=n;s.team=$('#st_team').value;s.role=$('#st_role').value;
+  save();closeModal();render();toast('スタッフを保存しました');
+}
+
+/* ---------- CSV / backup ---------- */
+function dl(name,text,mime){
+  const b=new Blob([text],{type:mime||'text/plain;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);
+}
+const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+function exportCSV(kind){
+  let head=[],rows=[];
+  if(kind==='leads'){
+    head=['受付コード','会社名','氏名','役職','電話','メール','商品','担当','ランク','点数','受注確率','PH','想定粗利','次回行動','期限','次回商談','商談開始日','停滞日数','20日残','状態','失注理由','紹介元','課題','時期','決裁','予算'];
+    rows=db.leads.map(l=>{const r=ruleState(l),h=l.hearing||{};
+      return [l.code,l.company,l.name,l.title,l.tel,l.email,l.product,staffName(l.ownerId),l.rank,l.score,Math.round(probOf(l)*100)+'%',
+        'PH'+String(l.ph||1).padStart(2,'0'),l.gp,l.nextAction,l.nextDue,l.nextAppt,dOnly(l.startAt),r.idle,r.rest,
+        {open:'進行中',won:'受注',lost:'失注'}[l.status],l.lostReason,l.source,h.issue,h.timing,h.decider,h.budget];});
+  }else if(kind==='invitees'){
+    head=['受付コード','会社名','氏名','役職','区分','電話','メール','関心商品','紹介元','担当','ステータス','来場予定','メモ'];
+    rows=db.invitees.map(i=>[i.code,i.company,i.name,i.title,i.category,i.tel,i.email,i.interest,i.source,staffName(i.ownerId),i.status,i.visitPlan,i.memo]);
+  }else{
+    head=['紹介元','紹介先','商品','理由','紹介予定日','方法','担当','お礼','進捗'];
+    rows=db.referrals.map(r=>[r.fromName,r.toCompany,r.product,r.reason,r.plannedAt,r.method,staffName(r.ownerId),r.thanked?'済':'未',r.status]);
+  }
+  const csv='\uFEFF'+[head,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n');
+  dl(`expo360_${kind}_${todayISO()}.csv`,csv,'text/csv;charset=utf-8');
+  toast('CSVを書き出しました');
+}
+function importInviteeCSV(){
+  modal('招待者CSVの取込',`<div class="card"><div class="pad">
+    <div class="mini" style="margin-bottom:8px">1行目は見出し行にしてください。列の順番：会社名／氏名／役職／区分／電話／メール／関心商品／紹介元／来場予定</div>
+    <textarea id="csvIn" style="min-height:180px;font-family:var(--mono);font-size:12px" placeholder="会社名,氏名,役職,区分,電話,メール,関心商品,紹介元,来場予定"></textarea>
+  </div></div>`,`<button class="btn" onclick="closeModal()">閉じる</button><button class="btn p" onclick="doImport()">取り込む</button>`);
+}
+function doImport(){
+  const lines=$('#csvIn').value.trim().split(/\r?\n/).slice(1).filter(x=>x.trim());
+  let n=0;
+  lines.forEach(line=>{
+    const c=line.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(x=>x.replace(/,$/,'').replace(/^"|"$/g,'').replace(/""/g,'').trim());
+    if(!c[0]&&!c[1])return;
+    db.invitees.push({id:uid('inv'),code:nextCode(),createdAt:nowISO(),company:c[0]||'',name:c[1]||'',title:c[2]||'',
+      category:c[3]||'',tel:c[4]||'',email:c[5]||'',interest:c[6]||'',source:c[7]||'',visitPlan:c[8]||'',status:'未連絡',ownerId:'',memo:''});
+    n++;
+  });
+  save();closeModal();render();toast(n+'件を取り込みました');
+}
+function backup(){dl(`expo360_backup_${todayISO()}.json`,JSON.stringify(db,null,1),'application/json');toast('バックアップを保存しました');}
+function restore(inp){
+  const f=inp.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{try{const o=JSON.parse(e.target.result);if(!o.leads)throw 0;
+    if(!confirm('現在のデータを、このファイルの内容で置き換えます。よろしいですか？'))return;
+    db=Object.assign(structuredClone(DEFAULT),o);save();render();toast('復元しました');}
+    catch(err){toast('このファイルは読み込めません');}};
+  r.readAsText(f);inp.value='';
+}
+function wipe(){
+  if(!confirm('すべてのデータを消去します。元に戻せません。よろしいですか？'))return;
+  if(!confirm('本当によろしいですか？ 先にJSONバックアップを取ることをおすすめします。'))return;
+  db=structuredClone(DEFAULT);save();render();toast('消去しました');
+}
+
+/* ---------- demo seed ---------- */
+function seed(){
+  if(db.leads.length&&!confirm('既存のデータにデモデータを追加します。よろしいですか？'))return;
+  const names=['丸林','狐塚','奥田','増田','石野','村田'];
+  if(!db.staff.length)names.forEach((n,i)=>db.staff.push({id:uid('st'),name:n,team:['営業','ReFort','蓄電池','営業','インサイドセールス','受付'][i],role:i===0?'社長・経営者':'営業担当'}));
+  const S=db.staff;
+  const demo=[
+    ['株式会社山陽エナジー','山本','代表取締役','高圧ReFort','〇〇銀行 越谷支店',{timing:'3カ月以内',budget:'目途あり',decider:'決裁者本人',nextok:'可',refer:'紹介可',issue:'高圧3カ所で発電量が2割落ちている。PCS交換の見積を取ったが判断できない',count:'3〜5',rest:'7年以上',down:'あり（10%以上）',survey:'可',class:'高圧'},5,20000000],
+    ['田島商事株式会社','田島','専務','蓄電池','税理士法人△△',{timing:'半年以内',budget:'検討中',decider:'決裁関与',nextok:'可',refer:'可能性あり',issue:'遊休地の活用。系統は事前相談まで進んでいる',land:'保有',grid:'事前相談中',amount:'5千万〜1億円',multi:'あり',loan:'融資希望'},3,8900000],
+    ['合同会社ソーラー北関東','小林','代表','低圧ReFort','',{timing:'1年以内',budget:'なし',decider:'担当者',nextok:'検討',refer:'なし',issue:'低圧2基。まだ様子見',count:'1〜2',rest:'4〜6年',down:'不明',survey:'検討',class:'低圧'},2,3000000],
+    ['〇〇信用金庫 法人部','佐藤','部長','提携・紹介','',{timing:'半年以内',budget:'検討中',decider:'決裁関与',nextok:'可',refer:'紹介可',issue:'取引先の節税・事業承継の相談が増えている',num:'21社以上',study:'可',unit:'本部連携',theme:'強い',nextdate:todayISO()},3,0],
+    ['中村土地開発','中村','部長','アセット開発','経営者仲間の紹介',{timing:'3カ月以内',budget:'目途あり',decider:'決裁者本人',nextok:'可',refer:'紹介可',issue:'手持ちの土地が複数。系統は取得済み',landinfo:'複数あり',owner:'契約交渉可',gridinfo:'取得済',cont:'あり',permonth:'3'},4,16700000],
+    ['株式会社みらい建設','井上','課長','蓄電池','',{timing:'未定',budget:'なし',decider:'不明',nextok:'検討',refer:'なし',issue:'情報収集の段階',land:'探している',grid:'未着手',amount:'未定'},1,8900000]
+  ];
+  demo.forEach((d,i)=>{
+    const inv={id:uid('inv'),code:nextCode(),createdAt:nowISO(),company:d[0],name:d[1],title:d[2],category:INV_CATEGORY[i%INV_CATEGORY.length],
+      tel:'',email:'',interest:d[3],source:d[4],ownerId:S[i%S.length].id,status:'当日来場',visitPlan:'13:00',memo:''};
+    db.invitees.push(inv);
+    const start=new Date();start.setDate(start.getDate()-[2,6,9,1,15,22][i]);
+    const l={id:uid('ld'),code:inv.code,inviteeId:inv.id,company:d[0],name:d[1],title:d[2],product:d[3],source:d[4],
+      ownerId:inv.ownerId,checkinAt:start.toISOString(),createdAt:start.toISOString(),startAt:start.toISOString().slice(0,10),
+      lastActionAt:i%3===0?todayISO():start.toISOString().slice(0,10),
+      hearing:d[5],ph:d[6],gp:d[7],status:'open',notes:[],
+      nextAction:i<4?['現地調査の日程確定','概算シミュレーション提示','資料送付','支店向け勉強会の日程調整'][i]:'',
+      nextDue:i<4?todayISO():''};
+    recalc(l);db.leads.push(l);
+  });
+  db.referrals.push({id:uid('rf'),fromLeadId:db.leads[0].id,fromName:'株式会社山陽エナジー',toCompany:'埼玉電機工業',product:'高圧ReFort',
+    reason:'同じくPCS不調で困っている知人',plannedAt:todayISO(),method:'電話',ownerId:S[0].id,status:'紹介予定',thanked:false,createdAt:nowISO()});
+  save();render();toast('デモデータを追加しました');
+}
+
+/* ---------- init ---------- */
+(function init(){
+  ['https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+   'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js'].forEach(u=>{
+    const s=document.createElement('script');s.src=u;s.async=true;document.head.appendChild(s);});
+  render();
+})();
+window.addEventListener('beforeunload',()=>{if(scanner)stopScan();});
+</script>
+</body>
+</html>
