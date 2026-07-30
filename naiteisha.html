@@ -228,6 +228,7 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
       <select class="in" id="karteSel" style="max-width:260px" onchange="setKarte(this.value)"></select>
       <button class="btn ghost sm" onclick="copyHandoff()">引継ぎカードをコピー</button>
       <button class="btn ghost sm" onclick="importMendan()">月次面談ドキュメントを取り込む</button>
+      <button class="btn ghost sm" onclick="importVoice()">ボイスメールを取り込む</button>
     </div>
     <div id="karteBody"></div>
   </section>
@@ -470,6 +471,10 @@ function seedFunnel(){
   return {
     mk,
     years:{
+      '28卒':{order:['エントリー','TOPLIVE','一次面談','二次面接','インターン','最終面談','かばん持ち','内定','内定承諾'],
+        v:{エントリー:{合計:42},TOPLIVE:{出席:12,辞退:5,欠席:1,予約:24},一次面談:{合格:2,不合格:1,辞退:4,予約:4},二次面接:{合格:0,不合格:0,辞退:0,予約:1},インターン:{合格:0,不合格:0,辞退:0,予約:0},最終面談:{合格:0,不合格:0,辞退:0,予約:0},かばん持ち:{合格:0,不合格:0,辞退:0,予約:0},内定:{通知:0,辞退:0},内定承諾:{承諾:0,辞退:0}},
+        route:[['ポート',28],['HR team',14]],
+        teisei:{内定率:0}, target:{}, rate:{}},
       '27卒':{order:['エントリー','TOPLIVE','一次面談','二次面接','最終面談','インターン','かばん持ち','内定','内定承諾'],
         v:{エントリー:{合計:242},TOPLIVE:{出席:157,辞退:66,欠席:15,予約:1},一次面談:{合格:44,不合格:65,辞退:43,予約:2},二次面接:{合格:25,不合格:8,辞退:7,予約:1},最終面談:{合格:14,不合格:1,辞退:2,予約:0},インターン:{合格:10,不合格:1,辞退:4,予約:1},かばん持ち:{合格:9,不合格:0,辞退:1,予約:1},内定:{通知:10,辞退:4},内定承諾:{承諾:6,辞退:1}},
         route:[['キャリコン個別',1],['kimeteフェス',28],['HR team',22],['kimete個別',16]],
@@ -805,6 +810,7 @@ function normalizePerson(p){
   p.riskFlags=p.riskFlags||{otherOffer:false,lessContact:false,eventAbsent:false,noArbeit:false,kadaiUn:false,parentNg:false};
   p.kudoki=p.kudoki||'';p.ng=p.ng||'';
   p.jinbutsu=p.jinbutsu||{sunao:0,chosen:0,kansha:0,stress:0,sekinin:0,memo:''};
+  p.voice=p.voice||{just:0,streak:0};
   p.handoff=p.handoff||{video:'',q1:'',q2:'',q3:'',q4:'',q5:''};
   return p;
 }
@@ -908,13 +914,6 @@ function renderKarte(){
     <div class="nextact"><b>次にやること：</b>${esc(tl.action)}</div>
   </div>
 
-  <div class="k-sec"><h4><span class="no">①</span>基本情報</h4>
-    <div class="kgrid">
-      ${kf(p.id,'name','氏名',p.name)}${kf(p.id,'university','大学',p.university)}${kf(p.id,'faculty','学部',p.faculty)}
-      ${kf(p.id,'gradYear','卒業予定',p.gradYear)}${kf(p.id,'joinDate','入社予定日',p.joinDate,'date')}${kf(p.id,'owner','担当者',p.owner)}
-    </div>
-  </div>
-
   <div class="k-sec"><h4><span class="no">③</span>参加履歴</h4>
     <div class="kgrid">
       ${kf(p.id,'setsumeikai.date','会社説明会 参加日',p.setsumeikai.date,'date')}${kf(p.id,'setsumeikai.impression','説明会 感想',p.setsumeikai.impression)}
@@ -922,13 +921,6 @@ function renderKarte(){
       ${kf(p.id,'intern.count','インターン 回数',p.intern.count,'number')}${kf(p.id,'intern.eval','インターン 評価',p.intern.eval)}
       ${kf(p.id,'konshinkai.count','懇親会 回数',p.konshinkai.count,'number')}${kf(p.id,'eventHist.count','社内イベント 回数',p.eventHist.count,'number')}
       ${kf(p.id,'kanbujuku.status','幹部塾 参加状況',p.kanbujuku.status)}
-    </div>
-  </div>
-
-  <div class="k-sec"><h4><span class="no">④</span>アルバイト履歴</h4>
-    <div class="kgrid">
-      ${kf(p.id,'arbeit.start','開始日',p.arbeit.start,'date')}${kf(p.id,'arbeit.hours','累計勤務時間(h)',p.arbeit.hours,'number')}${kf(p.id,'arbeit.dept','部署',p.arbeit.dept)}${kf(p.id,'arbeit.eval','評価メモ',p.arbeit.eval)}
-      ${kfStar(p.id,'arbeit.genba','現場評価(5段階)',p.arbeit.genba)}${kfStar(p.id,'arbeit.shain','社員評価(5段階)',p.arbeit.shain)}${kfStar(p.id,'arbeit.satis','本人満足度(5段階)',p.arbeit.satis)}
     </div>
   </div>
 
@@ -1008,6 +1000,15 @@ function renderKarte(){
       <textarea class="in" onchange="kset('${p.id}','jinbutsu.memo',this.value)" placeholder="例：指摘に対して素直に受け止め、翌日には行動を修正していた">${esc((p.jinbutsu||{}).memo||'')}</textarea></div>
   </div>
 
+  <div class="k-sec"><h4><span class="no">⑫</span>ボイスメール ジャスト数（規律）
+    ${(()=>{const v=p.voice||{};return `<span class="pill ${(+v.streak||0)>=10?'ok':(+v.streak||0)>=5?'warn':'gray'}">最高連続 ${(+v.streak||0)}回</span><span class="pill gray">個人 ${(+v.just||0)}回</span>`;})()}</h4>
+    <p class="hint" style="margin:-4px 0 10px">毎週のボイスメールがジャスト（時間ぴったり）だった回数。規律＝素直・責任感の指標として記録します。</p>
+    <div class="kgrid">
+      ${kf(p.id,'voice.streak','最高連続ジャスト回数',p.voice.streak,'number')}
+      ${kf(p.id,'voice.just','個人ジャスト回数（累計）',p.voice.just,'number')}
+    </div>
+  </div>
+
   <div class="k-sec"><h4><span class="no">⇄</span>引継ぎ（担当変更時の必須事項）</h4>
     <div class="note" style="margin-bottom:10px">担当変更時は<b>5分動画</b>を必須化。下のURL欄に格納し、5つの観点を埋めてください。「引継ぎカードをコピー」でサマリーを書き出せます。</div>
     <div class="kfield" style="margin-bottom:8px"><label>引継ぎ動画 URL（5分）</label><input class="in" value="${esc(p.handoff.video)}" placeholder="https://… （Google Drive / YouTube限定公開 等）" onchange="kset('${p.id}','handoff.video',this.value)"></div>
@@ -1042,6 +1043,7 @@ function handoffText(p){
 ⑤ 次の担当：${p.handoff.q5||'—'}
 口説き：${p.kudoki||'—'} ／ NG：${p.ng||'—'}
 人物像コメント：${(p.jinbutsu&&p.jinbutsu.memo)||'—'}
+ボイスメール：最高連続${(p.voice&&p.voice.streak)||0}回／個人${(p.voice&&p.voice.just)||0}回
 直近面談：${(function(){const m=lastMendan(p);return m?`${m.date}（${m.owner||'担当不明'}）心配なこと：${m.shinpai||'—'} ／ 次回：${m.next||'未設定'}`:'未実施';})()}
 動画：${p.handoff.video||'（未登録）'}`;
 }
@@ -1095,6 +1097,19 @@ function importMendan(){
   alert('取り込みが完了しました。\n面談記録 '+added+'件／新規作成した内定者 '+newp+'名\n※日付は 1〜8月＝2026年、9〜12月＝2025年として取り込んでいます。');
 }
 function setKarte(id){S.karteSel=id;save();renderKarte();}
+/* ---- ボイスメール ジャスト数（内定者データ.xlsx「27ボイスメール」から集計） ---- */
+const VOICE_DOC={'太田':{just:34,streak:8},'茅島':{just:36,streak:12},'宮部':{just:26,streak:15},'磯邊館':{just:16,streak:16},'笹川':{just:11,streak:8},'小林':{just:8,streak:8}};
+function importVoice(){
+  if(!confirm('ボイスメールのジャスト数（個人ジャスト回数・最高連続ジャスト回数）を27内定者に取り込みます。よろしいですか？'))return;
+  S.cohort='27';const c=cur();let n=0,miss=[];
+  Object.keys(VOICE_DOC).forEach(sur=>{
+    const p=c.people.find(x=>(x.name||'').replace(/\s/g,'').indexOf(sur)===0);
+    if(!p){miss.push(sur);return;}
+    normalizePerson(p);p.voice={just:VOICE_DOC[sur].just,streak:VOICE_DOC[sur].streak};n++;
+  });
+  save();document.getElementById('cohortSel').value='27';renderAll();show('p-karte');
+  alert('ボイスメールを取り込みました（'+n+'名）。'+(miss.length?'\n未マッチ：'+miss.join('、')+'（先に月次面談取り込みで内定者を作成してください）':''));
+}
 /* ---- アプリ内蔵マニュアル（更新時に自動で最新化） ---- */
 function renderGuide(){
   const el=document.getElementById('guideBody');if(!el)return;
