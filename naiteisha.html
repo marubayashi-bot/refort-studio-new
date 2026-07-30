@@ -151,6 +151,19 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 .k-sec table input.in,.k-sec table select.in{font-size:12px}
 .mcard{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fbfcfe}
 .mcard .kgrid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.g-hero{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.g-hero>div{flex:1}
+.g-sec{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.g-sec h3{margin:0 0 10px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:9px}
+.g-no{background:var(--gold);color:#23303f;min-width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;padding:0 6px}
+.g-list{margin:4px 0;padding-left:20px}.g-list li{margin:5px 0}
+.g-p{margin:2px 0 6px}
+.g-url{font-family:Consolas,monospace;background:#10294b;color:#dbe7ff;padding:2px 8px;border-radius:6px;font-size:12px;display:inline-block;word-break:break-all}
+.g-note{border-radius:9px;padding:9px 12px;margin-top:9px;font-size:13px;background:#eef4ff;border:1px solid #d3e0fb}
+.g-note.warn{background:var(--warnbg);border-color:#efe0a8}
+.g-note.ok{background:var(--okbg);border-color:#bfe6d2}
+.g-foot{color:var(--muted);font-size:11px;text-align:center;margin:14px 0 4px}
+@media print{header,nav,.g-hero button{display:none!important}.page{display:none!important}#p-guide{display:block!important}main{padding:0;max-width:none}.g-sec{break-inside:avoid;box-shadow:none}}
 .chk-inline{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--navy);font-weight:700;background:#f1f5fc;border:1px solid #d6e0f2;border-radius:8px;padding:5px 9px;white-space:nowrap}
 .chk-inline input{accent-color:var(--navy)}
 .sess{display:inline-flex;align-items:center;gap:3px;background:#f6f8fc;border:1px solid var(--line);border-radius:8px;padding:2px 4px}
@@ -283,6 +296,13 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
       </div>
       <div id="lookerWrap"></div>
     </div>
+  </section>
+
+  <!-- GUIDE / MANUAL -->
+  <section class="page" id="p-guide">
+    <h2 class="title">使い方（活用マニュアル）</h2>
+    <p class="lead">このマニュアルはアプリに内蔵されています。アプリを更新すると、この使い方も自動で最新版になります。</p>
+    <div id="guideBody"></div>
   </section>
 
   <!-- SETTINGS -->
@@ -533,11 +553,12 @@ function lvClass(lv){return lv==='危険'?'danger':lv==='注意'?'warn':'ok';}
 function pct(x){return x==null?'—':Math.round(x*100)+'%';}
 
 /* ---------- render ---------- */
-const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-karte','内定者カルテ'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-recruit','新卒採用進捗'],['p-settings','設定']];
+const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-karte','内定者カルテ'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-recruit','新卒採用進捗'],['p-guide','使い方'],['p-settings','設定']];
+const APP_VERSION='2026.07 v1.6（カルテ・月次面談取込・繰り返し開催・個別期限・人物像5項目・対象期移動）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';TABS.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(i===0)b.classList.add('active');b.dataset.id=t[0];n.appendChild(b);});}
 function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));renderAll();}
 
-function renderAll(){normalizeAll();renderDash();renderPeople();renderKarte();renderEvents();renderTasks();renderAlerts();renderRecruit();renderSettings();}
+function renderAll(){normalizeAll();renderDash();renderPeople();renderKarte();renderEvents();renderTasks();renderAlerts();renderRecruit();renderGuide();renderSettings();}
 
 function renderDash(){
   const ppl=cur().people;const scored=ppl.map(p=>({p,r:riskScore(p)}));
@@ -1074,6 +1095,114 @@ function importMendan(){
   alert('取り込みが完了しました。\n面談記録 '+added+'件／新規作成した内定者 '+newp+'名\n※日付は 1〜8月＝2026年、9〜12月＝2025年として取り込んでいます。');
 }
 function setKarte(id){S.karteSel=id;save();renderKarte();}
+/* ---- アプリ内蔵マニュアル（更新時に自動で最新化） ---- */
+function renderGuide(){
+  const el=document.getElementById('guideBody');if(!el)return;
+  const g=(no,title,body)=>`<div class="g-sec"><h3><span class="g-no">${no}</span>${title}</h3>${body}</div>`;
+  const ol=a=>'<ol class="g-list">'+a.map(x=>`<li>${x}</li>`).join('')+'</ol>';
+  const ul=a=>'<ul class="g-list">'+a.map(x=>`<li>${x}</li>`).join('')+'</ul>';
+  el.innerHTML=`
+  <div class="g-hero">
+    <div><b>内定者オンボーディング管理アプリ 活用マニュアル</b>
+    <div class="muted small">株式会社アースコム ／ バージョン：${esc(APP_VERSION)}</div></div>
+    <button class="btn ghost sm" onclick="window.print()">印刷 / PDF保存</button>
+  </div>
+
+  ${g('目的','このアプリでやること',
+    ul(['内定者の育成・定着を仕組み化し、<b>担当者が変わっても引き継げる</b>状態をつくる（入社準備CRM）。',
+        '参加・課題・接触・面談の状況から<b>辞退リスクを自動検知</b>し、内定辞退を防ぐ。',
+        '「入社確率」だけでなく「<b>活躍確率</b>」も、アースコムの求める人物像に照らして見える化する。'])
+  )}
+
+  ${g('1','ログインする',
+    ol(['決まったURLを開く（お気に入り登録推奨）。<br><span class="g-url">https://marubayashi-bot.github.io/refort-studio-new/naiteisha.html</span>',
+        '紺色のログイン画面で、社内共有のメール・パスワードを入力。',
+        '右上に「保存済み」とログアウトが出れば成功。入力は<b>自動でクラウド保存</b>され全員に共有されます。'])+
+    `<div class="g-note warn"><b>注意：</b>ダウンロードしたファイルを直接開くとログインできません。必ず上のURLから開いてください。</div>`
+  )}
+
+  ${g('2','毎日やること（基本ルーティン）',
+    ol(['ダッシュボードの「要対応者リスト」を確認する。',
+        '<b>危険（赤）＝本日中に電話・面談 ／ 注意（黄）＝3日以内に接点</b>を持つ。',
+        '連絡・面談をしたら、必ずその内定者の<b>「最終接触日」を更新</b>する（←アラート精度の要）。'])
+  )}
+
+  ${g('3','対象期（27／28内定者）の切り替え',
+    ul(['画面右上の「対象期」で <b>27内定者／28内定者</b> を切り替えてから入力します。',
+        '期を間違えて登録した場合は、内定者一覧タブの<b>「◯◯へ移動」</b>で、面談履歴・課題・参加記録ごと移動できます（入れ直し不要）。'])
+  )}
+
+  ${g('4','内定者一覧タブ',
+    ul(['「＋内定者を追加」→ 氏名・経路・志望温度（高/中/低）・内定日・承諾日・最終接触日を入力。',
+        '<b>承諾が決まったら「承諾日」を必ず入力</b>（未入力はリスク加点）。',
+        '参加率・課題完了率・辞退リスクは<b>自動計算</b>されます。'])
+  )}
+
+  ${g('5','内定者カルテタブ（1人ずつ／ここが本体）',
+    `<p class="g-p">面談や現場での様子をもとに、次を随時更新します。</p>`+
+    ul(['① 基本情報（大学・学部・卒業予定・入社予定日・担当者）',
+        '② 温度感（★1〜5）',
+        '③ 参加履歴（説明会／個別面談／インターン／懇親会／社内イベント／幹部塾）',
+        '④ アルバイト履歴（開始日・累計時間・部署・現場評価・社員評価・本人満足度＝各5段階）',
+        '⑤ 内定者課題（提出 ○△× ・評価 A/B/C）',
+        '⑥ 面談履歴（月次面談。→ 第6項参照）',
+        '⑦ 保護者情報（父母の賛否・懸念事項）',
+        '⑧ 辞退リスク（他社内定／連絡減少／イベント欠席／アルバイト不参加／課題未提出／保護者反対）',
+        '⑨ 口説きポイント ／ ⑩ NGポイント',
+        '⑪ アースコムの求める人物像【5項目】＝素直・挑戦心行動力・感謝・ストレス耐性・責任感を★評価＋コメント',
+        '⇄ 引継ぎ（5分動画URL＋5つの観点）'])+
+    `<div class="g-note ok">上部の4つのゲージ（<b>エンゲージ／入社確率／活躍確率／人物像フィット</b>）と、理想形タイムライン（説明会→入社式）＋「次にやること」が自動表示されます。</div>`
+  )}
+
+  ${g('6','月次面談（毎月・カルテ⑥）',
+    ol(['全内定者と<b>月1回</b>面談を実施する。',
+        '面談時に必ず<b>「次回面談日」を決めてその場で入力</b>する。',
+        '面談後、実施日・実施者・①次回面談日・②近況確認・③内定課題の進捗・④プライベート・⑤他の内定者との関係性・⑥心配なこと・⑦来月の目標・⑧確認事項を記録する。'])+
+    `<div class="g-note">Googleの月次面談ドキュメントの内容は、カルテ上部の<b>「月次面談ドキュメントを取り込む」</b>で一括取り込みできます（同じ実施日は重複しません）。</div>`
+  )}
+
+  ${g('7','イベント・研修タブ',
+    ul(['単発の活動：活動を追加し、日付と参加状況（参加/欠席/未定）を入力。',
+        '用語集勉強会・懇親会など<b>毎月開催</b>のもの：<b>「繰り返し開催」にチェック</b>→開催日を追加し、回ごとに入力。参加回数・参加率が自動表示されます。'])
+  )}
+
+  ${g('8','課題進捗タブ',
+    ul(['課題を追加し「既定期限（全員）」を設定。',
+        '人によって期限が違う場合は<b>「個別期限」</b>に入力。',
+        '提出したら状態を「完了」にして「完了日」を入力。<b>期限より後の提出は「期限超過（◯日遅れ）」</b>と自動表示、未提出のまま超過は「遅延」。'])
+  )}
+
+  ${g('9','辞退アラートタブ（毎週確認）',
+    ul(['入力は不要。異常値（参加率0%・課題0%・30日以上未接触・課題遅延・承諾日未入力・<b>月次面談未実施・次回面談日未設定</b>）が自動抽出されます。',
+        'ここに出た人を優先的に対応し、対応後は最終接触日・面談を更新してアラートを解消します。'])
+  )}
+
+  ${g('10','新卒採用進捗タブ',
+    ul(['年代（24〜27卒）を切り替えて選考ファネルを管理。合格率は自動計算。',
+        '目標を入力すると「残り人数」を自動表示。',
+        '合同説明会は開催日ごとに実動員を入力（<b>13名未達は赤＝優先動員</b>）。TOPLIVE動員リストの状況を更新。'])
+  )}
+
+  ${g('11','担当変更時（必須）',
+    ol(['<b>5分の引継ぎ動画</b>を撮り、URLをカルテに登録（①どんな学生か②悩み③辞退リスク④入社決定要因⑤次の担当）。',
+        'カルテの<b>「引継ぎカードをコピー」</b>でサマリーを出し、後任へChatworkで共有する。'])
+  )}
+
+  ${g('12','守ってほしいこと',
+    ul(['データは全員共有。<b>削除は全員に反映</b>されるため慎重に（消す前に設定タブでJSONバックアップ）。',
+        '共有PCは使用後に必ず<b>ログアウト</b>。ログイン情報は社内限り。',
+        '週1回めやすで、設定タブ →「JSONバックアップ書き出し」で控えを保存。'])
+  )}
+
+  ${g('?','困ったとき',
+    ul(['ログインできない → 上のURLから開いているか／メール・パスワードを確認。',
+        '入力が保存されているか不安 → 右上が「保存済み」か確認。「保存失敗」が続けば再ログイン。',
+        '画面が古い → 強制再読み込み（Windows：Ctrl+Shift+R／Mac：Cmd+Shift+R）。',
+        'それでも直らない・404 → システム管理担当（丸林）に連絡。アプリ更新が必要な可能性。'])
+  )}
+
+  <div class="g-foot">株式会社アースコム ｜ 内定者オンボーディング管理アプリ 活用マニュアル ｜ ${esc(APP_VERSION)}</div>`;
+}
 /* ---- 対象期（コホート）の移動：面談履歴・課題・イベント参加記録ごと移す ---- */
 function otherCohort(){return S.cohort==='28'?'27':'28';}
 function movePersonTo(pid,to){
