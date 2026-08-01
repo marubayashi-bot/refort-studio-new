@@ -122,6 +122,26 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .popMeta{color:var(--sub);font-size:12px;margin-bottom:8px}
 .popEdit{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700}
 
+/* ===== tabs / weekly / sites ===== */
+.vtabs{display:flex;gap:6px}
+.vtabs button{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12.5px;font-weight:700;opacity:.75}
+.vtabs button.on{background:#fff;color:var(--navy);opacity:1}
+.pin.todaypin{outline:3px solid var(--ink);outline-offset:2px}
+.tabPane{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+.weekNav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.weekNav button.nv{background:#fff;border:1px solid var(--line);width:30px;height:30px;border-radius:6px;font-size:14px}
+.weekNav .wLabel{font-family:'IBM Plex Mono';font-weight:600;font-size:14px}
+.segBtn{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:auto}
+.segBtn button{border:none;background:#fff;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--sub)}
+.segBtn button.on{background:var(--navy);color:#fff}
+.wDay{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.wDayHead{padding:8px 14px;background:#F6F8FA;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+.wItem{padding:8px 14px;border-bottom:1px solid #EEF1F3;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.wItem:last-child{border-bottom:none}
+.wEmpty{padding:8px 14px;color:var(--sub);font-size:12.5px}
+.wGroup{font-family:'Zen Kaku Gothic New';font-weight:700;font-size:14px;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+#siteMap{height:calc(100vh - 260px);min-height:420px;border-radius:12px;border:1px solid var(--line)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 @media(max-width:860px){
   main{grid-template-columns:1fr;height:auto}
   .mapWrap{height:46vh;order:-1}
@@ -150,6 +170,11 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 <div id="appView">
   <header class="top">
     <h1>外勤マップ</h1><span class="tag">EARTHCOM</span>
+    <nav class="vtabs">
+      <button id="vt-map" class="on" onclick="switchTab('map')">マップ</button>
+      <button id="vt-week" onclick="switchTab('week')">週間</button>
+      <button id="vt-sites" onclick="switchTab('sites')">進捗マップ</button>
+    </nav>
     <div class="monthNav">
       <button onclick="shiftMonth(-1)">‹</button>
       <span class="ym" id="ymLabel"></span>
@@ -164,6 +189,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   <main>
     <aside>
       <div class="filters">
+        <div class="fRow"><button class="chip" id="todayChip" onclick="toggleToday()">📍 今日のみ表示</button></div>
         <div class="fRow" id="staffChips"></div>
         <div class="fRow status" id="statusChips">
           <button class="chip on" data-s="予定" onclick="toggleStatus(this)">予定</button>
@@ -180,6 +206,54 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
       <div id="map"></div>
     </div>
   </main>
+
+  <!-- 週間スケジュール -->
+  <div class="tabPane" id="pane-week" style="display:none">
+    <div class="weekNav">
+      <button class="nv" onclick="shiftWeek(-1)">‹</button>
+      <span class="wLabel" id="weekLabel"></span>
+      <button class="nv" onclick="shiftWeek(1)">›</button>
+      <button class="nv" style="width:auto;padding:0 12px;font-size:12px" onclick="thisWeek()">今週</button>
+      <div class="segBtn">
+        <button id="seg-all" class="on" onclick="setWeekMode('all')">全体</button>
+        <button id="seg-staff" onclick="setWeekMode('staff')">担当別</button>
+      </div>
+    </div>
+    <div id="weekContent"></div>
+  </div>
+
+  <!-- 進捗マップ（内勤用） -->
+  <div class="tabPane" id="pane-sites" style="display:none">
+    <div class="legend" id="siteLegend"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="addBtn" style="width:auto;margin:0;padding:9px 18px" onclick="openSiteModal()">＋ 案件を登録</button>
+    </div>
+    <div id="siteMap"></div>
+  </div>
+</div>
+
+<!-- 案件（進捗マップ）モーダル -->
+<div class="overlay" id="siteOverlay">
+  <div class="modal">
+    <h2 id="siteModalTitle">案件を登録</h2>
+    <label>案件名</label>
+    <input id="sName" placeholder="例）〇〇発電所">
+    <label>住所</label>
+    <div class="geoRow">
+      <input id="sAddress" placeholder="例）千葉県市原市〇〇 123-4">
+      <button onclick="geocodeSite()">位置検索</button>
+    </div>
+    <div class="coordNote" id="sCoordNote">座標：未設定</div>
+    <label>ステージ</label>
+    <select id="sStage"></select>
+    <label>メモ</label>
+    <textarea id="sMemo" placeholder="隣地の状況・対応内容など"></textarea>
+    <div class="mBtns">
+      <button class="ghost" onclick="closeSiteModal()">キャンセル</button>
+      <button class="danger" id="sDeleteBtn" style="display:none" onclick="deleteSite()">削除</button>
+      <button class="primary" onclick="saveSite()">保存</button>
+    </div>
+  </div>
 </div>
 
 <!-- 訪問 登録/編集 -->
@@ -248,6 +322,15 @@ let curYM = new Date().toISOString().slice(0,7);
 let filterStaff = new Set(), filterStatus = new Set(["予定","完了","再訪要"]);
 let sortDesc = true, editingId = null, pickMode = false, pickedLatLng = null;
 let map, markerLayer;
+let todayOnly = false, weekMode = 'all', weekStart = mondayOf(new Date());
+let sites = [], siteMap = null, siteMarkerLayer = null, editingSiteId = null, sitePicked = null, sitePickMode = false;
+const STAGES = [
+  ['未着手','#8A97A3'], ['隣地挨拶中','#2F9E62'], ['隣地挨拶済','#E3B505'],
+  ['要再訪','#E8590C'], ['完了','#1D6FB8']
+];
+function mondayOf(d){ const x=new Date(d); const w=(x.getDay()+6)%7; x.setDate(x.getDate()-w); return x.toLocaleDateString('sv-SE'); }
+function addD(s,n){ const d=new Date(s); d.setDate(d.getDate()+n); return d.toLocaleDateString('sv-SE'); }
+function todayStr(){ return new Date().toLocaleDateString('sv-SE'); }
 
 /* ---------- auth ---------- */
 async function boot(){
@@ -294,11 +377,12 @@ function monthRange(ym){
 }
 async function loadAll(){
   const [from,to] = monthRange(curYM);
-  const [{data:st},{data:vs}] = await Promise.all([
+  const [{data:st},{data:vs},{data:si}] = await Promise.all([
     sb.from('field_staff').select('*').order('created_at'),
-    sb.from('field_visits').select('*').gte('visit_date',from).lte('visit_date',to).order('visit_date')
+    sb.from('field_visits').select('*').gte('visit_date',from).lte('visit_date',to).order('visit_date'),
+    sb.from('field_sites').select('*').order('created_at')
   ]);
-  staff = st||[]; visits = vs||[];
+  staff = st||[]; visits = vs||[]; sites = si||[];
   if(filterStaff.size===0) staff.filter(s=>s.active).forEach(s=>filterStaff.add(s.id));
   renderAll();
 }
@@ -359,7 +443,13 @@ function toggleStatus(btn){
   renderList(); renderMarkers();
 }
 function filtered(){
-  return visits.filter(v=>filterStatus.has(v.status)&&(!v.staff_id||filterStaff.has(v.staff_id)));
+  const t = todayStr();
+  return visits.filter(v=>filterStatus.has(v.status)&&(!v.staff_id||filterStaff.has(v.staff_id))&&(!todayOnly||v.visit_date===t));
+}
+function toggleToday(){
+  todayOnly = !todayOnly;
+  document.getElementById('todayChip').classList.toggle('on', todayOnly);
+  renderList(); renderMarkers();
 }
 
 /* ---------- list ---------- */
@@ -399,7 +489,7 @@ function renderMarkers(){
     const s = staff.find(x=>x.id===v.staff_id);
     const color = s?s.color:'#888';
     const icon = L.divIcon({className:'', iconSize:[18,18], iconAnchor:[9,9],
-      html:`<span class="pin p${v.status}" style="--pc:${color};background:${color};width:18px;height:18px"></span>`});
+      html:`<span class="pin p${v.status}${v.visit_date===todayStr()?' todaypin':''}" style="--pc:${color};background:${color};width:18px;height:18px"></span>`});
     const m = L.marker([v.lat,v.lng],{icon}).addTo(markerLayer);
     m.bindPopup(`<div class="popTitle">${esc(v.place_name)}</div>
       <div class="popMeta">${v.visit_date.replace(/-/g,'/')}　${s?esc(s.name):'—'}／${esc(v.purpose)}　<span class="badge ${v.status}">${v.status}</span></div>
@@ -525,6 +615,154 @@ async function saveStaff(){
     else await sb.from('field_staff').insert(rec);
   }
   closeStaffModal(); toast('メンバーを保存しました'); filterStaff.clear(); loadAll();
+}
+
+/* ---------- tabs ---------- */
+function switchTab(t){
+  document.querySelector('main').style.display = t==='map'?'grid':'none';
+  document.getElementById('gaugeStrip').style.display = t==='map'?'flex':'none';
+  document.getElementById('pane-week').style.display = t==='week'?'block':'none';
+  document.getElementById('pane-sites').style.display = t==='sites'?'block':'none';
+  ['map','week','sites'].forEach(x=>document.getElementById('vt-'+x).classList.toggle('on',x===t));
+  if(t==='map'){ setTimeout(()=>map.invalidateSize(),50); }
+  if(t==='week'){ renderWeek(); }
+  if(t==='sites'){ initSiteMap(); renderSites(); setTimeout(()=>siteMap.invalidateSize(),50); }
+}
+
+/* ---------- 週間スケジュール ---------- */
+function shiftWeek(n){ weekStart = addD(weekStart, n*7); renderWeek(); }
+function thisWeek(){ weekStart = mondayOf(new Date()); renderWeek(); }
+function setWeekMode(m){
+  weekMode = m;
+  document.getElementById('seg-all').classList.toggle('on', m==='all');
+  document.getElementById('seg-staff').classList.toggle('on', m==='staff');
+  renderWeek();
+}
+async function renderWeek(){
+  const we = addD(weekStart, 6);
+  document.getElementById('weekLabel').textContent = `${weekStart.slice(5).replace('-','/')} 〜 ${we.slice(5).replace('-','/')}`;
+  const {data} = await sb.from('field_visits').select('*').gte('visit_date',weekStart).lte('visit_date',we).order('visit_date');
+  const wv = data||[];
+  const el = document.getElementById('weekContent');
+  const item = v=>{
+    const s = staff.find(x=>x.id===v.staff_id);
+    return `<div class="wItem">
+      <span class="mono" style="color:var(--sub);font-size:12px">${v.visit_date.slice(5).replace('-','/')}（${'日月火水木金土'[new Date(v.visit_date).getDay()]}）</span>
+      <span class="sDot" style="background:${s?s.color:'#999'}"></span><b>${s?esc(s.name):'—'}</b>
+      <span>${esc(v.place_name)}</span>
+      <span class="badge ${v.status}">${v.status}</span>
+    </div>`;
+  };
+  if(weekMode==='all'){
+    let html='';
+    for(let i=0;i<7;i++){
+      const d = addD(weekStart,i);
+      const day = wv.filter(v=>v.visit_date===d);
+      html += `<div class="wDay">
+        <div class="wDayHead">${d.slice(5).replace('-','/')}（${'日月火水木金土'[new Date(d).getDay()]}）${d===todayStr()?'　<span style="color:var(--revisit)">◀ 今日</span>':''}</div>
+        ${day.length?day.map(item).join(''):'<div class="wEmpty">予定なし</div>'}
+      </div>`;
+    }
+    el.innerHTML = html;
+  }else{
+    let html='';
+    staff.filter(s=>s.active).forEach(s=>{
+      const my = wv.filter(v=>v.staff_id===s.id);
+      html += `<div class="wGroup"><span class="sDot" style="background:${s.color};width:10px;height:10px"></span>${esc(s.name)}<span style="font-size:12px;color:var(--sub);font-weight:400">${my.length}件</span></div>
+        <div class="wDay">${my.length?my.map(item).join(''):'<div class="wEmpty">この週の予定なし</div>'}</div>`;
+    });
+    el.innerHTML = html || '<div class="wEmpty">メンバーが登録されていません</div>';
+  }
+}
+
+/* ---------- 進捗マップ（内勤用） ---------- */
+function initSiteMap(){
+  if(siteMap) return;
+  siteMap = L.map('siteMap').setView([35.9,139.9], 8);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(siteMap);
+  siteMarkerLayer = L.layerGroup().addTo(siteMap);
+  siteMap.on('click', e=>{
+    if(!sitePickMode) return;
+    sitePicked = e.latlng; sitePickMode = false;
+    document.getElementById('siteOverlay').classList.add('show');
+    document.getElementById('sCoordNote').innerHTML = `座標：<b>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}</b>（地図指定）　<a href="#" onclick="startSitePick();return false">指定し直す</a>`;
+  });
+}
+function stageColor(st){ const f=STAGES.find(x=>x[0]===st); return f?f[1]:'#8A97A3'; }
+function renderSites(){
+  const leg = document.getElementById('siteLegend');
+  leg.innerHTML = STAGES.map(([n,c])=>{
+    const cnt = sites.filter(s=>s.stage===n).length;
+    return `<span class="chip on" style="--cc:${c}">${n} ${cnt}</span>`;
+  }).join('');
+  if(!siteMarkerLayer) return;
+  siteMarkerLayer.clearLayers();
+  sites.forEach(s=>{
+    if(!s.lat||!s.lng) return;
+    const icon = L.divIcon({className:'',iconSize:[20,20],iconAnchor:[10,10],
+      html:`<span class="pin" style="background:${stageColor(s.stage)};width:20px;height:20px"></span>`});
+    L.marker([s.lat,s.lng],{icon}).addTo(siteMarkerLayer)
+      .bindPopup(`<div class="popTitle">${esc(s.name)}</div>
+        <div class="popMeta"><span class="badge" style="background:${stageColor(s.stage)}">${esc(s.stage)}</span>　${esc(s.address||'')}</div>
+        ${s.memo?`<div style="margin-bottom:8px">${esc(s.memo)}</div>`:''}
+        <button class="popEdit" onclick="openSiteModal('${s.id}')">編集</button>`);
+  });
+}
+function openSiteModal(id){
+  editingSiteId = id||null; sitePicked = null;
+  document.getElementById('siteModalTitle').textContent = id?'案件を編集':'案件を登録';
+  document.getElementById('sDeleteBtn').style.display = id?'block':'none';
+  document.getElementById('sStage').innerHTML = STAGES.map(([n,c])=>`<option>${n}</option>`).join('');
+  if(id){
+    const s = sites.find(x=>x.id===id);
+    document.getElementById('sName').value = s.name;
+    document.getElementById('sAddress').value = s.address||'';
+    document.getElementById('sStage').value = s.stage;
+    document.getElementById('sMemo').value = s.memo||'';
+    if(s.lat){ sitePicked = {lat:s.lat,lng:s.lng};
+      document.getElementById('sCoordNote').innerHTML = `座標：<b>${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}</b>（設定済）　<a href="#" onclick="startSitePick();return false">指定し直す</a>`;
+    } else document.getElementById('sCoordNote').innerHTML = '座標：未設定　<a href="#" onclick="startSitePick();return false">地図で指定</a>';
+  }else{
+    ['sName','sAddress','sMemo'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('sStage').value = '未着手';
+    document.getElementById('sCoordNote').innerHTML = '座標：未設定（位置検索、または <a href="#" onclick="startSitePick();return false">地図で指定</a>）';
+  }
+  document.getElementById('siteOverlay').classList.add('show');
+}
+function closeSiteModal(){ document.getElementById('siteOverlay').classList.remove('show'); }
+function startSitePick(){ sitePickMode = true; closeSiteModal(); toast('進捗マップをクリックして位置を指定してください'); }
+async function geocodeSite(){
+  const addr = document.getElementById('sAddress').value.trim();
+  if(!addr){ toast('住所を入力してください'); return; }
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=${encodeURIComponent(addr)}`);
+    const j = await r.json();
+    if(!j.length){ toast('住所が見つかりません。「地図で指定」をお試しください'); return; }
+    sitePicked = {lat:+j[0].lat, lng:+j[0].lon};
+    document.getElementById('sCoordNote').innerHTML = `座標：<b>${sitePicked.lat.toFixed(5)}, ${sitePicked.lng.toFixed(5)}</b>（住所検索）　<a href="#" onclick="startSitePick();return false">指定し直す</a>`;
+    toast('位置を取得しました');
+  }catch(e){ toast('位置検索に失敗しました'); }
+}
+async function saveSite(){
+  const rec = {
+    name: document.getElementById('sName').value.trim(),
+    address: document.getElementById('sAddress').value.trim()||null,
+    stage: document.getElementById('sStage').value,
+    memo: document.getElementById('sMemo').value.trim()||null,
+    lat: sitePicked?sitePicked.lat:null,
+    lng: sitePicked?sitePicked.lng:null,
+    updated_at: new Date().toISOString()
+  };
+  if(!rec.name){ toast('案件名は必須です'); return; }
+  const q = editingSiteId ? sb.from('field_sites').update(rec).eq('id',editingSiteId) : sb.from('field_sites').insert(rec);
+  const {error} = await q;
+  if(error){ toast('保存に失敗しました：'+error.message); return; }
+  closeSiteModal(); toast('保存しました'); await loadAll(); renderSites();
+}
+async function deleteSite(){
+  if(!editingSiteId||!confirm('この案件を削除しますか？')) return;
+  await sb.from('field_sites').delete().eq('id',editingSiteId);
+  closeSiteModal(); toast('削除しました'); await loadAll(); renderSites();
 }
 
 /* ---------- csv ---------- */
