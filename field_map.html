@@ -142,6 +142,15 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .wGroup{font-family:'Zen Kaku Gothic New';font-weight:700;font-size:14px;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
 #siteMap{height:calc(100vh - 260px);min-height:420px;border-radius:12px;border:1px solid var(--line)}
 .legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.manual{width:min(96vw,640px)}
+.manual h3{font-family:'Zen Kaku Gothic New';font-weight:900;font-size:14px;margin:18px 0 6px;padding-left:9px;border-left:4px solid var(--navy)}
+.manual p,.manual li{font-size:13px;color:#333;margin-bottom:4px}
+.manual ul{padding-left:20px;margin-bottom:6px}
+.manual .mLegend{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.manual .verRow{font-size:12px;color:var(--sub);display:flex;gap:10px;margin-bottom:3px}
+.manual .verRow .mono{flex-shrink:0}
+.mVer{font-size:11px;color:var(--sub);margin-left:8px;font-weight:400}
+
 @media(max-width:860px){
   main{grid-template-columns:1fr;height:auto}
   .mapWrap{height:46vh;order:-1}
@@ -180,6 +189,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
       <span class="ym" id="ymLabel"></span>
       <button onclick="shiftMonth(1)">›</button>
     </div>
+    <button class="iconBtn" onclick="openManual()">？使い方</button>
     <button class="iconBtn" onclick="openStaffModal()">メンバー</button>
     <button class="iconBtn" onclick="exportCsv()">CSV</button>
   </header>
@@ -304,6 +314,15 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
       <button class="ghost" onclick="closeStaffModal()">閉じる</button>
       <button class="primary" onclick="saveStaff()">保存</button>
     </div>
+  </div>
+</div>
+
+<!-- 使い方マニュアル -->
+<div class="overlay" id="manualOverlay">
+  <div class="modal manual">
+    <h2>外勤マップ 使い方<span class="mVer" id="manualVer"></span></h2>
+    <div id="manualBody"></div>
+    <div class="mBtns"><button class="primary" onclick="document.getElementById('manualOverlay').classList.remove('show')">閉じる</button></div>
   </div>
 </div>
 
@@ -776,6 +795,52 @@ function exportCsv(){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download = `外勤マップ_${curYM}.csv`; a.click();
+}
+
+/* ---------- 使い方マニュアル ----------
+   ※アプリを改修したら、必ず CHANGELOG に1行追加し、該当セクションの文面も更新すること */
+const CHANGELOG = [
+  ['2026-08-01','v1.2','使い方マニュアルを内蔵（このページ）'],
+  ['2026-08-01','v1.1','「今日のみ表示」／週間スケジュール（全体・担当別）／内勤用の進捗マップを追加'],
+  ['2026-07-23','v1.0','初版公開（地図・稼働ゲージ・訪問管理・CSV）'],
+];
+function openManual(){
+  document.getElementById('manualVer').textContent = CHANGELOG[0][1] + '（' + CHANGELOG[0][0] + ' 更新）';
+  const stageLegend = STAGES.map(([n,c])=>`<span class="chip on" style="--cc:${c}">${n}</span>`).join('');
+  document.getElementById('manualBody').innerHTML = `
+    <p>外勤メンバー（アセット巡回・丸紅隣地挨拶など）の「誰が・いつ・どこへ行くか」を全社で共有するアプリです。</p>
+
+    <h3>基本の流れ</h3>
+    <ul>
+      <li><b>外勤が決まったら</b>「＋ 訪問予定を登録」で事前入力（住所検索か地図クリックで位置指定）</li>
+      <li><b>訪問したら</b>ステータスを「完了」に更新。もう一度行く必要があれば「再訪要」＋再訪予定日を入力</li>
+      <li><b>内勤の方は</b>依頼前にこのマップで動きを確認してから声をかける</li>
+    </ul>
+
+    <h3>マップタブ</h3>
+    <ul>
+      <li>ピンの色＝担当者、白抜き＝予定、塗りつぶし＝完了、オレンジ枠＝再訪要。<b>黒枠は今日の訪問</b></li>
+      <li>「📍 今日のみ表示」で当日の巡回先だけに絞れます</li>
+      <li>上部のゲージは、稼働${WORK_DAYS}日に対する各メンバーの実績（塗り）と予定（斜線）です</li>
+    </ul>
+
+    <h3>週間タブ</h3>
+    <ul>
+      <li>週単位のスケジュールをテキストで一覧できます。‹ › で週送り、「今週」で今日の週へ戻ります</li>
+      <li>右上の切替で「全体（日別）」「担当別」を選べます</li>
+    </ul>
+
+    <h3>進捗マップタブ（内勤用）</h3>
+    <p>案件ごとの進み具合をステージ色のピンで確認できます。</p>
+    <div class="mLegend">${stageLegend}</div>
+    <ul>
+      <li>「＋ 案件を登録」で案件を追加し、状況が変わったらピンをタップ→編集でステージを更新してください</li>
+    </ul>
+
+    <h3>更新履歴</h3>
+    ${CHANGELOG.map(([d,v,t])=>`<div class="verRow"><span class="mono">${d} ${v}</span><span>${t}</span></div>`).join('')}
+  `;
+  document.getElementById('manualOverlay').classList.add('show');
 }
 
 /* ---------- util ---------- */
