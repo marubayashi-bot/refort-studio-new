@@ -158,22 +158,16 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   #visitList{max-height:50vh}
 }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
 <!-- ログイン -->
-<div id="loginView">
-  <div class="loginCard">
-    <h1>外勤マップ</h1>
-    <p>EARTHCOM 外勤スケジュール＆エリア可視化</p>
-    <label>メールアドレス</label>
-    <input id="loginEmail" type="email" value="hankyo@earthcom-eco.jp">
-    <label>パスワード</label>
-    <input id="loginPass" type="password" placeholder="共有パスワード">
-    <button onclick="doLogin()">ログイン</button>
-    <div class="loginErr" id="loginErr">ログインに失敗しました。パスワードをご確認ください。</div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div id="loginView" style="display:none"></div>
 
 <!-- アプリ本体 -->
 <div id="appView">
@@ -192,6 +186,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
     <button class="iconBtn" onclick="openManual()">？使い方</button>
     <button class="iconBtn" onclick="openStaffModal()">メンバー</button>
     <button class="iconBtn" onclick="exportCsv()">CSV</button>
+    <span id="userBadge"></span>
   </header>
 
   <div id="gaugeStrip"></div>
@@ -333,7 +328,8 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 <script>
 const SB_URL = "https://aakofrzurgwrkctunthw.supabase.co";
 const SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
-const sb = supabase.createClient(SB_URL, SB_KEY);
+/* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+const sb = (window.EC&&EC.supabase) ? EC.supabase : supabase.createClient(SB_URL, SB_KEY);
 const WORK_DAYS = 21;
 
 let staff = [], visits = [], markers = {};
@@ -353,16 +349,11 @@ function todayStr(){ return new Date().toLocaleDateString('sv-SE'); }
 
 /* ---------- auth ---------- */
 async function boot(){
-  const {data:{session}} = await sb.auth.getSession();
-  if(session){ showApp(); } else { document.getElementById('loginView').style.display='flex'; }
-}
-async function doLogin(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  const {error} = await sb.auth.signInWithPassword({email, password:pass});
-  if(error){ document.getElementById('loginErr').style.display='block'; return; }
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  await EC.guard({ allow:['admin','manager','sales','field'] });
   showApp();
 }
+/* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
 function showApp(){
   document.getElementById('loginView').style.display='none';
   document.getElementById('appView').style.display='block';
@@ -541,6 +532,11 @@ function openVisitModal(id){
   }else{
     ['vPlaceName','vAddress','vRevisit','vMemo'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('vDate').value = new Date().toISOString().slice(0,10);
+    /* 担当者はログイン中の社員を初期選択にする（名前が一致するメンバーがいる場合） */
+    if(window.EC && EC.me && EC.me.full_name){
+      const mine = staff.find(x=>x.active && x.name && x.name.replace(/\s/g,'')===EC.me.full_name.replace(/\s/g,''));
+      if(mine) sel.value = mine.id;
+    }
     document.getElementById('vPurpose').value='アセット';
     document.getElementById('vStatus').value='予定';
     document.getElementById('coordNote').innerHTML='座標：未設定（位置検索、または <a href="#" onclick="startPickMode();return false">地図で指定</a>）';
