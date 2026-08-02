@@ -636,6 +636,10 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
 .map-pin b{transform:rotate(45deg);font-size:10px;font-weight:800}
 .map-pin.won{background:#1f8a55}.map-pin.lost{background:#8893a2;border-color:#c8d2dd}.map-pin.hot{background:#c0392b}
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 <header class="top">
@@ -652,6 +656,7 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   <div class="spacer"></div>
   <div class="util">
     <span id="syncPill" class="sync-pill local" title="同期状態">● ローカル</span>
+    <span id="userBadge"></span>
     <button class="btn btn-ghost btn-sm" id="btnSync">☁ 同期設定</button>
     <button class="btn btn-ghost btn-sm" id="btnImport">復元</button>
     <button class="btn btn-ghost btn-sm" id="btnExport">バックアップ</button>
@@ -3225,9 +3230,10 @@ async function cloudReconcile(d){if(!sb)return;
     for(const r of (cloud||[])) if(!ids.has(r.id)) await sb.from('refort_deals').delete().eq('id',r.id);
     setPill('synced');
   }catch(e){setPill('error');console.warn('cloud push',e);}}
-async function initCloud(){const key=sbKey();if(!key){setPill('local');return;}
+async function initCloud(){
   setPill('connecting');
-  try{ const lib=await ensureSB(); sb=lib.createClient(SB_URL,key);
+  /* 認証済みの共通クライアントを使う（ログインした社員の権限でデータを読み書きする） */
+  try{ sb = (window.EC && EC.supabase) ? EC.supabase : (await ensureSB()).createClient(SB_URL,sbKey());
     const {data,error}=await sb.from('refort_deals').select('data').order('updated_at',{ascending:false});
     if(error)throw error;
     const rows=(data||[]).map(r=>r.data).filter(Boolean);
@@ -3249,8 +3255,15 @@ $('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast(
   else{st.textContent='⚠ 接続できませんでした。URL・key・テーブル作成をご確認ください';st.style.color='#c0392b';}};
 
 const _lg=document.getElementById('ecLogo'); if(_lg)_lg.src=EC_LOGO;
-renderDash();
-initCloud();
+
+/* ===== 認証ゲート：ログインが通ってからアプリを起動する ===== */
+EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
+  EC.mountBadge('#userBadge');
+  /* 同期設定は管理者だけに見せる（一般社員が誤って切り替えないように） */
+  if(!EC.can('admin')){ const b=document.getElementById('btnSync'); if(b) b.style.display='none'; }
+  renderDash();
+  initCloud();
+});
 })();
 
 </script>
