@@ -281,23 +281,15 @@ table.grid tr:hover td{background:#f8fafd}
   .dash-grid{grid-template-columns:1fr}
 }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 <!-- ログイン画面 -->
-<div class="login-bk" id="loginScreen">
-  <div class="login-card">
-    <div class="lbrand"><div class="lg">E</div><div><div class="t1">アースコム ReFort</div><div class="t2">PROPOSAL / PIPELINE / DASHBOARD</div></div></div>
-    <h2>ログイン</h2>
-    <div class="lsub">社内共有のメールアドレスとパスワードでログインしてください。</div>
-    <label>メールアドレス</label>
-    <input type="email" id="loginEmail" autocomplete="username" placeholder="example@earthcom-eco.jp">
-    <label>パスワード</label>
-    <input type="password" id="loginPass" autocomplete="current-password" placeholder="パスワード">
-    <button class="btn gold" id="loginBtn">ログイン</button>
-    <div class="login-err" id="loginErr"></div>
-    <div class="login-foot">株式会社アースコム ｜ ReFort Studio<br>※ ダウンロードしたファイルではなく、公開URL（https）から開いてください。</div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div class="login-bk" id="loginScreen" style="display:none"></div>
 
 <div id="appRoot">
 <div class="topbar">
@@ -1301,45 +1293,30 @@ function initStaticUI(){
   document.getElementById('asof').textContent='データ基準 '+RAW.asOf+'｜表示 '+fmtYMD(new Date()).replace(/(\d{4})(\d{2})(\d{2})/,'$1.$2.$3');
 }
 async function enterApp(session){
-  currentUser=session?.user?.email||'';
-  document.getElementById('userEmail').textContent=currentUser;
+  /* 更新者の記録にはログイン中の社員名を使う */
+  currentUser=(window.EC&&EC.me)?(EC.me.full_name||EC.me.email):(session?.user?.email||'');
+  document.getElementById('userEmail').textContent=(window.EC&&EC.me)?(EC.me.full_name||EC.me.email):currentUser;
   loginScreen.style.display='none';appRoot.style.display='block';
   initStaticUI();
   await loadCloud();
   // membersがクラウド未登録なら初期メンバーを一度だけ登録
   try{const {data}=await sb.from('refort_config').select('key').eq('key','members');if(!data||!data.length){await cloudUpsertConfig('members',members);}}catch(e){}
-  toast('ログインしました（クラウド共有モード）');
+
 }
 function showLogin(msg){loginScreen.style.display='grid';appRoot.style.display='none';if(msg)document.getElementById('loginErr').textContent=msg;}
 
-async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim(),pass=document.getElementById('loginPass').value;
-  document.getElementById('loginErr').textContent='';
-  if(!email||!pass){document.getElementById('loginErr').textContent='メールアドレスとパスワードを入力してください';return;}
-  const btn=document.getElementById('loginBtn');btn.textContent='ログイン中…';btn.disabled=true;
-  try{
-    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error)throw error;
-    await enterApp(data.session);
-  }catch(e){
-    const m=(e&&e.message||'').includes('Invalid')?'メールアドレスまたはパスワードが違います':('ログインできませんでした: '+(e.message||e));
-    document.getElementById('loginErr').textContent=m;
-  }finally{btn.textContent='ログイン';btn.disabled=false;}
-}
-document.getElementById('loginBtn').onclick=doLogin;
-document.getElementById('loginPass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
-document.getElementById('loginEmail').onkeydown=e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();};
-document.getElementById('logoutBtn').onclick=async()=>{try{await sb.auth.signOut();}catch(e){}location.reload();};
+/* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
+document.getElementById('logoutBtn').onclick=()=>{ EC.signOut(); };
 document.getElementById('refreshCloud').onclick=()=>refreshFromCloud(false);
 document.getElementById('migrateBtn').onclick=migrateLocal;
 
 (async function boot(){
-  if(!window.supabase||!window.supabase.createClient){showLogin('通信エラー：ライブラリを読み込めませんでした。ネット接続を確認し、公開URL（https）から開いてください。');return;}
-  sb=window.supabase.createClient(SB_URL,SB_KEY);
-  try{
-    const {data}=await sb.auth.getSession();
-    if(data&&data.session){await enterApp(data.session);}else{showLogin();}
-  }catch(e){showLogin();}
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  await EC.guard({ allow:['admin','manager','sales'] });
+  /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+  sb = EC.supabase;
+  const {data}=await sb.auth.getSession();
+  await enterApp(data&&data.session);
 })();
 </script>
 </body>

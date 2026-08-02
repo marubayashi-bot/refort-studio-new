@@ -231,6 +231,10 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
   td .memo{width:120px}
 }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
@@ -245,6 +249,7 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
     </div>
     <div class="hd-spacer"></div>
     <span class="sync-badge internal" id="syncBadge">☁ 接続中…</span>
+    <span id="userBadge"></span>
     <button class="mode-toggle" id="custToggle" onclick="toggleCustomer()">
       <span id="custIcon"></span><span id="custLabel">👥 お客様表示に切替</span>
     </button>
@@ -306,20 +311,8 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
   商談ステータス・メモ・ピン修正はこの端末（ブラウザ）に保存されます。共有する場合は「商談データ書き出し」をご利用ください。
 </footer>
 
-<div id="loginOverlay" style="display:none">
-  <div class="login-card">
-    <h2><span class="hd-batt" style="border-color:var(--pine)"><i style="background:var(--pine);animation:none;width:70%"></i></span>蓄電池用地 営業ボード</h2>
-    <p>社内共有アカウントでログインしてください。商談ステータス・ピン位置は全員に共有されます。</p>
-    <label>メールアドレス</label>
-    <input type="email" id="lgEmail" value="hankyo@earthcom-eco.jp" autocomplete="username">
-    <label>パスワード</label>
-    <input type="password" id="lgPass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-    <label>お名前（更新者の記録用・任意）</label>
-    <input type="text" id="lgName" placeholder="例）奥田">
-    <button onclick="doLogin()">ログイン</button>
-    <div class="login-err" id="lgErr"></div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div id="loginOverlay" style="display:none"></div>
 
 <div id="simOverlay" onclick="if(event.target===this)closeSim()">
   <div class="sim-tools">
@@ -364,25 +357,16 @@ let myName=localStorage.getItem("battery_username")||"";
 
 function setBadge(txt,cls){const b=document.getElementById("syncBadge");b.textContent=txt;b.className="sync-badge internal "+(cls||"");}
 async function boot(){
-  if(!window.supabase){ setBadge("☁ 未接続（ローカル保存）","err"); geocodeAll(); return; }
-  sb=window.supabase.createClient(SB_URL,SB_KEY);
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){ await afterLogin(); }
-  else{ document.getElementById("loginOverlay").style.display="flex";
-        document.getElementById("lgName").value=myName; }
-}
-async function doLogin(){
-  const email=document.getElementById("lgEmail").value.trim();
-  const pass=document.getElementById("lgPass").value;
-  const err=document.getElementById("lgErr");
-  err.style.display="none";
-  const {error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){ err.textContent="ログインできませんでした。メール・パスワードをご確認ください。"; err.style.display="block"; return; }
-  myName=document.getElementById("lgName").value.trim();
-  localStorage.setItem("battery_username",myName);
-  document.getElementById("loginOverlay").style.display="none";
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  const me = await EC.guard({ allow:['admin','manager','sales'] });
+  /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+  sb = EC.supabase;
+  /* 更新者名はログイン中の社員名を使う */
+  if(me.full_name){ myName = me.full_name; localStorage.setItem("battery_username", myName); }
+  const ub=document.getElementById("userBadge"); if(ub) EC.mountBadge('#userBadge');
   await afterLogin();
 }
+/* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
 async function afterLogin(){
   cloudOn=true;
   document.getElementById("loginOverlay").style.display="none";
