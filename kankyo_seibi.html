@@ -213,6 +213,10 @@ main{max-width:820px;margin:0 auto;padding:14px 12px}
   .photo-add,.thumb{width:76px;height:76px}
 }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
@@ -227,22 +231,8 @@ main{max-width:820px;margin:0 auto;padding:14px 12px}
 </header>
 
 <!-- ログイン -->
-<div class="login-wrap" id="loginView">
-  <div class="login-card">
-    <h1>ログイン</h1>
-    <p>共有アカウントでログインしてください。</p>
-    <div class="field">
-      <label>メールアドレス</label>
-      <input type="email" id="loginEmail" value="hankyo@earthcom-eco.jp" autocomplete="username">
-    </div>
-    <div class="field">
-      <label>パスワード</label>
-      <input type="password" id="loginPass" autocomplete="current-password">
-    </div>
-    <button class="btn-primary" id="loginBtn">ログイン</button>
-    <div class="login-err" id="loginErr"></div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div class="login-wrap hidden" id="loginView"></div>
 
 <!-- セットアップ（テーブル未作成時） -->
 <div class="setup hidden" id="setupView">
@@ -336,7 +326,8 @@ create policy "kankyo photo delete" on storage.objects
 /* ================= Supabase ================= */
 const SB_URL = 'https://aakofrzurgwrkctunthw.supabase.co';
 const SB_KEY = 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
-const sb = supabase.createClient(SB_URL, SB_KEY);
+/* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+const sb = (window.EC&&EC.supabase) ? EC.supabase : supabase.createClient(SB_URL, SB_KEY);
 const TABLE = 'kankyo_inspections';
 const BUCKET = 'kankyo-photos';
 
@@ -584,20 +575,12 @@ function deptStats(row){
 }
 
 /* ================= 認証 ================= */
-$('loginBtn').onclick = async ()=>{
-  const err=$('loginErr'); err.style.display='none';
-  $('loginBtn').textContent='ログイン中…';
-  const {error} = await sb.auth.signInWithPassword({email:$('loginEmail').value.trim(), password:$('loginPass').value});
-  $('loginBtn').textContent='ログイン';
-  if(error){ err.textContent='ログインに失敗しました：'+error.message; err.style.display='block'; return; }
-  boot();
-};
-$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});
-$('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+/* 旧パスワードログインは廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
+$('logoutBtn').onclick = ()=>{ EC.signOut(); };
 
 async function boot(){
-  const {data:{session}} = await sb.auth.getSession();
-  if(!session){ $('loginView').classList.remove('hidden'); return; }
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  await EC.guard({ allow:['admin','manager'] });
   $('loginView').classList.add('hidden');
   $('logoutBtn').classList.remove('hidden');
 
