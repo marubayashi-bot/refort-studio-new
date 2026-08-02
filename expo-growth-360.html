@@ -260,6 +260,10 @@ textarea{min-height:66px;resize:vertical;line-height:1.6}
 *:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 <header class="top">
@@ -839,7 +843,7 @@ function subscribe(){
   }).subscribe();
 }
 async function manualSync(){
-  if(offlineOnly){ if(confirm('オフラインで使用中です。ログインして共有データに接続しますか？'))showLogin(); return; }
+  if(offlineOnly){ if(confirm('オフラインで使用中です。共有データに接続しますか？'))location.reload(); return; }
   await flush(); await pull(); render(); toast(online?'共有データと同期しました':'接続できません。入力は端末に残っています');
 }
 function setStatus(){
@@ -874,8 +878,7 @@ function offlineMode(){
 }
 async function logout(){
   if(pending.length&&!confirm(`未送信のデータが${pending.length}件あります。ログアウトすると送信されません。続けますか？`))return;
-  if(sb)await sb.auth.signOut();
-  sess=null;chan=null;online=false;showLogin();
+  EC.signOut();
 }
 </script>
 <script>
@@ -1637,7 +1640,7 @@ function vSettings(){
       <button class="btn" onclick="DEVICE=$('#s_dev').value.trim();localStorage.setItem(DEV_KEY,DEVICE);render();toast('端末名を変更しました')">保存</button></div></label>
     <div class="btnrow">
       <button class="btn p" onclick="manualSync()">いま同期する</button>
-      ${offlineOnly?`<button class="btn" onclick="showLogin()">共有データに接続する</button>`:`<button class="btn" onclick="logout()">ログアウト</button>`}
+      ${offlineOnly?`<button class="btn" onclick="location.reload()">共有データに接続する</button>`:`<button class="btn" onclick="logout()">ログアウト</button>`}
       <button class="btn" onclick="showSQL()">初回セットアップ用SQL</button>
     </div>
     <div class="mini" style="margin-top:8px">同じ案件を2台で同時に編集した場合、後から保存した内容が残ります。接客担当を分けて入力してください。</div>
@@ -1822,13 +1825,19 @@ function loadScript(u){return new Promise(r=>{const s=document.createElement('sc
   loadPending();
   recs().forEach(r=>{if(snap[r.id]===undefined&&!pending.some(p=>p.rec&&p.rec.id===r.id))snap[r.id]=JSON.stringify(r.data);});
   render();
-  const ok=await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
-  if(!ok||!window.supabase){setStatus();showLogin();$('#lg_err').textContent='通信ライブラリを読み込めませんでした。オフラインで進めてください。';return;}
-  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
-  const{data}=await sb.auth.getSession();
-  if(data&&data.session&&DEVICE){
-    sess=data.session; await pull(); subscribe(); await flush(); render();
-  }else{ showLogin(); }
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン =====
+     会場の電波が弱い場合はオフラインで入力を続けられるようにしておく */
+  try{
+    const me=await EC.guard({ allow:['admin','manager','sales','field'] });
+    if(!DEVICE && me.full_name){ DEVICE=me.full_name; localStorage.setItem(DEV_KEY,DEVICE); }
+    sb=EC.supabase;
+    const{data}=await sb.auth.getSession();
+    sess=(data&&data.session)||null;
+    await pull(); subscribe(); await flush(); render();
+  }catch(e){
+    console.warn('接続できないためオフラインで開始します',e);
+    offlineMode();
+  }
   setStatus();
 })();
 window.addEventListener('online',()=>{online=true;flush();setStatus();});

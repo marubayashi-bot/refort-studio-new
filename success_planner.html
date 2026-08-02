@@ -320,22 +320,16 @@ details.sec .body{padding:12px 14px;}
   @page{size:A4;margin:12mm;}
 }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
 <!-- ===== login ===== -->
-<div id="loginOv">
-  <div class="loginbox">
-    <h1>LIFE DESIGN<br>PLANNER</h1>
-    <div class="sub">EARTHCOM SUCCESS PLANNING 2026</div>
-    <div class="owner">Nobuhiro Marubayashi</div>
-    <input type="email" id="lgEmail" placeholder="メールアドレス" autocomplete="username">
-    <input type="password" id="lgPass" placeholder="パスワード" autocomplete="current-password">
-    <button class="go" onclick="doLogin()">ログインして開始</button>
-    <button class="skip" onclick="skipLogin()">クラウドを使わず、この端末だけで使う</button>
-    <div class="err" id="lgErr"></div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div id="loginOv" style="display:none"></div>
 
 <header>
   <div class="hrow">
@@ -935,24 +929,15 @@ async function cloudSet(key,value){if(!cloudOn)return;try{const{error}=await sb.
 
 /* ================= auth ================= */
 async function initAuth(){
-  sb=supabase.createClient(SB_URL,SB_KEY);
-  try{
-    const{data}=await sb.auth.getSession();
-    if(data&&data.session){cloudOn=true;el('loginOv').style.display='none';setBadge();await boot();return;}
-  }catch(e){console.warn(e);}
-  // stay on login overlay
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  await EC.guard({ allow:['admin','manager'] });
+  sb=EC.supabase;
+  cloudOn=true;
+  const ov=el('loginOv'); if(ov) ov.style.display='none';
+  setBadge();
+  await boot();
 }
-async function doLogin(){
-  el('lgErr').textContent='';
-  const email=el('lgEmail').value.trim(),pass=el('lgPass').value;
-  if(!email||!pass){el('lgErr').textContent='メールアドレスとパスワードを入力してください';return;}
-  try{
-    const{error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error)throw error;
-    cloudOn=true;el('loginOv').style.display='none';setBadge();toast('ログインしました');await boot();
-  }catch(e){el('lgErr').textContent='ログインできませんでした：'+(e.message||'');}
-}
-async function skipLogin(){cloudOn=false;el('loginOv').style.display='none';setBadge();await boot();}
+/* doLogin / skipLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
 function setBadge(){const b=el('syncBadge');if(cloudOn){b.textContent='● 共有中（クラウド保存）';b.classList.add('on');}else{b.textContent='● ローカル（この端末のみ）';b.classList.remove('on');}}
 
 /* ================= boot / load ================= */

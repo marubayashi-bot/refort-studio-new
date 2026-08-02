@@ -142,6 +142,10 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
 @media(max-width:700px){ main{padding:10px} table{min-width:900px} }
 @media print{ header,.tabs,.fbar,.hbtns{display:none} }
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
@@ -149,6 +153,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <h1><span>EARTHCOM</span>商談パイプラインボード</h1>
   <div class="hbtns">
     <span class="badge" id="syncBadge">● ローカル</span>
+    <span id="userBadge"></span>
     <button class="btn ghost" id="btnReload">↺ 最新を取得</button>
     <button class="btn ghost" id="btnCsv">CSV出力</button>
     <button class="btn ghost" id="btnXlsx">⬆ Excel取込</button>
@@ -408,7 +413,8 @@ function loadLocal(){
 
 async function initCloud(){
   try{
-    sb=window.supabase.createClient(SB_URL, SB_KEY_HARD);
+    /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+    sb=(window.EC&&EC.supabase)?EC.supabase:window.supabase.createClient(SB_URL, SB_KEY_HARD);
     const {data,error}=await sb.from(TABLE).select('id,data,updated_at');
     if(error) throw error;
     cloud=true; $('syncBadge').textContent='● 共有中'; $('syncBadge').classList.add('on');
@@ -1354,8 +1360,12 @@ if(!leads.length){
     memo:'※動作確認用のサンプルです。不要なら削除してください。',logs:[{d:today(),t:'サンプル登録'}]}];
   saveLocal();
 }
-renderAll();
-initCloud();
+/* ===== 認証ゲート：ログインが通ってからアプリを起動する ===== */
+EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
+  const ub=document.getElementById('userBadge'); if(ub) EC.mountBadge('#userBadge');
+  renderAll();
+  initCloud();
+});
 </script>
 </body>
 </html>

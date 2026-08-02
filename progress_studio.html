@@ -93,18 +93,8 @@ textarea{resize:vertical;min-height:70px;line-height:1.7;}
 <body>
 
 <!-- ============ ログイン ============ -->
-<div id="login">
-  <div class="card">
-    <h1>進捗報告スタジオ</h1>
-    <p class="lead">株式会社アースコム　工事進捗報告システム</p>
-    <label class="f">メールアドレス</label>
-    <input id="lgEmail" type="email" autocomplete="username" placeholder="hankyo@earthcom-eco.jp">
-    <label class="f">パスワード</label>
-    <input id="lgPass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-    <div style="margin-top:16px"><button class="btn" style="width:100%" onclick="doLogin()">ログイン</button></div>
-    <p class="hint" id="lgMsg" style="margin-top:10px;color:var(--alert)"></p>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div id="login" style="display:none"></div>
 
 <!-- ============ 本体 ============ -->
 <div id="app" style="display:none">
@@ -239,31 +229,25 @@ textarea{resize:vertical;min-height:70px;line-height:1.7;}
 /* ================= 接続 ================= */
 const SUPABASE_URL = "https://aakofrzurgwrkctunthw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+/* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+const sb = (window.EC&&EC.supabase) ? EC.supabase : supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let projects=[], curProj=null, reports=[], curRep=null;
 
 /* ================= 認証 ================= */
+/* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
 (async()=>{
+  await EC.guard({ allow:['admin','manager','sales','field'] });
   const {data:{session}} = await sb.auth.getSession();
-  if(session) enterApp(session);
+  enterApp(session);
 })();
 
-async function doLogin(){
-  const email=document.getElementById('lgEmail').value.trim();
-  const pass=document.getElementById('lgPass').value;
-  const msg=document.getElementById('lgMsg');
-  msg.textContent="";
-  if(!email||!pass){ msg.textContent="メールアドレスとパスワードを入力してください。"; return; }
-  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){ msg.textContent="ログインできませんでした："+error.message; return; }
-  enterApp(data.session);
-}
-async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+/* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
+async function doLogout(){ EC.signOut(); }
 function enterApp(session){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
-  document.getElementById('whoami').textContent=session.user.email;
+  document.getElementById('whoami').textContent=(window.EC&&EC.me)?(EC.me.full_name||EC.me.email):(session&&session.user?session.user.email:'');
   loadProjects();
 }
 
@@ -576,7 +560,11 @@ tr.hl td{background:#FBF6E7;}
 .empty{color:var(--soft);font-size:13px;margin-top:8px;}
 @media print{body{background:#fff;}.sheet{margin:0;padding:0 6mm;max-width:none;}@page{size:A4;margin:12mm;}}
 @media(max-width:640px){.sheet{margin:0;padding:24px 18px 34px;}.head h1{font-size:20px;}}
-</style></head><body>
+</style>
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
+</head><body>
 <div class="sheet">
   <div class="head">
     <div class="eyebrow">EARTHCOM　CONSTRUCTION REPORT</div>

@@ -220,6 +220,10 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 
@@ -231,6 +235,7 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
       <button id="tabAdmin" role="tab" aria-selected="false" onclick="setTab('admin')" hidden>活用状況<span id="navPip"></span></button>
     </nav>
     <button class="whoami" id="whoBtn" onclick="askName()">名前を設定</button>
+    <span id="userBadge"></span>
     <button class="lockbtn" id="lockBtn" onclick="lockClick()">🔒 管理キー</button>
   </div>
   <div class="strip">
@@ -492,6 +497,22 @@ const deptOf=e=>e.d||state.roster[e.u]||'未設定';
 const isNewApp=a=>a.createdAt&&(Date.now()-a.createdAt)<FRESH_DAYS*864e5;
 const isUpdated=a=>!isNewApp(a)&&a.updatedAt&&(Date.now()-a.updatedAt)<FRESH_DAYS*864e5&&a.changelog;
 const openReqs=id=>reqs.filter(r=>r.a===id&&r.st!=='完了').length;
+
+/* =========================================================
+   保存の受け皿
+   claude.ai のアーティファクト内では window.storage が使えるが、
+   社内公開（GitHub Pages）では存在しないため localStorage で代替する。
+   ========================================================= */
+if(!window.storage){
+  window.storage = {
+    async get(k,shared){ const v=localStorage.getItem('ecportal:'+(shared?'s:':'u:')+k); return v===null?null:{key:k,value:v}; },
+    async set(k,v,shared){ localStorage.setItem('ecportal:'+(shared?'s:':'u:')+k, v); return {key:k,value:v}; },
+    async delete(k,shared){ localStorage.removeItem('ecportal:'+(shared?'s:':'u:')+k); return {key:k,deleted:true}; },
+    async list(prefix,shared){ const p='ecportal:'+(shared?'s:':'u:')+(prefix||''); const keys=[];
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith(p)) keys.push(k.slice(('ecportal:'+(shared?'s:':'u:')).length)); }
+      return {keys}; }
+  };
+}
 
 /* =========================================================
    保存・読み込み
@@ -1231,9 +1252,10 @@ function tryKey(){
 }
 function relock(){unlocked=false; if(tab==='admin') setTab('use'); applyLockUI(); render(); toast('管理キーを閉じました');}
 function applyLockUI(){
+  /* 管理タブは役割（管理者・幹部）で自動的に開く。共有パスワードは使わない */
+  if(window.EC && EC.me){ unlocked = EC.can('admin','manager'); }
   const b=document.getElementById('lockBtn');
-  b.textContent=unlocked?'🔓 閉じる':'🔒 管理キー';
-  b.classList.toggle('open',unlocked);
+  if(b){ b.hidden = !!(window.EC && EC.me); }
   document.getElementById('tabAdmin').hidden=!unlocked;
 }
 function changeKey(){
@@ -1390,7 +1412,15 @@ function syncControls(){
   document.getElementById('wUserL').textContent=state.wUser.toLocaleString('ja-JP');
   document.getElementById('wDevL').textContent=state.wDev.toLocaleString('ja-JP');
 }
-(async function init(){await loadAll(); syncControls(); applyLockUI(); render();})();
+/* ===== 認証ゲート：ログインが通ってからポータルを表示する ===== */
+(async function init(){
+  const who = await EC.guard({ allow:['admin','manager','sales','field'] });
+  await loadAll();
+  /* 利用者名はログイン中の社員名を初期値にする */
+  if(!me.name && who.full_name){ me.name = who.full_name; saveMe(); }
+  const ub=document.getElementById('userBadge'); if(ub) EC.mountBadge('#userBadge');
+  syncControls(); applyLockUI(); render();
+})();
 </script>
 </body>
 </html>
