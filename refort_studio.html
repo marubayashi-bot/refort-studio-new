@@ -419,6 +419,9 @@ body.internal .cost-banner{display:block}
 .owner-chip button{border:none;background:var(--panel2);color:var(--mute);width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.15s}
 .owner-chip button:hover{background:var(--danger);color:#fff}
 </style>
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
 <div id="lock" class="hide">
@@ -437,7 +440,7 @@ body.internal .cost-banner{display:block}
   <aside class="side">
     <div class="brand brand-v">
       <div class="mk-logo" id="brand-mk"></div>
-      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3f 御見積にPCS型番表示</span></div>
+      <div class="sb-line">ReFort Studio ／ 再資産化提案 <span style="display:block;margin-top:3px;font-size:10px;opacity:.55;letter-spacing:.3px">v2026.7.3g 御見積をExcel明細と一致</span></div>
     </div>
     <nav class="nav">
       <div class="grp">案件</div>
@@ -1018,6 +1021,8 @@ const Cloud = {
   sb:null, ready:false,
   init(){
     try{
+      /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+      if(window.EC && EC.supabase){ this.sb = EC.supabase; this.ready = true; return true; }
       if(typeof supabase==='undefined' || !SUPABASE_URL || !SUPABASE_KEY) return false;
       this.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
       this.ready = true; return true;
@@ -1357,13 +1362,12 @@ const Store = {
 const App = {
   cases:[], current:null, route:'list', mode:'internal',
   async init(){
+    /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+    const me = await EC.guard({ allow:['admin','manager','sales'] });
     const ok = (typeof Cloud!=='undefined') && Cloud.init();
     this.bindShell();
     if(!ok){ this.localFallback(); return; }   // クラウド未設定/ライブラリ無→ローカルのみで動作
-    wireLogin();
-    const sess = await Cloud.session();
-    if(sess){ await this.start(); }
-    else { showLogin(); }
+    await this.start();
   },
   async start(){   // ログイン後：全員のデータを読み込む
     let cloud = await Cloud.loadAll();
@@ -1894,19 +1898,33 @@ function viewProposal(c){
 function viewQuote(c){
   const r=safeSim(c), h=c.hearing;
   const exp=new Date(); exp.setMonth(exp.getMonth()+1);
-  const rows=r.items.map(x=>`<tr>
-    <td>${esc(x.label)}</td><td class="num">${yen(x.qty)}</td><td>${x.unit}</td>
-    <td class="num">${yen(Math.round(x.amt/x.qty))}</td><td class="num">${yen(x.amt)}</td>
+  const Q=c.quote;
+  const useX = !!(Q && Q.items && Q.items.length);
+  const src = useX ? Q.items : r.items;
+  const rows=src.map(x=>`<tr>
+    <td>${esc(x.label)}</td><td class="num">${yen(x.qty)}</td><td>${esc(x.unit||'')}</td>
+    <td class="num">${yen(x.unitPrice!=null?x.unitPrice:Math.round(x.amt/(x.qty||1)))}</td><td class="num">${yen(x.amt)}</td>
     <td class="num internal-only cost">${yen(x.cost)}</td>
-    <td class="num internal-only margin">${(x.margin*100).toFixed(0)}%</td>
-    <td class="num internal-only margin">${yen(x.amt-x.cost)}</td>
+    <td class="num internal-only margin">${((x.margin||0)*100).toFixed(0)}%</td>
+    <td class="num internal-only margin">${yen(x.gross!=null?x.gross:(x.amt-x.cost))}</td>
   </tr>`).join('');
+  const subEx    = useX ? Q.subtotal      : r.costEx;
+  const disc     = useX ? (Q.discount||0) : 0;
+  const afterD   = useX ? Q.afterDiscount : r.costEx;
+  const taxAmt   = useX ? Q.tax           : r.taxAmt;
+  const totalInc = useX ? Q.total         : r.costInc;
+  const costTot  = useX ? Q.costTotal     : r.costTotal;
+  const grossAmt = useX ? Q.grossTotal    : r.grossAmt;
+  const grossRate= useX ? Q.grossRate     : r.grossRate;
+  let totalsRows = `<tr class="sum"><td>小計（税抜）</td><td></td><td></td><td></td><td class="num">${yen(subEx)}</td><td class="num internal-only cost">${yen(costTot)}</td><td class="num internal-only"></td><td class="num internal-only margin">${yen(grossAmt)}</td></tr>`;
+  if(disc>0){ totalsRows += `<tr class="sum"><td>値引き（−）</td><td></td><td></td><td></td><td class="num">-${yen(disc)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only"></td></tr><tr class="sum"><td>値引後（税抜）</td><td></td><td></td><td></td><td class="num">${yen(afterD)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only"></td></tr>`; }
+  totalsRows += `<tr class="tax"><td>消費税（10%）</td><td></td><td></td><td></td><td class="num">${yen(taxAmt)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only margin">粗利率 ${((grossRate||0)*100).toFixed(1)}%</td></tr><tr class="grand"><td>合計（税込）</td><td></td><td></td><td></td><td class="num">${yen(totalInc)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only"></td></tr>`;
   return `<div class="card" id="quoteRoot"><div class="card-h">${IC.doc}<div><h3>御見積書</h3><div class="sub">${App.mode==='internal'?'社内表示：原価・粗利を表示中':'お客様向け表示：原価・粗利は非表示'}</div></div></div>
   <div class="card-b">
     <div class="quote-logo"><img src="${LOGO}" alt="アースコム"><button class="btn gold sm" onclick="downloadQuotePDF()">${IC.download}見積書PDF（A4）</button></div>
     <div class="cost-banner">⚠️ 社内表示モードです。原価・粗利率・粗利額が表示されています。お客様提示時は右上で「お客様向け」に切替えてください。</div>
     <div class="formgrid" style="margin-bottom:18px">
-      <div class="chip" style="border-radius:10px">御見積金額（税込）<b style="font-size:18px;color:var(--gold-dark)">${yen(r.costInc)} 円</b></div>
+      <div class="chip" style="border-radius:10px">御見積金額（税込）<b style="font-size:18px;color:var(--gold-dark)">${yen(totalInc)} 円</b></div>
       <div class="chip" style="border-radius:10px">工事名<b style="font-size:13px">${esc(h.plant||'リパワリング工事')}</b></div>
       <div class="chip" style="border-radius:10px">所在地<b style="font-size:13px">${esc(h.pref)}${esc(h.city)}</b></div>
       <div class="chip" style="border-radius:10px">有効期限<b style="font-size:13px">${exp.toLocaleDateString('ja-JP')} まで</b></div>
@@ -1915,9 +1933,7 @@ function viewQuote(c){
       <th>品目・工事内容</th><th class="num">数量</th><th>単位</th><th class="num">販売単価</th><th class="num">金額(税抜)</th>
       <th class="num internal-only cost">原価単価</th><th class="num internal-only margin">粗利率</th><th class="num internal-only margin">粗利額</th>
     </tr></thead><tbody>${rows}
-      <tr class="sum"><td>小計（税抜）</td><td></td><td></td><td></td><td class="num">${yen(r.costEx)}</td><td class="num internal-only cost">${yen(r.costTotal)}</td><td class="num internal-only"></td><td class="num internal-only margin">${yen(r.grossAmt)}</td></tr>
-      <tr class="tax"><td>消費税（10%）</td><td></td><td></td><td></td><td class="num">${yen(r.taxAmt)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only margin">粗利率 ${(r.grossRate*100).toFixed(1)}%</td></tr>
-      <tr class="grand"><td>合計（税込）</td><td></td><td></td><td></td><td class="num">${yen(r.costInc)}</td><td class="num internal-only"></td><td class="num internal-only"></td><td class="num internal-only"></td></tr>
+      ${totalsRows}
     </tbody></table></div>
     <div style="font-size:11px;color:var(--mute);line-height:1.9;margin-top:14px">● 部材価格の高騰等により価格が変更となる場合がございます。● 反射シートの施工範囲はパネル設置エリアおよび架台から2m以内を想定。● 工事期間中は停電工事を伴います。正式見積は現地調査後にご提示します。<br>Confidential｜株式会社アースコム ／ 〒343-0044 埼玉県越谷市大泊89 ／ TEL 048-940-5429</div>
   </div></div>`;
@@ -2187,6 +2203,27 @@ function importExcel(file){
           let costEx=+gv(Q3,'F31')||+gv(Q3,'F29')||0;
           if(!costEx){ const inc=+gv(Q3,'F33')||+gv(Q3,'D7')||0; if(inc) costEx=Math.round(inc/1.1); }
           if(costEx>0) c.input.manualCost=Math.round(costEx);
+          // 御見積の明細をそのまま読み取り（アプリの見積をExcelと完全一致させる）
+          try{
+            const q3=wb.Sheets[Q3];
+            if(q3){
+              const qn=(a)=>{ const cc=q3[a]; return cc&&typeof cc.v==='number'?cc.v:0; };
+              const qs=(a)=>{ const cc=q3[a]; return cc&&cc.v!=null?String(cc.v).trim():''; };
+              const pcsMd = gv(I1,'C57') ? String(gv(I1,'C57')).trim() : '';
+              const items=[];
+              for(let r=13;r<=28;r++){
+                let label=qs('B'+r); const amt=qn('F'+r);
+                if(!label || !amt) continue;
+                if(pcsMd && (label.indexOf('パワコン')>=0 || label.indexOf('PCS')>=0 || label.indexOf('ＰＣＳ')>=0) && label.indexOf(pcsMd)<0){ label += '　'+pcsMd; }
+                items.push({ label, qty:qn('C'+r), unit:qs('D'+r), unitPrice:qn('E'+r), amt:amt,
+                  costUnit:qn('H'+r), cost:qn('I'+r), margin:qn('J'+r), gross:qn('K'+r) });
+              }
+              if(items.length){
+                c.quote={ items, subtotal:qn('F29'), discount:qn('F30'), afterDiscount:qn('F31'),
+                  tax:qn('F32'), total:qn('F33'), costTotal:qn('I29'), grossTotal:qn('I30'), grossRate:qn('I31') };
+              }
+            }
+          }catch(e){ console.error('quote parse',e); }
           // 名称
           const nm=gv(Q3,'C8')||gv(S2,'C7')||gv(I1,'C7');
           if(nm){ if(!c.hearing.plant) c.hearing.plant=String(nm); if(!c.hearing.customer) c.hearing.customer=String(nm); }

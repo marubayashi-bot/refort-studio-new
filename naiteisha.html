@@ -170,20 +170,14 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 .xb{border:none;background:#e7ebf2;color:#5b6880;border-radius:6px;width:20px;height:20px;cursor:pointer;font-weight:800;line-height:1}
 .xb:hover{background:#f0bcbc;color:#a12}
 </style>
+
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
 </head>
 <body>
-<div id="loginOverlay">
-  <div class="loginCard">
-    <div class="lg"><span class="dot"></span>内定者オンボーディング管理</div>
-    <div class="sub2">株式会社アースコム ｜ 社内ログイン</div>
-    <label>メールアドレス</label>
-    <input id="liEmail" type="email" autocomplete="username" placeholder="hankyo@earthcom-eco.jp">
-    <label>パスワード</label>
-    <input id="liPw" type="password" autocomplete="current-password" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()">
-    <button onclick="doLogin()" id="liBtn">ログイン</button>
-    <div class="msg" id="liMsg"></div>
-  </div>
-</div>
+<!-- 旧ログイン画面は廃止。会社のGoogleアカウントでログインします -->
+<div id="loginOverlay" style="display:none"></div>
 <header>
   <div class="brand"><span class="dot"></span>内定者オンボーディング管理 <span class="sub">｜株式会社アースコム</span></div>
   <div class="spacer"></div>
@@ -336,7 +330,8 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
 const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
 const SB_TABLE='onboarding';
-let sb=null; try{ sb=window.supabase.createClient(SB_URL,SB_KEY); }catch(e){ console.error('Supabase init failed',e); }
+/* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+let sb=null; try{ sb=(window.EC&&EC.supabase)?EC.supabase:window.supabase.createClient(SB_URL,SB_KEY); }catch(e){ console.error('Supabase init failed',e); }
 let session=null,userEmail='',lastSync={},syncTimer=null;
 
 function stateToRows(){return{
@@ -379,11 +374,14 @@ async function cloudSync(force){
 }
 async function boot(){
   buildNav();
-  if(!sb){document.getElementById('liMsg').textContent='接続ライブラリの読み込みに失敗しました。公開URL(https)から開いているか確認してください。';showLogin();return;}
-  try{const {data:{session:s}}=await sb.auth.getSession();if(s){session=s;userEmail=s.user.email;await afterLogin();return;}}catch(e){console.warn(e);}
-  showLogin();
+  /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
+  const me = await EC.guard({ allow:['admin','manager','sales'] });
+  sb = EC.supabase;
+  try{ const {data:{session:s}}=await sb.auth.getSession(); session=s; }catch(e){ console.warn(e); }
+  userEmail = me.email;
+  await afterLogin();
 }
-function showLogin(){document.getElementById('loginOverlay').style.display='flex';document.getElementById('liEmail').focus();}
+function showLogin(){ /* 旧ログイン画面は廃止（会社のGoogleアカウントでログインします） */ }
 async function afterLogin(){
   document.getElementById('loginOverlay').style.display='none';
   const ub=document.getElementById('userBox');ub.style.display='flex';
@@ -391,19 +389,9 @@ async function afterLogin(){
   await cloudLoad();
   initHeader();renderAll();renderLooker();
 }
-async function doLogin(){
-  const email=document.getElementById('liEmail').value.trim();
-  const pw=document.getElementById('liPw').value;
-  const msg=document.getElementById('liMsg');
-  if(!email||!pw){msg.textContent='メールとパスワードを入力してください。';return;}
-  msg.textContent='ログイン中…';document.getElementById('liBtn').disabled=true;
-  try{const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
-    if(error){msg.textContent='ログインに失敗しました：'+error.message;document.getElementById('liBtn').disabled=false;return;}
-    session=data.session;userEmail=data.user.email;msg.textContent='';await afterLogin();
-  }catch(e){msg.textContent='通信エラー：'+e.message;document.getElementById('liBtn').disabled=false;}
-}
-async function doLogout(){try{await sb.auth.signOut();}catch(e){}location.reload();}
-async function pushLocalToCloud(){if(!session){alert('先にログインしてください。');return;}if(!confirm('このPCの現在の入力内容をクラウドへ保存（上書き）します。よろしいですか？'))return;await cloudSync(true);alert('クラウドへ保存しました。');}
+/* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
+async function doLogout(){ EC.signOut(); }
+async function pushLocalToCloud(){if(!sb){alert('接続できていません。ページを再読み込みしてください。');return;}if(!confirm('このPCの現在の入力内容をクラウドへ保存（上書き）します。よろしいですか？'))return;await cloudSync(true);alert('クラウドへ保存しました。');}
 
 /* ---------- defaults & seed data ---------- */
 const STD_TASKS=[["内定者課題図書（1冊目）",14],["企業理念eラーニング",21],["業界研究レポート",30],["自己紹介スライド作成",10],["ビジネスマナー動画",7]];

@@ -221,7 +221,11 @@ table.st tr.cum td{background:#faf6ec}
 #mapView{height:calc(100vh - 150px);min-height:480px}
 .map-pop b{color:#0d2340}
 .map-pop button{margin-top:6px;padding:4px 10px;border:1px solid #c8a24a;background:#f6edd6;border-radius:6px;font-weight:700;cursor:pointer}
-</style></head>
+</style>
+<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
+</head>
 <body>
 <header class="top">
   <div class="brand"><div class="mark">B</div>
@@ -230,6 +234,7 @@ table.st tr.cum td{background:#faf6ec}
   <div class="util">
     <select id="projSel" title="案件を選択"></select>
     <span id="syncPill" class="sync-pill local" title="同期状態">● ローカル</span>
+    <span id="userBadge"></span>
     <button class="btn btn-line btn-sm" id="bNew">＋ 新規</button>
     <button class="btn btn-line btn-sm" id="bDup">複製</button>
     <button class="btn btn-danger btn-sm" id="bDel">削除</button>
@@ -1297,9 +1302,10 @@ async function cloudReconcile(db){if(!sb)return;
     for(const r of (cloud||[])) if(!ids.has(r.id)) await sb.from('battery_projects').delete().eq('id',r.id);
     setPill('synced');
   }catch(e){setPill('error');console.warn('cloud push',e);}}
-async function initCloud(){const key=sbKey();if(!key){setPill('local');return;}
+async function initCloud(){
   setPill('connecting');
-  try{ const lib=await ensureSB(); sb=lib.createClient(SB_URL,key);
+  /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
+  try{ sb = (window.EC && EC.supabase) ? EC.supabase : (await ensureSB()).createClient(SB_URL,sbKey());
     const {data,error}=await sb.from('battery_projects').select('data').order('updated_at',{ascending:false});
     if(error)throw error;
     const rows=(data||[]).map(r=>r.data).filter(Boolean);
@@ -1322,8 +1328,13 @@ $('#sbConnect').onclick=async()=>{const k=$('#sbKey').value.trim();if(!k){toast(
   else{st.textContent='⚠ 接続できませんでした。URL・key・テーブル作成をご確認ください';st.style.color='#c0392b';}};
 
 document.querySelectorAll('.nav-tabs button').forEach(b=>b.onclick=()=>setView(b.dataset.view));
-renderProjSel();renderApp();
-initCloud();
+/* ===== 認証ゲート：ログインが通ってからアプリを起動する ===== */
+EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
+  EC.mountBadge('#userBadge');
+  if(!EC.can('admin')){ const b=document.getElementById('bSync'); if(b) b.style.display='none'; }
+  renderProjSel();renderApp();
+  initCloud();
+});
 })();
 </script>
 </body></html>
