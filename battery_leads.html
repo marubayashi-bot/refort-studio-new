@@ -32,6 +32,22 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:7px;font-siz
 .tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px}
 .tabs button{background:transparent;color:#8fa5bf;padding:11px 16px;border-radius:0;border-bottom:3px solid transparent;font-size:13px}
 .tabs button.act{color:#fff;border-bottom-color:var(--gold)}
+a.btn{display:inline-flex;align-items:center;text-decoration:none;line-height:1}
+/* ===== 活用マニュアル ===== */
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:12px}
+.mcard h3{margin:0 0 10px;font-size:15px;color:var(--navy);border-bottom:2px solid var(--gold);padding-bottom:6px}
+.mcard p{font-size:13px;line-height:1.8;margin:8px 0}
+.mcard ol,.mcard ul{font-size:13px;line-height:1.9;padding-left:22px;margin:8px 0}
+.mbox{background:#f2f5f9;border-left:3px solid var(--navy);border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.7;margin:8px 0}
+.mnote{background:#fdf7e3;border-left:3px solid var(--gold);border-radius:6px;padding:9px 12px;font-size:12.5px;line-height:1.7;margin:8px 0}
+.mwarn{background:#fdeceb;border-left:3px solid #c0392b;border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.7;margin:8px 0}
+.mchips{background:#f2f5f9;border-radius:6px;padding:9px 12px;font-size:12.5px;line-height:1.9}
+table.mtbl{width:100%;min-width:0;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+table.mtbl th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;cursor:default;position:static;white-space:nowrap}
+table.mtbl td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;line-height:1.7}
+.mlogd{margin-bottom:12px}
+.mlogd b{display:inline-block;background:var(--navy);color:#fff;font-size:11px;padding:2px 8px;border-radius:99px}
+
 main{padding:16px 18px;max-width:1500px;margin:0 auto}
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
@@ -153,6 +169,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <h1><span>EARTHCOM</span>商談パイプラインボード</h1>
   <div class="hbtns">
     <span class="badge" id="syncBadge">● ローカル</span>
+    <span class="badge" id="verBadge" style="cursor:pointer" title="活用マニュアルを開く"></span>
     <span id="userBadge"></span>
     <button class="btn ghost" id="btnReload">↺ 最新を取得</button>
     <button class="btn ghost" id="btnCsv">CSV出力</button>
@@ -160,6 +177,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <input type="file" id="xlsxFile" accept=".xlsx,.xlsm" style="display:none">
     <button class="btn ghost" id="btnGas">📗 シート連動</button>
     <span class="gasnote" id="gasStatus" style="color:#a9f0c8"></span>
+    <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/1H9H1NT84qBzORVD_dlI6bzO83kS04DKFb9lj3JCnVgc/edit" target="_blank" rel="noopener" title="商談見込み 入力シートを開く">📋 入力シート</a>
+    <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit" target="_blank" rel="noopener" title="蓄電池 案件管理表を開く">📊 案件管理表</a>
     <button class="btn" id="btnNew">＋ 商談登録</button>
   </div>
 </header>
@@ -171,6 +190,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <button data-tab="ref">紹介者別</button>
   <button data-tab="prop">物件</button>
   <button data-tab="map">地図</button>
+  <button data-tab="asset">💼 大型案件</button>
+  <button data-tab="man">📖 活用マニュアル</button>
 </div>
 
 <main>
@@ -221,6 +242,30 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div class="maplegend" id="maplegend"></div>
     <div id="map"></div>
     <div class="refcard" id="unplotted" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <div id="viewAsset" style="display:none">
+    <div class="fbar">
+      <select id="aCat"><option value="all">全カテゴリー</option></select>
+      <select id="aOwner"><option value="all">全担当者</option></select>
+      <label style="font-size:12px;font-weight:700;color:var(--tx2)"><input type="checkbox" id="aLost" checked> 失注を隠す</label>
+      <button class="btn gray" id="aReload">↺ 再取得</button>
+      <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit" target="_blank" rel="noopener">📊 シートを開く</a>
+      <span class="fcount" id="aStatus"></span>
+    </div>
+    <div class="kpis" id="aKpis"></div>
+    <div id="aStages" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:12px"></div>
+    <div class="tblwrap" id="aTable"></div>
+    <p style="font-size:12px;color:var(--tx2);margin-top:8px">案件管理表の内容をそのまま表示しています。修正はシート側で行ってください（編集後、数秒で反映されます）。</p>
+  </div>
+
+  <div id="viewMan" style="display:none">
+    <div class="fbar">
+      <input type="text" id="manQ" placeholder="マニュアル内を検索（例：案件ID、連動、エラー）">
+      <span class="fcount" id="manVer"></span>
+    </div>
+    <div id="manNav" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+    <div id="manBody"></div>
   </div>
 </main>
 
@@ -1360,10 +1405,214 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewRef').style.display= t==='ref'?'':'none';
   $('viewProp').style.display= t==='prop'?'':'none';
   $('viewMap').style.display= t==='map'?'':'none';
-  $('fbar').style.display= (t==='prop'||t==='map')?'none':'';
-  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus')?'none':'';
+  $('viewAsset').style.display= t==='asset'?'':'none';
+  $('viewMan').style.display= t==='man'?'':'none';
+  $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man')?'none':'';
+  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man')?'none':'';
+  if(t==='asset') loadAssets();
+  if(t==='man') renderManual();
   if(t==='map'){ renderMap(); setTimeout(()=>{ if(map) map.invalidateSize(); },60); geocodeAll(false); }
 });
+/* ===== 大型案件（案件管理表 → Supabase asset_deals） ===== */
+let assetRows=null, assetLoading=false;
+const A_STAGES=['種まき','商談中','内諾','受注','完了','失注'];
+async function loadAssets(force){
+  if(assetLoading) return;
+  if(assetRows && !force){ renderAssets(); return; }
+  assetLoading=true; $('aStatus').textContent='読込中…';
+  try{
+    if(!sb) throw new Error('Supabase未接続');
+    const {data,error}=await sb.from('asset_deals_board').select('*');
+    if(error) throw error;
+    assetRows=data||[];
+    $('aStatus').textContent=assetRows.length+'件 取得 '+new Date().toTimeString().slice(0,5);
+    const cats=[...new Set(assetRows.map(r=>r.category).filter(Boolean))].sort();
+    const owns=[...new Set(assetRows.map(r=>r.owner||'未設定'))].sort();
+    $('aCat').innerHTML='<option value="all">全カテゴリー</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+    $('aOwner').innerHTML='<option value="all">全担当者</option>'+owns.map(o=>`<option>${esc(o)}</option>`).join('');
+    renderAssets();
+  }catch(e){
+    $('aStatus').textContent='取得できませんでした';
+    $('aTable').innerHTML='<div style="padding:14px;font-size:13px;color:var(--tx2)">案件管理表のデータを読み込めませんでした。<br>'+esc(String(e.message||e))+'</div>';
+  }finally{ assetLoading=false; }
+}
+function assetVisible(){
+  const c=$('aCat').value, o=$('aOwner').value, hl=$('aLost').checked;
+  return (assetRows||[]).filter(r=>{
+    if(c!=='all' && r.category!==c) return false;
+    if(o!=='all' && (r.owner||'未設定')!==o) return false;
+    if(hl && r.stage==='失注') return false;
+    return true;
+  });
+}
+const mYen=n=> n==null? '—' : (Math.round(n/10000)/100).toLocaleString(undefined,{maximumFractionDigits:1});
+function renderAssets(){
+  if(!assetRows) return;
+  const L=assetVisible();
+  const sum=(k)=> L.reduce((s,r)=>s+(Number(r[k])||0),0);
+  const close=L.filter(r=>['内諾','受注','完了'].includes(r.stage));
+  $('aKpis').innerHTML=[
+    ['案件数',L.length+'<small> 件</small>'],
+    ['販売価格 合計（税抜）',mYen(sum('price_excl'))+'<small> 百万円</small>'],
+    ['MQ 合計',mYen(sum('mq'))+'<small> 百万円</small>'],
+    ['内諾以降の MQ',mYen(close.reduce((s,r)=>s+(Number(r.mq)||0),0))+'<small> 百万円</small>']
+  ].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+
+  $('aStages').innerHTML=A_STAGES.filter(st=>!( $('aLost').checked && st==='失注')).map(st=>{
+    const it=L.filter(r=>r.stage===st);
+    const mq=it.reduce((s,r)=>s+(Number(r.mq)||0),0);
+    return `<div style="background:#f2f5f9;border:1px solid var(--line);border-radius:10px;padding:8px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:var(--tx2);margin-bottom:6px"><span>${st}（${it.length}）</span><span>${mYen(mq)}百万</span></div>
+      ${it.map(r=>`<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px;margin-bottom:6px;font-size:12px">
+        <div style="font-weight:800">${esc(r.deal_name||r.buyer||'(名称未入力)')}</div>
+        <div style="color:var(--tx2);font-size:11px">${esc(r.category||'')} ${esc(r.capacity||'')}</div>
+        <div style="color:#0f7b3f;font-weight:800">MQ ${mYen(r.mq)}百万</div>
+        <div style="color:var(--tx2);font-size:11px">${esc(r.owner||'担当未設定')}</div>
+      </div>`).join('')||'<div style="font-size:11px;color:var(--tx2)">なし</div>'}
+    </div>`;
+  }).join('');
+
+  const H=['案件ID','カテゴリー','ステージ','案件名','所在地','容量','売主(EPC)','買主','担当者','販売価格(税抜)','MQ','契約日','入金予定日','連系予定','備考'];
+  $('aTable').innerHTML=`<table><thead><tr>${H.map(h=>`<th style="cursor:default">${h}</th>`).join('')}</tr></thead><tbody>
+    ${L.map(r=>`<tr>
+      <td>${esc(r.deal_id)}</td><td>${esc(r.category||'')}</td><td>${esc(r.stage||'')}</td>
+      <td style="font-weight:700">${esc(r.deal_name||'')}</td><td>${esc(r.location||'')}</td><td>${esc(r.capacity||'')}</td>
+      <td>${esc(r.seller||'')}</td><td>${esc(r.buyer||'')}</td><td>${esc(r.owner||'')}</td>
+      <td style="text-align:right">${mYen(r.price_excl)}</td><td style="text-align:right;font-weight:800">${mYen(r.mq)}</td>
+      <td>${esc(r.contract_date||'')}</td><td>${esc(r.payment_due_date||'')}</td>
+      <td>${esc(r.cod_date||r.cod_text||'')}</td><td>${esc(r.note||'')}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+['aCat','aOwner','aLost'].forEach(id=> $(id).addEventListener('change',renderAssets));
+$('aReload').onclick=()=> loadAssets(true);
+
+/* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
+const APP_VERSION = '2026.08.05';
+const CHANGELOG = [
+  ['2026.08.05', [
+    '「📖 活用マニュアル」タブを追加。アプリ本体に同梱しているため、アプリを更新すればマニュアルも自動で最新になります',
+    '「💼 大型案件」タブを追加。蓄電池 案件管理表（高圧系統・低圧・セカンダリー）をボード内で閲覧できるようになりました',
+    'ヘッダーに「📋 入力シート」「📊 案件管理表」ボタンを追加'
+  ]],
+  ['2026.08.04', [
+    'シート連動の突合キーを「顧客名」から「案件ID」に変更。社名を変更しても同じ商談として更新されます',
+    '確度をメモに反映。シート由来のメモは毎回まるごと差し替わるため、古い内容が残らなくなりました',
+    'シート取得時のキャッシュを無効化。5分ごとの自動再同期を追加',
+    'シートから消えた商談に「⚠シート消失」の印を付ける機能を追加（自動削除はしません）'
+  ]]
+];
+
+const MANUAL = [
+  { id:'flow', t:'① 全体像とデータの流れ', b:[
+    '<p>このボードは<b>スプレッドシートが「正」</b>です。数字や状況の修正は必ずシート側で行ってください。ボードは集計・可視化を担当します。</p>',
+    '<div class="mbox"><b>商談パイプライン</b><br>商談見込み 入力シート → GAS → ボード（3Qフォーカス／一覧／ファネル／紹介者別）</div>',
+    '<div class="mbox"><b>大型案件</b><br>蓄電池 案件管理表 → GAS → Supabase → ボード（💼 大型案件タブ）</div>',
+    '<div class="mbox"><b>物件（仕入れファネル）</b><br>物件管理リスト → GAS → ボード（物件／地図）</div>',
+    '<p class="mnote">ボード上で直接編集した内容は、次のシート連動で上書きされる場合があります。恒久的な変更はシートに書いてください。</p>'
+  ]},
+
+  { id:'daily', t:'② 毎日の使い方', b:[
+    '<p><b>営業担当</b></p>',
+    '<ol><li>ヘッダーの「📋 入力シート」からシートを開く</li><li>担当案件の <b>次回アクション</b>・<b>期限</b>・<b>ステータス</b>・<b>確度</b> を更新する</li><li>ボードに戻り「📗 シート連動」を押す（開いたままでも5分ごとに自動同期）</li></ol>',
+    '<p><b>マネージャー・経営</b></p>',
+    '<ol><li>「🎯 3Qフォーカス」で着地見込みと不足額を確認</li><li>「⚠ リスク」の件数をチェックし、期限超過の案件を担当者に振る</li><li>「💼 大型案件」で高圧系統・セカンダリーの大口を確認</li></ol>'
+  ]},
+
+  { id:'tabs', t:'③ 各タブの見方', b:[
+    '<table class="mtbl"><tr><th>タブ</th><th>用途</th></tr>' +
+    '<tr><td>🎯 3Qフォーカス</td><td>四半期の着地見込み。契約済・入金待ちMQと商談中MQを分けて表示し、目標との差額を出します</td></tr>' +
+    '<tr><td>一覧</td><td>全商談の明細。列見出しをクリックで並び替え、上部で絞り込み</td></tr>' +
+    '<tr><td>ファネル</td><td>ステータス別の件数と金額。どの段階で滞留しているかを見ます</td></tr>' +
+    '<tr><td>紹介者別</td><td>紹介ルート別の実績。どのチャネルが効いているかの判断材料</td></tr>' +
+    '<tr><td>物件</td><td>仕入れファネル。情報取得→現調→受付→合意書→電力申請→契約の通過率とリードタイム（目標：合意書まで7日）</td></tr>' +
+    '<tr><td>地図</td><td>物件の所在地をピン表示。初回は位置取得に数秒かかります</td></tr>' +
+    '<tr><td>💼 大型案件</td><td>案件管理表の高圧系統・低圧・セカンダリー。販売価格とMQを集計します</td></tr>' +
+    '</table>'
+  ]},
+
+  { id:'id', t:'④ 案件ID（最重要）', b:[
+    '<p>シートとボードは <b>案件ID</b> で紐づいています。顧客名ではありません。</p>',
+    '<table class="mtbl"><tr><th>シート</th><th>ID形式</th></tr>' +
+    '<tr><td>商談見込み 入力シート</td><td>L-0001, L-0002 …</td></tr>' +
+    '<tr><td>案件管理表（高圧系統）</td><td>KOU-0005 …</td></tr>' +
+    '<tr><td>案件管理表（低圧蓄電池）</td><td>TEI-0005 …</td></tr>' +
+    '<tr><td>案件管理表（セカンダリー）</td><td>SEC-0005 …</td></tr></table>',
+    '<div class="mwarn"><b>やってはいけないこと</b><br>案件ID列を手入力・並び替え・削除しないでください。紐づけが切れて、同じ商談が二重に登録されます。グレー背景の列がそれです。</div>',
+    '<p>新しい行を追加した場合、IDは<b>5分以内に自動で振られます</b>。すぐ反映したいときはシートを開いたまま少し待つか、Apps Scriptで採番関数を手動実行してください。</p>',
+    '<p>社名変更は<b>そのまま書き換えてOK</b>です。案件IDが同じなので、ボード側は「顧客名を変更」として活動ログに記録し、同じ商談を更新します。</p>'
+  ]},
+
+  { id:'input', t:'⑤ シート入力のルール', b:[
+    '<table class="mtbl"><tr><th>項目</th><th>書き方</th></tr>' +
+    '<tr><td>見込金額／MQ</td><td>百万円単位の数値（例：8）。単位や「万円」は書かない</td></tr>' +
+    '<tr><td>確度</td><td>%の数値（例：70）。ボードでは温度感の判定に使います</td></tr>' +
+    '<tr><td>期限・次回アクション日</td><td>日付形式（例：7/24）。文字を混ぜると読み取れません</td></tr>' +
+    '<tr><td>ステータス</td><td>提案中／条件交渉／契約／入金済／失注 など。表記を揺らさない</td></tr>' +
+    '<tr><td>担当者</td><td>姓のみ（例：石野）。ボードの担当者フィルタに直結します</td></tr>' +
+    '</table>',
+    '<p>行の追加・削除は自由です。3つのセクション（今月決定できる案件／条件が整えば決定できる案件／来四半期以降の案件）のどこに入れても取り込まれます。</p>',
+    '<div class="mnote">案件管理表のステータス列はプルダウンです。一覧に無い値は入力できません。これはボードのステージが崩れるのを防ぐためです。</div>'
+  ]},
+
+  { id:'sync', t:'⑥ シート連動の仕組み', b:[
+    '<p>ヘッダーの「📗 シート連動」を押すと、シートの内容を取り込みます。アプリを開いたままでも<b>5分ごとに自動で同期</b>します。</p>',
+    '<p>連動時に更新されるのは次の項目です。</p>',
+    '<p class="mchips">顧客名 / ステータス / 次回アクション / 期限 / 見込金額 / MQ / 温度感 / 支払方法 / 3Q分類 / 担当者 / メモ（提案商品・決裁条件・確度・阻害要因）</p>',
+    '<p>メモのうち「── シート連動 ──」より下はシート由来です。この部分は同期のたびに丸ごと書き換わります。ボード側で残したいメモは、この線より<b>上</b>に書いてください。</p>',
+    '<div class="mwarn"><b>シートから行を消しても、ボードからは自動削除されません。</b><br>代わりに「⚠シート消失」の印が付き、活動ログに記録されます。内容を確認してから手動で削除してください。</div>'
+  ]},
+
+  { id:'asset', t:'⑦ 大型案件タブ', b:[
+    '<p>蓄電池 案件管理表の3タブをまとめて表示します。編集はシート側で行い、数秒でボードに反映されます。</p>',
+    '<p><b>MQ（確定粗利）の取り方</b>はカテゴリーごとに違います。</p>',
+    '<table class="mtbl"><tr><th>カテゴリー</th><th>MQ の元になる列</th></tr>' +
+    '<tr><td>高圧系統蓄電池</td><td>最終手数料。無い場合はアースコム確定手数料（税抜）</td></tr>' +
+    '<tr><td>低圧蓄電池</td><td>粗利（税抜き）</td></tr>' +
+    '<tr><td>セカンダリー</td><td>MQ 列</td></tr></table>',
+    '<div class="mnote">千葉案件はタイナビ3%控除後の金額が最終手数料に入っているため、そちらが採用されます。確定手数料をそのまま計上すると過大になるので、この優先順位にしています。</div>',
+    '<p>ステータスは次のようにステージへ変換されます。</p>',
+    '<p class="mchips">見込・案件待ち・試算中 → 種まき ／ 商談中 → 商談中 ／ 買付意向 → 内諾 ／ 契約済 → 受注 ／ 入金済 → 完了 ／ 失注 → 失注</p>'
+  ]},
+
+  { id:'trouble', t:'⑧ うまくいかないとき', b:[
+    '<table class="mtbl"><tr><th>症状</th><th>原因と対処</th></tr>' +
+    '<tr><td>シートを直したのに反映されない</td><td>まず「📗 シート連動」を押す。それでも変わらなければ案件IDが空の可能性。シートのID列を確認</td></tr>' +
+    '<tr><td>同じ会社が2件ある</td><td>案件IDが振られる前に取り込まれたケース。古い方を手動削除すれば以降は統合されます</td></tr>' +
+    '<tr><td>連動エラー：Unexpected token &lt;</td><td>GASがJSONではなくHTMLを返しています。デプロイの「アクセスできるユーザー」が<b>全員</b>か、保存しているURLが最新のデプロイかを確認</td></tr>' +
+    '<tr><td>大型案件タブが空</td><td>案件管理表側のGAS同期が止まっている可能性。Supabaseの asset_sync_log で最終同期時刻を確認</td></tr>' +
+    '<tr><td>金額がおかしい</td><td>シートの金額欄に文字が混ざっていないか確認。百万円単位の数値のみ</td></tr>' +
+    '<tr><td>地図にピンが出ない</td><td>物件の所在地が空か、住所として解釈できない表記。「位置を再取得」を押す</td></tr>' +
+    '</table>'
+  ]},
+
+  { id:'log', t:'⑨ 更新履歴', b:['__CHANGELOG__'] }
+];
+
+function renderManual(){
+  $('manVer').textContent = 'バージョン ' + APP_VERSION;
+  const q = ($('manQ').value||'').trim();
+  const chg = '<div class="mlog">' + CHANGELOG.map(([d,items])=>
+    '<div class="mlogd"><b>'+d+'</b><ul>'+items.map(i=>'<li>'+i+'</li>').join('')+'</ul></div>'
+  ).join('') + '</div>';
+
+  const secs = MANUAL.map(m=>({
+    id:m.id, t:m.t,
+    html:m.b.map(x=> x==='__CHANGELOG__'? chg : x).join('')
+  })).filter(m=> !q || (m.t+m.html).toLowerCase().includes(q.toLowerCase()));
+
+  $('manNav').innerHTML = secs.map(m=>
+    '<button class="btn gray" style="font-size:12px;padding:6px 10px" onclick="document.getElementById(\'ms_'+m.id+'\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">'+m.t+'</button>'
+  ).join('') || '';
+
+  $('manBody').innerHTML = secs.length
+    ? secs.map(m=> '<div class="mcard" id="ms_'+m.id+'"><h3>'+m.t+'</h3>'+m.html+'</div>').join('')
+    : '<div class="mcard"><p>該当する項目がありませんでした。</p></div>';
+}
+$('manQ').addEventListener('input', renderManual);
+$('verBadge').textContent = 'v' + APP_VERSION;
+$('verBadge').onclick = ()=>{ const b=document.querySelector('.tabs button[data-tab="man"]'); if(b) b.click(); };
+
 $('btnNew').onclick=()=> openModal(null);
 $('btnReload').onclick=reload;
 ['fQ','fBiz','fKubun','fStatus','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
