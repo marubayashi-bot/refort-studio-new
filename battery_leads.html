@@ -431,7 +431,7 @@ async function initCloud(){
       }
     }catch(e){ console.warn('props table:',e.message||e); }
     saveLocal(); renderAll();
-    if(settings.gasUrl) syncSheet(true);
+    if(settings.gasUrl){ syncSheet(true); setInterval(()=>syncSheet(true), 5*60*1000); }
   }catch(e){
     cloud=false; cloudErr=(e && (e.message||e.error_description||JSON.stringify(e)))||'不明なエラー';
     $('syncBadge').textContent='● ローカル（⚠タップで原因）';
@@ -1116,7 +1116,8 @@ function parseLeadRows(rows){
       idx={};
       r.forEach((h,i)=>{
         const t=String(h||'');
-        if(t.includes('顧客名')) idx.name=i;
+        if(t.includes('案件ID')||t.includes('案件ＩＤ')) idx.sid=i;
+        else if(t.includes('顧客名')) idx.name=i;
         else if(t.includes('提案商品')) idx.prod=i;
         else if(t.includes('見込金額')||t.includes('金額')) idx.amt=i;
         else if(t.includes('自己資金')) idx.cash=i;
@@ -1147,6 +1148,7 @@ function parseLeadRows(rows){
     if(g('bank')&&String(g('bank'))!=='無し') memoParts.push('融資相談先：'+String(g('bank')).replace(/\n/g,' '));
     if(g('who')) memoParts.push('決裁者：'+String(g('who')).replace(/\n/g,' '));
     if(g('cond')) memoParts.push('決裁条件：'+String(g('cond')).replace(/\n/g,' '));
+    if(g('prob')) memoParts.push('確度：'+String(g('prob')).replace(/\n/g,' '));
     if(g('block')&&!/確認中/.test(String(g('block')))) memoParts.push('阻害要因：'+String(g('block')).replace(/\n/g,' '));
     parsed.push({
       name:a.replace(/\s*様\s*$/,'').trim(),
@@ -1159,32 +1161,63 @@ function parseLeadRows(rows){
       statusX: !!stNorm,
       next:String(g('next')||'').replace(/\n/g,' '), due:xDue(g('due')),
       owner:String(g('owner')||'').trim()||'未設定',
-      memo:memoParts.join('\n'), route:'その他'
+      memo:memoParts.join('\n'), route:'その他',
+      sid:String(g('sid')||'').trim()
     });
   });
   return parsed;
 }
+const SHEET_MARK='── シート連動 ──';
 function applyParsedLeads(parsed, srcLabel){
-  let added=0,updated=0;
+  let added=0,updated=0,renamed=0;
+  const seen=[];
   parsed.forEach(x=>{
-    let l=leads.find(v=>v.name===x.name);
+    let l=null;
+    if(x.sid){
+      l=leads.find(v=>v.sid===x.sid);
+      if(!l){ l=leads.find(v=>!v.sid && v.name===x.name); if(l) l.sid=x.sid; }
+      seen.push(x.sid);
+    }else{
+      l=leads.find(v=>v.name===x.name);
+    }
     if(l){
-      const changed = l.next!==x.next || l.due!==x.due || String(l.budget)!==String(x.budget) || l.finance!==x.finance || (x.statusX && l.status!==x.status);
+      const b={name:l.name,status:l.status,next:l.next,due:l.due,budget:l.budget,mq:l.mq,temp:l.temp,finance:l.finance,kubun:l.kubun,owner:l.owner,memo:l.memo};
+      if(x.sid && l.name!==x.name){
+        (l.logs=l.logs||[]).push({d:today(), t:'顧客名を「'+l.name+'」→「'+x.name+'」に変更（シート連動）'});
+        l.name=x.name; renamed++;
+      }
       if(x.statusX && l.status!==x.status){
         (l.logs=l.logs||[]).push({d:today(), t:'ステータスを「'+x.status+'」に変更（シート連動）'});
         if(x.status==='契約' && !l.payday) (l.logs=l.logs||[]).push({d:today(), t:'⚠ 入金予定日が未設定です'});
         l.status=x.status;
       }
       Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner});
-      if(x.memo && !(l.memo||'').includes(x.memo)) l.memo=((l.memo||'')+'\n'+x.memo).trim();
+      const base=String(l.memo||'').split(SHEET_MARK)[0].replace(/\s+$/,'');
+      l.memo = x.memo ? (base? base+'\n':'')+SHEET_MARK+'\n'+x.memo : base;
+      if(l.sheetGone) delete l.sheetGone;
+      const changed = b.name!==l.name || b.status!==l.status || b.next!==l.next || b.due!==l.due
+        || String(b.budget)!==String(l.budget) || String(b.mq)!==String(l.mq)
+        || b.temp!==l.temp || b.finance!==l.finance || b.kubun!==l.kubun || b.owner!==l.owner || b.memo!==l.memo;
       if(changed){ l.updated=today(); (l.logs=l.logs||[]).push({d:today(),t:srcLabel+'で更新'}); updated++; pushLead(l); }
     }else{
       l=Object.assign({id:uid(),created:today(),updated:today(),logs:[{d:today(),t:srcLabel+'で登録'}]},x);
+      const m=String(l.memo||'').trim();
+      l.memo = m? SHEET_MARK+'\n'+m : '';
       leads.unshift(l); added++; pushLead(l);
     }
   });
+  let gone=0;
+  if(seen.length){
+    leads.forEach(v=>{
+      if(v.sid && seen.indexOf(v.sid)===-1 && !v.sheetGone){
+        v.sheetGone=true; gone++;
+        (v.logs=v.logs||[]).push({d:today(), t:'⚠ シートに該当行がありません（削除された可能性）'});
+        pushLead(v);
+      }
+    });
+  }
   saveLocal(); renderAll();
-  return {added,updated};
+  return {added,updated,renamed,gone};
 }
 function importXlsx(file){
   const reader=new FileReader();
@@ -1292,15 +1325,23 @@ async function syncSheet(silent){
   }
   try{
     if(!silent) $('gasStatus').textContent='取得中…';
-    const res=await fetch(settings.gasUrl,{redirect:'follow'});
+    const fetchUrl=settings.gasUrl+(settings.gasUrl.indexOf('?')>=0?'&':'?')+'t='+Date.now();
+    const res=await fetch(fetchUrl,{redirect:'follow',cache:'no-store'});
     const j=JSON.parse(await res.text());
     const parsed=parseLeadRows(j.rows||[]);
     const parsedP=parsePropRows(j.propRows||[]);
     if(!parsed.length && !parsedP.length){ if(!silent) alert('スプレッドシートに取込対象が見つかりませんでした。テンプレートの列見出しをご確認ください。'); $('gasStatus').textContent=''; return; }
-    const r=parsed.length? applyParsedLeads(parsed,'シート連動') : {added:0,updated:0};
+    const r=parsed.length? applyParsedLeads(parsed,'シート連動') : {added:0,updated:0,renamed:0,gone:0};
     const rp=parsedP.length? applyParsedProps(parsedP) : {added:0,updated:0};
     saveLocal(); renderAll();
-    $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+((r.added+r.updated+rp.added+rp.updated)? '（商談'+(r.added+r.updated)+'・物件'+(rp.added+rp.updated)+'）':'');
+    const bits=[];
+    if(r.added) bits.push('新規'+r.added);
+    if(r.updated) bits.push('更新'+r.updated);
+    if(r.renamed) bits.push('改名'+r.renamed);
+    if(r.gone) bits.push('⚠シート消失'+r.gone);
+    if(rp.added+rp.updated) bits.push('物件'+(rp.added+rp.updated));
+    $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+(bits.length? '（'+bits.join('・')+'）':'（変更なし）');
+    if(!silent) alert('シート連動が完了しました。\n\n新規：'+r.added+'件\n更新：'+r.updated+'件\n顧客名の変更：'+r.renamed+'件\nシートに無くなった商談：'+r.gone+'件\n物件：'+(rp.added+rp.updated)+'件'+(r.gone? '\n\n※シートから消えた商談は削除せず残しています。一覧で「⚠シート消失」の目印を確認してください。':''));
   }catch(e){
     $('gasStatus').textContent='';
     if(!silent) alert('シート連動エラー：'+(e.message||e)+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
