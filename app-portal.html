@@ -490,7 +490,7 @@ let state={apps:SEED.map(a=>({...a})),wUser:2000,wDev:2000,adminKey:'earth2276',
 let usage=[], reqs=[], me={name:'',dept:''}, favs=[], sbLive=false;
 let tab='use', filterCat='すべて', favOnly=false, newOnly=false, period='month',
     matrixBy='user', reqFilter='open';
-let editing=null, unlocked=false, configFound=false;
+let editing=null, unlocked=false, configFound=false, sbError='';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
@@ -528,22 +528,29 @@ async function loadAll(){
   try{const r=await store.get(KEY_ME,false); if(r&&r.value){const m=JSON.parse(r.value);
       me=typeof m==='string'?{name:m,dept:''}:{...me,...m};}}catch(e){}
   if(state.sb.on&&state.sb.url&&state.sb.key){
-    const ok=await sbConfigLoad();
-    await sbLoad(); await sbReqLoad();
-    sbLive=sbLive&&ok;
-    if(sbLive&&!configFound) await sbConfigSave();   /* 初回だけ今の一覧を登録 */
+    sbLive=await sbVerify();
+    if(sbLive){
+      await sbConfigLoad(); await sbLoad(); await sbReqLoad();
+      if(!configFound) await sbConfigSave();   /* 初回だけ今の一覧を登録 */
+    }
   }
   if(state.keyVersion!==2){state.adminKey='earth2276';state.keyVersion=2;}
   state.apps.forEach(a=>{if(a.perUse===undefined) a.perUse=a.save?Math.max(5,Math.round(a.save/10)):15;});
 }
 async function saveApps(msg){
+  try{await store.set(KEY_APPS,JSON.stringify(state),true);}catch(e){}   /* 控えは常に残す */
   if(state.sb.on&&sbLive){
     const ok=await sbConfigSave();
-    note(ok?(msg||'保存しました（全社共有）'):'Supabaseに保存できませんでした');
+    if(ok){ note(msg||'保存しました（全社共有）'); }
+    else{
+      sbLive=false; sbError='保存に失敗しました。書き込みポリシーを確認してください。';
+      note('Supabaseに保存できませんでした');
+      toast('保存できませんでした。画面上部の案内を確認してください');
+      renderAlert(); updateSbStatus();
+    }
     return;
   }
-  try{await store.set(KEY_APPS,JSON.stringify(state),true); note(msg||'保存しました（この画面内で共有）');}
-  catch(e){note('この画面では保存できません。JSONで書き出して残してください');}
+  note(msg||'保存しました（このブラウザ内のみ）');
 }
 async function saveUsage(){try{await store.set(KEY_USAGE,JSON.stringify(usage.slice(-4000)),true);}catch(e){}}
 async function saveReqs(){try{await store.set(KEY_REQ,JSON.stringify(reqs.slice(-600)),true);}catch(e){}}
@@ -567,9 +574,9 @@ async function sbLoad(){
     const rows=await r.json();
     usage=rows.map(x=>({a:x.app_id,u:x.user_name||'未設定',d:x.dept||'',t:new Date(x.used_at).getTime(),s:'tag'}))
               .sort((p,q)=>p.t-q.t);
-    sbLive=true;
-  }catch(e){sbLive=false;}
-  updateSbStatus();
+    return true;
+  }catch(e){ return false; }
+  finally{ updateSbStatus(); }
 }
 async function sbLog(a){
   try{await fetch(state.sb.url.replace(/\/+$/,'')+'/rest/v1/app_usage',{method:'POST',headers:sbHeaders(),
@@ -577,6 +584,33 @@ async function sbLog(a){
   catch(e){return false;}
 }
 const sbBase=()=>state.sb.url.replace(/\/+$/,'')+'/rest/v1/';
+/* --- 接続の実地検証：3テーブルの読み取りと、実際の書き込みまで試す --- */
+async function sbVerify(){
+  sbError='';
+  const h={apikey:state.sb.key,Authorization:'Bearer '+state.sb.key};
+  for(const t of ['app_usage','app_portal_config','app_requests']){
+    try{
+      const r=await fetch(sbBase()+t+'?select=*&limit=1',{headers:h});
+      if(!r.ok){
+        sbError = r.status===404
+          ? `テーブル「${t}」がありません。Supabaseで「テーブル作成SQLを見る」のSQLを実行してください。`
+          : `テーブル「${t}」を読めません（HTTP ${r.status}）。SQLの create policy 部分が実行されているか確認してください。`;
+        return false;
+      }
+    }catch(e){ sbError='Supabaseに通信できません。URLを確認してください。'; return false; }
+  }
+  try{
+    const r=await fetch(sbBase()+'app_portal_config?on_conflict=id',{method:'POST',
+      headers:{...h,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({id:99,data:{t:1}})});
+    if(!r.ok){
+      sbError=`書き込みができません（HTTP ${r.status}）。SQLの create policy "config write" を実行してください。`;
+      return false;
+    }
+    await fetch(sbBase()+'app_portal_config?id=eq.99',{method:'DELETE',headers:h});
+  }catch(e){ sbError='書き込みテストに失敗しました。'; return false; }
+  return true;
+}
 /* --- カタログ・名簿・設定（1行のJSONとして保存） --- */
 async function sbConfigLoad(){
   configFound=false;
@@ -631,16 +665,17 @@ function updateSbStatus(){
   const el=document.getElementById('sbStatus'); if(!el)return;
   if(!state.sb.on){el.className='status'; el.innerHTML='<i></i>未接続（このポータル内で記録）'; return;}
   el.className='status '+(sbLive?'ok':'ng');
-  el.innerHTML='<i></i>'+(sbLive?'Supabaseに接続中':'接続できません。URLとキーを確認してください');
+  el.innerHTML='<i></i>'+(sbLive?'Supabaseに接続中（保存できます）':'保存できません：'+esc(sbError||'接続できません'));
   const s=document.getElementById('srcNote'); if(s) s.textContent=sbLive?'Supabaseの記録を表示しています':'';
 }
 async function saveSb(on){
   state.sb={url:document.getElementById('sbUrl').value.trim(),
             key:document.getElementById('sbKey').value.trim(),on:!!on};
   if(on){if(!state.sb.url||!state.sb.key){toast('URLとキーの両方を入れてください');return;}
-    await sbLoad();
-    if(sbLive){ await sbReqLoad(); await sbConfigSave(); }
-    toast(sbLive?'接続しました。今の一覧をSupabaseに保存しました':'接続できませんでした');}
+    sbLive=await sbVerify();
+    if(sbLive){ await sbConfigLoad(); await sbLoad(); await sbReqLoad(); await sbConfigSave(); }
+    updateSbStatus();
+    toast(sbLive?'接続しました。今の一覧をSupabaseに保存しました':(sbError||'接続できませんでした'));}
   else{sbLive=false; updateSbStatus(); toast('接続を解除しました');}
   saveApps(); render();
 }
@@ -894,9 +929,9 @@ function renderAlert(){
     return;
   }
   host.innerHTML=`<div class="alert bad"><span class="ic">✕</span><div>
-    <b>Supabaseにつながっていません</b>
-    保存や集計が全社で共有されない状態です。テーブル作成SQLが未実行か、URL・キーが違う可能性があります。
-    ${unlocked?'下の「計測の設定」の<b style="display:inline">接続を診断する</b>で原因を確認できます。':'管理者に連絡してください。'}</div></div>`;
+    <b>保存できていません。入力しても消えます</b>
+    ${esc(sbError||'Supabaseにつながっていません。')}
+    ${unlocked?'（活用状況タブ下部の「接続を診断する」で詳しく確認できます）':'管理者に連絡してください。'}</div></div>`;
 }
 async function diagnose(){
   const out=[];
