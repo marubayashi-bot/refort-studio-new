@@ -206,6 +206,12 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:11px 20px;border-radius:4px;font-size:13px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .savenote{font-size:11px;color:var(--muted);margin-left:auto;font-family:"Roboto Mono",monospace}
+.alert{border-radius:var(--radius);padding:13px 16px;margin-bottom:16px;font-size:12.5px;line-height:1.7;
+  display:flex;gap:12px;align-items:flex-start}
+.alert.warn{background:#FDF3E0;border:1px solid #E8C88A;color:#6B4A05}
+.alert.bad{background:#FBECE8;border:1px solid #E2A897;color:#7A2E1B}
+.alert b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;display:block;margin-bottom:2px}
+.alert .ic{flex:none;font-size:16px;line-height:1.3}
 .report{width:100%;min-height:240px;font-family:"Roboto Mono",monospace;font-size:12px;line-height:1.8;
   padding:14px;border:1px solid var(--line);border-radius:5px;resize:vertical}
 
@@ -220,10 +226,6 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
-<!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./ec-auth.js"></script>
 </head>
 <body>
 
@@ -235,7 +237,6 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
       <button id="tabAdmin" role="tab" aria-selected="false" onclick="setTab('admin')" hidden>活用状況<span id="navPip"></span></button>
     </nav>
     <button class="whoami" id="whoBtn" onclick="askName()">名前を設定</button>
-    <span id="userBadge"></span>
     <button class="lockbtn" id="lockBtn" onclick="lockClick()">🔒 管理キー</button>
   </div>
   <div class="strip">
@@ -257,6 +258,7 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
 </header>
 
 <main class="wrap">
+  <div id="alertBar"></div>
   <section id="viewUse">
     <div class="filters">
       <div class="search">
@@ -394,6 +396,7 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
           <button class="btn sm" onclick="saveSb(true)">接続して読み込む</button>
           <button class="btn ghost sm" onclick="saveSb(false)">接続を解除</button>
           <button class="btn ghost sm" onclick="showSql()">テーブル作成SQLを見る</button>
+          <button class="btn ghost sm" onclick="diagnose()">接続を診断する</button>
           <span class="hint" style="margin:0">計測タグは各アプリの行の「計測タグ」から取得します。</span>
         </div>
       </div>
@@ -435,8 +438,8 @@ pre.code{background:#0E1720;color:#D6E2E9;padding:14px;border-radius:5px;font-fa
    Supabaseの URL と公開キーを入れると、全社員で同じ一覧・同じ集計を共有できます。
    空のままだと、この画面（Claude）の中でしか共有されません。
    ========================================================= */
-const SB_URL = "";   /* 例：https://xxxxxxxx.supabase.co */
-const SB_KEY = "";   /* 例：sb_publishable_xxxxxxxx      */
+const SB_URL = "https://aakofrzurgwrkctunthw.supabase.co";
+const SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
 
 /* =========================================================
    定数
@@ -487,7 +490,7 @@ let state={apps:SEED.map(a=>({...a})),wUser:2000,wDev:2000,adminKey:'earth2276',
 let usage=[], reqs=[], me={name:'',dept:''}, favs=[], sbLive=false;
 let tab='use', filterCat='すべて', favOnly=false, newOnly=false, period='month',
     matrixBy='user', reqFilter='open';
-let editing=null, unlocked=false;
+let editing=null, unlocked=false, configFound=false;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
@@ -499,36 +502,36 @@ const isUpdated=a=>!isNewApp(a)&&a.updatedAt&&(Date.now()-a.updatedAt)<FRESH_DAY
 const openReqs=id=>reqs.filter(r=>r.a===id&&r.st!=='完了').length;
 
 /* =========================================================
-   保存の受け皿
-   claude.ai のアーティファクト内では window.storage が使えるが、
-   社内公開（GitHub Pages）では存在しないため localStorage で代替する。
+   保存先の切り替え
+   Claude画面では専用の共有保存、それ以外（GitHub Pages等）では
+   このブラウザのlocalStorageに退避します。どちらも全社共有ではないため、
+   本番運用ではSupabase接続が必須です。
    ========================================================= */
-if(!window.storage){
-  window.storage = {
-    async get(k,shared){ const v=localStorage.getItem('ecportal:'+(shared?'s:':'u:')+k); return v===null?null:{key:k,value:v}; },
-    async set(k,v,shared){ localStorage.setItem('ecportal:'+(shared?'s:':'u:')+k, v); return {key:k,value:v}; },
-    async delete(k,shared){ localStorage.removeItem('ecportal:'+(shared?'s:':'u:')+k); return {key:k,deleted:true}; },
-    async list(prefix,shared){ const p='ecportal:'+(shared?'s:':'u:')+(prefix||''); const keys=[];
-      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith(p)) keys.push(k.slice(('ecportal:'+(shared?'s:':'u:')).length)); }
-      return {keys}; }
-  };
-}
+const HAS_HOST_STORAGE = typeof window.storage!=='undefined' && window.storage
+                         && typeof window.storage.get==='function';
+const store = HAS_HOST_STORAGE ? window.storage : {
+  get:async(k)=>{const v=localStorage.getItem(k); if(v===null) throw new Error('not found'); return {key:k,value:v};},
+  set:async(k,v)=>{localStorage.setItem(k,v); return {key:k,value:v};},
+  delete:async(k)=>{localStorage.removeItem(k); return {key:k,deleted:true};},
+  list:async(p)=>({keys:Object.keys(localStorage).filter(x=>!p||x.startsWith(p))})
+};
 
 /* =========================================================
    保存・読み込み
    ========================================================= */
 async function loadAll(){
-  try{const r=await window.storage.get(KEY_APPS,true); if(r&&r.value){const d=JSON.parse(r.value);
+  try{const r=await store.get(KEY_APPS,true); if(r&&r.value){const d=JSON.parse(r.value);
       state={...state,...d,sb:{...state.sb,...(d.sb||{})}};}}catch(e){}
-  try{const r=await window.storage.get(KEY_USAGE,true); if(r&&r.value) usage=JSON.parse(r.value);}catch(e){}
-  try{const r=await window.storage.get(KEY_REQ,true); if(r&&r.value) reqs=JSON.parse(r.value);}catch(e){}
-  try{const r=await window.storage.get(KEY_FAV,false); if(r&&r.value) favs=JSON.parse(r.value);}catch(e){}
-  try{const r=await window.storage.get(KEY_ME,false); if(r&&r.value){const m=JSON.parse(r.value);
+  try{const r=await store.get(KEY_USAGE,true); if(r&&r.value) usage=JSON.parse(r.value);}catch(e){}
+  try{const r=await store.get(KEY_REQ,true); if(r&&r.value) reqs=JSON.parse(r.value);}catch(e){}
+  try{const r=await store.get(KEY_FAV,false); if(r&&r.value) favs=JSON.parse(r.value);}catch(e){}
+  try{const r=await store.get(KEY_ME,false); if(r&&r.value){const m=JSON.parse(r.value);
       me=typeof m==='string'?{name:m,dept:''}:{...me,...m};}}catch(e){}
   if(state.sb.on&&state.sb.url&&state.sb.key){
     const ok=await sbConfigLoad();
     await sbLoad(); await sbReqLoad();
     sbLive=sbLive&&ok;
+    if(sbLive&&!configFound) await sbConfigSave();   /* 初回だけ今の一覧を登録 */
   }
   if(state.keyVersion!==2){state.adminKey='earth2276';state.keyVersion=2;}
   state.apps.forEach(a=>{if(a.perUse===undefined) a.perUse=a.save?Math.max(5,Math.round(a.save/10)):15;});
@@ -539,13 +542,13 @@ async function saveApps(msg){
     note(ok?(msg||'保存しました（全社共有）'):'Supabaseに保存できませんでした');
     return;
   }
-  try{await window.storage.set(KEY_APPS,JSON.stringify(state),true); note(msg||'保存しました（この画面内で共有）');}
+  try{await store.set(KEY_APPS,JSON.stringify(state),true); note(msg||'保存しました（この画面内で共有）');}
   catch(e){note('この画面では保存できません。JSONで書き出して残してください');}
 }
-async function saveUsage(){try{await window.storage.set(KEY_USAGE,JSON.stringify(usage.slice(-4000)),true);}catch(e){}}
-async function saveReqs(){try{await window.storage.set(KEY_REQ,JSON.stringify(reqs.slice(-600)),true);}catch(e){}}
-async function saveFavs(){try{await window.storage.set(KEY_FAV,JSON.stringify(favs),false);}catch(e){}}
-async function saveMe(){try{await window.storage.set(KEY_ME,JSON.stringify(me),false);}catch(e){}}
+async function saveUsage(){try{await store.set(KEY_USAGE,JSON.stringify(usage.slice(-4000)),true);}catch(e){}}
+async function saveReqs(){try{await store.set(KEY_REQ,JSON.stringify(reqs.slice(-600)),true);}catch(e){}}
+async function saveFavs(){try{await store.set(KEY_FAV,JSON.stringify(favs),false);}catch(e){}}
+async function saveMe(){try{await store.set(KEY_ME,JSON.stringify(me),false);}catch(e){}}
 function note(t){const el=document.getElementById('saveNote'); if(!el)return;
   el.textContent=t; clearTimeout(note._t); note._t=setTimeout(()=>el.textContent='',3200);}
 function toast(t){document.getElementById('toastHost').innerHTML='<div class="toast">'+esc(t)+'</div>';
@@ -576,6 +579,7 @@ async function sbLog(a){
 const sbBase=()=>state.sb.url.replace(/\/+$/,'')+'/rest/v1/';
 /* --- カタログ・名簿・設定（1行のJSONとして保存） --- */
 async function sbConfigLoad(){
+  configFound=false;
   try{
     const r=await fetch(sbBase()+'app_portal_config?id=eq.1&select=data',
       {headers:{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key}});
@@ -584,6 +588,7 @@ async function sbConfigLoad(){
     if(rows.length&&rows[0].data){
       const d=rows[0].data;
       state={...state,...d,sb:state.sb};   /* 接続情報はファイル側の設定を優先 */
+      configFound=true;
     }
     return true;
   }catch(e){ return false; }
@@ -732,7 +737,7 @@ async function recordUse(a){
     if(await sbLog(a)) await sbLoad();
     render(); return;
   }
-  try{const r=await window.storage.get(KEY_USAGE,true);
+  try{const r=await store.get(KEY_USAGE,true);
       if(r&&r.value){const l=JSON.parse(r.value); if(l.length>=usage.length) usage=l;}}catch(e){}
   usage.push({a:a.id,u:me.name,d:me.dept||'',t:Date.now(),s:'portal'});
   await saveUsage(); render();
@@ -787,7 +792,7 @@ async function sendRequest(id){
              type:document.getElementById('rqType').value,text,t:Date.now(),st:'未対応'};
   if(state.sb.on&&sbLive){ await sbReqInsert(rec); reqs.push(rec); }
   else{
-    try{const r=await window.storage.get(KEY_REQ,true);
+    try{const r=await store.get(KEY_REQ,true);
         if(r&&r.value){const l=JSON.parse(r.value); if(l.length>=reqs.length) reqs=l;}}catch(e){}
     reqs.push(rec); await saveReqs();
   }
@@ -856,6 +861,7 @@ function monthly(n){
    描画
    ========================================================= */
 function render(){
+  renderAlert();
   const s=stats();
   const mo=monthly(6), cur=mo[5], prev=mo[4];
   const m=stats(new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime());
@@ -876,6 +882,53 @@ function render(){
   pip.outerHTML=`<span id="navPip">${openCount?`<span class="pip">${openCount}</span>`:''}</span>`;
   renderChips(); renderCards();
   if(tab==='admin') renderAdmin(s,mo);
+}
+function renderAlert(){
+  const host=document.getElementById('alertBar');
+  if(state.sb.on&&sbLive){ host.innerHTML=''; return; }
+  if(!state.sb.on){
+    host.innerHTML=`<div class="alert warn"><span class="ic">⚠</span><div>
+      <b>いまの変更は、他の人には伝わりません</b>
+      Supabaseに接続していないため、追加したアプリやURLはこのブラウザの中だけに残ります。
+      ${unlocked?'下の「計測の設定」で接続してください。':'管理者に連絡してください。'}</div></div>`;
+    return;
+  }
+  host.innerHTML=`<div class="alert bad"><span class="ic">✕</span><div>
+    <b>Supabaseにつながっていません</b>
+    保存や集計が全社で共有されない状態です。テーブル作成SQLが未実行か、URL・キーが違う可能性があります。
+    ${unlocked?'下の「計測の設定」の<b style="display:inline">接続を診断する</b>で原因を確認できます。':'管理者に連絡してください。'}</div></div>`;
+}
+async function diagnose(){
+  const out=[];
+  out.push(HAS_HOST_STORAGE?'この画面の保存機能：あり（Claude内）':'この画面の保存機能：なし（公開サーバー上。localStorageに退避中）');
+  out.push('接続先URL：'+(state.sb.url||'未設定'));
+  out.push('公開キー：'+(state.sb.key?state.sb.key.slice(0,14)+'…':'未設定'));
+  out.push('');
+  if(!state.sb.url||!state.sb.key){ out.push('→ URLとキーを入れてください。'); showCode('接続の診断',out.join('\n'),''); return; }
+  const base=state.sb.url.replace(/\/+$/,'')+'/rest/v1/';
+  const h={apikey:state.sb.key,Authorization:'Bearer '+state.sb.key};
+  for(const t of ['app_usage','app_portal_config','app_requests']){
+    try{
+      const r=await fetch(base+t+'?select=*&limit=1',{headers:h});
+      if(r.ok) out.push(`${t}：OK（読み取りできました）`);
+      else{
+        const txt=await r.text();
+        out.push(`${t}：NG　HTTP ${r.status}`);
+        out.push('   '+txt.slice(0,160));
+        if(r.status===404) out.push('   → このテーブルがありません。テーブル作成SQLを実行してください。');
+        if(r.status===401||r.status===403) out.push('   → キーが違うか、読み取りポリシーがありません。SQLの create policy 部分を実行してください。');
+      }
+    }catch(e){ out.push(`${t}：NG　通信できません（${e.message}）`); }
+  }
+  out.push('');
+  try{
+    const r=await fetch(base+'app_portal_config?on_conflict=id',{method:'POST',
+      headers:{...h,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({id:99,data:{test:true}})});
+    out.push(r.ok?'書き込みテスト：OK':`書き込みテスト：NG　HTTP ${r.status}（write ポリシーを確認してください）`);
+    if(r.ok) await fetch(base+'app_portal_config?id=eq.99',{method:'DELETE',headers:h});
+  }catch(e){ out.push('書き込みテスト：NG　'+e.message); }
+  showCode('接続の診断',out.join('\n'),'すべて OK になれば、全社で同じ一覧・同じ集計が見えるようになります。');
 }
 function renderChips(){
   document.getElementById('catChips').innerHTML=['すべて',...Object.keys(CATS)].map(k=>
@@ -1252,10 +1305,9 @@ function tryKey(){
 }
 function relock(){unlocked=false; if(tab==='admin') setTab('use'); applyLockUI(); render(); toast('管理キーを閉じました');}
 function applyLockUI(){
-  /* 管理タブは役割（管理者・幹部）で自動的に開く。共有パスワードは使わない */
-  if(window.EC && EC.me){ unlocked = EC.can('admin','manager'); }
   const b=document.getElementById('lockBtn');
-  if(b){ b.hidden = !!(window.EC && EC.me); }
+  b.textContent=unlocked?'🔓 閉じる':'🔒 管理キー';
+  b.classList.toggle('open',unlocked);
   document.getElementById('tabAdmin').hidden=!unlocked;
 }
 function changeKey(){
@@ -1412,15 +1464,7 @@ function syncControls(){
   document.getElementById('wUserL').textContent=state.wUser.toLocaleString('ja-JP');
   document.getElementById('wDevL').textContent=state.wDev.toLocaleString('ja-JP');
 }
-/* ===== 認証ゲート：ログインが通ってからポータルを表示する ===== */
-(async function init(){
-  const who = await EC.guard({ allow:['admin','manager','sales','field'] });
-  await loadAll();
-  /* 利用者名はログイン中の社員名を初期値にする */
-  if(!me.name && who.full_name){ me.name = who.full_name; saveMe(); }
-  const ub=document.getElementById('userBadge'); if(ub) EC.mountBadge('#userBadge');
-  syncControls(); applyLockUI(); render();
-})();
+(async function init(){await loadAll(); syncControls(); applyLockUI(); render();})();
 </script>
 </body>
 </html>
