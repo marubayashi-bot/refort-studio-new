@@ -218,10 +218,12 @@ main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
     <button class="mini" id="eAddLink">＋ リンクを追加</button>
 
     <div class="sub-h">画像</div>
-    <div class="drop" id="eDrop">画像をここにドロップ／クリックして選択<br>
-      <span class="note">Supabase Storage にアップロードします</span></div>
-    <div class="itemrow" style="margin-top:9px">
-      <input id="eImgUrl" type="text" placeholder="画像URLを貼り付ける場合はこちら">
+    <label class="drop" id="eDrop" for="eFile">画像をここにドロップ／クリックして選択<br>
+      <span class="note">Supabase Storage にアップロードします（1枚10MBまで）</span>
+      <input type="file" id="eFile" accept="image/*" multiple style="display:none"></label>
+    <div class="note" id="eUpStat" style="margin-top:7px;min-height:17px"></div>
+    <div class="itemrow" style="margin-top:5px">
+      <input id="eImgUrl" type="text" placeholder="画像URLを貼り付ける場合はこちら（Googleドライブの共有リンクも可）">
       <button class="mini" id="eAddImg">追加</button>
     </div>
     <div class="thumbs" id="eThumbs"></div>
@@ -245,6 +247,10 @@ main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
     <div class="sub-h">はじめのデータ</div>
     <p class="note">蓄電池提案で使う市場用語3件（スポット市場／一次調整力市場／容量市場）を登録します。すでにある場合は追加されません。</p>
     <button class="btn gold" id="sSeed" style="margin-top:10px">市場用語3件を登録する</button>
+    <div class="sub-h">画像アップロードの確認</div>
+    <p class="note">バケットと権限が正しく設定されているかをその場で確認します。</p>
+    <button class="btn gh" id="sTest" style="margin-top:8px">接続テストを実行</button>
+    <div class="note" id="sTestOut" style="margin-top:8px"></div>
   </div>
   <div class="mfoot"><div class="sp"></div><button class="btn pri" id="sDone">閉じる</button></div>
 </div></div>
@@ -258,6 +264,7 @@ main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
 (function(){
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS='ec_knowledge_cache_v1';
+const BUCKET='knowledge';
 const CATS=[['all','すべて'],['term','用語'],['qa','QA'],['know','ナレッジ']];
 const BIZ=['共通','蓄電池','ReFort','セカンダリー','太陽光','採用・組織'];
 const CAT_LABEL={term:'用語',qa:'QA',know:'ナレッジ'};
@@ -415,7 +422,7 @@ function openEdit(id){
   $('#eBody').value=EDIT.body||'';
   $('#eTags').value=EDIT.tags||'';
   $('#eDel').style.display=id?'':'none';
-  catLabels(); drawLinks(); drawThumbs();
+  catLabels(); drawLinks(); drawThumbs(); upStat('');
   $('#ovEdit').classList.add('show');
   setTimeout(()=>$('#eTitle').focus(),50);
 }
@@ -442,36 +449,70 @@ function drawThumbs(){
     `<div class="thumb"><img src="${esc(u)}" alt=""><button data-irm="${i}">×</button></div>`).join('');
   $$('[data-irm]').forEach(b=>b.onclick=()=>{EDIT.images.splice(+b.dataset.irm,1);drawThumbs();});
 }
+function normImgUrl(u){
+  u=(u||'').trim();
+  let m=u.match(/drive\.google\.com\/file\/d\/([^/?&]+)/)||u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^&]*&)*id=([^&]+)/);
+  if(m)return 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1600';
+  return u;
+}
 $('#eAddImg').onclick=()=>{
-  const u=$('#eImgUrl').value.trim();
-  if(!/^https?:\/\//.test(u)){toast('URLは https:// から始めてください');return;}
-  EDIT.images=EDIT.images||[];EDIT.images.push(u);$('#eImgUrl').value='';drawThumbs();
+  const raw=$('#eImgUrl').value.trim();
+  if(!/^https?:\/\//.test(raw)){upStat('URLは https:// から始めてください',false);return;}
+  const u=normImgUrl(raw);
+  EDIT.images=(EDIT.images||[]).concat([u]);
+  $('#eImgUrl').value='';drawThumbs();
+  upStat(u!==raw?'Googleドライブのリンクを表示用に変換して追加しました':'画像を追加しました',true);
 };
 
 /* 画像アップロード */
 const drop=$('#eDrop');
-const picker=document.createElement('input');
-picker.type='file';picker.accept='image/*';picker.multiple=true;
+const picker=$('#eFile');
 picker.onchange=()=>{upload([...picker.files]);picker.value='';};
-drop.onclick=()=>picker.click();
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files)upload([...e.dataTransfer.files]);});
 
+function upStat(msg,ok){const e=$('#eUpStat');if(!e)return;
+  e.textContent=msg||'';
+  e.style.color=(ok===false)?'var(--neg)':(ok===true?'var(--pos)':'var(--muted)');
+  e.style.fontWeight=(ok===false)?'700':'400';}
+
+function explainErr(err){
+  const m=String((err&&(err.message||err.error))||err||'');
+  if(/bucket not found/i.test(m))
+    return 'Storageに knowledge バケットがありません。設定画面のSQL（バケット作成の1行）を実行してください';
+  if(/row-level security|violates|policy|unauthorized|not authorized|permission|403/i.test(m))
+    return 'アップロードの権限が設定されていません。設定画面のSQL（policy の2行）を実行してください';
+  if(/exceeded|too large|payload|413/i.test(m))
+    return 'ファイルサイズが大きすぎます。10MB以下にしてください';
+  if(/mime|content type/i.test(m))
+    return 'この形式は受け付けられません。JPEG／PNG／WebP をお使いください';
+  return 'アップロードできませんでした：'+m;
+}
+
 async function upload(files){
-  files=files.filter(f=>/^image\//.test(f.type));
-  if(!files.length)return;
-  if(!sb){toast('画像アップロードにはSupabase接続が必要です。URL貼り付けをお使いください');return;}
-  toast('アップロード中…');
+  files=(files||[]).filter(f=>/^image\//.test(f.type));
+  if(!files.length){upStat('画像ファイルを選んでください（JPEG・PNG・WebP）',false);return;}
+  if(!sb){upStat('Supabaseに接続できていません。下の欄に画像URLを貼る方法をお使いください',false);return;}
+  const big=files.find(f=>f.size>10*1024*1024);
+  if(big){upStat(big.name+' は10MBを超えています',false);return;}
+  upStat(files.length+'件をアップロード中…');
+  const added=[];
   for(const f of files){
-    const ext=(f.name.split('.').pop()||'png').toLowerCase();
-    const path=(EDIT.id||'tmp')+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.'+ext;
-    const up=await sb.storage.from('knowledge').upload(path,f,{upsert:false,contentType:f.type});
-    if(up.error){toast('アップロードできませんでした：'+up.error.message);return;}
-    const pub=sb.storage.from('knowledge').getPublicUrl(path);
-    EDIT.images=EDIT.images||[];EDIT.images.push(pub.data.publicUrl);
+    const ext=(f.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
+    const path=(EDIT&&EDIT.id?EDIT.id:'tmp')+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.'+ext;
+    let up;
+    try{ up=await sb.storage.from(BUCKET).upload(path,f,{upsert:false,contentType:f.type}); }
+    catch(e){ upStat(explainErr(e),false); return; }
+    if(up.error){upStat(explainErr(up.error),false);return;}
+    const pub=sb.storage.from(BUCKET).getPublicUrl(path);
+    const url=pub&&pub.data&&pub.data.publicUrl;
+    if(!url){upStat('公開URLを取得できませんでした。バケットが Public になっているか確認してください',false);return;}
+    added.push(url);
   }
-  drawThumbs();toast('画像を追加しました');
+  EDIT.images=(EDIT.images||[]).concat(added);
+  drawThumbs();
+  upStat(added.length+'件を追加しました。保存を押すと確定します',true);
 }
 
 $('#eSave').onclick=async()=>{
@@ -523,6 +564,23 @@ $('#sSeed').onclick=async()=>{
     if(await saveOne(rec))n++;
   }
   render();toast(n?n+'件を登録しました':'すでに登録済みです');
+};
+
+$('#sTest').onclick=async()=>{
+  const out=$('#sTestOut');
+  out.style.color='var(--muted)';out.textContent='確認中…';
+  if(!sb){out.style.color='var(--neg)';out.textContent='Supabaseに接続していません。ログインし直してください';return;}
+  const path='_check/'+Date.now()+'.txt';
+  try{
+    const blob=new Blob(['ok'],{type:'text/plain'});
+    const r=await sb.storage.from(BUCKET).upload(path,blob,{contentType:'text/plain'});
+    if(r.error){out.style.color='var(--neg)';out.textContent='NG：'+explainErr(r.error);return;}
+    const pub=sb.storage.from(BUCKET).getPublicUrl(path);
+    await sb.storage.from(BUCKET).remove([path]);
+    if(!(pub&&pub.data&&pub.data.publicUrl)){
+      out.style.color='var(--neg)';out.textContent='NG：バケットが Public になっていません';return;}
+    out.style.color='var(--pos)';out.textContent='OK：画像アップロードは使える状態です';
+  }catch(e){out.style.color='var(--neg)';out.textContent='NG：'+explainErr(e);}
 };
 
 /* ---------- events ---------- */
