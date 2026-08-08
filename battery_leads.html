@@ -177,6 +177,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <input type="file" id="xlsxFile" accept=".xlsx,.xlsm" style="display:none">
     <button class="btn ghost" id="btnGas">📗 シート連動</button>
     <span class="gasnote" id="gasStatus" style="color:#a9f0c8"></span>
+    <span class="badge" id="lastSync" style="cursor:pointer" title="最終同期時刻（クリックで即時同期）">最終同期 —</span>
+    <button class="btn ghost" id="btnClean">🧹 データ整理<span id="cleanCnt"></span></button>
     <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/1H9H1NT84qBzORVD_dlI6bzO83kS04DKFb9lj3JCnVgc/edit" target="_blank" rel="noopener" title="商談見込み 入力シートを開く">📋 入力シート</a>
     <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit" target="_blank" rel="noopener" title="蓄電池 案件管理表を開く">📊 案件管理表</a>
     <button class="btn" id="btnNew">＋ 商談登録</button>
@@ -205,6 +207,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <select id="fRef"><option value="">紹介者：全て</option></select>
     <select id="fOwner"><option value="">社内担当：全て</option></select>
     <select id="fTemp"><option value="">温度感：全て</option><option>A</option><option>B</option><option>C</option></select>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx2);white-space:nowrap"><input type="checkbox" id="fGone"> ⚠シート消失も表示</label>
     <span class="fcount" id="fCount"></span>
   </div>
 
@@ -377,6 +380,21 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   </div>
 </div>
 
+<!-- データ整理（重複統合・シート消失） -->
+<div class="ovl" id="clnovl">
+  <div class="modal" style="max-width:960px">
+    <h2>🧹 データ整理（シートを正としてボードを合わせる）</h2>
+    <p style="font-size:12px;color:var(--tx2);margin-bottom:12px">
+      入力シートに<b>案件IDが無い行</b>や、<b>シートから消えた・社名が変わった商談</b>が原因でボードに古い情報や重複が残ります。ここで統合・削除すると、以後は案件IDで自動的に紐づきます。
+    </p>
+    <div id="clnBody"></div>
+    <div class="mfoot">
+      <button class="btn gray" id="clnClose">閉じる</button>
+      <button class="btn" id="clnGoneAll" style="background:var(--red)">シート消失をすべて削除</button>
+    </div>
+  </div>
+</div>
+
 <!-- battery-board取込ログイン -->
 <div class="ovl" id="bbovl">
   <div class="modal" style="max-width:420px">
@@ -449,6 +467,23 @@ const uid=()=> 'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)
 const today=()=> new Date().toISOString().slice(0,10);
 const fmtMan=v=> v? Number(v).toLocaleString()+'万円' : '—';
 
+/* ===== 名寄せ（重複防止）ヘルパー ===== */
+function normName(s){
+  return String(s||'')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/株式会社|㈱|\(株\)|（株）|有限会社|㈲|\(有\)|（有）|合同会社|合資会社|一般社団法人|医療法人|社会福祉法人/g,'')
+    .replace(/様|御中|さま|サマ/g,'')
+    .replace(/[\s\u3000・,.\-‐―ー_（）()「」]/g,'')
+    .toLowerCase();
+}
+/* シート（入力シート／週次Excel）由来の商談か＝手入力の商談を誤って消さないための判定 */
+function isFromSheet(l){
+  if(l.sid) return true;
+  if(String(l.memo||'').includes('── シート連動 ──')) return true;
+  return (l.logs||[]).some(g=>/シート連動|Excel取込/.test(String(g&&g.t||'')));
+}
+let showGone=false;   /* 一覧に「シート消失」も表示するか */
+
 /* ===== 保存・同期 ===== */
 function saveLocal(){ localStorage.setItem('battery_leads_v1', JSON.stringify(leads)); localStorage.setItem('battery_props_v1', JSON.stringify(props)); }
 function loadLocal(){
@@ -476,7 +511,7 @@ async function initCloud(){
       }
     }catch(e){ console.warn('props table:',e.message||e); }
     saveLocal(); renderAll();
-    if(settings.gasUrl){ syncSheet(true); setInterval(()=>syncSheet(true), 5*60*1000); }
+    if(settings.gasUrl){ syncSheet(true); setInterval(()=>syncSheet(true), 2*60*1000); }
   }catch(e){
     cloud=false; cloudErr=(e && (e.message||e.error_description||JSON.stringify(e)))||'不明なエラー';
     $('syncBadge').textContent='● ローカル（⚠タップで原因）';
@@ -505,6 +540,7 @@ function leadProps(l){ return (l.props||[]).map(propName).filter(Boolean); }
 function filtered(){
   const q=$('fQ').value.trim().toLowerCase();
   return leads.filter(l=>{
+    if(l.sheetGone && !showGone) return false;   /* シートから消えた商談は集計・一覧から除外 */
     if($('fStatus').value && l.status!==$('fStatus').value) return false;
     if($('fBiz').value && getBiz(l)!==$('fBiz').value) return false;
     if($('fKubun').value && (getKubun(l)||'（未設定）')!==$('fKubun').value) return false;
@@ -564,7 +600,7 @@ function renderTable(){
     const kb=getKubun(l);
     const kShort=kb.startsWith('刈り取り（3Q')?'刈3Q':kb.startsWith('刈り取り')?'刈・来期':kb.startsWith('種まき')?'種まき':'未設定';
     return `<tr class="row" data-id="${l.id}">
-      <td><span class="name">${esc(l.name)}</span><div class="sub">${esc(l.type||'')}${l.need?'・'+esc(l.need):''}${leadProps(l).length? ' '+leadProps(l).map(n=>`<span class="ptag">${esc(n)}</span>`).join(''):''}</div></td>
+      <td><span class="name">${esc(l.name)}</span>${l.sheetGone? '<span class="rbadge rb-red">⚠シート消失</span>':''}${(!l.sid && isFromSheet(l))? '<span class="rbadge" style="background:#fff3d6;color:#8a6100">ID無</span>':''}<div class="sub">${esc(l.type||'')}${l.need?'・'+esc(l.need):''}${leadProps(l).length? ' '+leadProps(l).map(n=>`<span class="ptag">${esc(n)}</span>`).join(''):''}</div></td>
       <td><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span></td>
       <td><span class="pill" style="background:${kShort==='刈3Q'?'#fdeaea':kShort==='種まき'?'#e6f4ec':'#eef1f5'};color:${kShort==='刈3Q'?'var(--red)':kShort==='種まき'?'var(--green)':'var(--tx2)'}">${kShort}</span></td>
       <td><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></td>
@@ -1218,12 +1254,14 @@ function applyParsedLeads(parsed, srcLabel){
   const seen=[];
   parsed.forEach(x=>{
     let l=null;
+    const nx=normName(x.name);
     if(x.sid){
       l=leads.find(v=>v.sid===x.sid);
-      if(!l){ l=leads.find(v=>!v.sid && v.name===x.name); if(l) l.sid=x.sid; }
+      /* 案件IDが未付与のまま残っている旧レコードを、表記ゆれ込みの名寄せで引き取る */
+      if(!l){ l=leads.find(v=>!v.sid && normName(v.name)===nx); if(l){ l.sid=x.sid; (l.logs=l.logs||[]).push({d:today(), t:'案件ID「'+x.sid+'」を紐づけ（シート連動）'}); } }
       seen.push(x.sid);
     }else{
-      l=leads.find(v=>v.name===x.name);
+      l=leads.find(v=>normName(v.name)===nx);
     }
     if(l){
       const b={name:l.name,status:l.status,next:l.next,due:l.due,budget:l.budget,mq:l.mq,temp:l.temp,finance:l.finance,kubun:l.kubun,owner:l.owner,memo:l.memo};
@@ -1239,7 +1277,8 @@ function applyParsedLeads(parsed, srcLabel){
       Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner});
       const base=String(l.memo||'').split(SHEET_MARK)[0].replace(/\s+$/,'');
       l.memo = x.memo ? (base? base+'\n':'')+SHEET_MARK+'\n'+x.memo : base;
-      if(l.sheetGone) delete l.sheetGone;
+      if(l.sheetGone){ delete l.sheetGone; delete l.goneAt; }
+      l.sheetSeen=today();
       const changed = b.name!==l.name || b.status!==l.status || b.next!==l.next || b.due!==l.due
         || String(b.budget)!==String(l.budget) || String(b.mq)!==String(l.mq)
         || b.temp!==l.temp || b.finance!==l.finance || b.kubun!==l.kubun || b.owner!==l.owner || b.memo!==l.memo;
@@ -1252,11 +1291,18 @@ function applyParsedLeads(parsed, srcLabel){
     }
   });
   let gone=0;
-  if(seen.length){
+  /* 安全弁：シート取得が部分的に失敗したときに大量誤判定しないよう、
+     既存のシート由来件数の半分未満しか読めていない場合は消失判定をスキップ */
+  const linked=leads.filter(v=>isFromSheet(v)&&!v.sheetGone).length;
+  const tooFew = linked>=6 && seen.length < linked*0.5;
+  if(seen.length && !tooFew){
     leads.forEach(v=>{
-      if(v.sid && seen.indexOf(v.sid)===-1 && !v.sheetGone){
-        v.sheetGone=true; gone++;
-        (v.logs=v.logs||[]).push({d:today(), t:'⚠ シートに該当行がありません（削除された可能性）'});
+      if(v.sheetGone) return;
+      /* 案件IDがシートに無い ＝ 削除された。IDが未付与でもシート由来なら対象（社名変更で置き去りになった旧レコード対策） */
+      const missing = v.sid ? seen.indexOf(v.sid)===-1 : isFromSheet(v);
+      if(missing){
+        v.sheetGone=true; v.goneAt=today(); gone++;
+        (v.logs=v.logs||[]).push({d:today(), t:'⚠ シートに該当行がありません（削除・社名変更の可能性）— 集計から除外中'});
         pushLead(v);
       }
     });
@@ -1264,6 +1310,140 @@ function applyParsedLeads(parsed, srcLabel){
   saveLocal(); renderAll();
   return {added,updated,renamed,gone};
 }
+
+/* ===== データ整理（重複統合・シート消失の解消） ===== */
+function goneLeads(){ return leads.filter(l=>l.sheetGone); }
+function dupGroups(){
+  const m={};
+  leads.forEach(l=>{ const k=normName(l.name); if(!k) return; (m[k]=m[k]||[]).push(l); });
+  return Object.keys(m).filter(k=>m[k].length>1).map(k=>m[k]);
+}
+function updateCleanBadge(){
+  const g=goneLeads().length, d=dupGroups().length;
+  const el=$('cleanCnt'); if(!el) return;
+  const n=g+d;
+  el.textContent = n? ' '+n : '';
+  el.style.cssText = n? 'display:inline-block;margin-left:5px;background:var(--red);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;font-weight:900' : 'display:none';
+}
+function mergeLeads(keepId, dropId){
+  const keep=leads.find(l=>l.id===keepId), drop=leads.find(l=>l.id===dropId);
+  if(!keep||!drop||keep===drop) return;
+  /* 情報は「残す側」優先。残す側が空の項目だけ相手から引き継ぐ */
+  ['contact','tel','mail','area','wantarea','ref','refname','route','payday','need','memo2'].forEach(k=>{ if(!keep[k] && drop[k]) keep[k]=drop[k]; });
+  if(!keep.sid && drop.sid) keep.sid=drop.sid;
+  if(drop.created && (!keep.created || drop.created<keep.created)) keep.created=drop.created;
+  const dm=String(drop.memo||'').split('── シート連動 ──')[0].trim();
+  if(dm && !String(keep.memo||'').includes(dm)) keep.memo=(dm+'\n'+String(keep.memo||'')).trim();
+  keep.logs=(keep.logs||[]).concat(drop.logs||[]).sort((a,b)=>String(a.d||'').localeCompare(String(b.d||'')));
+  keep.logs.push({d:today(), t:'重複していた「'+drop.name+'」を統合（データ整理）'});
+  delete keep.sheetGone; delete keep.goneAt;
+  keep.updated=today();
+  leads=leads.filter(l=>l.id!==drop.id);
+  removeLead(drop.id); pushLead(keep);
+  saveLocal(); renderAll(); renderClean();
+}
+function deleteLead(id, silent){
+  const l=leads.find(v=>v.id===id); if(!l) return;
+  if(!silent && !confirm('「'+l.name+'」を削除します。よろしいですか？')) return;
+  leads=leads.filter(v=>v.id!==id); removeLead(id);
+  saveLocal(); renderAll(); renderClean();
+}
+function unGone(id){
+  const l=leads.find(v=>v.id===id); if(!l) return;
+  delete l.sheetGone; delete l.goneAt;
+  (l.logs=l.logs||[]).push({d:today(), t:'「シート消失」を解除（手動管理の商談として継続）'});
+  pushLead(l); saveLocal(); renderAll(); renderClean();
+}
+function leadLine(l){
+  return '<b>'+esc(l.name)+'</b>'
+    +' <span style="font-size:11px;color:var(--tx2)">'+esc(l.status||'')
+    +'｜MQ '+(mqOf(l)||0).toLocaleString()+'万'
+    +'｜'+esc(l.owner||'担当未設定')
+    +'｜'+(l.sid? '案件ID '+esc(l.sid) : '<span style="color:var(--red)">案件IDなし</span>')
+    +'｜更新 '+esc(l.updated||'—')+'</span>';
+}
+function renderClean(){
+  const gone=goneLeads(), dups=dupGroups();
+  updateCleanBadge();
+  let h='';
+  /* ① シートに無い商談 */
+  h+='<div class="sect">① シートに無い商談（'+gone.length+'件）— 集計・一覧から除外中</div>';
+  if(!gone.length){ h+='<p style="font-size:12px;color:var(--tx2);padding:6px 0">ありません。ボードとシートは一致しています。</p>'; }
+  else{
+    const cand=leads.filter(l=>!l.sheetGone).sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+    gone.forEach(l=>{
+      h+='<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">'
+       + '<div style="margin-bottom:6px">'+leadLine(l)+'</div>'
+       + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+       + '<select id="mg_'+l.id+'" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:6px;max-width:280px"><option value="">▼ 統合先（現行の商談）を選ぶ</option>'
+       + cand.map(c=>'<option value="'+c.id+'">'+esc(c.name)+(c.sid?'（'+esc(c.sid)+'）':'')+'</option>').join('')
+       + '</select>'
+       + '<button class="btn" style="font-size:12px;padding:5px 10px" onclick="doMerge(\''+l.id+'\')">統合して削除</button>'
+       + '<button class="btn gray" style="font-size:12px;padding:5px 10px" onclick="deleteLead(\''+l.id+'\')">削除</button>'
+       + '<button class="btn ghost" style="font-size:12px;padding:5px 10px;color:var(--navy);border-color:var(--line)" onclick="unGone(\''+l.id+'\')">戻す（手動管理にする）</button>'
+       + '</div></div>';
+    });
+  }
+  /* ② 重複候補 */
+  h+='<div class="sect" style="margin-top:14px">② 同じ顧客が重複している可能性（'+dups.length+'組）</div>';
+  if(!dups.length){ h+='<p style="font-size:12px;color:var(--tx2);padding:6px 0">重複は見つかりませんでした。</p>'; }
+  else{
+    dups.forEach((g,gi)=>{
+      h+='<div style="border:1px solid var(--gold);border-radius:8px;padding:10px;margin-bottom:8px">';
+      g.forEach((l,i)=>{
+        h+='<label style="display:block;font-size:12px;padding:4px 0;cursor:pointer"><input type="radio" name="dup'+gi+'" value="'+l.id+'"'+(i===0?' checked':'')+'> 残す：'+leadLine(l)+'</label>';
+      });
+      h+='<button class="btn" style="font-size:12px;padding:5px 10px;margin-top:6px" onclick="doDupMerge('+gi+','+g.length+')">選んだ1件に統合</button>'
+       + '<span style="font-size:11px;color:var(--tx2);margin-left:8px">※案件IDが入っている方を残すのが基本です</span>';
+      h+='</div>';
+    });
+    window.__dupG=dups;
+  }
+  h+='<div class="sect" style="margin-top:14px">③ 重複を出さないためのシート運用</div>'
+   + '<ul style="font-size:12px;color:var(--tx2);line-height:1.9;padding-left:18px">'
+   + '<li><b>案件ID列（グレー）は絶対に触らない</b>：手入力・並び替え・削除をすると別商談として二重登録されます</li>'
+   + '<li><b>社名変更はそのまま書き換えでOK</b>：案件IDが同じなら同じ商談として更新され、活動ログに変更履歴が残ります</li>'
+   + '<li><b>終わった商談は行を消さずステータスを「入金済」「失注」に</b>：行ごと削除するとボード側に取り残しが出ます</li>'
+   + '<li><b>新しい行には必ず案件IDを採番</b>：空欄のまま取り込むと社名だけで照合するため、表記ゆれで重複します</li>'
+   + '</ul>';
+  $('clnBody').innerHTML=h;
+}
+function doMerge(dropId){
+  const sel=$('mg_'+dropId); if(!sel||!sel.value){ alert('統合先の商談を選んでください'); return; }
+  const keep=leads.find(l=>l.id===sel.value), drop=leads.find(l=>l.id===dropId);
+  if(!confirm('「'+drop.name+'」を「'+keep.name+'」に統合します。\n活動ログは引き継ぎ、重複していた方は削除されます。よろしいですか？')) return;
+  mergeLeads(sel.value, dropId);
+}
+function doDupMerge(gi,len){
+  const g=(window.__dupG||[])[gi]; if(!g) return;
+  const sel=document.querySelector('input[name="dup'+gi+'"]:checked'); if(!sel) return;
+  const keepId=sel.value;
+  const drops=g.filter(l=>l.id!==keepId);
+  if(!confirm(drops.map(d=>'「'+d.name+'」').join('・')+' を統合します。よろしいですか？')) return;
+  drops.forEach(d=>mergeLeads(keepId,d.id));
+}
+$('btnClean').onclick=()=>{ renderClean(); $('clnovl').classList.add('show'); };
+$('clnClose').onclick=()=> $('clnovl').classList.remove('show');
+$('clnGoneAll').onclick=()=>{
+  const g=goneLeads(); if(!g.length){ alert('削除対象はありません'); return; }
+  if(!confirm('シートに無い商談 '+g.length+'件をすべて削除します。\n（統合したい商談がある場合は先に統合してください）')) return;
+  g.forEach(l=>deleteLead(l.id,true));
+  renderClean();
+};
+
+/* ===== 最終同期の表示 ===== */
+let lastSyncAt=null;
+function renderSyncAge(){
+  const el=$('lastSync'); if(!el) return;
+  if(!lastSyncAt){ el.textContent='最終同期 —'; el.style.background=''; return; }
+  const min=Math.floor((Date.now()-lastSyncAt)/60000);
+  el.textContent='最終同期 '+new Date(lastSyncAt).toTimeString().slice(0,5)+(min>=1? '（'+min+'分前）':'（たった今）');
+  el.style.background = min>=30? 'rgba(220,70,70,.35)' : '';
+  el.title = min>=30? '30分以上同期されていません。クリックして今すぐ同期してください' : '最終同期時刻（クリックで即時同期）';
+}
+setInterval(renderSyncAge, 60*1000);
+$('lastSync').onclick=()=> syncSheet(false);
+
 function importXlsx(file){
   const reader=new FileReader();
   reader.onload=e=>{
@@ -1385,8 +1565,12 @@ async function syncSheet(silent){
     if(r.renamed) bits.push('改名'+r.renamed);
     if(r.gone) bits.push('⚠シート消失'+r.gone);
     if(rp.added+rp.updated) bits.push('物件'+(rp.added+rp.updated));
+    lastSyncAt=Date.now(); renderSyncAge(); updateCleanBadge();
     $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+(bits.length? '（'+bits.join('・')+'）':'（変更なし）');
-    if(!silent) alert('シート連動が完了しました。\n\n新規：'+r.added+'件\n更新：'+r.updated+'件\n顧客名の変更：'+r.renamed+'件\nシートに無くなった商談：'+r.gone+'件\n物件：'+(rp.added+rp.updated)+'件'+(r.gone? '\n\n※シートから消えた商談は削除せず残しています。一覧で「⚠シート消失」の目印を確認してください。':''));
+    const needClean = goneLeads().length + dupGroups().length;
+    if(!silent) alert('シート連動が完了しました。\n\n新規：'+r.added+'件\n更新：'+r.updated+'件\n顧客名の変更：'+r.renamed+'件\nシートに無くなった商談：'+r.gone+'件\n物件：'+(rp.added+rp.updated)+'件'
+      +(needClean? '\n\n⚠ 要整理が '+needClean+' 件あります。\nシートから消えた商談は集計から自動で除外していますが、「🧹 データ整理」から統合・削除してください。':''));
+    if(silent && needClean) updateCleanBadge();
   }catch(e){
     $('gasStatus').textContent='';
     if(!silent) alert('シート連動エラー：'+(e.message||e)+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
@@ -1488,7 +1672,7 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.08.05';
+const APP_VERSION = '2026.08.08';
 const CHANGELOG = [
   ['2026.08.05', [
     '「📖 活用マニュアル」タブを追加。アプリ本体に同梱しているため、アプリを更新すればマニュアルも自動で最新になります',
@@ -1496,6 +1680,7 @@ const CHANGELOG = [
     'ヘッダーに「📋 入力シート」「📊 案件管理表」ボタンを追加'
   ]],
   ['2026.08.04', [
+    '<b>2026.08.08</b>｜重複と古いデータの解消：①シートから消えた商談を集計・一覧から自動除外 ②表記ゆれ（様・株式会社・全角空白）を吸収して名寄せ ③「🧹 データ整理」で重複統合・削除 ④ヘッダーに最終同期時刻を表示（30分以上で赤） ⑤自動同期を5分→2分間隔に短縮',
     'シート連動の突合キーを「顧客名」から「案件ID」に変更。社名を変更しても同じ商談として更新されます',
     '確度をメモに反映。シート由来のメモは毎回まるごと差し替わるため、古い内容が残らなくなりました',
     'シート取得時のキャッシュを無効化。5分ごとの自動再同期を追加',
@@ -1578,7 +1763,10 @@ const MANUAL = [
   { id:'trouble', t:'⑧ うまくいかないとき', b:[
     '<table class="mtbl"><tr><th>症状</th><th>原因と対処</th></tr>' +
     '<tr><td>シートを直したのに反映されない</td><td>まず「📗 シート連動」を押す。それでも変わらなければ案件IDが空の可能性。シートのID列を確認</td></tr>' +
-    '<tr><td>同じ会社が2件ある</td><td>案件IDが振られる前に取り込まれたケース。古い方を手動削除すれば以降は統合されます</td></tr>' +
+    '<tr><td>同じ会社が2件ある</td><td>ヘッダーの<b>「🧹 データ整理」→②重複候補</b>で、案件IDが入っている方を「残す」に選んで統合。活動ログは引き継がれます</td></tr>' +
+    '<tr><td>社名変更したのに旧社名が残る</td><td>旧レコードに案件IDが無い状態です。<b>「🧹 データ整理」→①シートに無い商談</b>で、統合先に新社名を選んで「統合して削除」</td></tr>' +
+    '<tr><td>シートで行を消したのにボードに残る</td><td>自動で集計・一覧から除外されます（一覧の「⚠シート消失も表示」で確認可）。完全に消すなら「🧹 データ整理」から削除</td></tr>' +
+    '<tr><td>数字が古い気がする</td><td>ヘッダーの<b>「最終同期 HH:MM」</b>を確認。赤くなっていたら30分以上止まっています。クリックで即時同期</td></tr>' +
     '<tr><td>連動エラー：Unexpected token &lt;</td><td>GASがJSONではなくHTMLを返しています。デプロイの「アクセスできるユーザー」が<b>全員</b>か、保存しているURLが最新のデプロイかを確認</td></tr>' +
     '<tr><td>大型案件タブが空</td><td>案件管理表側のGAS同期が止まっている可能性。Supabaseの asset_sync_log で最終同期時刻を確認</td></tr>' +
     '<tr><td>金額がおかしい</td><td>シートの金額欄に文字が混ざっていないか確認。百万円単位の数値のみ</td></tr>' +
@@ -1616,6 +1804,8 @@ $('verBadge').onclick = ()=>{ const b=document.querySelector('.tabs button[data-
 $('btnNew').onclick=()=> openModal(null);
 $('btnReload').onclick=reload;
 ['fQ','fBiz','fKubun','fStatus','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
+$('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
+$('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
 $('i_biz').addEventListener('change',()=> updateNeedOptions());
 
 function refreshFilterOptions(){
@@ -1632,7 +1822,7 @@ function refreshFilterOptions(){
   keepP($('pCat'),CATS,'カテゴリー');
   keepP($('pOwner'),[...new Set(props.map(p=>p.owner||'（担当未設定）'))].sort(),'担当者');
 }
-function renderAll(){ refreshFilterOptions(); renderKpis(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
+function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
 
 /* ===== 初期化 ===== */
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
