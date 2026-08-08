@@ -28,8 +28,8 @@ a{color:var(--info);text-decoration:none}
 /* ===== top bar ===== */
 header.top{position:sticky;top:0;z-index:40;background:var(--navy);
   border-bottom:2px solid var(--gold);display:flex;align-items:center;gap:18px;
-  padding:0 20px;height:58px;box-shadow:0 2px 12px rgba(13,35,64,.18)}
-.brand{display:flex;align-items:center;gap:11px;color:#fff;white-space:nowrap}
+  padding:0 20px;min-height:58px;box-shadow:0 2px 12px rgba(13,35,64,.18)}
+.brand{display:flex;align-items:center;gap:11px;color:#fff;white-space:nowrap;flex:none;min-width:0}
 .brand .logo-chip{background:#fff;border-radius:8px;padding:5px 9px;display:flex;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.25);flex:none}
 .brand .logo-chip img{height:24px;width:auto;display:block}
 .brand .mark{width:30px;height:30px;border-radius:7px;background:
@@ -37,12 +37,35 @@ header.top{position:sticky;top:0;z-index:40;background:var(--navy);
   color:var(--navy);font-weight:800;font-size:15px;box-shadow:0 1px 6px rgba(200,162,74,.4)}
 .brand b{font-size:15.5px;letter-spacing:.02em;font-weight:700}
 .brand span{font-size:10.5px;color:var(--gold2);letter-spacing:.06em;display:block;margin-top:-2px}
-nav.tabs{display:flex;gap:2px;margin-left:6px}
-nav.tabs button{color:#b9c8da;font-size:13px;font-weight:600;padding:8px 15px;border-radius:7px;letter-spacing:.02em}
+nav.tabs{display:flex;gap:2px;margin-left:6px;flex:0 1 auto;min-width:0;
+  overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{color:#b9c8da;font-size:13px;font-weight:600;padding:8px 15px;border-radius:7px;
+  letter-spacing:.02em;white-space:nowrap;flex:none;line-height:1.2}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.07)}
 nav.tabs button.on{color:var(--navy);background:var(--gold)}
-.top .spacer{flex:1}
-.top .util{display:flex;gap:8px;align-items:center}
+.top .spacer{flex:1 1 auto;min-width:0}
+.top .util{display:flex;gap:8px;align-items:center;flex:none;white-space:nowrap}
+#userBadge,#userBadge *{white-space:nowrap}
+
+/* ヘッダーの折り返し防止（画面幅が狭いとき） */
+@media(max-width:1280px){
+  header.top{gap:12px;padding:0 14px}
+  nav.tabs button{padding:8px 11px;font-size:12.5px}
+  .top .util{gap:6px}
+  .btn-sm{padding:5px 8px;font-size:11.5px}
+}
+@media(max-width:1100px){
+  .brand span{display:none}
+  .brand b{font-size:14.5px}
+}
+@media(max-width:900px){
+  header.top{flex-wrap:wrap;height:auto;padding:8px 12px;row-gap:6px;align-items:center}
+  .brand{order:1}
+  .top .spacer{order:2}
+  .top .util{order:3;flex-wrap:wrap;justify-content:flex-end}
+  nav.tabs{order:4;flex:1 0 100%;margin-left:0;padding-bottom:2px}
+}
 .btn{border-radius:7px;font-weight:600;font-size:13px;padding:8px 14px;display:inline-flex;
   align-items:center;gap:6px;transition:.12s;white-space:nowrap;border:1px solid transparent}
 .btn-gold{background:var(--gold);color:var(--navy)}
@@ -54,6 +77,39 @@ nav.tabs button.on{color:var(--navy);background:var(--gold)}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn-danger{background:#fff;color:var(--stop);border-color:#f0c5bf}
 .btn-danger:hover{background:var(--stop-bg)}
+
+/* ===== 活用マニュアル ===== */
+.man-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.man-bar input{flex:1;min-width:220px;background:var(--surface);border:1px solid var(--line2);
+  border-radius:8px;padding:9px 12px;font-size:13px}
+.man-ver{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap;
+  background:var(--surface2);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.man-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.man-nav button{font-size:12px;padding:6px 11px;border-radius:7px;background:var(--surface);
+  border:1px solid var(--line2);color:var(--navy2);font-weight:600}
+.man-nav button:hover{border-color:var(--gold);background:var(--gold-soft)}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.mcard h3{margin:0 0 10px;font-size:15px;color:var(--navy);border-bottom:2px solid var(--gold);padding-bottom:6px}
+.mcard p{font-size:13px;line-height:1.85;margin:8px 0}
+.mcard ol,.mcard ul{font-size:13px;line-height:1.95;padding-left:22px;margin:8px 0}
+.mbox{background:var(--surface2);border-left:3px solid var(--navy);border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.75;margin:8px 0}
+.mnote{background:var(--warn-bg);border-left:3px solid var(--gold);border-radius:6px;padding:9px 12px;font-size:12.5px;line-height:1.75;margin:8px 0}
+.mwarn{background:var(--stop-bg);border-left:3px solid var(--stop);border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.75;margin:8px 0}
+.mgo{background:var(--go-bg);border-left:3px solid var(--go);border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.75;margin:8px 0}
+.mchips{background:var(--surface2);border-radius:6px;padding:9px 12px;font-size:12.5px;line-height:2}
+table.mtbl{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+table.mtbl th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;white-space:nowrap}
+table.mtbl td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;line-height:1.75}
+table.mtbl tr:nth-child(even) td{background:var(--surface2)}
+.mlogd{margin-bottom:14px}
+.mlogd b{display:inline-block;background:var(--navy);color:#fff;font-size:11px;padding:3px 10px;border-radius:99px;letter-spacing:.03em}
+.mlogd.new b{background:var(--gold);color:var(--navy)}
+.mlogd ul{margin-top:6px}
+.ver-chip{font-size:11px;font-weight:700;color:var(--gold2);background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.16);border-radius:99px;padding:3px 9px;cursor:pointer;white-space:nowrap}
+.ver-chip:hover{background:rgba(255,255,255,.18);color:#fff}
+.ver-chip .nd{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:middle}
 
 main{max-width:1320px;margin:0 auto;padding:22px 20px 70px}
 .view{display:none;animation:fade .2s}
@@ -652,9 +708,11 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
     <button data-nav="list">案件一覧</button>
     <button data-nav="ledger">台帳</button>
     <button data-nav="map">マップ</button>
+    <button data-nav="man">📖 活用マニュアル</button>
   </nav>
   <div class="spacer"></div>
   <div class="util">
+    <span id="verChip" class="ver-chip" title="活用マニュアル（更新履歴）を開く"></span>
     <span id="syncPill" class="sync-pill local" title="同期状態">● ローカル</span>
     <span id="userBadge"></span>
     <button class="btn btn-ghost btn-sm" id="btnSync">☁ 同期設定</button>
@@ -672,6 +730,7 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   <section class="view" id="view-list"></section>
   <section class="view" id="view-ledger"></section>
   <section class="view" id="view-map"></section>
+  <section class="view" id="view-man"></section>
   <!-- DEAL WORKSPACE -->
   <section class="view" id="view-deal"></section>
 </main>
@@ -3141,9 +3200,197 @@ function renderAllSheets(){
 function sheetWrap(deal,cls,inner){return inner;}
 function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').innerHTML=''; document.body.style.overflow=''; }
 
+
+/* ==================== 活用マニュアル ====================
+   マニュアルはアプリ本体に同梱されています。
+   アプリを更新（GitHubのファイルを差し替え）すれば、マニュアルも自動で最新になります。
+   ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
+     ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
+   ======================================================== */
+const APP_VERSION = '2026.08.08';
+
+const CHANGELOG = [
+  ['2026.08.08', [
+    '「📖 活用マニュアル」タブを追加しました。アプリ本体に同梱しているため、アプリを更新すればマニュアルも同時に最新になります',
+    'ヘッダーにバージョン表示を追加。前回見たときより新しくなっていると金色の「●」が付き、クリックすると更新履歴が開きます',
+    'ヘッダーの文字が折り返して2行になる不具合を修正（タブ・氏名が途中で改行されなくなりました）',
+    '画面幅が狭いときは、ロゴ下の説明を隠す／タブを横スクロールにする、という段階的な表示に変更しました',
+  ]],
+];
+
+const MANUAL = [
+  { id:'what', t:'① このアプリは何をするものか', b:[
+    '<p>ReFort 査定スタジオは、<b>セカンダリー物件を「買うべきか／いくらで売れるか」を数字で判定する</b>ためのアプリです。物件情報を入力すると、右側に判定と20年シミュレーションが自動で出ます。</p>',
+    '<div class="mbox"><b>できること</b><br>' +
+      '① 一次判定（Go／要検討／見送り）と、その根拠になるIRR・利回り・相場乖離<br>' +
+      '② 3モデルの20年シミュレーション（セカンダリー単体／セカンダリー＋リフォート／リフォートのみ）<br>' +
+      '③ DDチェックリスト（32項目）とレッドフラグ（5項目）による停止判断<br>' +
+      '④ お客様に出す提案シート・リフォート提案一式のPDF出力<br>' +
+      '⑤ 案件一覧・台帳・マップでの進捗管理</div>',
+    '<p class="mnote">RFSK（シミュレーションシート）やDDチェックリストの原本は、案件ごとにURLを貼り付けて紐づけます。アプリはあくまで判定と提案の道具で、原本はシート側です。</p>',
+  ]},
+
+  { id:'flow', t:'② 基本の流れ（新規案件を1件通す）', b:[
+    '<ol>' +
+    '<li><b>＋ 新規案件</b>を押し、案件名を入れる（例：前橋市飯土井町 500kW）</li>' +
+    '<li><b>① 案件基本情報</b>：お客様名・所在地・FIT/FIP・連系日・土地の権利形態を入力</li>' +
+    '<li><b>② FIT条件</b>：FIT単価を入れる。残FIT年数は連系日から自動計算されます</li>' +
+    '<li><b>④ 発電実績</b>：実績発電量（kWh/年）を入れる。設備利用率が自動で出ます</li>' +
+    '<li><b>⑦ セカンダリー仕入・販売</b>：仕入原価を入れる。<b>ここを入れて初めてIRRが出ます</b></li>' +
+    '<li>右側の<b>判定</b>を確認 → Goなら現調・DDへ、見送りなら理由を残してステージを「見送り」に</li>' +
+    '<li><b>DDチェックリスト</b>と<b>レッドフラグ</b>を埋める（赤旗が1つでもNGなら自動で「停止」判定）</li>' +
+    '<li><b>📄 提案シート</b>／<b>📦 リフォート提案（一括）</b>でPDFを出力してお客様へ</li>' +
+    '<li>次アクションと期限を入れて<b>保存</b>。一覧・台帳・マップに反映されます</li>' +
+    '</ol>',
+    '<div class="mwarn"><b>保存を忘れない</b><br>入力中は上部に「未保存」が出ます。ブラウザを閉じる前に必ず「保存」を押してください。</div>',
+  ]},
+
+  { id:'judge', t:'③ 判定の読み方（何を見てGo/見送りを決めているか）', b:[
+    '<p>判定は<b>レッドフラグ → IRR → 保有向きか転売向きか</b>の順で決まります。</p>',
+    '<table class="mtbl"><tr><th>判定</th><th>条件</th><th>意味</th></tr>' +
+    '<tr><td>見送り（赤旗あり）</td><td>レッドフラグにNGが1つ以上</td><td>数字がどれだけ良くても停止。名義変更不可・違法性などは覆せません</td></tr>' +
+    '<tr><td>見送り（IRR不足）</td><td>簡易IRR 6%未満</td><td>仕入価格が高すぎます。指値の見直しを</td></tr>' +
+    '<tr><td>自社保有向き</td><td>保有利回り8%以上 かつ IRR6.5%以上</td><td>自社で持って回す価値がある水準</td></tr>' +
+    '<tr><td>転売向き</td><td>販売粗利率8%以上</td><td>仕入れて売る前提で成立します</td></tr>' +
+    '<tr><td>両面検討</td><td>上記のいずれにも当てはまらない</td><td>条件次第。指値・リフォート込みで再検討</td></tr>' +
+    '<tr><td>仕入価格を入力して判定</td><td>⑦の仕入原価が未入力</td><td>IRRが計算できません。まず仕入原価を入れてください</td></tr>' +
+    '</table>',
+    '<div class="mnote"><b>参考相場（50%／55%）</b>は、初期設備価格に対する残価の目安です。仕入価格がこれを大きく上回っていれば、その時点で指値の根拠になります。</div>',
+  ]},
+
+  { id:'redflag', t:'④ レッドフラグとDDチェックリスト', b:[
+    '<p><b>レッドフラグ5項目</b>は、1つでもNGなら案件を止めるための項目です。「未確認」のまま提案に進まないでください。</p>',
+    '<table class="mtbl"><tr><th>項目</th><th>見るところ</th></tr>' +
+    '<tr><td>名義変更可否</td><td>名義変更できない案件は即停止</td></tr>' +
+    '<tr><td>FIT/FIP認定整合</td><td>認定IDと実際の設備が一致しているか</td></tr>' +
+    '<tr><td>違法性・法令違反</td><td>農地転用・林地開発・建築確認など</td></tr>' +
+    '<tr><td>重大故障・毀損</td><td>PCS故障、パネルの大量破損など</td></tr>' +
+    '<tr><td>係争・訴訟リスク</td><td>地権者トラブル・近隣問題など</td></tr>' +
+    '</table>',
+    '<p><b>DDチェックリスト</b>は A権利・契約／B技術・設備／C法務・許認可／D収益・リスク の4分類・32項目です。現調前に「誰に何を確認するか」が確認先の欄に書いてあるので、それを持って現地・電力会社・経産局にあたってください。</p>',
+    '<div class="mbox"><b>現調で特に落としやすいところ</b><br>架台の歪み（接続箱の落下・売電停止につながります）／キュービクルの盗難対策／フェンスのツタによる影と汚れ</div>',
+  ]},
+
+  { id:'models', t:'⑤ 3つのシミュレーションモデルの使い分け', b:[
+    '<table class="mtbl"><tr><th>モデル</th><th>想定</th><th>使う場面</th></tr>' +
+    '<tr><td>① セカンダリー</td><td>既存設備のまま20年運用</td><td>現状の収益力を見る。仕入判断の土台</td></tr>' +
+    '<tr><td>② セカンダリー＋リフォート</td><td>買った上でリフォートを実施</td><td>アースコムの主力提案。①との差額がリフォートの価値です</td></tr>' +
+    '<tr><td>③ リフォートのみ</td><td>すでにお客様が持っている発電所にリフォート</td><td>既存オーナー向けの提案</td></tr>' +
+    '</table>',
+    '<p>いずれも20年・年単位で、売電量／売電収入／地代／電気代／保険料／メンテ費／保安協会費／償却資産税／撤去費積立／PCS交換／減価償却／営業権償却／経常利益／営業CF／ローン返済／返済後CF を出しています。</p>',
+    '<div class="mnote"><b>卒FIT</b>は「適応」にすると残FIT年数以降も卒FIT単価で発電が続く前提になります。「不適合」にすると残FIT年数で収入がゼロになります。提案の前提が変わるので、どちらで出すか必ず確認してください。</div>',
+  ]},
+
+  { id:'output', t:'⑥ 提案書の出し方', b:[
+    '<table class="mtbl"><tr><th>ボタン</th><th>出るもの</th></tr>' +
+    '<tr><td>📄 提案シート</td><td>1案件のシミュレーション表。単体で見せたいとき</td></tr>' +
+    '<tr><td>📉 放置リスク比較</td><td>「何もしない場合」との比較。リフォートを勧める根拠に使います</td></tr>' +
+    '<tr><td>📦 リフォート提案（一括）</td><td>表紙／月別発電／3モデル／お見積／リスク／参考事例 を一括PDF出力</td></tr>' +
+    '</table>',
+    '<p>一括出力では、出すシートをチェックで選べます。<b>お見積を含める場合は、先に「⑩ お見積・発電シミュレーション」で明細を作るか、Excel取込をしてください。</b>明細が空のままだと警告が出ます。</p>',
+    '<div class="mwarn"><b>担当者名の表示</b><br>お客様に直接お渡しするPDFでは、担当者表示のチェックを外すか、正しい担当者になっているかを必ず確認してから出力してください。</div>',
+  ]},
+
+  { id:'excel', t:'⑦ Excel取込とURL連携', b:[
+    '<p><b>📥 Excel取込</b>は2か所にあります。ヘッダーの取込は「新規案件として取り込む」、案件画面の中の取込は「開いている案件に上書きで取り込む」です。間違えると別案件が増えるので注意してください。</p>',
+    '<p>案件基本情報には、原本のURLを貼る欄があります。</p>',
+    '<table class="mtbl"><tr><th>欄</th><th>貼るもの</th></tr>' +
+    '<tr><td>位置URL</td><td>Googleマップのリンク。マップタブのピンに使われます</td></tr>' +
+    '<tr><td>DDチェックリスト（原本URL）</td><td>DDシートの原本。現調担当と共有するもの</td></tr>' +
+    '<tr><td>RFSKシミュレーション（原本URL）</td><td>シミュレーションシートの原本</td></tr>' +
+    '<tr><td>RFSK連携（GAS URL）</td><td>シートとアプリを双方向同期させるURL</td></tr>' +
+    '</table>',
+    '<div class="mnote">URLを貼っておくと、後から誰が見ても原本にたどり着けます。「あのシートどこですか」を無くすための欄なので、必ず埋めてください。</div>',
+  ]},
+
+  { id:'manage', t:'⑧ 案件一覧・台帳・マップ', b:[
+    '<p><b>ステージ</b>は次の7段階です。実態に合わせてこまめに動かしてください。ダッシュボードと台帳の集計はこのステージを見ています。</p>',
+    '<p class="mchips">ヒアリング → 一次判定 → DD・現調 → 提案中 → 契約交渉 → 成約 ／ 見送り</p>',
+    '<table class="mtbl"><tr><th>タブ</th><th>用途</th></tr>' +
+    '<tr><td>ダッシュボード</td><td>ステージ別の件数・金額。今どこに案件が溜まっているかを見る</td></tr>' +
+    '<tr><td>案件一覧</td><td>検索・絞り込み。日々の作業はここが起点</td></tr>' +
+    '<tr><td>台帳</td><td>一覧表形式での集計。会議資料に使えます</td></tr>' +
+    '<tr><td>マップ</td><td>所在地からピン表示。エリアの偏りや現調のまとめ方を考えるとき</td></tr>' +
+    '</table>',
+    '<p><b>次アクションと期限</b>は必ず入れてください。期限が近い・過ぎている案件にはバッジが付きます。空欄の案件は誰も動かしていない案件と同じです。</p>',
+  ]},
+
+  { id:'data', t:'⑨ データの保存とバックアップ', b:[
+    '<div class="mwarn"><b>まずこれだけは</b><br>データはこのブラウザに保存されています。<b>別のPC・別のブラウザからは見えません。</b>共有が必要なら「☁ 同期設定」を使ってください（管理者のみ）。</div>',
+    '<table class="mtbl"><tr><th>ボタン</th><th>用途</th></tr>' +
+    '<tr><td>バックアップ</td><td>全案件をファイルに書き出します。週1回は取ってください</td></tr>' +
+    '<tr><td>復元</td><td>バックアップファイルから戻します</td></tr>' +
+    '<tr><td>☁ 同期設定</td><td>クラウド同期の設定（管理者のみ表示）</td></tr>' +
+    '</table>',
+    '<p>ヘッダー左の丸い表示が同期状態です。<b>● 共有中</b>ならクラウドと繋がっています。<b>● ローカル</b>のときはこのブラウザにしか残らないので、こまめにバックアップを取ってください。</p>',
+  ]},
+
+  { id:'trouble', t:'⑩ うまくいかないとき', b:[
+    '<table class="mtbl"><tr><th>症状</th><th>原因と対処</th></tr>' +
+    '<tr><td>IRRが「—」のまま</td><td>⑦の<b>仕入原価</b>が未入力です。ここが入らないと判定できません</td></tr>' +
+    '<tr><td>残FIT年数が出ない</td><td>①の<b>連系日</b>が空か、日付として読めない形式です</td></tr>' +
+    '<tr><td>設備利用率が変な数字</td><td>④の実績発電量（kWh/年）と③のパネル容量DC（kW）の単位を確認してください</td></tr>' +
+    '<tr><td>お見積シートが空で出る</td><td>⑩の見積明細が未作成です。Excel取込か⑩で明細を作ってください</td></tr>' +
+    '<tr><td>マップにピンが出ない</td><td>所在地が空か、住所として読めない表記。位置URLを貼ると確実です</td></tr>' +
+    '<tr><td>入力が消えた</td><td>保存を押さずに閉じた可能性。「バックアップ」から復元してください</td></tr>' +
+    '<tr><td>ヘッダーの文字が2行になる</td><td>2026.08.08で修正済みです。ブラウザで<b>Ctrl+Shift+R</b>（Macは⌘+Shift+R）を押して再読み込みしてください</td></tr>' +
+    '<tr><td>画面が古いまま</td><td>同上。強制再読み込みで最新版になります</td></tr>' +
+    '</table>',
+    '<div class="mgo">ここに無い症状は、画面のスクリーンショットと「何をしたらそうなったか」を添えてChatworkにご連絡ください。</div>',
+  ]},
+
+  { id:'log', t:'⑪ 更新履歴', b:['__CHANGELOG__'] },
+];
+
+const MAN_SEEN_KEY='rf_manual_seen_version';
+function manualIsNew(){ try{ return localStorage.getItem(MAN_SEEN_KEY)!==APP_VERSION; }catch(e){ return false; } }
+function markManualSeen(){ try{ localStorage.setItem(MAN_SEEN_KEY,APP_VERSION); }catch(e){} }
+function renderVerChip(){
+  const c=$('#verChip'); if(!c) return;
+  c.innerHTML='v'+APP_VERSION+(manualIsNew()?'<span class="nd"></span>':'');
+  c.title = manualIsNew()? '更新があります。クリックで更新履歴を開きます' : '活用マニュアル（更新履歴）を開く';
+}
+let manQuery='';
+function renderManual(){
+  const v=$('#view-man'); if(!v) return;
+  const seenBefore=localStorage.getItem(MAN_SEEN_KEY);
+  const chg='<div>'+CHANGELOG.map(([d,items],i)=>
+    '<div class="mlogd'+((i===0&&seenBefore!==APP_VERSION)?' new':'')+'"><b>'+esc(d)+
+    ((i===0&&seenBefore!==APP_VERSION)?'　新着':'')+'</b><ul>'+items.map(x=>'<li>'+x+'</li>').join('')+'</ul></div>'
+  ).join('')+'</div>';
+
+  const q=manQuery.trim().toLowerCase();
+  const secs=MANUAL.map(m=>({id:m.id,t:m.t,html:m.b.map(x=> x==='__CHANGELOG__'? chg : x).join('')}))
+    .filter(m=> !q || (m.t+m.html).toLowerCase().includes(q));
+
+  v.innerHTML=
+    '<div class="page-h"><h1>活用マニュアル</h1><span class="sub">ReFort 査定スタジオ　v'+APP_VERSION+'　※アプリを更新すると、このマニュアルも自動で最新になります</span></div>'
+   +'<div class="man-bar"><input id="manQ" placeholder="🔍 マニュアル内を検索（例：IRR、赤旗、バックアップ、見積）" value="'+esc(manQuery)+'">'
+   +'<span class="man-ver">バージョン '+APP_VERSION+'</span></div>'
+   +'<div class="man-nav" id="manNav"></div><div id="manBody"></div>';
+
+  $('#manNav').innerHTML=secs.map(m=>'<button data-go="ms_'+m.id+'">'+m.t+'</button>').join('');
+  $('#manBody').innerHTML=secs.length
+    ? secs.map(m=>'<div class="mcard" id="ms_'+m.id+'"><h3>'+m.t+'</h3>'+m.html+'</div>').join('')
+    : '<div class="mcard"><p>該当する項目がありませんでした。別の言葉でお試しください。</p></div>';
+
+  $$('#manNav button').forEach(b=>b.onclick=()=>{
+    const t=document.getElementById(b.dataset.go); if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+  const qi=$('#manQ');
+  qi.oninput=e=>{ manQuery=e.target.value; const pos=e.target.selectionStart; renderManual();
+    const n=$('#manQ'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(err){} } };
+
+  markManualSeen(); renderVerChip();
+}
+
 /* ==================== wiring ==================== */
 $$('nav.tabs button').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;nav(v);
-  if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='ledger')renderLedger();else if(v==='map')renderMap();});
+  if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='ledger')renderLedger();
+  else if(v==='map')renderMap();else if(v==='man')renderManual();});
+$('#verChip').onclick=()=>{ nav('man'); renderManual();
+  const t=document.getElementById('ms_log'); if(t) setTimeout(()=>t.scrollIntoView({behavior:'smooth',block:'start'}),60); };
+renderVerChip();
 $('#btnNew').onclick=newDeal;
 $('#btnExport').onclick=exportBackup;
 $('#btnImport').onclick=()=>$('#fileImport').click();
