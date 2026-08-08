@@ -203,6 +203,7 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
       <div class="card"><h3>育成進捗（参加率・課題完了率 平均）</h3><div id="growthBars"></div></div>
     </div>
     <div class="card"><h3>要対応者リスト <span class="tag">危険／注意</span></h3><div id="actionList"></div></div>
+    <div class="card"><h3>入社後 定着・活躍サマリー <span class="tag">3年目90% / 5年目70%</span></h3><div id="dashRet"></div></div>
   </section>
 
   <!-- PEOPLE -->
@@ -249,6 +250,43 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
     <p class="lead">リスクスコアの内訳と、異常値（参加率0%・課題0%・30日以上未接触・課題遅延・承諾日未入力）を自動抽出します。</p>
     <div class="card"><h3>辞退リスク（要因内訳）</h3><div id="alertTbl"></div></div>
     <div class="card"><h3>異常値ログ <span class="tag">自動検知</span></h3><div id="anomalyTbl"></div></div>
+  </section>
+
+  <!-- RETENTION KPI -->
+  <section class="page" id="p-ret">
+    <h2 class="title">定着・活躍KPI</h2>
+    <p class="lead">「入社ではなく活躍・貢献をゴールにする」ための現在地。3年目・5年目定着率の目標と実績、部署別定着率、選考移行率・内定辞退率・満足度を可視化します。</p>
+    <div class="grid kpis" id="retKpis"></div>
+    <div class="card"><h3>目標に対する現在地 <span class="tag">達成度インジケーター</span></h3><div id="retGauge"></div></div>
+    <div class="subgrid">
+      <div class="card"><h3>目標・実績の入力</h3><div id="retInputs"></div></div>
+      <div class="card"><h3>部署別 定着率</h3><div id="retDept"></div></div>
+    </div>
+    <div class="card"><h3>入社年次別 在籍状況 <span class="tag">自動集計</span></h3><div id="retCohortTbl"></div></div>
+  </section>
+
+  <!-- MEMBER KARTE (入社後) -->
+  <section class="page" id="p-member">
+    <h2 class="title">キャリアビジョン・カルテ（入社後）</h2>
+    <p class="lead">選考→内定者→入社後を分断せず一元管理。ドリーム・キャンバス、面談・イベント履歴、同期会、親御さん連携を1枚に集約します。</p>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn gold" onclick="addMember()">＋ 社員を追加</button>
+      <button class="btn ghost" onclick="promoteFromNaiteisha()">内定者カルテから引き継ぐ</button>
+      <select class="in" id="memberSel" style="max-width:300px" onchange="selMember(this.value)"></select>
+      <button class="btn ghost right" onclick="copyMemberCard()">引継ぎカードをコピー</button>
+    </div>
+    <div id="memberBody"></div>
+  </section>
+
+  <!-- RETENTION ALERT -->
+  <section class="page" id="p-retalert">
+    <h2 class="title">離職・不調アラート</h2>
+    <p class="lead">「悩みの放置」「目標設定の空白」をシステムで検知します。面談未実施・次回日程未設定・ドリームキャンバス空白・同期会欠席・親御さん連携未実施を自動抽出します。</p>
+    <div class="card"><h3>要対応アラート <span class="tag">自動検知</span></h3>
+      <div class="row" style="margin-bottom:10px"><button class="btn ghost sm" onclick="copyRetAlerts()">アラート一覧をコピー（Chatwork通知用）</button><span class="muted small right" id="retAlertCount"></span></div>
+      <div id="retAlertTbl"></div>
+    </div>
+    <div class="card"><h3>検知ルール</h3><div id="retRuleList"></div></div>
   </section>
 
   <!-- RECRUITING -->
@@ -336,7 +374,7 @@ let session=null,userEmail='',lastSync={},syncTimer=null;
 
 function stateToRows(){return{
   cohort_28:S.cohorts['28'], cohort_27:S.cohorts['27'],
-  funnel:S.funnel, tl:S.tl, gosetsu:S.gosetsu,
+  funnel:S.funnel, tl:S.tl, gosetsu:S.gosetsu, retention:S.retention,
   settings:{baseDate:S.baseDate,cohort:S.cohort,weights:S.weights,thresholds:S.thresholds,lookerUrl:S.lookerUrl,curYear:S.curYear}
 };}
 function applyRows(r){
@@ -345,6 +383,7 @@ function applyRows(r){
   if(r.funnel)S.funnel=r.funnel;
   if(r.tl)S.tl=r.tl;
   if(r.gosetsu)S.gosetsu=r.gosetsu;
+  if(r.retention)S.retention=r.retention;
   if(r.settings){const t=r.settings;
     if(t.baseDate)S.baseDate=t.baseDate; if(t.cohort)S.cohort=t.cohort;
     S.weights=Object.assign({...DEFAULT_WEIGHTS},t.weights||{});
@@ -504,7 +543,8 @@ function freshState(){
     weights:{...DEFAULT_WEIGHTS},thresholds:{danger:75,warn:50},
     lookerUrl:'https://datastudio.google.com/u/0/reporting/a2dabfa6-afc8-429f-a775-c34c6a702b04/page/hnigD',
     cohorts:{'28':seedCohort28(),'27':emptyCohort()},
-    funnel:seedFunnel(), tl:seedTL(), gosetsu:seedGosetsu(), curYear:'27卒'};
+    funnel:seedFunnel(), tl:seedTL(), gosetsu:seedGosetsu(), curYear:'27卒',
+    retention:freshRetention()};
 }
 function load(){try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);return migrate(o);}}catch(e){}return freshState();}
 function migrate(o){const f=freshState();return Object.assign(f,o,{weights:Object.assign({...DEFAULT_WEIGHTS},o.weights||{}),thresholds:Object.assign({danger:75,warn:50},o.thresholds||{})});}
@@ -546,12 +586,12 @@ function lvClass(lv){return lv==='危険'?'danger':lv==='注意'?'warn':'ok';}
 function pct(x){return x==null?'—':Math.round(x*100)+'%';}
 
 /* ---------- render ---------- */
-const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-karte','内定者カルテ'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-recruit','新卒採用進捗'],['p-guide','使い方'],['p-settings','設定']];
-const APP_VERSION='2026.07 v1.6（カルテ・月次面談取込・繰り返し開催・個別期限・人物像5項目・対象期移動）';
+const TABS=[['p-dash','ダッシュボード'],['p-people','内定者一覧'],['p-karte','内定者カルテ'],['p-events','イベント・研修'],['p-tasks','課題進捗'],['p-alerts','辞退アラート'],['p-ret','定着KPI'],['p-member','入社後カルテ'],['p-retalert','定着アラート'],['p-recruit','新卒採用進捗'],['p-guide','使い方'],['p-settings','設定']];
+const APP_VERSION='2026.08 v1.7（＋定着・活躍ナビゲーター：定着率KPI／入社後キャリアビジョン・カルテ／離職・不調アラート）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';TABS.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(i===0)b.classList.add('active');b.dataset.id=t[0];n.appendChild(b);});}
 function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));renderAll();}
 
-function renderAll(){normalizeAll();renderDash();renderPeople();renderKarte();renderEvents();renderTasks();renderAlerts();renderRecruit();renderGuide();renderSettings();}
+function renderAll(){normalizeAll();renderDash();renderPeople();renderKarte();renderEvents();renderTasks();renderAlerts();renderRecruit();renderRet();renderMember();renderRetAlerts();renderGuide();renderSettings();}
 
 function renderDash(){
   const ppl=cur().people;const scored=ppl.map(p=>({p,r:riskScore(p)}));
@@ -802,7 +842,7 @@ function normalizePerson(p){
   p.handoff=p.handoff||{video:'',q1:'',q2:'',q3:'',q4:'',q5:''};
   return p;
 }
-function normalizeAll(){['28','27'].forEach(c=>{if(S.cohorts[c]&&S.cohorts[c].people)S.cohorts[c].people.forEach(normalizePerson);});}
+function normalizeAll(){['28','27'].forEach(c=>{if(S.cohorts[c]&&S.cohorts[c].people)S.cohorts[c].people.forEach(normalizePerson);});normalizeRet();}
 
 /* ---- アースコムの求める人物像【5項目】 ---- */
 const JINBUTSU=[
@@ -1186,12 +1226,38 @@ function renderGuide(){
         '合同説明会は開催日ごとに実動員を入力（<b>13名未達は赤＝優先動員</b>）。TOPLIVE動員リストの状況を更新。'])
   )}
 
-  ${g('11','担当変更時（必須）',
+  ${g('11','定着・活躍KPIタブ（入社後）',
+    `<p class="g-p">「入社ではなく<b>活躍・貢献</b>をゴールにする」ための現在地を、すべて数字で見ます。</p>`+
+    ul(['<b>3年目定着率：現状84% → 目標90%</b>／<b>5年目定着率：現状62% → 目標70%</b>を、達成度インジケーターで常時表示。',
+        '現在地は「目標・実績の入力」に手入力できます。<b>空欄にすると入社後カルテの登録データから自動計算</b>します（退職日と入社日で判定）。',
+        '新卒選考移行率（エントリー→内定承諾）・内定辞退率は、新卒採用進捗タブのファネル数値から自動連動。',
+        '部署別定着率／入社年次別の在籍状況も自動集計されます。'])+
+    `<div class="g-note ok">ダッシュボード（トップ）にも定着率と入社後アラート件数のサマリーが出ます。毎月の採用PDCA会議は、ここを開いて「誰が・いつまでに・何をするか」を決めてください。</div>`
+  )}
+
+  ${g('12','キャリアビジョン・カルテタブ（入社後／一元管理）',
+    `<p class="g-p">選考時の学生カルテ→内定者カルテ→<b>入社後カルテ</b>までデータを分断させません。</p>`+
+    ol(['入社したら<b>「内定者カルテから引き継ぐ」</b>を押し、番号を選ぶだけ。大学・担当・人物像5項目・口説き／NGポイントがそのまま引き継がれます。',
+        '入社日・配属部署・上司を入力する（←定着率の自動計算に使います）。',
+        '<b>②ドリーム・キャンバス（夢描きシート）</b>：毎月の面談で「1年後の姿／3年後の姿／今月やること／1か月前からの成長」を更新。',
+        '<b>③面談・イベント履歴</b>：入社後半年間の毎月面談に加え、「現場体験の目的共有面談」「配属理由を伝える3者面談」も種別を選んで記録。必ず<b>次回面談日</b>を入れる。',
+        '<b>④同期会・社内イベント</b>：卒年別の同期会を開催日ごとに参加／欠席で記録。',
+        '<b>⑤親御さん連携</b>：仕事風景の写真収集状況と送付履歴を管理。<b>「ニュースレター素案を生成」</b>で、その社員の夢描きシート・面談内容から親御さん向け文面の下書きを自動作成します。'])+
+    `<div class="g-note">現場上司の方は、配属された若手の<b>ドリーム・キャンバス</b>を事前に確認し、「なぜこの仕事を経験するのか」の意味づけに使ってください。面談後は本人の表情・悩みを入力すると採用チームにそのまま共有されます。</div>`
+  )}
+
+  ${g('13','離職・不調アラートタブ（毎週確認）',
+    ul(['入力は不要。<b>面談未実施／次回日程未設定・予定日超過／ドリーム・キャンバスの空白・未更新／同期会の欠席／親御さん連携なし／満足度60点未満</b>を自動検知します。',
+        '一覧の氏名をクリックすると、その社員のカルテに直接飛びます。',
+        '<b>「アラート一覧をコピー」</b>で、担当者へChatworkにそのまま貼れる通知文が作れます。'])
+  )}
+
+  ${g('14','担当変更時（必須）',
     ol(['<b>5分の引継ぎ動画</b>を撮り、URLをカルテに登録（①どんな学生か②悩み③辞退リスク④入社決定要因⑤次の担当）。',
         'カルテの<b>「引継ぎカードをコピー」</b>でサマリーを出し、後任へChatworkで共有する。'])
   )}
 
-  ${g('12','守ってほしいこと',
+  ${g('15','守ってほしいこと',
     ul(['データは全員共有。<b>削除は全員に反映</b>されるため慎重に（消す前に設定タブでJSONバックアップ）。',
         '共有PCは使用後に必ず<b>ログアウト</b>。ログイン情報は社内限り。',
         '週1回めやすで、設定タブ →「JSONバックアップ書き出し」で控えを保存。'])
@@ -1267,6 +1333,403 @@ function lastMendan(p){const a=(p.mendan||[]).filter(m=>m.date).slice().sort((x,
 function mendanUpd(pid,i,f,v){const p=cur().people.find(x=>x.id===pid);p.mendan[i][f]=v;save();renderKarte();renderDash();}
 function mendanDel(pid,i){const p=cur().people.find(x=>x.id===pid);p.mendan.splice(i,1);save();renderKarte();}
 function copyHandoff(){const p=cur().people.find(x=>x.id===S.karteSel);if(!p){return;}const t=handoffText(p);navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('引継ぎカードをコピーしました。Chatwork等に貼り付けできます。'),()=>{});}
+
+/* ==================================================================
+   定着・活躍ナビゲーター（入社後）
+   ①定着率KPI ②キャリアビジョン・カルテ ③離職・不調アラート
+   ================================================================== */
+const RET_DEPT=['','営業','商品企画','アセット','施工管理','管理部','フィットネス','その他'];
+const RET_MTYPE=['月次面談（入社半年 毎月）','現場体験の目的共有面談','配属理由を伝える3者面談','現場面談','キャリア面談','その他'];
+const RET_PKIND=['入社後ニュース送付','仕事風景の写真収集','電話・手紙','その他'];
+
+function freshRetention(){return{targets:{y3:90,y5:70,sat1:80,sat3:80},actual:{y3:84,y5:62,sat1:'',sat3:''},members:[],sel:''};}
+
+function normalizeRet(){
+  if(!S.retention)S.retention=freshRetention();
+  const R=S.retention;
+  R.targets=Object.assign({y3:90,y5:70,sat1:80,sat3:80},R.targets||{});
+  R.actual=Object.assign({y3:84,y5:62,sat1:'',sat3:''},R.actual||{});
+  if(!Array.isArray(R.members))R.members=[];
+  R.members.forEach(m=>{
+    m.id=m.id||uid('m');m.name=m.name||'';m.joinDate=m.joinDate||'';m.dept=m.dept||'';m.mgr=m.mgr||'';m.owner=m.owner||'';
+    m.status=m.status||'在籍';m.leaveDate=m.leaveDate||'';m.leaveReason=m.leaveReason||'';
+    m.univ=m.univ||'';m.fromPid=m.fromPid||'';m.carry=m.carry||'';
+    if(m.sat1==null)m.sat1='';if(m.sat3==null)m.sat3='';
+    if(!Array.isArray(m.dream))m.dream=[];
+    m.dream.forEach(d=>{d.id=d.id||uid('d');d.ym=d.ym||'';d.y1=d.y1||'';d.y3=d.y3||'';d.now=d.now||'';d.growth=d.growth||'';d.note=d.note||'';});
+    if(!Array.isArray(m.mendan))m.mendan=[];
+    m.mendan.forEach(x=>{x.id=x.id||uid('rm');x.date=x.date||'';x.type=x.type||RET_MTYPE[0];x.owner=x.owner||'';x.next=x.next||'';x.topic=x.topic||'';x.worry=x.worry||'';x.face=x.face||'';x.note=x.note||'';});
+    if(!Array.isArray(m.douki))m.douki=[];
+    m.douki.forEach(x=>{x.id=x.id||uid('dk');x.date=x.date||'';x.name=x.name||'同期会';x.st=x.st||'未定';});
+    m.parent=Object.assign({photo:'未収集',note:''},m.parent||{});
+    if(!Array.isArray(m.parent.log))m.parent.log=[];
+    m.parent.log.forEach(x=>{x.id=x.id||uid('pn');x.date=x.date||'';x.kind=x.kind||RET_PKIND[0];x.note=x.note||'';});
+  });
+  if(!R.sel||!R.members.find(m=>m.id===R.sel))R.sel=R.members[0]?R.members[0].id:'';
+}
+
+/* ---------- calc ---------- */
+function retYears(m){if(!m.joinDate)return null;const d=daysBetween(m.joinDate,S.baseDate);return d==null?null:Math.floor(d/365.25);}
+function retYearLabel(m){const y=retYears(m);return y==null?'—':(y+1)+'年目';}
+function tenureRate(yrs){
+  const R=S.retention,base=new Date(S.baseDate);
+  const tgt=R.members.filter(m=>{if(!m.joinDate)return false;const d=new Date(m.joinDate);d.setFullYear(d.getFullYear()+yrs);return d<=base;});
+  if(!tgt.length)return null;
+  const stay=tgt.filter(m=>{if(m.status!=='退職')return true;if(!m.leaveDate)return false;const d=new Date(m.joinDate);d.setFullYear(d.getFullYear()+yrs);return new Date(m.leaveDate)>=d;});
+  return{n:tgt.length,k:stay.length,rate:stay.length/tgt.length};
+}
+function retNow(k){
+  const R=S.retention,man=R.actual[k];
+  if(man!==''&&man!=null&&!isNaN(Number(man)))return{v:Number(man),src:'入力値'};
+  const a=(k==='y3')?tenureRate(3):(k==='y5')?tenureRate(5):null;
+  if(a)return{v:Math.round(a.rate*1000)/10,src:'自動計算（'+a.k+'/'+a.n+'名）'};
+  return{v:null,src:'未入力'};
+}
+function retSat(k){
+  const R=S.retention,man=R.actual[k];
+  if(man!==''&&man!=null&&!isNaN(Number(man)))return{v:Number(man),src:'入力値'};
+  const f=k==='sat1'?'sat1':'sat3';
+  const xs=R.members.map(m=>Number(m[f])).filter(x=>!isNaN(x)&&x>0);
+  if(xs.length)return{v:Math.round(avg(xs)*10)/10,src:'カルテ平均（'+xs.length+'名）'};
+  return{v:null,src:'未入力'};
+}
+function deptRates(){
+  const g={};S.retention.members.forEach(m=>{const d=m.dept||'（未設定）';g[d]=g[d]||{n:0,k:0};g[d].n++;if(m.status!=='退職')g[d].k++;});
+  return Object.keys(g).map(d=>({dept:d,n:g[d].n,k:g[d].k,rate:g[d].n?g[d].k/g[d].n:null})).sort((a,b)=>b.n-a.n);
+}
+function joinYearRows(){
+  const g={};S.retention.members.forEach(m=>{const y=m.joinDate?m.joinDate.slice(0,4):'（未入力）';g[y]=g[y]||{n:0,k:0};g[y].n++;if(m.status!=='退職')g[y].k++;});
+  return Object.keys(g).sort().map(y=>({y,n:g[y].n,k:g[y].k,rate:g[y].n?g[y].k/g[y].n:null}));
+}
+function funnelRates(){
+  const Y=(S.funnel&&S.funnel.years)?S.funnel.years[S.curYear]:null;if(!Y||!Y.v)return{move:null,decline:null};
+  const v=Y.v,ent=(v['エントリー']||{})['合計']||0,acc=(v['内定承諾']||{})['承諾']||0;
+  const not=(v['内定']||{})['通知']||0,dec=((v['内定']||{})['辞退']||0)+((v['内定承諾']||{})['辞退']||0);
+  return{move:ent?acc/ent:null,decline:not?dec/not:null,ent,acc,not,dec};
+}
+
+/* ---------- ① 定着率・KPIダッシュボード ---------- */
+function retBar(lab,now,target,src){
+  const p=(now==null||!target)?null:Math.min(1.2,now/target);
+  const cls=p==null?'':p>=1?'ok':p>=0.9?'warn':'danger';
+  return `<div style="margin:12px 0">
+    <div class="row small" style="justify-content:space-between"><span><b>${lab}</b> <span class="muted">${esc(src||'')}</span></span>
+    <b>現在地 ${now==null?'—':now+'%'} ／ 目標 ${target}%　<span class="pill ${cls}">達成度 ${p==null?'—':Math.round((now/target)*100)+'%'}</span></b></div>
+    <div class="bar"><i style="width:${p==null?0:Math.round(Math.min(1,p)*100)}%"></i></div></div>`;
+}
+function renderRet(){
+  normalizeRet();
+  const R=S.retention,fr=funnelRates();
+  const n3=retNow('y3'),n5=retNow('y5'),s1=retSat('sat1'),s3=retSat('sat3');
+  const alive=R.members.filter(m=>m.status!=='退職').length;
+  const al=retAlerts();
+  const k=document.getElementById('retKpis');
+  if(k)k.innerHTML=
+    kpi('3年目定着率（目標'+R.targets.y3+'%）',(n3.v==null?'—':n3.v+'%'))+
+    kpi('5年目定着率（目標'+R.targets.y5+'%）',(n5.v==null?'—':n5.v+'%'))+
+    kpi('登録メンバー（在籍）',alive+'名')+
+    kpi('新卒選考移行率（'+esc(S.curYear||'')+'）',(fr.move==null?'—':Math.round(fr.move*1000)/10+'%'))+
+    kpi('内定辞退率（'+esc(S.curYear||'')+'）',(fr.decline==null?'—':Math.round(fr.decline*1000)/10+'%'))+
+    kpi('要対応アラート',al.length+'件');
+  const g=document.getElementById('retGauge');
+  if(g)g.innerHTML=
+    retBar('3年目定着率',n3.v,R.targets.y3,n3.src)+
+    retBar('5年目定着率（4・5年目の離職を食い止める）',n5.v,R.targets.y5,n5.src)+
+    retBar('入社1年後 満足度',s1.v,R.targets.sat1,s1.src)+
+    retBar('入社3年後 満足度',s3.v,R.targets.sat3,s3.src)+
+    `<p class="hint">「ただの願い事」で終わらせないため、目標に対する達成度を常時表示します。現在地は入力値が優先され、未入力の場合は入社後カルテの登録データから自動計算します。</p>`;
+  const inp=document.getElementById('retInputs');
+  if(inp)inp.innerHTML=`<div class="kgrid">
+    ${retField('actual.y3','3年目定着率 現在地(%)',R.actual.y3)}${retField('targets.y3','3年目定着率 目標(%)',R.targets.y3)}
+    ${retField('actual.y5','5年目定着率 現在地(%)',R.actual.y5)}${retField('targets.y5','5年目定着率 目標(%)',R.targets.y5)}
+    ${retField('actual.sat1','入社1年後 満足度 現在地',R.actual.sat1)}${retField('targets.sat1','入社1年後 満足度 目標',R.targets.sat1)}
+    ${retField('actual.sat3','入社3年後 満足度 現在地',R.actual.sat3)}${retField('targets.sat3','入社3年後 満足度 目標',R.targets.sat3)}
+    </div><p class="hint">現在地を空欄にすると、登録メンバーの実データから自動計算した値を表示します。</p>`;
+  const dp=document.getElementById('retDept');
+  if(dp){const rows=deptRates();
+    dp.innerHTML=rows.length?`<table><thead><tr><th>部署</th><th style="width:70px">人数</th><th style="width:70px">在籍</th><th style="width:160px">定着率</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${esc(r.dept)}</td><td>${r.n}</td><td>${r.k}</td><td><div class="row small" style="gap:8px"><b>${pct(r.rate)}</b><div class="bar" style="flex:1"><i style="width:${Math.round((r.rate||0)*100)}%"></i></div></div></td></tr>`).join('')}
+      </tbody></table>`:'<p class="muted small">入社後カルテに社員を登録すると、部署別の定着率が自動集計されます。</p>';}
+  const ct=document.getElementById('retCohortTbl');
+  if(ct){const rows=joinYearRows();
+    ct.innerHTML=rows.length?`<table><thead><tr><th>入社年</th><th style="width:80px">人数</th><th style="width:80px">在籍</th><th style="width:80px">退職</th><th style="width:100px">在籍率</th><th>メンバー</th></tr></thead><tbody>
+      ${rows.map(r=>{const ms=S.retention.members.filter(m=>(m.joinDate?m.joinDate.slice(0,4):'（未入力）')===r.y);
+        return `<tr><td><b>${esc(r.y)}</b></td><td>${r.n}</td><td>${r.k}</td><td>${r.n-r.k}</td><td><b>${pct(r.rate)}</b></td>
+        <td class="small">${ms.map(m=>`<span class="pill ${m.status==='退職'?'danger':'ok'}">${esc(m.name)}</span>`).join(' ')}</td></tr>`;}).join('')}
+      </tbody></table>`:'<p class="muted small">まだ登録がありません。</p>';}
+  renderDashRet();
+}
+function retField(path,lab,val){return `<div class="kfield"><label>${lab}</label><input class="in" type="number" value="${esc(val==null?'':val)}" onchange="retSet('${path}',this.value)"></div>`;}
+function retSet(path,v){normalizeRet();const ps=path.split('.');S.retention[ps[0]][ps[1]]=(v===''?'':Number(v));save();renderRet();}
+function renderDashRet(){
+  const el=document.getElementById('dashRet');if(!el)return;
+  normalizeRet();
+  const n3=retNow('y3'),n5=retNow('y5'),al=retAlerts(),R=S.retention;
+  const d=al.filter(a=>a.lv==='危険').length,w=al.filter(a=>a.lv==='注意').length;
+  el.innerHTML=`<div class="row small" style="gap:14px;flex-wrap:wrap">
+    <span class="pill ${n3.v!=null&&n3.v>=R.targets.y3?'ok':'warn'}">3年目定着率 ${n3.v==null?'—':n3.v+'%'} / 目標 ${R.targets.y3}%</span>
+    <span class="pill ${n5.v!=null&&n5.v>=R.targets.y5?'ok':'warn'}">5年目定着率 ${n5.v==null?'—':n5.v+'%'} / 目標 ${R.targets.y5}%</span>
+    <span class="pill ${d?'danger':w?'warn':'ok'}">入社後アラート 危険${d}件・注意${w}件</span>
+    <button class="btn ghost sm" onclick="show('p-retalert')">アラートを見る</button>
+    <button class="btn ghost sm" onclick="show('p-ret')">定着KPIを見る</button></div>`;
+}
+
+/* ---------- ③ 離職・不調アラート ---------- */
+function retAlerts(){
+  normalizeRet();
+  const out=[],base=S.baseDate,ym=String(base).slice(0,7);
+  S.retention.members.filter(m=>m.status!=='退職').forEach(m=>{
+    const yr=retYears(m);const push=(lv,t,act)=>out.push({m,lv,t,act});
+    const ms=(m.mendan||[]).filter(x=>x.date).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const last=ms[0];
+    if(!last)push('危険','面談が1度も記録されていません','今週中に初回面談を実施し、カルテに記録する');
+    else{
+      const d=daysBetween(last.date,base);
+      if(d!=null&&d>30)push((yr!=null&&yr<1)?'危険':'注意',`面談が${d}日間 未実施`,'本日中に日程を設定し面談を実施する');
+      if(!last.next)push('注意','次回面談日が未設定','面談時に必ず次回日程を決めて入力する');
+      else{const od=daysBetween(last.next,base);if(od!=null&&od>0)push('危険',`面談予定日（${esc(last.next)}）を${od}日超過`,'当月中に必ず実施する（リスケ時も当月完了）');}
+    }
+    const dm=(m.dream||[]).filter(x=>x.ym).slice().sort((a,b)=>(b.ym||'').localeCompare(a.ym||''));
+    if(!dm.length)push('注意','ドリーム・キャンバス 未作成','今月分を作成し、1年後・3年後の姿を記入する');
+    else{
+      if(dm[0].ym<ym)push('注意',`ドリーム・キャンバスが ${esc(dm[0].ym)} 以降 未更新`,'今月の面談で更新する');
+      if(!dm[0].y1||!dm[0].y3)push('危険','目標（1年後／3年後の姿）が空白','面談で本人に言語化してもらい記入する');
+    }
+    const ab=(m.douki||[]).filter(x=>x.st==='欠席').slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(ab.length)push('注意',`同期会・イベント欠席あり（直近 ${esc(ab[0].date||'日付未入力')}／${esc(ab[0].name||'')}）`,'欠席理由をヒアリングし、次回の参加を確認する');
+    const pl=((m.parent&&m.parent.log)||[]).filter(x=>x.date).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(!pl.length)push('注意','親御さんへの入社後ニュース 未送付','上司から仕事風景の写真を集め、ニュースを送付する');
+    else{const d=daysBetween(pl[0].date,base);if(d!=null&&d>90)push('注意',`親御さん連携が${d}日間なし`,'写真を収集し、入社後ニュースを送付する');}
+    const s1=Number(m.sat1),s3=Number(m.sat3);
+    if(m.sat1!==''&&!isNaN(s1)&&s1<60)push('危険',`入社1年後 満足度 ${s1}点（低）`,'幹部面談を実施し、要因を特定して手を打つ');
+    if(m.sat3!==''&&!isNaN(s3)&&s3<60)push('危険',`入社3年後 満足度 ${s3}点（低）`,'幹部面談を実施し、要因を特定して手を打つ');
+  });
+  return out.sort((a,b)=>(a.lv==='危険'?0:1)-(b.lv==='危険'?0:1));
+}
+function renderRetAlerts(){
+  const el=document.getElementById('retAlertTbl');if(!el)return;
+  const al=retAlerts();
+  const c=document.getElementById('retAlertCount');if(c)c.textContent='危険 '+al.filter(a=>a.lv==='危険').length+'件／注意 '+al.filter(a=>a.lv==='注意').length+'件';
+  el.innerHTML=al.length?`<table><thead><tr><th style="width:70px">レベル</th><th style="width:130px">対象者</th><th style="width:80px">年次</th><th style="width:100px">部署</th><th style="width:90px">担当</th><th>検知内容</th><th>対応（次の一手）</th></tr></thead><tbody>
+    ${al.map(a=>`<tr><td><span class="pill ${a.lv==='危険'?'danger':'warn'}">${a.lv}</span></td>
+      <td><a href="javascript:void(0)" onclick="selMember('${a.m.id}');show('p-member')"><b>${esc(a.m.name)}</b></a></td>
+      <td>${esc(retYearLabel(a.m))}</td><td>${esc(a.m.dept||'—')}</td><td>${esc(a.m.owner||a.m.mgr||'—')}</td>
+      <td>${a.t}</td><td class="muted">${esc(a.act)}</td></tr>`).join('')}
+    </tbody></table>`:'<p class="muted small">現在アラートはありません。良い状態です。</p>';
+  const r=document.getElementById('retRuleList');
+  if(r)r.innerHTML=`<ul class="g-list small">
+    <li><b>面談未実施</b>：直近面談から31日以上経過／一度も記録がない（入社1年目は「危険」判定）</li>
+    <li><b>次回面談日 未設定・予定日超過</b>：面談時に次回日程を決めるルールの未遵守を検知</li>
+    <li><b>ドリーム・キャンバス</b>：当月分が未更新／1年後・3年後の目標が空白</li>
+    <li><b>同期会・イベント欠席</b>：欠席の記録がある</li>
+    <li><b>親御さん連携</b>：入社後ニュース未送付／最終送付から90日超</li>
+    <li><b>満足度低下</b>：入社1年後・3年後の満足度が60点未満</li>
+  </ul><p class="hint">検知結果は上部の「アラート一覧をコピー」でChatworkの担当者へそのまま通知できます（本アプリはブラウザで動作するため、自動プッシュ通知の代わりにコピー通知の運用としています）。</p>`;
+}
+function copyRetAlerts(){
+  const al=retAlerts();
+  if(!al.length){alert('現在アラートはありません。');return;}
+  const t=['【入社後 定着・不調アラート】基準日 '+S.baseDate,''].concat(
+    al.map(a=>`■${a.lv}／${a.m.name}（${retYearLabel(a.m)}・${a.m.dept||'部署未設定'}・担当 ${a.m.owner||a.m.mgr||'未設定'}）\n　検知：${String(a.t).replace(/<[^>]*>/g,'')}\n　対応：${a.act}`)).join('\n');
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('アラート一覧をコピーしました。Chatworkに貼り付けてください。'),()=>{});
+}
+
+/* ---------- ② キャリアビジョン・カルテ（入社後） ---------- */
+function M(id){return S.retention.members.find(x=>x.id===id);}
+function selMember(id){normalizeRet();S.retention.sel=id;save();renderMember();}
+function addMember(){normalizeRet();const m={id:uid('m'),name:'新規 社員',joinDate:S.baseDate,dept:'',mgr:'',owner:'',status:'在籍',dream:[],mendan:[],douki:[],parent:{photo:'未収集',note:'',log:[]}};S.retention.members.push(m);S.retention.sel=m.id;save();normalizeRet();renderAll();show('p-member');}
+function delMember(id){if(!confirm('この社員のカルテを削除します。よろしいですか？'))return;S.retention.members=S.retention.members.filter(x=>x.id!==id);S.retention.sel='';save();renderAll();}
+function mset(id,path,v){const m=M(id);if(!m)return;const ps=path.split('.');let o=m;for(let i=0;i<ps.length-1;i++){o[ps[i]]=o[ps[i]]||{};o=o[ps[i]];}o[ps[ps.length-1]]=v;save();renderMember();renderRet();renderRetAlerts();}
+function mfld(id,path,lab,val,type){return `<div class="kfield"><label>${lab}</label><input class="in" type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="mset('${id}','${path}',this.value)"></div>`;}
+function mfsel(id,path,lab,val,opts){return `<div class="kfield"><label>${lab}</label><select class="in" onchange="mset('${id}','${path}',this.value)">${opt(opts,val)}</select></div>`;}
+function mfta(id,path,lab,val){return `<div class="kfield"><label>${lab}</label><textarea class="in" style="min-height:52px" onchange="mset('${id}','${path}',this.value)">${esc(val||'')}</textarea></div>`;}
+
+function dreamAdd(id){const m=M(id);m.dream.push({id:uid('d'),ym:String(S.baseDate).slice(0,7),y1:'',y3:'',now:'',growth:'',note:''});save();renderMember();renderRetAlerts();}
+function dreamUpd(id,i,f,v){M(id).dream[i][f]=v;save();renderMember();renderRetAlerts();}
+function dreamDel(id,i){if(!confirm('この夢描きシートを削除しますか？'))return;M(id).dream.splice(i,1);save();renderMember();renderRetAlerts();}
+function rmAdd(id){const m=M(id);m.mendan.push({id:uid('rm'),date:S.baseDate,type:RET_MTYPE[0],owner:'',next:'',topic:'',worry:'',face:'',note:''});save();renderMember();renderRetAlerts();}
+function rmUpd(id,i,f,v){M(id).mendan[i][f]=v;save();renderMember();renderRetAlerts();}
+function rmDel(id,i){if(!confirm('この面談記録を削除しますか？'))return;M(id).mendan.splice(i,1);save();renderMember();renderRetAlerts();}
+function dkAdd(id){const m=M(id);m.douki.push({id:uid('dk'),date:S.baseDate,name:'同期会',st:'未定'});save();renderMember();renderRetAlerts();}
+function dkUpd(id,i,f,v){M(id).douki[i][f]=v;save();renderMember();renderRetAlerts();}
+function dkDel(id,i){M(id).douki.splice(i,1);save();renderMember();renderRetAlerts();}
+function pnAdd(id){const m=M(id);m.parent.log.push({id:uid('pn'),date:S.baseDate,kind:RET_PKIND[0],note:''});save();renderMember();renderRetAlerts();}
+function pnUpd(id,i,f,v){M(id).parent.log[i][f]=v;save();renderMember();renderRetAlerts();}
+function pnDel(id,i){M(id).parent.log.splice(i,1);save();renderMember();renderRetAlerts();}
+
+function promoteFromNaiteisha(){
+  normalizeRet();
+  const list=[];['28','27'].forEach(c=>{((S.cohorts[c]&&S.cohorts[c].people)||[]).forEach(p=>list.push({c,p}));});
+  if(!list.length){alert('内定者が登録されていません。先に内定者一覧に登録してください。');return;}
+  const msg=list.map((x,i)=>`${i+1}. ${x.p.name}（${x.c}内定者）`).join('\n');
+  const a=prompt('入社後カルテへ引き継ぐ内定者の番号を入力してください。\n選考時〜内定者期間の情報（大学・担当・人物像5項目・口説き／NGポイント）をそのまま引き継ぎます。\n\n'+msg);
+  if(!a)return;
+  const n=parseInt(a,10);if(isNaN(n)||n<1||n>list.length){alert('番号が正しくありません。');return;}
+  const p=normalizePerson(list[n-1].p);
+  if(S.retention.members.some(m=>m.fromPid===p.id)){if(!confirm('この内定者は既に引き継ぎ済みです。もう一度作成しますか？'))return;}
+  const j=p.jinbutsu||{};
+  const carry=['【内定者期間からの引継ぎ】',
+    '大学：'+(p.university||'—')+' '+(p.faculty||''),
+    '採用担当：'+(p.owner||'—'),
+    '人物像5項目：素直'+(j.sunao||0)+'／挑戦心・行動力'+(j.chosen||0)+'／感謝'+(j.kansha||0)+'／ストレス耐性'+(j.stress||0)+'／責任感'+(j.sekinin||0),
+    '人物像メモ：'+(j.memo||'—'),
+    '口説きポイント：'+(p.kudoki||'—'),
+    'NGポイント：'+(p.ng||'—')].join('\n');
+  const m={id:uid('m'),name:p.name,joinDate:p.joinDate||'',dept:'',mgr:'',owner:p.owner||'',status:'在籍',univ:p.university||'',
+    fromPid:p.id,carry,dream:[],mendan:[],douki:[],parent:{photo:'未収集',note:(p.parent&&p.parent.concerns)||'',log:[]}};
+  S.retention.members.push(m);S.retention.sel=m.id;save();normalizeRet();renderAll();show('p-member');
+  alert(p.name+' さんを入社後カルテへ引き継ぎました。入社日・部署・上司を入力してください。');
+}
+
+function parentNewsDraft(id){
+  const m=M(id);if(!m)return;
+  const dm=(m.dream||[]).filter(x=>x.ym).slice().sort((a,b)=>(b.ym||'').localeCompare(a.ym||''))[0];
+  const ms=(m.mendan||[]).filter(x=>x.date).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  const t=[`${m.name} さんのご家族の皆さまへ`,'',
+    '平素より格別のご理解とご協力を賜り、誠にありがとうございます。株式会社アースコムです。',
+    `${m.name}さんの入社後の様子をご報告いたします。`,'',
+    `■ 現在の配属：${m.dept||'（部署）'}／上司：${m.mgr||'（上司名）'}`,
+    `■ 在籍年次：${retYearLabel(m)}（入社日 ${m.joinDate||'—'}）`,'',
+    '■ 最近の仕事の様子',
+    ms?`（${ms.date} 面談より）${ms.topic||''} ${ms.face||''}`:'（面談記録を追記してください）','',
+    '■ ご本人が描いている将来像',
+    dm?`1年後：${dm.y1||'—'}\n3年後：${dm.y3||'—'}`:'（ドリーム・キャンバスを記入してください）','',
+    '■ この1か月の成長',
+    dm&&dm.growth?dm.growth:'（成長の記録を追記してください）','',
+    '同封の写真は、実際に現場で働く様子です。今後とも変わらぬご支援を賜りますようお願い申し上げます。','',
+    '株式会社アースコム 採用チーム'].join('\n');
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('ニュースレターの素案をコピーしました。編集して送付してください。'),()=>{});
+}
+function copyMemberCard(){
+  normalizeRet();const m=M(S.retention.sel);if(!m){alert('対象がいません。');return;}
+  const dm=(m.dream||[]).filter(x=>x.ym).slice().sort((a,b)=>(b.ym||'').localeCompare(a.ym||''))[0];
+  const ms=(m.mendan||[]).filter(x=>x.date).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  const al=retAlerts().filter(a=>a.m.id===m.id);
+  const t=[`【入社後カルテ 引継ぎ】${m.name}（${retYearLabel(m)}）`,
+    `入社日：${m.joinDate||'—'}／部署：${m.dept||'—'}／上司：${m.mgr||'—'}／採用担当：${m.owner||'—'}`,
+    `満足度：1年後 ${m.sat1||'—'} ／ 3年後 ${m.sat3||'—'}`,'',
+    m.carry||'',
+    '',`■直近の面談（${ms?ms.date+'／'+ms.type:'記録なし'}）`,
+    ms?`話した内容：${ms.topic||'—'}\n悩み・不安：${ms.worry||'—'}\n本人の表情：${ms.face||'—'}\n次回：${ms.next||'未設定'}`:'—',
+    '',`■ドリーム・キャンバス（${dm?dm.ym:'未作成'}）`,
+    dm?`1年後：${dm.y1||'—'}\n3年後：${dm.y3||'—'}\n今月やること：${dm.now||'—'}\n1か月前からの成長：${dm.growth||'—'}`:'—',
+    '',`■現在のアラート：${al.length?al.map(a=>a.lv+'／'+String(a.t).replace(/<[^>]*>/g,'')).join(' / '):'なし'}`].join('\n');
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert('引継ぎカードをコピーしました。Chatwork等に貼り付けできます。'),()=>{});
+}
+
+function renderMember(){
+  normalizeRet();
+  const R=S.retention,sel=document.getElementById('memberSel'),body=document.getElementById('memberBody');
+  if(!sel||!body)return;
+  if(!R.members.length){sel.innerHTML='';body.innerHTML='<p class="muted">登録された社員がいません。「＋社員を追加」または「内定者カルテから引き継ぐ」で追加してください。</p>';return;}
+  if(!R.sel||!R.members.find(m=>m.id===R.sel))R.sel=R.members[0].id;
+  sel.innerHTML=R.members.map(m=>`<option value="${m.id}" ${m.id===R.sel?'selected':''}>${esc(m.name)}（${esc(m.joinDate?m.joinDate.slice(0,4)+'年入社':'入社日未入力')}・${esc(retYearLabel(m))}${m.status==='退職'?'・退職':''}）</option>`).join('');
+  const m=R.members.find(x=>x.id===R.sel);
+  const al=retAlerts().filter(a=>a.m.id===m.id);
+  const ms=(m.mendan||[]).filter(x=>x.date).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const last=ms[0];const lastD=last?daysBetween(last.date,S.baseDate):null;
+  const dsorted=(m.dream||[]).slice().sort((a,b)=>(b.ym||'').localeCompare(a.ym||''));
+  const attend=(m.douki||[]).filter(x=>x.st==='参加').length,total=(m.douki||[]).filter(x=>x.st==='参加'||x.st==='欠席').length;
+
+  body.innerHTML=`
+  <div class="card">
+    <div class="row" style="align-items:flex-start;gap:18px">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:20px;font-weight:800;color:var(--navy)">${esc(m.name)}
+          <span class="muted" style="font-size:13px">${esc(retYearLabel(m))} ／ ${esc(m.dept||'部署未設定')} ／ 上司 ${esc(m.mgr||'—')}</span></div>
+        <div class="muted small" style="margin:2px 0 8px">${esc(m.univ||'')} ／ 入社日 ${esc(m.joinDate||'未入力')} ／ 採用担当 ${esc(m.owner||'—')}</div>
+        <div class="row small" style="gap:8px;flex-wrap:wrap">
+          <span class="pill ${m.status==='退職'?'danger':'ok'}">${esc(m.status)}</span>
+          <span class="pill ${last?(lastD>30?'danger':lastD>21?'warn':'ok'):'danger'}">${last?'直近面談 '+esc(last.date)+'（'+lastD+'日前）':'面談記録なし'}</span>
+          ${last&&last.next?`<span class="pill gray">次回 ${esc(last.next)}</span>`:'<span class="pill danger">次回日程 未設定</span>'}
+          <span class="pill ${dsorted[0]?'ok':'danger'}">ドリーム・キャンバス ${dsorted[0]?esc(dsorted[0].ym):'未作成'}</span>
+          <span class="pill gray">同期会参加 ${total?attend+'/'+total:'—'}</span>
+        </div>
+      </div>
+      <div style="min-width:220px">
+        <div class="kgrid">${mfld(m.id,'sat1','入社1年後 満足度(100点)',m.sat1,'number')}${mfld(m.id,'sat3','入社3年後 満足度(100点)',m.sat3,'number')}</div>
+      </div>
+    </div>
+    ${al.length?`<div class="row small" style="margin-top:10px;gap:8px;flex-wrap:wrap">${al.map(a=>`<span class="pill ${a.lv==='危険'?'danger':'warn'}">${a.t}</span>`).join('')}</div>`:'<div class="row small" style="margin-top:10px"><span class="pill ok">アラートなし</span></div>'}
+  </div>
+
+  <div class="k-sec"><h4><span class="no">①</span>基本情報</h4>
+    <div class="kgrid">
+      ${mfld(m.id,'name','氏名',m.name)}${mfld(m.id,'joinDate','入社日',m.joinDate,'date')}
+      ${mfsel(m.id,'dept','配属部署',m.dept,RET_DEPT)}${mfld(m.id,'mgr','上司・現場責任者',m.mgr)}
+      ${mfld(m.id,'owner','採用担当（フォロー担当）',m.owner)}${mfld(m.id,'univ','出身校',m.univ)}
+      ${mfsel(m.id,'status','ステータス',m.status,['在籍','休職','退職'])}${mfld(m.id,'leaveDate','退職日（退職時のみ）',m.leaveDate,'date')}
+    </div>
+    ${m.status==='退職'?`<div class="kgrid">${mfta(m.id,'leaveReason','退職理由（定着率分析用）',m.leaveReason)}</div>`:''}
+    ${m.carry?`<div class="g-note" style="margin-top:10px;white-space:pre-wrap">${esc(m.carry)}</div>`:''}
+  </div>
+
+  <div class="k-sec"><h4><span class="no">②</span>ドリーム・キャンバス（夢描きシート）</h4>
+    <p class="hint" style="margin:-4px 0 10px">毎月の面談で更新します。本人が描く将来像と、1か月前の自分からの成長を記録します。</p>
+    ${dsorted.length?dsorted.map(d=>{const i=m.dream.indexOf(d);return `<div class="mcard">
+      <div class="row" style="margin-bottom:8px;align-items:center">
+        <span class="muted small">対象月</span><input class="in" type="month" style="width:150px" value="${esc(d.ym||'')}" onchange="dreamUpd('${m.id}',${i},'ym',this.value)">
+        <button class="btn ghost sm right" onclick="dreamDel('${m.id}',${i})">削除</button></div>
+      <div class="kgrid">
+        <div class="kfield"><label>1年後の姿</label><textarea class="in" style="min-height:52px" onchange="dreamUpd('${m.id}',${i},'y1',this.value)">${esc(d.y1||'')}</textarea></div>
+        <div class="kfield"><label>3年後の姿</label><textarea class="in" style="min-height:52px" onchange="dreamUpd('${m.id}',${i},'y3',this.value)">${esc(d.y3||'')}</textarea></div>
+        <div class="kfield"><label>今月やること</label><textarea class="in" style="min-height:52px" onchange="dreamUpd('${m.id}',${i},'now',this.value)">${esc(d.now||'')}</textarea></div>
+        <div class="kfield"><label>1か月前の自分からの成長</label><textarea class="in" style="min-height:52px" onchange="dreamUpd('${m.id}',${i},'growth',this.value)">${esc(d.growth||'')}</textarea></div>
+        <div class="kfield"><label>メモ</label><textarea class="in" style="min-height:52px" onchange="dreamUpd('${m.id}',${i},'note',this.value)">${esc(d.note||'')}</textarea></div>
+      </div></div>`;}).join(''):'<p class="muted small">まだ作成されていません。</p>'}
+    <button class="btn ghost sm" style="margin-top:8px" onclick="dreamAdd('${m.id}')">＋ 今月の夢描きシートを追加</button>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">③</span>面談・イベント履歴</h4>
+    <p class="hint" style="margin:-4px 0 10px">入社後半年間は毎月面談。配属前後の「現場体験の目的共有面談」「配属理由を伝える3者面談」もここに記録します。面談時に必ず次回日程を決めます。</p>
+    ${m.mendan.length?m.mendan.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>{const i=m.mendan.indexOf(x);return `<div class="mcard">
+      <div class="row" style="margin-bottom:8px;align-items:center;flex-wrap:wrap">
+        <span class="muted small">実施日</span><input class="in" type="date" style="width:145px" value="${esc(x.date||'')}" onchange="rmUpd('${m.id}',${i},'date',this.value)">
+        <span class="muted small">種別</span><select class="in" style="width:220px" onchange="rmUpd('${m.id}',${i},'type',this.value)">${opt(RET_MTYPE,x.type)}</select>
+        <span class="muted small">実施者</span><input class="in" style="width:110px" value="${esc(x.owner||'')}" onchange="rmUpd('${m.id}',${i},'owner',this.value)">
+        <span class="muted small">次回面談日</span><input class="in" type="date" style="width:145px" value="${esc(x.next||'')}" onchange="rmUpd('${m.id}',${i},'next',this.value)">
+        <button class="btn ghost sm right" onclick="rmDel('${m.id}',${i})">削除</button></div>
+      <div class="kgrid">
+        <div class="kfield"><label>話した内容・現場での様子</label><textarea class="in" style="min-height:52px" onchange="rmUpd('${m.id}',${i},'topic',this.value)">${esc(x.topic||'')}</textarea></div>
+        <div class="kfield"><label>悩み・不安</label><textarea class="in" style="min-height:52px" onchange="rmUpd('${m.id}',${i},'worry',this.value)">${esc(x.worry||'')}</textarea></div>
+        <div class="kfield"><label>本人の表情・状態</label><textarea class="in" style="min-height:52px" onchange="rmUpd('${m.id}',${i},'face',this.value)">${esc(x.face||'')}</textarea></div>
+        <div class="kfield"><label>採用チームへの引継ぎ事項</label><textarea class="in" style="min-height:52px" onchange="rmUpd('${m.id}',${i},'note',this.value)">${esc(x.note||'')}</textarea></div>
+      </div></div>`;}).join(''):'<p class="muted small">面談記録がありません。</p>'}
+    <button class="btn ghost sm" style="margin-top:8px" onclick="rmAdd('${m.id}')">＋ 面談を追加</button>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">④</span>同期会・社内イベント</h4>
+    <table><thead><tr><th style="width:150px">開催日</th><th>名称（24卒同期会 等）</th><th style="width:110px">参加状況</th><th style="width:70px"></th></tr></thead><tbody>
+    ${m.douki.map((x,i)=>`<tr>
+      <td><input class="in" type="date" value="${esc(x.date||'')}" onchange="dkUpd('${m.id}',${i},'date',this.value)"></td>
+      <td><input class="in" value="${esc(x.name||'')}" onchange="dkUpd('${m.id}',${i},'name',this.value)"></td>
+      <td><select class="in" onchange="dkUpd('${m.id}',${i},'st',this.value)">${opt(['参加','欠席','未定'],x.st)}</select></td>
+      <td><button class="btn ghost sm" onclick="dkDel('${m.id}',${i})">削除</button></td></tr>`).join('')}
+    </tbody></table>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="dkAdd('${m.id}')">＋ 同期会・イベントを追加</button>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑤</span>親御さん連携</h4>
+    <div class="kgrid">
+      ${mfsel(m.id,'parent.photo','仕事風景の写真 収集状況',m.parent.photo,['未収集','依頼中','収集済み'])}
+      ${mfta(m.id,'parent.note','ご家族の状況・留意事項',m.parent.note)}
+    </div>
+    <table style="margin-top:10px"><thead><tr><th style="width:150px">日付</th><th style="width:200px">種別</th><th>内容</th><th style="width:70px"></th></tr></thead><tbody>
+    ${m.parent.log.map((x,i)=>`<tr>
+      <td><input class="in" type="date" value="${esc(x.date||'')}" onchange="pnUpd('${m.id}',${i},'date',this.value)"></td>
+      <td><select class="in" onchange="pnUpd('${m.id}',${i},'kind',this.value)">${opt(RET_PKIND,x.kind)}</select></td>
+      <td><input class="in" value="${esc(x.note||'')}" onchange="pnUpd('${m.id}',${i},'note',this.value)"></td>
+      <td><button class="btn ghost sm" onclick="pnDel('${m.id}',${i})">削除</button></td></tr>`).join('')}
+    </tbody></table>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" onclick="pnAdd('${m.id}')">＋ 送付・収集の履歴を追加</button>
+    <button class="btn gold sm" onclick="parentNewsDraft('${m.id}')">親御さん向けニュースレター素案を生成（コピー）</button></div>
+  </div>
+
+  <div class="k-sec"><h4><span class="no">⑥</span>カルテの管理</h4>
+    <div class="row"><button class="btn ghost sm" onclick="delMember('${m.id}')">このカルテを削除</button>
+    <span class="muted small">${m.fromPid?'内定者カルテから引き継ぎ済み':'内定者カルテとの紐づけなし'}</span></div>
+  </div>`;
+}
 
 boot();
 </script>
