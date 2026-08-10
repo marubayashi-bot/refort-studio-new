@@ -1,5 +1,5 @@
 /* ============================================================
- *  EARTHCOM 共通認証モジュール   ec-auth.js   v1.0
+ *  EARTHCOM 共通認証モジュール   ec-auth.js   v1.1
  *
  *  各アプリの <head> に2行足すだけで、会社のGoogleアカウント
  *  ログインと役割別の権限判定が使えるようになります。
@@ -8,7 +8,8 @@
  *  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  *  <script src="./ec-auth.js"></script>
  *  <script>
- *    EC.guard({ allow: ['admin','manager','sales'] }).then(function (me) {
+ *    EC.guard({ app: 'bumoncho', allow: ['admin','manager','sales'] })
+ *      .then(function (me) {
  *      // ここから先は認証済み。me.role / me.areas が使えます
  *      EC.mountBadge('#userBadge');   // 任意: 右上にユーザー表示
  *      startApp();
@@ -20,6 +21,8 @@
  *  EC.guard(opts)       認証ゲート。通過すると社員情報を返す
  *  EC.me                ログイン中の社員情報 {id,email,full_name,role,areas}
  *  EC.can('admin',...)  役割チェック（true/false）
+ *  EC.canUseApp(id)     このアプリの利用許可があるか（true/false）
+ *  EC.APPS              アプリ一覧 [[id, 名称], ...]
  *  EC.mountBadge(sel)   ユーザー名＋ログアウトのバッジを描画
  *  EC.signOut()         ログアウト
  * ============================================================ */
@@ -31,6 +34,21 @@
     key:    'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
     domain: 'earthcom-eco.jp'
   };
+
+  /* アプリ一覧。新しいアプリを作ったらここに1行足してください。
+     idは app_users.apps に保存される値です（英数字とハイフンのみ）。 */
+  var APPS = [
+    ['bumoncho',    '部門長会議ボード'],
+    ['refort-deals','ReFort査定スタジオ'],
+    ['refort-board','ReFort現場判断ボード'],
+    ['battery',     '低圧系統蓄電池シミュレーター'],
+    ['secondary',   '高圧RF（セカンダリー）シミュレーター'],
+    ['pipeline',    '商談パイプラインボード'],
+    ['progress',    '工事進捗報告システム'],
+    ['naiteisha',   '内定者オンボーディング管理'],
+    ['planner',     'SUCCESS PLANNER'],
+    ['portal',      '社内アプリ盤']
+  ];
 
   var ROLE_LABEL = {
     admin:   '管理者',
@@ -156,11 +174,12 @@
     document.getElementById('ec-out').addEventListener('click', EC.signOut);
   }
 
-  function screenDenied(me) {
+  function screenDenied(me, appId) {
     gate(
       '<div class="mark">EARTHCOM</div>' +
       '<h1>このアプリの利用権限がありません</h1>' +
       '<p>' + escapeHtml(me.full_name || me.email) + '（' + (ROLE_LABEL[me.role] || me.role) + '）<br>' +
+      (appId ? escapeHtml(EC.appLabel(appId)) + ' は許可されていません。<br>' : '') +
       '必要な場合は管理者に権限の変更を依頼してください。</p>' +
       '<button id="ec-out" type="button">ログアウト</button>'
     );
@@ -189,10 +208,18 @@
 
   function fetchMe(userId) {
     return client.from('app_users')
-      .select('id,email,full_name,role,areas,is_active')
+      .select('id,email,full_name,role,areas,is_active,apps')
       .eq('id', userId)
       .maybeSingle()
-      .then(function (r) { return r.data; });
+      .then(function (r) {
+        if (!r.error) return r.data;
+        // apps列がまだ無い場合は従来の列だけで読む（移行中も動くように）
+        return client.from('app_users')
+          .select('id,email,full_name,role,areas,is_active')
+          .eq('id', userId)
+          .maybeSingle()
+          .then(function (r2) { return r2.data; });
+      });
   }
 
   /**
@@ -204,6 +231,8 @@
   EC.guard = function (opts) {
     opts = opts || {};
     var allow = opts.allow || ['admin', 'manager', 'sales', 'field'];
+    var app = opts.app || null;                        // アプリ別の利用許可
+    var adminBypass = opts.adminBypass !== false;      // 管理者は既定で素通し
 
     return new Promise(function (resolve) {
       var urlError = readUrlError();
@@ -235,6 +264,11 @@
             return;
           }
           EC.me = me;
+          if (app && !(adminBypass && me.role === 'admin') && !EC.canUseApp(app)) {
+            EC.me = null;
+            screenDenied(me, app);
+            return;
+          }
           if (location.hash.indexOf('access_token') !== -1) {
             history.replaceState(null, '', location.pathname + location.search);
           }
@@ -261,6 +295,21 @@
   };
 
   EC.roleLabel = function (r) { return ROLE_LABEL[r] || r; };
+
+  EC.APPS = APPS;
+
+  EC.appLabel = function (id) {
+    for (var i = 0; i < APPS.length; i++) if (APPS[i][0] === id) return APPS[i][1];
+    return id;
+  };
+
+  /** ログイン中の社員がこのアプリを使えるか */
+  EC.canUseApp = function (id) {
+    if (!EC.me) return false;
+    if (EC.me.role === 'admin') return true;
+    var list = EC.me.apps || [];
+    return list.indexOf(id) !== -1;
+  };
 
   global.EC = EC;
 })(window);
