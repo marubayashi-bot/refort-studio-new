@@ -359,6 +359,7 @@ table.adm input[type=text]{border:1px solid var(--rule);border-radius:2px;paddin
 
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./ec-auth.js" onerror="console.warn('ec-auth.js を読み込めませんでした')"></script>
 <script>
 /* ============================================================
@@ -368,6 +369,7 @@ const CFG = {
   SUPABASE_URL : 'https://aakofrzurgwrkctunthw.supabase.co',
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
+  APP_ID       : 'keikaku',
   TERM         : 18,
   // GAS ウェブアプリのURL（「今すぐ同期」で呼ぶ）
   SYNC_ENDPOINT: '',      // 例: https://script.google.com/macros/s/xxxx/exec
@@ -447,12 +449,11 @@ function waitForEC(ms = 8000) {
 async function getMe() {
   const EC = await waitForEC();
   if (!EC) throw new Error('NO_EC');
-  for (const fn of ['guard', 'me', 'requireLogin', 'currentUser']) {
-    if (typeof EC[fn] === 'function') {
-      try { const u = await EC[fn](); if (u && (u.email || u.id)) return u; } catch (e) {}
-    }
-  }
-  return null;
+  const me = await EC.guard({
+    app: CFG.APP_ID,
+    allow: ['admin', 'manager', 'sales', 'field', 'viewer']
+  });
+  return me || EC.me || null;
 }
 
 async function boot() {
