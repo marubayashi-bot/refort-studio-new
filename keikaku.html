@@ -359,6 +359,7 @@ table.adm input[type=text]{border:1px solid var(--rule);border-radius:2px;paddin
 
 <div id="toast"></div>
 
+<script src="./ec-auth.js" onerror="console.warn('ec-auth.js を読み込めませんでした')"></script>
 <script>
 /* ============================================================
    設定
@@ -431,17 +432,45 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on
 /* ============================================================
    認証
    ============================================================ */
+/** ec-auth.js は Google のログイン基盤を非同期で立ち上げるため、EC が生えるまで待つ */
+function waitForEC(ms = 8000) {
+  return new Promise(resolve => {
+    if (window.EC) return resolve(window.EC);
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      if (window.EC)             { clearInterval(iv); resolve(window.EC); }
+      else if (Date.now()-t0>ms) { clearInterval(iv); resolve(null); }
+    }, 120);
+  });
+}
+
+async function getMe() {
+  const EC = await waitForEC();
+  if (!EC) throw new Error('NO_EC');
+  for (const fn of ['guard', 'me', 'requireLogin', 'currentUser']) {
+    if (typeof EC[fn] === 'function') {
+      try { const u = await EC[fn](); if (u && (u.email || u.id)) return u; } catch (e) {}
+    }
+  }
+  return null;
+}
+
 async function boot() {
   drawWatermarkPlaceholder();
-  let me = null;
-  try {
-    if (window.EC?.guard) me = await window.EC.guard();
-    else if (window.EC?.me)  me = await window.EC.me();
-  } catch (e) { me = null; }
+  let me = null, fatal = null;
+  try { me = await getMe(); } catch (e) { fatal = String(e.message || e); }
 
   if (!me) {
-    $('#gatemsg').textContent = '会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。閲覧は社員に限られ、閲覧記録が残ります。';
-    $('#gatebtn').onclick = () => window.EC?.login ? window.EC.login() : location.reload();
+    $('#gatemsg').textContent = fatal === 'NO_EC'
+      ? '認証スクリプト（ec-auth.js）を読み込めませんでした。keikaku.html と ec-auth.js が同じ場所にあるか確認してください。'
+      : '会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。閲覧は社員に限られ、閲覧記録が残ります。';
+    $('#gatebtn').onclick = async () => {
+      const EC = window.EC;
+      if (EC?.login)      return EC.login();
+      if (EC?.signIn)     return EC.signIn();
+      if (EC?.guard)      { try { const u = await EC.guard(); if (u) return boot(); } catch(e){} }
+      location.reload();
+    };
     return;
   }
   S.me = me;
@@ -990,10 +1019,7 @@ function bindUI() {
   window.addEventListener('beforeprint', () => log('print_attempt'));
 }
 
-window.__kkBoot = boot;
+boot();
 </script>
-<script src="./ec-auth.js"
-        onload="window.__kkBoot()"
-        onerror="console.warn('ec-auth.js を読み込めませんでした'); window.__kkBoot()"></script>
 </body>
 </html>
