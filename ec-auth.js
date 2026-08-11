@@ -37,18 +37,19 @@
 
   /* アプリ一覧。新しいアプリを作ったらここに1行足してください。
      idは app_users.apps に保存される値です（英数字とハイフンのみ）。 */
-  var APPS = [
-    ['bumoncho',    '部門長会議ボード'],
-    ['refort-deals','ReFort査定スタジオ'],
-    ['refort-board','ReFort現場判断ボード'],
-    ['battery',     '低圧系統蓄電池シミュレーター'],
-    ['secondary',   '高圧RF（セカンダリー）シミュレーター'],
-    ['pipeline',    '商談パイプラインボード'],
-    ['progress',    '工事進捗報告システム'],
-    ['naiteisha',   '内定者オンボーディング管理'],
-    ['planner',     'SUCCESS PLANNER'],
-    ['portal',      '社内アプリ盤']
-  ];
+ var APPS = [
+  ['bumoncho',     '部門長会議ボード'],
+  ['refort-deals', 'ReFort査定スタジオ'],
+  ['refort-board', 'ReFort現場判断ボード'],
+  ['battery',      '低圧系統蓄電池シミュレーター'],
+  ['secondary',    '高圧RF（セカンダリー）シミュレーター'],
+  ['pipeline',     '商談パイプラインボード'],
+  ['progress',     '工事進捗報告システム'],
+  ['naiteisha',    '内定者オンボーディング管理'],
+  ['planner',      'SUCCESS PLANNER'],
+  ['portal',       '社内アプリ盤'],
+  ['keikaku',      '経営計画書ポータル']
+];
 
   var ROLE_LABEL = {
     admin:   '管理者',
