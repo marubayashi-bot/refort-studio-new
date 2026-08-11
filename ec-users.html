@@ -27,7 +27,7 @@ h2{font-size:13px;font-weight:700;margin:0 0 12px;letter-spacing:.04em;display:f
 h2 .count{background:var(--warn-soft);color:var(--warn);font-size:11px;padding:2px 9px;border-radius:20px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .pending{border-color:#E8C4A8;background:var(--warn-soft)}
-.row{display:grid;grid-template-columns:1.4fr 1.6fr 130px 1fr 90px 84px;gap:14px;align-items:center;
+.row{display:grid;grid-template-columns:1.2fr 1.5fr 120px .9fr 1.3fr 80px 84px;gap:12px;align-items:center;
   padding:13px 18px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .head{background:#EDF1F6;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em}
@@ -38,6 +38,10 @@ select,input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--line);
   background:#fff;font-family:inherit;font-size:12.5px;color:var(--ink)}
 select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
 .areas{display:flex;flex-wrap:wrap;gap:5px}
+.apps{display:flex;flex-wrap:wrap;gap:4px}
+.chip.app[aria-pressed=true]{background:#E7EEFA;border-color:#3B6FB8;color:#26518F}
+.allbtn{font-size:10.5px;color:var(--muted);background:none;border:0;cursor:pointer;text-decoration:underline;padding:2px 4px;font-family:inherit}
+.allbtn:hover{color:var(--ink-2)}
 .chip{font-size:11px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;
   cursor:pointer;user-select:none;color:var(--muted);font-family:inherit}
 .chip[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
@@ -53,6 +57,32 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;bord
 .empty{padding:26px 18px;color:var(--muted);font-size:12.5px;text-align:center}
 .legend{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.95}
 .legend b{color:var(--ink-2)}
+.viewtabs{display:flex;gap:2px;background:#EDF1F5;padding:3px;border-radius:8px;width:max-content;margin-bottom:14px}
+.viewtabs button{border:0;background:none;padding:7px 16px;border-radius:6px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
+.viewtabs button.on{background:#fff;color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.matwrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+table.mat{border-collapse:separate;border-spacing:0;font-size:12px;width:100%}
+table.mat th,table.mat td{padding:7px 8px;border-bottom:1px solid #EEF1F4;white-space:nowrap;text-align:center}
+table.mat thead th{position:sticky;top:0;background:#F5F8FA;font-size:10.5px;font-weight:600;color:var(--muted);z-index:2}
+table.mat th.who,table.mat td.who{position:sticky;left:0;background:#fff;text-align:left;z-index:1;border-right:1px solid #E4E9EE;min-width:180px}
+table.mat thead th.who{background:#F5F8FA;z-index:3}
+table.mat tbody tr:hover td{background:#F7FAFC}
+table.mat tbody tr:hover td.who{background:#F7FAFC}
+.who .nm{font-weight:600;color:var(--ink)}
+.who .em{font-size:10.5px;color:var(--muted)}
+.rolechip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;background:#EDF1F5;color:var(--muted);margin-left:6px}
+.rolechip.r-admin{background:#E4EFEA;color:#1F6B52}
+.rolechip.r-manager{background:#E7EEFA;color:#26518F}
+.rolechip.r-viewer{background:#FBEAE3;color:#A0522D}
+.mk{font-size:14px;line-height:1;color:#2E7D5B;font-weight:700}
+.mk.auto{color:#1F6B52;font-size:10px;background:#E4EFEA;padding:2px 6px;border-radius:5px}
+.mk.no{color:#D3D9DF}
+.mat tr.off td{opacity:.42}
+tfoot td{background:#F9FBFC;font-size:10.5px;color:var(--muted);font-weight:600;border-top:1px solid #E4E9EE}
+.mattools{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.mattools .note{font-size:11.5px;color:var(--muted)}
+.copybtn{font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-family:inherit;color:var(--ink-2)}
+.copybtn:hover{border-color:var(--accent);color:var(--accent)}
 @media(max-width:860px){
   .row{grid-template-columns:1fr 1fr;gap:10px}
   .head{display:none}
@@ -70,7 +100,7 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;bord
 <main>
   <p class="lead">
     社員が会社のGoogleアカウントで初めてログインすると、このページに「承認待ち」として表示されます。
-    役割と担当エリアを設定すると、その範囲の案件が見えるようになります。
+    役割と担当エリアで案件の見える範囲が決まり、「利用できるアプリ」で開けるアプリが決まります。
   </p>
 
   <section id="pendingSection" hidden>
@@ -78,7 +108,21 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;bord
     <div class="card pending" id="pendingList"></div>
   </section>
 
-  <section>
+  <div class="viewtabs">
+    <button type="button" id="tabEdit" class="on">一覧を編集</button>
+    <button type="button" id="tabMap">権限マップ</button>
+  </div>
+
+  <section id="mapSection" hidden>
+    <h2>権限マップ</h2>
+    <div class="mattools">
+      <span class="note">誰がどのアプリを開けるかの一覧です。<b>全</b>＝管理者のため自動的に全アプリ利用可。</span>
+      <button type="button" class="copybtn" id="copyCsv">表をコピー</button>
+    </div>
+    <div class="matwrap"><table class="mat" id="mat"></table></div>
+  </section>
+
+  <section id="editSection">
     <h2>社員一覧</h2>
     <div class="tools">
       <input type="text" id="q" placeholder="名前・メールで絞り込み">
@@ -86,7 +130,7 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;bord
     <div class="card">
       <div class="row head">
         <div>名前</div><div>メールアドレス</div><div>役割</div>
-        <div>担当エリア</div><div>状態</div><div></div>
+        <div>担当エリア</div><div>利用できるアプリ</div><div>状態</div><div></div>
       </div>
       <div id="list"><div class="empty">読み込み中</div></div>
     </div>
@@ -96,7 +140,8 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px;bord
       <b>営業</b>＝担当エリアと自分の案件のみ。　
       <b>現場</b>＝現調の入力と案件の閲覧のみ。　
       <b>未承認</b>＝何も見えません。<br>
-      退職時は「停止」に切り替えてください。Google側でアカウントを止めれば同時にログインもできなくなります。
+      退職時は「停止」に切り替えてください。Google側でアカウントを止めれば同時にログインもできなくなります。<br>
+      <b>利用できるアプリ</b>＝チェックしたアプリだけが開けます。管理者はこの設定に関わらずすべて開けます。
     </p>
   </section>
 </main>
@@ -116,13 +161,16 @@ let users = [];
 EC.guard({ allow: ['admin'] }).then(async () => {
   EC.mountBadge('#userBadge');
   document.getElementById('q').addEventListener('input', render);
+  document.getElementById('tabEdit').addEventListener('click', () => switchView('edit'));
+  document.getElementById('tabMap').addEventListener('click', () => switchView('map'));
+  document.getElementById('copyCsv').addEventListener('click', copyMatrix);
   await load();
 });
 
 async function load(){
   const { data, error } = await EC.supabase
     .from('app_users')
-    .select('id,email,full_name,role,areas,is_active,created_at')
+    .select('id,email,full_name,role,areas,is_active,apps,created_at')
     .order('created_at');
   if (error) {
     document.getElementById('list').innerHTML =
@@ -133,7 +181,77 @@ async function load(){
   render();
 }
 
+let view = 'edit';
+
+function switchView(v){
+  view = v;
+  document.getElementById('tabEdit').classList.toggle('on', v==='edit');
+  document.getElementById('tabMap').classList.toggle('on', v==='map');
+  document.getElementById('editSection').hidden = v!=='edit';
+  document.getElementById('mapSection').hidden = v!=='map';
+  document.getElementById('pendingSection').hidden =
+    v!=='edit' || users.filter(u=>u.role==='viewer'&&u.is_active).length===0;
+  if (v==='map') renderMatrix();
+}
+
+function renderMatrix(){
+  const apps = EC.APPS || [];
+  const list = users.slice().sort((a,b)=>
+    (a.role==='viewer') - (b.role==='viewer') ||
+    (a.full_name||a.email).localeCompare(b.full_name||b.email,'ja'));
+
+  const head = `<thead><tr><th class="who">社員</th>${
+    apps.map(([id,label])=>`<th>${esc(label)}</th>`).join('')}</tr></thead>`;
+
+  const body = '<tbody>' + list.map(u=>{
+    const admin = u.role === 'admin';
+    const mine = u.apps || [];
+    const cells = apps.map(([id])=>{
+      if (admin) return '<td><span class="mk auto">全</span></td>';
+      return mine.includes(id)
+        ? '<td><span class="mk">●</span></td>'
+        : '<td><span class="mk no">−</span></td>';
+    }).join('');
+    return `<tr class="${u.is_active?'':'off'}">
+      <td class="who"><span class="nm">${esc(u.full_name||'—')}</span>
+        <span class="rolechip r-${u.role}">${esc(roleLabel(u.role))}</span>
+        ${u.is_active?'':'<span class="rolechip">停止</span>'}
+        <br><span class="em">${esc(u.email)}</span></td>${cells}</tr>`;
+  }).join('') + '</tbody>';
+
+  const counts = apps.map(([id]) =>
+    list.filter(u => u.is_active && (u.role==='admin' || (u.apps||[]).includes(id))).length);
+  const foot = `<tfoot><tr><td class="who">利用できる人数（有効な社員）</td>${
+    counts.map(c=>`<td>${c}</td>`).join('')}</tr></tfoot>`;
+
+  document.getElementById('mat').innerHTML = head + body + foot;
+}
+
+function roleLabel(r){
+  const f = ROLES.find(([v])=>v===r);
+  return f ? f[1] : r;
+}
+
+function copyMatrix(){
+  const apps = EC.APPS || [];
+  const rows = [['社員','メール','役割','状態', ...apps.map(a=>a[1])]];
+  users.forEach(u=>{
+    const admin = u.role==='admin';
+    rows.push([
+      u.full_name||'', u.email, roleLabel(u.role), u.is_active?'有効':'停止',
+      ...apps.map(([id]) => admin ? '全' : ((u.apps||[]).includes(id) ? '○' : ''))
+    ]);
+  });
+  const tsv = rows.map(r=>r.join('\t')).join('\n');
+  navigator.clipboard.writeText(tsv).then(()=>{
+    const b = document.getElementById('copyCsv');
+    b.textContent = 'コピーしました';
+    setTimeout(()=>{ b.textContent = '表をコピー'; }, 1600);
+  });
+}
+
 function render(){
+  if (view === 'map') { renderMatrix(); return; }
   const q = document.getElementById('q').value.trim().toLowerCase();
   const pending = users.filter(u => u.role === 'viewer' && u.is_active);
   const rest = users
@@ -149,6 +267,26 @@ function render(){
     rest.length ? rest.map(rowHtml).join('')
                 : '<div class="empty">該当する社員がいません</div>';
 
+  document.querySelectorAll('[data-app]').forEach(el => {
+    el.addEventListener('click', () => {
+      el.setAttribute('aria-pressed', el.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      markDirty(el.dataset.uid);
+    });
+  });
+  document.querySelectorAll('[data-appall]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll(`[data-app][data-uid="${el.dataset.appall}"]`)
+        .forEach(c => c.setAttribute('aria-pressed','true'));
+      markDirty(el.dataset.appall);
+    });
+  });
+  document.querySelectorAll('[data-appnone]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll(`[data-app][data-uid="${el.dataset.appnone}"]`)
+        .forEach(c => c.setAttribute('aria-pressed','false'));
+      markDirty(el.dataset.appnone);
+    });
+  });
   document.querySelectorAll('[data-chip]').forEach(el => {
     el.addEventListener('click', () => {
       el.setAttribute('aria-pressed', el.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
@@ -169,11 +307,18 @@ function rowHtml(u){
        aria-pressed="${(u.areas||[]).includes(a)}">${a}</button>`).join('');
   const opts = ROLES.map(([v,l]) =>
     `<option value="${v}"${u.role===v?' selected':''}>${l}</option>`).join('');
+  const mine = u.apps || [];
+  const appChips = (EC.APPS || []).map(([id,label]) =>
+    `<button type="button" class="chip app" data-app data-uid="${u.id}" data-appid="${id}"
+       title="${esc(label)}" aria-pressed="${mine.includes(id)}">${esc(label)}</button>`).join('');
   return `<div class="row" data-row="${u.id}">
     <div class="name">${esc(u.full_name || '—')}</div>
     <div class="mail">${esc(u.email)}</div>
     <div><select data-role data-uid="${u.id}">${opts}</select></div>
     <div class="areas">${chips}</div>
+    <div class="apps">${appChips}<br>
+      <button type="button" class="allbtn" data-appall="${u.id}">全部</button>
+      <button type="button" class="allbtn" data-appnone="${u.id}">なし</button></div>
     <div><label class="toggle"><input type="checkbox" data-active data-uid="${u.id}"
       ${u.is_active?'checked':''}>有効</label></div>
     <div><button class="save" data-save="${u.id}" disabled>保存</button></div>
@@ -191,10 +336,12 @@ async function save(uid, btn){
   const is_active = row.querySelector('[data-active]').checked;
   const areas = Array.from(row.querySelectorAll('[data-chip][aria-pressed="true"]'))
     .map(el => el.dataset.area);
+  const apps = Array.from(row.querySelectorAll('[data-app][aria-pressed="true"]'))
+    .map(el => el.dataset.appid);
 
   btn.disabled = true; btn.textContent = '保存中';
   const { error } = await EC.supabase.from('app_users')
-    .update({ role, areas, is_active }).eq('id', uid);
+    .update({ role, areas, apps, is_active }).eq('id', uid);
 
   if (error){
     btn.disabled = false;
@@ -203,7 +350,7 @@ async function save(uid, btn){
     return;
   }
   const u = users.find(x => x.id === uid);
-  Object.assign(u, { role, areas, is_active });
+  Object.assign(u, { role, areas, apps, is_active });
   btn.textContent = '保存しました';
   btn.classList.add('done');
   if (u.role !== 'viewer') setTimeout(render, 900);
