@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>経営計画書ポータル｜株式会社アースコム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   経営計画書ポータル
+   紙の手帳の相棒として設計。索引ツメ・ページ番号・訂正印。
+   ============================================================ */
+:root{
+  --ink:#17233A;          /* 墨 */
+  --ink-2:#3C4A63;
+  --ink-3:#6C7A92;
+  --paper:#ECEEF1;        /* 紙 */
+  --card:#FFFFFF;
+  --rule:#C9CFD8;
+  --rule-2:#E3E7EC;
+  --shu:#C0392B;          /* 朱＝要修正・訂正印 */
+  --shu-bg:#FBEDEB;
+  --midori:#2E6F52;       /* 反映済み */
+  --midori-bg:#E9F2ED;
+  --brass:#8A7233;        /* Rev・ページ番号 */
+  --disp:"Shippori Mincho B1",serif;
+  --body:"Noto Sans JP",system-ui,sans-serif;
+  --mono:"Roboto Mono",ui-monospace,monospace;
+  --rail:236px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--body);
+  font-size:15px;line-height:1.85;-webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+}
+a{color:var(--ink);text-underline-offset:3px}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:700;letter-spacing:.02em;line-height:1.5;margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- 機密保護 ---------- */
+#watermark{
+  position:fixed;inset:0;z-index:9000;pointer-events:none;
+  opacity:.055;overflow:hidden;
+}
+#watermark span{
+  position:absolute;font-family:var(--mono);font-size:13px;white-space:nowrap;
+  transform:rotate(-24deg);color:var(--ink);
+}
+.protect{user-select:none;-webkit-user-select:none}
+@media print{
+  body::after{
+    content:"この文書は印刷できません。経営計画書ポータルでご覧ください。";
+    position:fixed;inset:0;background:#fff;color:#000;font-size:20px;
+    display:flex;align-items:center;justify-content:center;z-index:99999;
+  }
+  #app{display:none!important}
+}
+
+/* ---------- ログインゲート ---------- */
+#gate{
+  position:fixed;inset:0;z-index:9500;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;
+}
+#gate .box{max-width:380px}
+#gate h1{font-size:26px;color:#fff;margin-bottom:14px}
+#gate p{color:#B6C0D2;font-size:13.5px;line-height:1.9}
+#gate .seal{
+  width:74px;height:74px;border:2.5px solid var(--shu);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 22px;
+  font-family:var(--disp);color:var(--shu);font-size:15px;letter-spacing:.1em;
+  line-height:1.3;
+}
+
+/* ---------- ヘッダー ---------- */
+header{
+  position:sticky;top:0;z-index:60;background:var(--ink);color:#fff;
+  padding:0 18px;display:flex;align-items:center;gap:16px;height:56px;
+}
+header .brand{display:flex;align-items:baseline;gap:10px;flex-shrink:0}
+header .brand b{font-family:var(--disp);font-size:17.5px;font-weight:700;letter-spacing:.06em}
+header .brand span{font-family:var(--mono);font-size:11px;color:#94A3BC;letter-spacing:.08em}
+.revchip{
+  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.06em;
+  border:1px solid #4A5C7A;color:#D5DCE8;padding:2px 8px;border-radius:2px;
+}
+#searchbox{
+  flex:1;max-width:460px;display:flex;align-items:center;gap:8px;
+  background:#243554;border:1px solid #364B70;border-radius:3px;padding:0 11px;height:34px;
+}
+#searchbox input{
+  flex:1;background:none;border:0;outline:0;color:#fff;font-family:inherit;font-size:13.5px;
+}
+#searchbox input::placeholder{color:#7E8CA6}
+.hbtn{
+  background:none;border:1px solid #3B4E70;color:#D5DCE8;height:34px;padding:0 12px;
+  border-radius:3px;font-size:12.5px;white-space:nowrap;
+}
+.hbtn:hover{background:#243554}
+.hbtn.alert{border-color:var(--shu);color:#FFC9C2;background:#3A1F1E}
+#me{font-size:12px;color:#94A3BC;text-align:right;line-height:1.35;flex-shrink:0}
+#me b{display:block;color:#fff;font-size:12.5px;font-weight:500}
+#burger{display:none}
+
+/* ---------- レイアウト ---------- */
+#app{display:none}
+.wrap{display:grid;grid-template-columns:var(--rail) 1fr;min-height:calc(100vh - 56px)}
+
+/* 索引ツメ（紙の手帳のインデックス） */
+#rail{
+  background:#DEE2E8;border-right:1px solid var(--rule);
+  padding:16px 0 60px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;
+}
+.railhead{
+  font-size:10.5px;letter-spacing:.22em;color:var(--ink-3);
+  padding:0 16px 10px;font-weight:700;
+}
+.tab{
+  display:block;width:100%;text-align:left;background:none;border:0;
+  border-left:3px solid transparent;padding:9px 14px 9px 16px;
+  font-size:13.5px;color:var(--ink-2);line-height:1.5;white-space:pre-wrap;
+}
+.tab:hover{background:#E6E9EE}
+.tab.on{background:var(--paper);border-left-color:var(--shu);color:var(--ink);font-weight:700}
+.railsep{height:1px;background:var(--rule);margin:12px 16px}
+.navlink{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  width:100%;background:none;border:0;padding:8px 16px;font-size:13px;color:var(--ink-2);
+}
+.navlink:hover{background:#E6E9EE}
+.navlink .n{font-family:var(--mono);font-size:11px;background:var(--shu);color:#fff;
+  border-radius:9px;padding:1px 7px;font-weight:700}
+
+main{padding:26px 32px 90px;max-width:940px}
+
+/* ---------- 共通パーツ ---------- */
+.eyebrow{
+  font-size:10.5px;letter-spacing:.22em;color:var(--ink-3);font-weight:700;
+  margin-bottom:8px;
+}
+.card{background:var(--card);border:1px solid var(--rule-2);border-radius:4px;padding:20px 22px}
+.card + .card{margin-top:14px}
+.pagetag{
+  font-family:var(--mono);font-size:11.5px;color:var(--brass);border:1px solid #D8CDAA;
+  background:#FAF6EA;padding:1px 7px;border-radius:2px;white-space:nowrap;
+}
+.btn{
+  background:var(--ink);color:#fff;border:0;border-radius:3px;padding:9px 18px;
+  font-size:13.5px;font-weight:500;
+}
+.btn:hover{background:#22314D}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--rule)}
+.btn.ghost:hover{background:#E6E9EE}
+.btn.shu{background:var(--shu)}
+.btn.shu:hover{background:#A82F23}
+.btn:disabled{opacity:.45;cursor:default}
+.muted{color:var(--ink-3);font-size:12.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ---------- ホーム ---------- */
+.hero{
+  background:var(--ink);color:#fff;border-radius:4px;padding:28px 30px;position:relative;
+  overflow:hidden;
+}
+.hero .eyebrow{color:#8496B4}
+.hero h2{font-size:22px;color:#fff;margin-bottom:10px;line-height:1.6}
+.hero p{color:#C3CCDB;font-size:13.5px;margin:0 0 18px;max-height:7.5em;overflow:hidden}
+.statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule-2);
+  border:1px solid var(--rule-2);border-radius:4px;overflow:hidden;margin-top:14px}
+.stat{background:var(--card);padding:15px 16px}
+.stat .k{font-size:10.5px;letter-spacing:.14em;color:var(--ink-3);font-weight:700}
+.stat .v{font-family:var(--mono);font-size:23px;font-weight:700;line-height:1.4;margin-top:4px}
+.stat .v small{font-size:12px;color:var(--ink-3);font-weight:400;margin-left:2px}
+
+/* 訂正アラート */
+.alertbar{
+  background:var(--shu-bg);border:1px solid #E9B7B0;border-left:4px solid var(--shu);
+  border-radius:3px;padding:15px 18px;display:flex;gap:14px;align-items:flex-start;
+  margin-bottom:14px;
+}
+.alertbar .t{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--shu)}
+
+/* ---------- 本文 ---------- */
+.crumb{font-size:11.5px;color:var(--ink-3);margin-bottom:6px}
+.sectitle{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;
+  border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:18px}
+.sectitle h2{font-size:21px;line-height:1.5}
+.article{font-size:14.5px;line-height:2.05}
+.article p{margin:0 0 1.1em}
+.article li{margin:0 0 .5em 1.2em}
+.article a{color:#1F4C8C}
+.article img{max-width:100%;border:1px solid var(--rule);border-radius:3px;margin:8px 0}
+.article .kk-table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+.article .kk-table td{border:1px solid var(--rule);padding:7px 10px;vertical-align:top}
+.article .kk-img-missing{color:var(--ink-3);font-size:12px}
+
+.seclist{border-top:1px solid var(--rule-2)}
+.secrow{
+  display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;
+  border-bottom:1px solid var(--rule-2);padding:13px 4px;text-align:left;
+}
+.secrow:hover{background:#E9ECF1}
+.secrow .dot{width:7px;height:7px;border-radius:50%;background:var(--rule);flex-shrink:0}
+.secrow.read .dot{background:var(--midori)}
+.secrow .tt{flex:1;font-size:14px;line-height:1.5}
+.secrow.lv2 .tt{padding-left:18px;font-size:13.2px;color:var(--ink-2)}
+.secrow.lv3 .tt{padding-left:36px;font-size:12.8px;color:var(--ink-3)}
+
+/* メモ */
+.memo{margin-top:26px;border-top:1px dashed var(--rule);padding-top:18px}
+.memo textarea{
+  width:100%;min-height:96px;border:1px solid var(--rule);border-radius:3px;padding:11px 13px;
+  font-family:inherit;font-size:13.5px;line-height:1.8;resize:vertical;background:#FCFCFA;
+}
+.memo textarea:focus{outline:2px solid var(--ink-3);outline-offset:-1px}
+
+/* ---------- 訂正票 ---------- */
+.rel{border:1px solid var(--rule-2);border-radius:4px;background:var(--card);margin-bottom:14px;overflow:hidden}
+.rel .top{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--rule-2)}
+.rel.required .top{background:var(--shu-bg)}
+.rel.info .top{background:#EEF1F5}
+.badge{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;
+  padding:3px 9px;border-radius:2px;white-space:nowrap}
+.badge.required{background:var(--shu);color:#fff}
+.badge.info{background:#8895AB;color:#fff}
+.rel .top .ttl{flex:1;font-family:var(--disp);font-weight:700;font-size:15.5px}
+.rel .body{padding:16px 18px}
+.diff{border:1px solid var(--rule-2);border-radius:3px;margin-bottom:12px}
+.diff .h{display:flex;align-items:center;gap:10px;background:#F4F6F8;padding:8px 12px;
+  border-bottom:1px solid var(--rule-2);font-size:12.5px;font-weight:700}
+.diff .old,.diff .new{padding:10px 13px;font-size:13px;line-height:1.85;white-space:pre-wrap}
+.diff .old{background:#FBF1F0;color:#8C4A42;text-decoration:line-through;text-decoration-color:#D8A69F}
+.diff .new{background:#F1F7F3}
+.diff .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;display:block;
+  margin-bottom:3px;opacity:.7}
+.ackbar{display:flex;align-items:center;gap:14px;padding:14px 18px;background:#F7F8FA;
+  border-top:1px solid var(--rule-2);flex-wrap:wrap}
+
+/* 訂正印（署名要素） */
+.stamp{
+  width:66px;height:66px;border:2.5px solid var(--midori);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--midori);font-family:var(--disp);font-weight:700;font-size:14px;line-height:1.25;
+  letter-spacing:.06em;flex-shrink:0;
+}
+.stamp .d{font-family:var(--mono);font-size:8.5px;letter-spacing:0;font-weight:400}
+@keyframes press{
+  0%{transform:scale(2.1) rotate(-14deg);opacity:0}
+  55%{transform:scale(.93) rotate(-4deg);opacity:1}
+  100%{transform:scale(1) rotate(-6deg);opacity:1}
+}
+.stamp.pressed{animation:press .42s cubic-bezier(.2,.8,.3,1) forwards}
+@media (prefers-reduced-motion:reduce){.stamp.pressed{animation:none;transform:rotate(-6deg)}}
+
+/* ---------- 検索 ---------- */
+.hit{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--rule-2);
+  border-radius:3px;padding:14px 16px;margin-bottom:9px}
+.hit:hover{border-color:var(--ink-3)}
+.hit .p{font-size:11.5px;color:var(--ink-3);margin-bottom:3px}
+.hit .t{font-family:var(--disp);font-weight:700;font-size:15px;margin-bottom:5px}
+.hit .s{font-size:12.5px;color:var(--ink-2);line-height:1.75}
+.hit mark{background:#FBEAAF;color:inherit;padding:0 1px}
+
+/* ---------- 管理 ---------- */
+table.adm{width:100%;border-collapse:collapse;font-size:13px;background:var(--card)}
+table.adm th{background:#F4F6F8;text-align:left;font-weight:700;font-size:11.5px;
+  letter-spacing:.08em;color:var(--ink-2);padding:9px 11px;border-bottom:1px solid var(--rule)}
+table.adm td{padding:9px 11px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+table.adm input[type=text]{border:1px solid var(--rule);border-radius:2px;padding:4px 7px;
+  font-family:var(--mono);font-size:12px;width:78px}
+.bar{height:6px;background:var(--rule-2);border-radius:3px;overflow:hidden;min-width:90px}
+.bar i{display:block;height:100%;background:var(--midori)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;
+  color:var(--ink-2);margin-bottom:5px}
+.field input[type=text],.field input[type=date],.field select,.field textarea{
+  width:100%;border:1px solid var(--rule);border-radius:3px;padding:8px 11px;
+  font-family:inherit;font-size:13.5px;background:#fff;
+}
+.chkrow{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--rule-2)}
+
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(70px);
+  background:var(--ink);color:#fff;padding:11px 22px;border-radius:3px;font-size:13.5px;
+  z-index:9800;opacity:0;transition:.28s;pointer-events:none;max-width:90vw;text-align:center;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- モバイル ---------- */
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  #rail{
+    position:fixed;top:56px;left:0;width:280px;z-index:70;height:calc(100vh - 56px);
+    transform:translateX(-100%);transition:transform .22s;box-shadow:0 0 30px rgba(0,0,0,.18);
+  }
+  #rail.open{transform:translateX(0)}
+  #burger{display:inline-flex}
+  main{padding:18px 16px 90px}
+  header{gap:9px;padding:0 12px}
+  header .brand span{display:none}
+  .revchip{display:none}
+  #me{display:none}
+  .statrow{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  #searchbox{max-width:none}
+}
+</style>
+</head>
+<body>
+
+<div id="watermark"></div>
+
+<div id="gate">
+  <div class="box">
+    <div class="seal">複製<br>厳禁</div>
+    <h1>経営計画書ポータル</h1>
+    <p id="gatemsg">会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。</p>
+    <p style="margin-top:18px"><button class="btn ghost" style="color:#fff;border-color:#4A5C7A" id="gatebtn">ログイン</button></p>
+  </div>
+</div>
+
+<div id="app">
+<header>
+  <button class="hbtn" id="burger" aria-label="索引">≡</button>
+  <div class="brand">
+    <b>経営計画書</b><span id="termlbl">第18期</span>
+  </div>
+  <span class="revchip" id="revchip">Rev.—</span>
+  <div id="searchbox">
+    <span style="color:#7E8CA6">⌕</span>
+    <input id="q" type="search" placeholder="方針・ルールを検索（例：経費精算）" autocomplete="off">
+  </div>
+  <button class="hbtn" id="btn-corr">訂正票</button>
+  <button class="hbtn" id="btn-admin" style="display:none">管理</button>
+  <div id="me"><b>—</b><span id="mesub"></span></div>
+</header>
+
+<div class="wrap">
+  <nav id="rail">
+    <div class="railhead">索　引</div>
+    <div id="tabs"></div>
+    <div class="railsep"></div>
+    <button class="navlink" data-go="home"><span>ホーム</span></button>
+    <button class="navlink" data-go="corr"><span>訂正票</span><span class="n" id="corrn" style="display:none">0</span></button>
+    <button class="navlink" data-go="notes"><span>自分のメモ</span></button>
+    <div class="railsep"></div>
+    <div style="padding:4px 16px 0" class="muted" id="syncinfo">同期状況を確認中…</div>
+    <div style="padding:8px 16px 0">
+      <button class="btn ghost" id="btn-sync" style="font-size:12px;padding:6px 12px">今すぐ同期</button>
+    </div>
+  </nav>
+  <main id="view"></main>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   設定
+   ============================================================ */
+const CFG = {
+  SUPABASE_URL : 'https://aakofrzurgwrkctunthw.supabase.co',
+  SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
+  BUCKET       : 'keikaku',
+  TERM         : 18,
+  // GAS ウェブアプリのURL（「今すぐ同期」で呼ぶ）
+  SYNC_ENDPOINT: '',      // 例: https://script.google.com/macros/s/xxxx/exec
+  SYNC_TOKEN   : '',      // GAS のスクリプトプロパティ SYNC_TOKEN と同じ値
+  // 編集権限（社長・総務のみ）
+  EDITORS      : ['marubayashi@earthcom-eco.jp'],
+  EDITOR_ROLES : ['admin']
+};
+
+/* ============================================================
+   Supabase 最小クライアント
+   ============================================================ */
+async function sb(path, opt = {}) {
+  const h = {
+    apikey: CFG.SUPABASE_KEY,
+    Authorization: 'Bearer ' + (window.EC?.token?.() || CFG.SUPABASE_KEY),
+    'Content-Type': 'application/json',
+    ...(opt.headers || {})
+  };
+  const res = await fetch(CFG.SUPABASE_URL + '/rest/v1/' + path, { ...opt, headers: h });
+  if (!res.ok) throw new Error(await res.text());
+  const t = await res.text();
+  return t ? JSON.parse(t) : [];
+}
+const sbGet    = (t, q)        => sb(t + '?' + q);
+const sbPost   = (t, rows)     => sb(t, { method:'POST', body:JSON.stringify(rows), headers:{Prefer:'return=representation'} });
+const sbUpsert = (t, rows, k)  => sb(t + '?on_conflict=' + k, { method:'POST', body:JSON.stringify(rows), headers:{Prefer:'resolution=merge-duplicates,return=minimal'} });
+const sbPatch  = (t, f, o)     => sb(t + '?' + f, { method:'PATCH', body:JSON.stringify(o), headers:{Prefer:'return=minimal'} });
+
+async function signedImg(path) {
+  try {
+    const r = await fetch(`${CFG.SUPABASE_URL}/storage/v1/object/sign/${CFG.BUCKET}/${path}`, {
+      method:'POST',
+      headers:{ apikey:CFG.SUPABASE_KEY, Authorization:'Bearer '+(window.EC?.token?.()||CFG.SUPABASE_KEY), 'Content-Type':'application/json' },
+      body: JSON.stringify({ expiresIn: 3600 })
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return CFG.SUPABASE_URL + '/storage/v1' + j.signedURL;
+  } catch { return null; }
+}
+
+/* ============================================================
+   状態
+   ============================================================ */
+const S = {
+  me:null, editor:false,
+  tabs:[], sections:[], byId:{},
+  reads:new Set(), notes:{},
+  releases:[], myAcks:new Set(),
+  route:{name:'home'}
+};
+
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = d => d ? new Date(d).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const fmtD= d => d ? new Date(d).toLocaleDateString('ja-JP',{year:'numeric',month:'numeric',day:'numeric'}) : '—';
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2400); }
+
+/* ============================================================
+   認証
+   ============================================================ */
+async function boot() {
+  drawWatermarkPlaceholder();
+  let me = null;
+  try {
+    if (window.EC?.guard) me = await window.EC.guard();
+    else if (window.EC?.me)  me = await window.EC.me();
+  } catch (e) { me = null; }
+
+  if (!me) {
+    $('#gatemsg').textContent = '会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。閲覧は社員に限られ、閲覧記録が残ります。';
+    $('#gatebtn').onclick = () => window.EC?.login ? window.EC.login() : location.reload();
+    return;
+  }
+  S.me = me;
+  S.editor = CFG.EDITORS.includes((me.email||'').toLowerCase())
+          || CFG.EDITOR_ROLES.includes(me.role);
+
+  $('#gate').style.display = 'none';
+  $('#app').style.display  = 'block';
+  $('#me').innerHTML = `<b>${esc(me.full_name || me.email)}</b><span id="mesub">${esc(me.dept || me.role || '')}</span>`;
+  if (S.editor) $('#btn-admin').style.display = 'inline-flex';
+  drawWatermark();
+
+  await loadAll();
+  bindUI();
+  route();
+}
+
+function drawWatermarkPlaceholder(){ $('#watermark').innerHTML = ''; }
+function drawWatermark() {
+  const txt = `${S.me.full_name || ''} ${S.me.email} ${new Date().toLocaleString('ja-JP')} 複製厳禁`;
+  let h = '';
+  for (let y = -100; y < window.innerHeight + 300; y += 150)
+    for (let x = -200; x < window.innerWidth + 300; x += 460)
+      h += `<span style="left:${x}px;top:${y}px">${esc(txt)}</span>`;
+  $('#watermark').innerHTML = h;
+}
+window.addEventListener('resize', () => { if (S.me) drawWatermark(); });
+
+/* ============================================================
+   データ読み込み
+   ============================================================ */
+async function loadAll() {
+  const [tabs, secs, reads, notes, rels, acks, sync] = await Promise.all([
+    sbGet('kk_tabs',     'select=*&order=sort_order'),
+    sbGet('kk_sections', 'select=id,tab_id,parent_id,level,title,path,sort_order,body_html,body_text,page_no,updated_at&deleted_at=is.null&order=tab_id,sort_order'),
+    sbGet('kk_reads',    `select=section_id&user_email=eq.${encodeURIComponent(S.me.email)}`),
+    sbGet('kk_notes',    `select=section_id,body&user_email=eq.${encodeURIComponent(S.me.email)}`),
+    sbGet('kk_releases', `select=*&term=eq.${CFG.TERM}&order=published_at.desc`),
+    sbGet('kk_release_acks', `select=release_id&user_email=eq.${encodeURIComponent(S.me.email)}`),
+    sbGet('kk_sync_log', 'select=*&order=started_at.desc&limit=1')
+  ]);
+  S.tabs = tabs; S.sections = secs;
+  S.byId = Object.fromEntries(secs.map(s => [s.id, s]));
+  S.reads = new Set(reads.map(r => r.section_id));
+  S.notes = Object.fromEntries(notes.map(n => [n.section_id, n.body]));
+  S.releases = rels;
+  S.myAcks = new Set(acks.map(a => a.release_id));
+
+  const maxRev = rels.reduce((m, r) => Math.max(m, r.rev), 0);
+  $('#revchip').textContent = `${CFG.TERM}期 Rev.${maxRev}`;
+  $('#termlbl').textContent = `第${CFG.TERM}期`;
+
+  const s = sync[0];
+  $('#syncinfo').innerHTML = s
+    ? `最終同期<br><b class="mono">${fmt(s.finished_at || s.started_at)}</b>　${s.status === 'ok' ? '最新' : esc(s.status || '')}`
+    : '未同期';
+
+  renderRail();
+  updateCorrBadge();
+}
+
+function pending() {
+  return S.releases.filter(r => r.severity === 'required' && !S.myAcks.has(r.id));
+}
+function updateCorrBadge() {
+  const n = pending().length;
+  $('#corrn').style.display = n ? 'inline-block' : 'none';
+  $('#corrn').textContent = n;
+  $('#btn-corr').classList.toggle('alert', n > 0);
+  $('#btn-corr').textContent = n ? `訂正票 ${n}` : '訂正票';
+}
+
+function renderRail() {
+  $('#tabs').innerHTML = S.tabs.map(t =>
+    `<button class="tab" data-tab="${esc(t.id)}">${esc(t.title)}</button>`).join('');
+}
+
+/* ============================================================
+   ルーティング
+   ============================================================ */
+function go(name, arg) { S.route = { name, arg }; route(); $('#rail').classList.remove('open'); window.scrollTo(0,0); }
+
+function route() {
+  $$('.tab').forEach(b => b.classList.toggle('on', S.route.name==='tab' && b.dataset.tab===S.route.arg));
+  const v = $('#view');
+  ({
+    home : viewHome,
+    tab  : viewTab,
+    sec  : viewSection,
+    corr : viewCorrections,
+    notes: viewNotes,
+    admin: viewAdmin,
+    search: viewSearch
+  }[S.route.name] || viewHome)(v);
+}
+
+/* ------------------------------------------------------------
+   ホーム
+   ------------------------------------------------------------ */
+function todaysPolicy() {
+  const pool = S.sections.filter(s => s.level <= 2 && (s.body_text || '').length > 60);
+  if (!pool.length) return null;
+  const d = new Date();
+  const seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  return pool[seed % pool.length];
+}
+
+function viewHome(v) {
+  const p = todaysPolicy();
+  const need = pending();
+  const readPct = S.sections.length ? Math.round(S.reads.size / S.sections.length * 100) : 0;
+  const maxRev = S.releases.reduce((m,r)=>Math.max(m,r.rev),0);
+
+  v.innerHTML = `
+    ${need.length ? `
+      <div class="alertbar">
+        <div style="font-size:20px;color:var(--shu);line-height:1.2">！</div>
+        <div style="flex:1">
+          <div class="t">お手元の経営計画書を修正してください</div>
+          <div class="muted" style="color:#8C4A42;margin-top:3px">
+            未反映の訂正が ${need.length} 件あります。${need[0].due_date ? `期限 ${fmtD(need[0].due_date)}` : ''}
+          </div>
+        </div>
+        <button class="btn shu" data-go="corr">訂正票を開く</button>
+      </div>` : ''}
+
+    <div class="hero">
+      <div class="eyebrow">本日の方針</div>
+      ${p ? `<h2>${esc(p.title)}</h2>
+        <p>${esc((p.body_text||'').slice(0,190))}…</p>
+        <button class="btn ghost" style="color:#fff;border-color:#4A5C7A" data-sec="${esc(p.id)}">全文を読む</button>`
+        : `<h2>同期を待っています</h2><p>マスター文書がまだ取り込まれていません。管理画面から同期を実行してください。</p>`}
+    </div>
+
+    <div class="statrow">
+      <div class="stat"><div class="k">読了</div><div class="v">${readPct}<small>%</small></div></div>
+      <div class="stat"><div class="k">方針・項目</div><div class="v">${S.sections.length}<small>件</small></div></div>
+      <div class="stat"><div class="k">現在の版</div><div class="v">Rev.${maxRev}</div></div>
+      <div class="stat"><div class="k">未反映の訂正</div><div class="v" style="color:${need.length?'var(--shu)':'inherit'}">${need.length}<small>件</small></div></div>
+    </div>
+
+    <div style="margin-top:26px" class="eyebrow">章から探す</div>
+    <div class="grid2">
+      ${S.tabs.map(t => {
+        const n = S.sections.filter(s => s.tab_id === t.id).length;
+        const r = S.sections.filter(s => s.tab_id === t.id && S.reads.has(s.id)).length;
+        return `<button class="card" style="text-align:left;cursor:pointer" data-tab2="${esc(t.id)}">
+          <div style="font-family:var(--disp);font-weight:700;font-size:15.5px">${esc(t.title.trim())}</div>
+          <div class="muted" style="margin-top:6px;display:flex;align-items:center;gap:9px">
+            <span class="mono">${r}/${n}</span>
+            <span class="bar" style="flex:1"><i style="width:${n?Math.round(r/n*100):0}%"></i></span>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>`;
+  wire(v);
+}
+
+/* ------------------------------------------------------------
+   章 → 見出し一覧
+   ------------------------------------------------------------ */
+function viewTab(v) {
+  const t = S.tabs.find(x => x.id === S.route.arg);
+  const list = S.sections.filter(s => s.tab_id === S.route.arg);
+  v.innerHTML = `
+    <div class="eyebrow">章</div>
+    <div class="sectitle"><h2>${esc(t ? t.title.trim() : '')}</h2>
+      <span class="muted mono">${list.filter(s=>S.reads.has(s.id)).length}/${list.length} 既読</span></div>
+    <div class="seclist">
+      ${list.map(s => `
+        <button class="secrow lv${s.level} ${S.reads.has(s.id)?'read':''}" data-sec="${esc(s.id)}">
+          <span class="dot"></span>
+          <span class="tt">${esc(s.title)}</span>
+          ${s.page_no ? `<span class="pagetag">P.${esc(s.page_no)}</span>` : ''}
+        </button>`).join('') || '<p class="muted" style="padding:20px 0">この章にはまだ内容がありません。</p>'}
+    </div>`;
+  wire(v);
+}
+
+/* ------------------------------------------------------------
+   本文
+   ------------------------------------------------------------ */
+async function viewSection(v) {
+  const s = S.byId[S.route.arg];
+  if (!s) { v.innerHTML = '<p class="muted">その項目は見つかりません。索引から選び直してください。</p>'; return; }
+  const sibs = S.sections.filter(x => x.tab_id === s.tab_id);
+  const i = sibs.findIndex(x => x.id === s.id);
+
+  v.innerHTML = `
+    <div class="crumb">${esc(s.path)}</div>
+    <div class="sectitle">
+      <h2>${esc(s.title)}</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        ${s.page_no ? `<span class="pagetag">手帳 P.${esc(s.page_no)}</span>` : ''}
+        <span class="muted mono" style="font-size:11px">更新 ${fmt(s.updated_at)}</span>
+      </div>
+    </div>
+    <div class="article protect" id="art">${s.body_html || '<p class="muted">本文なし</p>'}</div>
+
+    <div class="memo">
+      <div class="eyebrow">自分のメモ（自分だけに表示されます）</div>
+      <textarea id="memo" placeholder="この方針を自分の担当業務でどう実行するか、書き留めておく">${esc(S.notes[s.id]||'')}</textarea>
+      <div style="margin-top:9px;display:flex;gap:10px;align-items:center">
+        <button class="btn ghost" id="savememo">メモを保存</button>
+        <span class="muted" id="memostat"></span>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:30px">
+      <button class="btn ghost" ${i>0?`data-sec="${esc(sibs[i-1].id)}"`:'disabled'}>← 前へ</button>
+      <button class="btn ghost" ${i<sibs.length-1?`data-sec="${esc(sibs[i+1].id)}"`:'disabled'}>次へ →</button>
+    </div>`;
+
+  wire(v);
+  hydrateImages(v);
+
+  $('#savememo').onclick = async () => {
+    const body = $('#memo').value.trim();
+    try {
+      await sbUpsert('kk_notes', [{ user_email:S.me.email, section_id:s.id, body, updated_at:new Date().toISOString() }], 'user_email,section_id');
+      S.notes[s.id] = body;
+      $('#memostat').textContent = '保存しました';
+    } catch { $('#memostat').textContent = '保存できませんでした。通信を確認してください。'; }
+  };
+
+  markRead(s.id);
+  log('view', s.id);
+}
+
+async function hydrateImages(scope) {
+  for (const img of scope.querySelectorAll('img[data-kk-img]')) {
+    const u = await signedImg(img.dataset.kkImg);
+    if (u) img.src = u; else img.replaceWith(Object.assign(document.createElement('span'), {className:'kk-img-missing', textContent:'［図：表示できません］'}));
+  }
+}
+
+async function markRead(id) {
+  if (S.reads.has(id)) return;
+  S.reads.add(id);
+  try { await sbUpsert('kk_reads', [{ user_email:S.me.email, section_id:id, read_at:new Date().toISOString() }], 'user_email,section_id'); } catch {}
+}
+async function log(action, sectionId, detail) {
+  try { await sbPost('kk_access_log', [{ user_email:S.me.email, user_name:S.me.full_name||'', section_id:sectionId||null, action, detail:detail||null }]); } catch {}
+}
+
+/* ------------------------------------------------------------
+   訂正票
+   ------------------------------------------------------------ */
+async function viewCorrections(v) {
+  v.innerHTML = '<p class="muted">読み込み中…</p>';
+  const ids = S.releases.map(r => r.id);
+  const changes = ids.length
+    ? await sbGet('kk_changes', `select=*&release_id=in.(${ids.join(',')})&order=id`)
+    : [];
+  const byRel = {};
+  changes.forEach(c => (byRel[c.release_id] ||= []).push(c));
+
+  v.innerHTML = `
+    <div class="eyebrow">訂正票</div>
+    <div class="sectitle"><h2>お手元の経営計画書への反映</h2></div>
+    <p class="muted" style="margin:-8px 0 20px">
+      デジタル版が正です。<b style="color:var(--shu)">要修正</b>の訂正票は、紙の手帳を書き換えたうえで「反映しました」を押してください。
+      表紙裏の訂正記録欄にRev.番号を記入すると、どこまで直したかが一目で分かります。
+    </p>
+    ${S.releases.length ? S.releases.map(r => relCard(r, byRel[r.id]||[])).join('')
+      : '<div class="card"><p class="muted" style="margin:0">まだ訂正はありません。お手元の経営計画書は最新です。</p></div>'}`;
+
+  v.querySelectorAll('[data-ack]').forEach(b => b.onclick = () => ack(b.dataset.ack, b));
+  wire(v);
+}
+
+function relCard(r, cs) {
+  const done = S.myAcks.has(r.id);
+  const req  = r.severity === 'required';
+  return `
+  <div class="rel ${req?'required':'info'}">
+    <div class="top">
+      <span class="badge ${req?'required':'info'}">${req?'要修正':'参　考'}</span>
+      <span class="ttl">${esc(r.title)}</span>
+      <span class="mono muted">${CFG.TERM}期 Rev.${r.rev}</span>
+    </div>
+    <div class="body">
+      ${r.note ? `<p style="margin:0 0 14px">${esc(r.note)}</p>` : ''}
+      ${cs.map(c => `
+        <div class="diff">
+          <div class="h">
+            <span>${esc(c.section_title||'')}</span>
+            ${c.page_no ? `<span class="pagetag">手帳 P.${esc(c.page_no)}</span>` : '<span class="muted" style="font-weight:400">ページ番号 未設定</span>'}
+            <span style="flex:1"></span>
+            <span class="muted mono" style="font-weight:400">${c.change_type==='added'?'追加':c.change_type==='removed'?'削除':'変更'}</span>
+          </div>
+          ${c.old_text ? `<div class="old"><span class="lbl">BEFORE</span>${esc(c.old_text)}</div>`:''}
+          ${c.new_text ? `<div class="new"><span class="lbl">AFTER</span>${esc(c.new_text)}</div>`:''}
+        </div>`).join('')}
+    </div>
+    <div class="ackbar">
+      ${done
+        ? `<div class="stamp"><span>反映済</span><span class="d">${fmtD(r.published_at)}</span></div>
+           <div class="muted">紙への反映を報告済みです。</div>`
+        : req
+          ? `<button class="btn shu" data-ack="${r.id}">紙を修正しました</button>
+             <div class="muted">${r.due_date?`期限 ${fmtD(r.due_date)}`:'期限の指定なし'}</div>`
+          : `<div class="muted">参考情報です。紙の修正は不要です。</div>`}
+      <span style="flex:1"></span>
+      <span class="muted mono" style="font-size:11px">発行 ${fmtD(r.published_at)}</span>
+    </div>
+  </div>`;
+}
+
+async function ack(relId, btn) {
+  btn.disabled = true;
+  try {
+    await sbPost('kk_release_acks', [{
+      release_id:+relId, user_email:S.me.email,
+      user_name:S.me.full_name||'', dept:S.me.dept||null
+    }]);
+  } catch (e) { /* 既に押されている場合も成功扱い */ }
+  S.myAcks.add(+relId);
+  const bar = btn.closest('.ackbar');
+  bar.innerHTML = `<div class="stamp pressed"><span>反映済</span><span class="d">${fmtD(new Date())}</span></div>
+                   <div class="muted">紙への反映を報告しました。訂正記録欄にRev.の記入もお願いします。</div>`;
+  updateCorrBadge();
+  toast('反映を報告しました');
+}
+
+/* ------------------------------------------------------------
+   自分のメモ
+   ------------------------------------------------------------ */
+function viewNotes(v) {
+  const rows = Object.entries(S.notes).filter(([,b]) => b && b.trim());
+  v.innerHTML = `
+    <div class="eyebrow">自分のメモ</div>
+    <div class="sectitle"><h2>書き留めた実行のヒント</h2></div>
+    ${rows.length ? rows.map(([id,b]) => {
+      const s = S.byId[id]; if (!s) return '';
+      return `<button class="hit" data-sec="${esc(id)}">
+        <div class="p">${esc(s.path)}</div>
+        <div class="t">${esc(s.title)}</div>
+        <div class="s">${esc(b.slice(0,160))}</div></button>`;
+    }).join('') : '<div class="card"><p class="muted" style="margin:0">まだメモはありません。方針を開いて、自分の担当業務にどう落とすかを書き留めておくと、勉強会でそのまま使えます。</p></div>'}`;
+  wire(v);
+}
+
+/* ------------------------------------------------------------
+   検索
+   ------------------------------------------------------------ */
+function viewSearch(v) {
+  const q = (S.route.arg || '').trim();
+  if (!q) { v.innerHTML = '<p class="muted">検索したい語を入力してください。</p>'; return; }
+  const hits = S.sections.filter(s =>
+    (s.title + ' ' + (s.body_text||'')).toLowerCase().includes(q.toLowerCase()));
+  v.innerHTML = `
+    <div class="eyebrow">検索</div>
+    <div class="sectitle"><h2>「${esc(q)}」の検索結果</h2>
+      <span class="muted mono">${hits.length}件</span></div>
+    ${hits.map(s => {
+      const t = s.body_text || '';
+      const i = t.toLowerCase().indexOf(q.toLowerCase());
+      const snip = i >= 0 ? t.slice(Math.max(0,i-40), i+120) : t.slice(0,130);
+      return `<button class="hit" data-sec="${esc(s.id)}">
+        <div class="p">${esc(s.path)}${s.page_no?`　手帳 P.${esc(s.page_no)}`:''}</div>
+        <div class="t">${esc(s.title)}</div>
+        <div class="s">…${esc(snip).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'), m=>`<mark>${m}</mark>`)}…</div>
+      </button>`;
+    }).join('') || '<div class="card"><p class="muted" style="margin:0">該当がありません。言い換えて試してください。</p></div>'}`;
+  wire(v);
+  log('search', null, q);
+}
+
+/* ------------------------------------------------------------
+   管理（社長・総務のみ）
+   ------------------------------------------------------------ */
+async function viewAdmin(v) {
+  if (!S.editor) { v.innerHTML = '<p class="muted">この画面は社長・総務のみが利用できます。</p>'; return; }
+  v.innerHTML = '<p class="muted">読み込み中…</p>';
+
+  const [open, sync, acks, allSecs] = await Promise.all([
+    sbGet('kk_changes',      'select=*&release_id=is.null&order=detected_at.desc&limit=200'),
+    sbGet('kk_sync_log',     'select=*&order=started_at.desc&limit=8'),
+    sbGet('kk_release_acks', 'select=release_id,user_email,dept'),
+    sbGet('kk_sections',     'select=id,title,path,page_no,level,tab_id,sort_order&deleted_at=is.null&order=tab_id,sort_order')
+  ]);
+  const ackCount = {};
+  acks.forEach(a => ackCount[a.release_id] = (ackCount[a.release_id]||0) + 1);
+  const staff = new Set(acks.map(a => a.user_email)).size;
+
+  v.innerHTML = `
+    <div class="eyebrow">管理</div>
+    <div class="sectitle"><h2>同期と訂正の発行</h2><span class="muted">社長・総務のみ</span></div>
+
+    <div class="card">
+      <div class="eyebrow">未発行の変更（${open.length}件）</div>
+      <p class="muted" style="margin:0 0 14px">
+        紙の修正が必要なものを選び、まとめて1つの訂正票（Rev.）として発行します。
+        誤字修正などは「参考」で出すか、選ばずに置いておけば通知されません。
+      </p>
+      <div id="openlist" style="max-height:340px;overflow:auto;border-top:1px solid var(--rule-2)">
+        ${open.length ? open.map(c => `
+          <label class="chkrow">
+            <input type="checkbox" class="chg" value="${c.id}" style="margin-top:5px">
+            <span style="flex:1">
+              <b style="font-family:var(--disp)">${esc(c.section_title||'（見出しなし）')}</b>
+              <span class="muted" style="display:block;font-size:11.5px">${esc(c.path||'')}</span>
+              <span class="muted" style="display:block;margin-top:4px">${esc((c.new_text||c.old_text||'').slice(0,110))}</span>
+            </span>
+            <span class="muted mono" style="font-size:11px;white-space:nowrap">${c.change_type==='added'?'追加':c.change_type==='removed'?'削除':'変更'}<br>${fmt(c.detected_at)}</span>
+          </label>`).join('')
+          : '<p class="muted" style="padding:14px 0;margin:0">未発行の変更はありません。</p>'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+        <div class="field"><label>訂正票の見出し</label>
+          <input type="text" id="rtitle" placeholder="例：経費に関する方針の改定"></div>
+        <div class="field"><label>区分</label>
+          <select id="rsev"><option value="required">要修正（紙を書き換える）</option><option value="info">参考（アプリのみ）</option></select></div>
+      </div>
+      <div class="field"><label>補足（任意）</label><input type="text" id="rnote" placeholder="社員に伝えたいこと"></div>
+      <div class="field" style="max-width:220px"><label>反映期限</label><input type="date" id="rdue"></div>
+      <button class="btn shu" id="publish">訂正票を発行する</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">反映状況</div>
+      <table class="adm">
+        <tr><th>Rev.</th><th>区分</th><th>見出し</th><th>期限</th><th style="width:190px">反映</th></tr>
+        ${S.releases.map(r => {
+          const n = ackCount[r.id]||0;
+          const pct = staff ? Math.round(n/Math.max(staff,1)*100) : 0;
+          return `<tr>
+            <td class="mono">Rev.${r.rev}</td>
+            <td><span class="badge ${r.severity}">${r.severity==='required'?'要修正':'参考'}</span></td>
+            <td>${esc(r.title)}</td>
+            <td class="mono">${r.due_date?fmtD(r.due_date):'—'}</td>
+            <td><div style="display:flex;align-items:center;gap:8px"><span class="mono">${n}名</span><span class="bar" style="flex:1"><i style="width:${pct}%"></i></span></div></td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="5" class="muted">まだ発行していません。</td></tr>'}
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">手帳のページ番号</div>
+      <p class="muted" style="margin:0 0 12px">紙の手帳の該当ページを入れておくと、訂正票に「手帳 P.○○」が出て社員が探しやすくなります。</p>
+      <div style="max-height:320px;overflow:auto">
+        <table class="adm">
+          <tr><th style="width:96px">ページ</th><th>見出し</th></tr>
+          ${allSecs.filter(s=>s.level<=2).map(s => `<tr>
+            <td><input type="text" class="pg" data-id="${esc(s.id)}" value="${esc(s.page_no||'')}" placeholder="—"></td>
+            <td>${esc(s.title)}<span class="muted" style="display:block;font-size:11px">${esc(s.path)}</span></td>
+          </tr>`).join('')}
+        </table>
+      </div>
+      <button class="btn ghost" id="savepages" style="margin-top:12px">ページ番号を保存</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">同期の履歴</div>
+      <table class="adm">
+        <tr><th>実行</th><th>結果</th><th>追加</th><th>変更</th><th>削除</th><th>メモ</th></tr>
+        ${sync.map(s => `<tr>
+          <td class="mono">${fmt(s.started_at)}</td>
+          <td>${s.status==='ok'?'正常':esc(s.status||'')}</td>
+          <td class="mono">${s.added||0}</td><td class="mono">${s.modified||0}</td><td class="mono">${s.removed||0}</td>
+          <td class="muted">${esc(s.message||'')}</td></tr>`).join('')}
+      </table>
+    </div>`;
+
+  $('#publish').onclick = publishRelease;
+  $('#savepages').onclick = savePages;
+}
+
+async function publishRelease() {
+  const ids = $$('.chg:checked').map(c => +c.value);
+  const title = $('#rtitle').value.trim();
+  if (!ids.length) return toast('発行する変更を選んでください');
+  if (!title)      return toast('訂正票の見出しを入力してください');
+  const rev = S.releases.reduce((m,r)=>Math.max(m,r.rev),0) + 1;
+  try {
+    const [r] = await sbPost('kk_releases', [{
+      term:CFG.TERM, rev, severity:$('#rsev').value, title,
+      note:$('#rnote').value.trim()||null,
+      due_date:$('#rdue').value||null,
+      published_by:S.me.email
+    }]);
+    await sbPatch('kk_changes', `id=in.(${ids.join(',')})`, { release_id:r.id });
+    toast(`Rev.${rev} を発行しました`);
+    await loadAll();
+    go('admin');
+  } catch (e) { toast('発行できませんでした：' + String(e).slice(0,60)); }
+}
+
+async function savePages() {
+  const rows = $$('.pg').map(i => ({ id:i.dataset.id, page_no:i.value.trim()||null }));
+  try {
+    for (const r of rows) {
+      const cur = S.byId[r.id];
+      if (cur && (cur.page_no||'') !== (r.page_no||'')) {
+        await sbPatch('kk_sections', `id=eq.${encodeURIComponent(r.id)}`, { page_no:r.page_no });
+        cur.page_no = r.page_no;
+      }
+    }
+    toast('ページ番号を保存しました');
+  } catch { toast('保存できませんでした'); }
+}
+
+/* ------------------------------------------------------------
+   同期実行
+   ------------------------------------------------------------ */
+async function runSync() {
+  if (!CFG.SYNC_ENDPOINT) return toast('同期URLが未設定です（管理者に連絡してください）');
+  $('#syncinfo').innerHTML = '同期しています…';
+  try {
+    await fetch(`${CFG.SYNC_ENDPOINT}?token=${encodeURIComponent(CFG.SYNC_TOKEN)}`, { mode:'no-cors' });
+    setTimeout(async () => { await loadAll(); toast('同期しました'); route(); }, 6000);
+  } catch { toast('同期を開始できませんでした'); }
+}
+
+/* ============================================================
+   イベント
+   ============================================================ */
+function wire(scope) {
+  scope.querySelectorAll('[data-sec]').forEach(b => b.onclick = () => go('sec', b.dataset.sec));
+  scope.querySelectorAll('[data-tab2]').forEach(b => b.onclick = () => go('tab', b.dataset.tab2));
+  scope.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+}
+
+function bindUI() {
+  $('#tabs').onclick = e => { const b = e.target.closest('.tab'); if (b) go('tab', b.dataset.tab); };
+  $$('#rail [data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  $('#btn-corr').onclick  = () => go('corr');
+  $('#btn-admin').onclick = () => go('admin');
+  $('#btn-sync').onclick  = runSync;
+  $('#burger').onclick    = () => $('#rail').classList.toggle('open');
+
+  let t;
+  $('#q').addEventListener('input', e => {
+    clearTimeout(t);
+    const val = e.target.value;
+    t = setTimeout(() => { if (val.trim()) go('search', val); }, 260);
+  });
+
+  document.addEventListener('contextmenu', e => { if (e.target.closest('.article')) e.preventDefault(); });
+  document.addEventListener('copy', e => {
+    if (e.target.closest?.('.article') || window.getSelection().anchorNode?.parentElement?.closest?.('.article')) {
+      e.preventDefault(); toast('この文書はコピーできません'); log('copy_attempt');
+    }
+  });
+  window.addEventListener('beforeprint', () => log('print_attempt'));
+}
+
+window.__kkBoot = boot;
+</script>
+<script src="./ec-auth.js"
+        onload="window.__kkBoot()"
+        onerror="console.warn('ec-auth.js を読み込めませんでした'); window.__kkBoot()"></script>
+</body>
+</html>
