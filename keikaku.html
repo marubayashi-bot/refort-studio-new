@@ -424,8 +424,13 @@ const CFG = {
   SYNC_MINUTES : 15,
   TERM         : 18,
   // GAS ウェブアプリのURL（「今すぐ同期」で呼ぶ）
-  SYNC_ENDPOINT: 'https://script.google.com/macros/s/AKfycbHH7mCjy0001R8M9NxfqmAzzEuZgpQigET5pgX0ReddT5CmsuINkj7nDb-z21NaHDirg/exec',
-  SYNC_TOKEN   : 'ec-keikaku-sync-2026-q7m3fa9k',
+  SYNC_ENDPOINT: '',      // 例: https://script.google.com/macros/s/xxxx/exec
+  SYNC_TOKEN   : '',      // GAS のスクリプトプロパティ SYNC_TOKEN と同じ値
+  // 原本（Googleドキュメント）。社長・総務にだけ「原本を開く」を出す
+  DOC_URLS     : {
+    keikaku: 'https://docs.google.com/document/d/1VaW0NzpsA-2A9Q7if2ioHhPCdwO0uf5gODcqjzMZ9us/edit',
+    yougo:   'https://docs.google.com/document/d/1RqFjuta6Vfxar-HkmTUNnu7-3vUz42u0Fj4_ayAbjCc/edit'
+  },
   // 編集権限（社長・総務のみ）
   EDITORS      : ['marubayashi@earthcom-eco.jp'],
   EDITOR_ROLES : ['admin']
@@ -462,6 +467,15 @@ async function signedImg(path) {
     const j = await r.json();
     return CFG.SUPABASE_URL + '/storage/v1' + j.signedURL;
   } catch { return null; }
+}
+
+/** 原本の該当見出しを直接開くURL（見出しIDをそのままアンカーに使う） */
+function docLink(sec) {
+  const base = CFG.DOC_URLS[sec.source || 'keikaku'];
+  if (!base) return null;
+  const tab = sec.tab_id && /^t\./.test(sec.tab_id) ? `?tab=${encodeURIComponent(sec.tab_id)}` : '';
+  const anc = /^h\./.test(sec.id || '') ? `#heading=${sec.id}` : '';
+  return base + tab + anc;
 }
 
 /* ============================================================
@@ -582,6 +596,7 @@ async function loadAll() {
       name: x.title.replace(/[【】\[\]]/g, '').trim(),
       raw:  x.title.trim(),
       kana: kana[x.parent_id] || 'その他',
+      tabId: x.tab_id,
       html: x.body_html || '',
       text: x.body_text || ''
     }))
@@ -769,6 +784,7 @@ async function viewSection(v) {
       <h2>${esc(s.title)}</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
         ${s.page_no ? `<span class="pagetag">手帳 P.${esc(s.page_no)}</span>` : ''}
+        ${S.editor && docLink(s) ? `<a class="btn ghost" style="padding:5px 11px;font-size:11.5px;text-decoration:none" href="${docLink(s)}" target="_blank" rel="noopener">原本を開く</a>` : ''}
         <span class="muted mono" style="font-size:11px">更新 ${fmt(s.updated_at)}</span>
       </div>
     </div>
@@ -1390,11 +1406,54 @@ async function savePages() {
    ------------------------------------------------------------ */
 async function runSync() {
   if (!CFG.SYNC_ENDPOINT) return toast('同期URLが未設定です（管理者に連絡してください）');
-  $('#syncinfo').innerHTML = '同期しています…';
+  const btn = $('#btn-sync');
+  btn.disabled = true;
+
+  // クリック前の最新ログIDを控え、これより新しい実行の完了を待つ
+  let baseId = 0;
+  try { baseId = (await sbGet('kk_sync_log', 'select=id&order=id.desc&limit=1'))[0]?.id || 0; } catch {}
+
   try {
-    await fetch(`${CFG.SYNC_ENDPOINT}?token=${encodeURIComponent(CFG.SYNC_TOKEN)}`, { mode:'no-cors' });
-    setTimeout(async () => { await loadAll(); toast('同期しました'); route(); }, 6000);
-  } catch { toast('同期を開始できませんでした'); }
+    fetch(`${CFG.SYNC_ENDPOINT}?token=${encodeURIComponent(CFG.SYNC_TOKEN)}`, { mode:'no-cors' });
+  } catch { btn.disabled = false; return toast('同期を開始できませんでした'); }
+
+  const t0 = Date.now();
+  const LIMIT = 12 * 60 * 1000;   // 取り込みは数分かかる。余裕をみて12分待つ。
+  let started = false;
+
+  const tick = async () => {
+    const sec = Math.round((Date.now() - t0) / 1000);
+    const mm = String(Math.floor(sec/60)), ss = String(sec%60).padStart(2,'0');
+    $('#syncinfo').innerHTML = `同期しています…<br><b class="mono">${mm}:${ss} 経過</b>` +
+      (started ? '<br><span class="muted">取り込み中</span>' : '');
+
+    let row = null;
+    try { row = (await sbGet('kk_sync_log', `select=*&id=gt.${baseId}&order=id.desc&limit=1`))[0]; } catch {}
+
+    if (row) {
+      started = true;
+      if (row.finished_at) {
+        btn.disabled = false;
+        if (row.status === 'ok') {
+          await loadAll();
+          route();
+          toast(`同期しました（追加${row.added||0}／変更${row.modified||0}／削除${row.removed||0}）`);
+        } else {
+          $('#syncinfo').innerHTML = '<b style="color:var(--shu)">同期に失敗しました</b>';
+          toast('同期に失敗しました：' + String(row.message||'').slice(0,80));
+        }
+        return;
+      }
+    }
+    if (Date.now() - t0 > LIMIT) {
+      btn.disabled = false;
+      $('#syncinfo').innerHTML = '同期の完了を確認できませんでした';
+      toast(started ? '取り込みが長引いています。数分後に開き直してください' : '同期が始まりませんでした。設定を確認してください');
+      return;
+    }
+    setTimeout(tick, 5000);
+  };
+  setTimeout(tick, 3000);
 }
 
 /* ============================================================
