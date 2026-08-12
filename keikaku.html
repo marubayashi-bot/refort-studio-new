@@ -347,6 +347,7 @@ table.adm input[type=text]{border:1px solid var(--rule);border-radius:2px;paddin
     <button class="navlink" data-go="home"><span>ホーム</span></button>
     <button class="navlink" data-go="corr"><span>訂正票</span><span class="n" id="corrn" style="display:none">0</span></button>
     <button class="navlink" data-go="notes"><span>自分のメモ</span></button>
+    <button class="navlink" data-go="manual"><span>使い方</span><span class="n" id="manualn" style="display:none">新</span></button>
     <div class="railsep"></div>
     <div style="padding:4px 16px 0" class="muted" id="syncinfo">同期状況を確認中…</div>
     <div style="padding:8px 16px 0">
@@ -370,6 +371,8 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
+  APP_VERSION  : '1.0',
+  SYNC_MINUTES : 15,
   TERM         : 18,
   // GAS ウェブアプリのURL（「今すぐ同期」で呼ぶ）
   SYNC_ENDPOINT: '',      // 例: https://script.google.com/macros/s/xxxx/exec
@@ -420,6 +423,7 @@ const S = {
   tabs:[], sections:[], byId:{},
   reads:new Set(), notes:{},
   releases:[], myAcks:new Set(),
+  updates:[], seenVer:null,
   route:{name:'home'}
 };
 
@@ -504,15 +508,19 @@ window.addEventListener('resize', () => { if (S.me) drawWatermark(); });
    データ読み込み
    ============================================================ */
 async function loadAll() {
-  const [tabs, secs, reads, notes, rels, acks, sync] = await Promise.all([
+  const [tabs, secs, reads, notes, rels, acks, sync, updates, seen] = await Promise.all([
     sbGet('kk_tabs',     'select=*&order=sort_order'),
     sbGet('kk_sections', 'select=id,tab_id,parent_id,level,title,path,sort_order,body_html,body_text,page_no,updated_at&deleted_at=is.null&order=tab_id,sort_order'),
     sbGet('kk_reads',    `select=section_id&user_email=eq.${encodeURIComponent(S.me.email)}`),
     sbGet('kk_notes',    `select=section_id,body&user_email=eq.${encodeURIComponent(S.me.email)}`),
     sbGet('kk_releases', `select=*&term=eq.${CFG.TERM}&order=published_at.desc`),
     sbGet('kk_release_acks', `select=release_id&user_email=eq.${encodeURIComponent(S.me.email)}`),
-    sbGet('kk_sync_log', 'select=*&order=started_at.desc&limit=1')
+    sbGet('kk_sync_log', 'select=*&order=started_at.desc&limit=1'),
+    sbGet('kk_app_updates', 'select=*&order=released_at.desc,id.desc&limit=30').catch(()=>[]),
+    sbGet('kk_manual_seen', `select=version&user_email=eq.${encodeURIComponent(S.me.email)}`).catch(()=>[])
   ]);
+  S.updates  = updates || [];
+  S.seenVer  = seen?.[0]?.version || null;
   S.tabs = tabs; S.sections = secs;
   S.byId = Object.fromEntries(secs.map(s => [s.id, s]));
   S.reads = new Set(reads.map(r => r.section_id));
@@ -531,6 +539,13 @@ async function loadAll() {
 
   renderRail();
   updateCorrBadge();
+  updateManualBadge();
+}
+
+function latestVer() { return S.updates[0]?.version || CFG.APP_VERSION; }
+function updateManualBadge() {
+  const isNew = latestVer() !== S.seenVer;
+  $('#manualn').style.display = isNew ? 'inline-block' : 'none';
 }
 
 function pending() {
@@ -563,6 +578,7 @@ function route() {
     sec  : viewSection,
     corr : viewCorrections,
     notes: viewNotes,
+    manual: viewManual,
     admin: viewAdmin,
     search: viewSearch
   }[S.route.name] || viewHome)(v);
@@ -612,6 +628,15 @@ function viewHome(v) {
       <div class="stat"><div class="k">現在の版</div><div class="v">Rev.${maxRev}</div></div>
       <div class="stat"><div class="k">未反映の訂正</div><div class="v" style="color:${need.length?'var(--shu)':'inherit'}">${need.length}<small>件</small></div></div>
     </div>
+
+    ${latestVer() !== S.seenVer ? `
+      <div class="card" style="margin-top:14px;display:flex;align-items:center;gap:14px;border-left:3px solid var(--brass)">
+        <div style="flex:1">
+          <b style="font-family:var(--disp)">${esc(S.updates[0]?.title || 'アプリの使い方')}</b>
+          <div class="muted" style="margin-top:2px">アプリに更新があります。使い方をご確認ください。</div>
+        </div>
+        <button class="btn ghost" data-go="manual">使い方を見る</button>
+      </div>` : ''}
 
     <div style="margin-top:26px" class="eyebrow">章から探す</div>
     <div class="grid2">
@@ -813,6 +838,167 @@ function viewNotes(v) {
         <div class="s">${esc(b.slice(0,160))}</div></button>`;
     }).join('') : '<div class="card"><p class="muted" style="margin:0">まだメモはありません。方針を開いて、自分の担当業務にどう落とすかを書き留めておくと、勉強会でそのまま使えます。</p></div>'}`;
   wire(v);
+}
+
+/* ------------------------------------------------------------
+   使い方（活用マニュアル）
+   本文は固定文ではなく、そのときのアプリの状態から組み立てる。
+   件数・Rev.・自分の権限・同期間隔が変われば、記述も自動で変わる。
+   ------------------------------------------------------------ */
+function manualSections() {
+  const nSec   = S.sections.length;
+  const nTab   = S.tabs.length;
+  const rev    = S.releases.reduce((m,r)=>Math.max(m,r.rev),0);
+  const need   = pending().length;
+  const readN  = S.reads.size;
+  const memoN  = Object.values(S.notes).filter(b=>b&&b.trim()).length;
+  const paged  = S.sections.filter(s=>s.page_no).length;
+
+  const list = [
+    {
+      t:'このアプリは何のためにあるか',
+      b:`<p>紙の手帳型経営計画書の<b>相棒</b>です。マスターはGoogleドキュメントで、社長と総務だけが編集します。
+         このアプリはその内容を${CFG.SYNC_MINUTES}分ごとに取り込んでいるので、<b>ここに出ているものが常に最新</b>です。</p>
+         <p>いま第${CFG.TERM}期の計画書は、${nTab}つの章・${nSec}項目が入っています。</p>`
+    },
+    {
+      t:'いま自分がどこまで読んだか',
+      b:`<p>方針を開くと自動で既読になります。${nSec}項目のうち<b>${readN}項目</b>を読み終えています。
+         左の索引から章を選ぶと、章ごとの読了状況が緑のバーで出ます。</p>
+         <p>読んだかどうかは部門ごとに集計され、部門長会議で確認されます。開くだけで記録されるので、特別な操作は不要です。</p>`
+    },
+    {
+      t:'探したい言葉から引く',
+      b:`<p>上部の検索窓に言葉を入れるだけです。見出しだけでなく<b>本文も全部</b>探します。
+         「経費」「懇親会」「サンキーパー」のように、思いついた単語を入れてください。</p>
+         <p>結果には手帳のページ番号も出るので、紙で確認したいときはそのページを開けます。</p>`
+    },
+    {
+      t:'紙の経営計画書を直す',
+      b:`<p>デジタルが正、紙は各自で直す運用です。方針が変わると<b>訂正票</b>が発行され、左メニューに件数が出ます。</p>
+         <p>訂正票には「手帳P.○○／変更前／変更後」が並んでいます。紙を書き換えたら
+         <b>「紙を修正しました」</b>を押してください。押すと反映済みの印が付き、部門別の反映率に反映されます。</p>
+         <p>あわせて、手帳の表紙裏の訂正記録欄に<b>Rev.番号</b>を書いておくと、自分がどこまで直したか一目で分かります。
+         現在は<b>${CFG.TERM}期 Rev.${rev}</b>です。${need ? `<b style="color:var(--shu)">未反映が${need}件あります。</b>` : '未反映はありません。'}</p>
+         <p><span class="badge required">要修正</span> は紙を直すもの、<span class="badge info">参　考</span> は読むだけで結構です。</p>`
+    },
+    {
+      t:'自分の言葉でメモを残す',
+      b:`<p>各方針の下にメモ欄があります。「自分の担当だとこう動く」という具体を書いておくと、
+         方針勉強会でそのまま使えます。<b>メモは自分だけに表示されます</b>。マスター文書は汚れません。</p>
+         <p>いま${memoN}件のメモがあります。左メニューの「自分のメモ」から一覧で見返せます。</p>`
+    },
+    {
+      t:'扱いの注意',
+      b:`<p>この文書は複製厳禁です。画面には常に閲覧者の氏名が薄く表示され、誰がいつ何を開いたかが記録されます。
+         印刷・コピーはできません。</p>
+         <p>会社のGoogleアカウントを持つ社員だけが開けます。退職時はアカウントを止めるだけで、即座に閲覧できなくなります。</p>`
+    }
+  ];
+
+  if (S.editor) list.push({
+    t:'【社長・総務】訂正票を発行する',
+    admin:true,
+    b:`<p>Googleドキュメントを書き換えると、${CFG.SYNC_MINUTES}分以内にアプリが差分を検知し、
+       管理画面の「未発行の変更」に並びます。急ぐときは左下の「今すぐ同期」を押してください。</p>
+       <p>紙を直してほしいものにチェックを入れ、見出しを付けて<b>「訂正票を発行する」</b>を押すと、
+       Rev.が1つ上がり全社員に通知されます。</p>
+       <p><b>誤字修正まで「要修正」で出さないでください。</b>通知が多いと社員は見なくなります。
+       紙を書き換える必要があるものだけを要修正、それ以外は参考にするか、選ばずに置いておけば通知されません。</p>`
+  });
+
+  if (S.editor) list.push({
+    t:'【社長・総務】手帳のページ番号を入れる',
+    admin:true,
+    b:`<p>管理画面の下部で、方針ごとに紙の手帳のページ番号を設定できます。
+       設定すると訂正票に「手帳P.○○」が出て、社員が直す場所を探さずに済みます。</p>
+       <p>現在 ${paged}/${nSec} 項目に設定済みです。
+       ${paged < nSec ? '<b>訂正票の実効性はここに左右されます。</b>主要な方針だけでも入れておいてください。' : ''}</p>`
+  });
+
+  return list;
+}
+
+async function viewManual(v) {
+  const secs = manualSections();
+  const rev  = S.releases.reduce((m,r)=>Math.max(m,r.rev),0);
+
+  v.innerHTML = `
+    <div class="eyebrow">使い方</div>
+    <div class="sectitle">
+      <h2>経営計画書ポータルの使い方</h2>
+      <span class="muted mono" style="font-size:11px">アプリ v${esc(latestVer())}／${CFG.TERM}期 Rev.${rev}</span>
+    </div>
+    <p class="muted" style="margin:-8px 0 20px">
+      この説明はアプリの現在の状態から作られています。件数や版は常にいまの値です。
+    </p>
+
+    ${secs.map((s,i) => `
+      <div class="card" style="${s.admin?'border-left:3px solid var(--brass)':''}">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+          <span class="mono" style="color:var(--ink-3);font-size:12px">${String(i+1).padStart(2,'0')}</span>
+          <h3 style="font-size:16.5px">${esc(s.t)}</h3>
+        </div>
+        <div style="font-size:14px;line-height:1.95">${s.b}</div>
+      </div>`).join('')}
+
+    <div class="card">
+      <div class="eyebrow">アプリの更新履歴</div>
+      ${S.updates.length ? S.updates.map(u => `
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-2)">
+          <div style="flex-shrink:0;width:96px">
+            <div class="mono" style="font-weight:700">v${esc(u.version)}</div>
+            <div class="muted mono" style="font-size:11px">${fmtD(u.released_at)}</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-family:var(--disp);font-weight:700">${esc(u.title)}</div>
+            ${u.body?`<div class="muted" style="margin-top:4px;line-height:1.8">${esc(u.body)}</div>`:''}
+          </div>
+          ${S.editor?`<button class="btn ghost" style="padding:4px 10px;font-size:11.5px;height:fit-content" data-delupd="${u.id}">削除</button>`:''}
+        </div>`).join('')
+        : '<p class="muted" style="margin:0">まだ更新はありません。</p>'}
+    </div>
+
+    ${S.editor ? `
+    <div class="card" style="border-left:3px solid var(--brass)">
+      <div class="eyebrow">【社長・総務】更新のお知らせを追加</div>
+      <p class="muted" style="margin:0 0 12px">
+        機能を追加したときにここへ1行入れると、全社員の「使い方」に新着マークが付きます。HTMLの差し替えは不要です。
+      </p>
+      <div class="grid2">
+        <div class="field"><label>バージョン</label><input type="text" id="uver" placeholder="例：1.1"></div>
+        <div class="field"><label>見出し</label><input type="text" id="utitle" placeholder="例：訂正票を印刷できるようにしました"></div>
+      </div>
+      <div class="field"><label>補足（任意）</label><input type="text" id="ubody" placeholder="使い方の説明"></div>
+      <button class="btn" id="addupd">お知らせを追加</button>
+    </div>` : ''}`;
+
+  wire(v);
+  if (S.editor) {
+    $('#addupd').onclick = addUpdate;
+    v.querySelectorAll('[data-delupd]').forEach(b => b.onclick = () => delUpdate(b.dataset.delupd));
+  }
+
+  // 既読にする＝新着マークを消す
+  const ver = latestVer();
+  if (ver !== S.seenVer) {
+    S.seenVer = ver;
+    updateManualBadge();
+    try { await sbUpsert('kk_manual_seen', [{ user_email:S.me.email, version:ver, seen_at:new Date().toISOString() }], 'user_email'); } catch {}
+  }
+}
+
+async function addUpdate() {
+  const version = $('#uver').value.trim(), title = $('#utitle').value.trim();
+  if (!version || !title) return toast('バージョンと見出しを入れてください');
+  try {
+    await sbPost('kk_app_updates', [{ version, title, body:$('#ubody').value.trim()||null, created_by:S.me.email }]);
+    await loadAll(); go('manual'); toast('お知らせを追加しました');
+  } catch (e) { toast('追加できませんでした'); }
+}
+async function delUpdate(id) {
+  try { await sb(`kk_app_updates?id=eq.${id}`, { method:'DELETE' }); await loadAll(); go('manual'); }
+  catch { toast('削除できませんでした'); }
 }
 
 /* ------------------------------------------------------------
