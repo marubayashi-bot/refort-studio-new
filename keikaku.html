@@ -193,6 +193,7 @@ main{padding:26px 32px 90px;max-width:940px}
 .article p{margin:0 0 1.1em}
 .article li{margin:0 0 .5em 1.2em}
 .article a{color:#1F4C8C}
+.article img[data-kk-img]:not([src]){display:none}
 .article img{max-width:100%;border:1px solid var(--rule);border-radius:3px;margin:8px 0}
 .article .kk-table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
 .article .kk-table td{border:1px solid var(--rule);padding:7px 10px;vertical-align:top}
@@ -809,7 +810,14 @@ async function viewSection(v) {
 async function hydrateImages(scope) {
   for (const img of scope.querySelectorAll('img[data-kk-img]')) {
     const u = await signedImg(img.dataset.kkImg);
-    if (u) img.src = u; else img.replaceWith(Object.assign(document.createElement('span'), {className:'kk-img-missing', textContent:'［図：表示できません］'}));
+    if (u) {
+      img.src = u;
+      img.onerror = () => img.replaceWith(Object.assign(
+        document.createElement('span'), {className:'kk-img-missing', textContent:'［図］'}));
+    } else {
+      img.replaceWith(Object.assign(
+        document.createElement('span'), {className:'kk-img-missing', textContent:'［図：表示できません］'}));
+    }
   }
 }
 
@@ -1171,6 +1179,7 @@ function openTerm(name) {
   $('#tsclose').onclick = closeTerm;
   $('#tsall').onclick = () => { closeTerm(); go('yougo', t.kana); };
   linkTerms(box.querySelector('.article'));
+  hydrateImages(box);
   log('term', t.id, name);
 }
 function closeTerm() { $('#termsheet').classList.remove('on'); }
