@@ -365,8 +365,8 @@ table.adm input[type=text]{border:1px solid var(--rule);border-radius:2px;paddin
   <div class="box">
     <div class="seal">複製<br>厳禁</div>
     <h1>経営計画書ポータル</h1>
-    <p id="gatemsg">会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。</p>
-    <p style="margin-top:18px"><button class="btn ghost" style="color:#fff;border-color:#4A5C7A" id="gatebtn">ログイン</button></p>
+    <p id="gatemsg">読み込んでいます…</p>
+    <p style="margin-top:18px"><button class="btn ghost" style="color:#fff;border-color:#4A5C7A" id="gatebtn">再読み込み</button></p>
   </div>
 </div>
 
@@ -424,8 +424,8 @@ const CFG = {
   SYNC_MINUTES : 15,
   TERM         : 18,
   // GAS ウェブアプリのURL（「今すぐ同期」で呼ぶ）
-  SYNC_ENDPOINT: 'https://script.google.com/macros/s/AKfycbHH7mCjy0001R8M9NxfqmAzzEuZgpQigET5pgX0ReddT5CmsuINkj7nDb-z21NaHDirg/exec',
-  SYNC_TOKEN   : 'ec-keikaku-sync-2026-q7m3fa9k'
+  SYNC_ENDPOINT: '',      // 例: https://script.google.com/macros/s/xxxx/exec
+  SYNC_TOKEN   : '',      // GAS のスクリプトプロパティ SYNC_TOKEN と同じ値
   // 編集権限（社長・総務のみ）
   EDITORS      : ['marubayashi@earthcom-eco.jp'],
   EDITOR_ROLES : ['admin']
@@ -500,39 +500,37 @@ function waitForEC(ms = 8000) {
   });
 }
 
-async function getMe() {
-  const EC = await waitForEC();
-  if (!EC) throw new Error('NO_EC');
-  const me = await EC.guard({
-    app: CFG.APP_ID,
-    allow: ['admin', 'manager', 'sales', 'field', 'viewer']
-  });
-  return me || EC.me || null;
-}
-
 async function boot() {
   drawWatermarkPlaceholder();
-  let me = null, fatal = null;
-  try { me = await getMe(); } catch (e) { fatal = String(e.message || e); }
 
-  if (!me) {
-    $('#gatemsg').textContent = fatal === 'NO_EC'
-      ? '認証スクリプト（ec-auth.js）を読み込めませんでした。keikaku.html と ec-auth.js が同じ場所にあるか確認してください。'
-      : '会社のGoogleアカウント（@earthcom-eco.jp）でログインしてください。閲覧は社員に限られ、閲覧記録が残ります。';
-    $('#gatebtn').onclick = async () => {
-      const EC = window.EC;
-      if (EC?.login)      return EC.login();
-      if (EC?.signIn)     return EC.signIn();
-      if (EC?.guard)      { try { const u = await EC.guard(); if (u) return boot(); } catch(e){} }
-      location.reload();
-    };
+  const EC = await waitForEC();
+  if (!EC) {
+    $('#gatemsg').textContent =
+      '認証スクリプト（ec-auth.js）を読み込めませんでした。時間をおいて再読み込みしてください。';
+    $('#gatebtn').textContent = '再読み込み';
+    $('#gatebtn').onclick = () => location.reload();
     return;
   }
+
+  // ec-auth.js が自前のログイン画面を出すので、こちらの画面は必ず先に消す。
+  // （重ねたままだと ec-auth のログインボタンが押せなくなる）
+  $('#gate').style.display = 'none';
+
+  let me = null;
+  try {
+    me = await EC.guard({
+      app: CFG.APP_ID,
+      allow: ['admin', 'manager', 'sales', 'field', 'viewer']
+    });
+  } catch (e) {
+    me = null;
+  }
+  if (!me) return;   // ec-auth 側がログイン画面／権限なし画面を表示している
+
   S.me = me;
-  S.editor = CFG.EDITORS.includes((me.email||'').toLowerCase())
+  S.editor = CFG.EDITORS.includes((me.email || '').toLowerCase())
           || CFG.EDITOR_ROLES.includes(me.role);
 
-  $('#gate').style.display = 'none';
   $('#app').style.display  = 'block';
   $('#me').innerHTML = `<b>${esc(me.full_name || me.email)}</b><span id="mesub">${esc(me.dept || me.role || '')}</span>`;
   if (S.editor) $('#btn-admin').style.display = 'inline-flex';
