@@ -319,9 +319,27 @@ details.sec .body{padding:12px 14px;}
   #printArea .pv{white-space:pre-wrap;line-height:1.5;}
   @page{size:A4;margin:12mm;}
 }
+/* ===== 未完了・期限 ===== */
+.act-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+.act-meta .am-l{font-size:11px;color:var(--sub);font-weight:700;}
+.act-meta input[type=date]{width:auto;padding:4px 6px;font-size:12px;}
+.act-meta input.over{border-color:var(--bad);color:var(--bad);background:#fdf3f2;}
+.act-meta .am-btn{font-size:11px;padding:4px 9px;background:#fff;border:1px solid var(--line);color:var(--sub);border-radius:7px;}
+.cbadge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#fdf3f2;color:var(--bad);border:1px solid #f0cfc9;}
+.cbadge.w{background:#fdf6e9;color:var(--warn);border-color:#f0dfc0;}
+.chip.od{background:#fdf3f2;color:var(--bad);font-weight:700;}
+.co-item{flex-direction:column;align-items:stretch;}
+.co-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
+.co-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.co-act button{font-size:11.5px;padding:5px 12px;background:var(--navy);color:#fff;border-radius:7px;}
+.co-act button.sub{background:#fff;color:var(--navy);border:1px solid var(--line);}
+.co-act button.del{background:#fff;color:var(--bad);border:1px solid var(--line);}
+.co-head{font-size:12px;font-weight:800;color:var(--navy);margin:10px 0 6px;}
+.stats .warn b{color:var(--bad);}
+
 /* ===== VISION（理想の自分） ===== */
-#tab-vision .card h2,#tab-health .card h2{flex-wrap:wrap;align-items:baseline;}
-#tab-vision .card h2 .mini,#tab-health .card h2 .mini{flex:1 1 100%;padding-left:12px;line-height:1.5;}
+#tab-vision .card h2,#tab-health .card h2,#coCard h2{flex-wrap:wrap;align-items:baseline;}
+#tab-vision .card h2 .mini,#tab-health .card h2 .mini,#coCard h2 .mini{flex:1 1 100%;padding-left:12px;line-height:1.5;}
 
 .vis-hero{background:var(--leather);color:#efe3c8;border-radius:14px;padding:20px 16px;margin-bottom:14px;border:1px solid rgba(201,160,78,.5);box-shadow:0 4px 16px rgba(20,14,6,.3);position:relative;overflow:hidden;}
 .vis-hero .vh-t{font-size:10px;letter-spacing:.24em;color:#c9a04e;font-family:'Cinzel',serif;margin-bottom:10px;}
@@ -451,14 +469,16 @@ details.sec .body{padding:12px 14px;}
       <span>アクション <b id="stAct">0/0</b></span>
       <span>スケジュール <b id="stSch">0/0</b></span>
       <span>夜の振り返り <b id="stRev">未</b></span>
+      <span onclick="showCarry()" style="cursor:pointer">未完了 <b id="stPend">0</b></span>
+      <span class="warn" onclick="showCarry()" style="cursor:pointer">期限超過 <b id="stOver">0</b></span>
     </div>
     <div class="prog"><i id="progBar" style="width:0%"></i></div>
   </div>
 
   <div class="card" id="coCard" style="display:none;">
-    <h2>昨日からの引継ぎ <span class="mini">昨夜の「明日の設計」と未完了アクション</span></h2>
+    <h2>引継ぎ・未完了 <span class="mini">昨夜の「明日の設計」と、過去60日の未完了アクション</span></h2>
     <div id="coList"></div>
-    <button class="goldbtn" onclick="importCarry()">⤵ 今日のアクションに取り込む</button>
+    <div class="row" id="coBtns" style="margin-top:10px"></div>
   </div>
 
   <div class="card">
@@ -1254,14 +1274,23 @@ function updSched(i,k,v){snapUndo();day.schedule[i][k]=v;if(k==='done')renderSch
 function delSched(i){snapUndo();day.schedule.splice(i,1);renderSched();markDirty();updateStats();toast('予定を削除しました（↩ 戻す で復元できます）');}
 
 /* ---- actions ---- */
-const STS=['未着手','実行中','完了','保留','繰越'];
+const STS=['未着手','実行中','完了','保留','繰越','中止'];
 function renderActions(){
   const w=el('actList');w.innerHTML='';
   day.actions.forEach((a,i)=>{
     const div=document.createElement('div');div.className='act-row';
+    const over=a.due&&a.due<todayStr()&&a.status!=='完了'&&a.status!=='中止';
     div.innerHTML=
       '<input type="time" value="'+esc(a.time)+'" onchange="updAct('+i+',\'time\',this.value)">'+
       '<div class="grow">'+
+        '<div class="act-meta">'+
+          '<span class="am-l">期限</span>'+
+          '<input type="date" class="'+(over?'over':'')+'" value="'+esc(a.due||'')+'" onchange="updAct('+i+',\'due\',this.value)">'+
+          (a.carry?'<span class="cbadge'+(a.carry<3?' w':'')+'">'+a.carry+'回 先送り</span>':'')+
+          (a.from?'<span class="chip">'+fmtMD(a.from)+'から</span>':'')+
+          '<button class="am-btn" onclick="postponeAct('+i+')">→ 別の日へ</button>'+
+          '<button class="am-btn" onclick="pushToCal('+i+')">'+(a.gcalId?'📅 登録済':'📅 カレンダーへ')+'</button>'+
+        '</div>'+
         '<textarea placeholder="今日行うべきアクション" onchange="updAct('+i+',\'action\',this.value)">'+esc(a.action)+'</textarea>'+
         '<textarea placeholder="結果" onchange="updAct('+i+',\'result\',this.value)">'+esc(a.result)+'</textarea>'+
         '<textarea placeholder="次に活かすこと・仕組み" onchange="updAct('+i+',\'learn\',this.value)">'+esc(a.learn)+'</textarea>'+
@@ -1271,12 +1300,128 @@ function renderActions(){
     w.appendChild(div);
   });
 }
-function addAction(pre){snapUndo();day.actions.push(Object.assign({time:'',action:'',result:'',learn:'',status:'未着手'},pre||{}));renderActions();markDirty();updateStats();}
-function updAct(i,k,v){snapUndo();day.actions[i][k]=v;if(k==='status'){renderActions();if(v==='完了')syncTaskComplete(day.actions[i]);}markDirty();updateStats();}
+function addAction(pre){snapUndo();day.actions.push(Object.assign({time:'',action:'',result:'',learn:'',status:'未着手',due:'',carry:0},pre||{}));renderActions();markDirty();updateStats();}
+function updAct(i,k,v){snapUndo();day.actions[i][k]=v;if(k==='status'){renderActions();if(v==='完了')syncTaskComplete(day.actions[i]);}if(k==='due')renderActions();markDirty();updateStats();}
+/* 今日のアクションを別の日へ移す */
+async function postponeAct(i){
+  const a=day.actions[i];if(!a||!a.action){toast('先に内容を入力してください');return;}
+  const t=prompt('いつに移しますか？（YYYY-MM-DD）',addDaysStr(curDate,1));
+  if(!t)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(t)){toast('日付の形式が正しくありません（例 2026-08-20）');return;}
+  if(t===curDate){toast('今日のままです');return;}
+  toast('移動しています…');
+  const copy=Object.assign({},a,{result:'',learn:'',status:'未着手',moved:false,carry:(a.carry||0)+1,from:a.from||curDate});
+  const ok=await patchDay(t,d=>{d.actions.push(copy);},true);
+  if(!ok){toast('移動に失敗しました');return;}
+  snapUndo();day.actions.splice(i,1);
+  renderActions();markDirty();updateStats();
+  toast(fmtMD(t)+' へ移しました');
+}
+/* Googleカレンダーへ書き戻す */
+async function pushToCal(i){
+  const a=day.actions[i];if(!a||!a.action){toast('先に内容を入力してください');return;}
+  const d=a.due||curDate;
+  if(!integOK()){
+    const dt=d.replace(/-/g,'');
+    window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(a.action)+'&dates='+dt+'/'+dt,'_blank');
+    toast('Googleカレンダーの登録画面を開きました');return;
+  }
+  toast('カレンダーに登録しています…');
+  try{
+    const j=await gasPost({mode:'createEvent',date:d,time:a.time||'',title:a.action,notes:'SUCCESS PLANNER '+curDate});
+    a.gcalId=(j&&j.id)||'ok';markDirty();renderActions();
+    toast('Googleカレンダー（'+fmtMD(d)+'）に登録しました');
+  }catch(e){console.warn(e);toast('登録に失敗：'+e.message+'／GAS側にcreateEventの追加が必要です');}
+}
+/* 他日のレコードを直接更新する */
+async function patchDay(ds,fn,create){
+  let d=lsGet('day_'+ds);
+  const cd=await cloudGet('day_'+ds);
+  if(cd)d=cd;
+  if(!d){if(!create)return null;d=emptyDay(ds);}
+  if(!d.actions)d.actions=[];
+  fn(d);
+  lsSet('day_'+ds,d);await cloudSet('day_'+ds,d);
+  return d;
+}
 function delAct(i){snapUndo();day.actions.splice(i,1);renderActions();markDirty();updateStats();toast('アクションを削除しました（↩ 戻す で復元できます）');}
 
-/* ---- carryover ---- */
-let carryItems=[],carryPlan=null;
+/* ---- carryover / 未完了スキャン ---- */
+const PEND_DAYS=60;
+let carryItems=[],carryPlan=null,pendItems=[];
+async function scanPending(){
+  const dates=[];for(let i=1;i<=PEND_DAYS;i++)dates.push(addDaysStr(curDate,-i));
+  const map={};
+  dates.forEach(d=>{const v=lsGet('day_'+d);if(v&&v.actions)map[d]=v.actions;});
+  if(cloudOn){
+    try{
+      const{data,error}=await sb.from(TBL).select('key,actions:value->actions').in('key',dates.map(d=>'day_'+d));
+      if(!error&&data)data.forEach(r=>{if(r.actions)map[r.key.slice(4)]=r.actions;});
+    }catch(e){console.warn('scanPending',e);}
+  }
+  pendItems=[];
+  Object.keys(map).sort().forEach(d=>{
+    (map[d]||[]).forEach((a,idx)=>{
+      if(!a||!a.action)return;
+      if(a.moved||a.status==='完了'||a.status==='中止')return;
+      pendItems.push({date:d,idx:idx,a:a});
+    });
+  });
+  return pendItems;
+}
+function pendHTML(){
+  if(!pendItems.length)return '';
+  const today=todayStr();
+  let h='<div class="co-head">🔎 未完了のアクション（過去'+PEND_DAYS+'日）'+pendItems.length+'件</div>';
+  h+=pendItems.map((p,i)=>{
+    const a=p.a,over=a.due&&a.due<today;
+    return '<div class="co-item"><div class="t"><b>'+esc(a.action)+'</b>'+
+      '<div class="co-meta"><span class="chip">'+fmtMD(p.date)+'</span><span class="chip">'+esc(a.status)+'</span>'+
+      (a.carry?'<span class="cbadge'+(a.carry<3?' w':'')+'">'+a.carry+'回 先送り</span>':'')+
+      (a.due?'<span class="chip'+(over?' od':'')+'">期限 '+fmtMD(a.due)+'</span>':'')+'</div>'+
+      '<div class="co-act"><button onclick="pendTo('+i+',\'today\')">今日へ</button>'+
+      '<button class="sub" onclick="pendTo('+i+',\'later\')">延期</button>'+
+      '<button class="del" onclick="pendTo('+i+',\'drop\')">やめる</button></div>'+
+      '</div></div>';
+  }).join('');
+  return h;
+}
+async function pendTo(i,mode){
+  const p=pendItems[i];if(!p)return;
+  let target=curDate;
+  if(mode==='later'){
+    target=prompt('いつに移しますか？（YYYY-MM-DD）',addDaysStr(curDate,1));
+    if(!target)return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(target)){toast('日付の形式が正しくありません（例 2026-08-20）');return;}
+  }
+  if(mode==='drop'&&!confirm('このタスクを「やめる」として終了しますか？\n\n'+p.a.action))return;
+  toast('処理しています…');
+  await patchDay(p.date,d=>{
+    const a=d.actions&&d.actions[p.idx];
+    if(a){a.moved=true;a.status=(mode==='drop'?'中止':'繰越');}
+  });
+  if(mode!=='drop'){
+    const copy=Object.assign({},p.a,{result:'',learn:'',status:'未着手',moved:false,carry:(p.a.carry||0)+1,from:p.a.from||p.date});
+    if(target===curDate){snapUndo();day.actions.push(copy);markDirty();renderActions();updateStats();}
+    else await patchDay(target,d=>{d.actions.push(copy);},true);
+  }
+  await renderCarry();updateStats();
+  toast(mode==='drop'?'このタスクを終了しました':(target===curDate?'今日に引き継ぎました':fmtMD(target)+' へ移しました'));
+}
+async function pendAllToday(){
+  if(!pendItems.length)return;
+  if(!confirm(pendItems.length+'件すべてを今日に引き継ぎますか？'))return;
+  const byDate={};pendItems.forEach(p=>{(byDate[p.date]=byDate[p.date]||[]).push(p);});
+  snapUndo();
+  for(const ds of Object.keys(byDate)){
+    await patchDay(ds,d=>{byDate[ds].forEach(p=>{const a=d.actions&&d.actions[p.idx];if(a){a.moved=true;a.status='繰越';}});});
+    byDate[ds].forEach(p=>day.actions.push(Object.assign({},p.a,{result:'',learn:'',status:'未着手',moved:false,carry:(p.a.carry||0)+1,from:p.a.from||p.date})));
+  }
+  markDirty();renderActions();
+  await renderCarry();updateStats();
+  toast('未完了をすべて今日に引き継ぎました');
+}
+function showCarry(){const c=el('coCard');if(c&&c.style.display!=='none')c.scrollIntoView({behavior:'smooth',block:'center'});else toast('未完了はありません');}
 async function renderCarry(){
   const[y,m,d]=curDate.split('-').map(Number);
   const prev=todayStr(new Date(y,m-1,d-1));
@@ -1287,8 +1432,10 @@ async function renderCarry(){
   if(pd&&pd.actions)carryItems=pd.actions.filter(a=>a.action&&a.status!=='完了');
   if(pd&&pd.nextPlan&&(pd.nextPlan.goal||(pd.nextPlan.ka||[]).some(x=>x)))carryPlan=pd.nextPlan;
   else if(pd&&pd.review&&pd.review.priority)carryPlan={goal:pd.review.priority,ka:['','',''],prep:''};
+  await scanPending();
   const card=el('coCard');
-  if((!carryItems.length&&!carryPlan)||day.carryImported){card.style.display='none';return;}
+  const showPlan=(carryPlan||carryItems.length)&&!day.carryImported;
+  if(!showPlan&&!pendItems.length){card.style.display='none';el('stPend').textContent='0';el('stOver').textContent='0';return;}
   card.style.display='block';
   let h='';
   if(carryPlan){
@@ -1298,8 +1445,11 @@ async function renderCarry(){
     if(carryPlan.prep)h+='<br><span style="color:var(--sub)">準備：'+esc(carryPlan.prep)+'</span>';
     h+='</div></div>';
   }
-  h+=carryItems.map(a=>'<div class="co-item"><span class="chip">'+esc(a.status)+'</span><div class="t">'+esc(a.action)+'</div></div>').join('');
+  if(!showPlan)h='';
+  h+=pendHTML();
   el('coList').innerHTML=h;
+  el('coBtns').innerHTML=(showPlan?'<button class="goldbtn" onclick="importCarry()">⤵ 昨夜の設計を今日に取り込む</button>':'')+
+    (pendItems.length?'<button onclick="pendAllToday()">未完了 '+pendItems.length+'件をすべて今日へ</button>':'');
 }
 function importCarry(){snapUndo();
   let n=0;
@@ -1311,10 +1461,9 @@ function importCarry(){snapUndo();
     if(carryPlan.prep&&!el('f_caution').value.trim()){el('f_caution').value='準備：'+carryPlan.prep;day.caution=el('f_caution').value;}
     n++;
   }
-  carryItems.forEach(a=>{day.actions.push({time:'',action:a.action,result:'',learn:'',status:'未着手'});n++;});
   day.carryImported=true;
-  el('coCard').style.display='none';
-  renderActions();markDirty();updateStats();toast('昨日の設計・未完了を取り込みました');
+  renderCarry();
+  renderActions();markDirty();updateStats();toast('昨夜の設計を取り込みました');
 }
 
 /* ---- stats ---- */
@@ -1327,6 +1476,11 @@ function updateStats(){
   el('stRev').textContent=rv?'済':'未';
   const tot=at+st,dn=ad+sd;
   el('progBar').style.width=(tot?Math.round(dn/tot*100):0)+'%';
+  const ts=todayStr();
+  const od=pendItems.filter(p=>p.a.due&&p.a.due<ts).length+
+    day.actions.filter(a=>a.action&&a.status!=='完了'&&a.status!=='中止'&&a.due&&a.due<ts).length;
+  el('stPend').textContent=pendItems.length;
+  el('stOver').textContent=od;
 }
 
 /* ================= Q6 & profile UI ================= */
