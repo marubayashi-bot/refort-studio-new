@@ -157,6 +157,42 @@ main{max-width:1320px;margin:0 auto;padding:22px 20px 70px}
 .chip.stop{background:var(--stop-bg);color:var(--stop)} .chip.neutral{background:#eef2f7;color:var(--muted)}
 .empty-lane{color:var(--muted);font-size:11.5px;text-align:center;padding:18px 6px;border:1px dashed var(--line2);border-radius:8px}
 
+/* ===== 発電事業者別ツリー ===== */
+.dash-bar{display:flex;align-items:center;gap:10px;margin:18px 0 9px;flex-wrap:wrap}
+.dash-bar .sec-title{margin:0}
+.modesw{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:var(--surface2)}
+.modesw .ms{border:0;background:transparent;padding:6px 13px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+.modesw .ms.on{background:var(--navy);color:#fff}
+.cust-tree{display:flex;flex-direction:column;gap:9px}
+.ct-g{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.ct-l1{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer}
+.ct-l1:hover{background:var(--surface2)}
+.ct-l1 .tw{font-size:10px;color:var(--muted);width:12px;display:inline-block;transition:.15s}
+.ct-l1.open .tw{transform:rotate(90deg)}
+.ct-l1 b{font-size:14px;color:var(--navy)}
+.ct-l1 .cnt{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:1px 9px;font-weight:600}
+.ct-l1 .sum{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--navy2)}
+.ct-l1-body{border-top:1px solid var(--line);background:var(--surface2);padding:9px 11px;display:flex;flex-direction:column;gap:7px}
+.ct-l2{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--surface);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.ct-l2:hover{border-color:var(--gold)}
+.ct-l2 .tw{font-size:9px;color:var(--muted);width:11px;display:inline-block;transition:.15s}
+.ct-l2.open .tw{transform:rotate(90deg)}
+.ct-l2 .nm{font-size:12.5px;font-weight:700;color:var(--navy)}
+.ct-l2 .cnt{font-size:10.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-weight:600}
+.ct-l2 .meta{margin-left:auto;font-size:11px;color:var(--muted);display:flex;gap:11px;flex-wrap:wrap}
+.ct-l2-body{display:flex;flex-direction:column;gap:6px;margin:-1px 0 5px 22px}
+.ct-sim{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--navy3);border-radius:7px;cursor:pointer;transition:.12s}
+.ct-sim:hover{box-shadow:var(--shadow);border-left-color:var(--gold);transform:translateY(-1px)}
+.ct-sim .nm{font-size:12.5px;font-weight:700;color:var(--navy)}
+.ct-sim .rr{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ct-sim .up{font-size:10.5px;color:var(--muted)}
+.ct-empty{color:var(--muted);font-size:12px;text-align:center;padding:26px 8px;border:1px dashed var(--line2);border-radius:8px}
+@media(max-width:720px){
+  .ct-l2 .meta,.ct-sim .rr{margin-left:0;width:100%}
+  .ct-l2,.ct-sim{flex-wrap:wrap}
+}
+
 /* ===== deal list table ===== */
 table.grid{width:100%;border-collapse:collapse;background:var(--surface);font-size:13px}
 table.grid th{background:var(--navy);color:#fff;font-weight:600;font-size:11.5px;text-align:left;
@@ -1195,8 +1231,18 @@ function renderDash(){
     html+=`</div>`;
   }
 
-  // pipeline lanes
-  html+=`<div class="sec-title">パイプライン</div><div class="pipe-wrap"><div class="pipe" id="pipe"></div></div>`;
+  // pipeline lanes / 事業者別ツリー
+  html+=`<div class="dash-bar">
+    <div class="sec-title">${DASH_MODE==='cust'?'発電事業者別（事業者 → 物件 → シミュレーション）':'パイプライン'}</div>
+    <div class="modesw">
+      <button class="ms ${DASH_MODE==='stage'?'on':''}" data-mode="stage">ステージ別</button>
+      <button class="ms ${DASH_MODE==='cust'?'on':''}" data-mode="cust">事業者別</button>
+    </div>
+    ${DASH_MODE==='cust'?`<input class="txt" id="custQ" placeholder="事業者名・物件名・案件名で検索" value="${esc(custQuery)}" style="width:250px;margin-left:auto">`:''}
+  </div>`;
+  html+= DASH_MODE==='cust'
+    ? `<div class="cust-tree" id="custTree"></div>`
+    : `<div class="pipe-wrap"><div class="pipe" id="pipe"></div></div>`;
   v.innerHTML=html;
 
   const dz=$('#dropZone');
@@ -1210,6 +1256,11 @@ function renderDash(){
   }
 
   $$('.alert-row[data-open]').forEach(r=>r.onclick=()=>openDeal(r.dataset.open));
+
+  $$('.modesw .ms').forEach(b=>b.onclick=()=>setDashMode(b.dataset.mode));
+  const cq=$('#custQ');
+  if(cq){ cq.oninput=e=>{ custQuery=e.target.value; renderCustTree(); }; }
+  if(DASH_MODE==='cust'){ renderCustTree(); return; }
 
   const pipe=$('#pipe');
   STAGES.forEach(st=>{
@@ -1256,6 +1307,149 @@ function dealCard(d){
   c.addEventListener('dragstart',e=>e.dataTransfer.setData('id',d.id));
   c.addEventListener('click',()=>openDeal(d.id));
   return c;
+}
+
+/* ==================== 発電事業者別ビュー（事業者 → 物件 → シミュレーション） ==================== */
+const DASH_MODE_KEY='rf_dash_mode';
+let DASH_MODE='stage';
+try{ DASH_MODE=localStorage.getItem(DASH_MODE_KEY)||'stage'; }catch(e){}
+let custQuery='';
+const custOpen={}, plantOpen={};
+let CT_GROUPS=[];
+const CUST_NONE='（事業者名 未設定）';
+
+function setDashMode(m){
+  DASH_MODE=m; try{ localStorage.setItem(DASH_MODE_KEY,m); }catch(e){}
+  renderDash();
+}
+/* 事業者名：①案件基本情報の「お客様名」を優先。空なら案件名から法人格を拾う */
+function custOf(d){
+  const i=d.inputs||{};
+  let c=String(i.customer||'').trim();
+  if(!c){
+    const m=String(d.name||'').match(/([^\s　【】\(\)（）]*(?:株式会社|有限会社|合同会社|合資会社|\(株\)|（株）)[^\s　【】\(\)（）]*)/);
+    if(m) c=m[1];
+  }
+  c=c.replace(/\s*様\s*$/,'').replace(/[\s　]+/g,' ').trim();
+  return c||CUST_NONE;
+}
+/* 物件名：発電所名から【HTver.】等のシミュ識別子・事業者名・重複「発電所」を除いて正規化 */
+function plantOf(d){
+  const i=d.inputs||{};
+  const c=custOf(d);
+  let p=String(i.plantName||'').trim()||String(d.name||'').trim();
+  p=p.replace(/【[^】]*】/g,'').replace(/\[[^\]]*\]/g,'').replace(/\s*様\s*$/,'');
+  if(c&&c!==CUST_NONE) p=p.split(c).join('');
+  if(/^[\s　様の・･\-–—]*$/.test(p)) p='';
+  p=p.replace(/(発電所)+/g,'発電所').replace(/[\s　]+/g,' ')
+     .replace(/^[\s　・･\-–—]+|[\s　・･\-–—]+$/g,'').trim();
+  if(!p) p=String(i.location||'').trim();
+  return p||'（物件名 未設定）';
+}
+/* シミュ名：物件名・事業者名を落として「【HT ver.】」など違いの部分だけ残す */
+function simLabel(d,plant){
+  const full=String(d.name||'(無題案件)');
+  const tag=(full.match(/【[^】]*】/g)||[]).join('');
+  let rest=full.replace(/【[^】]*】/g,'').replace(/(発電所)+/g,'発電所').replace(/[\s　]+/g,' ').trim();
+  const c=custOf(d); if(c&&c!==CUST_NONE) rest=rest.split(c).join('');
+  if(plant) rest=rest.split(plant).join('');
+  rest=rest.replace(/^[\s　・･\-–—]+|[\s　・･\-–—]+$/g,'').trim();
+  if(/^[\s　様の・･\-–—]*$/.test(rest)) rest='';
+  const lab=(tag+(rest?' '+rest:'')).trim();
+  return lab||full;
+}
+function buildCustTree(){
+  const map=new Map();
+  DB.deals.forEach(d=>{
+    const c=custOf(d), p=plantOf(d);
+    if(!map.has(c)) map.set(c,{name:c,plants:new Map(),deals:[]});
+    const g=map.get(c); g.deals.push(d);
+    if(!g.plants.has(p)) g.plants.set(p,{name:p,deals:[]});
+    g.plants.get(p).deals.push(d);
+  });
+  const arr=[...map.values()].map(g=>{
+    g.plantList=[...g.plants.values()].map(p=>{
+      p.deals.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      p.val=p.deals.filter(d=>d.stage!=='lost').reduce((s,d)=>s+dealPipelineValue(d),0);
+      return p;
+    }).sort((a,b)=>b.val-a.val||a.name.localeCompare(b.name,'ja'));
+    g.active=g.deals.filter(d=>d.stage!=='won'&&d.stage!=='lost').length;
+    g.val=g.deals.filter(d=>d.stage!=='lost').reduce((s,d)=>s+dealPipelineValue(d),0);
+    return g;
+  });
+  arr.sort((a,b)=>{
+    if(a.name===CUST_NONE) return 1;
+    if(b.name===CUST_NONE) return -1;
+    return b.val-a.val || b.deals.length-a.deals.length || a.name.localeCompare(b.name,'ja');
+  });
+  return arr;
+}
+function renderCustTree(){
+  const wrap=$('#custTree'); if(!wrap) return;
+  const q=custQuery.trim().toLowerCase();
+  const hit=s=>String(s==null?'':s).toLowerCase().includes(q);
+  CT_GROUPS=buildCustTree();
+  if(q){
+    const pHit=p=>hit(p.name)||p.deals.some(d=>hit(d.name)||hit((d.inputs||{}).location));
+    CT_GROUPS=CT_GROUPS.filter(g=>hit(g.name)||g.plantList.some(pHit))
+      .map(g=>hit(g.name)? g : Object.assign({},g,{plantList:g.plantList.filter(pHit)}));
+  }
+  if(!CT_GROUPS.length){ wrap.innerHTML='<div class="ct-empty">該当する発電事業者はありません</div>'; return; }
+  let h='';
+  CT_GROUPS.forEach((g,gi)=>{
+    const open = (g.name in custOpen)? !!custOpen[g.name] : (!!q||CT_GROUPS.length===1);
+    h+=`<div class="ct-g"><div class="ct-l1 ${open?'open':''}" data-gi="${gi}">
+      <span class="tw">▶</span><b>${esc(g.name)}</b>
+      <span class="cnt">物件 ${g.plantList.length}・シミュ ${g.deals.length}</span>
+      ${g.active?`<span class="chip neutral">進行中 ${g.active}</span>`:''}
+      <span class="sum">${yenM(g.val)}</span></div>`;
+    if(open){
+      h+='<div class="ct-l1-body">';
+      g.plantList.forEach((p,pi)=>{
+        const key=g.name+'|'+p.name;
+        const po = (key in plantOpen)? !!plantOpen[key] : (!!q||g.plantList.length===1);
+        const loc=String(((p.deals[0]||{}).inputs||{}).location||'');
+        h+=`<div class="ct-l2 ${po?'open':''}" data-gi="${gi}" data-pi="${pi}">
+          <span class="tw">▶</span><span class="nm">${esc(p.name)}</span>
+          <span class="cnt">シミュ ${p.deals.length}</span>
+          <span class="meta">${loc?'<span>📍 '+esc(loc)+'</span>':''}<span>${yenM(p.val)}</span></span></div>`;
+        if(po){
+          h+='<div class="ct-l2-body">';
+          p.deals.forEach(d=>{
+            const st=stageOf(d.stage), v=dealVerdict(d), der=derive(d.inputs);
+            h+=`<div class="ct-sim" data-open="${esc(d.id)}" style="border-left-color:${st.c}">
+              <span class="nm">${esc(simLabel(d,p.name))}</span>
+              <span class="rr">
+                ${der.gen?'<span class="up">'+kwh(der.gen)+' kWh/年</span>':''}
+                <span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span>
+                <span class="chip ${v.level}">${esc(v.policy)}</span>
+                ${v.irr!=null?'<span class="chip neutral">IRR '+pct(v.irr)+'</span>':''}
+                ${v.ng>0?'<span class="chip stop">🚩'+v.ng+'</span>':''}
+                <span class="up">${d.updatedAt?new Date(d.updatedAt).toLocaleDateString('ja-JP'):''}</span>
+              </span></div>`;
+          });
+          h+='</div>';
+        }
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  wrap.innerHTML=h;
+  wrap.querySelectorAll('.ct-l1').forEach(r=>r.onclick=()=>{
+    const g=CT_GROUPS[+r.dataset.gi]; if(!g)return;
+    custOpen[g.name]=!((g.name in custOpen)? custOpen[g.name] : (!!custQuery.trim()||CT_GROUPS.length===1));
+    renderCustTree();
+  });
+  wrap.querySelectorAll('.ct-l2').forEach(r=>r.onclick=e=>{
+    e.stopPropagation();
+    const g=CT_GROUPS[+r.dataset.gi]; if(!g)return;
+    const p=g.plantList[+r.dataset.pi]; if(!p)return;
+    const k=g.name+'|'+p.name;
+    plantOpen[k]=!((k in plantOpen)? plantOpen[k] : (!!custQuery.trim()||g.plantList.length===1));
+    renderCustTree();
+  });
+  wrap.querySelectorAll('.ct-sim[data-open]').forEach(r=>r.onclick=e=>{ e.stopPropagation(); openDeal(r.dataset.open); });
 }
 
 /* ==================== LIST ==================== */
@@ -3207,9 +3401,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.08';
+const APP_VERSION = '2026.08.17';
 
 const CHANGELOG = [
+  ['2026.08.17', [
+    'ダッシュボードに「事業者別」表示を追加しました。<b>発電事業者 → 物件 → シミュレーション</b>の3段階でたどれるため、同じお客様に複数のシミュレーション（HT版・トリナ版・反射シート有など）がある場合も探す手間がなくなります',
+    'ダッシュボード右上の検索欄で、事業者名・物件名・案件名から絞り込めます。表示の切替（ステージ別／事業者別）は次回開いたときも記憶されます',
+    '事業者名は①案件基本情報の「お客様名」で束ねます。空欄の案件は「（事業者名 未設定）」にまとまるので、お客様名を入れると正しい事業者の下に入ります',
+  ]],
   ['2026.08.08', [
     '「📖 活用マニュアル」タブを追加しました。アプリ本体に同梱しているため、アプリを更新すればマニュアルも同時に最新になります',
     'ヘッダーにバージョン表示を追加。前回見たときより新しくなっていると金色の「●」が付き、クリックすると更新履歴が開きます',
@@ -3307,11 +3506,17 @@ const MANUAL = [
     '<p><b>ステージ</b>は次の7段階です。実態に合わせてこまめに動かしてください。ダッシュボードと台帳の集計はこのステージを見ています。</p>',
     '<p class="mchips">ヒアリング → 一次判定 → DD・現調 → 提案中 → 契約交渉 → 成約 ／ 見送り</p>',
     '<table class="mtbl"><tr><th>タブ</th><th>用途</th></tr>' +
-    '<tr><td>ダッシュボード</td><td>ステージ別の件数・金額。今どこに案件が溜まっているかを見る</td></tr>' +
+    '<tr><td>ダッシュボード</td><td>ステージ別の件数・金額。今どこに案件が溜まっているかを見る。「事業者別」に切り替えると 事業者→物件→シミュレーション の3段階で開けます</td></tr>' +
     '<tr><td>案件一覧</td><td>検索・絞り込み。日々の作業はここが起点</td></tr>' +
     '<tr><td>台帳</td><td>一覧表形式での集計。会議資料に使えます</td></tr>' +
     '<tr><td>マップ</td><td>所在地からピン表示。エリアの偏りや現調のまとめ方を考えるとき</td></tr>' +
     '</table>',
+    '<div class="mbox"><b>事業者別ビュー（ダッシュボード）</b><br>' +
+      'パイプラインの上にある<b>「ステージ別／事業者別」</b>で切り替えます。事業者別では<br>' +
+      '① 発電事業者名 → ② 物件名 → ③ シミュレーション の順にクリックして開きます。<br>' +
+      '同じお客様に複数のシミュレーション（例：HT版・トリナ版・反射シート有）がある場合、物件の下に並ぶので探す手間がありません。<br>' +
+      '検索欄では事業者名・物件名・案件名から絞り込めます。</div>',
+    '<p class="mnote">事業者のまとまりは<b>①案件基本情報の「お客様名」</b>で決まります。ここが空の案件は「（事業者名 未設定）」に入るので、お客様名を必ず入れてください（Excel取込では 01_物件情報 の C8 が入ります）。物件のまとまりは「発電所名」で、案件名の【HT ver.】などの目印は自動で外して同じ物件としてまとめます。</p>',
     '<p><b>次アクションと期限</b>は必ず入れてください。期限が近い・過ぎている案件にはバッジが付きます。空欄の案件は誰も動かしていない案件と同じです。</p>',
   ]},
 
