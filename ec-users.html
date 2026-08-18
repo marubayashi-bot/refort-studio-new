@@ -469,15 +469,19 @@ function orgSide(){
   </div>`;
 }
 
+/* 上司が次長以上なら、部署をまたぐのは正常（複数部署を統括するため）。警告に出さない */
+const CROSS_OK = ['次長','部門長','役員・経営'];
+
 function renderOrgCheck(){
   const w = [];
   activeUsers().forEach(u => {
     const nm = u.full_name || u.email;
     if (!u.department_id) w.push(`${nm}：所属部署が未設定です`);
     if (!u.manager_id && u.job_grade !== '役員・経営') w.push(`${nm}：直属上司が未設定です`);
-    if (u.manager_id && byId(u.manager_id) && u.department_id &&
-        byId(u.manager_id).department_id !== u.department_id)
-      w.push(`${nm}：上司の${esc(byId(u.manager_id).full_name)}は別部署（${deptName(byId(u.manager_id).department_id)}）です。兼務なら問題ありません`);
+    const b = u.manager_id ? byId(u.manager_id) : null;
+    if (b && u.department_id && b.department_id !== u.department_id
+        && !CROSS_OK.includes(b.job_grade))
+      w.push(`${nm}：上司の${b.full_name}は${deptName(b.department_id) || '部署未設定'}の所属です。兼務なら問題ありません`);
   });
   document.getElementById('orgCheck').innerHTML = w.length
     ? w.map(x => `<div class="chk">${esc(x)}</div>`).join('')
