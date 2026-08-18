@@ -1,55 +1,68 @@
 /* ============================================================
- *  EARTHCOM 共通認証モジュール   ec-auth.js   v1.1
+ *  EARTHCOM 共通認証モジュール  ec-auth.js  v1.2
  *
  *  各アプリの <head> に2行足すだけで、会社のGoogleアカウント
  *  ログインと役割別の権限判定が使えるようになります。
+ *
+ *  v1.2 の変更点 ----------------------------------------------
+ *  ・アプリ一覧を Supabase の apps テーブルから読むようにしました。
+ *    このファイルを書き換えなくても、新しいアプリが権限管理画面
+ *    （ec-users.html）に自動で並びます。
+ *  ・アプリが初めて開かれたとき、自分自身を apps テーブルへ
+ *    自動登録します（EC.guard に name を渡した場合）。
+ *  ・apps テーブルが未作成でも、下の SEED_APPS で従来どおり動きます。
  *
  *  使い方 ------------------------------------------------------
  *  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  *  <script src="./ec-auth.js"></script>
  *  <script>
- *    EC.guard({ app: 'bumoncho', allow: ['admin','manager','sales'] })
- *      .then(function (me) {
+ *    EC.guard({
+ *      app:  'bumoncho',                 // 英数字とハイフンのみ。アプリごとに一意
+ *      name: '部門長会議ボード',          // 権限管理画面に表示される名前
+ *      allow: ['admin','manager','sales']
+ *    }).then(function (me) {
  *      // ここから先は認証済み。me.role / me.areas が使えます
- *      EC.mountBadge('#userBadge');   // 任意: 右上にユーザー表示
+ *      EC.mountBadge('#userBadge');      // 任意: 右上にユーザー表示
  *      startApp();
  *    });
  *  </script>
  *
  *  提供するもの ------------------------------------------------
- *  EC.supabase          Supabaseクライアント（各アプリで共用）
- *  EC.guard(opts)       認証ゲート。通過すると社員情報を返す
- *  EC.me                ログイン中の社員情報 {id,email,full_name,role,areas}
- *  EC.can('admin',...)  役割チェック（true/false）
- *  EC.canUseApp(id)     このアプリの利用許可があるか（true/false）
- *  EC.APPS              アプリ一覧 [[id, 名称], ...]
- *  EC.mountBadge(sel)   ユーザー名＋ログアウトのバッジを描画
- *  EC.signOut()         ログアウト
+ *   EC.supabase        Supabaseクライアント（各アプリで共用）
+ *   EC.guard(opts)     認証ゲート。通過すると社員情報を返す
+ *   EC.me              ログイン中の社員情報 {id,email,full_name,role,areas}
+ *   EC.can('admin',..) 役割チェック（true/false）
+ *   EC.canUseApp(id)   このアプリの利用許可があるか（true/false）
+ *   EC.APPS            アプリ一覧 [[id, 名称], ...]
+ *   EC.loadApps()      アプリ一覧を読み直す（Promise）
+ *   EC.mountBadge(sel) ユーザー名＋ログアウトのバッジを描画
+ *   EC.signOut()       ログアウト
  * ============================================================ */
+
 (function (global) {
   'use strict';
 
   var CONFIG = {
-    url:    'https://aakofrzurgwrkctunthw.supabase.co',
-    key:    'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
+    url: 'https://aakofrzurgwrkctunthw.supabase.co',
+    key: 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
     domain: 'earthcom-eco.jp'
   };
 
-  /* アプリ一覧。新しいアプリを作ったらここに1行足してください。
-     idは app_users.apps に保存される値です（英数字とハイフンのみ）。 */
- var APPS = [
-  ['bumoncho',     '部門長会議ボード'],
-  ['refort-deals', 'ReFort査定スタジオ'],
-  ['refort-board', 'ReFort現場判断ボード'],
-  ['battery',      '低圧系統蓄電池シミュレーター'],
-  ['secondary',    '高圧RF（セカンダリー）シミュレーター'],
-  ['pipeline',     '商談パイプラインボード'],
-  ['progress',     '工事進捗報告システム'],
-  ['naiteisha',    '内定者オンボーディング管理'],
-  ['planner',      'SUCCESS PLANNER'],
-  ['portal',       '社内アプリ盤'],
-  ['keikaku',      '経営計画書ポータル']
-];
+  /* apps テーブルが読めなかったときの予備の一覧。
+     通常はこちらを編集する必要はありません。 */
+  var SEED_APPS = [
+    ['bumoncho',     '部門長会議ボード'],
+    ['refort-deals', 'ReFort査定スタジオ'],
+    ['refort-board', 'ReFort現場判断ボード'],
+    ['battery',      '低圧系統蓄電池シミュレーター'],
+    ['secondary',    '高圧RF（セカンダリー）シミュレーター'],
+    ['pipeline',     '商談パイプラインボード'],
+    ['progress',     '工事進捗報告システム'],
+    ['naiteisha',    '内定者オンボーディング管理'],
+    ['planner',      'SUCCESS PLANNER'],
+    ['portal',       '社内アプリ盤'],
+    ['keikaku',      '経営計画書ポータル']
+  ];
 
   var ROLE_LABEL = {
     admin:   '管理者',
@@ -193,6 +206,44 @@
     });
   }
 
+  /* ---------- アプリ一覧（apps テーブル） -------------------- */
+
+  var APPS = SEED_APPS.slice();
+  var appsLoaded = false;
+
+  /** apps テーブルからアプリ一覧を読み込む。失敗しても SEED_APPS で動きます */
+  EC.loadApps = function (force) {
+    if (appsLoaded && !force) return Promise.resolve(APPS);
+    return client.from('apps')
+      .select('id,label,sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('label', { ascending: true })
+      .then(function (r) {
+        if (r.error || !r.data || !r.data.length) return APPS;
+        APPS = r.data.map(function (a) { return [a.id, a.label]; });
+        EC.APPS = APPS;
+        appsLoaded = true;
+        return APPS;
+      })
+      .catch(function () { return APPS; });
+  };
+
+  /** アプリが自分自身を apps テーブルへ登録する（既にあれば何もしない） */
+  function registerApp(id, name) {
+    if (!id) return Promise.resolve();
+    if (!/^[a-z0-9-]+$/i.test(id)) return Promise.resolve();
+    var known = APPS.some(function (a) { return a[0] === id; });
+    if (known) return Promise.resolve();
+    return client.from('apps')
+      .upsert(
+        { id: id, label: name || id, url: location.pathname.replace(/^.*\//, '') },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+      .then(function () { return EC.loadApps(true); })
+      .catch(function () { /* 登録できなくてもアプリは動かす */ });
+  }
+
   /* ---------- 本体 ------------------------------------------ */
 
   function readUrlError() {
@@ -226,14 +277,17 @@
   /**
    * 認証ゲート。
    * @param {Object} opts
+   * @param {string}   [opts.app]   アプリID。アプリ別の利用許可を判定します
+   * @param {string}   [opts.name]  アプリ名。未登録なら apps テーブルへ自動登録します
    * @param {string[]} [opts.allow] 通過を許可する役割。省略時は viewer 以外すべて
    * @returns {Promise<Object>} 社員情報
    */
   EC.guard = function (opts) {
     opts = opts || {};
     var allow = opts.allow || ['admin', 'manager', 'sales', 'field'];
-    var app = opts.app || null;                        // アプリ別の利用許可
-    var adminBypass = opts.adminBypass !== false;      // 管理者は既定で素通し
+    var app = opts.app || null;                    // アプリ別の利用許可
+    var appName = opts.name || null;               // 自動登録するときの表示名
+    var adminBypass = opts.adminBypass !== false;  // 管理者は既定で素通し
 
     return new Promise(function (resolve) {
       var urlError = readUrlError();
@@ -259,22 +313,33 @@
             screenDenied(me);
             return;
           }
-          if (allow.indexOf(me.role) === -1) {
-            if (me.role === 'viewer') screenPending(me);
-            else screenDenied(me);
-            return;
-          }
-          EC.me = me;
-          if (app && !(adminBypass && me.role === 'admin') && !EC.canUseApp(app)) {
-            EC.me = null;
-            screenDenied(me, app);
-            return;
-          }
-          if (location.hash.indexOf('access_token') !== -1) {
-            history.replaceState(null, '', location.pathname + location.search);
-          }
-          closeGate();
-          resolve(me);
+
+          // アプリ一覧を読み込み、未登録なら自分を登録してから権限を判定する。
+          // 権限が無くて弾かれる場合でも、権限管理画面には並ぶようにしています。
+          return EC.loadApps()
+            .then(function () { return registerApp(app, appName); })
+            .then(function () {
+
+              if (allow.indexOf(me.role) === -1) {
+                if (me.role === 'viewer') screenPending(me);
+                else screenDenied(me);
+                return;
+              }
+
+              EC.me = me;
+
+              if (app && !(adminBypass && me.role === 'admin') && !EC.canUseApp(app)) {
+                EC.me = null;
+                screenDenied(me, app);
+                return;
+              }
+
+              if (location.hash.indexOf('access_token') !== -1) {
+                history.replaceState(null, '', location.pathname + location.search);
+              }
+              closeGate();
+              resolve(me);
+            });
         });
       }).catch(function (e) {
         screenLogin('接続に失敗しました: ' + escapeHtml(e.message || e));
@@ -313,4 +378,5 @@
   };
 
   global.EC = EC;
+
 })(window);
