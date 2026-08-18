@@ -103,14 +103,18 @@ let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
 
 /* ---------- 起動 ---------- */
-EC.guard({ allow: ['admin','manager','sales','field'] }).then(async () => {
+EC.guard({
+  app:  'nippo',
+  name: '日報OS',
+  allow: ['admin','manager','sales','field']
+}).then(async () => {
   EC.mountBadge('#userBadge');
   await boot();
 });
 
 async function boot(){
-  const { data: auth } = await EC.supabase.auth.getUser();
-  const email = auth && auth.user ? auth.user.email : null;
+  const meId = EC.me ? EC.me.id : null;
+  const email = EC.me ? EC.me.email : null;
 
   const { data: us, error: ue } = await EC.supabase
     .from('app_users')
@@ -118,7 +122,8 @@ async function boot(){
     .eq('is_active', true);
   if (ue) { fail('社員情報を読み込めませんでした: ' + ue.message); return; }
   USERS = us || [];
-  ME = USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
+  ME = USERS.find(u => u.id === meId)
+    || USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
 
   if (ME.department_id) {
