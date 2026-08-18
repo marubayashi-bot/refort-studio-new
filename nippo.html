@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日報OS | EARTHCOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1B2B; --ink-2:#2C3E52; --muted:#6B7C8F; --line:#DDE4EC;
+  --paper:#F4F7FA; --card:#FFFFFF; --accent:#1F6B52; --accent-soft:#E4EFEA;
+  --warn:#B4541F; --warn-soft:#FBEDE4; --amber:#C8901C;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans JP",system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;font-size:14px;line-height:1.7}
+.num{font-variant-numeric:tabular-nums}
+header{background:var(--ink);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+header .mark{font-size:10.5px;letter-spacing:.22em;color:#5FBFA0;font-weight:700}
+header h1{font-size:16px;margin:0;font-weight:700}
+header .t{display:flex;align-items:baseline;gap:14px}
+nav{background:var(--ink-2);display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+nav::-webkit-scrollbar{display:none}
+nav button{background:none;border:0;color:#B7C6D5;padding:11px 14px;font-size:13px;cursor:pointer;
+  border-bottom:3px solid transparent;white-space:nowrap;font-family:inherit}
+nav button.on{color:#fff;border-bottom-color:#5FBFA0;font-weight:700}
+main{max-width:960px;margin:0 auto;padding:22px 18px 80px}
+h2{font-size:14px;margin:0 0 4px;letter-spacing:.03em}
+.sub{color:var(--muted);font-size:12px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 6px;font-size:13px;display:flex;align-items:center;gap:9px}
+.eyebrow{font-size:10px;letter-spacing:.16em;color:var(--accent);font-weight:700}
+label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin:12px 0 4px}
+input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-family:inherit;font-size:14px;color:var(--ink)}
+textarea{min-height:78px;resize:vertical;line-height:1.8}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+button.act{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:11px 18px;font-weight:700;
+  cursor:pointer;font-family:inherit;font-size:14px}
+button.act:hover{background:var(--ink-2)}
+button.act:disabled{opacity:.4;cursor:default}
+button.ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12px;
+  cursor:pointer;font-family:inherit;color:var(--ink-2)}
+button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:9px;padding:11px;background:#FBFCFD}
+.kpi .v{font-size:22px;font-weight:700}
+.kpi .l{font-size:11px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.p5{background:#FBE9E7;border-color:#E3B4AE;color:#9A2E25;font-weight:700}
+.p4{background:var(--warn-soft);border-color:#E7C4A6;color:var(--warn);font-weight:700}
+.p3{background:#FBF5DE;border-color:#E0D191;color:#7A6510}
+.p2{background:var(--accent-soft);border-color:#A9D2BE;color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left}
+th{color:var(--muted);font-size:11px;font-weight:700}
+.bar{height:6px;background:#E8EDF3;border-radius:99px;overflow:hidden;min-width:70px;flex:1}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.warn i{background:var(--warn)}
+.rep{border:1px solid var(--line);border-radius:12px;background:#fff;padding:15px;margin-bottom:12px}
+.rep .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.rep .nm{font-weight:700}
+.sec{margin-top:10px;padding-left:11px;border-left:3px solid #E8EDF3}
+.sec .lab{font-size:11px;color:var(--muted);font-weight:700}
+.line{display:flex;margin-top:12px;font-size:10px;color:var(--muted)}
+.line div{flex:1;text-align:center;border-top:3px solid #E8EDF3;padding-top:5px}
+.line div.done{border-top-color:var(--accent);color:var(--accent);font-weight:700}
+.cmt{background:#F6F9FB;border-radius:9px;padding:9px 11px;margin-top:9px;font-size:12.5px}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line);border-radius:10px}
+.note{color:var(--muted);font-size:11.5px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#fff;
+  padding:10px 20px;border-radius:99px;font-size:13px;opacity:0;transition:.2s;z-index:60}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="t"><span class="mark">EARTHCOM</span><h1>日報OS</h1></div>
+  <div id="userBadge"></div>
+</header>
+<nav id="nav"></nav>
+<main id="view"><div class="empty">読み込み中</div></main>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
+<script>
+const IMP = [
+  [5,'経営判断が必要','p5'], [4,'上司判断が必要','p4'],
+  [3,'部署で共有','p3'],     [2,'記録のみ','p2']
+];
+const LEVELS = ['LEVEL1 個人日報','LEVEL2 チーム課題','LEVEL3 部署課題','LEVEL4 全社課題','LEVEL5 経営判断'];
+const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード']];
+
+let ME = null;          // app_users の自分の行
+let USERS = [];         // 在籍者
+let METRICS = [];       // 自部署の数値項目
+let REPORTS = [];       // 閲覧できる日報
+let TAB = 'write';
+let TODAY = new Date().toISOString().slice(0,10);
+
+/* ---------- 起動 ---------- */
+EC.guard({ allow: ['admin','manager','sales','field'] }).then(async () => {
+  EC.mountBadge('#userBadge');
+  await boot();
+});
+
+async function boot(){
+  const { data: auth } = await EC.supabase.auth.getUser();
+  const email = auth && auth.user ? auth.user.email : null;
+
+  const { data: us, error: ue } = await EC.supabase
+    .from('app_users')
+    .select('id,email,full_name,dept_name,department_id,manager_id,job_grade,exec_watch,is_active,role')
+    .eq('is_active', true);
+  if (ue) { fail('社員情報を読み込めませんでした: ' + ue.message); return; }
+  USERS = us || [];
+  ME = USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
+  if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
+
+  if (ME.department_id) {
+    const { data: ms } = await EC.supabase.from('report_metrics')
+      .select('id,name,unit,target,is_required,sort_order')
+      .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
+    METRICS = ms || [];
+  }
+  await loadReports();
+  render();
+}
+
+async function loadReports(){
+  const since = new Date(); since.setDate(since.getDate() - 30);
+  const { data, error } = await EC.supabase.from('daily_reports')
+    .select('*, report_metric_values(metric_id,value), report_comments(id,author_id,body,created_at), report_views(viewer_id,viewed_at)')
+    .gte('report_date', since.toISOString().slice(0,10))
+    .order('report_date', { ascending: false });
+  if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
+  REPORTS = data || [];
+}
+
+function fail(msg){ document.getElementById('view').innerHTML = `<div class="empty">${esc(msg)}</div>`; }
+
+/* ---------- 画面枠 ---------- */
+function render(){
+  document.getElementById('nav').innerHTML = TABS.map(([k,t]) =>
+    `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
+  document.getElementById('view').innerHTML =
+    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash })[TAB]();
+}
+function go(k){ TAB = k; render(); window.scrollTo(0,0); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'), 2200); }
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function uname(id){ const u = USERS.find(x=>x.id===id); return u ? (u.full_name || u.email) : '—'; }
+function udept(id){ const u = USERS.find(x=>x.id===id); return u ? (u.dept_name || '') : ''; }
+function impMeta(v){ return IMP.find(i => i[0] === v) || IMP[3]; }
+function isBossOf(uid){ const u = USERS.find(x=>x.id===uid); return u && u.manager_id === ME.id; }
+function isExec(){ return ME.job_grade === '役員・経営'; }
+
+/* ---------- 1. 日報を書く ---------- */
+function vWrite(){
+  const mine = REPORTS.find(r => r.author_id === ME.id && r.report_date === TODAY);
+  const v = f => mine ? esc(mine[f] || '') : '';
+  const mv = id => { if (!mine) return '';
+    const f = (mine.report_metric_values||[]).find(x => x.metric_id === id); return f ? f.value : ''; };
+  return `
+  <h2>${esc(ME.full_name)} さんの日報</h2>
+  <p class="sub">${TODAY}　${esc(ME.dept_name||'')}　${mine ? '本日分は提出済みです。上書きできます。' : '未提出'}</p>
+
+  ${METRICS.length ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
+    <div class="grid">${METRICS.map(m => `
+      <div><label>${esc(m.name)}（${esc(m.unit)}）　目標 ${m.target ?? '—'}</label>
+      <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="0"></div>`).join('')}
+    </div></div>` : `<div class="card"><h3>数値情報</h3>
+      <p class="note">あなたの部署の数値項目がまだ設定されていません。管理者にご相談ください。</p></div>`}
+
+  <div class="card">
+    <h3><span class="eyebrow">必須 02</span>お客様の声</h3>
+    <p class="note">要望・不満・反論・質問・買わない理由・決めた理由を、聞いたままの言葉で。</p>
+    <textarea id="f_voice">${v('voice')}</textarea>
+
+    <h3 style="margin-top:16px"><span class="eyebrow">必須 03</span>ライバル情報</h3>
+    <textarea id="f_rival">${v('rival')}</textarea>
+
+    <h3 style="margin-top:16px"><span class="eyebrow">必須 04</span>本部・業界情報</h3>
+    <p class="note">情報そのものと、自社・自部署への影響予測をセットで。</p>
+    <textarea id="f_industry">${v('industry')}</textarea>
+
+    <h3 style="margin-top:16px"><span class="eyebrow">必須 05</span>自分・スタッフの考え</h3>
+    <p class="note">事実ではなく、あなたの気づき・仮説・改善案を書く欄です。</p>
+    <textarea id="f_thought">${v('thought')}</textarea>
+  </div>
+
+  <div class="card">
+    <h3><span class="eyebrow">任意</span>グッドニュース・部下情報</h3>
+    <label>グッドニュース</label>
+    <textarea id="f_good" style="min-height:56px">${v('good_news')}</textarea>
+    ${ME.job_grade && ME.job_grade !== '一般' ? `
+      <label>部下情報（管理職のみが閲覧します）</label>
+      <textarea id="f_sub" style="min-height:56px">${v('subordinate')}</textarea>` : ''}
+    <label>添付（資料のURL・ファイル名）</label>
+    <input type="text" id="f_attach" placeholder="写真・PDF・Excelのリンク"
+      value="${mine && mine.attachments && mine.attachments[0] ? esc(mine.attachments[0]) : ''}">
+  </div>
+
+  <div class="card">
+    <h3>今日いちばん重要な情報の扱い</h3>
+    <select id="f_imp">${IMP.map(([v2,t]) =>
+      `<option value="${v2}"${mine && mine.importance===v2 ? ' selected':''}>${t}</option>`).join('')}</select>
+    <p class="note" style="margin-top:8px">提出すると、直属上司（${esc(uname(ME.manager_id))}）の確認画面に届きます。</p>
+    <button class="act" style="margin-top:10px" id="submitBtn" onclick="submitReport()">提出する</button>
+  </div>`;
+}
+
+async function submitReport(){
+  const btn = document.getElementById('submitBtn');
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const body = {
+    author_id: ME.id, report_date: TODAY,
+    voice: g('f_voice'), rival: g('f_rival'), industry: g('f_industry'),
+    thought: g('f_thought'), good_news: g('f_good'), subordinate: g('f_sub'),
+    attachments: g('f_attach') ? [g('f_attach')] : [],
+    importance: Number(g('f_imp')) || 2, status: 'submitted'
+  };
+  if (!body.voice && !body.thought){ toast('お客様の声か、自分の考えのどちらかは入力してください'); return; }
+
+  btn.disabled = true; btn.textContent = '送信中';
+  const { data, error } = await EC.supabase.from('daily_reports')
+    .upsert(body, { onConflict: 'author_id,report_date' }).select().single();
+  if (error){ btn.disabled = false; btn.textContent = '提出する'; toast('保存できませんでした: ' + error.message); return; }
+
+  const vals = METRICS.map(m => ({ report_id: data.id, metric_id: m.id, value: Number(g('mt_' + m.id)) }))
+    .filter(x => !Number.isNaN(x.value) && document.getElementById('mt_' + x.metric_id).value !== '');
+  if (vals.length) await EC.supabase.from('report_metric_values').upsert(vals);
+
+  await loadReports();
+  toast('提出しました');
+  go('feed');
+}
+
+/* ---------- 2. 日報一覧 ---------- */
+function vFeed(){
+  if (!REPORTS.length) return `<h2>日報一覧</h2><div class="empty">まだ日報がありません。</div>`;
+  return `<h2>日報一覧</h2><p class="sub">直近30日／あなたが見られる範囲のみ表示しています</p>`
+    + REPORTS.map(card).join('');
+}
+
+function card(r){
+  const m = impMeta(r.importance);
+  const seen = (r.report_views || []).length;
+  const cmts = r.report_comments || [];
+  const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
+  const vals = r.report_metric_values || [];
+  return `<div class="rep">
+    <div class="top">
+      <span class="nm">${esc(uname(r.author_id))}</span>
+      <span class="pill">${esc(udept(r.author_id))}</span>
+      <span class="note num">${r.report_date}</span>
+      <span class="pill ${m[2]}">${m[1]}</span>
+      ${r.level > 1 ? `<span class="pill p5">${LEVELS[r.level-1]}</span>` : ''}
+    </div>
+    ${vals.length ? `<div class="sec"><span class="lab">数値</span><div class="row num" style="gap:14px">
+      ${vals.map(v => { const mm = METRICS.find(x=>x.id===v.metric_id);
+        return mm ? `<span>${esc(mm.name)} <b>${v.value}</b>${esc(mm.unit)}</span>` : ''; }).join('')}
+    </div></div>` : ''}
+    ${r.voice ? `<div class="sec"><span class="lab">お客様の声</span><div>${esc(r.voice)}</div></div>` : ''}
+    ${r.rival ? `<div class="sec"><span class="lab">ライバル</span><div>${esc(r.rival)}</div></div>` : ''}
+    ${r.industry ? `<div class="sec"><span class="lab">本部・業界</span><div>${esc(r.industry)}</div></div>` : ''}
+    ${r.thought ? `<div class="sec"><span class="lab">本人の考え</span><div>${esc(r.thought)}</div></div>` : ''}
+    ${r.good_news ? `<div class="sec"><span class="lab">グッドニュース</span><div>${esc(r.good_news)}</div></div>` : ''}
+    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec"><span class="lab">部下情報</span><div>${esc(r.subordinate)}</div></div>` : ''}
+    ${(r.attachments||[]).length ? `<div class="sec"><span class="lab">添付</span><div>${esc(r.attachments[0])}</div></div>` : ''}
+    <div class="line">
+      <div class="done">提出</div>
+      <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}</div>
+      <div class="${cmts.length ? 'done' : ''}">コメント ${cmts.length ? '済' : '未'}</div>
+      <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
+    </div>
+    ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${esc(c.body)}</div>`).join('')}
+    ${canAct ? `<div class="row" style="margin-top:12px">
+      <button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>
+      <button class="ghost" onclick="openComment('${r.id}')">コメント</button>
+      <button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>
+    </div><div id="cbox_${r.id}"></div>` : ''}
+  </div>`;
+}
+
+async function markSeen(id){
+  const { error } = await EC.supabase.from('report_views').insert({ report_id: id, viewer_id: ME.id });
+  if (error) { toast('記録できませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast('閲覧ログに記録しました');
+}
+function openComment(id){
+  document.getElementById('cbox_' + id).innerHTML =
+    `<label>コメント</label><textarea id="ci_${id}" style="min-height:64px"></textarea>
+     <button class="act" style="margin-top:8px" onclick="addComment('${id}')">コメントを送る</button>`;
+  document.getElementById('ci_' + id).focus();
+}
+async function addComment(id){
+  const body = document.getElementById('ci_' + id).value.trim();
+  if (!body){ toast('コメントを入力してください'); return; }
+  const { error } = await EC.supabase.from('report_comments')
+    .insert({ report_id: id, author_id: ME.id, body });
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+  await EC.supabase.from('report_views').insert({ report_id: id, viewer_id: ME.id });
+  await loadReports(); render(); toast('コメントしました');
+}
+async function escalate(id, level){
+  const next = Math.min(5, (level || 1) + 1);
+  const { error } = await EC.supabase.from('daily_reports').update({ level: next }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast(LEVELS[next-1] + ' へ昇格しました');
+}
+
+/* ---------- 3. 提出・確認状況 ---------- */
+function vStatus(){
+  const targets = USERS.filter(u => u.department_id && u.job_grade !== '役員・経営');
+  const todays = REPORTS.filter(r => r.report_date === TODAY);
+  const rows = targets.map(u => {
+    const r = todays.find(x => x.author_id === u.id);
+    const seen = r && (r.report_views||[]).length;
+    const cmt  = r && (r.report_comments||[]).length;
+    const need = r && r.importance >= 4 && !cmt;
+    return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
+      <td>${r ? '<span class="pill p2">提出</span>' : '<span class="pill p5">未提出</span>'}</td>
+      <td>${seen ? '<span class="pill p2">確認済</span>' : (r ? '<span class="pill p4">未確認</span>' : '—')}</td>
+      <td>${cmt ? '済' : '—'}</td>
+      <td>${need ? '<span class="pill p5">要対応</span>' : '—'}</td></tr>`;
+  }).join('');
+
+  const bosses = USERS.filter(u => USERS.some(x => x.manager_id === u.id));
+  const bossRows = bosses.map(b => {
+    const subs = USERS.filter(x => x.manager_id === b.id);
+    const rs = todays.filter(r => subs.some(s => s.id === r.author_id));
+    const sub = subs.length ? Math.round(rs.length / subs.length * 100) : 0;
+    const seen = rs.length ? Math.round(rs.filter(r => (r.report_views||[]).some(v=>v.viewer_id===b.id)).length / rs.length * 100) : 0;
+    const cmt  = rs.length ? Math.round(rs.filter(r => (r.report_comments||[]).some(c=>c.author_id===b.id)).length / rs.length * 100) : 0;
+    return `<tr><td>${esc(b.full_name)}<br><span class="note">部下${subs.length}名</span></td>
+      <td>${bar(sub)}</td><td>${bar(seen)}</td><td>${bar(cmt)}</td></tr>`;
+  }).join('');
+
+  return `<h2>提出・確認状況</h2>
+  <p class="sub">見るのは「誰が書いていないか」だけではなく「どの上司が読んでいないか」。</p>
+  <div class="card"><h3>本日（${TODAY}）の社員別</h3>
+    <table><tr><th>社員</th><th>日報</th><th>上司確認</th><th>コメント</th><th>要対応</th></tr>${rows}</table></div>
+  <div class="card"><h3>管理職別の確認品質</h3>
+    <table><tr><th>上司</th><th>部下提出率</th><th>確認率</th><th>コメント率</th></tr>${bossRows}</table>
+    <p class="note" style="margin-top:8px">確認率が低い管理職は、部下の日報が「提出されただけ」で止まっています。</p></div>`;
+}
+function bar(p){ return `<div class="row"><div class="bar ${p<70?'warn':''}"><i style="width:${p}%"></i></div>
+  <span class="num" style="font-size:11px">${p}%</span></div>`; }
+
+/* ---------- 4. ダッシュボード ---------- */
+function vDash(){
+  const todays = REPORTS.filter(r => r.report_date === TODAY);
+  const targets = USERS.filter(u => u.department_id && u.job_grade !== '役員・経営');
+  const rate = targets.length ? Math.round(todays.length / targets.length * 100) : 0;
+  const hot = REPORTS.filter(r => r.importance >= 4);
+  const unhandled = hot.filter(r => !(r.report_comments||[]).length);
+  const lv = [1,2,3,4,5].map(n => REPORTS.filter(r => r.level === n).length);
+
+  return `<h2>ダッシュボード</h2><p class="sub">${esc(ME.full_name)}／${esc(ME.dept_name||'')}／${TODAY}</p>
+  <div class="grid">
+    <div class="kpi"><div class="v num">${rate}%</div><div class="l">本日の提出率（見える範囲）</div></div>
+    <div class="kpi"><div class="v num">${todays.length}</div><div class="l">本日の日報</div></div>
+    <div class="kpi"><div class="v num" style="color:var(--warn)">${unhandled.length}</div><div class="l">未対応の重要情報</div></div>
+    <div class="kpi"><div class="v num">${REPORTS.length}</div><div class="l">直近30日の日報</div></div>
+  </div>
+  <div class="card"><h3>情報の昇格レーン</h3>
+    ${LEVELS.map((l,i) => `<div class="row" style="border-bottom:1px solid var(--line);padding:7px 0">
+      <b class="num" style="min-width:34px;font-size:18px">${lv[i]}</b><span>${l}</span></div>`).join('')}
+    <p class="note" style="margin-top:8px">すべてを経営に上げず、重要情報だけを上げるための導線です。</p></div>
+  <div class="card"><h3>今日、先に見るべき日報</h3>
+    ${hot.length ? hot.slice(0,5).map(r => `<div style="border-bottom:1px solid var(--line);padding:9px 0">
+      <span class="pill ${impMeta(r.importance)[2]}">${impMeta(r.importance)[1]}</span>
+      <b> ${esc(uname(r.author_id))}</b> <span class="note num">${r.report_date}</span><br>
+      <span style="font-size:13px">${esc((r.voice || r.thought || '').slice(0,80))}…</span></div>`).join('')
+      : '<div class="empty">重要度の高い日報はありません。</div>'}</div>`;
+}
+</script>
+</body>
+</html>
