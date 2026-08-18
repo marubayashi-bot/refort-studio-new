@@ -83,6 +83,25 @@ tfoot td{background:#F9FBFC;font-size:10.5px;color:var(--muted);font-weight:600;
 .mattools .note{font-size:11.5px;color:var(--muted)}
 .copybtn{font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-family:inherit;color:var(--ink-2)}
 .copybtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* --- 組織図タブ --- */
+.orgwrap{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
+@media(max-width:860px){.orgwrap{grid-template-columns:1fr}}
+.tree{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.node{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;flex-wrap:wrap}
+.node:hover{background:#F4F8FB;border-color:var(--line)}
+.node.sel{background:var(--accent-soft);border-color:var(--accent)}
+.node .nm2{font-weight:600}
+.node .dp{font-size:11px;color:var(--muted)}
+.kids{margin-left:14px;padding-left:12px;border-left:2px solid var(--line)}
+.tag{font-size:10px;padding:2px 7px;border-radius:5px;background:#EDF1F5;color:var(--muted)}
+.tag.w{background:#FBEDE4;color:var(--warn);font-weight:700}
+.tag.k{background:var(--accent-soft);color:var(--accent)}
+.side{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;position:sticky;top:18px}
+.side label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin:12px 0 4px;letter-spacing:.04em}
+.side .who2{font-weight:700;font-size:15px}
+.chk{background:#FBEDE4;border-left:3px solid var(--warn);padding:8px 11px;border-radius:0 7px 7px 0;font-size:12px;margin-bottom:7px}
+.chk.ok{background:var(--accent-soft);border-left-color:var(--accent)}
 @media(max-width:860px){
   .row{grid-template-columns:1fr 1fr;gap:10px}
   .head{display:none}
@@ -111,6 +130,7 @@ tfoot td{background:#F9FBFC;font-size:10.5px;color:var(--muted);font-weight:600;
   <div class="viewtabs">
     <button type="button" id="tabEdit" class="on">一覧を編集</button>
     <button type="button" id="tabMap">権限マップ</button>
+    <button type="button" id="tabOrg">組織図</button>
   </div>
 
   <section id="mapSection" hidden>
@@ -120,6 +140,20 @@ tfoot td{background:#F9FBFC;font-size:10.5px;color:var(--muted);font-weight:600;
       <button type="button" class="copybtn" id="copyCsv">表をコピー</button>
     </div>
     <div class="matwrap"><table class="mat" id="mat"></table></div>
+  </section>
+
+  <section id="orgSection" hidden>
+    <h2>組織図（日報の確認ライン）</h2>
+    <p class="lead" style="margin-bottom:14px">
+      名前をクリックすると、所属部署・職位・直属上司をその場で変更できます。
+      ここで設定した直属上司が、日報の確認ラインと上司AIの分析範囲になります。
+      変更は履歴に残り、過去の日報の確認ラインは当時のまま保持されます。
+    </p>
+    <div id="orgCheck"></div>
+    <div class="orgwrap">
+      <div class="tree" id="orgTree"><div class="empty">読み込み中</div></div>
+      <div id="orgSide"></div>
+    </div>
   </section>
 
   <section id="editSection">
@@ -156,13 +190,17 @@ const ROLES = [
   ['field','現場'],['viewer','未承認']
 ];
 
+const GRADES = ['一般','リーダー','課長','次長','部門長','役員・経営'];
 let users = [];
+let depts = [];
+let orgSel = null;
 
 EC.guard({ allow: ['admin'] }).then(async () => {
   EC.mountBadge('#userBadge');
   document.getElementById('q').addEventListener('input', render);
   document.getElementById('tabEdit').addEventListener('click', () => switchView('edit'));
   document.getElementById('tabMap').addEventListener('click', () => switchView('map'));
+  document.getElementById('tabOrg').addEventListener('click', () => switchView('org'));
   document.getElementById('copyCsv').addEventListener('click', copyMatrix);
   await load();
 });
@@ -170,7 +208,7 @@ EC.guard({ allow: ['admin'] }).then(async () => {
 async function load(){
   const { data, error } = await EC.supabase
     .from('app_users')
-    .select('id,email,full_name,role,areas,is_active,apps,created_at')
+    .select('id,email,full_name,role,areas,is_active,apps,created_at,department_id,manager_id,job_grade,exec_watch')
     .order('created_at');
   if (error) {
     document.getElementById('list').innerHTML =
@@ -178,6 +216,9 @@ async function load(){
     return;
   }
   users = data || [];
+  const d = await EC.supabase.from('departments')
+    .select('id,name,sort_order').order('sort_order');
+  depts = d.data || [];
   render();
 }
 
@@ -187,11 +228,14 @@ function switchView(v){
   view = v;
   document.getElementById('tabEdit').classList.toggle('on', v==='edit');
   document.getElementById('tabMap').classList.toggle('on', v==='map');
+  document.getElementById('tabOrg').classList.toggle('on', v==='org');
   document.getElementById('editSection').hidden = v!=='edit';
   document.getElementById('mapSection').hidden = v!=='map';
+  document.getElementById('orgSection').hidden = v!=='org';
   document.getElementById('pendingSection').hidden =
     v!=='edit' || users.filter(u=>u.role==='viewer'&&u.is_active).length===0;
   if (v==='map') renderMatrix();
+  if (v==='org') renderOrg();
 }
 
 function renderMatrix(){
@@ -252,6 +296,7 @@ function copyMatrix(){
 
 function render(){
   if (view === 'map') { renderMatrix(); return; }
+  if (view === 'org') { renderOrg(); return; }
   const q = document.getElementById('q').value.trim().toLowerCase();
   const pending = users.filter(u => u.role === 'viewer' && u.is_active);
   const rest = users
@@ -354,6 +399,126 @@ async function save(uid, btn){
   btn.textContent = '保存しました';
   btn.classList.add('done');
   if (u.role !== 'viewer') setTimeout(render, 900);
+}
+
+
+/* ============ 組織図 ============ */
+function activeUsers(){ return users.filter(u => u.is_active && u.role !== 'viewer'); }
+function byId(id){ return users.find(u => u.id === id); }
+function deptName(id){ const d = depts.find(x => x.id === id); return d ? d.name : ''; }
+function childrenOf(id){
+  return activeUsers().filter(u => u.manager_id === id)
+    .sort((a,b) => (a.full_name||'').localeCompare(b.full_name||'','ja'));
+}
+function descendants(id, acc = []){
+  childrenOf(id).forEach(c => { acc.push(c.id); descendants(c.id, acc); });
+  return acc;
+}
+
+function renderOrg(){
+  const roots = activeUsers().filter(u => !u.manager_id || !byId(u.manager_id));
+  document.getElementById('orgTree').innerHTML =
+    roots.length ? roots.map(orgNode).join('')
+                 : '<div class="empty">組織情報がまだ登録されていません</div>';
+  document.getElementById('orgSide').innerHTML = orgSel ? orgSide() : orgHint();
+  renderOrgCheck();
+  document.querySelectorAll('[data-org]').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); orgSel = (orgSel === el.dataset.org ? null : el.dataset.org); renderOrg(); }));
+  const sv = document.getElementById('orgSave');
+  if (sv) sv.addEventListener('click', saveOrg);
+}
+
+function orgNode(u){
+  const ks = childrenOf(u.id);
+  return `<div><div class="node ${orgSel===u.id?'sel':''}" data-org="${u.id}">
+    <span class="nm2">${esc(u.full_name || u.email)}</span>
+    <span class="dp">${esc(deptName(u.department_id) || '部署未設定')}</span>
+    ${u.job_grade && u.job_grade !== '一般' ? `<span class="tag">${esc(u.job_grade)}</span>` : ''}
+    ${u.exec_watch ? '<span class="tag w">社長確認</span>' : ''}
+    ${ks.length ? `<span class="tag k">部下${ks.length}</span>` : ''}
+  </div>${ks.length ? `<div class="kids">${ks.map(orgNode).join('')}</div>` : ''}</div>`;
+}
+
+function orgHint(){
+  return `<div class="side"><div class="who2">組織図の編集</div>
+    <p class="lead" style="margin:10px 0 0">左のツリーから社員を選ぶと、所属部署・職位・直属上司・社長確認の設定を変更できます。</p></div>`;
+}
+
+function orgSide(){
+  const u = byId(orgSel);
+  if (!u) return orgHint();
+  const ng = [u.id, ...descendants(u.id)];
+  const cand = activeUsers().filter(x => !ng.includes(x.id))
+    .sort((a,b) => (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  return `<div class="side">
+    <div class="who2">${esc(u.full_name || '—')}</div>
+    <div class="mail">${esc(u.email)}</div>
+    <label>所属部署</label>
+    <select id="o_dept"><option value="">（未設定）</option>
+      ${depts.map(d => `<option value="${d.id}"${u.department_id===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}</select>
+    <label>職位区分</label>
+    <select id="o_grade">${GRADES.map(g => `<option${u.job_grade===g?' selected':''}>${g}</option>`).join('')}</select>
+    <label>直属上司</label>
+    <select id="o_boss"><option value="">（上司なし）</option>
+      ${cand.map(x => `<option value="${x.id}"${u.manager_id===x.id?' selected':''}>${esc(x.full_name||x.email)}（${esc(deptName(x.department_id))}）</option>`).join('')}</select>
+    <p class="legend" style="margin:6px 0 0">自分の部下は選べません（ループ防止）</p>
+    <label>社長も確認する</label>
+    <select id="o_watch"><option value="false"${u.exec_watch?'':' selected'}>対象外</option>
+      <option value="true"${u.exec_watch?' selected':''}>対象</option></select>
+    <button class="save" id="orgSave" style="margin-top:16px;width:100%">この内容で保存</button>
+  </div>`;
+}
+
+function renderOrgCheck(){
+  const w = [];
+  activeUsers().forEach(u => {
+    const nm = u.full_name || u.email;
+    if (!u.department_id) w.push(`${nm}：所属部署が未設定です`);
+    if (!u.manager_id && u.job_grade !== '役員・経営') w.push(`${nm}：直属上司が未設定です`);
+    if (u.manager_id && byId(u.manager_id) && u.department_id &&
+        byId(u.manager_id).department_id !== u.department_id)
+      w.push(`${nm}：上司の${esc(byId(u.manager_id).full_name)}は別部署（${deptName(byId(u.manager_id).department_id)}）です。兼務なら問題ありません`);
+  });
+  document.getElementById('orgCheck').innerHTML = w.length
+    ? w.map(x => `<div class="chk">${esc(x)}</div>`).join('')
+    : '<div class="chk ok">組織図に不足はありません。</div>';
+}
+
+async function saveOrg(){
+  const u = byId(orgSel);
+  const btn = document.getElementById('orgSave');
+  const next = {
+    department_id: document.getElementById('o_dept').value || null,
+    job_grade:     document.getElementById('o_grade').value,
+    manager_id:    document.getElementById('o_boss').value || null,
+    exec_watch:    document.getElementById('o_watch').value === 'true'
+  };
+  if (next.manager_id === u.id){ alert('自分を上司にはできません'); return; }
+  btn.disabled = true; btn.textContent = '保存中';
+
+  const { error } = await EC.supabase.from('app_users').update(next).eq('id', u.id);
+  if (error){
+    btn.disabled = false; btn.textContent = '再試行';
+    alert('保存できませんでした: ' + error.message);
+    return;
+  }
+
+  const logs = [];
+  const me = (EC.me && EC.me.id) ? EC.me.id : null;
+  if (next.department_id !== u.department_id)
+    logs.push({ user_id:u.id, field:'department', old_value:deptName(u.department_id), new_value:deptName(next.department_id), changed_by:me });
+  if (next.manager_id !== u.manager_id)
+    logs.push({ user_id:u.id, field:'manager', old_value:(byId(u.manager_id)||{}).full_name || null,
+                new_value:(byId(next.manager_id)||{}).full_name || null, changed_by:me });
+  if (next.job_grade !== u.job_grade)
+    logs.push({ user_id:u.id, field:'job_grade', old_value:u.job_grade, new_value:next.job_grade, changed_by:me });
+  if (next.exec_watch !== u.exec_watch)
+    logs.push({ user_id:u.id, field:'exec_watch', old_value:String(!!u.exec_watch), new_value:String(next.exec_watch), changed_by:me });
+  if (logs.length) await EC.supabase.from('org_change_log').insert(logs);
+
+  Object.assign(u, next);
+  btn.textContent = '保存しました'; btn.classList.add('done');
+  setTimeout(renderOrg, 700);
 }
 
 function esc(s){
