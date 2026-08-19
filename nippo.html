@@ -93,7 +93,7 @@ const IMP = [
   [3,'部署で共有','p3'],     [2,'記録のみ','p2']
 ];
 const LEVELS = ['LEVEL1 個人日報','LEVEL2 チーム課題','LEVEL3 部署課題','LEVEL4 全社課題','LEVEL5 経営判断'];
-const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料']];
+const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料'],['todo','実行管理']];
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
@@ -153,7 +153,7 @@ function render(){
   document.getElementById('nav').innerHTML = TABS.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting })[TAB]();
+    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -442,13 +442,15 @@ itemsは3件。levelは 1個人 2チーム 3部署 4全社 5経営判断。
     <div class="sec" style="border-left-color:var(--warn)">
       <span class="lab" style="color:var(--warn)">AI提案</span><div>${esc(it.proposal)}</div>
       <div class="row" style="margin-top:8px">
-        <button class="ghost" onclick="aiAct('task','${k}',${i})">タスク化</button>
-        <button class="ghost" onclick="aiAct('agenda','${k}',${i})">会議議題へ</button>
-        <button class="ghost" onclick="aiAct('knowledge','${k}',${i})">ナレッジ保存</button>
+        <button class="ghost" onclick="aiAct('task','${k}',${i},this)">タスク化</button>
+        <button class="ghost" onclick="aiAct('agenda','${k}',${i},this)">会議議題へ</button>
+        <button class="ghost" onclick="aiAct('knowledge','${k}',${i},this)">ナレッジ保存</button>
       </div></div>`).join('');
 }
-async function aiAct(kind, k, i){
+async function aiAct(kind, k, i, btn){
   const it = (window['_ai_' + k] || [])[i]; if (!it) return;
+  const label = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = '保存中…'; }
   let res;
   if (kind === 'task')
     res = await EC.supabase.from('report_tasks')
@@ -459,7 +461,17 @@ async function aiAct(kind, k, i){
   if (kind === 'knowledge')
     res = await EC.supabase.from('knowledge_items')
       .insert({ title: cut(it.analysis, 60), body: it.analysis + '\n\n【提案】' + it.proposal, created_by: ME.id });
-  toast(res && res.error ? '保存できませんでした: ' + res.error.message : '保存しました');
+
+  if (res && res.error){
+    if (btn){ btn.disabled = false; btn.textContent = label; }
+    const box = btn ? btn.parentElement : null;
+    if (box) box.insertAdjacentHTML('afterend',
+      `<div class="cmt" style="background:var(--warn-soft);color:var(--warn)">保存できませんでした：${esc(res.error.message)}</div>`);
+    toast('保存できませんでした');
+    return;
+  }
+  if (btn){ btn.textContent = '✓ 保存しました'; btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; }
+  toast('保存しました。「実行管理」タブで確認できます');
 }
 
 /* ---------- 6. AI検索 ---------- */
@@ -533,6 +545,62 @@ async function genMeeting(){
 function copyDoc(){
   const t = document.getElementById('mdoc').innerText;
   navigator.clipboard.writeText(t).then(() => toast('コピーしました'), () => toast('コピーできませんでした'));
+}
+
+
+/* ---------- 8. 実行管理（タスク・議題・ナレッジ） ---------- */
+let TODOS = { tasks: [], agenda: [], knowledge: [] };
+function vTodo(){
+  loadTodos();
+  return `<h2>実行管理</h2>
+  <p class="sub">日報とAI提案から生まれたものが、実行されるまで追いかけます。</p>
+  <div id="todoBox"><div class="empty">読み込み中…</div></div>`;
+}
+async function loadTodos(){
+  const [t, a, k] = await Promise.all([
+    EC.supabase.from('report_tasks').select('*').order('created_at', { ascending: false }).limit(60),
+    EC.supabase.from('meeting_agenda').select('*').order('created_at', { ascending: false }).limit(40),
+    EC.supabase.from('knowledge_items').select('*').order('created_at', { ascending: false }).limit(40)
+  ]);
+  const err = (t.error || a.error || k.error);
+  const box = document.getElementById('todoBox');
+  if (!box) return;
+  if (err){ box.innerHTML = `<div class="empty">読み込めませんでした：${esc(err.message)}</div>`; return; }
+  TODOS = { tasks: t.data || [], agenda: a.data || [], knowledge: k.data || [] };
+  const open = TODOS.tasks.filter(x => x.status !== 'done');
+  const done = TODOS.tasks.filter(x => x.status === 'done');
+  box.innerHTML = `
+  <div class="grid">
+    <div class="kpi"><div class="v num">${open.length}</div><div class="l">未完了タスク</div></div>
+    <div class="kpi"><div class="v num">${TODOS.agenda.length}</div><div class="l">会議議題</div></div>
+    <div class="kpi"><div class="v num">${TODOS.knowledge.length}</div><div class="l">ナレッジ</div></div>
+  </div>
+  <div class="card"><h3>タスク</h3>
+    ${open.length ? open.map(x => `<div style="border-bottom:1px solid var(--line);padding:9px 0;font-size:13px">
+      <label style="display:flex;gap:9px;align-items:flex-start;margin:0;color:var(--ink);font-weight:400;font-size:13px">
+        <input type="checkbox" style="width:auto;margin-top:4px" onchange="doneTask('${x.id}')">
+        <span>${esc(x.title)}<br><span class="note">${x.source === 'ai' ? 'AI提案' : '日報'}／${uname(x.owner_id)}／${(x.created_at||'').slice(0,10)}</span></span>
+      </label></div>`).join('') : '<div class="empty">未完了のタスクはありません。</div>'}
+    ${done.length ? `<p class="note" style="margin-top:12px">完了済み ${done.length}件</p>` : ''}
+  </div>
+  <div class="card"><h3>会議議題</h3>
+    ${TODOS.agenda.length ? TODOS.agenda.map(x => `<div class="cmt">
+      <span class="pill">${esc(x.meeting_type || '会議')}</span> ${esc(x.body)}
+      <br><span class="note">${uname(x.created_by)}／${(x.created_at||'').slice(0,10)}</span></div>`).join('')
+      : '<div class="empty">まだありません。AI分析の提案から追加できます。</div>'}
+  </div>
+  <div class="card"><h3>ナレッジ</h3>
+    ${TODOS.knowledge.length ? TODOS.knowledge.map(x => `<div class="cmt">
+      <b>${esc(x.title || '')}</b><br>${esc(x.body)}
+      <br><span class="note">${(x.created_at||'').slice(0,10)}</span></div>`).join('')
+      : '<div class="empty">まだありません。</div>'}
+  </div>`;
+}
+async function doneTask(id){
+  const { error } = await EC.supabase.from('report_tasks')
+    .update({ status: 'done', done_at: new Date().toISOString() }).eq('id', id);
+  if (error){ toast('更新できませんでした: ' + error.message); return; }
+  toast('完了にしました'); loadTodos();
 }
 
 /* ---------- 4. ダッシュボード ---------- */
