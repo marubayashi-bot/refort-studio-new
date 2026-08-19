@@ -93,7 +93,7 @@ const IMP = [
   [3,'部署で共有','p3'],     [2,'記録のみ','p2']
 ];
 const LEVELS = ['LEVEL1 個人日報','LEVEL2 チーム課題','LEVEL3 部署課題','LEVEL4 全社課題','LEVEL5 経営判断'];
-const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード']];
+const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料']];
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
@@ -153,7 +153,7 @@ function render(){
   document.getElementById('nav').innerHTML = TABS.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash })[TAB]();
+    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -358,6 +358,182 @@ function vStatus(){
 }
 function bar(p){ return `<div class="row"><div class="bar ${p<70?'warn':''}"><i style="width:${p}%"></i></div>
   <span class="num" style="font-size:11px">${p}%</span></div>`; }
+
+
+/* ---------- AI共通 ---------- */
+async function callAI(prompt, maxTokens){
+  const { data, error } = await EC.supabase.functions.invoke('ai', {
+    body: { prompt, max_tokens: maxTokens || 2000 }
+  });
+  if (error) return { error: error.message || 'AIの呼び出しに失敗しました' };
+  if (data && data.error) return { error: data.error };
+  return { text: (data && data.text) || '' };
+}
+function parseJSON(t){
+  if (!t) return null;
+  try {
+    const s = t.replace(/```json|```/g, '').trim();
+    return JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
+  } catch (e) { return null; }
+}
+function cut(s, n){ return s ? String(s).replace(/\s+/g,' ').slice(0, n) : ''; }
+function packReports(list, days, len){
+  const from = new Date(); from.setDate(from.getDate() - (days || 21));
+  const f = from.toISOString().slice(0,10);
+  return list.filter(r => r.report_date >= f).slice(0, 160).map(r => ({
+    id: r.id.slice(0,8), who: uname(r.author_id), dept: udept(r.author_id), date: r.report_date,
+    voice: cut(r.voice, len||300), rival: cut(r.rival, len||300),
+    industry: cut(r.industry, len||200), thought: cut(r.thought, len||300),
+    good: cut(r.good_news, 120), imp: r.importance
+  }));
+}
+
+/* ---------- 5. AI分析 ---------- */
+const LAYERS = [
+  ['personal','A 個人AI','自分の過去日報と比べた変化・停滞・繰り返している課題'],
+  ['boss','B 上司AI','直属部下の日報を横断し、今日優先して見るべき人を提示'],
+  ['dept','C 部署AI','部署全体の傾向・繰り返す問題・成功パターンを集約'],
+  ['company','D 全社AI','部署をまたいだ共通問題と、つながっていない情報を発見'],
+  ['exec','E 経営AI','今日判断すべき事項と、会社で起き始めている変化']
+];
+function vAI(){
+  return `<h2>AI分析</h2>
+  <p class="sub">出力は必ず「事実 → AI分析 → AI提案」。提案はその場でタスク・議題・ナレッジにできます。</p>
+  ${LAYERS.map(([k,t,d]) => `<div class="card"><h3>${t}</h3><p class="note">${d}</p>
+    <button class="act" style="margin-top:10px" onclick="runAI('${k}')">分析する</button>
+    <div id="ai_${k}"></div></div>`).join('')}`;
+}
+async function runAI(k){
+  const box = document.getElementById('ai_' + k);
+  box.innerHTML = '<div class="empty">日報を読み込んで分析しています…（20秒ほどかかります）</div>';
+  let scope = REPORTS, title = '';
+  if (k === 'personal'){ scope = REPORTS.filter(r => r.author_id === ME.id); title = '本人'; }
+  if (k === 'boss'){ const subs = USERS.filter(u => u.manager_id === ME.id).map(u => u.id);
+    scope = REPORTS.filter(r => subs.includes(r.author_id)); title = '直属部下'; }
+  if (k === 'dept'){ scope = REPORTS.filter(r => udept(r.author_id) === ME.dept_name); title = ME.dept_name || '自部署'; }
+  if (k === 'company' || k === 'exec'){ title = '全社'; }
+  const data = packReports(scope, 21);
+  if (!data.length){ box.innerHTML = '<div class="empty">対象の日報がありません。</div>'; return; }
+
+  const ask = {
+    personal:'本人の変化・停滞している案件・繰り返している課題・成長点を指摘してください。',
+    boss:'今日優先して確認すべき部下を最大3名、理由付きで挙げてください。',
+    dept:'部署全体の傾向、繰り返し発生している問題、成功パターンを整理してください。',
+    company:'部署をまたいで共通する問題や、部署間でつながっていない情報を発見してください。',
+    exec:'経営者が今日判断すべき事項と、会社で起き始めている変化を指摘してください。'
+  }[k];
+
+  const r = await callAI(`日報データを分析します。${ask}
+必ずJSONのみで返答してください。日本語。
+{"items":[{"fact":"何件のどの日報から言えるか。氏名と日付を挙げて具体的に","analysis":"傾向・異常・共通点（推測は推測と明記）","proposal":"具体的に何をすべきか","who":["関係する氏名"],"level":1}]}
+itemsは3件。levelは 1個人 2チーム 3部署 4全社 5経営判断。
+対象（${title}）の日報: ${JSON.stringify(data)}`, 2500);
+
+  if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+  const j = parseJSON(r.text);
+  if (!j || !j.items){ box.innerHTML = '<div class="empty">分析結果を読み取れませんでした。もう一度お試しください。</div>'; return; }
+  window['_ai_' + k] = j.items;
+  box.innerHTML = j.items.map((it, i) => `
+    <div class="sec" style="border-left-color:var(--accent);margin-top:14px">
+      <span class="lab" style="color:var(--accent)">事実</span><div>${esc(it.fact)}</div>
+      ${(it.who||[]).map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>
+    <div class="sec" style="border-left-color:var(--amber)">
+      <span class="lab" style="color:var(--amber)">AI分析（推測を含む）</span><div>${esc(it.analysis)}</div></div>
+    <div class="sec" style="border-left-color:var(--warn)">
+      <span class="lab" style="color:var(--warn)">AI提案</span><div>${esc(it.proposal)}</div>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" onclick="aiAct('task','${k}',${i})">タスク化</button>
+        <button class="ghost" onclick="aiAct('agenda','${k}',${i})">会議議題へ</button>
+        <button class="ghost" onclick="aiAct('knowledge','${k}',${i})">ナレッジ保存</button>
+      </div></div>`).join('');
+}
+async function aiAct(kind, k, i){
+  const it = (window['_ai_' + k] || [])[i]; if (!it) return;
+  let res;
+  if (kind === 'task')
+    res = await EC.supabase.from('report_tasks')
+      .insert({ title: it.proposal.slice(0,200), owner_id: ME.id, created_by: ME.id, source: 'ai' });
+  if (kind === 'agenda')
+    res = await EC.supabase.from('meeting_agenda')
+      .insert({ body: it.proposal.slice(0,500), created_by: ME.id, meeting_type: '経営会議' });
+  if (kind === 'knowledge')
+    res = await EC.supabase.from('knowledge_items')
+      .insert({ title: cut(it.analysis, 60), body: it.analysis + '\n\n【提案】' + it.proposal, created_by: ME.id });
+  toast(res && res.error ? '保存できませんでした: ' + res.error.message : '保存しました');
+}
+
+/* ---------- 6. AI検索 ---------- */
+const EXAMPLES = ['最近お客様から何と言われている？','直近の失注理由をまとめて','施工や工程の問題を分析して',
+  '最近増えている競合会社は？','社員から出ている改善提案をまとめて','今月最も重要な一次情報を5つ'];
+function vSearch(){
+  return `<h2>AI検索</h2><p class="sub">日本語のまま質問できます。回答には根拠の日報が付きます。</p>
+  <div class="card">
+    <input type="text" id="q" placeholder="例：直近の失注理由をまとめて">
+    <div class="row" style="margin-top:10px">${EXAMPLES.map(e =>
+      `<button class="ghost" onclick="document.getElementById('q').value='${e}';runSearch()">${e}</button>`).join('')}</div>
+    <button class="act" style="margin-top:12px" onclick="runSearch()">質問する</button>
+  </div><div id="sres"></div>`;
+}
+async function runSearch(){
+  const q = document.getElementById('q').value.trim();
+  if (!q){ toast('質問を入力してください'); return; }
+  const box = document.getElementById('sres');
+  box.innerHTML = '<div class="empty">日報を検索しています…</div>';
+  const data = packReports(REPORTS, 40, 400);
+  const r = await callAI(`社内日報データベースへの質問に、データだけを根拠に日本語で答えてください。
+JSONのみ: {"answer":"回答（箇条書き可・400字以内）","who":["根拠になった氏名"]}
+質問: ${q}
+日報: ${JSON.stringify(data)}`, 1500);
+  if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+  const j = parseJSON(r.text);
+  if (!j){ box.innerHTML = `<div class="card">${esc(r.text)}</div>`; return; }
+  box.innerHTML = `<div class="card"><h3>${esc(q)}</h3>
+    <div style="white-space:pre-wrap">${esc(j.answer)}</div>
+    ${(j.who||[]).length ? `<div style="margin-top:12px"><span class="eyebrow">根拠</span><br>
+      ${j.who.map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>` : ''}</div>`;
+}
+
+/* ---------- 7. 会議資料 ---------- */
+function vMeeting(){
+  return `<h2>会議資料</h2><p class="sub">資料を作る作業をなくす。日報を書いていれば原案ができている状態にします。</p>
+  <div class="card"><h3>生成する会議</h3>
+    <select id="mtype">
+      <option>部署会議</option><option>部門長会議</option><option>経営会議</option></select>
+    <label>対象期間</label>
+    <select id="mdays"><option value="7">直近7日</option><option value="14" selected>直近14日</option>
+      <option value="30">直近30日</option></select>
+    <button class="act" style="margin-top:12px" onclick="genMeeting()">資料を生成する</button>
+  </div><div id="mres"></div>`;
+}
+async function genMeeting(){
+  const type = document.getElementById('mtype').value;
+  const days = Number(document.getElementById('mdays').value);
+  const box = document.getElementById('mres');
+  box.innerHTML = '<div class="empty">日報から資料を組み立てています…</div>';
+  const scope = type === '部署会議' ? REPORTS.filter(r => udept(r.author_id) === ME.dept_name) : REPORTS;
+  const data = packReports(scope, days);
+  if (!data.length){ box.innerHTML = '<div class="empty">対象の日報がありません。</div>'; return; }
+  const r = await callAI(`${type}の資料原案を日報から作ります。JSONのみ、日本語で簡潔に。
+{"good":["グッドニュース"],"issues":["課題"],"repeat":["繰り返し発生している問題"],"voice":["お客様の声の要点"],"rival":["ライバル情報"],"industry":["業界情報"],"cross":["部署横断の課題"],"signal":["AIが見つけた兆候"],"decide":["この会議で決めること"]}
+各配列は2〜3件、1件50字以内。
+日報: ${JSON.stringify(data)}`, 2500);
+  if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+  const j = parseJSON(r.text) || {};
+  const L = (t, a) => a && a.length
+    ? `<div class="sec"><span class="lab">${t}</span><ul style="margin:4px 0;padding-left:18px">
+       ${a.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+  const people = new Set(data.map(d => d.who));
+  box.innerHTML = `<div class="card" id="mdoc"><h3>${type} 資料原案　<span class="note num">${TODAY}</span></h3>
+    <p class="note">対象：直近${days}日／日報${data.length}件／${people.size}名</p>
+    ${L('グッドニュース', j.good)}${L('課題', j.issues)}${L('繰り返し発生している問題', j.repeat)}
+    ${L('お客様の声', j.voice)}${L('ライバル情報', j.rival)}${L('業界情報', j.industry)}
+    ${L('部署横断の課題', j.cross)}${L('AIが見つけた兆候', j.signal)}${L('この会議で決めること', j.decide)}
+    <button class="ghost" style="margin-top:14px" onclick="copyDoc()">本文をコピー</button></div>`;
+}
+function copyDoc(){
+  const t = document.getElementById('mdoc').innerText;
+  navigator.clipboard.writeText(t).then(() => toast('コピーしました'), () => toast('コピーできませんでした'));
+}
 
 /* ---------- 4. ダッシュボード ---------- */
 function vDash(){
