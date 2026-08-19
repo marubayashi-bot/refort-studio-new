@@ -128,9 +128,15 @@ async function boot(){
     || USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
 
-  const { data: ds } = await EC.supabase.from('departments')
-    .select('id,name,sort_order').eq('is_active', true).order('sort_order');
+  const { data: ds, error: de } = await EC.supabase.from('departments')
+    .select('id,name,sort_order').order('sort_order');
   DEPTS = ds || [];
+  if (de) console.warn('departments 読み込みエラー', de.message);
+  if (!DEPTS.length){
+    const seen = {};
+    USERS.forEach(u => { if (u.department_id && !seen[u.department_id]){
+      seen[u.department_id] = true; DEPTS.push({ id: u.department_id, name: u.dept_name || '(部署)' }); } });
+  }
 
   if (ME.department_id) {
     const { data: ms } = await EC.supabase.from('report_metrics')
@@ -579,7 +585,7 @@ function copyDoc(){
 /* ---------- 8. 実行管理（タスク・議題・ナレッジ） ---------- */
 let TODOS = { tasks: [], agenda: [], knowledge: [] };
 function vTodo(){
-  loadTodos();
+  setTimeout(loadTodos, 0);
   return `<h2>実行管理</h2>
   <p class="sub">日報とAI提案から生まれたものが、実行されるまで追いかけます。</p>
   <div id="todoBox"><div class="empty">読み込み中…</div></div>`;
@@ -637,13 +643,14 @@ let ADMIN_DEPT = null;
 let ADMIN_METRICS = [];
 function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
-  loadAdminMetrics();
+  setTimeout(loadAdminMetrics, 0);
   return `<h2>管理</h2>
   <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
   <div class="card">
     <label>部署</label>
     <select id="adDept" onchange="ADMIN_DEPT=this.value;loadAdminMetrics()">
-      ${DEPTS.map(d => `<option value="${d.id}"${d.id===ADMIN_DEPT?' selected':''}>${esc(d.name)}</option>`).join('')}
+      ${DEPTS.length ? DEPTS.map(d => `<option value="${d.id}"${d.id===ADMIN_DEPT?' selected':''}>${esc(d.name)}</option>`).join('')
+        : '<option value="">部署を読み込めませんでした</option>'}
     </select>
     <div id="adList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
     <h3 style="margin-top:20px">項目を追加</h3>
@@ -660,6 +667,7 @@ function vAdmin(){
 }
 async function loadAdminMetrics(){
   const box = document.getElementById('adList'); if (!box) return;
+  if (!ADMIN_DEPT){ box.innerHTML = '<div class="empty" style="margin-top:12px">部署が選べません。管理者にご連絡ください。</div>'; return; }
   const { data, error } = await EC.supabase.from('report_metrics')
     .select('*').eq('department_id', ADMIN_DEPT).eq('is_active', true).order('sort_order');
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
