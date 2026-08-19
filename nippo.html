@@ -140,9 +140,9 @@ async function boot(){
 
   if (ME.department_id) {
     const { data: ms } = await EC.supabase.from('report_metrics')
-      .select('id,name,unit,target,is_required,sort_order')
+      .select('id,name,unit,target,is_required,sort_order,job_grades')
       .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
-    METRICS = ms || [];
+    METRICS = (ms || []).filter(metricAppliesToMe);
   }
   await loadReports();
   render();
@@ -638,6 +638,26 @@ async function doneTask(id){
 }
 
 
+
+/* 数値項目の対象職位（プリセット） */
+const SCOPES = [
+  ['all','全員', null],
+  ['staff','一般のみ', ['一般']],
+  ['leader','リーダー・課長', ['リーダー','課長']],
+  ['kacho','課長以上', ['課長','次長','部門長','役員・経営']],
+  ['head','次長・部門長以上', ['次長','部門長','役員・経営']]
+];
+function scopeKey(arr){
+  if (!arr || !arr.length) return 'all';
+  const hit = SCOPES.find(s => s[2] && s[2].length === arr.length && s[2].every(g => arr.includes(g)));
+  return hit ? hit[0] : 'all';
+}
+function scopeLabel(arr){ const k = scopeKey(arr); return (SCOPES.find(s => s[0] === k) || SCOPES[0])[1]; }
+function scopeValue(key){ return (SCOPES.find(s => s[0] === key) || SCOPES[0])[2]; }
+function metricAppliesToMe(m){
+  return !m.job_grades || !m.job_grades.length || m.job_grades.includes(ME.job_grade);
+}
+
 /* ---------- 9. 管理（数値項目の設定） ---------- */
 let ADMIN_DEPT = null;
 let ADMIN_METRICS = [];
@@ -658,6 +678,8 @@ function vAdmin(){
       <div><label>項目名</label><input type="text" id="ad_name" placeholder="例：幹部・社員面談"></div>
       <div><label>単位</label><input type="text" id="ad_unit" value="件"></div>
       <div><label>1日の目標</label><input type="number" step="any" id="ad_target" placeholder="0"></div>
+      <div><label>入力する層</label><select id="ad_scope">
+        ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
     </div>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
@@ -673,13 +695,17 @@ async function loadAdminMetrics(){
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   ADMIN_METRICS = data || [];
   box.innerHTML = ADMIN_METRICS.length
-    ? `<table style="margin-top:12px"><tr><th>項目</th><th>単位</th><th>目標</th><th></th></tr>
+    ? `<table style="margin-top:12px"><tr><th>項目</th><th>単位</th><th>目標</th><th>入力する層</th><th></th></tr>
        ${ADMIN_METRICS.map(m => `<tr>
          <td>${esc(m.name)}</td><td>${esc(m.unit)}</td>
-         <td><input type="number" step="any" value="${m.target ?? ''}" style="width:90px;padding:5px"
+         <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
               onchange="setTarget('${m.id}',this.value)"></td>
+         <td><select style="padding:5px;font-size:12px" onchange="setScope('${m.id}',this.value)">
+              ${SCOPES.map(sc => `<option value="${sc[0]}"${scopeKey(m.job_grades)===sc[0]?' selected':''}>${sc[1]}</option>`).join('')}
+             </select></td>
          <td><button class="ghost" onclick="delMetric('${m.id}','${esc(m.name)}')">削除</button></td></tr>`).join('')}
-       </table>`
+       </table>
+       <p class="note" style="margin-top:8px">「入力する層」で選んだ職位の社員にだけ、その項目が日報画面に出ます。</p>`
     : '<div class="empty" style="margin-top:12px">この部署にはまだ数値項目がありません。</div>';
 }
 async function addMetric(){
@@ -689,6 +715,7 @@ async function addMetric(){
     department_id: ADMIN_DEPT, name,
     unit: document.getElementById('ad_unit').value.trim() || '件',
     target: Number(document.getElementById('ad_target').value) || 0,
+    job_grades: scopeValue(document.getElementById('ad_scope').value),
     sort_order: (ADMIN_METRICS.length + 1) * 10
   });
   if (error){ toast('追加できませんでした: ' + error.message); return; }
@@ -703,6 +730,13 @@ async function setTarget(id, v){
   toast(error ? '更新できませんでした' : '目標を更新しました');
   if (ADMIN_DEPT === ME.department_id) reloadMyMetrics();
 }
+async function setScope(id, key){
+  const { error } = await EC.supabase.from('report_metrics')
+    .update({ job_grades: scopeValue(key) }).eq('id', id);
+  toast(error ? '更新できませんでした: ' + error.message : '入力する層を変更しました');
+  if (ADMIN_DEPT === ME.department_id) reloadMyMetrics();
+  loadAdminMetrics();
+}
 async function delMetric(id, name){
   if (!confirm(name + ' を削除します。過去に入力された数値は残ります。よろしいですか。')) return;
   const { error } = await EC.supabase.from('report_metrics').update({ is_active: false }).eq('id', id);
@@ -713,9 +747,9 @@ async function delMetric(id, name){
 }
 async function reloadMyMetrics(){
   const { data } = await EC.supabase.from('report_metrics')
-    .select('id,name,unit,target,is_required,sort_order')
+    .select('id,name,unit,target,is_required,sort_order,job_grades')
     .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
-  METRICS = data || [];
+  METRICS = (data || []).filter(metricAppliesToMe);
 }
 
 /* ---------- 4. ダッシュボード ---------- */
