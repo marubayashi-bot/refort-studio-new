@@ -376,6 +376,17 @@ function parseJSON(t){
     return JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
   } catch (e) { return null; }
 }
+function salvage(t){
+  if (!t) return null;
+  const out = [];
+  const re = /"fact"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"analysis"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"proposal"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  let m;
+  while ((m = re.exec(t)) !== null){
+    const un = (x) => x.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    out.push({ fact: un(m[1]), analysis: un(m[2]), proposal: un(m[3]), who: [] });
+  }
+  return out.length ? out : null;
+}
 function cut(s, n){ return s ? String(s).replace(/\s+/g,' ').slice(0, n) : ''; }
 function packReports(list, days, len){
   const from = new Date(); from.setDate(from.getDate() - (days || 21));
@@ -426,14 +437,24 @@ async function runAI(k){
   const r = await callAI(`日報データを分析します。${ask}
 必ずJSONのみで返答してください。日本語。
 {"items":[{"fact":"何件のどの日報から言えるか。氏名と日付を挙げて具体的に","analysis":"傾向・異常・共通点（推測は推測と明記）","proposal":"具体的に何をすべきか","who":["関係する氏名"],"level":1}]}
-itemsは3件。levelは 1個人 2チーム 3部署 4全社 5経営判断。
-対象（${title}）の日報: ${JSON.stringify(data)}`, 2500);
+itemsはちょうど3件。fact・analysis・proposal は各150字以内で簡潔に。
+levelは 1個人 2チーム 3部署 4全社 5経営判断。
+対象（${title}）の日報: ${JSON.stringify(data)}`, 4000);
 
   if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
+  let items = null;
   const j = parseJSON(r.text);
-  if (!j || !j.items){ box.innerHTML = '<div class="empty">分析結果を読み取れませんでした。もう一度お試しください。</div>'; return; }
-  window['_ai_' + k] = j.items;
-  box.innerHTML = j.items.map((it, i) => `
+  if (j && j.items) items = j.items;
+  if (!items) items = salvage(r.text);
+  if (!items || !items.length){
+    box.innerHTML = `<div class="card" style="margin-top:12px">
+      <p class="note">整った形で読み取れなかったため、AIの回答をそのまま表示します。</p>
+      <div style="white-space:pre-wrap">${esc(r.text)}</div></div>`;
+    return;
+  }
+  window['_ai_' + k] = items;
+  const j2 = { items };
+  box.innerHTML = items.map((it, i) => `
     <div class="sec" style="border-left-color:var(--accent);margin-top:14px">
       <span class="lab" style="color:var(--accent)">事実</span><div>${esc(it.fact)}</div>
       ${(it.who||[]).map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>
