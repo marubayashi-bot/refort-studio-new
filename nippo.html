@@ -101,6 +101,8 @@ let METRICS = [];       // 自部署の数値項目
 let REPORTS = [];       // 閲覧できる日報
 let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
+let DEPTS = [];
+function canAdmin(){ return ME.role === 'admin' || ['次長','部門長','役員・経営'].includes(ME.job_grade); }
 
 /* ---------- 起動 ---------- */
 EC.guard({
@@ -126,6 +128,10 @@ async function boot(){
     || USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
 
+  const { data: ds } = await EC.supabase.from('departments')
+    .select('id,name,sort_order').eq('is_active', true).order('sort_order');
+  DEPTS = ds || [];
+
   if (ME.department_id) {
     const { data: ms } = await EC.supabase.from('report_metrics')
       .select('id,name,unit,target,is_required,sort_order')
@@ -150,10 +156,11 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 
 /* ---------- 画面枠 ---------- */
 function render(){
-  document.getElementById('nav').innerHTML = TABS.map(([k,t]) =>
+  const tabs = TABS.concat(canAdmin() ? [['admin','管理']] : []);
+  document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo })[TAB]();
+    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, admin:vAdmin })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -622,6 +629,85 @@ async function doneTask(id){
     .update({ status: 'done', done_at: new Date().toISOString() }).eq('id', id);
   if (error){ toast('更新できませんでした: ' + error.message); return; }
   toast('完了にしました'); loadTodos();
+}
+
+
+/* ---------- 9. 管理（数値項目の設定） ---------- */
+let ADMIN_DEPT = null;
+let ADMIN_METRICS = [];
+function vAdmin(){
+  if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
+  loadAdminMetrics();
+  return `<h2>管理</h2>
+  <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
+  <div class="card">
+    <label>部署</label>
+    <select id="adDept" onchange="ADMIN_DEPT=this.value;loadAdminMetrics()">
+      ${DEPTS.map(d => `<option value="${d.id}"${d.id===ADMIN_DEPT?' selected':''}>${esc(d.name)}</option>`).join('')}
+    </select>
+    <div id="adList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
+    <h3 style="margin-top:20px">項目を追加</h3>
+    <div class="grid">
+      <div><label>項目名</label><input type="text" id="ad_name" placeholder="例：幹部・社員面談"></div>
+      <div><label>単位</label><input type="text" id="ad_unit" value="件"></div>
+      <div><label>1日の目標</label><input type="number" step="any" id="ad_target" placeholder="0"></div>
+    </div>
+    <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
+  </div>
+  <div class="card"><h3>設定のこつ</h3>
+    <p class="note">項目は4〜5個までに抑えてください。多すぎると日報が数字を埋める作業になり、お客様の声や考察の質が落ちます。
+    目標は最初は控えめに置き、2週間ほど実績を見てから調整するのが確実です。</p></div>`;
+}
+async function loadAdminMetrics(){
+  const box = document.getElementById('adList'); if (!box) return;
+  const { data, error } = await EC.supabase.from('report_metrics')
+    .select('*').eq('department_id', ADMIN_DEPT).eq('is_active', true).order('sort_order');
+  if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+  ADMIN_METRICS = data || [];
+  box.innerHTML = ADMIN_METRICS.length
+    ? `<table style="margin-top:12px"><tr><th>項目</th><th>単位</th><th>目標</th><th></th></tr>
+       ${ADMIN_METRICS.map(m => `<tr>
+         <td>${esc(m.name)}</td><td>${esc(m.unit)}</td>
+         <td><input type="number" step="any" value="${m.target ?? ''}" style="width:90px;padding:5px"
+              onchange="setTarget('${m.id}',this.value)"></td>
+         <td><button class="ghost" onclick="delMetric('${m.id}','${esc(m.name)}')">削除</button></td></tr>`).join('')}
+       </table>`
+    : '<div class="empty" style="margin-top:12px">この部署にはまだ数値項目がありません。</div>';
+}
+async function addMetric(){
+  const name = document.getElementById('ad_name').value.trim();
+  if (!name){ toast('項目名を入力してください'); return; }
+  const { error } = await EC.supabase.from('report_metrics').insert({
+    department_id: ADMIN_DEPT, name,
+    unit: document.getElementById('ad_unit').value.trim() || '件',
+    target: Number(document.getElementById('ad_target').value) || 0,
+    sort_order: (ADMIN_METRICS.length + 1) * 10
+  });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  document.getElementById('ad_name').value = '';
+  document.getElementById('ad_target').value = '';
+  toast('追加しました');
+  if (ADMIN_DEPT === ME.department_id) await reloadMyMetrics();
+  loadAdminMetrics();
+}
+async function setTarget(id, v){
+  const { error } = await EC.supabase.from('report_metrics').update({ target: Number(v) || 0 }).eq('id', id);
+  toast(error ? '更新できませんでした' : '目標を更新しました');
+  if (ADMIN_DEPT === ME.department_id) reloadMyMetrics();
+}
+async function delMetric(id, name){
+  if (!confirm(name + ' を削除します。過去に入力された数値は残ります。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('report_metrics').update({ is_active: false }).eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  toast('削除しました');
+  if (ADMIN_DEPT === ME.department_id) await reloadMyMetrics();
+  loadAdminMetrics();
+}
+async function reloadMyMetrics(){
+  const { data } = await EC.supabase.from('report_metrics')
+    .select('id,name,unit,target,is_required,sort_order')
+    .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
+  METRICS = data || [];
 }
 
 /* ---------- 4. ダッシュボード ---------- */
