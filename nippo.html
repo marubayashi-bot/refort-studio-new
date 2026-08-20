@@ -93,7 +93,7 @@ const IMP = [
   [3,'部署で共有','p3'],     [2,'記録のみ','p2']
 ];
 const LEVELS = ['LEVEL1 個人日報','LEVEL2 チーム課題','LEVEL3 部署課題','LEVEL4 全社課題','LEVEL5 経営判断'];
-const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料'],['todo','実行管理']];
+const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料'],['todo','実行管理'],['guide','使い方']];
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
@@ -166,7 +166,7 @@ function render(){
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, admin:vAdmin })[TAB]();
+    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -197,7 +197,8 @@ function vWrite(){
 
   <div class="card">
     <h3><span class="eyebrow">必須 02</span>お客様の声</h3>
-    <p class="note">要望・不満・反論・質問・買わない理由・決めた理由を、聞いたままの言葉で。</p>
+    <p class="note">要望・不満・反論・質問・買わない理由・決めた理由を、聞いたままの言葉で。
+      <a href="#" onclick="go('guide');return false" style="color:var(--accent)">書き方の例を見る</a></p>
     <textarea id="f_voice">${v('voice')}</textarea>
 
     <h3 style="margin-top:16px"><span class="eyebrow">必須 03</span>ライバル情報</h3>
@@ -750,6 +751,78 @@ async function reloadMyMetrics(){
     .select('id,name,unit,target,is_required,sort_order,job_grades')
     .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
   METRICS = (data || []).filter(metricAppliesToMe);
+}
+
+
+/* ---------- 10. 使い方（アプリ内で編集できるマニュアル） ---------- */
+let GUIDE = [];
+function vGuide(){
+  setTimeout(loadGuide, 0);
+  return `<h2>日報OSの使い方</h2>
+  <p class="sub">迷ったらこのページに戻ってきてください。${canAdmin() ? '内容は各項目の「編集」から更新できます。' : ''}</p>
+  <div id="guideBox"><div class="empty">読み込み中…</div></div>`;
+}
+async function loadGuide(){
+  const box = document.getElementById('guideBox'); if (!box) return;
+  const { data, error } = await EC.supabase.from('app_guide')
+    .select('*').eq('app_key','nippo').eq('is_active', true).order('sort_order');
+  if (error){ box.innerHTML = `<div class="empty">読み込めませんでした：${esc(error.message)}</div>`; return; }
+  GUIDE = data || [];
+  if (!GUIDE.length){
+    box.innerHTML = `<div class="empty">マニュアルがまだ登録されていません。${canAdmin() ? '下の「項目を追加」から作成できます。' : '管理者にご連絡ください。'}</div>`
+      + (canAdmin() ? guideAddForm() : '');
+    return;
+  }
+  box.innerHTML = GUIDE.map(g => `
+    <div class="card" id="g_${g.id}">
+      <h3>${esc(g.title)}
+        ${canAdmin() ? `<button class="ghost" style="margin-left:auto" onclick="editGuide('${g.id}')">編集</button>` : ''}</h3>
+      <div id="gb_${g.id}" style="white-space:pre-wrap">${esc(g.body)}</div>
+      <p class="note" style="margin-top:10px">最終更新 ${(g.updated_at||'').slice(0,10)}${g.updated_by ? '／' + esc(uname(g.updated_by)) : ''}</p>
+    </div>`).join('') + (canAdmin() ? guideAddForm() : '');
+}
+function guideAddForm(){
+  return `<div class="card"><h3>項目を追加</h3>
+    <label>見出し</label><input type="text" id="gnew_title" placeholder="例：ReFort案件の書き方">
+    <label>本文</label><textarea id="gnew_body" style="min-height:110px"></textarea>
+    <button class="act" style="margin-top:10px" onclick="addGuide()">追加する</button>
+    <p class="note" style="margin-top:8px">運用しながら気づいたこと、よくある質問をここに足していくと、
+      新しく入った社員が読むだけで分かる状態になります。</p></div>`;
+}
+function editGuide(id){
+  const g = GUIDE.find(x => x.id === id); if (!g) return;
+  document.getElementById('gb_' + id).innerHTML =
+    `<textarea id="ge_${id}" style="min-height:180px">${esc(g.body)}</textarea>
+     <div class="row" style="margin-top:8px">
+       <button class="act" onclick="saveGuide('${id}')">保存する</button>
+       <button class="ghost" onclick="loadGuide()">やめる</button>
+       <button class="ghost" onclick="removeGuide('${id}')" style="margin-left:auto">この項目を削除</button>
+     </div>`;
+}
+async function saveGuide(id){
+  const g = GUIDE.find(x => x.id === id);
+  const body = document.getElementById('ge_' + id).value;
+  const { error } = await EC.supabase.from('app_guide')
+    .update({ body, updated_by: ME.id, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+  await EC.supabase.from('app_guide_log')
+    .insert({ guide_id: id, title: g.title, old_body: g.body, new_body: body, changed_by: ME.id });
+  toast('更新しました'); loadGuide();
+}
+async function addGuide(){
+  const title = document.getElementById('gnew_title').value.trim();
+  const body  = document.getElementById('gnew_body').value.trim();
+  if (!title || !body){ toast('見出しと本文を入力してください'); return; }
+  const { error } = await EC.supabase.from('app_guide').insert({
+    title, body, updated_by: ME.id, sort_order: (GUIDE.length + 1) * 10 + 100 });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  toast('追加しました'); loadGuide();
+}
+async function removeGuide(id){
+  if (!confirm('この項目を削除します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('app_guide').update({ is_active: false }).eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  toast('削除しました'); loadGuide();
 }
 
 /* ---------- 4. ダッシュボード ---------- */
