@@ -852,11 +852,16 @@ const Store = {
   },
   write(d){
     MEM = d;
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); }catch(e){}
+    /* 端末のブラウザ保存は「キャッシュ」扱い。容量超過などで失敗しても致命ではないが、握りつぶさず記録する */
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); LOCAL_OK = true; }
+    catch(e){ LOCAL_OK = false; console.warn('[refort] ローカルキャッシュ書込み失敗（容量超過の可能性）', e); }
+    return LOCAL_OK;
   }
 };
+let LOCAL_OK = true;
 function load(){ const d=Store.read(); if(!d.deals)d.deals=[]; return d; }
-function saveDB(d){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d); }catch(e){} }
+/* one を渡すと、その案件だけをクラウドへ送る（全件送信による失敗・他人のデータ巻き込みを防ぐ） */
+function saveDB(d, one){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d, one); }catch(e){} }
 
 /* ---------- stages ---------- */
 const STAGES = [
@@ -1279,7 +1284,7 @@ function renderDash(){
     lane.addEventListener('dragleave',()=>lane.classList.remove('drop'));
     lane.addEventListener('drop',e=>{e.preventDefault();lane.classList.remove('drop');
       const id=e.dataTransfer.getData('id');const deal=DB.deals.find(x=>x.id===id);
-      if(deal&&deal.stage!==st.k){deal.stage=st.k;deal.updatedAt=Date.now();saveDB(DB);renderDash();toast(deal.name+'を「'+st.n+'」へ移動');}
+      if(deal&&deal.stage!==st.k){deal.stage=st.k;deal.updatedAt=Date.now();saveDB(DB,deal);renderDash();toast(deal.name+'を「'+st.n+'」へ移動');}
     });
     pipe.appendChild(lane);
   });
@@ -1545,16 +1550,30 @@ function openDeal(id){
 function newDeal(){
   const d={id:uid(),name:'',stage:'hearing',createdAt:Date.now(),updatedAt:Date.now(),
     inputs:blankInputs(),dd:{}};
-  DB.deals.unshift(d); saveDB(DB); curDeal=d; dirty=false; resTab='judge'; nav('deal'); renderDeal();
+  DB.deals.unshift(d); saveDB(DB,d); curDeal=d; dirty=false; resTab='judge'; nav('deal'); renderDeal();
   setTimeout(()=>{const i=$('#dealName');if(i)i.focus();},60);
 }
 function I(){return curDeal.inputs;}
 function setI(k,val){curDeal.inputs[k]=val;markDirty();recompute();}
 function markDirty(){dirty=true;const sb=$('#savebar');if(sb){sb.textContent='● 未保存の変更';sb.classList.add('dirty');}}
-function persist(){curDeal.updatedAt=Date.now();
+/* 未保存のまま閉じようとしたら止める */
+window.addEventListener('beforeunload',function(e){ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+async function persist(){curDeal.updatedAt=Date.now();
   if(!curDeal.name)curDeal.name=curDeal.inputs.customer||'(無題案件)';
-  saveDB(DB);dirty=false;const sb=$('#savebar');if(sb){sb.textContent='✓ 保存済 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});sb.classList.remove('dirty');}
-  toast('保存しました');}
+  Store.write(DB);
+  const sbar=$('#savebar'); if(sbar){sbar.textContent='… 保存中';sbar.classList.add('dirty');}
+  const r = await cloudSaveOne(curDeal);
+  if(r.ok){
+    dirty=false;
+    if(sbar){sbar.textContent='✓ 保存済（共有反映）'+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});sbar.classList.remove('dirty');}
+    toast('保存しました');
+  }else{
+    /* クラウドに入っていない＝次回起動時に消える。ここで必ず知らせる */
+    dirty=true;
+    if(sbar){sbar.textContent='⚠ 保存できていません';sbar.classList.add('dirty');}
+    toast('⚠ 保存に失敗しました');
+    alert('この案件はまだ共有データベースに保存できていません。\n\n理由：'+r.msg+'\n\nこのまま閉じるとデータが失われます。\n「⑧ バックアップ」からJSONを書き出して保管し、管理者へご連絡ください。');
+  }}
 
 function renderDeal(){
   const v=$('#view-deal');
@@ -1600,7 +1619,7 @@ function renderDeal(){
   $('#riskBtn').onclick=()=>openRiskCompare(curDeal);
   $('#allBtn').onclick=()=>openAllSheets(curDeal);
   $('#excelBtn').onclick=()=>$('#fileExcelCur').click();
-  $('#dupBtn').onclick=()=>{const c=JSON.parse(JSON.stringify(curDeal));c.id=uid();c.name=(curDeal.name||'案件')+'（複製）';c.createdAt=c.updatedAt=Date.now();DB.deals.unshift(c);saveDB(DB);curDeal=c;renderDeal();toast('複製しました');};
+  $('#dupBtn').onclick=()=>{const c=JSON.parse(JSON.stringify(curDeal));c.id=uid();c.name=(curDeal.name||'案件')+'（複製）';c.createdAt=c.updatedAt=Date.now();DB.deals.unshift(c);saveDB(DB,c);curDeal=c;renderDeal();toast('複製しました');};
   $('#delBtn').onclick=()=>confirmDelete(curDeal.id);
   renderForm(); renderResults();
 }
@@ -2104,7 +2123,8 @@ function confirmDelete(id){
   $('#mTitle').textContent='案件を削除';
   $('#mBody').textContent='「'+(deal.name||'無題案件')+'」を削除します。元に戻せません。';
   $('#modal').classList.add('show');
-  $('#mOk').onclick=()=>{DB.deals=DB.deals.filter(d=>d.id!==id);saveDB(DB);
+  $('#mOk').onclick=()=>{DB.deals=DB.deals.filter(d=>d.id!==id);Store.write(DB);
+    cloudDeleteOne(id);
     $('#modal').classList.remove('show');toast('削除しました');nav('list');renderList();};
 }
 function exportBackup(){
@@ -2976,7 +2996,7 @@ function importExcelNew(file){
     if(isLedgerWB(wb)){ const added=importLedgerRows(wb); saveDB(DB); nav('ledger'); renderLedger(); toast('案件管理台帳から '+added+' 件を取込みました'); return; }
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
     const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
-    DB.deals.unshift(d);saveDB(DB);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
+    DB.deals.unshift(d);saveDB(DB,d);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
     const ddn=dd?Object.keys(dd).length:0;
     toast('Excelから新規案件を取込みました（'+count+'項目'+(ddn?'／DD '+ddn+'件':'')+'）');
   }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
@@ -3180,7 +3200,7 @@ function renderLedger(){
       else if(key==='owner'){ d.inputs.owner=val; }
       else if(key==='memo'){ d.memo=val; }
       else { ledObj(d)[key]=val; }
-      d.updatedAt=Date.now(); saveDB(DB);
+      d.updatedAt=Date.now(); saveDB(DB,d);
       // live-refresh derived cells in this row only
       const r=ledRow(d), cells=tr.children;
       cells[12].textContent=nfn(r.mq); cells[13].textContent=pct(r.marginRate);
@@ -3286,7 +3306,7 @@ async function autoPull(onOpen){
       SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
         if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); changed++; } } });
       if(changed>0 && !dirty){
-        curDeal.updatedAt=Date.now(); saveDB(DB);
+        curDeal.updatedAt=Date.now(); saveDB(DB,curDeal);
         if(activeView()==='deal'){ refreshFormValues(); recompute(); }
         toast('シートから自動反映（'+changed+'項目）');
       }
@@ -3401,9 +3421,16 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.17';
+const APP_VERSION = '2026.08.21';
 
 const CHANGELOG = [
+  ['2026.08.21', [
+    '<b>【重要・不具合修正】保存した案件が翌日消えてしまう不具合を修正しました。</b>原因は、ある社員の端末に表示されていた古い一覧をもとに、共有データベース側の案件を自動削除する処理が入っていたことです。この自動削除を廃止しました（削除は「案件を削除」を押したときだけ行われます）',
+    '保存の表示を正直にしました。これまでは共有データベースへ書き込めていなくても「保存しました」と出ていましたが、今後は<b>共有データベースへの書き込みが完了してから「✓ 保存済（共有反映）」</b>と表示します。失敗した場合は「⚠ 保存できていません」と警告を出します',
+    '保存時に全案件をまとめて送っていたため、現地画像が増えると送信に失敗していました。今後は<b>編集した案件だけを送信</b>します',
+    'アプリを開いたときに、共有データベースに無い案件がこの端末に残っていた場合、自動で共有データベースへ復旧します（前回保存できていなかった案件の救済）',
+    '共有データベースに接続できないまま作業を始めてしまわないよう、起動時に接続できなかった場合は警告を表示します',
+  ]],
   ['2026.08.17', [
     'ダッシュボードに「事業者別」表示を追加しました。<b>発電事業者 → 物件 → シミュレーション</b>の3段階でたどれるため、同じお客様に複数のシミュレーション（HT版・トリナ版・反射シート有など）がある場合も探す手間がなくなります',
     'ダッシュボード右上の検索欄で、事業者名・物件名・案件名から絞り込めます。表示の切替（ステージ別／事業者別）は次回開いたときも記憶されます',
@@ -3672,16 +3699,24 @@ function ensureSB(){return new Promise((res,rej)=>{if(window.supabase)return res
   const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
   s.onload=()=>window.supabase?res(window.supabase):rej(new Error('lib'));
   s.onerror=()=>rej(new Error('ライブラリ読込失敗（要ネット接続）'));document.head.appendChild(s);});}
+/* 大きな現地画像を含むため、まとめて送らず小分けにする（1リクエストが大きすぎると失敗するため） */
 async function cloudUpsert(deals){if(!sb||!deals.length)return;
-  const rows=deals.map(x=>({id:x.id,name:x.name||'',stage:x.stage||'',data:x,updated_at:new Date().toISOString()}));
-  const {error}=await sb.from('refort_deals').upsert(rows);if(error)throw error;}
-async function cloudReconcile(d){if(!sb)return;
-  try{ await cloudUpsert(d.deals);
-    const {data:cloud}=await sb.from('refort_deals').select('id');
-    const ids=new Set(d.deals.map(x=>x.id));
-    for(const r of (cloud||[])) if(!ids.has(r.id)) await sb.from('refort_deals').delete().eq('id',r.id);
-    setPill('synced');
-  }catch(e){setPill('error');console.warn('cloud push',e);}}
+  const rows=deals.filter(Boolean).map(x=>({id:x.id,name:x.name||'',stage:x.stage||'',data:x,
+    updated_at:new Date(x.updatedAt||Date.now()).toISOString()}));
+  for(let i=0;i<rows.length;i+=3){
+    const {error}=await sb.from('refort_deals').upsert(rows.slice(i,i+3));
+    if(error)throw error;
+  }}
+/* 1件だけ保存し、成否を呼び出し元へ返す */
+async function cloudSaveOne(deal){
+  if(!sb||!cloudReady) return {ok:false,msg:'共有データベースに接続できていません（この端末のブラウザにしか残っていません）'};
+  try{ await cloudUpsert([deal]); setPill('synced'); return {ok:true}; }
+  catch(e){ setPill('error'); console.warn('[refort] cloud save', e);
+    return {ok:false,msg:(e&&e.message)||String(e)}; }}
+async function cloudDeleteOne(id){
+  if(!sb||!cloudReady){toast('⚠ 共有データベース未接続のため、他の端末では消えていません');return;}
+  try{ const {error}=await sb.from('refort_deals').delete().eq('id',id); if(error)throw error; }
+  catch(e){ console.warn('[refort] cloud delete', e); toast('⚠ 共有データベースから削除できませんでした'); }}
 async function initCloud(){
   setPill('connecting');
   /* 認証済みの共通クライアントを使う（ログインした社員の権限でデータを読み書きする） */
@@ -3689,11 +3724,32 @@ async function initCloud(){
     const {data,error}=await sb.from('refort_deals').select('data').order('updated_at',{ascending:false});
     if(error)throw error;
     const rows=(data||[]).map(r=>r.data).filter(Boolean);
+    const cloudIds=new Set(rows.map(x=>x&&x.id).filter(Boolean));
+    /* この端末にだけ残っていてクラウドに無い案件＝前回保存できていなかった案件。消さずに拾い上げて復旧する */
+    const orphans=(DB.deals||[]).filter(x=>x&&x.id&&!cloudIds.has(x.id)&&!/^【サンプル】/.test(x.name||''));
+    cloudReady=true;
     if(rows.length===0 && DB.deals.length>0){ await cloudUpsert(DB.deals); }
-    else if(rows.length>0){ DB.deals=rows; localWrite(DB); if(activeView()!=='deal')refreshView(); }
-    cloudReady=true; setPill('synced');
-  }catch(e){ sb=null; cloudReady=false; setPill('error'); console.warn('cloud init',e); }}
-window.__cloudPush=function(d){ if(!sb||!cloudReady)return; clearTimeout(sbPushT); sbPushT=setTimeout(()=>cloudReconcile(d),700); };
+    else {
+      DB.deals = orphans.concat(rows); localWrite(DB);
+      if(activeView()!=='deal') refreshView();
+      if(orphans.length){
+        try{ await cloudUpsert(orphans); toast('未保存だった'+orphans.length+'件を共有データベースへ復旧しました'); }
+        catch(e){ console.warn('[refort] orphan recover', e); toast('⚠ 未同期の'+orphans.length+'件を復旧できませんでした'); }
+      }
+    }
+    setPill('synced');
+  }catch(e){ sb=null; cloudReady=false; setPill('error'); console.warn('[refort] cloud init', e);
+    alert('共有データベースに接続できませんでした。\n\nこの状態で入力した内容は、この端末のブラウザにしか残らず、次に開いたときに消える可能性があります。\n作業を始める前に、ネットワーク接続をご確認いただくか管理者へご連絡ください。\n\n詳細：'+((e&&e.message)||e)); }}
+/* 変更のあった案件だけを送る。ローカルに無いものをクラウドから消す処理（旧cloudReconcile）は廃止
+   ―― 他の社員が保存した案件を、別の端末の古い一覧が削除してしまう事故の原因だったため */
+window.__cloudPush=function(d,one){ if(!sb||!cloudReady)return;
+  const list = one ? [one] : (d&&d.deals)||[];
+  clearTimeout(sbPushT);
+  sbPushT=setTimeout(async()=>{
+    try{ await cloudUpsert(list); setPill('synced'); }
+    catch(e){ setPill('error'); console.warn('[refort] cloud push', e);
+      toast('⚠ 共有データベースへ保存できませんでした。画面を閉じる前に管理者へご連絡ください'); }
+  },700); };
 function openSyncModal(){ $('#sbUrl').value=SB_URL; $('#sbKey').value=sbKey();
   const st=$('#sbStat'); st.textContent=sb?'✅ 接続済み（社内共有中）':(sbKey()?'⚠ 未接続':'現在はローカル保存のみ');
   st.style.color=sb?'#1f8a55':'#8a6d18'; $('#syncModal').classList.add('show'); }
