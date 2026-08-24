@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方針実行ボード｜株式会社アースコム</title>
+<style>
+:root{
+  --ink:#101828;        /* 本文 */
+  --ink-2:#475467;      /* 副次 */
+  --ink-3:#98a2b3;      /* 補助 */
+  --line:#e4e7ec;
+  --paper:#fbfbfa;
+  --card:#ffffff;
+  --navy:#17324f;       /* 主色：藍 */
+  --navy-2:#2b5680;
+  --amber:#b26a00;      /* 期限注意 */
+  --amber-bg:#fff6e5;
+  --red:#a4262c;        /* 超過 */
+  --red-bg:#fdf0f0;
+  --green:#2e6b45;      /* 完了 */
+  --green-bg:#eef6f0;
+  --r:6px;
+  --mono:"SFMono-Regular",Consolas,"Courier New",monospace;
+  --sans:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:inherit}
+a{color:var(--navy-2)}
+
+/* ---------- ヘッダー ---------- */
+header{background:var(--navy);color:#fff;padding:14px 20px}
+.hwrap{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.04em}
+.brand .sub{font-size:11.5px;color:#a9c1d6;letter-spacing:.08em}
+.ctrls{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.ctrl label{display:block;font-size:10.5px;color:#a9c1d6;letter-spacing:.08em;margin-bottom:3px}
+.ctrl input,.ctrl select{background:#0e2439;border:1px solid #2f5474;color:#fff;padding:5px 8px;border-radius:4px}
+.ctrl input[type=date]{color-scheme:dark}
+
+/* ---------- 期の物差し ---------- */
+.ruler{max-width:1180px;margin:0 auto;padding:0 20px}
+.ruler-inner{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--r) var(--r);padding:10px 14px 12px;display:flex;gap:1px;overflow-x:auto}
+.rm{flex:1 1 0;min-width:60px;text-align:center;position:relative;padding:4px 2px 6px;border-radius:4px}
+.rm.now{background:#eef3f8}
+.rm .m{font-size:11px;color:var(--ink-2);font-weight:600}
+.rm .bar{height:4px;background:var(--line);border-radius:2px;margin:5px 3px 4px;overflow:hidden}
+.rm .bar i{display:block;height:100%;background:var(--navy-2)}
+.rm .n{font-size:10.5px;color:var(--ink-3);font-family:var(--mono)}
+.rm.now .m{color:var(--navy)}
+
+/* ---------- タブ ---------- */
+nav{max-width:1180px;margin:16px auto 0;padding:0 20px;display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;color:var(--ink-2);font-weight:600;font-size:13.5px}
+nav button:hover{color:var(--ink)}
+nav button[aria-selected=true]{color:var(--navy);border-bottom-color:var(--navy)}
+nav button:focus-visible{outline:2px solid var(--navy-2);outline-offset:2px}
+nav .count{font-family:var(--mono);font-size:11px;color:#fff;background:var(--red);border-radius:9px;padding:0 6px;margin-left:6px}
+
+main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+section[hidden]{display:none}
+
+/* ---------- 共通パーツ ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px}
+.card>h3{margin:0;padding:9px 14px;font-size:12.5px;letter-spacing:.06em;color:var(--ink-2);border-bottom:1px solid var(--line);background:#f7f8f9;border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;align-items:center}
+.pill{font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:var(--ink-2);background:#fff}
+.pill.over{color:var(--red);border-color:#e8c3c5;background:var(--red-bg)}
+.pill.soon{color:var(--amber);border-color:#eddcb8;background:var(--amber-bg)}
+.pill.done{color:var(--green);border-color:#c6ddcd;background:var(--green-bg)}
+.empty{padding:26px 14px;text-align:center;color:var(--ink-3);font-size:13px}
+
+/* タスク行 */
+.trow{display:grid;grid-template-columns:26px 1fr 92px 132px 96px;gap:10px;align-items:start;padding:9px 14px;border-bottom:1px solid #f0f1f3}
+.trow:last-child{border-bottom:none}
+.trow:hover{background:#fafbfc}
+.trow.isdone .tname{color:var(--ink-3);text-decoration:line-through}
+.trow input[type=checkbox]{width:17px;height:17px;margin-top:2px;accent-color:var(--navy);cursor:pointer}
+.tname{font-weight:600;font-size:13.5px}
+.tmeta{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.tmeta b{color:var(--ink-2);font-weight:600}
+.tdue{font-family:var(--mono);font-size:12px;color:var(--ink-2);text-align:right;white-space:nowrap}
+.tdue.over{color:var(--red);font-weight:700}
+.tdue.soon{color:var(--amber);font-weight:700}
+.owner input{width:100%;border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:12.5px;background:#fff}
+.owner input:focus{outline:2px solid var(--navy-2);outline-offset:-1px;border-color:var(--navy-2)}
+.owner input.blank{background:#fff8e6;border-color:#e8d5a8}
+.tev{font-size:11.5px;color:var(--ink-2);text-align:right}
+
+/* 行事アコーディオン */
+.ev{border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:none}
+.evhead{display:grid;grid-template-columns:1fr 150px 120px 74px 22px;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;background:none;border:none;width:100%;text-align:left;font-family:inherit}
+.evhead:hover{background:#fafbfc}
+.evhead:focus-visible{outline:2px solid var(--navy-2);outline-offset:-2px}
+.evname{font-weight:700;font-size:14px}
+.evsub{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.evdates{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.prog{display:flex;align-items:center;gap:7px}
+.prog .track{flex:1;height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.prog .track i{display:block;height:100%;background:var(--navy-2)}
+.prog .pct{font-family:var(--mono);font-size:11px;color:var(--ink-2);width:34px;text-align:right}
+.chev{color:var(--ink-3);transition:transform .15s}
+.ev[data-open="1"] .chev{transform:rotate(90deg)}
+.evbody{background:#fcfcfd;border-top:1px solid var(--line)}
+.occ{padding:6px 14px 2px;font-size:11.5px;color:var(--navy);font-weight:700;font-family:var(--mono);border-top:1px dashed var(--line)}
+.occ:first-child{border-top:none}
+
+/* 年間カレンダー */
+.months{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px}
+.mo{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mo.now{border-color:var(--navy-2);box-shadow:0 0 0 1px var(--navy-2)}
+.mo h4{margin:0;padding:6px 10px;font-size:12px;background:#f7f8f9;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;color:var(--ink-2)}
+.mo.now h4{background:var(--navy);color:#fff}
+.mo ul{list-style:none;margin:0;padding:6px 10px 9px}
+.mo li{font-size:12.5px;padding:2.5px 0;display:flex;gap:7px}
+.mo li .d{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex:0 0 34px}
+.mo li .nm{flex:1}
+.mo li .st{width:7px;height:7px;border-radius:50%;background:var(--line);margin-top:6px;flex:0 0 7px}
+.mo li .st.ok{background:var(--green)}
+.mo li .st.part{background:var(--amber)}
+.mo li .st.over{background:var(--red)}
+
+/* 方針テーブル */
+table.h{width:100%;border-collapse:collapse;background:var(--card)}
+table.h th,table.h td{border-bottom:1px solid var(--line);padding:7px 12px;text-align:left;font-size:13px;vertical-align:top}
+table.h th{background:#f7f8f9;font-size:11.5px;letter-spacing:.05em;color:var(--ink-2);position:sticky;top:0}
+table.h td.no{font-family:var(--mono);color:var(--ink-3);width:34px}
+table.h td.nm{font-weight:700;width:130px}
+table.h tr.orphan td.nm{color:var(--ink-3)}
+table.h td.ev{font-size:12px;color:var(--ink-2)}
+table.h td.pr{width:150px}
+
+/* フッター操作 */
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.tools button{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px 12px;cursor:pointer;color:var(--ink-2);font-size:12.5px}
+.tools button:hover{border-color:var(--navy-2);color:var(--navy)}
+.note{font-size:11.5px;color:var(--ink-3);margin-top:10px;line-height:1.7}
+.filters{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.filters select,.filters input{border:1px solid var(--line);border-radius:4px;padding:5px 8px;background:#fff}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(12px);background:var(--navy);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:.22s}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* 認証バッジ・保存状態 */
+.who{display:flex;align-items:center;gap:10px}
+.who .avatar{width:26px;height:26px;border-radius:50%;background:#2f5474;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.who .nm{font-size:12.5px;color:#fff;line-height:1.3}
+.who .rl{font-size:10.5px;color:#a9c1d6;letter-spacing:.06em}
+.save{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#a9c1d6}
+.save .dot{width:7px;height:7px;border-radius:50%;background:#4f9b6a}
+.save.busy .dot{background:#d6a13a}
+.save.off .dot{background:#c96a6a}
+.banner{max-width:1180px;margin:12px auto 0;padding:9px 14px;border-radius:var(--r);font-size:12.5px;background:var(--amber-bg);border:1px solid #eddcb8;color:#7a4a00}
+.banner[hidden]{display:none}
+.selfsw{display:flex;gap:0;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:#fff}
+.selfsw button{border:none;background:#fff;padding:5px 13px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.selfsw button[aria-pressed=true]{background:var(--navy);color:#fff;font-weight:600}
+
+@media (max-width:760px){
+  .trow{grid-template-columns:24px 1fr;gap:6px}
+  .tdue,.owner,.tev{grid-column:2}
+  .tdue{text-align:left}
+  .evhead{grid-template-columns:1fr 60px 20px}
+  .evdates,.evsub{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand">
+      <h1>方針実行ボード</h1>
+      <span class="sub">株式会社アースコム／経営計画書 実行管理</span>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl">
+        <label for="fy">対象期</label>
+        <select id="fy"></select>
+      </div>
+      <div class="ctrl">
+        <label for="today">基準日</label>
+        <input type="date" id="today">
+      </div>
+      <div class="who" id="who" hidden>
+        <span class="avatar" id="av"></span>
+        <span><span class="nm" id="menm"></span><br><span class="rl" id="merole"></span></span>
+      </div>
+      <div class="save" id="save"><span class="dot"></span><span id="savetxt">保存済み</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="ruler"><div class="ruler-inner" id="ruler"></div></div>
+<p class="banner" id="banner" hidden></p>
+
+<nav role="tablist">
+  <button role="tab" id="t-now"  aria-selected="true">今週のやること<span class="count" id="c-now" hidden></span></button>
+  <button role="tab" id="t-cal"  aria-selected="false">年間カレンダー</button>
+  <button role="tab" id="t-ev"   aria-selected="false">行事別</button>
+  <button role="tab" id="t-ho"   aria-selected="false">方針別</button>
+  <button role="tab" id="t-al"   aria-selected="false">未実施<span class="count" id="c-al" hidden></span></button>
+</nav>
+
+<main>
+  <section id="v-now"></section>
+  <section id="v-cal" hidden></section>
+  <section id="v-ev"  hidden></section>
+  <section id="v-ho"  hidden></section>
+  <section id="v-al"  hidden></section>
+
+  <div class="tools">
+    <button id="reload">最新の状態に更新</button>
+    <button id="csv">タスク一覧をCSVで出す</button>
+    <button id="exp">記録を書き出す（JSON）</button>
+  </div>
+  <p class="note">
+    チェックと実行者は全社で共有されます。誰かが更新した内容は「最新の状態に更新」で反映されます。<br>
+    完了チェックには、チェックした人とその日付が記録されます。
+  </p>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- 共通認証：GitHub Pages 上の ec-auth.js を読み込む（プレビュー時は読み込まれない） -->
+<script src="ec-auth.js" onerror="window.__ecAuthMissing=true"></script>
+<script>
+/* ============================================================
+   方針実行ボード
+   データ出典：事業年度カレンダー（19期ブロック）より抽出
+   ============================================================ */
+
+/* ---------- 保存先（全アプリ共通のSupabaseプロジェクト） ---------- */
+const SB = {
+  url: "https://aakofrzurgwrkctunthw.supabase.co",
+  key: "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa",
+  status: "houshin_task_status",   // チェック記録
+  owner:  "houshin_task_owner"     // タスクごとの実行者
+};
+
+let ONLINE = true;   // Supabaseに到達できているか
+
+function sbHeaders(extra){
+  return Object.assign({
+    "apikey": SB.key,
+    "Authorization": "Bearer " + SB.key,
+    "Content-Type": "application/json"
+  }, extra||{});
+}
+async function sbGet(table, query){
+  const r = await fetch(`${SB.url}/rest/v1/${table}?${query}`, {headers:sbHeaders()});
+  if(!r.ok) throw new Error(`${table} 読み込み失敗 (${r.status})`);
+  return r.json();
+}
+async function sbUpsert(table, rows){
+  const r = await fetch(`${SB.url}/rest/v1/${table}`, {
+    method:"POST",
+    headers: sbHeaders({"Prefer":"resolution=merge-duplicates,return=minimal"}),
+    body: JSON.stringify(rows)
+  });
+  if(!r.ok) throw new Error(`${table} 保存失敗 (${r.status})`);
+}
+async function sbDelete(table, query){
+  const r = await fetch(`${SB.url}/rest/v1/${table}?${query}`, {method:"DELETE", headers:sbHeaders()});
+  if(!r.ok) throw new Error(`${table} 削除失敗 (${r.status})`);
+}
+
+function setSave(mode, text){
+  const el = document.getElementById("save");
+  el.className = "save" + (mode==="busy"?" busy":mode==="off"?" off":"");
+  document.getElementById("savetxt").textContent = text;
+}
+function banner(msg){
+  const b = document.getElementById("banner");
+  if(!msg){ b.hidden = true; return; }
+  b.hidden = false; b.textContent = msg;
+}
+
+/* ---------- 期の定義 ---------- */
+/* 19期＝2026年12月〜2027年11月。期首年＝12月が属する年 */
+const FYS = [
+  {ki:19, y:2026},
+  {ki:20, y:2027},
+  {ki:21, y:2028}
+];
+
+/* ---------- 方針マスタ（カレンダー方針列の37区分／出現順） ---------- */
+const HOUSHIN = ["内部A","内部B","幹部","社員A","社員B","社員C","パート","IT","ルール","発表","経営",
+"環境A","環境B","戦略","情報","会議","お客様A","お客様B","姿勢","商品","商品開発A","商品開発B",
+"マーケ","営業","メンテ","カスタマ","ライバル","クレーム","クレーマ","コミュA","コミュB",
+"採用A","採用B","教育","人事A","人事B","運転"];
+
+/* ---------- 行事マスタ（31件） ----------
+   dates: [月, 日] ／ 12月は期首年、1〜11月は期首年+1 */
+const EVENTS = [
+{id:"E01",name:"経営計画発表会",cat:"経営",freq:"年1回",dept:"社長・総務",ho:["発表","経営"],dates:[[12,7]]},
+{id:"E02",name:"全体会同",cat:"経営",freq:"四半期",dept:"社長・全部門",ho:["経営"],dates:[[12,3],[3,8],[6,13],[9,6]]},
+{id:"E03",name:"部門長会議",cat:"会議",freq:"毎月",dept:"部門長全員",ho:["会議"],dates:[[12,17],[12,22],[1,14],[2,12],[3,11],[4,8],[5,13],[6,10],[7,8],[9,9],[10,7],[11,11]]},
+{id:"E04",name:"環境整備点検（埼玉）",cat:"環境整備",freq:"毎月",dept:"全社",ho:["環境A","環境B"],dates:[[12,9],[1,7],[2,4],[3,4],[4,1],[5,1],[6,4],[7,23],[8,27],[9,17],[10,15],[11,12]]},
+{id:"E05",name:"環境整備点検（福島）",cat:"環境整備",freq:"毎月",dept:"福島拠点",ho:["環境A","環境B"],dates:[[12,10],[1,8],[2,5],[3,5],[4,2],[5,2],[6,5],[7,24],[8,28],[9,18],[10,16],[11,13]]},
+{id:"E06",name:"サイクル環境整備点検",cat:"環境整備",freq:"隔月",dept:"全社",ho:["環境A","環境B"],dates:[[5,15],[5,19],[7,8],[7,10]]},
+{id:"E07",name:"早朝勉強会",cat:"教育",freq:"毎月",dept:"希望者・幹部",ho:["教育"],dates:[[4,18],[5,15],[6,13],[6,27],[7,17],[8,8],[9,19],[10,17],[11,14]]},
+{id:"E08",name:"アースコムアカデミー用語集勉強会",cat:"教育",freq:"毎月〜隔月",dept:"全社",ho:["教育"],dates:[[12,18],[1,15],[2,19],[3,19],[5,22],[6,19],[7,17],[9,24],[10,5]]},
+{id:"E09",name:"全社員勉強会",cat:"教育",freq:"年3回",dept:"全社",ho:["教育","社員A"],dates:[[1,25],[3,8],[6,12]]},
+{id:"E10",name:"クレーム勉強会",cat:"教育",freq:"年1回",dept:"全社",ho:["クレーム","クレーマ"],dates:[[1,25]]},
+{id:"E11",name:"給与体系勉強会",cat:"人事",freq:"年2回",dept:"全社",ho:["人事A","人事B"],dates:[[1,27],[6,13]]},
+{id:"E12",name:"MRAG勉強会",cat:"教育",freq:"年2回",dept:"幹部",ho:["教育"],dates:[[12,18],[7,17]]},
+{id:"E13",name:"査定面談",cat:"人事",freq:"年2回",dept:"社長・部門長",ho:["人事A","人事B"],dates:[[12,11],[6,12]]},
+{id:"E14",name:"賞与面談",cat:"人事",freq:"年2回",dept:"部門長",ho:["人事A","人事B"],dates:[[1,12]]},
+{id:"E15",name:"賞与支給",cat:"人事",freq:"年2回",dept:"総務・経理",ho:["人事A","人事B"],dates:[[2,19],[8,18]]},
+{id:"E16",name:"銀行訪問",cat:"財務",freq:"年3回",dept:"社長・経理",ho:["経営","情報"],dates:[[12,8],[6,10],[10,7]]},
+{id:"E17",name:"ルール改定（部門長）",cat:"ルール",freq:"年2回",dept:"部門長全員",ho:["ルール"],dates:[[1,6],[5,10]]},
+{id:"E18",name:"組織プロフィール",cat:"経営",freq:"年3〜4回",dept:"幹部・部門長",ho:["経営","戦略"],dates:[[2,15],[5,24],[8,7],[8,23]]},
+{id:"E19",name:"事業部アセスメント（全社）",cat:"経営",freq:"年3回",dept:"全社",ho:["経営","戦略"],dates:[[2,15],[5,24],[8,23]]},
+{id:"E20",name:"実行計画アセスメント",cat:"経営",freq:"年1回",dept:"部門長全員",ho:["経営"],dates:[[11,15]]},
+{id:"E21",name:"入社式",cat:"人事",freq:"年1回",dept:"総務・採用課",ho:["採用A","採用B"],dates:[[3,31]]},
+{id:"E22",name:"内定式",cat:"採用",freq:"年1回",dept:"採用課",ho:["採用A","採用B"],dates:[[10,1]]},
+{id:"E23",name:"社員旅行",cat:"社員",freq:"年1回",dept:"総務",ho:["社員A","社員B"],dates:[[9,13]]},
+{id:"E24",name:"夢合宿",cat:"経営",freq:"年1回",dept:"社長・幹部",ho:["経営","戦略"],dates:[[8,21]]},
+{id:"E25",name:"夢合宿（方針編）",cat:"経営",freq:"年1回",dept:"社長・幹部",ho:["発表","経営"],dates:[[10,3]]},
+{id:"E26",name:"河口湖研修",cat:"教育",freq:"年1回",dept:"全社",ho:["教育"],dates:[[7,25]]},
+{id:"E27",name:"社長同行研修",cat:"教育",freq:"年1回",dept:"社長・営業",ho:["営業","教育"],dates:[[10,22]]},
+{id:"E28",name:"ベンチマーク受入",cat:"社外",freq:"年1回",dept:"総務・全社",ho:["環境A","環境B"],dates:[[3,12]]},
+{id:"E29",name:"武蔵野経営計画発表会",cat:"社外",freq:"年1回",dept:"社長",ho:["発表"],dates:[[5,7]]},
+{id:"E30",name:"実践経営塾（丸林）",cat:"社外",freq:"年4回",dept:"社長",ho:["経営"],dates:[[4,23],[5,20],[6,19],[9,22]]},
+{id:"E31",name:"地域会",cat:"社外",freq:"随時",dept:"社長",ho:["環境A","コミュA"],dates:[[12,25],[1,17],[5,16]]}
+];
+
+/* ---------- タスクマスタ（106件） ----------
+   [行事ID, タスク名, 行事日からの相対日数, 完了条件] */
+const TASKS_RAW = [
+["E01","会場・日程の確定",-90,"会場予約完了"],
+["E01","翌期方針の確定（夢合宿方針編の反映）",-60,"経営計画書の原稿確定"],
+["E01","経営計画書の印刷・製本",-30,"部数納品完了"],
+["E01","登壇者・進行台本の確定",-14,"台本を全登壇者へ配布"],
+["E01","リハーサル",-3,"通し実施"],
+["E01","当日運営",0,"開催完了"],
+["E01","経営計画書の全社配布と訂正票の運用開始",7,"全社員へ配布完了"],
+["E02","議題・登壇部門の決定",-14,"アジェンダ確定"],
+["E02","会場・オンライン設定",-7,"接続確認完了"],
+["E02","当日運営・議事録作成",1,"議事録を全社共有"],
+["E03","実行計画達成状況報告書の記入依頼",-7,"全部門が記入完了"],
+["E03","数値（MQ・FM比率）の締め",-3,"数値管理シート更新完了"],
+["E03","アジェンダ確定",-2,"アジェンダ配布"],
+["E03","会議実施・決定事項の記録",0,"決定事項・担当・期限を記録"],
+["E03","決定事項のフォロー",7,"未着手ゼロ"],
+["E04","点検チェックリストの確定",-7,"当期版を配布"],
+["E04","点検班の編成",-3,"班割り確定"],
+["E04","点検実施・採点",0,"全エリア採点完了"],
+["E04","結果の全社共有と改善指示",3,"改善担当と期限を設定"],
+["E05","点検班の編成・移動手配",-3,"班割りと移動手配完了"],
+["E05","点検実施・採点",0,"全エリア採点完了"],
+["E05","結果の全社共有と改善指示",3,"改善担当と期限を設定"],
+["E06","サイクル対象範囲の決定",-14,"対象エリア確定"],
+["E06","点検実施・採点",0,"採点完了"],
+["E06","前回サイクルとの比較レポート",7,"改善率を全社共有"],
+["E07","テーマ・講師の決定",-14,"テーマ確定"],
+["E07","案内配信",-7,"全社へ配信"],
+["E07","実施・出席記録",0,"出席簿記録"],
+["E08","対象用語の選定",-7,"当日の用語リスト確定"],
+["E08","実施・理解度確認",0,"出席簿と確認テスト記録"],
+["E08","用語集への追記・改訂",7,"用語集マスタ更新"],
+["E09","テーマ・講師の決定",-30,"テーマ確定"],
+["E09","会場・資料準備",-7,"資料配布完了"],
+["E09","実施・出席記録",0,"出席簿記録"],
+["E09","受講レポートの回収",7,"全員提出"],
+["E10","直近1年のクレーム事例の集約",-14,"事例集作成"],
+["E10","実施",0,"出席簿記録"],
+["E10","再発防止ルールの改定要否判断",14,"改定案を部門長会議へ上程"],
+["E11","説明資料の更新",-7,"当期版の資料確定"],
+["E11","実施",0,"出席簿記録"],
+["E12","テーマ決定・案内",-14,"対象者へ案内"],
+["E12","実施・記録",0,"出席簿記録"],
+["E13","役割定義シートの実績記入依頼",-14,"全員記入完了"],
+["E13","Wチェック・社長承認",-7,"承認完了"],
+["E13","面談実施",0,"対象者全員完了"],
+["E13","評価点の確定と人事記録への反映",7,"人事記録更新"],
+["E14","賞与原資・配分案の作成",-14,"社長承認"],
+["E14","面談実施",0,"対象者全員完了"],
+["E14","支給明細の作成依頼",3,"経理へ連携"],
+["E15","支給額の最終確定",-10,"社長承認"],
+["E15","振込データ作成・銀行提出",-3,"提出完了"],
+["E15","支給・明細配布",0,"全員へ配布"],
+["E16","試算表・資金繰り表の準備",-7,"資料確定"],
+["E16","訪問実施",0,"訪問完了"],
+["E16","面談内容の記録と社内共有",3,"記録を共有"],
+["E17","改定要望の収集",-21,"全部門から回収"],
+["E17","改定案の作成",-7,"案を部門長へ配布"],
+["E17","改定会議・決定",0,"改定内容確定"],
+["E17","経営計画書・アプリへの反映と訂正票配布",14,"デジタル版更新・訂正票配布"],
+["E18","前回版の見直しと更新箇所の洗い出し",-21,"更新箇所リスト確定"],
+["E18","作成・記入",-7,"記入完了"],
+["E18","レビュー・確定",0,"社長承認"],
+["E19","アセスメントシートの配布",-14,"全部門へ配布"],
+["E19","各部門の記入",-3,"全部門提出"],
+["E19","集計・フィードバック",7,"結果を全社共有"],
+["E20","当期実行計画の達成率集計",-14,"全部門の達成率確定"],
+["E20","未達要因の分析",-7,"部門ごとに要因記載"],
+["E20","アセスメント実施",0,"実施完了"],
+["E20","翌期実行計画への反映",21,"翌期計画へ反映"],
+["E21","入社手続書類の回収",-14,"全員回収"],
+["E21","備品・アカウント・席の準備",-7,"準備完了"],
+["E21","式次第・配属発表の確定",-3,"社長承認"],
+["E21","入社式実施",0,"開催完了"],
+["E21","初期研修の開始",1,"研修スケジュール開始"],
+["E22","内定者への案内送付",-30,"全員へ送付・出欠確認"],
+["E22","式次第・配布資料の準備",-7,"準備完了"],
+["E22","内定式実施",0,"開催完了"],
+["E22","入社までのフォロー計画開始",7,"フォロー予定を登録"],
+["E23","行き先・日程の決定",-120,"社長承認"],
+["E23","予約・手配",-90,"予約完了"],
+["E23","参加者確定・しおり作成",-14,"しおり配布"],
+["E23","実施",0,"実施完了"],
+["E24","日程・会場の確保",-60,"予約完了"],
+["E24","テーマ・進行の設計",-14,"進行表確定"],
+["E24","実施",0,"実施完了"],
+["E24","アウトプットの整理と共有",7,"成果物を全社共有"],
+["E25","当期方針の振り返り資料作成",-14,"資料確定"],
+["E25","実施（翌期方針の骨子づくり）",0,"骨子確定"],
+["E25","経営計画書原稿への反映",21,"原稿へ反映"],
+["E26","日程・会場の確保",-90,"予約完了"],
+["E26","プログラム設計",-21,"進行表確定"],
+["E26","実施",0,"実施完了"],
+["E26","受講レポート回収",7,"全員提出"],
+["E27","同行対象者・訪問先の決定",-14,"対象確定"],
+["E27","実施",0,"実施完了"],
+["E27","振り返りコメントの返却",3,"対象者へ返却"],
+["E28","受入先・日程の調整",-30,"日程確定"],
+["E28","見学ルート・説明担当の確定",-7,"担当確定"],
+["E28","環境整備の最終確認",-1,"全エリア確認完了"],
+["E28","受入実施",0,"実施完了"],
+["E29","参加申込",-30,"申込完了"],
+["E29","参加・持ち帰り事項の整理",3,"幹部へ共有"],
+["E30","日程確保・スケジュール調整",-30,"予定確定"],
+["E30","参加・学びの整理",3,"幹部へ共有"],
+["E31","出欠の確定",-14,"出欠回答"],
+["E31","参加",0,"参加完了"]
+];
+
+/* ---------- 導出 ---------- */
+const EV = Object.fromEntries(EVENTS.map(e=>[e.id,e]));
+const TASKS = TASKS_RAW.map((t,i)=>({tid:"T"+String(i+1).padStart(3,"0"),ev:t[0],name:t[1],off:t[2],cond:t[3]}));
+const TASKS_BY_EV = {};
+TASKS.forEach(t=>{(TASKS_BY_EV[t.ev]=TASKS_BY_EV[t.ev]||[]).push(t)});
+
+/* ---------- 状態 ---------- */
+const state = { fy:null, today:null, done:{}, owner:{}, open:{}, me:null, selfOnly:false };
+
+const MS = 86400000;
+const ymd = d => d.toISOString().slice(0,10);
+const parseYmd = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+const fmtFull = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+const WD = ["日","月","火","水","木","金","土"];
+
+function evDate(md, fyYear){
+  const [m,d] = md;
+  return new Date(m===12 ? fyYear : fyYear+1, m-1, d);
+}
+
+/* 期内の全タスクインスタンスを生成 */
+function buildInstances(){
+  const fyYear = state.fy.y;
+  const out = [];
+  EVENTS.forEach(e=>{
+    e.dates.forEach((md,oi)=>{
+      const base = evDate(md, fyYear);
+      (TASKS_BY_EV[e.id]||[]).forEach(t=>{
+        const due = new Date(base.getTime() + t.off*MS);
+        out.push({
+          key:`${state.fy.ki}|${t.tid}|${oi}`,
+          ev:e, occIdx:oi, occDate:base, task:t, due
+        });
+      });
+    });
+  });
+  out.sort((a,b)=>a.due-b.due);
+  return out;
+}
+let INST = [];
+
+const isDone = k => !!state.done[k];
+const ownerOf = t => state.owner[t.tid] || "";
+function dueClass(inst){
+  if(isDone(inst.key)) return "";
+  const diff = Math.round((inst.due - state.today)/MS);
+  if(diff < 0) return "over";
+  if(diff <= 7) return "soon";
+  return "";
+}
+function dueLabel(inst){
+  const diff = Math.round((inst.due - state.today)/MS);
+  const base = `${fmt(inst.due)}(${WD[inst.due.getDay()]})`;
+  if(isDone(inst.key)) return base;
+  if(diff < 0) return `${base} ${-diff}日超過`;
+  if(diff === 0) return `${base} 本日`;
+  if(diff <= 7) return `${base} あと${diff}日`;
+  return base;
+}
+
+/* ---------- 描画：共通タスク行 ---------- */
+function taskRow(inst, showEvent){
+  const d = isDone(inst.key);
+  const cls = dueClass(inst);
+  const own = ownerOf(inst.task);
+  const row = document.createElement("div");
+  row.className = "trow" + (d?" isdone":"");
+  row.innerHTML = `
+    <div><input type="checkbox" ${d?"checked":""} aria-label="完了"></div>
+    <div>
+      <div class="tname">${esc(inst.task.name)}</div>
+      <div class="tmeta">完了条件：<b>${esc(inst.task.cond)}</b></div>
+    </div>
+    <div class="tdue ${cls}">${dueLabel(inst)}</div>
+    <div class="owner"><input type="text" placeholder="実行者を入力" value="${esc(own)}" class="${own?"":"blank"}"></div>
+    <div class="tev">${showEvent ? esc(inst.ev.name)+"<br><span style='color:var(--ink-3);font-family:var(--mono);font-size:11px'>"+fmt(inst.occDate)+"</span>" : ""}</div>`;
+  row.querySelector('input[type=checkbox]').addEventListener("change", async ev=>{
+    const on = ev.target.checked;
+    const who = state.me ? (state.me.full_name || state.me.email) : "";
+    if(on) state.done[inst.key] = {at: ymd(state.today), by: who};
+    else delete state.done[inst.key];
+    render();
+    await saveStatus(inst, on, who);
+  });
+  const oi = row.querySelector('.owner input');
+  oi.addEventListener("change", async ev=>{
+    const v = ev.target.value.trim();
+    if(v) state.owner[inst.task.tid] = v; else delete state.owner[inst.task.tid];
+    render();
+    await saveOwner(inst.task.tid, v);
+    toast(v ? `実行者を「${v}」にしました（同じタスクの全回に反映）` : "実行者を空にしました");
+  });
+  return row;
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- Supabaseへの保存／読み込み ---------- */
+async function saveStatus(inst, on, who){
+  if(!ONLINE) return;
+  setSave("busy","保存中…");
+  try{
+    if(on){
+      await sbUpsert(SB.status, [{
+        key: inst.key, ki: state.fy.ki, task_id: inst.task.tid, occ_idx: inst.occIdx,
+        done: true, done_at: ymd(state.today), done_by: who
+      }]);
+    }else{
+      await sbDelete(SB.status, `key=eq.${encodeURIComponent(inst.key)}`);
+    }
+    setSave("ok","保存済み");
+  }catch(e){ ONLINE=false; setSave("off","未保存"); banner("保存できませんでした。通信状態を確認して画面を再読み込みしてください。（"+e.message+"）"); }
+}
+async function saveOwner(tid, v){
+  if(!ONLINE) return;
+  setSave("busy","保存中…");
+  try{
+    if(v) await sbUpsert(SB.owner, [{task_id: tid, owner: v}]);
+    else  await sbDelete(SB.owner, `task_id=eq.${encodeURIComponent(tid)}`);
+    setSave("ok","保存済み");
+  }catch(e){ ONLINE=false; setSave("off","未保存"); banner("保存できませんでした。通信状態を確認して画面を再読み込みしてください。（"+e.message+"）"); }
+}
+async function loadAll(){
+  setSave("busy","読み込み中…");
+  try{
+    const [st, ow] = await Promise.all([
+      sbGet(SB.status, `ki=eq.${state.fy.ki}&select=key,done_at,done_by`),
+      sbGet(SB.owner,  `select=task_id,owner`)
+    ]);
+    state.done = {}; state.owner = {};
+    st.forEach(r=>{ state.done[r.key] = {at:r.done_at, by:r.done_by||""}; });
+    ow.forEach(r=>{ if(r.owner) state.owner[r.task_id] = r.owner; });
+    ONLINE = true; banner(null); setSave("ok","保存済み");
+  }catch(e){
+    ONLINE = false; setSave("off","未接続");
+    banner("記録サーバーに接続できません。閲覧はできますが、チェックは保存されません。（"+e.message+"）");
+  }
+}
+
+function group(title, insts, showEvent, pillClass){
+  const c = document.createElement("div"); c.className="card";
+  const h = document.createElement("h3");
+  h.innerHTML = `<span>${esc(title)}</span><span class="pill ${pillClass||""}">${insts.length}件</span>`;
+  c.appendChild(h);
+  if(!insts.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="ありません"; c.appendChild(e); }
+  else insts.forEach(i=>c.appendChild(taskRow(i, showEvent)));
+  return c;
+}
+
+/* ---------- 1. 今週のやること ---------- */
+function viewNow(){
+  const el = document.getElementById("v-now"); el.innerHTML="";
+
+  if(state.me){
+    const sw = document.createElement("div"); sw.className="filters";
+    sw.innerHTML = `<span style="font-size:12.5px;color:var(--ink-2)">表示</span>
+      <span class="selfsw">
+        <button id="sw-all"  aria-pressed="${!state.selfOnly}">全員</button>
+        <button id="sw-self" aria-pressed="${state.selfOnly}">自分のタスクのみ</button>
+      </span>`;
+    el.appendChild(sw);
+    sw.querySelector("#sw-all").addEventListener("click",()=>{state.selfOnly=false;render();});
+    sw.querySelector("#sw-self").addEventListener("click",()=>{state.selfOnly=true;render();});
+  }
+
+  const myName = state.me ? (state.me.full_name || state.me.email) : "";
+  let open = INST.filter(i=>!isDone(i.key));
+  if(state.selfOnly && myName) open = open.filter(i=>ownerOf(i.task) === myName);
+  const day = d => Math.round((d - state.today)/MS);
+  const over  = open.filter(i=>day(i.due) < 0);
+  const today = open.filter(i=>day(i.due) === 0);
+  const week  = open.filter(i=>day(i.due) > 0 && day(i.due) <= 7);
+  const next  = open.filter(i=>day(i.due) > 7 && day(i.due) <= 14);
+
+  el.appendChild(group("期限を過ぎている", over, true, "over"));
+  el.appendChild(group("本日", today, true, "soon"));
+  el.appendChild(group("今週（7日以内）", week, true, "soon"));
+  el.appendChild(group("来週（8〜14日）", next, true));
+
+  if(state.selfOnly && !over.length && !today.length && !week.length && !next.length){
+    const p = document.createElement("p"); p.className="note";
+    p.textContent = "あなたが実行者になっているタスクはありません。「行事別」タブで実行者を設定できます。";
+    el.appendChild(p);
+  }
+
+  const n = over.length + today.length + week.length;
+  const badge = document.getElementById("c-now");
+  badge.hidden = n===0; badge.textContent = n;
+}
+
+/* ---------- 2. 年間カレンダー ---------- */
+function viewCal(){
+  const el = document.getElementById("v-cal"); el.innerHTML="";
+  const wrap = document.createElement("div"); wrap.className="months";
+  const order = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const nowM = state.today.getMonth()+1, nowY = state.today.getFullYear();
+  order.forEach(m=>{
+    const y = m===12 ? state.fy.y : state.fy.y+1;
+    const box = document.createElement("div"); box.className="mo";
+    if(m===nowM && y===nowY) box.classList.add("now");
+    const occs = [];
+    EVENTS.forEach(e=>e.dates.forEach((md,oi)=>{ if(md[0]===m) occs.push({e,oi,d:evDate(md,state.fy.y)}); }));
+    occs.sort((a,b)=>a.d-b.d);
+    box.innerHTML = `<h4><span>${y}年 ${m}月</span><span style="font-family:var(--mono)">${occs.length}</span></h4>`;
+    const ul = document.createElement("ul");
+    if(!occs.length) ul.innerHTML = `<li style="color:var(--ink-3)">行事なし</li>`;
+    occs.forEach(o=>{
+      const set = INST.filter(i=>i.ev.id===o.e.id && i.occIdx===o.oi);
+      const done = set.filter(i=>isDone(i.key)).length;
+      const overdue = set.some(i=>!isDone(i.key) && i.due < state.today);
+      let st = ""; if(set.length && done===set.length) st="ok"; else if(overdue) st="over"; else if(done>0) st="part";
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="st ${st}"></span><span class="d">${fmt(o.d)}</span><span class="nm">${esc(o.e.name)}</span>`;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul); wrap.appendChild(box);
+  });
+  el.appendChild(wrap);
+  const legend = document.createElement("p"); legend.className="note";
+  legend.innerHTML = "●緑＝その回のタスクが全て完了　●黄＝一部完了　●赤＝期限超過あり　●灰＝未着手";
+  el.appendChild(legend);
+}
+
+/* ---------- 3. 行事別 ---------- */
+function viewEv(){
+  const el = document.getElementById("v-ev"); el.innerHTML="";
+
+  const f = document.createElement("div"); f.className="filters";
+  const cats = [...new Set(EVENTS.map(e=>e.cat))];
+  f.innerHTML = `<label for="fcat" style="font-size:12.5px;color:var(--ink-2)">区分</label>
+    <select id="fcat"><option value="">すべて</option>${cats.map(c=>`<option ${state.fcat===c?"selected":""}>${c}</option>`).join("")}</select>
+    <input type="search" id="fq" placeholder="行事名で絞り込む" value="${esc(state.fq||"")}" style="min-width:200px">`;
+  el.appendChild(f);
+  f.querySelector("#fcat").addEventListener("change",e=>{state.fcat=e.target.value;render();});
+  f.querySelector("#fq").addEventListener("input",e=>{state.fq=e.target.value;render();});
+
+  const card = document.createElement("div"); card.className="card";
+  let shown = 0;
+  EVENTS.forEach(e=>{
+    if(state.fcat && e.cat!==state.fcat) return;
+    if(state.fq && !e.name.includes(state.fq)) return;
+    shown++;
+    const set = INST.filter(i=>i.ev.id===e.id);
+    const done = set.filter(i=>isDone(i.key)).length;
+    const pct = set.length ? Math.round(done/set.length*100) : 0;
+    const noOwner = (TASKS_BY_EV[e.id]||[]).filter(t=>!ownerOf(t)).length;
+
+    const box = document.createElement("div"); box.className="ev";
+    box.dataset.open = state.open[e.id] ? "1" : "0";
+    const head = document.createElement("button");
+    head.className="evhead"; head.setAttribute("aria-expanded", state.open[e.id]?"true":"false");
+    head.innerHTML = `
+      <div>
+        <div class="evname">${esc(e.name)}</div>
+        <div class="evsub">${esc(e.cat)}／${esc(e.freq)}／${esc(e.dept)}　方針：${e.ho.map(esc).join("・")}${noOwner?`　<span style="color:var(--amber)">実行者未設定 ${noOwner}件</span>`:""}</div>
+      </div>
+      <div class="evdates">${e.dates.map(md=>fmt(evDate(md,state.fy.y))).join(" / ")}</div>
+      <div class="prog"><span class="track"><i style="width:${pct}%"></i></span><span class="pct">${pct}%</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:right">${done}/${set.length}</div>
+      <div class="chev">▸</div>`;
+    head.addEventListener("click",()=>{ state.open[e.id] = !state.open[e.id]; render(); });
+    box.appendChild(head);
+
+    if(state.open[e.id]){
+      const body = document.createElement("div"); body.className="evbody";
+      e.dates.forEach((md,oi)=>{
+        const d = evDate(md, state.fy.y);
+        const occ = document.createElement("div"); occ.className="occ";
+        occ.textContent = `${fmtFull(d)}（${WD[d.getDay()]}）実施回`;
+        body.appendChild(occ);
+        INST.filter(i=>i.ev.id===e.id && i.occIdx===oi).forEach(i=>body.appendChild(taskRow(i,false)));
+      });
+      box.appendChild(body);
+    }
+    card.appendChild(box);
+  });
+  if(!shown){ card.innerHTML = `<div class="empty">条件に合う行事がありません</div>`; }
+  el.appendChild(card);
+}
+
+/* ---------- 4. 方針別 ---------- */
+function viewHo(){
+  const el = document.getElementById("v-ho"); el.innerHTML="";
+  const card = document.createElement("div"); card.className="card";
+  card.innerHTML = `<h3><span>方針と行事の対応</span><span class="pill">${HOUSHIN.length}区分</span></h3>`;
+  const tb = document.createElement("table"); tb.className="h";
+  tb.innerHTML = `<thead><tr><th class="no">No</th><th>方針（カレンダー表記）</th><th>紐づく行事</th><th>実行状況</th></tr></thead>`;
+  const body = document.createElement("tbody");
+  HOUSHIN.forEach((h,idx)=>{
+    const evs = EVENTS.filter(e=>e.ho.includes(h));
+    const set = INST.filter(i=>evs.some(e=>e.id===i.ev.id));
+    const done = set.filter(i=>isDone(i.key)).length;
+    const pct = set.length ? Math.round(done/set.length*100) : 0;
+    const tr = document.createElement("tr");
+    if(!evs.length) tr.className="orphan";
+    tr.innerHTML = `<td class="no">${idx+1}</td>
+      <td class="nm">${esc(h)}</td>
+      <td class="ev">${evs.length ? evs.map(e=>esc(e.name)).join("、") : "<span style='color:var(--ink-3)'>行事に紐づいていない（日々の実行のみ）</span>"}</td>
+      <td class="pr">${set.length ? `<div class="prog"><span class="track"><i style="width:${pct}%"></i></span><span class="pct">${pct}%</span></div>` : "—"}</td>`;
+    body.appendChild(tr);
+  });
+  tb.appendChild(body); card.appendChild(tb); el.appendChild(card);
+  const n = HOUSHIN.filter(h=>!EVENTS.some(e=>e.ho.includes(h))).length;
+  const p = document.createElement("p"); p.className="note";
+  p.innerHTML = `${n}区分は行事に紐づいていません。輪読のみで実行タスクを持たない方針か、行事の登録漏れかを切り分ける材料になります。`;
+  el.appendChild(p);
+}
+
+/* ---------- 5. 未実施 ---------- */
+function viewAl(){
+  const el = document.getElementById("v-al"); el.innerHTML="";
+  const over = INST.filter(i=>!isDone(i.key) && i.due < state.today);
+  el.appendChild(group("期限を過ぎているタスク", over, true, "over"));
+
+  const noOwner = TASKS.filter(t=>!ownerOf(t));
+  const c = document.createElement("div"); c.className="card";
+  c.innerHTML = `<h3><span>実行者が決まっていないタスク</span><span class="pill ${noOwner.length?"soon":"done"}">${noOwner.length}件</span></h3>`;
+  if(!noOwner.length){ c.insertAdjacentHTML("beforeend",`<div class="empty">全てのタスクに実行者が設定されています</div>`); }
+  else{
+    const byEv = {};
+    noOwner.forEach(t=>{(byEv[t.ev]=byEv[t.ev]||[]).push(t)});
+    Object.keys(byEv).forEach(eid=>{
+      const d = document.createElement("div");
+      d.style.cssText="padding:8px 14px;border-bottom:1px solid #f0f1f3;font-size:13px";
+      d.innerHTML = `<b>${esc(EV[eid].name)}</b><span style="color:var(--ink-3);font-size:12px">（${byEv[eid].length}件）</span>
+        <div style="color:var(--ink-2);font-size:12.5px;margin-top:2px">${byEv[eid].map(t=>esc(t.name)).join("／")}</div>`;
+      c.appendChild(d);
+    });
+  }
+  el.appendChild(c);
+
+  const badge = document.getElementById("c-al");
+  const n = over.length + noOwner.length;
+  badge.hidden = n===0; badge.textContent = n;
+}
+
+/* ---------- 期の物差し ---------- */
+function viewRuler(){
+  const r = document.getElementById("ruler"); r.innerHTML="";
+  const order = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const nowM = state.today.getMonth()+1, nowY = state.today.getFullYear();
+  order.forEach(m=>{
+    const y = m===12 ? state.fy.y : state.fy.y+1;
+    const set = INST.filter(i=>i.due.getMonth()+1===m && i.due.getFullYear()===y);
+    const done = set.filter(i=>isDone(i.key)).length;
+    const pct = set.length ? Math.round(done/set.length*100) : 0;
+    const d = document.createElement("div");
+    d.className = "rm" + (m===nowM && y===nowY ? " now" : "");
+    d.innerHTML = `<div class="m">${m}月</div><div class="bar"><i style="width:${pct}%"></i></div><div class="n">${done}/${set.length}</div>`;
+    r.appendChild(d);
+  });
+}
+
+/* ---------- タブ ---------- */
+const TABS = [["t-now","v-now"],["t-cal","v-cal"],["t-ev","v-ev"],["t-ho","v-ho"],["t-al","v-al"]];
+let current = "t-now";
+TABS.forEach(([tb,vw])=>{
+  document.getElementById(tb).addEventListener("click",()=>{ current=tb; render(); });
+});
+
+function render(){
+  INST = buildInstances();
+  viewRuler(); viewNow(); viewCal(); viewEv(); viewHo(); viewAl();
+  TABS.forEach(([tb,vw])=>{
+    const on = tb===current;
+    document.getElementById(tb).setAttribute("aria-selected", on?"true":"false");
+    document.getElementById(vw).hidden = !on;
+  });
+}
+
+/* ---------- 入出力 ---------- */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("on"), 2200);
+}
+function download(name, text, type){
+  const b = new Blob([text],{type}); const u = URL.createObjectURL(b);
+  const a = document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+document.getElementById("exp").addEventListener("click",()=>{
+  download(`方針実行ボード_${state.fy.ki}期_記録.json`,
+    JSON.stringify({ki:state.fy.ki, savedAt:ymd(new Date()), done:state.done, owner:state.owner}, null, 1),
+    "application/json");
+  toast("記録を書き出しました");
+});
+document.getElementById("reload").addEventListener("click",async ()=>{
+  await loadAll(); render();
+  toast(ONLINE ? "最新の状態にしました" : "記録サーバーに接続できません");
+});
+document.getElementById("csv").addEventListener("click",()=>{
+  const head = ["行事ID","行事名","実施日","タスクID","タスク名","実行者","期限","完了条件","状態","完了日","チェックした人"];
+  const rows = INST.map(i=>[
+    i.ev.id, i.ev.name, fmtFull(i.occDate), i.task.tid, i.task.name,
+    ownerOf(i.task), fmtFull(i.due), i.task.cond,
+    isDone(i.key) ? "完了" : (i.due < state.today ? "超過" : "未"),
+    (state.done[i.key]||{}).at || "", (state.done[i.key]||{}).by || ""
+  ]);
+  const csv = "\uFEFF" + [head, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  download(`方針実行ボード_${state.fy.ki}期_タスク一覧.csv`, csv, "text/csv");
+  toast("CSVを書き出しました");
+});
+
+/* ---------- 起動 ---------- */
+async function init(){
+  /* 共通認証：全社公開のため全ロールを許可 */
+  if(window.EC && !window.__ecAuthMissing){
+    try{
+      await EC.guard({allow:["admin","manager","sales","field","viewer","staff"]});
+      state.me = await EC.me();
+      if(EC.mountBadge) EC.mountBadge();
+      if(state.me){
+        const nm = state.me.full_name || state.me.email || "";
+        document.getElementById("who").hidden = false;
+        document.getElementById("av").textContent = nm.slice(0,1);
+        document.getElementById("menm").textContent = nm;
+        document.getElementById("merole").textContent = ({admin:"管理者",manager:"マネージャー",sales:"営業",field:"現場",viewer:"閲覧のみ",staff:"間接部門"})[state.me.role] || state.me.role || "";
+      }
+    }catch(e){ /* guard 側で画面遷移する想定 */ }
+  }else{
+    banner("プレビュー表示です。社内公開時は会社のGoogleアカウントでのログインが必要になります。");
+  }
+
+  const sel = document.getElementById("fy");
+  FYS.forEach(f=>{
+    const o = document.createElement("option");
+    o.value = f.ki; o.textContent = `${f.ki}期（${f.y}年12月〜${f.y+1}年11月）`;
+    sel.appendChild(o);
+  });
+  state.fy = FYS[0]; sel.value = state.fy.ki;
+  sel.addEventListener("change",async e=>{
+    state.fy = FYS.find(f=>String(f.ki)===e.target.value);
+    render(); await loadAll(); render();
+    toast(`${state.fy.ki}期に切り替えました`);
+  });
+
+  const ti = document.getElementById("today");
+  const now = new Date(); now.setHours(0,0,0,0);
+  state.today = now; ti.value = ymd(now);
+  ti.addEventListener("change",e=>{
+    if(!e.target.value) return;
+    state.today = parseYmd(e.target.value); render();
+  });
+
+  render();
+  await loadAll();
+  render();
+}
+init();
+</script>
+</body>
+</html>
