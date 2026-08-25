@@ -727,6 +727,36 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   width:26px;height:26px;transform:rotate(-45deg);display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 .map-pin b{transform:rotate(45deg);font-size:10px;font-weight:800}
 .map-pin.won{background:#1f8a55}.map-pin.lost{background:#8893a2;border-color:#c8d2dd}.map-pin.hot{background:#c0392b}
+/* ===== 投資後FIT残バッジ ===== */
+.fitchip{display:inline-block;font-size:11.5px;font-weight:800;color:#fff;border-radius:5px;
+  padding:2px 7px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fitchip.g{background:#1f8a55}.fitchip.n{background:#2a6fb0}
+.fitchip.o{background:#c98414}.fitchip.r{background:#c0392b}.fitchip.x{background:#9aa3ad}
+/* ===== マップ（実住所＋現在地） ===== */
+.map-tools{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:11px}
+.map-tools select,.map-tools label{font-size:12px;color:var(--navy2)}
+.map-tools select{padding:6px 9px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.map-tools .gstat{font-size:11.5px;color:var(--muted)}
+.map-split{display:grid;grid-template-columns:330px 1fr;gap:13px;align-items:start}
+.map-list{border:1px solid var(--line);border-radius:var(--r);background:#fff;overflow:auto;
+  height:calc(100vh - 268px);min-height:440px}
+.map-list .mi{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent}
+.map-list .mi:hover{background:#f4f7fb}
+.map-list .mi.on{background:#eef3fb;border-left-color:var(--navy)}
+.map-list .mi .nm{font-weight:700;font-size:13px;color:var(--navy2);line-height:1.35}
+.map-list .mi .ad{font-size:11px;color:var(--muted);margin:2px 0 6px;line-height:1.5}
+.map-list .mi .tg{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.map-list .mi .km{background:#fff5e0;border:1px solid #f0dcae;color:#8a6011;font-weight:800;
+  font-size:11px;border-radius:5px;padding:1px 6px;font-variant-numeric:tabular-nums}
+.map-list .mi .kw{background:#eef0f4;color:#5b6478;font-size:11px;border-radius:5px;padding:1px 6px}
+.map-list .none{padding:34px 18px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.9}
+.dot{border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.42)}
+.dot.cust{border-radius:3px;transform:rotate(45deg)}
+.dot.here{background:#2a6fb0;box-shadow:0 0 0 7px rgba(42,111,176,.22)}
+.mlegend{background:rgba(255,255,255,.95);padding:8px 10px;border-radius:7px;font-size:11px;line-height:1.85;
+  box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.mlegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+@media(max-width:900px){.map-split{grid-template-columns:1fr}.map-list{height:280px;min-height:0}}
 </style>
 
 <!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
@@ -911,7 +941,8 @@ const REDFLAGS = [
 /* ---------- default inputs ---------- */
 function blankInputs(){return{
   customer:'', location:'', mapUrl:'', ddSheetUrl:'', simSheetUrl:'', simSyncUrl:'', plantName:'', buyer:'', contractType:'FIT',
-  gridDate:'', landType:'所有',
+  gridDate:'', handoverDate:'', landType:'所有',
+  custAddress:'', siteLat:'', siteLng:'', custLat:'', custLng:'', geoAt:'',
   fitPrice:36, sotsuFit:12, sotsuYears:10, sotsuApply:'適応',
   dcExisting:'', acExisting:'', panelMaker:'', pcsMaker:'', pcsCount:1, pcsReplaced:'無',
   mount:'固定', orientation:'', initialEquip:0,
@@ -952,8 +983,23 @@ const kwh = v => (v===''||v==null||!isFinite(v))?'—':Math.round(v).toLocaleStr
 function derive(I){
   const Y=new Date().getFullYear();
   const gridYear = I.gridDate? parseInt(String(I.gridDate).slice(0,4)) : NaN;
-  const elapsed = isFinite(gridYear)? (Y-gridYear) : 11;
-  const residual = Math.max(20 - elapsed, 0);
+  /* --- FIT残：連系日＋20年 を「引渡日（投資実行日）」から逆算する。
+         引渡日が未入力のときだけ本日基準にフォールバックする --- */
+  const gridD = I.gridDate? new Date(I.gridDate+'T00:00:00') : null;
+  const baseD = I.handoverDate? new Date(I.handoverDate+'T00:00:00') : new Date();
+  const fitEnd = (gridD && isFinite(gridD))
+    ? new Date(gridD.getFullYear()+20, gridD.getMonth(), gridD.getDate()-1) : null;
+  const DAY=86400000, YR=365.25*DAY;
+  const elapsedExact = (gridD&&isFinite(gridD))? Math.max((baseD-gridD)/YR,0) : 11;
+  const residualExact = fitEnd? Math.max((fitEnd-baseD)/YR,0) : null;
+  const elapsed = Math.floor(elapsedExact);
+  const residual = residualExact!=null
+    ? Math.max(Math.min(Math.floor(residualExact),20),0)
+    : Math.max(20-elapsed,0);
+  const fitEndStr = fitEnd? (fitEnd.getFullYear()+'/'+String(fitEnd.getMonth()+1).padStart(2,'0')) : '';
+  const residualLabel = residualExact==null? '—'
+    : (Math.floor(residualExact)+'年'+Math.min(Math.round((residualExact-Math.floor(residualExact))*12),11)+'か月');
+  const investBased = !!I.handoverDate;
   const fit=n(I.fitPrice), gen=n(I.actualGen);
   const rfEx=n(I.rfPriceEx), rfIn=Math.round(rfEx*1.1);
   const cost=n(I.rfCostTotal), gross=n(I.rfGrossTotal);
@@ -964,15 +1010,50 @@ function derive(I){
   const goodwillEx=Math.round(saleEx*gw/100);
   const secGross=saleEx-secEx, secGrossRate=saleEx>0?secGross/saleEx:0;
   const removal=Math.round(gen*removalTier(fit));
-  const residLife=Math.max(Math.trunc(elapsed>=17?17*0.2:17-elapsed+elapsed*0.2),2);
+  const residLife=Math.max(Math.trunc(elapsedExact>=17?17*0.2:17-elapsedExact+elapsedExact*0.2),2);
   const rfGenAfter=n(I.rfGenAfter);
   const rfGenRate = gen>0? (rfGenAfter-gen)/gen : 0;
-  const ref50 = gen*fit*residual*0.5 - n(I.landRent)*residual;
-  const ref55 = gen*fit*residual*0.55 - n(I.landRent)*residual;
+  /* 参考相場は端数年も収益になるため小数の残年数で計算する（査定シートC61/C62と一致） */
+  const RY = residualExact!=null? residualExact : residual;
+  const ref50 = gen*fit*RY*0.5 - n(I.landRent)*RY;
+  const ref55 = gen*fit*RY*0.55 - n(I.landRent)*RY;
   const retireResid = Math.round(n(I.initialEquip)/17*residLife);
-  return {Y,gridYear,elapsed,residual,fit,gen,rfEx,rfIn,cost,gross,grossRate,
+  return {Y,gridYear,elapsed,elapsedExact,residual,residualExact,residualLabel,fitEnd,fitEndStr,investBased,
+    fit,gen,rfEx,rfIn,cost,gross,grossRate,
     secEx,saleEx,gw,saleIn,usedEx,goodwillEx,secGross,secGrossRate,removal,residLife,
     rfGenAfter,rfGenRate,ref50,ref55,retireResid};
+}
+
+/* ---------- FIT残の表示ヘルパー ---------- */
+function fitCls(y){ if(y==null||!isFinite(y))return 'x'; return y<5?'r':y<10?'o':y<15?'n':'g'; }
+function fitBadge(der){
+  if(der.residualExact==null) return '<span class="hint">—</span>';
+  const t=(der.investBased?'引渡日基準':'本日基準')+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
+  return `<span class="fitchip ${fitCls(der.residualExact)}" title="${t}">${der.residualLabel}</span>`;
+}
+/* GoogleマップURLから緯度経度を読み取る（取得できれば検索より正確） */
+function coordsFromUrl(u){
+  if(!u) return null; const s=String(u);
+  let m=s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/); if(m) return {lat:+m[1],lng:+m[2]};
+  m=s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);          if(m) return {lat:+m[1],lng:+m[2]};
+  m=s.match(/[?&](?:q|ll|daddr)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/); if(m) return {lat:+m[1],lng:+m[2]};
+  return null;
+}
+/* 国土地理院の住所検索（APIキー不要） */
+async function gsiGeocode(addr){
+  if(!addr) return null;
+  const q=String(addr).replace(/\s+/g,'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+  const r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
+  if(!r.ok) throw new Error('住所検索に接続できません');
+  const j=await r.json();
+  if(!Array.isArray(j)||!j.length) return null;
+  const c=j[0].geometry.coordinates;   // [lng, lat]
+  return {lat:+c[1], lng:+c[0]};
+}
+function kmBetween(a,b,c,d){
+  const R=6371,r=Math.PI/180, dLa=(c-a)*r, dLo=(d-b)*r;
+  const x=Math.sin(dLa/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
 /* ---------- 一次判定 ---------- */
@@ -1458,7 +1539,7 @@ function renderCustTree(){
 }
 
 /* ==================== LIST ==================== */
-let listFilter={q:'',stage:'',owner:'',category:'',voltage:'',preset:''};
+let listFilter={q:'',stage:'',owner:'',category:'',voltage:'',preset:'',sort:'updated'};
 function isHV(d){const kw=n(d.inputs.acExisting)||n(d.inputs.dcExisting)||0;return kw>=50;}
 let lastListRows=[];
 function renderList(){
@@ -1475,6 +1556,7 @@ function renderList(){
     <select id="lvolt"><option value="">全区分</option><option ${listFilter.voltage==='高圧'?'selected':''}>高圧</option><option ${listFilter.voltage==='低圧'?'selected':''}>低圧</option></select>
     <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
     <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
+    <select id="lsort">${[['updated','更新が新しい順'],['fitAsc','FIT残が短い順'],['fitDesc','FIT残が長い順']].map(([k,t])=>`<option value="${k}" ${listFilter.sort===k?'selected':''}>${t}</option>`).join('')}</select>
     <div style="flex:1"></div>
     <button class="btn btn-line btn-sm" id="lsheet">📄 一括シート印刷</button>
     <button class="btn btn-line btn-sm" id="lcsv">CSV出力</button>
@@ -1494,7 +1576,14 @@ function renderList(){
     if(listFilter.q){const q=listFilter.q.toLowerCase();
       if(!((d.name||'').toLowerCase().includes(q)||(d.inputs.location||'').toLowerCase().includes(q)))return false;}
     return true;
-  }).sort((a,b)=>b.updatedAt-a.updatedAt);
+  });
+  const fy=d=>{const x=derive(d.inputs).residualExact;return (x==null||!isFinite(x))?null:x;};
+  if(listFilter.sort==='fitAsc'||listFilter.sort==='fitDesc'){
+    const dir=listFilter.sort==='fitAsc'?1:-1;
+    rows.sort((a,b)=>{const x=fy(a),y=fy(b);
+      if(x==null&&y==null)return b.updatedAt-a.updatedAt;
+      if(x==null)return 1; if(y==null)return -1; return (x-y)*dir;});
+  } else rows.sort((a,b)=>b.updatedAt-a.updatedAt);
   lastListRows=rows;
 
   if(!rows.length){
@@ -1504,6 +1593,7 @@ function renderList(){
   }
   html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>
     <th>案件名</th><th>所在地</th><th>担当</th><th>ステージ</th>
+    <th>投資後FIT残</th>
     <th class="r">DC容量</th><th class="r">発電量/年</th><th class="r">想定IRR</th>
     <th>一次判定</th><th>次アクション・期限</th><th class="r">取引額</th><th>更新</th></tr></thead><tbody>`;
   rows.forEach(d=>{
@@ -1511,6 +1601,7 @@ function renderList(){
     html+=`<tr><td><span class="lnk" data-open="${d.id}">${esc(d.name||'(無題)')}</span><span class="lnk-sheet" data-sheet="${d.id}">📄シート</span></td>
       <td>${esc(d.inputs.location||'—')}</td><td>${esc(d.inputs.owner||'—')}</td>
       <td><span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span></td>
+      <td>${fitBadge(der)}</td>
       <td class="r num">${der.gen?n(d.inputs.dcExisting).toLocaleString():'—'}</td>
       <td class="r num">${kwh(der.gen)}</td>
       <td class="r num">${v2.irr!=null?pct(v2.irr):'—'}</td>
@@ -1532,6 +1623,7 @@ function wireList(){
     listFilter.category='';listFilter.voltage='';listFilter.stage='';renderList();});
   const ls=$('#lstage'); if(ls)ls.onchange=e=>{listFilter.stage=e.target.value;listFilter.preset='';renderList();};
   const lo=$('#lowner'); if(lo)lo.onchange=e=>{listFilter.owner=e.target.value;renderList();};
+  const lso=$('#lsort'); if(lso)lso.onchange=e=>{listFilter.sort=e.target.value;renderList();};
   const cs=$('#lcsv'); if(cs)cs.onclick=exportCSV;
   const sh=$('#lsheet'); if(sh)sh.onclick=()=>{
     if(!lastListRows.length){toast('対象の案件がありません');return;}
@@ -1629,6 +1721,7 @@ const ACC=[
   {id:'basic',t:'① 案件基本情報',open:true,fields:[
     ['__category','カテゴリ','cat'],
     ['customer','お客様名','text'],['location','所在地','text'],['mapUrl','位置URL','text'],
+    ['custAddress','顧客住所（マップの顧客ピン）','text'],
     ['ddSheetUrl','DDチェックリスト（原本URL）','url'],
     ['simSheetUrl','RFSKシミュレーション（原本URL）','url'],
     ['simSyncUrl','RFSK連携（GAS URL・双方向同期）','sync'],
@@ -1636,11 +1729,13 @@ const ACC=[
     ['sitePhoto','現地画像（表紙に使用）','photo'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
     ['gridDate','連系日','date'],
+    ['handoverDate','引渡（投資実行）予定日','date'],
     ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
   ]},
   {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
     ['fitPrice','FIT単価','num','円/kWh'],
-    ['__residual','残FIT年数','auto','年'],
+    ['__residual','投資後FIT残','auto',''],
+    ['__fitEnd','FIT終了（連系＋20年）','auto',''],
     ['sotsuFit','卒FIT単価','num','円/kWh'],['sotsuYears','卒FIT想定年数','num','年'],
     ['sotsuApply','卒FIT反映','sel',['適応','不適合']],
   ]},
@@ -1905,7 +2000,8 @@ function styleStatus(s){s.classList.remove('s-ok','s-ng','s-doing');
 function recompute(){
   const d=derive(I());const j=judge(I());
   const set=(k,v)=>{const e=$('#auto_'+k);if(e)e.value=v;};
-  set('__residual',d.residual+'');
+  set('__residual',d.residualLabel+(d.investBased?'（引渡日基準）':'（本日基準）'));
+  set('__fitEnd',d.fitEndStr||'—');
   set('__util',j.util!=null?pct(j.util):'—');
   set('__rfPriceIn',yen(d.rfIn));
   set('__rfGross',yen(d.gross));
@@ -3051,47 +3147,240 @@ function ensureLeaflet(){
 }
 function renderMap(){
   const v=$('#view-map');
-  v.innerHTML=`<div class="page-h"><h1>マップ</h1><span class="sub">案件を地図上で確認し、ピンから提案シートを開けます</span></div>
+  v.innerHTML=`<div class="page-h"><h1>マップ</h1><span class="sub">所在地・顧客住所を実際の座標で表示し、現在地から近い順に並べます</span></div>
     <div class="map-note" id="mapNote">🗺️ 地図を読み込んでいます…</div>
-    <div class="map-wrap"><div id="map"></div></div>`;
+    <div class="map-tools">
+      <button class="btn btn-gold btn-sm" id="mHere">📍 現在地から近い順</button>
+      <label>半径 <select id="mRad">
+        <option value="0">指定なし</option><option value="20">20km以内</option>
+        <option value="50">50km以内</option><option value="100">100km以内</option>
+        <option value="200">200km以内</option></select></label>
+      <label>FIT残 <select id="mFit">
+        <option value="">全件</option><option value="0-5">5年未満</option>
+        <option value="5-10">5〜10年</option><option value="10-15">10〜15年</option>
+        <option value="15-99">15年以上</option></select></label>
+      <label><input type="checkbox" id="mCust" checked> 顧客住所も表示</label>
+      <button class="btn btn-line btn-sm" id="mGeo">住所から位置を取得</button>
+      <span class="gstat" id="mGeoStat"></span>
+    </div>
+    <div class="map-split">
+      <div class="map-list" id="mList"></div>
+      <div class="map-wrap"><div id="map"></div></div>
+    </div>`;
   ensureLeaflet().then(L=>buildMap(L)).catch(err=>{
     $('#mapNote').innerHTML='⚠ '+esc(err.message||'地図を表示できませんでした');});
 }
+
+/* 案件の座標を決める。①保存済み ②位置URL ③都道府県の代表点（概算） */
+function dealPoint(d){
+  const I=d.inputs||{};
+  const la=parseFloat(I.siteLat), ln=parseFloat(I.siteLng);
+  if(isFinite(la)&&isFinite(ln)) return {lat:la,lng:ln,exact:true};
+  const c=coordsFromUrl(I.mapUrl);
+  if(c) return {lat:c.lat,lng:c.lng,exact:true};
+  const p=prefOf(I.location);
+  if(p) return {lat:PREF[p][0],lng:PREF[p][1],exact:false};
+  return null;
+}
+function custPoint(d){
+  const I=d.inputs||{};
+  const la=parseFloat(I.custLat), ln=parseFloat(I.custLng);
+  return (isFinite(la)&&isFinite(ln))? {lat:la,lng:ln} : null;
+}
+
+let mapOrigin=null, mapPickMode=false, mapMarkers={}, mapL=null;
+
 function buildMap(L){
+  mapL=L;
   if(leafletMap){try{leafletMap.remove();}catch(e){}leafletMap=null;}
   const map=L.map('map',{scrollWheelZoom:true,zoomControl:true}).setView([37.5,138.4],5);
   leafletMap=map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
-  const groups={},noloc=[];
-  DB.deals.forEach(d=>{const p=prefOf(d.inputs.location);if(!p){noloc.push(d);return;}(groups[p]=groups[p]||[]).push(d);});
-  const bounds=[];
-  Object.keys(groups).forEach(p=>{
-    const base=PREF[p],arr=groups[p];
-    arr.forEach((d,i)=>{
-      const ang=i*(2*Math.PI/Math.max(arr.length,1)),r=arr.length>1?0.18:0;
-      const lat=base[0]+r*Math.sin(ang),lng=base[1]+r*Math.cos(ang);
-      bounds.push([lat,lng]);
-      const st=stageOf(d.stage),vd=dealVerdict(d);
-      const cls=d.stage==='won'?'won':d.stage==='lost'?'lost':(vd.ng>0?'hot':'');
-      const icon=L.divIcon({className:'',html:`<div class="map-pin ${cls}"><b>R</b></div>`,iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]});
-      const irr=vd.irr!=null?'IRR '+pct(vd.irr):'';
-      const kw=n(d.inputs.dcExisting)?n(d.inputs.dcExisting).toLocaleString()+'kW':'';
-      const pop=`<div class="lpop"><div class="lp-nm">${esc(d.name||'(無題案件)')}</div>
-        <div class="lp-meta">${esc(d.inputs.location||'所在地未設定')}｜${st.n}</div>
-        <div class="lp-kpi">${irr?`<span>${irr}</span>`:''}${kw?`<span>${kw}</span>`:''}${vd.ng>0?'<span>🚩'+vd.ng+'</span>':''}</div>
-        <div class="lp-btns"><button class="b-open" data-open="${d.id}">案件を開く</button>
-        <button class="b-sheet" data-sheet="${d.id}">📄 提案シート</button></div></div>`;
-      L.marker([lat,lng],{icon}).addTo(map).bindPopup(pop);
-    });
-  });
-  if(bounds.length)map.fitBounds(bounds,{padding:[50,50],maxZoom:8});
+  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+    {maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'}).addTo(map);
+  map.__site=L.layerGroup().addTo(map);
+  map.__cust=L.layerGroup().addTo(map);
+  map.__link=L.layerGroup().addTo(map);
+
+  const lg=L.control({position:'bottomright'});
+  lg.onAdd=function(){const el=L.DomUtil.create('div','mlegend');
+    el.innerHTML='<div><i style="background:#1f8a55"></i>FIT残15年〜</div>'+
+      '<div><i style="background:#2a6fb0"></i>10〜15年</div>'+
+      '<div><i style="background:#c98414"></i>5〜10年</div>'+
+      '<div><i style="background:#c0392b"></i>5年未満</div>'+
+      '<div><i style="background:#7a5cc7;border-radius:2px"></i>顧客住所</div>';
+    return el;};
+  lg.addTo(map);
+
+  map.on('click',e=>{ if(!mapPickMode)return;
+    setMapOrigin(e.latlng.lat,e.latlng.lng,'指定地点'); });
+
   map.on('popupopen',e=>{const el=e.popup.getElement();if(!el)return;
     const ob=el.querySelector('[data-open]');if(ob)ob.onclick=()=>{map.closePopup();openDeal(ob.dataset.open);};
     const sb=el.querySelector('[data-sheet]');if(sb)sb.onclick=()=>{const dd=DB.deals.find(x=>x.id===sb.dataset.sheet);if(dd)openSheet([dd],autoModel(dd));};
   });
+  $('#mHere').onclick=locateMe;
+  $('#mRad').onchange=drawMap; $('#mFit').onchange=drawMap; $('#mCust').onchange=drawMap;
+  $('#mGeo').onclick=runGeocode;
   setTimeout(()=>{try{map.invalidateSize();}catch(e){}},120);
+  drawMap();
+}
+
+function locateMe(){
+  if(!navigator.geolocation){pickOnMap();return;}
+  $('#mGeoStat').textContent='現在地を取得中…';
+  navigator.geolocation.getCurrentPosition(
+    p=>setMapOrigin(p.coords.latitude,p.coords.longitude,'現在地'),
+    ()=>{$('#mGeoStat').textContent='';pickOnMap();},
+    {enableHighAccuracy:true,timeout:8000});
+}
+function pickOnMap(){
+  mapPickMode=true;
+  if(leafletMap)leafletMap.getContainer().style.cursor='crosshair';
+  toast('地図をクリックすると、その地点を基準に近い順で並べます');
+}
+function setMapOrigin(lat,lng,label){
+  mapOrigin={lat,lng,label}; mapPickMode=false;
+  if(leafletMap){
+    leafletMap.getContainer().style.cursor='';
+    if(leafletMap.__here)leafletMap.removeLayer(leafletMap.__here);
+    leafletMap.__here=mapL.marker([lat,lng],{icon:mapL.divIcon({className:'',iconSize:[15,15],iconAnchor:[7,7],
+      html:'<div class="dot here" style="width:15px;height:15px"></div>'})}).addTo(leafletMap).bindPopup(label);
+    leafletMap.setView([lat,lng],9);
+  }
+  $('#mGeoStat').textContent=label+'を基準に距離を計算しました';
+  drawMap();
+}
+
+/* 住所→座標。取得済みは飛ばし、結果は案件に保存して再取得しない */
+async function runGeocode(){
+  const btn=$('#mGeo'), st=$('#mGeoStat');
+  const todo=DB.deals.filter(d=>{
+    const I=d.inputs||{};
+    const needSite=!dealPoint(d)||!dealPoint(d).exact;
+    const needCust=!!I.custAddress&&!custPoint(d);
+    return (needSite&&I.location)||needCust;
+  });
+  if(!todo.length){st.textContent='未取得の住所はありません';return;}
+  btn.disabled=true;
+  let ok=0,ng=0;
+  for(let i=0;i<todo.length;i++){
+    const d=todo[i], I=d.inputs;
+    st.textContent=`住所を検索中… ${i+1}/${todo.length}`;
+    try{
+      const dp=dealPoint(d);
+      if((!dp||!dp.exact)&&I.location){
+        const c=coordsFromUrl(I.mapUrl)||await gsiGeocode(I.location);
+        if(c){I.siteLat=c.lat;I.siteLng=c.lng;ok++;}else ng++;
+      }
+      if(I.custAddress&&!custPoint(d)){
+        const c=await gsiGeocode(I.custAddress);
+        if(c){I.custLat=c.lat;I.custLng=c.lng;ok++;}
+      }
+      I.geoAt=new Date().toISOString().slice(0,10);
+      d.updatedAt=Date.now();
+    }catch(e){ng++;console.warn('[refort] geocode',e);}
+    await new Promise(r=>setTimeout(r,220));
+  }
+  Store.write(DB);
+  try{ await cloudUpsert(todo); }
+  catch(e){ console.warn('[refort] geo save',e); toast('⚠ 取得した位置を共有データベースへ保存できませんでした'); }
+  btn.disabled=false;
+  st.textContent=`位置を${ok}件登録しました${ng?`／${ng}件は住所から特定できませんでした`:''}`;
+  drawMap();
+}
+
+function mapRows(){
+  const rad=+$('#mRad').value, band=$('#mFit').value;
+  let rows=DB.deals.map(d=>{
+    const der=derive(d.inputs), p=dealPoint(d);
+    const km=(mapOrigin&&p)?kmBetween(mapOrigin.lat,mapOrigin.lng,p.lat,p.lng):null;
+    return {d,der,p,km};
+  });
+  if(band){const [lo,hi]=band.split('-').map(Number);
+    rows=rows.filter(x=>x.der.residualExact!=null&&x.der.residualExact>=lo&&x.der.residualExact<hi);}
+  if(rad>0)rows=rows.filter(x=>x.km!=null&&x.km<=rad);
+  rows.sort((a,b)=>{
+    if(mapOrigin){ if(a.km==null)return 1; if(b.km==null)return -1; return a.km-b.km; }
+    const x=a.der.residualExact,y=b.der.residualExact;
+    if(x==null)return 1; if(y==null)return -1; return x-y;
+  });
+  return rows;
+}
+
+function drawMap(){
+  const map=leafletMap, L=mapL; if(!map||!L)return;
+  map.__site.clearLayers(); map.__cust.clearLayers(); map.__link.clearLayers();
+  mapMarkers={};
+  const showCust=$('#mCust').checked;
+  const rows=mapRows(), bounds=[];
+  let noloc=0, rough=0;
+
+  rows.forEach(x=>{
+    const d=x.d, der=x.der, p=x.p;
+    if(!p){noloc++;return;}
+    if(!p.exact)rough++;
+    const col={g:'#1f8a55',n:'#2a6fb0',o:'#c98414',r:'#c0392b',x:'#9aa3ad'}[fitCls(der.residualExact)];
+    const size=p.exact?17:13;
+    const m=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',iconSize:[size,size],iconAnchor:[size/2,size/2],
+      html:`<div class="dot" style="width:${size}px;height:${size}px;background:${col};${p.exact?'':'opacity:.55'}"></div>`})})
+      .addTo(map.__site).bindPopup(mapPopup(d,der,x.km,p.exact));
+    mapMarkers[d.id]=m; bounds.push([p.lat,p.lng]);
+
+    const cp=showCust?custPoint(d):null;
+    if(cp){
+      L.marker([cp.lat,cp.lng],{icon:L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
+        html:'<div class="dot cust" style="width:13px;height:13px;background:#7a5cc7"></div>'})})
+        .addTo(map.__cust)
+        .bindPopup(`<div class="lpop"><div class="lp-nm">${esc(d.inputs.customer||d.name||'')}</div>
+          <div class="lp-meta">${esc(d.inputs.custAddress||'')}</div></div>`);
+      L.polyline([[p.lat,p.lng],[cp.lat,cp.lng]],{color:'#7a5cc7',weight:1,opacity:.45,dashArray:'4,4'}).addTo(map.__link);
+      bounds.push([cp.lat,cp.lng]);
+    }
+  });
+
+  if(bounds.length&&!mapOrigin)map.fitBounds(bounds,{padding:[45,45],maxZoom:11});
+
+  /* --- 左の一覧 --- */
+  const lst=$('#mList');
+  if(!rows.length){
+    lst.innerHTML='<div class="none">条件に合う案件がありません。<br>半径やFIT残の条件をゆるめてください。</div>';
+  }else{
+    lst.innerHTML=rows.map(x=>{
+      const d=x.d,der=x.der;
+      return `<div class="mi" data-mi="${d.id}">
+        <div class="nm">${esc(d.name||'(無題案件)')}</div>
+        <div class="ad">${esc(d.inputs.location||'所在地未設定')}</div>
+        <div class="tg">${fitBadge(der)}
+          ${x.km!=null?`<span class="km">${x.km.toFixed(1)} km</span>`:''}
+          ${n(d.inputs.dcExisting)?`<span class="kw">${n(d.inputs.dcExisting).toLocaleString()} kW</span>`:''}
+          ${d.inputs.owner?`<span class="kw">${esc(d.inputs.owner)}</span>`:''}</div></div>`;
+    }).join('');
+    $$('[data-mi]').forEach(el=>el.onclick=()=>{
+      $$('.mi.on').forEach(o=>o.classList.remove('on')); el.classList.add('on');
+      const m=mapMarkers[el.dataset.mi];
+      if(m){map.setView(m.getLatLng(),13);m.openPopup();}
+    });
+  }
+
   const nt=$('#mapNote');
-  if(nt)nt.innerHTML=`全 ${DB.deals.length} 件中 <b>${bounds.length} 件</b>を地図に表示（所在地の都道府県で配置）${noloc.length?`　／ 所在地未判定 ${noloc.length} 件`:''}　🔵進行中 🔴赤旗あり 🟢成約`;
+  if(nt)nt.innerHTML=`全 ${DB.deals.length} 件中 <b>${rows.length-noloc} 件</b>を表示`
+    +(rough?`　／ うち ${rough} 件は都道府県の代表点（概算）。「住所から位置を取得」で正確な位置になります`:'')
+    +(noloc?`　／ 所在地なし ${noloc} 件`:'')
+    +(mapOrigin?`　／ ${esc(mapOrigin.label)}からの距離順`:'　／ FIT残が短い順');
+}
+
+function mapPopup(d,der,km,exact){
+  const vd=dealVerdict(d), st=stageOf(d.stage);
+  const irr=vd.irr!=null?'IRR '+pct(vd.irr):'';
+  const kw=n(d.inputs.dcExisting)?n(d.inputs.dcExisting).toLocaleString()+'kW':'';
+  return `<div class="lpop"><div class="lp-nm">${esc(d.name||'(無題案件)')}</div>
+    <div class="lp-meta">${esc(d.inputs.location||'所在地未設定')}｜${st.n}${exact?'':'（概算位置）'}</div>
+    <div class="lp-kpi">
+      <span>FIT残 ${der.residualLabel}${der.fitEndStr?'・〜'+der.fitEndStr:''}</span>
+      ${irr?`<span>${irr}</span>`:''}${kw?`<span>${kw}</span>`:''}
+      ${km!=null?`<span>${km.toFixed(1)}km</span>`:''}${vd.ng>0?'<span>🚩'+vd.ng+'</span>':''}</div>
+    <div class="lp-btns"><button class="b-open" data-open="${d.id}">案件を開く</button>
+    <button class="b-sheet" data-sheet="${d.id}">📄 提案シート</button></div></div>`;
 }
 
 /* ==================== 台帳（案件管理台帳＋ダッシュボード） ==================== */
