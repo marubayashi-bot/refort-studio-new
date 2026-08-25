@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>営業ツール棚｜EARTHCOM</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="ec-auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#10322F;         /* 深い森のような濃緑 */
+  --ink-2:#2C514D;
+  --paper:#F1F4F4;
+  --card:#FFFFFF;
+  --line:#D8E0E0;
+  --line-2:#EAEFEF;
+  --muted:#68807D;
+  --accent:#0E7C7B;      /* シアン寄りのティール */
+  --amber:#B9782F;
+  --green:#2E7D4F;
+  --slate:#5B6B78;
+  --red:#B3392F;
+  --r:10px;
+  --shadow:0 1px 2px rgba(16,50,47,.06),0 6px 20px rgba(16,50,47,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,system-ui,sans-serif;
+  font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+a{color:inherit}
+
+/* ---------- ヘッダー ---------- */
+header{
+  position:sticky;top:0;z-index:40;background:var(--ink);color:#EAF2F1;
+  border-bottom:1px solid #0A2422;
+}
+.hwrap{max-width:1400px;margin:0 auto;padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:4px}
+.brand b{font-size:16px;letter-spacing:.12em;font-weight:800}
+.brand span{font-size:10px;letter-spacing:.22em;color:#7FA9A5;text-transform:uppercase}
+.search{flex:1;min-width:220px;position:relative}
+.search input{
+  width:100%;padding:9px 12px 9px 34px;border-radius:8px;border:1px solid #23504C;
+  background:#0B2725;color:#EAF2F1;outline:none;
+}
+.search input::placeholder{color:#6E948F}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,123,.25)}
+.search i{position:absolute;left:11px;top:9px;font-style:normal;color:#6E948F}
+.hbtn{
+  padding:8px 13px;border-radius:8px;border:1px solid #2E5C58;background:#143F3B;color:#EAF2F1;
+  cursor:pointer;white-space:nowrap;
+}
+.hbtn:hover{background:#1B4E49}
+.hbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.hbtn.primary:hover{filter:brightness(1.08)}
+.who{font-size:11px;color:#7FA9A5;white-space:nowrap}
+
+/* ---------- フィルタ帯 ---------- */
+.filters{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:53px;z-index:30}
+.fwrap{max-width:1400px;margin:0 auto;padding:9px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fwrap select{
+  padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;
+}
+.toggle{
+  display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;user-select:none;
+}
+.toggle.on{background:#EAF6F0;border-color:var(--green);color:var(--green);font-weight:700}
+.count{margin-left:auto;font-size:12px;color:var(--muted)}
+
+/* ---------- レイアウト ---------- */
+.main{max-width:1400px;margin:0 auto;padding:22px 20px 80px;display:grid;grid-template-columns:190px 1fr;gap:26px}
+.rail{position:sticky;top:110px;align-self:start}
+.rail a{
+  display:flex;gap:10px;align-items:baseline;padding:7px 10px;border-radius:8px;
+  text-decoration:none;color:var(--muted);border-left:2px solid transparent;
+}
+.rail a:hover{background:#E6EDEC;color:var(--ink)}
+.rail a.has{color:var(--ink)}
+.rail a b{font-size:10px;letter-spacing:.1em;color:var(--accent);font-variant-numeric:tabular-nums}
+.rail a i{font-style:normal;font-size:13px}
+.rail a em{font-style:normal;margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.railhead{font-size:10px;letter-spacing:.18em;color:var(--muted);padding:0 10px 8px}
+
+/* ---------- 棚（ステージ） ---------- */
+.stage{margin-bottom:34px;scroll-margin-top:120px}
+.stagehead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.stagenum{
+  font-size:11px;font-weight:800;letter-spacing:.14em;color:#fff;background:var(--ink-2);
+  padding:3px 8px;border-radius:5px;font-variant-numeric:tabular-nums;
+}
+.stagehead h2{font-size:15px;margin:0;font-weight:800;letter-spacing:.04em}
+.stagehead hr{flex:1;border:0;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+
+/* ---------- カード ---------- */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px 12px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;position:relative;
+  transition:transform .12s ease,box-shadow .12s ease;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 3px 6px rgba(16,50,47,.08),0 12px 28px rgba(16,50,47,.09)}
+.card.archived{opacity:.55}
+.ctop{display:flex;gap:8px;align-items:flex-start}
+.kind{
+  font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:5px;
+  background:var(--line-2);color:var(--ink-2);white-space:nowrap;
+}
+.cname{font-size:15px;font-weight:800;line-height:1.45;margin:0;flex:1}
+.purpose{font-size:13px;color:var(--ink-2);margin:0}
+.purpose.empty{color:var(--red);font-size:12px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--muted)}
+.pill{padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.vis-out{background:#EAF6F0;border-color:#9DCFB4;color:var(--green);font-weight:700}
+.vis-in{background:#EEF1F4;border-color:#C4CFD8;color:var(--slate)}
+.vis-ask{background:#FBF1E3;border-color:#E0C08C;color:var(--amber);font-weight:700}
+.tag{cursor:pointer;color:var(--accent);border-color:#B7DAD9;background:#EDF7F7}
+.tag:hover{background:#DCEFEF}
+.cbot{margin-top:auto;padding-top:9px;border-top:1px solid var(--line-2);display:flex;gap:8px;align-items:center}
+.open{
+  flex:1;text-align:center;padding:8px;border-radius:7px;background:var(--ink);color:#fff;
+  text-decoration:none;font-weight:700;font-size:13px;
+}
+.open:hover{background:var(--accent)}
+.open.disabled{background:var(--line-2);color:var(--muted);pointer-events:none}
+.icobtn{
+  padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--muted);
+}
+.icobtn:hover{background:var(--line-2);color:var(--ink)}
+.flag{
+  position:absolute;top:-1px;right:-1px;font-size:10px;font-weight:700;padding:2px 8px;
+  border-radius:0 var(--r) 0 var(--r);
+}
+.flag.need{background:#FBF1E3;color:var(--amber)}
+.flag.old{background:#EEF1F4;color:var(--slate)}
+.flag.kill{background:#FBEBEA;color:var(--red)}
+
+/* ---------- 空状態 ---------- */
+.empty{
+  background:#fff;border:1px dashed var(--line);border-radius:14px;padding:44px 30px;text-align:center;
+}
+.empty h3{margin:0 0 8px;font-size:17px}
+.empty p{color:var(--muted);margin:0 auto 18px;max-width:520px}
+
+/* ---------- モーダル ---------- */
+.mask{position:fixed;inset:0;background:rgba(16,50,47,.45);z-index:60;display:none;padding:24px;overflow:auto}
+.mask.on{display:block}
+.modal{
+  background:#fff;max-width:760px;margin:0 auto;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);
+  overflow:hidden;
+}
+.mhead{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.mhead h3{margin:0;font-size:15px;font-weight:800}
+.mhead button{margin-left:auto;background:none;border:0;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
+.mbody{padding:20px;max-height:70vh;overflow:auto}
+.mfoot{padding:13px 20px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end;background:#FAFBFB}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-bottom:5px}
+.field label .req{color:var(--red)}
+.field input,.field select,.field textarea{
+  width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;outline:none;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,123,.15)}
+.field textarea{min-height:62px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.btn{padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer}
+.btn:hover{background:var(--line-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--red);border-color:#E7C3BF}
+.btn.danger:hover{background:#FBEBEA}
+.note{background:#F5F8F8;border:1px solid var(--line);border-radius:9px;padding:12px 14px;font-size:12px;color:var(--ink-2)}
+.note b{color:var(--ink)}
+pre{
+  background:#0B2725;color:#CFE6E4;padding:14px;border-radius:9px;overflow:auto;font-size:11px;line-height:1.6;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.drop{
+  border:2px dashed var(--line);border-radius:11px;padding:26px;text-align:center;color:var(--muted);cursor:pointer;
+}
+.drop.over{border-color:var(--accent);background:#EDF7F7;color:var(--accent)}
+.tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.tabs button{
+  padding:8px 14px;border:0;background:none;cursor:pointer;color:var(--muted);
+  border-bottom:2px solid transparent;font-weight:700;font-size:13px;
+}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tabpane{display:none}
+.tabpane.on{display:block}
+.prev{width:100%;border-collapse:collapse;font-size:11px}
+.prev th,.prev td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.prev th{background:var(--line-2);font-weight:700;white-space:nowrap}
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:11px 20px;border-radius:9px;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;
+  transition:opacity .2s;pointer-events:none;
+}
+.toast.on{opacity:1}
+@media(max-width:860px){
+  .main{grid-template-columns:1fr;gap:12px}
+  .rail{position:static;display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+  .rail .railhead{display:none}
+  .rail a{white-space:nowrap;border:1px solid var(--line);background:#fff}
+  .rail a em{display:none}
+  .filters{top:auto;position:static}
+  .row2,.row3{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand"><b>営業ツール棚</b><span>EARTHCOM</span></div>
+    <div class="search"><i>🔍</i><input id="q" placeholder="ツール名・用途・タグで検索"></div>
+    <button class="hbtn" id="btnImport">取込</button>
+    <button class="hbtn primary" id="btnAdd">＋ 追加</button>
+    <button class="hbtn" id="btnSet">設定</button>
+    <span class="who" id="who"></span>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="fwrap">
+    <select id="fBiz"><option value="">事業：すべて</option></select>
+    <select id="fKind"><option value="">種別：すべて</option></select>
+    <select id="fAud"><option value="">対象者：すべて</option></select>
+    <div class="toggle on" id="tgLatest">最新版のみ</div>
+    <div class="toggle" id="tgOut">お客様に出せるものだけ</div>
+    <div class="count" id="cnt"></div>
+  </div>
+</div>
+
+<div class="main">
+  <nav class="rail" id="rail"></nav>
+  <div id="shelf"></div>
+</div>
+
+<!-- 追加・編集 -->
+<div class="mask" id="mEdit"><div class="modal">
+  <div class="mhead"><h3 id="editTitle">ツールを追加</h3><button data-close>×</button></div>
+  <div class="mbody">
+    <div class="row2">
+      <div class="field"><label>ツール名 <span class="req">必須</span></label><input id="f_name" placeholder="社内で通じている呼び名"></div>
+      <div class="field"><label>ID</label><input id="f_id" placeholder="T-001（空なら自動）"></div>
+    </div>
+    <div class="field">
+      <label>用途 — 誰が・いつ・何のために使うか <span class="req">必須</span></label>
+      <input id="f_purpose" placeholder="営業が初回訪問時に、FIT終了後に不安を持つオーナーへ見せる">
+    </div>
+    <div class="row3">
+      <div class="field"><label>使う場面 <span class="req">必須</span></label><select id="f_stage"></select></div>
+      <div class="field"><label>種別</label><select id="f_kind"></select></div>
+      <div class="field"><label>事業</label><select id="f_biz"></select></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>公開区分 <span class="req">必須</span></label><select id="f_vis"></select></div>
+      <div class="field"><label>対象者</label><select id="f_aud"></select></div>
+      <div class="field"><label>状態</label><select id="f_status"></select></div>
+    </div>
+    <div class="field"><label>閲覧用URL <span class="req">必須</span></label><input id="f_url" placeholder="https://"></div>
+    <div class="field"><label>編集用URL（原本）</label><input id="f_edit" placeholder="https://"></div>
+    <div class="row3">
+      <div class="field"><label>版・最終更新日</label><input id="f_ver" placeholder="v14 / 2026-08-01"></div>
+      <div class="field"><label>管理担当者</label><input id="f_owner"></div>
+      <div class="field"><label>関連タグ（カンマ区切り）</label><input id="f_tags" placeholder="ReFort,シミュレーション"></div>
+    </div>
+    <div class="field"><label>備考・課題</label><textarea id="f_note"></textarea></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn danger" id="btnDel" style="margin-right:auto;display:none">削除する</button>
+    <button class="btn" data-close>やめる</button>
+    <button class="btn primary" id="btnSave">保存する</button>
+  </div>
+</div></div>
+
+<!-- 取込 -->
+<div class="mask" id="mImport"><div class="modal">
+  <div class="mhead"><h3>棚卸しシートから取り込む</h3><button data-close>×</button></div>
+  <div class="mbody">
+    <div class="tabs">
+      <button class="on" data-tab="file">ファイル</button>
+      <button data-tab="gs">Googleスプレッドシート連動</button>
+      <button data-tab="paste">貼り付け</button>
+    </div>
+
+    <div class="tabpane on" id="tab-file">
+      <div class="drop" id="drop">
+        棚卸しシート（.xlsx / .csv）をここにドロップ、またはクリックして選択<br>
+        <small>「棚卸しシート」タブを自動で読み取ります</small>
+      </div>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+    </div>
+
+    <div class="tabpane" id="tab-gs">
+      <div class="field">
+        <label>公開済みCSVのURL</label>
+        <input id="gsUrl" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=0&single=true&output=csv">
+      </div>
+      <div class="note">
+        Googleスプレッドシート側で <b>ファイル → 共有 → ウェブに公開</b> を開き、
+        シートに「棚卸しシート」、形式に「カンマ区切り形式(.csv)」を選んで発行し、出てきたURLを貼り付けてください。<br>
+        一度設定すれば、以降は<b>棚を開くたびに自動で読み込みます</b>（スプレッドシートを直せば棚も直る状態になります）。
+      </div>
+      <div style="margin-top:12px"><button class="btn" id="btnGsTest">読み込みテスト</button></div>
+    </div>
+
+    <div class="tabpane" id="tab-paste">
+      <div class="field">
+        <label>スプレッドシートの範囲をコピーして貼り付け（1行目は見出し）</label>
+        <textarea id="pasteArea" style="min-height:150px;font-family:ui-monospace,monospace;font-size:11px"></textarea>
+      </div>
+      <button class="btn" id="btnParsePaste">読み取る</button>
+    </div>
+
+    <div id="prevWrap" style="margin-top:18px"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" data-close>やめる</button>
+    <button class="btn primary" id="btnCommit" disabled>棚に反映する</button>
+  </div>
+</div></div>
+
+<!-- 設定 -->
+<div class="mask" id="mSet"><div class="modal">
+  <div class="mhead"><h3>設定</h3><button data-close>×</button></div>
+  <div class="mbody">
+    <div class="note" id="conn" style="margin-bottom:16px"></div>
+    <h4 style="margin:0 0 8px;font-size:13px">初回のみ：Supabase の SQL エディタで実行してください</h4>
+    <pre id="sql"></pre>
+    <h4 style="margin:18px 0 8px;font-size:13px">スプレッドシート連動</h4>
+    <div class="field"><label>公開済みCSVのURL（空にすると連動を止めます）</label><input id="setGsUrl"></div>
+    <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。</div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" data-close>閉じる</button>
+    <button class="btn primary" id="btnSaveSet">保存する</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== 設定値 ===================== */
+const SB_URL = "https://aakofrzurgwrkctunthw.supabase.co";
+const SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
+const KNOWLEDGE_URL = "knowledge.html";
+
+const STAGES = ["01 初回接触・集客","02 現地調査","03 提案","04 クロージング","05 契約・引渡し","06 アフター・既存深耕","07 社内勉強会・研修","08 バックオフィス"];
+const KINDS  = ["スライド","動画","Excel","アプリ","PDF","雛形・書式","トークスクリプト","LP・Webページ","その他"];
+const BIZ    = ["全社共通","ReFort","セカンダリー","系統蓄電池","低圧蓄電池","太陽光（新規）","採用・管理","その他事業"];
+const VIS    = ["社外提示OK","社内限定","顧客個別（要確認）"];
+const AUD    = ["全社","営業","現場","内勤・営業事務","管理部","幹部のみ"];
+const STATUS = ["最新版","更新必要","旧版（アーカイブ）","廃止候補"];
+
+const SQL = `create table if not exists public.tools (
+  id          text primary key,
+  name        text not null,
+  kind        text,
+  biz         text,
+  stage       text,
+  purpose     text,
+  visibility  text,
+  audience    text,
+  url         text,
+  edit_url    text,
+  status      text default '最新版',
+  version     text,
+  owner       text,
+  tags        text,
+  note        text,
+  updated_at  timestamptz default now()
+);
+alter table public.tools enable row level security;
+create policy "tools read"  on public.tools for select using (true);
+create policy "tools write" on public.tools for all    using (true) with check (true);
+
+create table if not exists public.tool_clicks (
+  id         bigserial primary key,
+  tool_id    text,
+  email      text,
+  clicked_at timestamptz default now()
+);
+alter table public.tool_clicks enable row level security;
+create policy "clicks insert" on public.tool_clicks for insert with check (true);
+create policy "clicks read"   on public.tool_clicks for select using (true);`;
+
+/* ===================== 起動 ===================== */
+const sb = supabase.createClient(SB_URL, SB_KEY);
+let TOOLS = [], ME = null;
+
+const $ = s => document.querySelector(s);
+const el = (t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;};
+const esc = s => (s??"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2600);}
+const gsKey = "ec_tools_gs_url";
+
+(async function boot(){
+  // 共通認証（ec-auth.js がある場合のみ）
+  try{
+    if(window.EC && EC.guard){ await EC.guard({allow:['admin','manager','sales','field','viewer']}); }
+    if(window.EC && EC.me){ ME = await EC.me(); }
+    if(window.EC && EC.mountBadge){ EC.mountBadge($("#who")); }
+  }catch(e){ /* 認証未導入でも動かす */ }
+  if(ME && ME.email && !$("#who").textContent) $("#who").textContent = ME.email;
+
+  fillSelects();
+  await load();
+})();
+
+function fillSelects(){
+  const put=(sel,arr,ph)=>{const s=$(sel); if(ph)s.innerHTML=`<option value="">${ph}</option>`; arr.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;s.appendChild(o)});};
+  put("#fBiz",BIZ,"事業：すべて"); put("#fKind",KINDS,"種別：すべて"); put("#fAud",AUD,"対象者：すべて");
+  put("#f_stage",STAGES); put("#f_kind",KINDS); put("#f_biz",BIZ);
+  put("#f_vis",VIS); put("#f_aud",AUD); put("#f_status",STATUS);
+  $("#sql").textContent = SQL;
+  $("#setGsUrl").value = localStorage.getItem(gsKey) || "";
+}
+
+async function load(){
+  const url = localStorage.getItem(gsKey);
+  if(url){ try{ await syncFromCsvUrl(url,true); }catch(e){ toast("スプレッドシートを読めませんでした"); } }
+  const {data,error} = await sb.from("tools").select("*").order("stage").order("id");
+  if(error){
+    $("#conn").innerHTML = "❌ tools テーブルが見つかりません。下のSQLを実行してください。";
+    render([]); return;
+  }
+  $("#conn").innerHTML = "✅ Supabase に接続できています。";
+  TOOLS = data || [];
+  render(TOOLS);
+}
+
+/* ===================== 表示 ===================== */
+function filtered(){
+  const q = $("#q").value.trim().toLowerCase();
+  const fb=$("#fBiz").value, fk=$("#fKind").value, fa=$("#fAud").value;
+  const latest = $("#tgLatest").classList.contains("on");
+  const outOnly= $("#tgOut").classList.contains("on");
+  return TOOLS.filter(t=>{
+    if(fb && t.biz!==fb) return false;
+    if(fk && t.kind!==fk) return false;
+    if(fa && t.audience && t.audience!==fa && t.audience!=="全社") return false;
+    if(latest && (t.status==="旧版（アーカイブ）"||t.status==="廃止候補")) return false;
+    if(outOnly && t.visibility!=="社外提示OK") return false;
+    if(q){
+      const hay = [t.name,t.purpose,t.tags,t.owner,t.note,t.kind,t.biz].join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const list = filtered();
+  $("#cnt").textContent = `${list.length} 件 / 全 ${TOOLS.length} 件`;
+
+  // 左レール
+  const rail = $("#rail"); rail.innerHTML="";
+  rail.appendChild(el("div","railhead","営業プロセス"));
+  STAGES.forEach(s=>{
+    const n = list.filter(t=>t.stage===s).length;
+    const a = document.createElement("a");
+    a.href = "#st-"+STAGES.indexOf(s);
+    a.className = n? "has":"";
+    a.innerHTML = `<b>${s.slice(0,2)}</b><i>${s.slice(3)}</i><em>${n||""}</em>`;
+    rail.appendChild(a);
+  });
+
+  const shelf = $("#shelf"); shelf.innerHTML="";
+  if(!TOOLS.length){
+    shelf.innerHTML = `<div class="empty">
+      <h3>棚はまだ空です</h3>
+      <p>棚卸しシートを1行でも埋めていれば、そのまま取り込めます。ファイルをドロップするか、Googleスプレッドシートの公開URLをつなぐと、以降は自動で同期します。</p>
+      <button class="btn primary" onclick="document.getElementById('btnImport').click()">棚卸しシートを取り込む</button>
+    </div>`;
+    return;
+  }
+  if(!list.length){
+    shelf.innerHTML = `<div class="empty"><h3>条件に合うツールがありません</h3><p>検索語やフィルタを外してみてください。</p></div>`;
+    return;
+  }
+  STAGES.forEach((s,i)=>{
+    const items = list.filter(t=>t.stage===s);
+    if(!items.length) return;
+    const sec = el("section","stage"); sec.id="st-"+i;
+    const h = el("div","stagehead");
+    h.appendChild(el("span","stagenum",s.slice(0,2)));
+    const h2=document.createElement("h2"); h2.textContent=s.slice(3); h.appendChild(h2);
+    h.appendChild(document.createElement("hr"));
+    sec.appendChild(h);
+    const g = el("div","grid");
+    items.forEach(t=>g.appendChild(card(t)));
+    sec.appendChild(g);
+    shelf.appendChild(sec);
+  });
+}
+
+function card(t){
+  const c = el("div","card"+((t.status==="旧版（アーカイブ）"||t.status==="廃止候補")?" archived":""));
+  if(t.status && t.status!=="最新版"){
+    const f = el("div","flag "+(t.status==="更新必要"?"need":t.status==="廃止候補"?"kill":"old"), t.status.replace("（アーカイブ）",""));
+    c.appendChild(f);
+  }
+  const top = el("div","ctop");
+  if(t.kind) top.appendChild(el("span","kind",t.kind));
+  const nm = el("h3","cname",t.name); top.appendChild(nm);
+  c.appendChild(top);
+
+  if(t.purpose) c.appendChild(el("p","purpose",t.purpose));
+  else c.appendChild(el("p","purpose empty","用途が未記入です — 誰が・いつ・何のために使うかを追記してください"));
+
+  const m = el("div","meta");
+  if(t.visibility){
+    const cls = t.visibility==="社外提示OK"?"vis-out":t.visibility==="社内限定"?"vis-in":"vis-ask";
+    m.appendChild(el("span","pill "+cls,t.visibility));
+  }
+  if(t.biz) m.appendChild(el("span","pill",t.biz));
+  if(t.audience) m.appendChild(el("span","pill",t.audience));
+  (t.tags||"").split(",").map(x=>x.trim()).filter(Boolean).forEach(tag=>{
+    const p = el("span","pill tag","# "+tag);
+    p.title = "ナレッジで「"+tag+"」を調べる";
+    p.onclick = ()=> window.open(KNOWLEDGE_URL+"?q="+encodeURIComponent(tag),"_blank");
+    m.appendChild(p);
+  });
+  c.appendChild(m);
+
+  if(t.version || t.owner){
+    const sub = el("div","meta");
+    if(t.version) sub.appendChild(el("span",null,t.version));
+    if(t.owner) sub.appendChild(el("span",null,"担当 "+t.owner));
+    c.appendChild(sub);
+  }
+
+  const bot = el("div","cbot");
+  const a = document.createElement("a");
+  a.className = "open"+(t.url?"":" disabled");
+  a.textContent = t.url ? "開く" : "URL未登録";
+  a.href = t.url||"#"; a.target="_blank"; a.rel="noopener";
+  a.onclick = ()=>logClick(t.id);
+  bot.appendChild(a);
+  if(t.edit_url){
+    const e2=document.createElement("a"); e2.className="icobtn"; e2.href=t.edit_url; e2.target="_blank"; e2.rel="noopener";
+    e2.textContent="原本"; e2.title="編集用の原本を開く"; bot.appendChild(e2);
+  }
+  const ed = el("button","icobtn","✏️"); ed.title="この登録を編集する"; ed.onclick=()=>openEdit(t); bot.appendChild(ed);
+  c.appendChild(bot);
+  return c;
+}
+
+async function logClick(id){
+  try{ await sb.from("tool_clicks").insert({tool_id:id, email: ME?.email || null}); }catch(e){}
+}
+
+/* ===================== 追加・編集 ===================== */
+let editing = null;
+function openEdit(t){
+  editing = t || null;
+  $("#editTitle").textContent = t ? "ツールを編集" : "ツールを追加";
+  $("#btnDel").style.display = t ? "" : "none";
+  const v=(id,val)=>{$(id).value = val||"";};
+  v("#f_id",t?.id); v("#f_name",t?.name); v("#f_purpose",t?.purpose);
+  $("#f_stage").value = t?.stage || STAGES[2];
+  $("#f_kind").value  = t?.kind  || KINDS[0];
+  $("#f_biz").value   = t?.biz   || BIZ[0];
+  $("#f_vis").value   = t?.visibility || VIS[1];
+  $("#f_aud").value   = t?.audience   || AUD[0];
+  $("#f_status").value= t?.status     || STATUS[0];
+  v("#f_url",t?.url); v("#f_edit",t?.edit_url); v("#f_ver",t?.version);
+  v("#f_owner",t?.owner || ME?.full_name || ""); v("#f_tags",t?.tags); v("#f_note",t?.note);
+  $("#mEdit").classList.add("on");
+}
+
+function nextId(){
+  const nums = TOOLS.map(t=>parseInt((t.id||"").replace(/\D/g,""),10)).filter(n=>!isNaN(n));
+  const n = (nums.length?Math.max(...nums):0)+1;
+  return "T-"+String(n).padStart(3,"0");
+}
+
+$("#btnSave").onclick = async ()=>{
+  const rec = {
+    id: $("#f_id").value.trim() || (editing?.id) || nextId(),
+    name: $("#f_name").value.trim(),
+    purpose: $("#f_purpose").value.trim(),
+    stage: $("#f_stage").value, kind: $("#f_kind").value, biz: $("#f_biz").value,
+    visibility: $("#f_vis").value, audience: $("#f_aud").value, status: $("#f_status").value,
+    url: $("#f_url").value.trim(), edit_url: $("#f_edit").value.trim(),
+    version: $("#f_ver").value.trim(), owner: $("#f_owner").value.trim(),
+    tags: $("#f_tags").value.trim(), note: $("#f_note").value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if(!rec.name){ toast("ツール名を入れてください"); return; }
+  if(!rec.url){ toast("閲覧用URLを入れてください"); return; }
+  const {error} = await sb.from("tools").upsert(rec);
+  if(error){ toast("保存できませんでした："+error.message); return; }
+  $("#mEdit").classList.remove("on");
+  toast("保存しました");
+  await load();
+};
+
+$("#btnDel").onclick = async ()=>{
+  if(!editing) return;
+  if(!confirm(`「${editing.name}」を棚から削除します。よろしいですか。`)) return;
+  const {error} = await sb.from("tools").delete().eq("id",editing.id);
+  if(error){ toast("削除できませんでした"); return; }
+  $("#mEdit").classList.remove("on"); toast("削除しました"); await load();
+};
+
+/* ===================== 取込 ===================== */
+const HEAD_MAP = {
+  "id":"id","ツール名":"name","種別":"kind","事業":"biz","使う場面":"stage",
+  "用途（1行）":"purpose","用途(1行)":"purpose","用途":"purpose",
+  "公開区分":"visibility","対象者":"audience","閲覧用url":"url","編集用url":"edit_url",
+  "状態":"status","版・最終更新日":"version","版最終更新日":"version",
+  "管理担当者":"owner","関連タグ":"tags","備考・課題":"note","備考":"note"
+};
+const normHead = h => (h||"").toString().replace(/[★☆]/g,"").replace(/[\s　]/g,"").toLowerCase();
+
+function rowsToRecords(rows){
+  if(!rows.length) return [];
+  // 見出し行を探す（「ツール名」を含む行）
+  let hi = rows.findIndex(r=>r.some(c=>normHead(c)==="ツール名"));
+  if(hi<0) hi = 0;
+  const head = rows[hi].map(normHead);
+  const out=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r = rows[i]; if(!r) continue;
+    const rec={};
+    head.forEach((h,j)=>{ const k=HEAD_MAP[h]; if(k) rec[k]= (r[j]??"").toString().trim(); });
+    if(!rec.name) continue;                       // 空行・注釈行はとばす
+    if(/^（記入）|記入例/.test(rec.owner||"")) { /* 記入例でも取り込むが印を残す */ }
+    if(!rec.id) rec.id = "T-"+String(out.length+1).padStart(3,"0");
+    if(rec.stage && !STAGES.includes(rec.stage)){
+      const hit = STAGES.find(s=>s.slice(3)===rec.stage || s.includes(rec.stage));
+      rec.stage = hit || STAGES[2];
+    }
+    if(!rec.stage) rec.stage = STAGES[2];
+    if(!rec.status) rec.status = "最新版";
+    rec.updated_at = new Date().toISOString();
+    out.push(rec);
+  }
+  return out;
+}
+
+let PENDING = [];
+function preview(recs){
+  PENDING = recs;
+  const w = $("#prevWrap");
+  if(!recs.length){ w.innerHTML = `<div class="note">読み取れる行がありませんでした。1行目に見出し（ツール名 など）があるか確認してください。</div>`; $("#btnCommit").disabled=true; return; }
+  const cols=[["name","ツール名"],["stage","使う場面"],["purpose","用途"],["visibility","公開区分"],["url","URL"]];
+  let html = `<div class="note" style="margin-bottom:10px"><b>${recs.length} 件</b>を読み取りました。内容を確認して「棚に反映する」を押してください。</div><table class="prev"><tr>`;
+  cols.forEach(c=>html+=`<th>${c[1]}</th>`); html+="</tr>";
+  recs.slice(0,12).forEach(r=>{ html+="<tr>"; cols.forEach(c=>html+=`<td>${esc(r[c[0]]).slice(0,60)||"—"}</td>`); html+="</tr>"; });
+  html+="</table>";
+  if(recs.length>12) html+=`<div style="font-size:11px;color:var(--muted);margin-top:6px">…ほか ${recs.length-12} 件</div>`;
+  w.innerHTML=html;
+  $("#btnCommit").disabled=false;
+}
+
+function parseCSV(text){
+  const rows=[]; let row=[], cur="", q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===","){row.push(cur);cur="";}
+      else if(ch==="\n"){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(ch!=="\r") cur+=ch;
+    }
+  }
+  row.push(cur); rows.push(row);
+  return rows.filter(r=>r.some(c=>(c||"").trim()!==""));
+}
+
+function parseTSV(text){
+  return text.split("\n").map(l=>l.split("\t")).filter(r=>r.some(c=>(c||"").trim()!==""));
+}
+
+async function readFile(f){
+  if(/\.csv$/i.test(f.name)){
+    preview(rowsToRecords(parseCSV(await f.text())));
+    return;
+  }
+  const buf = await f.arrayBuffer();
+  const wb = XLSX.read(buf,{type:"array"});
+  const name = wb.SheetNames.find(n=>n.includes("棚卸")) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:""});
+  preview(rowsToRecords(rows));
+}
+
+async function syncFromCsvUrl(url, silent){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("fetch failed");
+  const recs = rowsToRecords(parseCSV(await res.text()));
+  if(!recs.length) throw new Error("no rows");
+  const {error} = await sb.from("tools").upsert(recs);
+  if(error) throw error;
+  if(!silent) toast(`スプレッドシートから ${recs.length} 件を同期しました`);
+  return recs.length;
+}
+
+$("#btnCommit").onclick = async ()=>{
+  if(!PENDING.length) return;
+  const {error} = await sb.from("tools").upsert(PENDING);
+  if(error){ toast("反映できませんでした："+error.message); return; }
+  $("#mImport").classList.remove("on");
+  toast(`${PENDING.length} 件を棚に反映しました`);
+  PENDING=[]; $("#prevWrap").innerHTML=""; $("#btnCommit").disabled=true;
+  await load();
+};
+
+$("#btnGsTest").onclick = async ()=>{
+  const url = $("#gsUrl").value.trim();
+  if(!url){ toast("URLを入れてください"); return; }
+  try{
+    const res = await fetch(url);
+    const recs = rowsToRecords(parseCSV(await res.text()));
+    localStorage.setItem(gsKey,url); $("#setGsUrl").value=url;
+    preview(recs);
+    toast("連動を設定しました");
+  }catch(e){ toast("読めませんでした。『ウェブに公開』の設定を確認してください"); }
+};
+
+$("#btnParsePaste").onclick = ()=>{
+  const t = $("#pasteArea").value;
+  if(!t.trim()){ toast("貼り付けてください"); return; }
+  preview(rowsToRecords(t.includes("\t")?parseTSV(t):parseCSV(t)));
+};
+
+/* ドロップ */
+const drop=$("#drop");
+drop.onclick=()=>$("#file").click();
+$("#file").onchange=e=>{ if(e.target.files[0]) readFile(e.target.files[0]); };
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+
+/* ===================== UI配線 ===================== */
+$("#btnAdd").onclick = ()=>openEdit(null);
+$("#btnImport").onclick = ()=>$("#mImport").classList.add("on");
+$("#btnSet").onclick = ()=>$("#mSet").classList.add("on");
+$("#btnSaveSet").onclick = ()=>{
+  const u=$("#setGsUrl").value.trim();
+  if(u) localStorage.setItem(gsKey,u); else localStorage.removeItem(gsKey);
+  $("#mSet").classList.remove("on"); toast(u?"連動を保存しました":"連動を止めました"); load();
+};
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".mask").classList.remove("on"));
+document.querySelectorAll(".mask").forEach(m=>m.onclick=e=>{ if(e.target===m) m.classList.remove("on"); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".mask.on").forEach(m=>m.classList.remove("on")); });
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); $("#tab-"+b.dataset.tab).classList.add("on");
+});
+["#fBiz","#fKind","#fAud"].forEach(s=>$(s).onchange=render);
+$("#q").oninput = render;
+$("#tgLatest").onclick = e=>{e.target.classList.toggle("on");render()};
+$("#tgOut").onclick = e=>{e.target.classList.toggle("on");render()};
+</script>
+</body>
+</html>
