@@ -1025,6 +1025,12 @@ function derive(I){
 }
 
 /* ---------- FIT残の表示ヘルパー ---------- */
+function rfRateCell(der){
+  if(!der.gen||!der.rfGenAfter) return '<span class="hint">—</span>';
+  const r=der.rfGenRate;
+  const col = r>=0.15?'#1f8a55' : r>0?'#2a6fb0' : '#9aa3ad';
+  return `<b style="color:${col}">${r>0?'+':''}${(r*100).toFixed(1)}%</b>`;
+}
 function fitCls(y){ if(y==null||!isFinite(y))return 'x'; return y<5?'r':y<10?'o':y<15?'n':'g'; }
 function fitBadge(der){
   if(der.residualExact==null) return '<span class="hint">—</span>';
@@ -1591,11 +1597,16 @@ function renderList(){
       <p class="hint">右上の「＋ 新規案件」から査定を始めましょう</p></div>`;
     v.innerHTML=html; wireList(); return;
   }
+  /* 高圧リフォート進捗のときは、判定系ではなくリフォート効果が見える列に切り替える */
+  const HV = listFilter.preset==='hv_refort';
   html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>
     <th>案件名</th><th>所在地</th><th>担当</th><th>ステージ</th>
     <th>投資後FIT残</th>
-    <th class="r">DC容量</th><th class="r">発電量/年</th><th class="r">想定IRR</th>
-    <th>一次判定</th><th>次アクション・期限</th><th class="r">取引額</th><th>更新</th></tr></thead><tbody>`;
+    <th class="r">DC容量</th><th class="r">発電量/年</th>`
+    + (HV
+      ? `<th class="r">FIT単価</th><th class="r">RF後発電量率</th>`
+      : `<th class="r">想定IRR</th><th>一次判定</th><th>次アクション・期限</th>`)
+    + `<th class="r">取引額</th><th>更新</th></tr></thead><tbody>`;
   rows.forEach(d=>{
     const v2=dealVerdict(d);const der=derive(d.inputs);const st=stageOf(d.stage);
     html+=`<tr><td><span class="lnk" data-open="${d.id}">${esc(d.name||'(無題)')}</span><span class="lnk-sheet" data-sheet="${d.id}">📄シート</span></td>
@@ -1603,10 +1614,14 @@ function renderList(){
       <td><span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span></td>
       <td>${fitBadge(der)}</td>
       <td class="r num">${der.gen?n(d.inputs.dcExisting).toLocaleString():'—'}</td>
-      <td class="r num">${kwh(der.gen)}</td>
-      <td class="r num">${v2.irr!=null?pct(v2.irr):'—'}</td>
+      <td class="r num">${kwh(der.gen)}</td>`
+      + (HV
+        ? `<td class="r num">${der.fit?der.fit+' 円':'—'}</td>
+      <td class="r num">${rfRateCell(der)}</td>`
+        : `<td class="r num">${v2.irr!=null?pct(v2.irr):'—'}</td>
       <td><span class="chip ${v2.level}">${esc(v2.policy)}</span></td>
-      <td>${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}</td>
+      <td>${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}</td>`)
+      + `
       <td class="r num">${yenM(dealPipelineValue(d))}</td>
       <td class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</td></tr>`;
   });
