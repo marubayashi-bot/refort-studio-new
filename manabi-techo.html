@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学びの検印帳 — EARTHCOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ECEDE7;
+  --raised:#F7F8F4;
+  --ink:#1C2430;
+  --ink-soft:#616B79;
+  --rule:#CBD1C7;
+  --rule-soft:#DDE1D9;
+  --seal:#B0392F;
+  --grow:#3B6B57;
+  --amber:#9C7420;
+  --shadow:0 1px 0 rgba(28,36,48,.06), 0 8px 24px -18px rgba(28,36,48,.5);
+  --disp:'Shippori Mincho B1', serif;
+  --body:'Zen Kaku Gothic New', system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--ink)}
+
+/* ---------- shell ---------- */
+.shell{display:flex;min-height:100vh}
+.rail{
+  width:76px;flex:0 0 76px;
+  border-right:1px solid var(--rule);
+  background:linear-gradient(180deg,#E4E7DF,#EDEEE8);
+  display:flex;flex-direction:column;align-items:center;
+  padding:22px 0 18px;gap:26px;
+}
+.rail .brand{
+  writing-mode:vertical-rl;font-family:var(--disp);font-weight:700;
+  font-size:20px;letter-spacing:.30em;line-height:1;
+}
+.rail .brand span{color:var(--seal)}
+.rail .rule{width:1px;flex:1;background:var(--rule)}
+.rail .who{writing-mode:vertical-rl;font-size:10px;letter-spacing:.24em;color:var(--ink-soft)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+.tabs{
+  display:flex;gap:0;border-bottom:1px solid var(--rule);
+  background:var(--raised);position:sticky;top:0;z-index:20;
+  overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  padding:15px 22px;cursor:pointer;white-space:nowrap;
+  font-family:var(--disp);font-weight:500;font-size:15px;letter-spacing:.10em;color:var(--ink-soft);
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--seal)}
+.tab:focus-visible{outline:2px solid var(--seal);outline-offset:-4px}
+.tab .n{font-size:11px;color:var(--ink-soft);margin-left:7px;letter-spacing:0}
+
+.page{padding:30px 34px 80px;max-width:1080px;width:100%}
+.eyebrow{
+  font-size:10px;letter-spacing:.30em;color:var(--ink-soft);
+  text-transform:uppercase;margin:0 0 6px;
+}
+h1{font-family:var(--disp);font-weight:700;font-size:27px;letter-spacing:.06em;margin:0 0 4px}
+.lede{color:var(--ink-soft);font-size:13px;margin:0 0 26px;max-width:60ch}
+
+/* ---------- form ---------- */
+.sheet{
+  background:var(--raised);border:1px solid var(--rule);
+  box-shadow:var(--shadow);padding:0;
+}
+.row{display:flex;border-bottom:1px solid var(--rule-soft)}
+.row:last-child{border-bottom:0}
+.row > .cell{flex:1;min-width:0;border-left:1px solid var(--rule-soft);padding:14px 16px}
+.row > .cell:first-child{border-left:0}
+.lab{
+  display:block;font-size:10.5px;letter-spacing:.20em;color:var(--ink-soft);
+  margin-bottom:7px;
+}
+.lab em{font-style:normal;color:var(--seal);margin-left:5px;letter-spacing:0}
+input[type=text],input[type=date],input[type=number],input[type=url],select,textarea{
+  width:100%;background:transparent;border:0;border-bottom:1px dashed var(--rule);
+  padding:5px 1px 6px;border-radius:0;
+}
+textarea{resize:vertical;min-height:34px;line-height:1.6}
+input:focus,select:focus,textarea:focus{outline:none;border-bottom-color:var(--seal);border-bottom-style:solid}
+select{appearance:none;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='9' height='6'><path d='M0 0h9L4.5 6z' fill='%23616B79'/></svg>") no-repeat right 2px center}
+.hint{font-size:11px;color:var(--ink-soft);margin-top:6px}
+
+.chipset{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  border:1px solid var(--rule);background:transparent;padding:5px 11px;
+  cursor:pointer;font-size:12.5px;letter-spacing:.04em;border-radius:2px;
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--raised);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+
+.actbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}
+.btn{
+  border:1px solid var(--ink);background:var(--ink);color:var(--raised);
+  padding:10px 22px;cursor:pointer;letter-spacing:.10em;font-size:13.5px;border-radius:2px;
+}
+.btn:hover{background:#0F1620}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{background:rgba(28,36,48,.06)}
+.btn.seal{border-color:var(--seal);background:var(--seal);color:#fff}
+.btn.seal:hover{background:#983027}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+.btn.sm{padding:5px 12px;font-size:12px;letter-spacing:.04em}
+
+/* AI candidates */
+.cands{margin-top:12px;display:grid;gap:8px}
+.cand{
+  display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;
+  border:1px solid var(--rule);background:#fff;padding:11px 13px;cursor:pointer;border-radius:2px;
+}
+.cand:hover{border-color:var(--seal)}
+.cand .k{font-family:var(--disp);color:var(--seal);font-size:13px;flex:0 0 auto}
+.cand .d{font-size:11.5px;color:var(--ink-soft);margin-top:3px}
+
+/* ---------- entry cards ---------- */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.filters input[type=text]{border:1px solid var(--rule);background:var(--raised);padding:8px 11px;max-width:230px}
+.list{display:grid;gap:12px}
+.card{
+  background:var(--raised);border:1px solid var(--rule);box-shadow:var(--shadow);
+  display:grid;grid-template-columns:1fr 96px;
+}
+.card .body{padding:16px 18px;min-width:0}
+.card .meta{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);letter-spacing:.06em}
+.kind{
+  font-family:var(--disp);font-size:11px;letter-spacing:.14em;color:var(--ink);
+  border:1px solid var(--rule);padding:1px 8px;
+}
+.card h3{font-family:var(--disp);font-weight:700;font-size:17px;margin:8px 0 10px;letter-spacing:.03em;line-height:1.45}
+.takeaways{margin:0 0 12px;padding:0;list-style:none;display:grid;gap:3px}
+.takeaways li{
+  font-size:13px;padding-left:20px;position:relative;color:#2A3442;
+}
+.takeaways li::before{
+  content:attr(data-i);position:absolute;left:0;top:0;
+  font-family:var(--disp);font-size:11px;color:var(--seal);
+}
+.action{
+  border-top:1px dashed var(--rule);padding-top:11px;display:flex;gap:10px;
+  align-items:flex-start;flex-wrap:wrap;
+}
+.action .txt{flex:1;min-width:180px;font-size:13.5px}
+.action .txt b{font-family:var(--disp);font-weight:500;font-size:10.5px;letter-spacing:.20em;color:var(--ink-soft);display:block;margin-bottom:3px}
+.status{font-size:11px;letter-spacing:.10em;padding:3px 9px;border:1px solid currentColor;white-space:nowrap}
+.st-declared{color:var(--ink-soft)}
+.st-doing{color:var(--amber)}
+.st-done{color:var(--grow)}
+.st-dropped{color:#9AA2AC}
+.st-late{color:var(--seal);border-style:solid}
+.card .sealbox{
+  border-left:1px solid var(--rule-soft);display:flex;align-items:center;justify-content:center;
+  padding:12px;
+}
+.card .ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+
+/* ---------- seal ---------- */
+.seal-mark{
+  width:60px;height:60px;display:grid;place-items:center;position:relative;
+  font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.02em;
+}
+.seal-mark::before{
+  content:"";position:absolute;inset:0;border:2.5px solid var(--seal);border-radius:50%;
+  opacity:.9;
+}
+.seal-mark{color:var(--seal);transform:rotate(-7deg)}
+.seal-mark.again{color:var(--ink-soft);}
+.seal-mark.again::before{border-color:var(--ink-soft);border-style:dashed;border-width:1.5px}
+.seal-mark.drop{color:#A7AEB6;transform:rotate(0)}
+.seal-mark.drop::before{border-color:#C3C9CF;border-width:1px}
+.seal-empty{
+  width:60px;height:60px;border:1px dashed var(--rule);display:grid;place-items:center;
+  font-size:10px;color:var(--ink-soft);letter-spacing:.12em;text-align:center;line-height:1.4;
+  background:transparent;cursor:default;border-radius:2px;
+}
+.seal-empty.due{border-color:var(--seal);color:var(--seal);cursor:pointer}
+.seal-empty.due:hover{background:rgba(176,57,47,.07)}
+
+/* ---------- 検印帳 ---------- */
+.ledger{
+  background:var(--raised);border:1px solid var(--rule);box-shadow:var(--shadow);
+  padding:24px;margin-bottom:22px;
+}
+.ledger h2{font-family:var(--disp);font-size:15px;letter-spacing:.18em;margin:0 0 3px;font-weight:500}
+.ledger .sub{font-size:11.5px;color:var(--ink-soft);margin:0 0 20px}
+.grid-seals{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px;
+}
+.grid-seals .cellwrap{display:grid;place-items:center;gap:5px}
+.grid-seals .cap{font-size:9.5px;color:var(--ink-soft);text-align:center;line-height:1.3;
+  max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:22px}
+.stat{background:var(--raised);padding:18px 18px 16px}
+.stat .k{font-size:10px;letter-spacing:.22em;color:var(--ink-soft)}
+.stat .v{font-family:var(--disp);font-weight:700;font-size:33px;line-height:1.15;margin-top:6px;letter-spacing:.02em}
+.stat .v small{font-size:14px;font-weight:500;margin-left:2px}
+.stat .n{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+.bars .b .stack{width:100%;max-width:40px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.bars .b .fill{background:var(--grow);width:100%}
+.bars .b .rest{background:var(--rule);width:100%}
+.bars .b .lb{font-size:10px;color:var(--ink-soft);letter-spacing:.04em}
+
+/* ---------- board ---------- */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.col{background:var(--raised);border:1px solid var(--rule);min-height:200px}
+.col > h2{
+  font-family:var(--disp);font-size:13px;letter-spacing:.18em;font-weight:500;
+  margin:0;padding:13px 15px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;
+}
+.col > h2 span{color:var(--ink-soft);font-size:11px}
+.col .items{padding:12px;display:grid;gap:10px}
+.mini{border:1px solid var(--rule-soft);background:#fff;padding:11px 12px;border-radius:2px}
+.mini .t{font-size:13px;line-height:1.5}
+.mini .s{font-size:10.5px;color:var(--ink-soft);margin-top:6px;letter-spacing:.06em;display:flex;justify-content:space-between;gap:8px}
+.mini .ops{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap}
+.mini.late{border-left:3px solid var(--seal)}
+.mini.soon{border-left:3px solid var(--amber)}
+
+.empty{
+  border:1px dashed var(--rule);padding:34px 22px;text-align:center;color:var(--ink-soft);
+  font-size:13px;background:transparent;
+}
+.empty b{display:block;font-family:var(--disp);color:var(--ink);font-size:15px;margin-bottom:6px;font-weight:500}
+
+.banner{
+  background:#F3E7E4;border:1px solid #E0C4BF;color:#7B2F27;
+  padding:9px 14px;font-size:12px;letter-spacing:.04em;
+}
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  background:var(--ink);color:var(--raised);padding:11px 22px;font-size:13px;
+  letter-spacing:.06em;box-shadow:var(--shadow);z-index:80;
+}
+dialog{border:1px solid var(--rule);background:var(--raised);box-shadow:0 20px 60px -20px rgba(28,36,48,.6);padding:0;max-width:440px;width:92%}
+dialog::backdrop{background:rgba(28,36,48,.35)}
+dialog .dh{padding:18px 22px 0}
+dialog .db{padding:14px 22px 20px}
+dialog h3{font-family:var(--disp);font-size:17px;margin:0 0 4px;letter-spacing:.04em}
+dialog p{font-size:12.5px;color:var(--ink-soft);margin:0}
+.verdicts{display:grid;gap:8px;margin-top:14px}
+.verdict{display:flex;gap:13px;align-items:center;border:1px solid var(--rule);background:#fff;padding:11px 13px;cursor:pointer;text-align:left;border-radius:2px}
+.verdict:hover{border-color:var(--seal)}
+.verdict .mk{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;font-family:var(--disp);font-size:13px;font-weight:700}
+.verdict .mk.keep{border:2px solid var(--seal);color:var(--seal)}
+.verdict .mk.again{border:1.5px dashed var(--ink-soft);color:var(--ink-soft)}
+.verdict .mk.drop{border:1px solid #C3C9CF;color:#A7AEB6}
+.verdict .tx{font-size:13.5px}
+.verdict .tx small{display:block;font-size:11px;color:var(--ink-soft);margin-top:1px}
+
+@media (max-width:820px){
+  .rail{display:none}
+  .page{padding:22px 16px 70px}
+  .row{flex-direction:column}
+  .row > .cell{border-left:0;border-top:1px solid var(--rule-soft)}
+  .row > .cell:first-child{border-top:0}
+  .card{grid-template-columns:1fr}
+  .card .sealbox{border-left:0;border-top:1px solid var(--rule-soft);justify-content:flex-start;padding:12px 18px}
+  .board{grid-template-columns:1fr}
+  h1{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-hidden="true">
+    <div class="brand">学びの<span>検印</span>帳</div>
+    <div class="rule"></div>
+    <div class="who" id="railWho">EARTHCOM</div>
+  </nav>
+  <div class="main">
+    <div id="banner"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-view="add">記帳</button>
+      <button class="tab" role="tab" data-view="index">索引<span class="n" id="cntIndex"></span></button>
+      <button class="tab" role="tab" data-view="board">実行板<span class="n" id="cntBoard"></span></button>
+      <button class="tab" role="tab" data-view="ledger">検印帳<span class="n" id="cntLedger"></span></button>
+    </div>
+    <div id="view" class="page"></div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h3 id="dlgTitle">検印</h3><p id="dlgSub"></p></div>
+  <div class="db">
+    <div class="verdicts">
+      <button class="verdict" data-v="keep"><span class="mk keep">定</span><span class="tx">定着した<small>もう自分の型になっている</small></span></button>
+      <button class="verdict" data-v="again"><span class="mk again">再</span><span class="tx">もう一度<small>効きそうだが、まだ身についていない</small></span></button>
+      <button class="verdict" data-v="drop"><span class="mk drop">要</span><span class="tx">不要だった<small>自分の仕事には効かなかった</small></span></button>
+    </div>
+    <div class="actbar"><button class="btn ghost sm" id="dlgClose">閉じる</button></div>
+  </div>
+</dialog>
+
+<script type="module">
+/* ============================================================
+   設定 — デプロイ時にここだけ触る
+   ============================================================ */
+const SUPABASE_URL  = 'https://aakofrzurgwrkctunthw.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const TABLE         = 'learning_log';
+const OWNER_EMAIL   = 'hankyo@earthcom-eco.jp';   // 社長個人ログ。EC認証があればログイン者で上書き
+const REVIEW_DAYS   = 30;                          // 何日後に検印するか
+// AI（アウトプット案の自動提案）の呼び先。
+//   プレビュー中はそのままで動く。GitHub Pages 公開時は Supabase Edge Function の URL に差し替える。
+const AI_ENDPOINT   = 'https://api.anthropic.com/v1/messages';
+
+const KINDS = ['研修','動画','書籍','セミナー','現場・同行','失敗経験'];
+
+/* ============================================================
+   保存層（Supabase / メモリ）
+   ============================================================ */
+let sb = null, MODE = 'memory', mem = [];
+
+async function initStore(){
+  try{
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { error } = await sb.from(TABLE).select('id').limit(1);
+    if(error) throw error;
+    MODE = 'supabase';
+  }catch(e){
+    MODE = 'memory';
+    mem = seed();
+    document.getElementById('banner').innerHTML =
+      '<div class="banner">お試しモードで表示しています。保存はされません。（Supabase の '+TABLE+' テーブル作成とログインが済むと本番モードになります）</div>';
+  }
+}
+async function listAll(){
+  if(MODE==='memory') return [...mem];
+  const { data, error } = await sb.from(TABLE).select('*')
+    .eq('owner_email', OWNER_EMAIL).order('learned_on',{ascending:false});
+  if(error){ toast('読み込みに失敗しました'); return []; }
+  return data;
+}
+async function saveNew(rec){
+  if(MODE==='memory'){ mem.unshift({...rec, id:crypto.randomUUID()}); return; }
+  const { error } = await sb.from(TABLE).insert(rec);
+  if(error){ toast('保存できませんでした: '+error.message); throw error; }
+}
+async function patch(id, fields){
+  if(MODE==='memory'){ const i=mem.findIndex(r=>r.id===id); if(i>-1) mem[i]={...mem[i],...fields}; return; }
+  const { error } = await sb.from(TABLE).update(fields).eq('id',id);
+  if(error){ toast('更新できませんでした'); throw error; }
+}
+
+/* ============================================================
+   ユーティリティ
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const addDays = (d,n)=>{const t=new Date(d);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)};
+const daysBetween = (a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
+const fmtDate = d => d ? d.slice(5).replace('-','.') : '';
+function toast(msg){
+  const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),2600);
+}
+
+function actionState(r){
+  if(r.action_status==='done')    return {cls:'st-done',    label:'実行ずみ'};
+  if(r.action_status==='dropped') return {cls:'st-dropped', label:'取り下げ'};
+  if(r.action_due && r.action_due < today()) return {cls:'st-late', label:'期限ごえ'};
+  if(r.action_status==='doing')   return {cls:'st-doing',   label:'着手ずみ'};
+  return {cls:'st-declared', label:'宣言のみ'};
+}
+function reviewDue(r){
+  return r.action_status==='done' && !r.review_verdict &&
+         r.action_done_on && daysBetween(r.action_done_on, today()) >= REVIEW_DAYS;
+}
+
+/* ============================================================
+   画面：記帳
+   ============================================================ */
+let draftKind = KINDS[0];
+
+function viewAdd(){
+  return `
+  <p class="eyebrow">記帳</p>
+  <h1>インプットを一件、書き留める</h1>
+  <p class="lede">学びは三行まで。そして「いつ・どこで使うか」を宣言しないと保存できません。溜めるための帳面ではなく、使うための帳面です。</p>
+  <form class="sheet" id="f">
+    <div class="row"><div class="cell">
+      <span class="lab">種類</span>
+      <div class="chipset" id="kinds">${KINDS.map(k=>`<button type="button" class="chip" data-k="${k}" aria-pressed="${k===draftKind}">${k}</button>`).join('')}</div>
+    </div></div>
+    <div class="row">
+      <div class="cell" style="flex:2">
+        <label class="lab" for="i_title">表題 <em>必須</em></label>
+        <input type="text" id="i_title" placeholder="例）識学 中間管理職研修 第3回" required>
+      </div>
+      <div class="cell"><label class="lab" for="i_date">日付</label><input type="date" id="i_date" value="${today()}"></div>
+      <div class="cell"><label class="lab" for="i_min">所要（分）</label><input type="number" id="i_min" min="0" step="5" placeholder="90"></div>
+    </div>
+    <div class="row"><div class="cell">
+      <label class="lab" for="i_url">出典URL・置き場所</label>
+      <input type="url" id="i_url" placeholder="https://… / 書籍なら空欄可">
+    </div></div>
+    <div class="row"><div class="cell">
+      <span class="lab">学び <em>三行まで</em></span>
+      <textarea id="i_t1" placeholder="一 —"></textarea>
+      <textarea id="i_t2" placeholder="二 —"></textarea>
+      <textarea id="i_t3" placeholder="三 —"></textarea>
+      <p class="hint">長く書くほど続きません。要点だけ。</p>
+    </div></div>
+    <div class="row"><div class="cell">
+      <label class="lab" for="i_scene">使う場面</label>
+      <input type="text" id="i_scene" placeholder="例）部門長会議／ReFort の初回商談／幹部との1on1">
+    </div></div>
+    <div class="row">
+      <div class="cell" style="flex:2">
+        <label class="lab" for="i_action">アウトプット宣言 <em>必須</em></label>
+        <textarea id="i_action" placeholder="何を、どこで、実際にやるか"></textarea>
+        <div class="actbar">
+          <button type="button" class="btn ghost sm" id="aiBtn">案を出してもらう</button>
+          <span class="hint" id="aiNote">学びと使う場面を入れてから押すと精度が上がります。</span>
+        </div>
+        <div class="cands" id="cands"></div>
+      </div>
+      <div class="cell"><label class="lab" for="i_due">期限</label><input type="date" id="i_due" value="${addDays(today(),14)}"></div>
+    </div>
+  </form>
+  <div class="actbar">
+    <button class="btn" id="save">記帳する</button>
+    <button class="btn ghost" id="clear">書き直す</button>
+  </div>`;
+}
+
+function bindAdd(){
+  $('#kinds').addEventListener('click',e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    draftKind=b.dataset.k;
+    $('#kinds').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.k===draftKind));
+  });
+  $('#clear').onclick = ()=>render('add');
+  $('#aiBtn').onclick = onAI;
+  $('#save').onclick = onSave;
+}
+
+function draftValues(){
+  return {
+    kind: draftKind,
+    title: $('#i_title').value.trim(),
+    source_url: $('#i_url').value.trim() || null,
+    learned_on: $('#i_date').value || today(),
+    minutes: $('#i_min').value ? Number($('#i_min').value) : null,
+    takeaways: [$('#i_t1').value,$('#i_t2').value,$('#i_t3').value].map(s=>s.trim()).filter(Boolean),
+    use_scene: $('#i_scene').value.trim() || null,
+    action: $('#i_action').value.trim(),
+    action_due: $('#i_due').value || null,
+  };
+}
+
+async function onSave(){
+  const v = draftValues();
+  if(!v.title){ toast('表題を入れてください'); $('#i_title').focus(); return; }
+  if(!v.action){ toast('アウトプット宣言がないと記帳できません'); $('#i_action').focus(); return; }
+  const rec = {...v, owner_email:OWNER_EMAIL, action_status:'declared'};
+  try{ await saveNew(rec); }catch(e){ return; }
+  toast('記帳しました');
+  render('index');
+}
+
+async function onAI(){
+  const v = draftValues();
+  if(!v.title && !v.takeaways.length){ toast('表題か学びを入れてください'); return; }
+  const btn=$('#aiBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='考えています…';
+  $('#cands').innerHTML='';
+  const prompt = `あなたは再生可能エネルギー事業会社の社長の学習パートナーです。
+以下のインプットに対して、社長本人が実際にやれるアウトプット行動を3案出してください。
+
+種類: ${v.kind}
+表題: ${v.title}
+学び: ${v.takeaways.join(' / ') || '(未記入)'}
+使う場面: ${v.use_scene || '(未記入)'}
+
+条件:
+- 「意識する」「心がける」など測れない表現は禁止。誰が見ても実行の有無が判定できる行動にする。
+- 社長の立場（経営会議、部門長への指示、商談同行、社内資料や仕組みづくり）で成立する内容にする。
+- 各案は40字以内。
+- 期限の目安は3日/1週間/1か月のいずれか。
+JSON配列のみを返す。前置き・コードフェンス禁止。形式:
+[{"action":"...","due":"1週間","why":"20字程度の狙い"}]`;
+  try{
+    const res = await fetch(AI_ENDPOINT,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const arr = JSON.parse(text.replace(/```json|```/g,'').trim());
+    $('#cands').innerHTML = arr.slice(0,3).map((c,i)=>`
+      <button type="button" class="cand" data-a="${esc(c.action)}" data-d="${esc(c.due||'')}">
+        <span class="k">${['一','二','三'][i]}</span>
+        <span><span>${esc(c.action)}</span><span class="d">${esc(c.why||'')}${c.due?' ／ 目安 '+esc(c.due):''}</span></span>
+      </button>`).join('');
+    $('#cands').querySelectorAll('.cand').forEach(el=>el.onclick=()=>{
+      $('#i_action').value = el.dataset.a;
+      const map = {'3日':3,'1週間':7,'1か月':30,'1ヶ月':30};
+      if(map[el.dataset.d]) $('#i_due').value = addDays(today(), map[el.dataset.d]);
+      $('#cands').innerHTML='';
+      $('#i_action').focus();
+    });
+  }catch(e){
+    $('#aiNote').textContent = '案を取得できませんでした。手で書いてください。';
+  }finally{ btn.disabled=false; btn.textContent=old; }
+}
+
+/* ============================================================
+   画面：索引
+   ============================================================ */
+let filterKind='', filterQ='';
+
+function cardHTML(r){
+  const st = actionState(r);
+  const seal = r.review_verdict
+    ? `<div class="seal-mark ${r.review_verdict==='keep'?'':r.review_verdict}">${({keep:'定',again:'再',drop:'要'})[r.review_verdict]}</div>`
+    : (reviewDue(r) ? `<button class="seal-empty due" data-review="${r.id}">検印<br>待ち</button>`
+                    : `<div class="seal-empty">未検印</div>`);
+  return `
+  <article class="card">
+    <div class="body">
+      <div class="meta"><span class="kind">${esc(r.kind)}</span><span>${esc(r.learned_on)}</span>${r.minutes?`<span>${r.minutes}分</span>`:''}${r.source_url?`<a href="${esc(r.source_url)}" target="_blank" rel="noopener">出典</a>`:''}</div>
+      <h3>${esc(r.title)}</h3>
+      ${r.takeaways?.length?`<ul class="takeaways">${r.takeaways.map((t,i)=>`<li data-i="${['一','二','三'][i]}">${esc(t)}</li>`).join('')}</ul>`:''}
+      <div class="action">
+        <div class="txt"><b>アウトプット宣言</b>${esc(r.action)}${r.action_due?` <span style="color:var(--ink-soft);font-size:11.5px">／ ${fmtDate(r.action_due)}まで</span>`:''}</div>
+        <span class="status ${st.cls}">${st.label}</span>
+      </div>
+      ${r.action_result?`<div class="hint" style="margin-top:9px">結果：${esc(r.action_result)}</div>`:''}
+      <div class="ops">${opsHTML(r)}</div>
+    </div>
+    <div class="sealbox">${seal}</div>
+  </article>`;
+}
+function opsHTML(r){
+  if(r.action_status==='done') return reviewDue(r)?`<button class="btn ghost sm" data-review="${r.id}">検印する</button>`:'';
+  if(r.action_status==='dropped') return `<button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"declared"}'>戻す</button>`;
+  return `
+    ${r.action_status!=='doing'?`<button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"doing"}'>着手した</button>`:''}
+    <button class="btn seal sm" data-done="${r.id}">実行した</button>
+    <button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"dropped"}'>取り下げ</button>`;
+}
+
+function viewIndex(rows){
+  const list = rows.filter(r=>
+    (!filterKind || r.kind===filterKind) &&
+    (!filterQ || (r.title+ (r.takeaways||[]).join('') + (r.use_scene||'')).includes(filterQ)));
+  return `
+  <p class="eyebrow">索引</p>
+  <h1>これまでのインプット</h1>
+  <p class="lede">記帳した順に並びます。右の枠が検印欄。実行して30日たつと押せるようになります。</p>
+  <div class="filters">
+    <input type="text" id="q" placeholder="表題・学びを検索" value="${esc(filterQ)}">
+    <div class="chipset">
+      <button class="chip" data-fk="" aria-pressed="${filterKind===''}">すべて</button>
+      ${KINDS.map(k=>`<button class="chip" data-fk="${k}" aria-pressed="${filterKind===k}">${k}</button>`).join('')}
+    </div>
+  </div>
+  ${list.length? `<div class="list">${list.map(cardHTML).join('')}</div>`
+    : `<div class="empty"><b>まだ一件もありません</b>「記帳」から、直近に見た動画や研修を一件入れてみてください。</div>`}`;
+}
+
+/* ============================================================
+   画面：実行板
+   ============================================================ */
+function miniHTML(r){
+  const late = r.action_due && r.action_due<today() && r.action_status!=='done';
+  const soon = r.action_due && !late && daysBetween(today(), r.action_due)<=3;
+  return `<div class="mini ${late?'late':soon?'soon':''}">
+    <div class="t">${esc(r.action)}</div>
+    <div class="s"><span>${esc(r.title)}</span><span>${r.action_due?fmtDate(r.action_due):''}</span></div>
+    <div class="ops">${opsHTML(r)}</div>
+  </div>`;
+}
+function viewBoard(rows){
+  const declared = rows.filter(r=>r.action_status==='declared');
+  const doing    = rows.filter(r=>r.action_status==='doing');
+  const done     = rows.filter(r=>r.action_status==='done').slice(0,8);
+  const col=(t,arr,note)=>`<section class="col"><h2>${t}<span>${arr.length}</span></h2><div class="items">${
+    arr.length?arr.map(miniHTML).join(''):`<div class="empty" style="padding:22px 12px">${note}</div>`}</div></section>`;
+  return `
+  <p class="eyebrow">実行板</p>
+  <h1>宣言したことは、やったか</h1>
+  <p class="lede">期限をこえた宣言には左に朱の線が入ります。ここが赤いままなら、インプットが増えても何も変わっていないということです。</p>
+  <div class="board">
+    ${col('宣言',declared,'宣言待ちはありません')}
+    ${col('着手',doing,'着手中はありません')}
+    ${col('実行ずみ',done,'まだありません')}
+  </div>`;
+}
+
+/* ============================================================
+   画面：検印帳
+   ============================================================ */
+function viewLedger(rows){
+  const withAction = rows.filter(r=>r.action);
+  const done = rows.filter(r=>r.action_status==='done');
+  const reviewed = rows.filter(r=>r.review_verdict);
+  const kept = rows.filter(r=>r.review_verdict==='keep');
+  const rate = withAction.length? Math.round(done.length/withAction.length*100):0;
+  const keepRate = reviewed.length? Math.round(kept.length/reviewed.length*100):0;
+  const hours = Math.round(rows.reduce((s,r)=>s+(r.minutes||0),0)/60);
+
+  const cells = rows.filter(r=>r.review_verdict || reviewDue(r)).slice(0,40).map(r=>{
+    const mk = r.review_verdict
+      ? `<div class="seal-mark ${r.review_verdict==='keep'?'':r.review_verdict}">${({keep:'定',again:'再',drop:'要'})[r.review_verdict]}</div>`
+      : `<button class="seal-empty due" data-review="${r.id}">検印<br>待ち</button>`;
+    return `<div class="cellwrap">${mk}<div class="cap" title="${esc(r.title)}">${esc(r.title)}</div></div>`;
+  }).join('');
+
+  // 月別：インプット件数と実行件数
+  const months=[]; const now=new Date();
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(d.toISOString().slice(0,7));}
+  const mdata = months.map(m=>({
+    m, all: rows.filter(r=>(r.learned_on||'').startsWith(m)).length,
+    done: rows.filter(r=>(r.learned_on||'').startsWith(m) && r.action_status==='done').length
+  }));
+  const max = Math.max(1,...mdata.map(d=>d.all));
+
+  return `
+  <p class="eyebrow">検印帳</p>
+  <h1>身についたものだけが残る</h1>
+  <p class="lede">実行から${REVIEW_DAYS}日たったものに検印を押します。押した印だけが、あなたの能力として残った分です。</p>
+
+  <div class="ledger">
+    <h2>検 印 欄</h2>
+    <p class="sub">定＝定着した／再＝もう一度／要＝不要だった</p>
+    ${cells? `<div class="grid-seals">${cells}</div>`
+      : `<div class="empty"><b>まだ押せる印がありません</b>宣言を実行し、${REVIEW_DAYS}日たつとここに枠が出ます。</div>`}
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">インプット</div><div class="v">${rows.length}<small>件</small></div><div class="n">のべ ${hours} 時間</div></div>
+    <div class="stat"><div class="k">実行率</div><div class="v">${rate}<small>%</small></div><div class="n">宣言 ${withAction.length} 件中 ${done.length} 件</div></div>
+    <div class="stat"><div class="k">定着率</div><div class="v">${keepRate}<small>%</small></div><div class="n">検印 ${reviewed.length} 件中 ${kept.length} 件</div></div>
+    <div class="stat"><div class="k">検印待ち</div><div class="v">${rows.filter(reviewDue).length}<small>件</small></div><div class="n">${REVIEW_DAYS}日を過ぎたもの</div></div>
+  </div>
+
+  <div class="ledger">
+    <h2>月 別</h2>
+    <p class="sub">濃い部分が、実行まで到達した件数</p>
+    <div class="bars">
+      ${mdata.map(d=>`<div class="b">
+        <div class="stack">
+          <div class="rest" style="height:${(d.all-d.done)/max*100}%"></div>
+          <div class="fill" style="height:${d.done/max*100}%"></div>
+        </div>
+        <div class="lb">${d.m.slice(5)}月</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   検印ダイアログ
+   ============================================================ */
+let reviewTarget=null;
+function openReview(r){
+  reviewTarget=r;
+  $('#dlgTitle').textContent='検印';
+  $('#dlgSub').textContent=r.title;
+  $('#dlg').showModal();
+}
+$('#dlgClose').onclick=()=>$('#dlg').close();
+document.querySelectorAll('.verdict').forEach(b=>b.onclick=async()=>{
+  if(!reviewTarget) return;
+  await patch(reviewTarget.id,{review_verdict:b.dataset.v, reviewed_at:today()});
+  $('#dlg').close(); toast('検印しました'); render(current);
+});
+
+/* ============================================================
+   ルーティング
+   ============================================================ */
+let current='add', cache=[];
+
+async function render(v){
+  current=v;
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', t.dataset.view===v));
+  const el=$('#view');
+  if(v==='add'){ el.innerHTML=viewAdd(); bindAdd(); return; }
+  cache = await listAll();
+  $('#cntIndex').textContent = cache.length||'';
+  $('#cntBoard').textContent = cache.filter(r=>r.action_status==='declared'||r.action_status==='doing').length||'';
+  $('#cntLedger').textContent = cache.filter(reviewDue).length||'';
+  el.innerHTML = v==='index'?viewIndex(cache) : v==='board'?viewBoard(cache) : viewLedger(cache);
+  if(v==='index'){
+    $('#q').oninput=e=>{filterQ=e.target.value; const p=e.target.selectionStart; render('index').then(()=>{const q=$('#q');q.focus();q.setSelectionRange(p,p)});};
+    el.querySelectorAll('[data-fk]').forEach(b=>b.onclick=()=>{filterKind=b.dataset.fk; render('index')});
+  }
+}
+
+document.addEventListener('click', async e=>{
+  const tab=e.target.closest('.tab'); if(tab){ render(tab.dataset.view); return; }
+  const rev=e.target.closest('[data-review]');
+  if(rev){ const r=cache.find(x=>x.id===rev.dataset.review); if(r) openReview(r); return; }
+  const done=e.target.closest('[data-done]');
+  if(done){ await patch(done.dataset.done,{action_status:'done', action_done_on:today()}); toast('実行を記録しました'); render(current); return; }
+  const set=e.target.closest('[data-set]');
+  if(set){ const o=JSON.parse(set.dataset.set); const {id,...f}=o; await patch(id,f); render(current); return; }
+});
+
+/* ============================================================
+   デモ用データ（お試しモードのみ）
+   ============================================================ */
+function seed(){
+  const d=n=>addDays(today(),-n);
+  return [
+    {id:'1',kind:'研修',title:'識学 中間管理職研修 第3回',learned_on:d(46),minutes:120,
+     takeaways:['評価は「変化」ではなく「結果」で行う','部下の相談は、判断ではなく選択肢を求めさせる','ルールは例外を作った瞬間に死ぬ'],
+     use_scene:'部門長会議',action:'部門長会議の評価コメントを、経過表現ゼロで書き直す',action_due:d(32),
+     action_status:'done',action_done_on:d(35),review_verdict:'keep',reviewed_at:d(3)},
+    {id:'2',kind:'書籍',title:'イシューからはじめよ',learned_on:d(38),minutes:240,
+     takeaways:['解くべき問いを絞るほど、答えは速く出る','量で解こうとするのは思考の放棄'],
+     use_scene:'幹部会議のアジェンダ設計',action:'幹部会議の議題を毎回3つまでに絞る',action_due:d(24),
+     action_status:'done',action_done_on:d(31),review_verdict:'again',reviewed_at:d(1)},
+    {id:'3',kind:'動画',title:'系統用蓄電池 容量市場の入札実務',learned_on:d(9),minutes:55,
+     takeaways:['容量市場は「発電できる状態」に対価がつく','複数市場の掛け持ちで収益が安定する'],
+     use_scene:'EAR-A-168 の投資家説明',action:'投資家向け説明資料に3市場の収益内訳ページを1枚追加する',action_due:addDays(today(),4),
+     action_status:'doing'},
+    {id:'4',kind:'失敗経験',title:'引渡し遅延の報告が現場から3日遅れた件',learned_on:d(4),
+     takeaways:['悪い報告ほど遅れる仕組みになっていた','報告の期限を決めていなかった'],
+     use_scene:'工事進捗の運用',action:'遅延見込みは判明当日中に報告、をルール化して全現場に通達',action_due:addDays(today(),-1),
+     action_status:'declared'},
+  ];
+}
+
+/* ============================================================
+   起動
+   ============================================================ */
+(async()=>{
+  try{ if(window.EC?.me){ const m=await window.EC.me(); if(m?.email){ document.getElementById('railWho').textContent=m.email.split('@')[0]; } } }catch(e){}
+  await initStore();
+  render('add');
+})();
+</script>
+</body>
+</html>
