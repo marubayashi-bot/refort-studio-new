@@ -2,7 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ECEDE7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="検印帳">
+<link rel="manifest" href="./manabi-techo.webmanifest">
 <title>学びの検印帳 — EARTHCOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -270,14 +275,24 @@ dialog p{font-size:12.5px;color:var(--ink-soft);margin:0}
 
 @media (max-width:820px){
   .rail{display:none}
-  .page{padding:22px 16px 70px}
+  .page{padding:22px 16px calc(70px + env(safe-area-inset-bottom))}
+  .tabs{padding-top:env(safe-area-inset-top)}
   .row{flex-direction:column}
-  .row > .cell{border-left:0;border-top:1px solid var(--rule-soft)}
+  .row > .cell{border-left:0;border-top:1px solid var(--rule-soft);padding:15px 16px}
   .row > .cell:first-child{border-top:0}
   .card{grid-template-columns:1fr}
   .card .sealbox{border-left:0;border-top:1px solid var(--rule-soft);justify-content:flex-start;padding:12px 18px}
   .board{grid-template-columns:1fr}
   h1{font-size:22px}
+  /* iOS が入力時に勝手にズームしないよう 16px 以上にする */
+  input[type=text],input[type=date],input[type=number],input[type=url],select,textarea{font-size:16px;padding:8px 1px 9px}
+  textarea{min-height:44px}
+  .tab{padding:14px 18px}
+  .btn{padding:12px 20px}
+  .btn.sm{padding:9px 14px}
+  .chip{padding:9px 14px}
+  .filters input[type=text]{max-width:none;width:100%}
+  .grid-seals{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -323,8 +338,9 @@ const TABLE         = 'learning_log';
 const OWNER_EMAIL   = 'hankyo@earthcom-eco.jp';   // 社長個人ログ。EC認証があればログイン者で上書き
 const REVIEW_DAYS   = 30;                          // 何日後に検印するか
 // AI（アウトプット案の自動提案）の呼び先。
-//   プレビュー中はそのままで動く。GitHub Pages 公開時は Supabase Edge Function の URL に差し替える。
-const AI_ENDPOINT   = 'https://api.anthropic.com/v1/messages';
+//   日報アプリで使っている既存の中継 `ai` をそのまま借りている。
+//   受け口は { prompt, system, max_tokens }。Authorization ヘッダ必須。
+const AI_ENDPOINT   = 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai';
 
 const KINDS = ['研修','動画','書籍','セミナー','現場・同行','失敗経験'];
 
@@ -483,13 +499,22 @@ async function onSave(){
   render('index');
 }
 
+/* ai 関数の返り方（素通し / 整形済み）どちらでも本文を取り出す */
+function extractText(data){
+  if(!data) return '';
+  if(typeof data === 'string') return data;
+  if(Array.isArray(data.content)) return data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  return data.text || data.result || data.output || data.answer || data.message || '';
+}
+
 async function onAI(){
   const v = draftValues();
   if(!v.title && !v.takeaways.length){ toast('表題か学びを入れてください'); return; }
   const btn=$('#aiBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='考えています…';
   $('#cands').innerHTML='';
-  const prompt = `あなたは再生可能エネルギー事業会社の社長の学習パートナーです。
-以下のインプットに対して、社長本人が実際にやれるアウトプット行動を3案出してください。
+  const system = 'あなたは再生可能エネルギー事業会社アースコムの社長の学習パートナーです。'
+    + '指示された形式を厳密に守り、JSON以外は一切出力しません。';
+  const prompt = `以下のインプットに対して、社長本人が実際にやれるアウトプット行動を3案出してください。
 
 種類: ${v.kind}
 表題: ${v.title}
@@ -504,12 +529,21 @@ async function onAI(){
 JSON配列のみを返す。前置き・コードフェンス禁止。形式:
 [{"action":"...","due":"1週間","why":"20字程度の狙い"}]`;
   try{
+    // ai 関数は Authorization ヘッダが無いと401を返す。
+    // ログイン中ならそのトークン、無ければ公開キーを付ける。
+    let bearer = SUPABASE_KEY;
+    try{
+      const { data } = await sb?.auth?.getSession() ?? {};
+      if(data?.session?.access_token) bearer = data.session.access_token;
+    }catch(_){}
     const res = await fetch(AI_ENDPOINT,{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+bearer },
+      body: JSON.stringify({ prompt, system, max_tokens:1000 })
     });
     const data = await res.json();
-    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    if(data.error) throw new Error(data.error);
+    const text = extractText(data);
     const arr = JSON.parse(text.replace(/```json|```/g,'').trim());
     $('#cands').innerHTML = arr.slice(0,3).map((c,i)=>`
       <button type="button" class="cand" data-a="${esc(c.action)}" data-d="${esc(c.due||'')}">
