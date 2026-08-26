@@ -415,7 +415,13 @@ async function saveNew(rec){
 async function patch(id, fields){
   if(MODE==='memory'){ const i=mem.findIndex(r=>r.id===id); if(i>-1) mem[i]={...mem[i],...fields}; return; }
   const { error } = await sb.from(TABLE).update(fields).eq('id',id);
-  if(error){ toast('更新できませんでした'); throw error; }
+  if(error){
+    const miss = /column .*(links|photos|review_note)/.test(error.message||'');
+    toast(miss ? '列がまだありません。learning_log_v2.sql を実行してください'
+               : '更新できませんでした: ' + (error.message||''));
+    console.error('[update]', error);
+    throw error;
+  }
 }
 
 /* ============================================================
