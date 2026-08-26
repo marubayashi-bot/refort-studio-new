@@ -986,20 +986,21 @@ function derive(I){
   /* --- FIT残：連系日＋20年 を「引渡日（投資実行日）」から逆算する。
          引渡日が未入力のときだけ本日基準にフォールバックする --- */
   const gridD = I.gridDate? new Date(I.gridDate+'T00:00:00') : null;
-  const baseD = I.handoverDate? new Date(I.handoverDate+'T00:00:00') : new Date();
+  const baseD = new Date();   /* FIT残は常に「本日時点で何もしなくても残る期間」 */
   const fitEnd = (gridD && isFinite(gridD))
     ? new Date(gridD.getFullYear()+20, gridD.getMonth(), gridD.getDate()-1) : null;
   const DAY=86400000, YR=365.25*DAY;
   const elapsedExact = (gridD&&isFinite(gridD))? Math.max((baseD-gridD)/YR,0) : 11;
   const residualExact = fitEnd? Math.max((fitEnd-baseD)/YR,0) : null;
   const elapsed = Math.floor(elapsedExact);
+  const investBased=false;
   const residual = residualExact!=null
     ? Math.max(Math.min(Math.floor(residualExact),20),0)
     : Math.max(20-elapsed,0);
   const fitEndStr = fitEnd? (fitEnd.getFullYear()+'/'+String(fitEnd.getMonth()+1).padStart(2,'0')) : '';
   const residualLabel = residualExact==null? '—'
     : (Math.floor(residualExact)+'年'+Math.min(Math.round((residualExact-Math.floor(residualExact))*12),11)+'か月');
-  const investBased = !!I.handoverDate;
+
   const fit=n(I.fitPrice), gen=n(I.actualGen);
   const rfEx=n(I.rfPriceEx), rfIn=Math.round(rfEx*1.1);
   const cost=n(I.rfCostTotal), gross=n(I.rfGrossTotal);
@@ -1025,6 +1026,35 @@ function derive(I){
 }
 
 /* ---------- FIT残の表示ヘルパー ---------- */
+/* 投資回収年数（案件のモデルに応じて算出） */
+function paybackOf(deal){
+  try{
+    const m=autoModel(deal), I=deal.inputs;
+    if(m==='m1'){ const s=simSecondary(I); return s.payback; }
+    if(m==='m2'){ const s=simSecondaryRF(I);
+      return (s.fitAvgCF>0 && s.totalInv>0)? s.totalInv/s.fitAvgCF : null; }
+    const s=simRefortOnly(I); return s.payback;
+  }catch(e){ return null; }
+}
+/* 投資後残FIT ＝ FIT残 − 投資回収年数（回収後に丸ごと利益になる期間） */
+function netFit(deal){
+  const der=derive(deal.inputs), pay=paybackOf(deal);
+  const m=autoModel(deal);
+  const hasData = der.gen>0 && (m==='m1'? der.saleEx>0 : (der.rfEx>0 && der.rfGenAfter>0));
+  if(der.residualExact==null||!hasData) return {pay:null,years:null,label:'—',cls:'x'};
+  if(pay==null||!isFinite(pay))        // 20年かけても投資額に届かない
+    return {pay:null,years:-1,label:'回収できません',cls:'r'};
+  const y=der.residualExact-pay;
+  if(y<=0) return {pay,years:y,label:'回収できません',cls:'r'};
+  const label=Math.floor(y)+'年'+Math.min(Math.round((y-Math.floor(y))*12),11)+'か月';
+  return {pay,years:y,label,cls:(y>=5?'g':y>=3?'n':'o')};
+}
+function netFitCell(deal){
+  const nf=netFit(deal);
+  if(nf.years==null) return '<span class="hint">—</span>';
+  const t=nf.pay!=null? '投資回収 '+nf.pay.toFixed(1)+'年' : '20年でも投資額に届きません';
+  return `<span class="fitchip ${nf.cls}" title="${t}">${nf.label}</span>`;
+}
 function rfRateCell(der){
   if(!der.gen||!der.rfGenAfter) return '<span class="hint">—</span>';
   const r=der.rfGenRate;
@@ -1562,7 +1592,7 @@ function renderList(){
     <select id="lvolt"><option value="">全区分</option><option ${listFilter.voltage==='高圧'?'selected':''}>高圧</option><option ${listFilter.voltage==='低圧'?'selected':''}>低圧</option></select>
     <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
     <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
-    <select id="lsort">${[['updated','更新が新しい順'],['fitAsc','FIT残が短い順'],['fitDesc','FIT残が長い順']].map(([k,t])=>`<option value="${k}" ${listFilter.sort===k?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="lsort">${[['updated','更新が新しい順'],['fitAsc','FIT残が短い順'],['fitDesc','FIT残が長い順'],['netAsc','投資後残FITが短い順'],['netDesc','投資後残FITが長い順']].map(([k,t])=>`<option value="${k}" ${listFilter.sort===k?'selected':''}>${t}</option>`).join('')}</select>
     <div style="flex:1"></div>
     <button class="btn btn-line btn-sm" id="lsheet">📄 一括シート印刷</button>
     <button class="btn btn-line btn-sm" id="lcsv">CSV出力</button>
@@ -1584,7 +1614,12 @@ function renderList(){
     return true;
   });
   const fy=d=>{const x=derive(d.inputs).residualExact;return (x==null||!isFinite(x))?null:x;};
-  if(listFilter.sort==='fitAsc'||listFilter.sort==='fitDesc'){
+  if(listFilter.sort==='netAsc'||listFilter.sort==='netDesc'){
+    const dir=listFilter.sort==='netAsc'?1:-1;
+    rows.sort((a,b)=>{const x=netFit(a).years,y=netFit(b).years;
+      if(x==null&&y==null)return b.updatedAt-a.updatedAt;
+      if(x==null)return 1; if(y==null)return -1; return (x-y)*dir;});
+  } else if(listFilter.sort==='fitAsc'||listFilter.sort==='fitDesc'){
     const dir=listFilter.sort==='fitAsc'?1:-1;
     rows.sort((a,b)=>{const x=fy(a),y=fy(b);
       if(x==null&&y==null)return b.updatedAt-a.updatedAt;
@@ -1601,7 +1636,7 @@ function renderList(){
   const HV = listFilter.preset==='hv_refort';
   html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>
     <th>案件名</th><th>所在地</th><th>担当</th><th>ステージ</th>
-    <th>投資後FIT残</th>
+    <th>FIT残</th><th>投資後残FIT</th>
     <th class="r">DC容量</th><th class="r">発電量/年</th>`
     + (HV
       ? `<th class="r">FIT単価</th><th class="r">RF後発電量率</th>`
@@ -1613,6 +1648,7 @@ function renderList(){
       <td>${esc(d.inputs.location||'—')}</td><td>${esc(d.inputs.owner||'—')}</td>
       <td><span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span></td>
       <td>${fitBadge(der)}</td>
+      <td>${netFitCell(d)}</td>
       <td class="r num">${der.gen?n(d.inputs.dcExisting).toLocaleString():'—'}</td>
       <td class="r num">${kwh(der.gen)}</td>`
       + (HV
@@ -1744,13 +1780,14 @@ const ACC=[
     ['sitePhoto','現地画像（表紙に使用）','photo'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
     ['gridDate','連系日','date'],
-    ['handoverDate','引渡（投資実行）予定日','date'],
     ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
   ]},
   {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
     ['fitPrice','FIT単価','num','円/kWh'],
-    ['__residual','投資後FIT残','auto',''],
+    ['__residual','FIT残（本日時点）','auto',''],
     ['__fitEnd','FIT終了（連系＋20年）','auto',''],
+    ['__payback','投資回収年数','auto','年'],
+    ['__netFit','投資後残FIT（回収後の利益期間）','auto',''],
     ['sotsuFit','卒FIT単価','num','円/kWh'],['sotsuYears','卒FIT想定年数','num','年'],
     ['sotsuApply','卒FIT反映','sel',['適応','不適合']],
   ]},
@@ -2015,8 +2052,11 @@ function styleStatus(s){s.classList.remove('s-ok','s-ng','s-doing');
 function recompute(){
   const d=derive(I());const j=judge(I());
   const set=(k,v)=>{const e=$('#auto_'+k);if(e)e.value=v;};
-  set('__residual',d.residualLabel+(d.investBased?'（引渡日基準）':'（本日基準）'));
+  set('__residual',d.residualLabel);
   set('__fitEnd',d.fitEndStr||'—');
+  { const nf=netFit(curDeal);
+    set('__payback', nf.pay!=null? nf.pay.toFixed(1) : (nf.years===-1?'回収できません':'—'));
+    set('__netFit',  nf.label); }
   set('__util',j.util!=null?pct(j.util):'—');
   set('__rfPriceIn',yen(d.rfIn));
   set('__rfGross',yen(d.gross));
