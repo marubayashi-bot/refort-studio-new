@@ -144,6 +144,8 @@ header{
 .empty{
   background:#fff;border:1px dashed var(--line);border-radius:14px;padding:44px 30px;text-align:center;
 }
+.banner{background:#FBEBEA;border:1px solid #E7C3BF;color:#7A2B24;border-radius:10px;padding:13px 16px;margin-bottom:20px;font-size:13px;line-height:1.7}
+.banner b{color:var(--red)}
 .empty h3{margin:0 0 8px;font-size:17px}
 .empty p{color:var(--muted);margin:0 auto 18px;max-width:520px}
 
@@ -220,6 +222,7 @@ pre{
   <div class="hwrap">
     <div class="brand"><b>営業ツール棚</b><span>EARTHCOM</span></div>
     <div class="search"><i>🔍</i><input id="q" placeholder="ツール名・用途・タグで検索"></div>
+    <button class="hbtn" id="btnSync" title="スプレッドシートから今すぐ読み込む">↻ 更新</button>
     <button class="hbtn" id="btnImport">取込</button>
     <button class="hbtn primary" id="btnAdd">＋ 追加</button>
     <button class="hbtn" id="btnSet">設定</button>
@@ -301,13 +304,13 @@ pre{
 
     <div class="tabpane" id="tab-gs">
       <div class="field">
-        <label>公開済みCSVのURL</label>
+        <label>スプレッドシートのURL</label>
         <input id="gsUrl" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=0&single=true&output=csv">
       </div>
       <div class="note">
-        Googleスプレッドシート側で <b>ファイル → 共有 → ウェブに公開</b> を開き、
-        シートに「棚卸しシート」、形式に「カンマ区切り形式(.csv)」を選んで発行し、出てきたURLを貼り付けてください。<br>
-        一度設定すれば、以降は<b>棚を開くたびに自動で読み込みます</b>（スプレッドシートを直せば棚も直る状態になります）。
+        <b>スプレッドシートのURLをそのまま貼るだけ</b>で構いません（アドレスバーの https://docs.google.com/spreadsheets/d/… をコピー）。<br>
+        その場合はスプレッドシート側で <b>共有 → リンクを知っている全員 → 閲覧者</b> にしてください。編集した内容が<b>その場で</b>棚に反映されます。<br>
+        「ウェブに公開」で発行したCSVのURLも使えますが、Google側のキャッシュのため反映まで数分かかります。
       </div>
       <div style="margin-top:12px"><button class="btn" id="btnGsTest">読み込みテスト</button></div>
     </div>
@@ -336,8 +339,10 @@ pre{
     <h4 style="margin:0 0 8px;font-size:13px">初回のみ：Supabase の SQL エディタで実行してください</h4>
     <pre id="sql"></pre>
     <h4 style="margin:18px 0 8px;font-size:13px">スプレッドシート連動</h4>
-    <div class="field"><label>公開済みCSVのURL（空にすると連動を止めます）</label><input id="setGsUrl"></div>
-    <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。</div>
+    <div class="field"><label>スプレッドシートのURL（空にすると連動を止めます）</label><input id="setGsUrl"></div>
+    <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。<br>
+    スプレッドシートは「リンクを知っている全員が閲覧可」にする必要があります。URLを知る人は誰でも中身を見られるため、<b>シートには社外秘の本文を書かず、リンクと説明だけ</b>に留めてください。</div>
+    <div id="lastSync" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
   </div>
   <div class="mfoot">
     <button class="btn" data-close>閉じる</button>
@@ -424,9 +429,14 @@ function fillSelects(){
   $("#setGsUrl").value = localStorage.getItem(gsKey) || "";
 }
 
+let SYNC_ERR = null;
 async function load(){
   const url = localStorage.getItem(gsKey);
-  if(url){ try{ await syncFromCsvUrl(url,true); }catch(e){ toast("スプレッドシートを読めませんでした"); } }
+  SYNC_ERR = null;
+  if(url){
+    try{ await syncFromCsvUrl(url,true); }
+    catch(e){ SYNC_ERR = e.message||"unknown"; }
+  }
   const {data,error} = await sb.from("tools").select("*").order("stage").order("id");
   if(error){
     $("#conn").innerHTML = "❌ tools テーブルが見つかりません。下のSQLを実行してください。";
@@ -474,6 +484,13 @@ function render(){
   });
 
   const shelf = $("#shelf"); shelf.innerHTML="";
+  if(SYNC_ERR){
+    const b = document.createElement("div");
+    b.className = "banner";
+    const msg = SYNC_ERR.includes("|") ? SYNC_ERR.split("|")[1] : SYNC_ERR;
+    b.innerHTML = "<b>スプレッドシートと同期できていません。</b>下の棚は前回同期したときの内容です。<br>" + msg;
+    shelf.appendChild(b);
+  }
   if(!TOOLS.length){
     shelf.innerHTML = `<div class="empty">
       <h3>棚はまだ空です</h3>
@@ -697,13 +714,48 @@ async function readFile(f){
   preview(rowsToRecords(rows));
 }
 
+/* スプレッドシートのURL → CSVで読めるURLに変換
+   ・通常の編集URL   → gviz エンドポイント（編集が即時反映）
+   ・「ウェブに公開」URL → そのまま（Google側キャッシュで数分遅れ）        */
+function toCsvUrl(input){
+  const u = (input||"").trim();
+  if(!u) return "";
+  const bust = "&_ts=" + Date.now();
+  if(u.includes("/pub")) return u + (u.includes("?")?"":"?") + bust;
+  const m = u.match(/\/spreadsheets\/d\/([A-Za-z0-9-_]{20,})/);
+  if(m){
+    // 貼られたURLに gid があればそれを最優先（タブ名の変更に影響されない）
+    const g = u.match(/[?&#]gid=(\d+)/);
+    const target = g ? "&gid=" + g[1] : "&sheet=" + encodeURIComponent("棚卸しシート");
+    return "https://docs.google.com/spreadsheets/d/" + m[1] + "/gviz/tq?tqx=out:csv" + target + bust;
+  }
+  return u + (u.includes("?")?"&":"?") + "_ts=" + Date.now();
+}
+
 async function syncFromCsvUrl(url, silent){
-  const res = await fetch(url);
-  if(!res.ok) throw new Error("fetch failed");
-  const recs = rowsToRecords(parseCSV(await res.text()));
-  if(!recs.length) throw new Error("no rows");
+  let res, text;
+  try{
+    res = await fetch(toCsvUrl(url), {cache:"no-store"});
+  }catch(e){
+    throw new Error("SHARE|スプレッドシートに接続できませんでした。共有が「リンクを知っている全員（閲覧者）」になっているか確認してください。");
+  }
+  if(res.status===401 || res.status===403){
+    throw new Error("SHARE|スプレッドシートの共有が制限されています（"+res.status+"）。共有 → リンクを知っている全員 → 閲覧者 に戻してください。");
+  }
+  if(!res.ok) throw new Error("HTTP|スプレッドシートを読めませんでした（HTTP "+res.status+"）。");
+  text = await res.text();
+  if(/^\s*</.test(text) || /accounts\.google\.com|ServiceLogin|<HTML/i.test(text.slice(0,400))){
+    throw new Error("SHARE|ログイン画面が返ってきました。共有が制限付きに戻っています。共有 → リンクを知っている全員 → 閲覧者 にしてください。");
+  }
+  const rows = parseCSV(text);
+  if(!rows.some(r=>r.some(c=>normHead(c)==="ツール名"))){
+    throw new Error("HEAD|見出し行が見つかりません。読みに行ったタブに「ツール名」の見出しがあるか、タブを指定し直してください（設定のURLに #gid=… まで含めてください）。");
+  }
+  const recs = rowsToRecords(rows);
+  if(!recs.length) throw new Error("ROWS|見出しは読めましたが、データ行が0件でした。");
   const {error} = await sb.from("tools").upsert(recs);
   if(error) throw error;
+  localStorage.setItem("ec_tools_gs_at", new Date().toISOString());
   if(!silent) toast(`スプレッドシートから ${recs.length} 件を同期しました`);
   return recs.length;
 }
@@ -722,12 +774,19 @@ $("#btnGsTest").onclick = async ()=>{
   const url = $("#gsUrl").value.trim();
   if(!url){ toast("URLを入れてください"); return; }
   try{
-    const res = await fetch(url);
-    const recs = rowsToRecords(parseCSV(await res.text()));
-    localStorage.setItem(gsKey,url); $("#setGsUrl").value=url;
-    preview(recs);
+    const before = localStorage.getItem(gsKey);
+    localStorage.setItem(gsKey,url);
+    const n = await syncFromCsvUrl(url,true);
+    $("#setGsUrl").value = url;
+    $("#prevWrap").innerHTML = '<div class="note">✅ '+n+' 件を読み取り、棚に反映しました。</div>';
+    $("#btnCommit").disabled = true;
+    await load();
     toast("連動を設定しました");
-  }catch(e){ toast("読めませんでした。『ウェブに公開』の設定を確認してください"); }
+  }catch(e){
+    const msg = (e.message||"").includes("|") ? e.message.split("|")[1] : "読み込みに失敗しました。";
+    $("#prevWrap").innerHTML = '<div class="banner">'+msg+'</div>';
+    $("#btnCommit").disabled = true;
+  }
 };
 
 $("#btnParsePaste").onclick = ()=>{
@@ -745,9 +804,19 @@ $("#file").onchange=e=>{ if(e.target.files[0]) readFile(e.target.files[0]); };
 drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
 /* ===================== UI配線 ===================== */
+$("#btnSync").onclick = async ()=>{
+  const u = localStorage.getItem(gsKey);
+  if(!u){ toast("スプレッドシート連動が未設定です（設定から登録できます）"); return; }
+  try{ await syncFromCsvUrl(u); await load(); }
+  catch(e){ SYNC_ERR = e.message; render(); toast("同期できませんでした"); }
+};
 $("#btnAdd").onclick = ()=>openEdit(null);
 $("#btnImport").onclick = ()=>$("#mImport").classList.add("on");
-$("#btnSet").onclick = ()=>$("#mSet").classList.add("on");
+$("#btnSet").onclick = ()=>{
+  const at = localStorage.getItem("ec_tools_gs_at");
+  $("#lastSync").textContent = at ? "最終同期：" + new Date(at).toLocaleString("ja-JP") : "まだ同期していません";
+  $("#mSet").classList.add("on");
+};
 $("#btnSaveSet").onclick = ()=>{
   const u=$("#setGsUrl").value.trim();
   if(u) localStorage.setItem(gsKey,u); else localStorage.removeItem(gsKey);
