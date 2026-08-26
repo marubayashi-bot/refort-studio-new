@@ -93,7 +93,10 @@ const IMP = [
   [3,'部署で共有','p3'],     [2,'記録のみ','p2']
 ];
 const LEVELS = ['LEVEL1 個人日報','LEVEL2 チーム課題','LEVEL3 部署課題','LEVEL4 全社課題','LEVEL5 経営判断'];
-const TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード'],['ai','AI分析'],['search','AI検索'],['meeting','会議資料'],['todo','実行管理'],['guide','使い方']];
+const BASE_TABS = [['write','日報を書く'],['feed','日報一覧'],['status','提出・確認状況'],['dash','ダッシュボード']];
+const AI_TABS   = [['ai','AI分析'],['search','AI検索'],['meeting','会議資料']];
+const TAIL_TABS = [['todo','実行管理'],['guide','使い方']];
+let TABS = BASE_TABS.concat(TAIL_TABS);
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
@@ -102,6 +105,23 @@ let REPORTS = [];       // 閲覧できる日報
 let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
 let DEPTS = [];
+/* AIの利用範囲：職位で決まる。ec-users側の個別設定(ai_access)があればそちらが優先 */
+function aiAccess(){
+  const ov = ME.ai_access;
+  if (ov === 'none') return 'none';
+  if (ov === 'manager') return 'manager';
+  if (ov === 'exec') return 'exec';
+  if (ME.job_grade === '役員・経営') return 'exec';
+  if (['次長','部門長'].includes(ME.job_grade)) return 'manager';
+  return 'none';
+}
+function canUseAI(){ return aiAccess() !== 'none'; }
+function allowedLayers(){
+  const a = aiAccess();
+  if (a === 'exec') return ['personal','boss','dept','company','exec'];
+  if (a === 'manager') return ['personal','boss','dept'];
+  return [];
+}
 function canAdmin(){ return ME.role === 'admin' || ['次長','部門長','役員・経営'].includes(ME.job_grade); }
 
 /* ---------- 起動 ---------- */
@@ -120,7 +140,7 @@ async function boot(){
 
   const { data: us, error: ue } = await EC.supabase
     .from('app_users')
-    .select('id,email,full_name,dept_name,department_id,manager_id,job_grade,exec_watch,is_active,role')
+    .select('id,email,full_name,dept_name,department_id,manager_id,job_grade,exec_watch,is_active,role,ai_access')
     .eq('is_active', true);
   if (ue) { fail('社員情報を読み込めませんでした: ' + ue.message); return; }
   USERS = us || [];
@@ -162,7 +182,9 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 
 /* ---------- 画面枠 ---------- */
 function render(){
+  TABS = BASE_TABS.concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
   const tabs = TABS.concat(canAdmin() ? [['admin','管理']] : []);
+  if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
@@ -424,7 +446,7 @@ const LAYERS = [
 function vAI(){
   return `<h2>AI分析</h2>
   <p class="sub">出力は必ず「事実 → AI分析 → AI提案」。提案はその場でタスク・議題・ナレッジにできます。</p>
-  ${LAYERS.map(([k,t,d]) => `<div class="card"><h3>${t}</h3><p class="note">${d}</p>
+  ${LAYERS.filter(([k]) => allowedLayers().includes(k)).map(([k,t,d]) => `<div class="card"><h3>${t}</h3><p class="note">${d}</p>
     <button class="act" style="margin-top:10px" onclick="runAI('${k}')">分析する</button>
     <div id="ai_${k}"></div></div>`).join('')}`;
 }
@@ -665,6 +687,7 @@ let ADMIN_METRICS = [];
 function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
+  setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
   <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
   <div class="card">
@@ -683,6 +706,11 @@ function vAdmin(){
         ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
     </div>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
+  </div>
+  <div class="card"><h3>AIの利用範囲</h3>
+    <p class="note">初期設定では、次長・部門長は個人／上司／部署AIとAI検索・会議資料、役員は全AIを使えます。
+      一般・リーダー・課長にはAIタブが表示されません。ここで個別に変更できます。</p>
+    <div id="aiList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>
   <div class="card"><h3>設定のこつ</h3>
     <p class="note">項目は4〜5個までに抑えてください。多すぎると日報が数字を埋める作業になり、お客様の声や考察の質が落ちます。
@@ -823,6 +851,38 @@ async function removeGuide(id){
   const { error } = await EC.supabase.from('app_guide').update({ is_active: false }).eq('id', id);
   if (error){ toast('削除できませんでした: ' + error.message); return; }
   toast('削除しました'); loadGuide();
+}
+
+
+async function loadAiAccess(){
+  const box = document.getElementById('aiList'); if (!box) return;
+  const list = USERS.slice().sort((a,b) =>
+    (a.dept_name||'').localeCompare(b.dept_name||'','ja') ||
+    (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  box.innerHTML = `<table style="margin-top:10px">
+    <tr><th>氏名</th><th>部署</th><th>職位</th><th>AIの利用範囲</th></tr>
+    ${list.map(u => `<tr>
+      <td>${esc(u.full_name)}</td><td class="note">${esc(u.dept_name||'')}</td>
+      <td class="note">${esc(u.job_grade||'')}</td>
+      <td><select style="padding:5px;font-size:12px" onchange="setAiAccess('${u.id}',this.value)">
+        <option value=""${!u.ai_access?' selected':''}>職位どおり（${aiLabel_(u)}）</option>
+        <option value="none"${u.ai_access==='none'?' selected':''}>使わせない</option>
+        <option value="manager"${u.ai_access==='manager'?' selected':''}>個人・上司・部署AIまで</option>
+        <option value="exec"${u.ai_access==='exec'?' selected':''}>全AI（全社・経営を含む）</option>
+      </select></td></tr>`).join('')}
+  </table>`;
+}
+function aiLabel_(u){
+  if (u.job_grade === '役員・経営') return '全AI';
+  if (['次長','部門長'].includes(u.job_grade)) return '部署AIまで';
+  return 'なし';
+}
+async function setAiAccess(id, v){
+  const { error } = await EC.supabase.from('app_users')
+    .update({ ai_access: v || null }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const u = USERS.find(x => x.id === id); if (u) u.ai_access = v || null;
+  toast('AIの利用範囲を変更しました');
 }
 
 /* ---------- 4. ダッシュボード ---------- */
