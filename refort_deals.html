@@ -1026,10 +1026,19 @@ function derive(I){
 }
 
 /* ---------- FIT残の表示ヘルパー ---------- */
+/* 案件のモデル判定（UI側 autoModel と同じ基準。こちらは計算スクリプト内で完結させる） */
+function modelOf(deal){
+  const d=derive(deal.inputs);
+  const hasSec=d.saleEx>0&&d.gen>0, hasRF=d.rfEx>0&&d.rfGenAfter>0;
+  if(hasRF&&d.gen>0&&!hasSec)return'm3';
+  if(hasSec&&hasRF)return'm2';
+  if(hasSec)return'm1';
+  return'm3';
+}
 /* 投資回収年数（案件のモデルに応じて算出） */
 function paybackOf(deal){
   try{
-    const m=autoModel(deal), I=deal.inputs;
+    const m=modelOf(deal), I=deal.inputs;
     if(m==='m1'){ const s=simSecondary(I); return s.payback; }
     if(m==='m2'){ const s=simSecondaryRF(I);
       return (s.fitAvgCF>0 && s.totalInv>0)? s.totalInv/s.fitAvgCF : null; }
@@ -1039,7 +1048,7 @@ function paybackOf(deal){
 /* 投資後残FIT ＝ FIT残 − 投資回収年数（回収後に丸ごと利益になる期間） */
 function netFit(deal){
   const der=derive(deal.inputs), pay=paybackOf(deal);
-  const m=autoModel(deal);
+  const m=modelOf(deal);
   const hasData = der.gen>0 && (m==='m1'? der.saleEx>0 : (der.rfEx>0 && der.rfGenAfter>0));
   if(der.residualExact==null||!hasData) return {pay:null,years:null,label:'—',cls:'x'};
   if(pay==null||!isFinite(pay))        // 20年かけても投資額に届かない
@@ -1064,7 +1073,7 @@ function rfRateCell(der){
 function fitCls(y){ if(y==null||!isFinite(y))return 'x'; return y<5?'r':y<10?'o':y<15?'n':'g'; }
 function fitBadge(der){
   if(der.residualExact==null) return '<span class="hint">—</span>';
-  const t=(der.investBased?'引渡日基準':'本日基準')+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
+  const t='本日時点のFIT残'+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
   return `<span class="fitchip ${fitCls(der.residualExact)}" title="${t}">${der.residualLabel}</span>`;
 }
 /* GoogleマップURLから緯度経度を読み取る（取得できれば検索より正確） */
