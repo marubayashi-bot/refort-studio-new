@@ -178,6 +178,36 @@ select{appearance:none;background:url("data:image/svg+xml;utf8,<svg xmlns='http:
 }
 .card .ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 
+/* ---------- 添付 ---------- */
+.linkrow{display:flex;gap:8px;align-items:center;margin-bottom:7px;flex-wrap:wrap}
+.linkrow input{flex:1;min-width:120px}
+.linkrow input[data-f="label"]{max-width:200px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumb{position:relative;width:74px;height:74px;border:1px solid var(--rule);background:#fff}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.thumb .x{
+  position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;
+  border:1px solid var(--rule);background:var(--raised);cursor:pointer;line-height:1;
+  font-size:13px;color:var(--ink-soft);padding:0;
+}
+.thumb .x:hover{border-color:var(--seal);color:var(--seal)}
+.attached{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}
+.linkchip{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);
+  padding:4px 10px;font-size:12px;text-decoration:none;background:#fff;border-radius:2px;max-width:100%;
+}
+.linkchip:hover{border-color:var(--seal)}
+.linkchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linkchip::before{content:"";width:5px;height:5px;background:var(--seal);flex:0 0 5px;transform:rotate(45deg)}
+.note{
+  border-left:2px solid var(--rule);padding:2px 0 2px 12px;margin:11px 0 0;
+  font-size:12.5px;color:#2A3442;white-space:pre-wrap;
+}
+.note b{display:block;font-family:var(--disp);font-weight:500;font-size:10px;letter-spacing:.20em;color:var(--ink-soft);margin-bottom:3px}
+#lb{max-width:min(94vw,900px);width:auto;padding:0;border:0;background:transparent}
+#lb img{display:block;max-width:100%;max-height:86vh;object-fit:contain}
+#lb::backdrop{background:rgba(20,26,34,.86)}
+
 /* ---------- seal ---------- */
 .seal-mark{
   width:60px;height:60px;display:grid;place-items:center;position:relative;
@@ -324,9 +354,15 @@ dialog p{font-size:12.5px;color:var(--ink-soft);margin:0}
       <button class="verdict" data-v="again"><span class="mk again">再</span><span class="tx">もう一度<small>効きそうだが、まだ身についていない</small></span></button>
       <button class="verdict" data-v="drop"><span class="mk drop">要</span><span class="tx">不要だった<small>自分の仕事には効かなかった</small></span></button>
     </div>
+    <div style="margin-top:16px">
+      <label class="lab" for="dlgNote">振り返りメモ <span style="letter-spacing:0">（任意）</span></label>
+      <textarea id="dlgNote" placeholder="何が変わったか。効かなかったなら、その理由。" style="border:1px solid var(--rule);background:#fff;padding:9px 10px;min-height:70px"></textarea>
+    </div>
     <div class="actbar"><button class="btn ghost sm" id="dlgClose">閉じる</button></div>
   </div>
 </dialog>
+
+<dialog id="lb"><img id="lbImg" src="" alt=""></dialog>
 
 <script type="module">
 /* ============================================================
@@ -335,6 +371,7 @@ dialog p{font-size:12.5px;color:var(--ink-soft);margin:0}
 const SUPABASE_URL  = 'https://aakofrzurgwrkctunthw.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
 const TABLE         = 'learning_log';
+const BUCKET        = 'manabi-techo';           // 写真の置き場（Supabase Storage・非公開）
 const OWNER_EMAIL   = 'hankyo@earthcom-eco.jp';   // 社長個人ログ。EC認証があればログイン者で上書き
 const REVIEW_DAYS   = 30;                          // 何日後に検印するか
 // AI（アウトプット案の自動提案）の呼び先。
@@ -410,93 +447,235 @@ function reviewDue(r){
 /* ============================================================
    画面：記帳
    ============================================================ */
-let draftKind = KINDS[0];
+let draft = blankDraft();
+let signed = {};   // 写真の一時URL置き場（path -> signed url）
+
+function blankDraft(){
+  return { id:null, kind:KINDS[0], title:'', source_url:'', learned_on:today(), minutes:'',
+    takeaways:['','',''], use_scene:'', action:'', action_due:addDays(today(),14),
+    links:[], photos:[], action_status:'declared', action_result:'', review_note:'' };
+}
+function draftFromRow(r){
+  const t=(r.takeaways||[]).slice(0,3); while(t.length<3) t.push('');
+  return { id:r.id, kind:r.kind||KINDS[0], title:r.title||'', source_url:r.source_url||'',
+    learned_on:r.learned_on||today(), minutes:r.minutes??'', takeaways:t,
+    use_scene:r.use_scene||'', action:r.action||'', action_due:r.action_due||'',
+    links:(r.links||[]).map(x=>({label:x.label||'',url:x.url||''})), photos:[...(r.photos||[])],
+    action_status:r.action_status||'declared', action_result:r.action_result||'', review_note:r.review_note||'' };
+}
+function photoSrc(p){
+  if(!p) return '';
+  if(p.startsWith('blob:')||p.startsWith('http')) return p;
+  return signed[p] || '';
+}
+async function signPhotos(paths){
+  const need = paths.filter(p=>p && !p.startsWith('blob:') && !p.startsWith('http') && !signed[p]);
+  if(!need.length || MODE!=='supabase') return;
+  const { data } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600);
+  (data||[]).forEach(d=>{ if(d.path && d.signedUrl) signed[d.path]=d.signedUrl; });
+}
 
 function viewAdd(){
+  const editing = !!draft.id;
   return `
-  <p class="eyebrow">記帳</p>
-  <h1>インプットを一件、書き留める</h1>
-  <p class="lede">学びは三行まで。そして「いつ・どこで使うか」を宣言しないと保存できません。溜めるための帳面ではなく、使うための帳面です。</p>
+  <p class="eyebrow">${editing?'書き直し':'記帳'}</p>
+  <h1>${editing?'記帳をなおす':'インプットを一件、書き留める'}</h1>
+  <p class="lede">${editing
+    ? '内容も、実行の状況も、あとから何度でも直せます。振り返りメモは書き足していく前提の欄です。'
+    : '学びは三行まで。そして「いつ・どこで使うか」を宣言しないと保存できません。溜めるための帳面ではなく、使うための帳面です。'}</p>
   <form class="sheet" id="f">
     <div class="row"><div class="cell">
       <span class="lab">種類</span>
-      <div class="chipset" id="kinds">${KINDS.map(k=>`<button type="button" class="chip" data-k="${k}" aria-pressed="${k===draftKind}">${k}</button>`).join('')}</div>
+      <div class="chipset" id="kinds">${KINDS.map(k=>`<button type="button" class="chip" data-k="${k}" aria-pressed="${k===draft.kind}">${k}</button>`).join('')}</div>
     </div></div>
     <div class="row">
       <div class="cell" style="flex:2">
         <label class="lab" for="i_title">表題 <em>必須</em></label>
-        <input type="text" id="i_title" placeholder="例）識学 中間管理職研修 第3回" required>
+        <input type="text" id="i_title" value="${esc(draft.title)}" placeholder="例）識学 中間管理職研修 第3回">
       </div>
-      <div class="cell"><label class="lab" for="i_date">日付</label><input type="date" id="i_date" value="${today()}"></div>
-      <div class="cell"><label class="lab" for="i_min">所要（分）</label><input type="number" id="i_min" min="0" step="5" placeholder="90"></div>
+      <div class="cell"><label class="lab" for="i_date">日付</label><input type="date" id="i_date" value="${draft.learned_on||''}"></div>
+      <div class="cell"><label class="lab" for="i_min">所要（分）</label><input type="number" id="i_min" min="0" step="5" value="${draft.minutes??''}" placeholder="90"></div>
     </div>
     <div class="row"><div class="cell">
       <label class="lab" for="i_url">出典URL・置き場所</label>
-      <input type="url" id="i_url" placeholder="https://… / 書籍なら空欄可">
+      <input type="url" id="i_url" value="${esc(draft.source_url)}" placeholder="https://… / 書籍なら空欄可">
     </div></div>
     <div class="row"><div class="cell">
       <span class="lab">学び <em>三行まで</em></span>
-      <textarea id="i_t1" placeholder="一 —"></textarea>
-      <textarea id="i_t2" placeholder="二 —"></textarea>
-      <textarea id="i_t3" placeholder="三 —"></textarea>
+      <textarea id="i_t1" placeholder="一 —">${esc(draft.takeaways[0])}</textarea>
+      <textarea id="i_t2" placeholder="二 —">${esc(draft.takeaways[1])}</textarea>
+      <textarea id="i_t3" placeholder="三 —">${esc(draft.takeaways[2])}</textarea>
       <p class="hint">長く書くほど続きません。要点だけ。</p>
     </div></div>
     <div class="row"><div class="cell">
+      <span class="lab">資料・写真</span>
+      <div id="attach"></div>
+      <div class="actbar" style="margin-top:10px">
+        <button type="button" class="btn ghost sm" id="addLink">リンクを足す</button>
+        <label class="btn ghost sm" for="photo" style="cursor:pointer">写真を足す</label>
+        <input type="file" id="photo" accept="image/*" multiple hidden>
+        <span class="hint" id="upNote"></span>
+      </div>
+    </div></div>
+    <div class="row"><div class="cell">
       <label class="lab" for="i_scene">使う場面</label>
-      <input type="text" id="i_scene" placeholder="例）部門長会議／ReFort の初回商談／幹部との1on1">
+      <input type="text" id="i_scene" value="${esc(draft.use_scene)}" placeholder="例）部門長会議／ReFort の初回商談／幹部との1on1">
     </div></div>
     <div class="row">
       <div class="cell" style="flex:2">
         <label class="lab" for="i_action">アウトプット宣言 <em>必須</em></label>
-        <textarea id="i_action" placeholder="何を、どこで、実際にやるか"></textarea>
+        <textarea id="i_action" placeholder="何を、どこで、実際にやるか">${esc(draft.action)}</textarea>
         <div class="actbar">
           <button type="button" class="btn ghost sm" id="aiBtn">案を出してもらう</button>
           <span class="hint" id="aiNote">学びと使う場面を入れてから押すと精度が上がります。</span>
         </div>
         <div class="cands" id="cands"></div>
       </div>
-      <div class="cell"><label class="lab" for="i_due">期限</label><input type="date" id="i_due" value="${addDays(today(),14)}"></div>
+      <div class="cell"><label class="lab" for="i_due">期限</label><input type="date" id="i_due" value="${draft.action_due||''}"></div>
     </div>
+    ${editing?`
+    <div class="row">
+      <div class="cell">
+        <label class="lab" for="i_status">実行の状況</label>
+        <select id="i_status">
+          ${[['declared','宣言のみ'],['doing','着手した'],['done','実行した'],['dropped','取り下げ']]
+            .map(([v,l])=>`<option value="${v}" ${draft.action_status===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="cell" style="flex:2">
+        <label class="lab" for="i_result">やってみて何が起きたか</label>
+        <textarea id="i_result" placeholder="相手の反応、数字の変化、うまくいかなかった点">${esc(draft.action_result)}</textarea>
+      </div>
+    </div>
+    <div class="row"><div class="cell">
+      <label class="lab" for="i_note">振り返りメモ</label>
+      <textarea id="i_note" placeholder="日付を書いて足していくと、変化がたどれます">${esc(draft.review_note)}</textarea>
+      <p class="hint">検印のときにも書けます。上書きではなく書き足していく欄です。</p>
+    </div></div>`:''}
   </form>
   <div class="actbar">
-    <button class="btn" id="save">記帳する</button>
-    <button class="btn ghost" id="clear">書き直す</button>
+    <button class="btn" id="save">${editing?'なおす':'記帳する'}</button>
+    <button class="btn ghost" id="clear">${editing?'やめる':'白紙に戻す'}</button>
   </div>`;
 }
 
+function renderAttach(){
+  const el=$('#attach'); if(!el) return;
+  const links = draft.links.map((l,i)=>`
+    <div class="linkrow">
+      <input type="text" data-li="${i}" data-f="label" value="${esc(l.label)}" placeholder="名前（例：識学スライド）">
+      <input type="url" data-li="${i}" data-f="url" value="${esc(l.url)}" placeholder="https://…">
+      <button type="button" class="btn ghost sm" data-rml="${i}">外す</button>
+    </div>`).join('');
+  const thumbs = draft.photos.map((p,i)=>`
+    <div class="thumb"><img src="${esc(photoSrc(p))}" alt="" data-big="${esc(photoSrc(p))}">
+    <button type="button" class="x" data-rmp="${i}" aria-label="外す">×</button></div>`).join('');
+  el.innerHTML = links + (thumbs?`<div class="thumbs">${thumbs}</div>`:'')
+    + ((!links&&!thumbs)?`<p class="hint">スライドや議事録のURL、現場やホワイトボードの写真、本の表紙などを足せます。</p>`:'');
+}
+
 function bindAdd(){
+  renderAttach();
   $('#kinds').addEventListener('click',e=>{
     const b=e.target.closest('.chip'); if(!b) return;
-    draftKind=b.dataset.k;
-    $('#kinds').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.k===draftKind));
+    draft.kind=b.dataset.k;
+    $('#kinds').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.k===draft.kind));
   });
-  $('#clear').onclick = ()=>render('add');
+  $('#attach').addEventListener('input',e=>{
+    const t=e.target.closest('[data-li]'); if(!t) return;
+    draft.links[Number(t.dataset.li)][t.dataset.f]=t.value;
+  });
+  $('#attach').addEventListener('click',e=>{
+    const rl=e.target.closest('[data-rml]');
+    if(rl){ draft.links.splice(Number(rl.dataset.rml),1); renderAttach(); return; }
+    const rp=e.target.closest('[data-rmp]');
+    if(rp){ draft.photos.splice(Number(rp.dataset.rmp),1); renderAttach(); return; }
+  });
+  $('#addLink').onclick = ()=>{ draft.links.push({label:'',url:''}); renderAttach();
+    const rows=$('#attach').querySelectorAll('.linkrow'); rows[rows.length-1]?.querySelector('input')?.focus(); };
+  $('#photo').onchange = onPhoto;
+  $('#clear').onclick = ()=>{ draft=blankDraft(); render('add'); };
   $('#aiBtn').onclick = onAI;
   $('#save').onclick = onSave;
 }
 
-function draftValues(){
-  return {
-    kind: draftKind,
-    title: $('#i_title').value.trim(),
-    source_url: $('#i_url').value.trim() || null,
-    learned_on: $('#i_date').value || today(),
-    minutes: $('#i_min').value ? Number($('#i_min').value) : null,
-    takeaways: [$('#i_t1').value,$('#i_t2').value,$('#i_t3').value].map(s=>s.trim()).filter(Boolean),
-    use_scene: $('#i_scene').value.trim() || null,
-    action: $('#i_action').value.trim(),
-    action_due: $('#i_due').value || null,
+async function onPhoto(e){
+  const files=[...e.target.files]; e.target.value='';
+  const note=$('#upNote');
+  for(const f of files){
+    if(f.size > 8*1024*1024){ toast('8MBを超える写真は貼れません'); continue; }
+    if(MODE!=='supabase'){ draft.photos.push(URL.createObjectURL(f)); continue; }
+    note.textContent='写真を送っています…';
+    const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+    const path=`${OWNER_EMAIL}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, f, {contentType:f.type||'image/jpeg'});
+    if(error){ toast('写真を送れませんでした'); continue; }
+    await signPhotos([path]);
+    draft.photos.push(path);
+  }
+  note.textContent='';
+  renderAttach();
+}
+
+function syncDraft(){
+  draft.title=$('#i_title').value.trim();
+  draft.source_url=$('#i_url').value.trim();
+  draft.learned_on=$('#i_date').value||today();
+  draft.minutes=$('#i_min').value;
+  draft.takeaways=[$('#i_t1').value,$('#i_t2').value,$('#i_t3').value];
+  draft.use_scene=$('#i_scene').value.trim();
+  draft.action=$('#i_action').value.trim();
+  draft.action_due=$('#i_due').value;
+  if($('#i_status')){
+    draft.action_status=$('#i_status').value;
+    draft.action_result=$('#i_result').value.trim();
+    draft.review_note=$('#i_note').value.trim();
+  }
+}
+
+function draftToRecord(){
+  const r = {
+    kind: draft.kind,
+    title: draft.title,
+    source_url: draft.source_url || null,
+    learned_on: draft.learned_on,
+    minutes: draft.minutes!=='' && draft.minutes!==null ? Number(draft.minutes) : null,
+    takeaways: draft.takeaways.map(t=>t.trim()).filter(Boolean),
+    use_scene: draft.use_scene || null,
+    links: draft.links.filter(l=>l.url.trim()).map(l=>({label:(l.label.trim()||l.url.trim()), url:l.url.trim()})),
+    photos: draft.photos.filter(p=>!p.startsWith('blob:')),
+    action: draft.action,
+    action_due: draft.action_due || null,
   };
+  if(draft.id){
+    r.action_status = draft.action_status;
+    r.action_result = draft.action_result || null;
+    r.review_note   = draft.review_note || null;
+    if(draft.action_status==='done'){
+      const cur = cache.find(x=>x.id===draft.id);
+      r.action_done_on = cur?.action_done_on || today();
+    }
+  }
+  return r;
 }
 
 async function onSave(){
-  const v = draftValues();
-  if(!v.title){ toast('表題を入れてください'); $('#i_title').focus(); return; }
-  if(!v.action){ toast('アウトプット宣言がないと記帳できません'); $('#i_action').focus(); return; }
-  const rec = {...v, owner_email:OWNER_EMAIL, action_status:'declared'};
-  try{ await saveNew(rec); }catch(e){ return; }
-  toast('記帳しました');
+  syncDraft();
+  if(!draft.title){ toast('表題を入れてください'); $('#i_title').focus(); return; }
+  if(!draft.action){ toast('アウトプット宣言がないと記帳できません'); $('#i_action').focus(); return; }
+  const rec = draftToRecord();
+  try{
+    if(draft.id){ await patch(draft.id, rec); toast('なおしました'); }
+    else{ await saveNew({...rec, owner_email:OWNER_EMAIL, action_status:'declared'}); toast('記帳しました'); }
+  }catch(e){ return; }
+  draft = blankDraft();
   render('index');
+}
+
+function startEdit(r){
+  draft = draftFromRow(r);
+  render('add');
+  window.scrollTo({top:0});
 }
 
 /* ai 関数の返り方（素通し / 整形済み）どちらでも本文を取り出す */
@@ -508,7 +687,9 @@ function extractText(data){
 }
 
 async function onAI(){
-  const v = draftValues();
+  syncDraft();
+  const v = { kind:draft.kind, title:draft.title, use_scene:draft.use_scene,
+              takeaways:draft.takeaways.map(t=>t.trim()).filter(Boolean) };
   if(!v.title && !v.takeaways.length){ toast('表題か学びを入れてください'); return; }
   const btn=$('#aiBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='考えています…';
   $('#cands').innerHTML='';
@@ -579,23 +760,40 @@ function cardHTML(r){
       <div class="meta"><span class="kind">${esc(r.kind)}</span><span>${esc(r.learned_on)}</span>${r.minutes?`<span>${r.minutes}分</span>`:''}${r.source_url?`<a href="${esc(r.source_url)}" target="_blank" rel="noopener">出典</a>`:''}</div>
       <h3>${esc(r.title)}</h3>
       ${r.takeaways?.length?`<ul class="takeaways">${r.takeaways.map((t,i)=>`<li data-i="${['一','二','三'][i]}">${esc(t)}</li>`).join('')}</ul>`:''}
+      ${attachedHTML(r)}
       <div class="action">
         <div class="txt"><b>アウトプット宣言</b>${esc(r.action)}${r.action_due?` <span style="color:var(--ink-soft);font-size:11.5px">／ ${fmtDate(r.action_due)}まで</span>`:''}</div>
         <span class="status ${st.cls}">${st.label}</span>
       </div>
-      ${r.action_result?`<div class="hint" style="margin-top:9px">結果：${esc(r.action_result)}</div>`:''}
+      ${r.action_result?`<p class="note"><b>やってみて</b>${esc(r.action_result)}</p>`:''}
+      ${r.review_note?`<p class="note"><b>振り返り</b>${esc(r.review_note)}</p>`:''}
       <div class="ops">${opsHTML(r)}</div>
     </div>
     <div class="sealbox">${seal}</div>
   </article>`;
 }
+function attachedHTML(r){
+  const links=(r.links||[]).filter(l=>l.url);
+  const photos=(r.photos||[]);
+  if(!links.length && !photos.length) return '';
+  return `
+    ${links.length?`<div class="attached">${links.map(l=>
+      `<a class="linkchip" href="${esc(l.url)}" target="_blank" rel="noopener"><span>${esc(l.label||l.url)}</span></a>`).join('')}</div>`:''}
+    ${photos.length?`<div class="thumbs" style="margin-bottom:12px">${photos.map(p=>
+      `<div class="thumb"><img src="${esc(photoSrc(p))}" alt="" data-big="${esc(photoSrc(p))}"></div>`).join('')}</div>`:''}`;
+}
+
 function opsHTML(r){
-  if(r.action_status==='done') return reviewDue(r)?`<button class="btn ghost sm" data-review="${r.id}">検印する</button>`:'';
-  if(r.action_status==='dropped') return `<button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"declared"}'>戻す</button>`;
+  const edit = `<button class="btn ghost sm" data-edit="${r.id}">書き直す</button>`;
+  if(r.action_status==='done')
+    return (reviewDue(r)?`<button class="btn seal sm" data-review="${r.id}">検印する</button>`:'')
+         + (r.review_verdict?`<button class="btn ghost sm" data-review="${r.id}">検印しなおす</button>`:'') + edit;
+  if(r.action_status==='dropped')
+    return `<button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"declared"}'>戻す</button>` + edit;
   return `
     ${r.action_status!=='doing'?`<button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"doing"}'>着手した</button>`:''}
     <button class="btn seal sm" data-done="${r.id}">実行した</button>
-    <button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"dropped"}'>取り下げ</button>`;
+    <button class="btn ghost sm" data-set='{"id":"${r.id}","action_status":"dropped"}'>取り下げ</button>${edit}`;
 }
 
 function viewIndex(rows){
@@ -714,14 +912,19 @@ function viewLedger(rows){
 let reviewTarget=null;
 function openReview(r){
   reviewTarget=r;
-  $('#dlgTitle').textContent='検印';
+  $('#dlgTitle').textContent = r.review_verdict ? '検印しなおす' : '検印';
   $('#dlgSub').textContent=r.title;
+  $('#dlgNote').value = r.review_note || '';
   $('#dlg').showModal();
 }
 $('#dlgClose').onclick=()=>$('#dlg').close();
+$('#lb').onclick=()=>$('#lb').close();
 document.querySelectorAll('.verdict').forEach(b=>b.onclick=async()=>{
   if(!reviewTarget) return;
-  await patch(reviewTarget.id,{review_verdict:b.dataset.v, reviewed_at:today()});
+  await patch(reviewTarget.id,{
+    review_verdict:b.dataset.v, reviewed_at:today(),
+    review_note:$('#dlgNote').value.trim() || null
+  });
   $('#dlg').close(); toast('検印しました'); render(current);
 });
 
@@ -736,6 +939,7 @@ async function render(v){
   const el=$('#view');
   if(v==='add'){ el.innerHTML=viewAdd(); bindAdd(); return; }
   cache = await listAll();
+  await signPhotos(cache.flatMap(r=>r.photos||[]));
   $('#cntIndex').textContent = cache.length||'';
   $('#cntBoard').textContent = cache.filter(r=>r.action_status==='declared'||r.action_status==='doing').length||'';
   $('#cntLedger').textContent = cache.filter(reviewDue).length||'';
@@ -747,7 +951,11 @@ async function render(v){
 }
 
 document.addEventListener('click', async e=>{
+  const big=e.target.closest('[data-big]');
+  if(big && big.dataset.big){ $('#lbImg').src=big.dataset.big; $('#lb').showModal(); return; }
   const tab=e.target.closest('.tab'); if(tab){ render(tab.dataset.view); return; }
+  const ed=e.target.closest('[data-edit]');
+  if(ed){ const r=cache.find(x=>x.id===ed.dataset.edit); if(r) startEdit(r); return; }
   const rev=e.target.closest('[data-review]');
   if(rev){ const r=cache.find(x=>x.id===rev.dataset.review); if(r) openReview(r); return; }
   const done=e.target.closest('[data-done]');
@@ -765,7 +973,9 @@ function seed(){
     {id:'1',kind:'研修',title:'識学 中間管理職研修 第3回',learned_on:d(46),minutes:120,
      takeaways:['評価は「変化」ではなく「結果」で行う','部下の相談は、判断ではなく選択肢を求めさせる','ルールは例外を作った瞬間に死ぬ'],
      use_scene:'部門長会議',action:'部門長会議の評価コメントを、経過表現ゼロで書き直す',action_due:d(32),
-     action_status:'done',action_done_on:d(35),review_verdict:'keep',reviewed_at:d(3)},
+     links:[{label:'研修スライド',url:'https://example.com/slide'},{label:'当日メモ',url:'https://example.com/memo'}],
+     action_status:'done',action_done_on:d(35),action_result:'8名中6名の評価文から「頑張っている」が消えた。残り2名は書き直しを差し戻し。',
+     review_verdict:'keep',reviewed_at:d(3),review_note:'9/20 いまは意識せず書けている。次は数字の根拠まで入れる。'},
     {id:'2',kind:'書籍',title:'イシューからはじめよ',learned_on:d(38),minutes:240,
      takeaways:['解くべき問いを絞るほど、答えは速く出る','量で解こうとするのは思考の放棄'],
      use_scene:'幹部会議のアジェンダ設計',action:'幹部会議の議題を毎回3つまでに絞る',action_due:d(24),
