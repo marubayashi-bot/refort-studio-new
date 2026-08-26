@@ -362,6 +362,19 @@ table.sim td.col-tot{background:var(--surface2);font-weight:700;border-left:1px 
 .sync-pill.connecting{background:#3a3416;color:#e3c878}
 .sync-pill.error{background:#4a1f1f;color:#f0a0a0}
 #syncModal .modal{max-width:520px}
+#colModal .modal{max-width:700px}
+.colpanes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 16px}
+.colpane{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.colpane h4{margin:0;padding:8px 10px;font-size:12px;background:#f4f6f9;color:var(--navy);border-bottom:1px solid var(--line)}
+.collist{max-height:330px;overflow:auto}
+.colrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid #eef1f5;font-size:13px}
+.colrow:last-child{border-bottom:none}
+.colrow .ops{display:flex;gap:4px;align-items:center;flex:none}
+.colrow button{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;padding:2px 7px;cursor:pointer;line-height:1.6}
+.colrow button[disabled]{opacity:.3;cursor:default}
+.colrow .del{color:#c0392b}
+.colrow .add{color:#1f8a55}
+.colrow .fx{font-size:10px;color:var(--muted);padding:2px 6px}
 #syncModal .sf{margin:10px 0}
 #syncModal label{display:block;font-size:12px;font-weight:700;color:var(--navy2,#163a5f);margin-bottom:4px}
 #syncModal input{width:100%;padding:8px 10px;border:1px solid var(--line2,#cdd8e4);border-radius:7px;font:inherit;font-size:13px}
@@ -824,6 +837,21 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
     <div class="acts">
       <button class="btn btn-line" id="sbLocal">ローカルのみに戻す</button>
       <button class="btn btn-gold" id="sbConnect">接続して共有する</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="colModal">
+  <div class="modal">
+    <h3>⚙ 列設定</h3>
+    <p class="hint">「<b id="colCurName"></b>」タブの表示項目です。タブごとに別々に覚えます。設定はこの端末のブラウザにのみ保存され、他の社員の画面には影響しません。</p>
+    <div class="colpanes">
+      <div class="colpane"><h4>表示中の列（上から順に並びます）</h4><div class="collist" id="colOn"></div></div>
+      <div class="colpane"><h4>追加できる項目</h4><div class="collist" id="colOff"></div></div>
+    </div>
+    <div class="acts">
+      <button class="btn btn-line" id="colReset">初期設定に戻す</button>
+      <button class="btn btn-line" id="colCancel">キャンセル</button>
+      <button class="btn btn-gold" id="colSave">保存する</button>
     </div>
   </div>
 </div>
@@ -1583,6 +1611,105 @@ function renderCustTree(){
   wrap.querySelectorAll('.ct-sim[data-open]').forEach(r=>r.onclick=e=>{ e.stopPropagation(); openDeal(r.dataset.open); });
 }
 
+
+/* ==================== 列カタログ・列設定（個人ごと・タブごと） ==================== */
+/* 一覧に出せる項目の一覧。ここに1行足せば「追加できる項目」に自動で並びます */
+const COL_DEFS=[
+  {k:'name',label:'案件名',fixed:true,
+    cell:d=>`<span class="lnk" data-open="${d.id}">${esc(d.name||'(無題)')}</span><span class="lnk-sheet" data-sheet="${d.id}">📄シート</span>`,
+    csv:d=>d.name||''},
+  {k:'customer',label:'お客様',cell:d=>esc(d.inputs.customer||'—'),csv:d=>d.inputs.customer||''},
+  {k:'custAddress',label:'お客様住所',cell:d=>esc(d.inputs.custAddress||'—'),csv:d=>d.inputs.custAddress||''},
+  {k:'location',label:'所在地',cell:d=>esc(d.inputs.location||'—'),csv:d=>d.inputs.location||''},
+  {k:'owner',label:'担当',cell:d=>esc(d.inputs.owner||'—'),csv:d=>d.inputs.owner||''},
+  {k:'stage',label:'ステージ',
+    cell:(d,c)=>`<span class="chip neutral" style="background:${c.st.c}22;color:${c.st.c}">${c.st.n}</span>`,
+    csv:(d,c)=>c.st.n},
+  {k:'category',label:'区分（カテゴリ）',cell:d=>esc(ledCat(d)),csv:d=>ledCat(d)},
+  {k:'voltage',label:'高圧／低圧',cell:d=>isHV(d)?'高圧':'低圧',csv:d=>isHV(d)?'高圧':'低圧'},
+  {k:'fit',label:'FIT残',cell:(d,c)=>fitBadge(c.der),csv:(d,c)=>c.der.residualLabel||''},
+  {k:'netfit',label:'投資後残FIT',cell:d=>netFitCell(d),csv:d=>netFit(d).label||''},
+  {k:'payback',label:'投資回収年数',r:true,
+    cell:d=>{const p=netFit(d).pay;return p!=null?p.toFixed(1)+'年':'<span class="hint">—</span>';},
+    csv:d=>{const p=netFit(d).pay;return p!=null?p.toFixed(1):'';}},
+  {k:'fitEnd',label:'FIT終了',cell:(d,c)=>c.der.fitEndStr||'<span class="hint">—</span>',csv:(d,c)=>c.der.fitEndStr||''},
+  {k:'gridDate',label:'連系日',cell:d=>esc(d.inputs.gridDate||'—'),csv:d=>d.inputs.gridDate||''},
+  {k:'dc',label:'DC容量',r:true,cell:(d,c)=>c.der.gen?n(d.inputs.dcExisting).toLocaleString():'—',csv:d=>n(d.inputs.dcExisting)||''},
+  {k:'ac',label:'AC容量',r:true,cell:d=>n(d.inputs.acExisting)?n(d.inputs.acExisting).toLocaleString():'—',csv:d=>n(d.inputs.acExisting)||''},
+  {k:'gen',label:'発電量/年',r:true,cell:(d,c)=>kwh(c.der.gen),csv:(d,c)=>c.der.gen?Math.round(c.der.gen):''},
+  {k:'fitPrice',label:'FIT単価',r:true,cell:(d,c)=>c.der.fit?c.der.fit+' 円':'—',csv:(d,c)=>c.der.fit||''},
+  {k:'rfGenAfter',label:'RF後発電量',r:true,cell:(d,c)=>kwh(c.der.rfGenAfter),csv:(d,c)=>c.der.rfGenAfter?Math.round(c.der.rfGenAfter):''},
+  {k:'rfRate',label:'RF後発電量率',r:true,cell:(d,c)=>rfRateCell(c.der),
+    csv:(d,c)=>(c.der.gen&&c.der.rfGenAfter)?((c.der.rfGenRate*100).toFixed(1)+'%'):''},
+  {k:'rfPrice',label:'RF金額（税込）',r:true,cell:(d,c)=>yenM(c.der.rfIn),csv:(d,c)=>c.der.rfIn||''},
+  {k:'salePrice',label:'売却価格（税込）',r:true,cell:(d,c)=>yenM(c.der.saleIn),csv:(d,c)=>c.der.saleIn||''},
+  {k:'irr',label:'想定IRR',r:true,cell:(d,c)=>c.v2.irr!=null?pct(c.v2.irr):'—',csv:(d,c)=>c.v2.irr!=null?(c.v2.irr*100).toFixed(1)+'%':''},
+  {k:'verdict',label:'一次判定',cell:(d,c)=>`<span class="chip ${c.v2.level}">${esc(c.v2.policy)}</span>`,csv:(d,c)=>c.v2.policy||''},
+  {k:'due',label:'次アクション・期限',
+    cell:d=>`${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}`,
+    csv:d=>(d.due||'')+(d.next?' / '+d.next:'')},
+  {k:'amount',label:'取引額',r:true,cell:d=>yenM(dealPipelineValue(d)),csv:d=>dealPipelineValue(d)||''},
+  {k:'updated',label:'更新',cell:d=>`<span class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</span>`,
+    csv:d=>new Date(d.updatedAt).toLocaleDateString('ja-JP')},
+  {k:'created',label:'作成日',cell:d=>`<span class="hint">${d.createdAt?new Date(d.createdAt).toLocaleDateString('ja-JP'):'—'}</span>`,
+    csv:d=>d.createdAt?new Date(d.createdAt).toLocaleDateString('ja-JP'):''},
+];
+const COL_MAP={}; COL_DEFS.forEach(c=>COL_MAP[c.k]=c);
+const COL_PRESET_NAME={'':'全件','secondary':'セカンダリー物件','hv_refort':'高圧リフォート進捗'};
+const COL_STD=['name','customer','location','owner','stage','fit','netfit','dc','gen','irr','verdict','due','amount','updated'];
+const COL_DEFAULTS={
+  '':COL_STD.slice(),
+  'secondary':COL_STD.slice(),
+  'hv_refort':['name','customer','location','owner','stage','fit','netfit','dc','gen','fitPrice','rfRate','amount','updated'],
+};
+const COL_KEY='refort_list_cols_v1';
+function colPrefsAll(){ try{ return JSON.parse(localStorage.getItem(COL_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function colsFor(p){
+  const saved=colPrefsAll()[p];
+  const list=(Array.isArray(saved)?saved:[]).filter(k=>COL_MAP[k]);
+  const out=list.length? list.slice() : (COL_DEFAULTS[p]||COL_DEFAULTS['']).slice();
+  if(!out.includes('name')) out.unshift('name');   /* 案件名は必須（開くリンクが消えないように） */
+  return out;
+}
+function saveColsFor(p,list){ const all=colPrefsAll(); all[p]=list.slice();
+  try{ localStorage.setItem(COL_KEY,JSON.stringify(all)); }catch(e){} }
+function resetColsFor(p){ const all=colPrefsAll(); delete all[p];
+  try{ localStorage.setItem(COL_KEY,JSON.stringify(all)); }catch(e){} }
+function colCtx(d){ return {der:derive(d.inputs), v2:dealVerdict(d), st:stageOf(d.stage)}; }
+
+let colEdit=null, colEditPreset='';
+function openColModal(){
+  colEditPreset=listFilter.preset||'';
+  colEdit=colsFor(colEditPreset);
+  const m=$('#colModal');
+  $('#colCancel').onclick=()=>m.classList.remove('show');
+  m.onclick=e=>{ if(e.target.id==='colModal') m.classList.remove('show'); };
+  $('#colReset').onclick=()=>{ resetColsFor(colEditPreset); colEdit=colsFor(colEditPreset); renderColModal(); toast('初期設定に戻しました'); };
+  $('#colSave').onclick=()=>{ saveColsFor(colEditPreset,colEdit); m.classList.remove('show'); renderList(); toast('列の設定を保存しました'); };
+  renderColModal();
+  m.classList.add('show');
+}
+function renderColModal(){
+  const nm=$('#colCurName'); if(nm) nm.textContent=COL_PRESET_NAME[colEditPreset]||'全件';
+  const on=colEdit.map(k=>COL_MAP[k]).filter(Boolean);
+  const off=COL_DEFS.filter(c=>colEdit.indexOf(c.k)<0);
+  const onBox=$('#colOn'), offBox=$('#colOff');
+  onBox.innerHTML=on.map((c,i)=>`<div class="colrow"><span class="cl">${esc(c.label)}</span><span class="ops">
+      <button data-up="${i}" ${i===0?'disabled':''}>▲</button>
+      <button data-down="${i}" ${i===on.length-1?'disabled':''}>▼</button>
+      ${c.fixed?'<span class="fx">固定</span>':`<button class="del" data-del="${i}">×</button>`}
+    </span></div>`).join('');
+  offBox.innerHTML=off.length? off.map(c=>`<div class="colrow"><span class="cl">${esc(c.label)}</span>
+      <span class="ops"><button class="add" data-add="${c.k}">＋ 追加</button></span></div>`).join('')
+    : '<div class="hint" style="padding:12px">すべての項目を表示中です</div>';
+  onBox.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{const i=+b.dataset.up;
+    [colEdit[i-1],colEdit[i]]=[colEdit[i],colEdit[i-1]];renderColModal();});
+  onBox.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{const i=+b.dataset.down;
+    [colEdit[i+1],colEdit[i]]=[colEdit[i],colEdit[i+1]];renderColModal();});
+  onBox.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{colEdit.splice(+b.dataset.del,1);renderColModal();});
+  offBox.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{colEdit.push(b.dataset.add);renderColModal();});
+}
+
 /* ==================== LIST ==================== */
 let listFilter={q:'',stage:'',owner:'',category:'',voltage:'',preset:'',sort:'updated'};
 function isHV(d){const kw=n(d.inputs.acExisting)||n(d.inputs.dcExisting)||0;return kw>=50;}
@@ -1603,6 +1730,7 @@ function renderList(){
     <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
     <select id="lsort">${[['updated','更新が新しい順'],['fitAsc','FIT残が短い順'],['fitDesc','FIT残が長い順'],['netAsc','投資後残FITが短い順'],['netDesc','投資後残FITが長い順']].map(([k,t])=>`<option value="${k}" ${listFilter.sort===k?'selected':''}>${t}</option>`).join('')}</select>
     <div style="flex:1"></div>
+    <button class="btn btn-line btn-sm" id="lcols">⚙ 列設定</button>
     <button class="btn btn-line btn-sm" id="lsheet">📄 一括シート印刷</button>
     <button class="btn btn-line btn-sm" id="lcsv">CSV出力</button>
   </div>`;
@@ -1641,34 +1769,17 @@ function renderList(){
       <p class="hint">右上の「＋ 新規案件」から査定を始めましょう</p></div>`;
     v.innerHTML=html; wireList(); return;
   }
-  /* 高圧リフォート進捗のときは、判定系ではなくリフォート効果が見える列に切り替える */
-  const HV = listFilter.preset==='hv_refort';
-  html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>
-    <th>案件名</th><th>所在地</th><th>担当</th><th>ステージ</th>
-    <th>FIT残</th><th>投資後残FIT</th>
-    <th class="r">DC容量</th><th class="r">発電量/年</th>`
-    + (HV
-      ? `<th class="r">FIT単価</th><th class="r">RF後発電量率</th>`
-      : `<th class="r">想定IRR</th><th>一次判定</th><th>次アクション・期限</th>`)
-    + `<th class="r">取引額</th><th>更新</th></tr></thead><tbody>`;
+  /* 表示する列は「⚙ 列設定」で各自が決めた並び（タブごとに記憶） */
+  const cols=colsFor(listFilter.preset||'').map(k=>COL_MAP[k]).filter(Boolean);
+  html+=`<div class="card" style="overflow:auto"><table class="grid"><thead><tr>`
+    + cols.map(c=>`<th${c.r?' class="r"':''}>${esc(c.label)}</th>`).join('')
+    + `</tr></thead><tbody>`;
   rows.forEach(d=>{
-    const v2=dealVerdict(d);const der=derive(d.inputs);const st=stageOf(d.stage);
-    html+=`<tr><td><span class="lnk" data-open="${d.id}">${esc(d.name||'(無題)')}</span><span class="lnk-sheet" data-sheet="${d.id}">📄シート</span></td>
-      <td>${esc(d.inputs.location||'—')}</td><td>${esc(d.inputs.owner||'—')}</td>
-      <td><span class="chip neutral" style="background:${st.c}22;color:${st.c}">${st.n}</span></td>
-      <td>${fitBadge(der)}</td>
-      <td>${netFitCell(d)}</td>
-      <td class="r num">${der.gen?n(d.inputs.dcExisting).toLocaleString():'—'}</td>
-      <td class="r num">${kwh(der.gen)}</td>`
-      + (HV
-        ? `<td class="r num">${der.fit?der.fit+' 円':'—'}</td>
-      <td class="r num">${rfRateCell(der)}</td>`
-        : `<td class="r num">${v2.irr!=null?pct(v2.irr):'—'}</td>
-      <td><span class="chip ${v2.level}">${esc(v2.policy)}</span></td>
-      <td>${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}</td>`)
-      + `
-      <td class="r num">${yenM(dealPipelineValue(d))}</td>
-      <td class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</td></tr>`;
+    const ctx=colCtx(d);
+    html+='<tr>'+cols.map(c=>{
+      let body; try{ body=c.cell(d,ctx); }catch(e){ body='<span class="hint">—</span>'; }
+      return `<td${c.r?' class="r num"':''}>${body}</td>`;
+    }).join('')+'</tr>';
   });
   html+=`</tbody></table></div>`;
   v.innerHTML=html; wireList();
@@ -1685,6 +1796,7 @@ function wireList(){
   const lo=$('#lowner'); if(lo)lo.onchange=e=>{listFilter.owner=e.target.value;renderList();};
   const lso=$('#lsort'); if(lso)lso.onchange=e=>{listFilter.sort=e.target.value;renderList();};
   const cs=$('#lcsv'); if(cs)cs.onclick=exportCSV;
+  const cbtn=$('#lcols'); if(cbtn)cbtn.onclick=openColModal;
   const sh=$('#lsheet'); if(sh)sh.onclick=()=>{
     if(!lastListRows.length){toast('対象の案件がありません');return;}
     openSheet(lastListRows.slice(),'m3');
@@ -2303,10 +2415,12 @@ function importBackup(file){
   r.readAsText(file);
 }
 function exportCSV(){
-  const head=['案件名','所在地','担当','ステージ','DC容量kW','発電量kWh','想定IRR','一次判定','取引額'];
-  const rows=DB.deals.map(d=>{const v=dealVerdict(d);const der=derive(d.inputs);
-    return [d.name,d.inputs.location,d.inputs.owner,stageOf(d.stage).n,d.inputs.dcExisting,
-      Math.round(der.gen),v.irr!=null?(v.irr*100).toFixed(1)+'%':'',v.policy,dealPipelineValue(d)];});
+  /* 画面に出ている列・絞り込み結果をそのまま書き出す */
+  const cols=colsFor(listFilter.preset||'').map(k=>COL_MAP[k]).filter(Boolean);
+  const head=cols.map(c=>c.label);
+  const src=(lastListRows&&lastListRows.length)?lastListRows:DB.deals;
+  const rows=src.map(d=>{const ctx=colCtx(d);
+    return cols.map(c=>{ try{ return c.csv(d,ctx); }catch(e){ return ''; } });});
   const csv=[head,...rows].map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -3774,9 +3888,16 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.21';
+const APP_VERSION = '2026.08.26';
 
 const CHANGELOG = [
+  ['2026.08.26', [
+    '案件一覧に<b>「お客様」列</b>を追加できるようにしました（①案件基本情報の「お客様名」を表示します）',
+    '<b>ツールバーの「⚙ 列設定」から、表示する項目の追加・削除・並べ替えができます。</b>▲▼で順番を入れ替え、×で非表示、右側の「＋ 追加」で項目を足せます',
+    '列の設定は<b>「全件」「セカンダリー物件」「高圧リフォート進捗」のタブごとに別々に記憶</b>されます。設定はご自身の端末のブラウザにのみ保存されるので、他の社員の画面には影響しません。「初期設定に戻す」でいつでも元に戻せます',
+    '選べる項目：お客様／お客様住所／案件名／所在地／担当／ステージ／区分／高圧低圧／FIT残／投資後残FIT／投資回収年数／FIT終了／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／RF後発電量率／RF金額／売却価格／想定IRR／一次判定／次アクション期限／取引額／更新／作成日',
+    'CSV出力が、画面に表示中の列と絞り込み結果に合わせて出るようになりました',
+  ]],
   ['2026.08.21', [
     '<b>【重要・不具合修正】保存した案件が翌日消えてしまう不具合を修正しました。</b>原因は、ある社員の端末に表示されていた古い一覧をもとに、共有データベース側の案件を自動削除する処理が入っていたことです。この自動削除を廃止しました（削除は「案件を削除」を押したときだけ行われます）',
     '保存の表示を正直にしました。これまでは共有データベースへ書き込めていなくても「保存しました」と出ていましたが、今後は<b>共有データベースへの書き込みが完了してから「✓ 保存済（共有反映）」</b>と表示します。失敗した場合は「⚠ 保存できていません」と警告を出します',
