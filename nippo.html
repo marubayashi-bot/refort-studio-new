@@ -106,6 +106,9 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .kpi.alert{border-color:#E7C4A6;background:linear-gradient(180deg,#FFFFFF 0%,var(--warn-soft) 100%)}
 h2{padding-left:11px;border-left:4px solid var(--accent)}
 .card h3{padding-bottom:7px;border-bottom:1px solid var(--line)}
+.lnk{color:var(--accent);text-decoration:underline;word-break:break-all}
+.lnk:hover{color:#134C3A}
+.sec div{word-break:break-word}
 </style>
 </head>
 <body>
@@ -230,6 +233,11 @@ function render(){
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
   setTimeout(()=>t.classList.remove('on'), 2200); }
+/* 本文中のURLをクリックできるリンクにする（エスケープ後に適用するので安全） */
+function linkify(text){
+  return esc(text).replace(/(https?:\/\/[^\s<>"'）」、]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" class="lnk">$1</a>');
+}
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function uname(id){ const u = USERS.find(x=>x.id===id); return u ? (u.full_name || u.email) : '—'; }
 function udept(id){ const u = USERS.find(x=>x.id===id); return u ? (u.dept_name || '') : ''; }
@@ -348,13 +356,13 @@ function card(r){
         return mm ? `<span class="mv">${esc(mm.name)}<b>${v.value}</b><small>${esc(mm.unit)}</small></span>`
                   : `<span class="mv"><b>${v.value}</b></span>`; }).join('')}
     </div></div>` : ''}
-    ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${esc(r.voice)}</div></div>` : ''}
-    ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${esc(r.rival)}</div></div>` : ''}
-    ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${esc(r.industry)}</div></div>` : ''}
-    ${r.thought ? `<div class="sec s-think"><span class="lab">本人の考え</span><div>${esc(r.thought)}</div></div>` : ''}
-    ${r.good_news ? `<div class="sec s-good"><span class="lab">グッドニュース</span><div>${esc(r.good_news)}</div></div>` : ''}
-    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec s-sub"><span class="lab">部下情報</span><div>${esc(r.subordinate)}</div></div>` : ''}
-    ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${esc(r.attachments[0])}</div></div>` : ''}
+    ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${linkify(r.voice)}</div></div>` : ''}
+    ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${linkify(r.rival)}</div></div>` : ''}
+    ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${linkify(r.industry)}</div></div>` : ''}
+    ${r.thought ? `<div class="sec s-think"><span class="lab">本人の考え</span><div>${linkify(r.thought)}</div></div>` : ''}
+    ${r.good_news ? `<div class="sec s-good"><span class="lab">グッドニュース</span><div>${linkify(r.good_news)}</div></div>` : ''}
+    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec s-sub"><span class="lab">部下情報</span><div>${linkify(r.subordinate)}</div></div>` : ''}
+    ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${linkify(r.attachments[0])}</div></div>` : ''}
     <div class="line">
       <div class="done">提出</div>
       <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}</div>
@@ -362,7 +370,7 @@ function card(r){
       <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
     </div>
     ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
-      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${esc(c.body)}</div>`).join('')}
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
     ${canAct || isMine ? `<div class="row" style="margin-top:12px">
       ${canAct ? `<button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>` : ''}
       <button class="ghost" onclick="openComment('${r.id}')">${isMine && !canAct ? '返信する' : 'コメント'}</button>
