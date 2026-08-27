@@ -115,6 +115,18 @@ h2{padding-left:11px;border-left:4px solid var(--accent)}
 .hotbody{font-size:13px;margin-top:5px;line-height:1.75;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rep.flash{box-shadow:0 0 0 3px var(--accent-soft);border-color:var(--accent)}
+.lvrow{display:flex;align-items:center;gap:11px;padding:9px 10px;margin:0 -10px;border-bottom:1px solid var(--line);
+  border-radius:8px;cursor:pointer}
+.lvrow:last-of-type{border-bottom:0}
+.lvrow:hover{background:#F4F8FB}
+.lvrow.off{cursor:default;opacity:.5}
+.lvrow.off:hover{background:none}
+.lvn{min-width:36px;height:30px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;font-size:16px;background:#EEF2F7;color:var(--muted)}
+.lvrow:not(.off) .lvn.l2{background:var(--accent-soft);color:var(--accent)}
+.lvrow:not(.off) .lvn.l3{background:#FBF5DE;color:#7A6510}
+.lvrow:not(.off) .lvn.l4{background:var(--warn-soft);color:var(--warn)}
+.lvrow:not(.off) .lvn.l5{background:#FBE9E7;color:#9A2E25}
 </style>
 </head>
 <body>
@@ -341,11 +353,22 @@ async function submitReport(){
   go('feed');
 }
 
+/* ---------- 昇格レベルで絞り込む ---------- */
+let LEVEL_FILTER = 0;
+function showLevel(n){ LEVEL_FILTER = n; TAB = 'feed'; render(); window.scrollTo(0,0); }
+function clearLevel(){ LEVEL_FILTER = 0; render(); }
+
 /* ---------- 2. 日報一覧 ---------- */
 function vFeed(){
-  if (!REPORTS.length) return `<h2>日報一覧</h2><div class="empty">まだ日報がありません。</div>`;
-  return `<h2>日報一覧</h2><p class="sub">直近30日／あなたが見られる範囲のみ表示しています</p>`
-    + REPORTS.map(card).join('');
+  const list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
+  const head = `<h2>日報一覧</h2>` + (LEVEL_FILTER
+    ? `<div class="card" style="background:var(--accent-soft);border-color:#A9D2BE;padding:11px 14px">
+        <div class="row"><b>${LEVELS[LEVEL_FILTER-1]}</b>
+        <span class="note">${list.length}件</span>
+        <button class="ghost" style="margin-left:auto" onclick="clearLevel()">絞り込みを解除</button></div></div>`
+    : `<p class="sub">直近30日／あなたが見られる範囲のみ表示しています</p>`);
+  if (!list.length) return head + '<div class="empty">該当する日報がありません。</div>';
+  return head + list.map(card).join('');
 }
 
 function card(r){
@@ -363,7 +386,8 @@ function card(r){
       <span class="pill">${esc(udept(r.author_id))}</span>
       <span class="note num">${r.report_date}</span>
       <span class="pill ${m[2]}" style="margin-left:auto">${m[1]}</span>
-      ${r.level > 1 ? `<span class="pill p5">${LEVELS[r.level-1]}</span>` : ''}
+      ${r.level > 1 ? `<span class="pill p5" style="cursor:pointer"
+        onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
     </div>
     ${vals.length ? `<div class="sec s-num"><span class="lab">数値</span><div class="row num" style="gap:14px">
       ${vals.map(v => { const mm = METRICS_ALL.find(x=>x.id===v.metric_id) || METRICS.find(x=>x.id===v.metric_id);
@@ -993,9 +1017,10 @@ function vDash(){
     <div class="kpi"><div class="v num">${REPORTS.length}</div><div class="l">直近30日の日報</div></div>
   </div>
   <div class="card"><h3>情報の昇格レーン</h3>
-    ${LEVELS.map((l,i) => `<div class="row" style="border-bottom:1px solid var(--line);padding:7px 0">
-      <b class="num" style="min-width:34px;font-size:18px">${lv[i]}</b><span>${l}</span></div>`).join('')}
-    <p class="note" style="margin-top:8px">すべてを経営に上げず、重要情報だけを上げるための導線です。</p></div>
+    ${LEVELS.map((l,i) => `<div class="lvrow${lv[i]?'':' off'}" onclick="${lv[i]?`showLevel(${i+1})`:''}">
+      <b class="num lvn l${i+1}">${lv[i]}</b><span>${l}</span>
+      ${lv[i] ? '<span class="note" style="margin-left:auto">一覧を見る →</span>' : ''}</div>`).join('')}
+    <p class="note" style="margin-top:8px">数字をクリックすると、そのレベルの日報だけを表示します。</p></div>
   <div class="card"><h3>今日、先に見るべき日報</h3>
     ${hot.length ? hot.slice(0,5).map(r => `
       <div class="hotrow" onclick="openReport('${r.id}')" title="クリックで日報を開きます">
