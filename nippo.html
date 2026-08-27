@@ -74,6 +74,38 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#fff;
   padding:10px 20px;border-radius:99px;font-size:13px;opacity:0;transition:.2s;z-index:60}
 .toast.on{opacity:1}
+
+/* --- 重要度で色分け --- */
+.rep{border-left:4px solid var(--line)}
+.rep.i5{border-left-color:#C0392B}
+.rep.i4{border-left-color:#D9822B}
+.rep.i3{border-left-color:#C8A21C}
+.rep.i2{border-left-color:#5FBFA0}
+.rep .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:9px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.rep .nm{font-weight:700;font-size:14.5px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none}
+/* --- 項目ごとの色 --- */
+.sec{border-left-width:3px;border-left-style:solid;padding:2px 0 2px 11px;margin-top:11px}
+.sec .lab{display:inline-block;font-size:10.5px;letter-spacing:.06em;padding:1px 8px;border-radius:20px;margin-bottom:3px}
+.s-num{border-left-color:#7A8CA6}   .s-num .lab{background:#EEF2F7;color:#48607D}
+.s-voice{border-left-color:#1F6B52} .s-voice .lab{background:var(--accent-soft);color:var(--accent)}
+.s-rival{border-left-color:#B4541F} .s-rival .lab{background:var(--warn-soft);color:var(--warn)}
+.s-ind{border-left-color:#2F6FA8}   .s-ind .lab{background:#E7F0F8;color:#245A8C}
+.s-think{border-left-color:#8A5AB8} .s-think .lab{background:#F1E9F8;color:#6B3E96}
+.s-good{border-left-color:#C8901C}  .s-good .lab{background:#FBF3DE;color:#8A6410}
+.s-sub{border-left-color:#5C6D86}   .s-sub .lab{background:#EEF1F5;color:#4A5A70}
+.mv{display:inline-flex;align-items:baseline;gap:5px;background:#F5F8FB;border:1px solid var(--line);
+  border-radius:8px;padding:4px 10px;font-size:12px}
+.mv b{font-size:15px}
+.mv small{color:var(--muted)}
+.mv.over b{color:var(--accent)}
+.mv.under b{color:var(--warn)}
+/* --- KPI・見出し --- */
+.kpi{background:linear-gradient(180deg,#FFFFFF 0%,#F7FAFC 100%)}
+.kpi.alert{border-color:#E7C4A6;background:linear-gradient(180deg,#FFFFFF 0%,var(--warn-soft) 100%)}
+h2{padding-left:11px;border-left:4px solid var(--accent)}
+.card h3{padding-bottom:7px;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -100,7 +132,8 @@ let TABS = BASE_TABS.concat(TAIL_TABS);
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
-let METRICS = [];       // 自部署の数値項目
+let METRICS = [];       // 自部署の数値項目（入力用）
+let METRICS_ALL = [];   // 全部署の項目（表示用）
 let REPORTS = [];       // 閲覧できる日報
 let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
@@ -147,6 +180,10 @@ async function boot(){
   ME = USERS.find(u => u.id === meId)
     || USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
+
+  const { data: ma } = await EC.supabase.from('report_metrics')
+    .select('id,name,unit,target,department_id,job_grades').order('sort_order');
+  METRICS_ALL = ma || [];
 
   const { data: ds, error: de } = await EC.supabase.from('departments')
     .select('id,name,sort_order').order('sort_order');
@@ -295,25 +332,28 @@ function card(r){
   const cmts = r.report_comments || [];
   const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
   const vals = r.report_metric_values || [];
-  return `<div class="rep">
-    <div class="top">
-      <span class="nm">${esc(uname(r.author_id))}</span>
+  const who = uname(r.author_id);
+  return `<div class="rep i${r.importance}">
+    <div class="head">
+      <span class="avatar">${esc(who.slice(0,1))}</span>
+      <span class="nm">${esc(who)}</span>
       <span class="pill">${esc(udept(r.author_id))}</span>
       <span class="note num">${r.report_date}</span>
-      <span class="pill ${m[2]}">${m[1]}</span>
+      <span class="pill ${m[2]}" style="margin-left:auto">${m[1]}</span>
       ${r.level > 1 ? `<span class="pill p5">${LEVELS[r.level-1]}</span>` : ''}
     </div>
-    ${vals.length ? `<div class="sec"><span class="lab">数値</span><div class="row num" style="gap:14px">
-      ${vals.map(v => { const mm = METRICS.find(x=>x.id===v.metric_id);
-        return mm ? `<span>${esc(mm.name)} <b>${v.value}</b>${esc(mm.unit)}</span>` : ''; }).join('')}
+    ${vals.length ? `<div class="sec s-num"><span class="lab">数値</span><div class="row num" style="gap:14px">
+      ${vals.map(v => { const mm = METRICS_ALL.find(x=>x.id===v.metric_id) || METRICS.find(x=>x.id===v.metric_id);
+        return mm ? `<span class="mv">${esc(mm.name)}<b>${v.value}</b><small>${esc(mm.unit)}</small></span>`
+                  : `<span class="mv"><b>${v.value}</b></span>`; }).join('')}
     </div></div>` : ''}
-    ${r.voice ? `<div class="sec"><span class="lab">お客様の声</span><div>${esc(r.voice)}</div></div>` : ''}
-    ${r.rival ? `<div class="sec"><span class="lab">ライバル</span><div>${esc(r.rival)}</div></div>` : ''}
-    ${r.industry ? `<div class="sec"><span class="lab">本部・業界</span><div>${esc(r.industry)}</div></div>` : ''}
-    ${r.thought ? `<div class="sec"><span class="lab">本人の考え</span><div>${esc(r.thought)}</div></div>` : ''}
-    ${r.good_news ? `<div class="sec"><span class="lab">グッドニュース</span><div>${esc(r.good_news)}</div></div>` : ''}
-    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec"><span class="lab">部下情報</span><div>${esc(r.subordinate)}</div></div>` : ''}
-    ${(r.attachments||[]).length ? `<div class="sec"><span class="lab">添付</span><div>${esc(r.attachments[0])}</div></div>` : ''}
+    ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${esc(r.voice)}</div></div>` : ''}
+    ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${esc(r.rival)}</div></div>` : ''}
+    ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${esc(r.industry)}</div></div>` : ''}
+    ${r.thought ? `<div class="sec s-think"><span class="lab">本人の考え</span><div>${esc(r.thought)}</div></div>` : ''}
+    ${r.good_news ? `<div class="sec s-good"><span class="lab">グッドニュース</span><div>${esc(r.good_news)}</div></div>` : ''}
+    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec s-sub"><span class="lab">部下情報</span><div>${esc(r.subordinate)}</div></div>` : ''}
+    ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${esc(r.attachments[0])}</div></div>` : ''}
     <div class="line">
       <div class="done">提出</div>
       <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}</div>
@@ -898,7 +938,7 @@ function vDash(){
   <div class="grid">
     <div class="kpi"><div class="v num">${rate}%</div><div class="l">本日の提出率（見える範囲）</div></div>
     <div class="kpi"><div class="v num">${todays.length}</div><div class="l">本日の日報</div></div>
-    <div class="kpi"><div class="v num" style="color:var(--warn)">${unhandled.length}</div><div class="l">未対応の重要情報</div></div>
+    <div class="kpi${unhandled.length ? ' alert' : ''}"><div class="v num" style="color:var(--warn)">${unhandled.length}</div><div class="l">未対応の重要情報</div></div>
     <div class="kpi"><div class="v num">${REPORTS.length}</div><div class="l">直近30日の日報</div></div>
   </div>
   <div class="card"><h3>情報の昇格レーン</h3>
