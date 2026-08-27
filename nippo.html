@@ -146,6 +146,7 @@ let METRICS_ALL = [];   // 全部署の項目（表示用）
 let REPORTS = [];       // 閲覧できる日報
 let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
+let EDIT_DATE = null;   // 過去の日報を編集しているときの日付
 let DEPTS = [];
 /* AIの利用範囲：職位で決まる。ec-users側の個別設定(ai_access)があればそちらが優先 */
 function aiAccess(){
@@ -253,13 +254,18 @@ function isExec(){ return ME.job_grade === '役員・経営'; }
 
 /* ---------- 1. 日報を書く ---------- */
 function vWrite(){
-  const mine = REPORTS.find(r => r.author_id === ME.id && r.report_date === TODAY);
+  const day = EDIT_DATE || TODAY;
+  const mine = REPORTS.find(r => r.author_id === ME.id && r.report_date === day);
   const v = f => mine ? esc(mine[f] || '') : '';
   const mv = id => { if (!mine) return '';
     const f = (mine.report_metric_values||[]).find(x => x.metric_id === id); return f ? f.value : ''; };
   return `
   <h2>${esc(ME.full_name)} さんの日報</h2>
-  <p class="sub">${TODAY}　${esc(ME.dept_name||'')}　${mine ? '本日分は提出済みです。上書きできます。' : '未提出'}</p>
+  <p class="sub">${day}　${esc(ME.dept_name||'')}　${mine ? '提出済みです。書き直して再提出できます。' : '未提出'}</p>
+  ${EDIT_DATE ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
+    <b>${EDIT_DATE} の日報を編集しています</b>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" onclick="EDIT_DATE=null;render()">本日の日報に戻る</button></div></div>` : ''}
 
   ${METRICS.length ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
     <div class="grid">${METRICS.map(m => `
@@ -310,8 +316,9 @@ function vWrite(){
 async function submitReport(){
   const btn = document.getElementById('submitBtn');
   const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const day = EDIT_DATE || TODAY;
   const body = {
-    author_id: ME.id, report_date: TODAY,
+    author_id: ME.id, report_date: day,
     voice: g('f_voice'), rival: g('f_rival'), industry: g('f_industry'),
     thought: g('f_thought'), good_news: g('f_good'), subordinate: g('f_sub'),
     attachments: g('f_attach') ? [g('f_attach')] : [],
@@ -329,7 +336,8 @@ async function submitReport(){
   if (vals.length) await EC.supabase.from('report_metric_values').upsert(vals);
 
   await loadReports();
-  toast('提出しました');
+  toast(EDIT_DATE ? '更新しました' : '提出しました');
+  EDIT_DATE = null;
   go('feed');
 }
 
@@ -377,7 +385,12 @@ function card(r){
     </div>
     ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
       <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
-    ${canAct || isMine ? `<div class="row" style="margin-top:12px">
+    ${isMine ? `<div class="row" style="margin-top:12px">
+      <button class="ghost" onclick="editReport('${r.id}')">この日報を編集</button>
+      <button class="ghost" onclick="deleteReport('${r.id}','${r.report_date}')"
+        style="color:var(--warn);border-color:#E7C4A6">削除</button>
+    </div>` : ''}
+    ${canAct || isMine ? `<div class="row" style="margin-top:8px">
       ${canAct ? `<button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>` : ''}
       <button class="ghost" onclick="openComment('${r.id}')">${isMine && !canAct ? '返信する' : 'コメント'}</button>
       ${canAct ? `<button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>` : ''}
@@ -385,6 +398,17 @@ function card(r){
   </div>`;
 }
 
+function editReport(id){
+  const r = REPORTS.find(x => x.id === id); if (!r) return;
+  EDIT_DATE = r.report_date;
+  TAB = 'write'; render(); window.scrollTo(0,0);
+}
+async function deleteReport(id, date){
+  if (!confirm(date + ' の日報を削除します。コメントや数値も一緒に消え、元に戻せません。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('daily_reports').delete().eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast('削除しました');
+}
 async function markSeen(id){
   const { error } = await EC.supabase.from('report_views').insert({ report_id: id, viewer_id: ME.id });
   if (error) { toast('記録できませんでした: ' + error.message); return; }
