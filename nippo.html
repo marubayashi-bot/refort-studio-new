@@ -330,6 +330,7 @@ function card(r){
   const m = impMeta(r.importance);
   const seen = (r.report_views || []).length;
   const cmts = r.report_comments || [];
+  const isMine = r.author_id === ME.id;
   const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
   const vals = r.report_metric_values || [];
   const who = uname(r.author_id);
@@ -362,10 +363,10 @@ function card(r){
     </div>
     ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
       <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${esc(c.body)}</div>`).join('')}
-    ${canAct ? `<div class="row" style="margin-top:12px">
-      <button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>
-      <button class="ghost" onclick="openComment('${r.id}')">コメント</button>
-      <button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>
+    ${canAct || isMine ? `<div class="row" style="margin-top:12px">
+      ${canAct ? `<button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>` : ''}
+      <button class="ghost" onclick="openComment('${r.id}')">${isMine && !canAct ? '返信する' : 'コメント'}</button>
+      ${canAct ? `<button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>` : ''}
     </div><div id="cbox_${r.id}"></div>` : ''}
   </div>`;
 }
