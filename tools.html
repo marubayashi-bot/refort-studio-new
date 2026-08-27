@@ -52,7 +52,7 @@ header{
 .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,123,.25)}
 .search i{position:absolute;left:11px;top:9px;font-style:normal;color:#6E948F}
 .hbtn{
-  padding:8px 13px;border-radius:8px;border:1px solid #2E5C58;background:#143F3B;color:#EAF2F1;
+  display:inline-block;text-decoration:none;padding:8px 13px;border-radius:8px;border:1px solid #2E5C58;background:#143F3B;color:#EAF2F1;
   cursor:pointer;white-space:nowrap;
 }
 .hbtn:hover{background:#1B4E49}
@@ -222,6 +222,7 @@ pre{
   <div class="hwrap">
     <div class="brand"><b>営業ツール棚</b><span>EARTHCOM</span></div>
     <div class="search"><i>🔍</i><input id="q" placeholder="ツール名・用途・タグで検索"></div>
+    <a class="hbtn" id="btnSheet" target="_blank" rel="noopener" title="棚卸しシートを開いて直接編集する">元シート</a>
     <button class="hbtn" id="btnSync" title="スプレッドシートから今すぐ読み込む">↻ 更新</button>
     <button class="hbtn" id="btnImport">取込</button>
     <button class="hbtn primary" id="btnAdd">＋ 追加</button>
@@ -279,6 +280,7 @@ pre{
   </div>
   <div class="mfoot">
     <button class="btn danger" id="btnDel" style="margin-right:auto;display:none">削除する</button>
+    <a class="btn" id="lnkSheet" target="_blank" rel="noopener" style="text-decoration:none">元シートで書く</a>
     <button class="btn" data-close>やめる</button>
     <button class="btn primary" id="btnSave">保存する</button>
   </div>
@@ -310,7 +312,8 @@ pre{
       <div class="note">
         <b>スプレッドシートのURLをそのまま貼るだけ</b>で構いません（アドレスバーの https://docs.google.com/spreadsheets/d/… をコピー）。<br>
         その場合はスプレッドシート側で <b>共有 → リンクを知っている全員 → 閲覧者</b> にしてください。編集した内容が<b>その場で</b>棚に反映されます。<br>
-        「ウェブに公開」で発行したCSVのURLも使えますが、Google側のキャッシュのため反映まで数分かかります。
+        「ウェブに公開」で発行したCSVのURLも使えますが、Google側のキャッシュのため反映まで数分かかります。<br>
+        <b>GAS（script.google.com/macros/s/…/exec）のURLも貼れます。</b>その場合、スプレッドシートの共有は制限付きのままで構いません。
       </div>
       <div style="margin-top:12px"><button class="btn" id="btnGsTest">読み込みテスト</button></div>
     </div>
@@ -339,7 +342,8 @@ pre{
     <h4 style="margin:0 0 8px;font-size:13px">初回のみ：Supabase の SQL エディタで実行してください</h4>
     <pre id="sql"></pre>
     <h4 style="margin:18px 0 8px;font-size:13px">スプレッドシート連動</h4>
-    <div class="field"><label>スプレッドシートのURL（空にすると連動を止めます）</label><input id="setGsUrl"></div>
+    <div class="field"><label>同期に使うURL（空にすると連動を止めます）</label><input id="setGsUrl" placeholder="スプレッドシートのURL、または GAS の …/exec"></div>
+    <div class="field"><label>「元シート」ボタンのリンク先（社員が直接書き込むシート）</label><input id="setSheetUrl"></div>
     <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。<br>
     スプレッドシートは「リンクを知っている全員が閲覧可」にする必要があります。URLを知る人は誰でも中身を見られるため、<b>シートには社外秘の本文を書かず、リンクと説明だけ</b>に留めてください。</div>
     <div id="lastSync" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
@@ -357,6 +361,10 @@ pre{
 const SB_URL = "https://aakofrzurgwrkctunthw.supabase.co";
 const SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
 const KNOWLEDGE_URL = "knowledge.html";
+// 棚卸しシート（アプリ内リンク先）。設定で変更できます。
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1Cx5wbDTq4FDdbnzxCXPMNSzrJfO5_HIN8nj6ibV-yvk/edit?gid=425234865#gid=425234865";
+const sheetKey = "ec_tools_sheet_url";
+const sheetUrl = () => localStorage.getItem(sheetKey) || DEFAULT_SHEET_URL;
 
 const STAGES = ["01 初回接触・集客","02 現地調査","03 提案","04 クロージング","05 契約・引渡し","06 アフター・既存深耕","07 社内勉強会・研修","08 バックオフィス"];
 const KINDS  = ["スライド","動画","Excel","アプリ","PDF","雛形・書式","トークスクリプト","LP・Webページ","その他"];
@@ -427,6 +435,8 @@ function fillSelects(){
   put("#f_vis",VIS); put("#f_aud",AUD); put("#f_status",STATUS);
   $("#sql").textContent = SQL;
   $("#setGsUrl").value = localStorage.getItem(gsKey) || "";
+  $("#setSheetUrl").value = sheetUrl();
+  $("#btnSheet").href = sheetUrl();
 }
 
 let SYNC_ERR = null;
@@ -496,6 +506,7 @@ function render(){
       <h3>棚はまだ空です</h3>
       <p>棚卸しシートを1行でも埋めていれば、そのまま取り込めます。ファイルをドロップするか、Googleスプレッドシートの公開URLをつなぐと、以降は自動で同期します。</p>
       <button class="btn primary" onclick="document.getElementById('btnImport').click()">棚卸しシートを取り込む</button>
+      <a class="btn" href="${sheetUrl()}" target="_blank" rel="noopener" style="text-decoration:none;margin-left:8px">元シートを開く</a>
     </div>`;
     return;
   }
@@ -591,6 +602,7 @@ function openEdit(t){
   $("#f_status").value= t?.status     || STATUS[0];
   v("#f_url",t?.url); v("#f_edit",t?.edit_url); v("#f_ver",t?.version);
   v("#f_owner",t?.owner || ME?.full_name || ""); v("#f_tags",t?.tags); v("#f_note",t?.note);
+  $("#lnkSheet").href = sheetUrl();
   $("#mEdit").classList.add("on");
 }
 
@@ -732,7 +744,29 @@ function toCsvUrl(input){
   return u + (u.includes("?")?"&":"?") + "_ts=" + Date.now();
 }
 
+/* GAS Webアプリ（script.google.com）から読む場合 */
+async function syncFromGas(url, silent){
+  let res;
+  try{ res = await fetch(url + (url.includes("?")?"&":"?") + "_ts=" + Date.now(), {cache:"no-store"}); }
+  catch(e){ throw new Error("SHARE|GASに接続できませんでした。デプロイ時のアクセス権が「全員」になっているか確認してください。"); }
+  if(!res.ok) throw new Error("HTTP|GASを読めませんでした（HTTP "+res.status+"）。");
+  let json;
+  try{ json = await res.json(); }
+  catch(e){ throw new Error("SHARE|GASがJSONを返しませんでした。デプロイのアクセス権を確認してください。"); }
+  if(json.error) throw new Error("HEAD|GAS側エラー："+json.error);
+  const rows = json.rows||[];
+  if(!rows.some(r=>r.some(c=>normHead(c)==="ツール名"))) throw new Error("HEAD|見出し行（ツール名）が見つかりません。GASのGID指定を確認してください。");
+  const recs = rowsToRecords(rows);
+  if(!recs.length) throw new Error("ROWS|見出しは読めましたが、データ行が0件でした。");
+  const {error} = await sb.from("tools").upsert(recs);
+  if(error) throw error;
+  localStorage.setItem("ec_tools_gs_at", new Date().toISOString());
+  if(!silent) toast(`スプレッドシートから ${recs.length} 件を同期しました`);
+  return recs.length;
+}
+
 async function syncFromCsvUrl(url, silent){
+  if((url||"").includes("script.google.com")) return syncFromGas(url, silent);
   let res, text;
   try{
     res = await fetch(toCsvUrl(url), {cache:"no-store"});
@@ -819,6 +853,9 @@ $("#btnSet").onclick = ()=>{
 };
 $("#btnSaveSet").onclick = ()=>{
   const u=$("#setGsUrl").value.trim();
+  const sh=$("#setSheetUrl").value.trim();
+  if(sh) localStorage.setItem(sheetKey,sh); else localStorage.removeItem(sheetKey);
+  $("#btnSheet").href = sheetUrl();
   if(u) localStorage.setItem(gsKey,u); else localStorage.removeItem(gsKey);
   $("#mSet").classList.remove("on"); toast(u?"連動を保存しました":"連動を止めました"); load();
 };
