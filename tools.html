@@ -342,6 +342,7 @@ pre{
     <h4 style="margin:0 0 8px;font-size:13px">初回のみ：Supabase の SQL エディタで実行してください</h4>
     <pre id="sql"></pre>
     <h4 style="margin:18px 0 8px;font-size:13px">スプレッドシート連動</h4>
+    <div class="note" style="margin-bottom:12px">ここの設定は<b>全社員で共通</b>です。ひとりが設定すれば、全員の画面に反映されます。</div>
     <div class="field"><label>同期に使うURL（空にすると連動を止めます）</label><input id="setGsUrl" placeholder="スプレッドシートのURL、または GAS の …/exec"></div>
     <div class="field"><label>「元シート」ボタンのリンク先（社員が直接書き込むシート）</label><input id="setSheetUrl"></div>
     <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。<br>
@@ -363,8 +364,30 @@ const SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
 const KNOWLEDGE_URL = "knowledge.html";
 // 棚卸しシート（アプリ内リンク先）。設定で変更できます。
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1Cx5wbDTq4FDdbnzxCXPMNSzrJfO5_HIN8nj6ibV-yvk/edit?gid=425234865#gid=425234865";
-const sheetKey = "ec_tools_sheet_url";
-const sheetUrl = () => localStorage.getItem(sheetKey) || DEFAULT_SHEET_URL;
+// 同期にも既定で同じシートを使う（端末ごとの設定に依存させない）
+const DEFAULT_GS_URL    = DEFAULT_SHEET_URL;
+// 設定は Supabase の app_settings に保存し、全社員で共有する
+let CFG = { gs: DEFAULT_GS_URL, sheet: DEFAULT_SHEET_URL };
+const sheetUrl = () => CFG.sheet || DEFAULT_SHEET_URL;
+
+async function loadCfg(){
+  try{
+    const {data} = await sb.from("app_settings").select("key,value").in("key",["tools_gs_url","tools_sheet_url"]);
+    (data||[]).forEach(r=>{
+      if(r.key==="tools_gs_url"   && r.value!=null) CFG.gs    = r.value;
+      if(r.key==="tools_sheet_url"&& r.value!=null) CFG.sheet = r.value;
+    });
+  }catch(e){ /* テーブル未作成でも既定値で動く */ }
+}
+async function saveCfg(){
+  try{
+    await sb.from("app_settings").upsert([
+      {key:"tools_gs_url",    value: CFG.gs,    updated_at:new Date().toISOString()},
+      {key:"tools_sheet_url", value: CFG.sheet, updated_at:new Date().toISOString()}
+    ]);
+    return true;
+  }catch(e){ return false; }
+}
 
 const STAGES = ["01 初回接触・集客","02 現地調査","03 提案","04 クロージング","05 契約・引渡し","06 アフター・既存深耕","07 社内勉強会・研修","08 バックオフィス"];
 const KINDS  = ["スライド","動画","Excel","アプリ","PDF","雛形・書式","トークスクリプト","LP・Webページ","その他"];
@@ -403,7 +426,16 @@ create table if not exists public.tool_clicks (
 );
 alter table public.tool_clicks enable row level security;
 create policy "clicks insert" on public.tool_clicks for insert with check (true);
-create policy "clicks read"   on public.tool_clicks for select using (true);`;
+create policy "clicks read"   on public.tool_clicks for select using (true);
+
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      text,
+  updated_at timestamptz default now()
+);
+alter table public.app_settings enable row level security;
+create policy "settings read"  on public.app_settings for select using (true);
+create policy "settings write" on public.app_settings for all    using (true) with check (true);`;
 
 /* ===================== 起動 ===================== */
 const sb = supabase.createClient(SB_URL, SB_KEY);
@@ -413,7 +445,7 @@ const $ = s => document.querySelector(s);
 const el = (t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;};
 const esc = s => (s??"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2600);}
-const gsKey = "ec_tools_gs_url";
+
 
 (async function boot(){
   // 共通認証（ec-auth.js がある場合のみ）
@@ -424,6 +456,7 @@ const gsKey = "ec_tools_gs_url";
   }catch(e){ /* 認証未導入でも動かす */ }
   if(ME && ME.email && !$("#who").textContent) $("#who").textContent = ME.email;
 
+  await loadCfg();
   fillSelects();
   await load();
 })();
@@ -434,14 +467,14 @@ function fillSelects(){
   put("#f_stage",STAGES); put("#f_kind",KINDS); put("#f_biz",BIZ);
   put("#f_vis",VIS); put("#f_aud",AUD); put("#f_status",STATUS);
   $("#sql").textContent = SQL;
-  $("#setGsUrl").value = localStorage.getItem(gsKey) || "";
+  $("#setGsUrl").value = CFG.gs || "";
   $("#setSheetUrl").value = sheetUrl();
   $("#btnSheet").href = sheetUrl();
 }
 
 let SYNC_ERR = null;
 async function load(){
-  const url = localStorage.getItem(gsKey);
+  const url = CFG.gs;
   SYNC_ERR = null;
   if(url){
     try{ await syncFromCsvUrl(url,true); }
@@ -662,7 +695,10 @@ function rowsToRecords(rows){
     const r = rows[i]; if(!r) continue;
     const rec={};
     head.forEach((h,j)=>{ const k=HEAD_MAP[h]; if(k) rec[k]= (r[j]??"").toString().trim(); });
-    if(!rec.name) continue;                       // 空行・注釈行はとばす
+    if(!rec.name) continue;                                   // 空行はとばす
+    const joined = Object.values(rec).join(" ");
+    const hints = ["プルダウン","連番","誰が・いつ・何のために","カンマ区切り","更新責任者","記入例","この資料の"];
+    if(hints.filter(h=>joined.includes(h)).length >= 2) continue;  // 見出し下の補足行をとばす
     if(/^（記入）|記入例/.test(rec.owner||"")) { /* 記入例でも取り込むが印を残す */ }
     if(!rec.id) rec.id = "T-"+String(out.length+1).padStart(3,"0");
     if(rec.stage && !STAGES.includes(rec.stage)){
@@ -808,8 +844,7 @@ $("#btnGsTest").onclick = async ()=>{
   const url = $("#gsUrl").value.trim();
   if(!url){ toast("URLを入れてください"); return; }
   try{
-    const before = localStorage.getItem(gsKey);
-    localStorage.setItem(gsKey,url);
+    CFG.gs = url; await saveCfg();
     const n = await syncFromCsvUrl(url,true);
     $("#setGsUrl").value = url;
     $("#prevWrap").innerHTML = '<div class="note">✅ '+n+' 件を読み取り、棚に反映しました。</div>';
@@ -839,25 +874,27 @@ drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) readFil
 
 /* ===================== UI配線 ===================== */
 $("#btnSync").onclick = async ()=>{
-  const u = localStorage.getItem(gsKey);
-  if(!u){ toast("スプレッドシート連動が未設定です（設定から登録できます）"); return; }
+  const u = CFG.gs;
+  if(!u){ toast("同期URLが未設定です（設定から登録できます）"); return; }
   try{ await syncFromCsvUrl(u); await load(); }
   catch(e){ SYNC_ERR = e.message; render(); toast("同期できませんでした"); }
 };
 $("#btnAdd").onclick = ()=>openEdit(null);
 $("#btnImport").onclick = ()=>$("#mImport").classList.add("on");
 $("#btnSet").onclick = ()=>{
+  $("#setGsUrl").value = CFG.gs || ""; $("#setSheetUrl").value = sheetUrl();
   const at = localStorage.getItem("ec_tools_gs_at");
   $("#lastSync").textContent = at ? "最終同期：" + new Date(at).toLocaleString("ja-JP") : "まだ同期していません";
   $("#mSet").classList.add("on");
 };
-$("#btnSaveSet").onclick = ()=>{
-  const u=$("#setGsUrl").value.trim();
-  const sh=$("#setSheetUrl").value.trim();
-  if(sh) localStorage.setItem(sheetKey,sh); else localStorage.removeItem(sheetKey);
+$("#btnSaveSet").onclick = async ()=>{
+  CFG.gs    = $("#setGsUrl").value.trim();
+  CFG.sheet = $("#setSheetUrl").value.trim() || DEFAULT_SHEET_URL;
+  const ok = await saveCfg();
   $("#btnSheet").href = sheetUrl();
-  if(u) localStorage.setItem(gsKey,u); else localStorage.removeItem(gsKey);
-  $("#mSet").classList.remove("on"); toast(u?"連動を保存しました":"連動を止めました"); load();
+  $("#mSet").classList.remove("on");
+  toast(ok ? "全社員に共通の設定として保存しました" : "保存できませんでした（app_settings テーブルを作成してください）");
+  load();
 };
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".mask").classList.remove("on"));
 document.querySelectorAll(".mask").forEach(m=>m.onclick=e=>{ if(e.target===m) m.classList.remove("on"); });
