@@ -859,6 +859,11 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
     <div class="sf"><label>Supabase URL</label><input id="sbUrl" readonly></div>
     <div class="sf"><label>Publishable key（Supabase → Settings → API｜sb_publishable_…）</label><input id="sbKey" placeholder="sb_publishable_… を貼り付け" autocomplete="off"></div>
     <div class="st" id="sbStat"></div>
+    <div style="margin-top:10px">
+      <button class="btn btn-line btn-sm" id="sbLogBtn">🧾 保存ログを表示（直近50件）</button>
+      <div id="sbLog" style="display:none;max-height:190px;overflow:auto;margin-top:8px;
+        border:1px solid var(--line);border-radius:8px;font-size:11.5px"></div>
+    </div>
     <p class="hint" style="margin-top:8px">※ 初回のみ、Supabaseで下記テーブルの作成が必要です（SQL Editorに貼り付け）：<br>
     <code style="font-size:11px">create table if not exists refort_deals (id text primary key, name text, stage text, data jsonb, updated_at timestamptz default now());</code></p>
     <div class="acts">
@@ -939,14 +944,16 @@ const Store = {
     MEM = d;
     /* 端末のブラウザ保存は「キャッシュ」扱い。容量超過などで失敗しても致命ではないが、握りつぶさず記録する */
     try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); LOCAL_OK = true; }
-    catch(e){ LOCAL_OK = false; console.warn('[refort] ローカルキャッシュ書込み失敗（容量超過の可能性）', e); }
+    catch(e){ LOCAL_OK = false; console.warn('[refort] ローカルキャッシュ書込み失敗（容量超過の可能性）', e);
+      if(!LOCAL_WARNED){ LOCAL_WARNED=true;
+        setTimeout(()=>{ try{ toast('⚠ ブラウザの保存容量が上限です（現地画像が多い可能性）。保存は共有データベースに対して行われます'); }catch(_){} },400); } }
     return LOCAL_OK;
   }
 };
-let LOCAL_OK = true;
+let LOCAL_OK = true, LOCAL_WARNED = false;
 function load(){ const d=Store.read(); if(!d.deals)d.deals=[]; return d; }
 /* one を渡すと、その案件だけをクラウドへ送る（全件送信による失敗・他人のデータ巻き込みを防ぐ） */
-function saveDB(d, one){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d, one); }catch(e){} }
+function saveDB(d, one, force){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d, one, force); }catch(e){} }
 
 /* ---------- stages ---------- */
 const STAGES = [
@@ -1924,18 +1931,29 @@ function newDeal(){
 }
 function I(){return curDeal.inputs;}
 function setI(k,val){curDeal.inputs[k]=val;markDirty();recompute();}
-function markDirty(){dirty=true;const sb=$('#savebar');if(sb){sb.textContent='● 未保存の変更';sb.classList.add('dirty');}}
+let autoSaveT=null;
+function markDirty(){dirty=true;const sb=$('#savebar');if(sb){sb.textContent='● 未保存の変更';sb.classList.add('dirty');}
+  /* 入力が止まって3秒後に自動保存する。保存を押し忘れて閉じても失われないようにする */
+  clearTimeout(autoSaveT);
+  autoSaveT=setTimeout(()=>{ if(dirty&&curDeal&&activeView()==='deal') persist(true); },3000);
+}
 /* 未保存のまま閉じようとしたら止める */
 window.addEventListener('beforeunload',function(e){ if(dirty){ e.preventDefault(); e.returnValue=''; } });
-async function persist(){curDeal.updatedAt=Date.now();
+async function persist(auto){
+  clearTimeout(autoSaveT);
+  if(!curDeal)return;
+  curDeal.updatedAt=Date.now();
   if(!curDeal.name)curDeal.name=curDeal.inputs.customer||'(無題案件)';
+  /* 編集中の案件が一覧の実体と切り離されていないか確認する（切れていると保存が反映されない） */
+  const idx=DB.deals.findIndex(x=>x&&x.id===curDeal.id);
+  if(idx<0) DB.deals.unshift(curDeal); else if(DB.deals[idx]!==curDeal) DB.deals[idx]=curDeal;
   Store.write(DB);
   const sbar=$('#savebar'); if(sbar){sbar.textContent='… 保存中';sbar.classList.add('dirty');}
   const r = await cloudSaveOne(curDeal);
   if(r.ok){
     dirty=false;
-    if(sbar){sbar.textContent='✓ 保存済（共有反映）'+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});sbar.classList.remove('dirty');}
-    toast('保存しました');
+    if(sbar){sbar.textContent=(auto?'✓ 自動保存 ':'✓ 保存済（共有反映）')+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});sbar.classList.remove('dirty');}
+    if(!auto) toast('保存しました');
   }else{
     /* クラウドに入っていない＝次回起動時に消える。ここで必ず知らせる */
     dirty=true;
@@ -1955,6 +1973,7 @@ function renderDeal(){
       <select id="dealStage">${STAGES.map(s=>`<option value="${s.k}" ${curDeal.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
       <span class="savebar" id="savebar"></span>
       <button class="btn btn-line btn-sm" id="excelBtn">📥 Excel取込</button>
+      <button class="btn btn-line btn-sm" id="undoImpBtn" style="display:none">↩ 取込を元に戻す</button>
       <button class="btn btn-line btn-sm" id="sheetBtn">📄 提案シート</button>
       <button class="btn btn-line btn-sm" id="riskBtn">📉 放置リスク比較</button>
       <button class="btn btn-gold btn-sm" id="allBtn">📦 リフォート提案（一括）</button>
@@ -1990,6 +2009,8 @@ function renderDeal(){
   $('#allBtn').onclick=()=>openAllSheets(curDeal,'rf');
   $('#allBtnSK').onclick=()=>openAllSheets(curDeal,'sk');
   $('#excelBtn').onclick=()=>$('#fileExcelCur').click();
+  const ub=$('#undoImpBtn');
+  if(ub){ ub.style.display=(lastImportUndo&&lastImportUndo.id===curDeal.id)?'':'none'; ub.onclick=undoLastImport; }
   $('#dupBtn').onclick=()=>{const c=JSON.parse(JSON.stringify(curDeal));c.id=uid();c.name=(curDeal.name||'案件')+'（複製）';c.createdAt=c.updatedAt=Date.now();DB.deals.unshift(c);saveDB(DB,c);curDeal=c;renderDeal();toast('複製しました');};
   $('#delBtn').onclick=()=>confirmDelete(curDeal.id);
   renderForm(); renderResults();
@@ -2517,7 +2538,7 @@ function importBackup(file){
   r.onload=()=>{try{const data=JSON.parse(r.result);
     if(!data.deals)throw 0;
     if(!confirm('現在の'+DB.deals.length+'件を、バックアップの'+data.deals.length+'件で置き換えますか？'))return;
-    DB=data;saveDB(DB);toast('復元しました');nav('dash');renderDash();
+    DB=data;saveDB(DB,null,true);toast('復元しました');nav('dash');renderDash();
   }catch(e){toast('ファイルを読み込めませんでした');}};
   r.readAsText(file);
 }
@@ -3444,18 +3465,46 @@ function importExcelNew(file){
     toast('Excelから新規案件を取込みました（'+count+'項目'+(ddn?'／DD '+ddn+'件':'')+'）');
   }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
 }
+/* Excelに無い項目は必ずアプリ側の値を残す（現地画像・お客様名などが消える事故の防止） */
+const EXCEL_KEEP=new Set(['sitePhoto','custAddress','riskOpt','quoteNote','workNote']);
+let lastImportUndo=null;
 function importExcelCur(file){
   if(!curDeal)return;
   readExcelFile(file).then(wb=>{
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
-    if(!confirm('この案件の入力内容をExcelの値で上書きします。よろしいですか？\n（次アクション・期限・メモ・ステージは保持されます）'))return;
-    curDeal.inputs=inputs;
+    if(!confirm('Excelに値が入っている項目だけを上書きします。よろしいですか？\n\n'+
+      '・現地画像、お客様名、顧客住所、各種URLなど、Excel側が空欄の項目はそのまま残ります\n'+
+      '・次アクション、期限、メモ、ステージも保持されます'))return;
+    const blank=blankInputs();
+    const before=JSON.parse(JSON.stringify(curDeal.inputs||{}));
+    const merged=Object.assign({},blank,curDeal.inputs);
+    const same=(a,b)=>JSON.stringify(a===undefined?null:a)===JSON.stringify(b===undefined?null:b);
+    let applied=0;
+    Object.keys(inputs).forEach(k=>{
+      if(EXCEL_KEEP.has(k))return;                 /* アプリ専用の項目は常に保持 */
+      const v=inputs[k];
+      if(v===undefined||v===null)return;
+      if(Array.isArray(v)){ if(!v.length)return; }
+      else if(typeof v!=='object' && String(v).trim()==='')return;  /* Excel側が空欄 */
+      if(same(v,blank[k]))return;                  /* 取込できず初期値のままの項目 */
+      if(same(v,merged[k]))return;                 /* 変化なし */
+      merged[k]=v; applied++;
+    });
+    curDeal.inputs=merged;
+    lastImportUndo={id:curDeal.id,inputs:before};
     if(dd&&Object.keys(dd).length)curDeal.dd=Object.assign(curDeal.dd||{},dd);
     if(!curDeal.name||curDeal.name==='(無題案件)')curDeal.name=name;
     markDirty();renderDeal();
-    toast('Excelの値で上書きしました（'+count+'項目）');
+    toast('Excelの値を反映しました（'+applied+'項目を更新／画像・お客様名などは保持）');
   }).catch(err=>toast('取込失敗：'+(err.message||'Excel形式をご確認ください')));
 }
+/* 直前の取込を取り消す（保存前・保存後どちらでも、この画面を開いている間は戻せる） */
+function undoLastImport(){
+  if(!lastImportUndo||!curDeal||lastImportUndo.id!==curDeal.id){ toast('取り消せる取込がありません'); return; }
+  curDeal.inputs=lastImportUndo.inputs; lastImportUndo=null;
+  markDirty(); renderDeal(); toast('取込前の内容に戻しました（保存を押すと確定します）');
+}
+window.undoLastImport=undoLastImport;
 
 
 /* ==================== マップ（日本地図＋ピン） ==================== */
@@ -4077,9 +4126,23 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.28d';
+const APP_VERSION = '2026.08.28f';
 
 const CHANGELOG = [
+  ['2026.08.28f', [
+    '<b>【原因判明・修正】現地画像やお客様名が消える原因は「📥 Excel取込」でした。</b>取込のたびに案件の入力内容を丸ごと差し替えていたため、<b>Excelに欄が無い項目（現地画像）や、Excel側が空欄の項目（お客様名など）が毎回消えていました</b>',
+    '取込を<b>マージ方式</b>に変更しました。Excelに値が入っている項目だけを更新し、<b>現地画像・お客様名・顧客住所・各種URLなど、Excel側が空欄の項目はそのまま残ります</b>',
+    '<b>「↩ 取込を元に戻す」ボタン</b>を追加しました。Excel取込の直後に表示され、押すと取込前の内容に戻せます',
+    '確認ダイアログの文言も、実際の動きに合わせて書き直しました',
+    'ブラウザの保存容量が上限に達した場合（現地画像が多いとき）に警告を出すようにしました',
+  ]],
+  ['2026.08.28e', [
+    '<b>【重要】保存したはずの内容が消える件の対策を入れました。</b>他の社員（または開きっぱなしの別タブ）が古い一覧を保存したときに、あとから保存された新しい内容を上書きしてしまう経路が残っていました。<b>送信前にクラウド側の更新時刻を確認し、古い内容では上書きしない</b>ようにしました',
+    '<b>起動時のマージを変更しました。</b>これまではクラウドの内容で無条件に置き換えていましたが、この端末の方が新しい案件はそのまま残し、クラウドへ反映し直します（前回の保存が届いていなかった場合の救済）',
+    '<b>自動保存を追加しました。</b>入力が止まって3秒後に自動で保存します。保存を押し忘れて画面を閉じても失われません。保存バーに「✓ 自動保存 12:34」と表示されます',
+    '<b>保存後に、本当にクラウドへ入ったかを読み直して確認</b>するようにしました。確認できない場合は「保存しました」と表示せず、警告を出します',
+    '<b>保存ログを追加しました。</b>「☁ 同期設定」→「🧾 保存ログを表示」で、直近50件の保存の日時・案件名・成否・失敗理由を確認できます。今後もし消えた場合は、この画面を見せていただければ原因を特定できます',
+  ]],
   ['2026.08.28d', [
     '<b>「📦 セカンダリーRF提案（一括）」ボタンを追加しました。</b>案件画面の「リフォート提案（一括）」の隣にあります。投資家向けのセカンダリー＋ReFort提案書が6枚まとめて出力できます',
     '構成：<b>① 表紙（セカンダリー設備代・リフォート工事代・総投資額・事業IRR・除却損）／② ReFortスキーム図／③ アースコムのサポート／④ 導入スケジュール／⑤ ReFort発電シミュレーション（月別）／⑥ ReFort発電所投資シミュレーション（年別収支）</b>',
@@ -4351,6 +4414,23 @@ function printAllSheets(){
   setTimeout(restore,60000);
   window.print();
 }
+(function(){
+  const b=$('#sbLogBtn'); if(!b)return;
+  b.onclick=()=>{
+    const box=$('#sbLog'); if(!box)return;
+    if(box.style.display==='block'){ box.style.display='none'; return; }
+    const rows=saveLogRows();
+    box.innerHTML = rows.length
+      ? rows.map(r=>`<div style="display:flex;gap:8px;padding:5px 9px;border-bottom:1px solid #eef1f5">
+          <span style="color:#8a939c;white-space:nowrap">${new Date(r.t).toLocaleString('ja-JP')}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.n||'—')}</span>
+          <span style="white-space:nowrap;color:${r.ok?'#1c8a5a':'#c0392b'}">${r.ok?'✓ 保存':'⚠ 失敗'}</span>
+          ${r.m?`<span style="color:#c0392b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.m)}">${esc(r.m)}</span>`:''}
+        </div>`).join('')
+      : '<div style="padding:12px;color:#8a939c">まだ記録がありません</div>';
+    box.style.display='block';
+  };
+})();
 $('#allPrint').onclick=printAllSheets;
 $('#shOwner').onchange=renderSheets;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheetOverlay').classList.contains('show'))closeSheet();});
@@ -4386,13 +4466,40 @@ function setPill(state){const p=$('#syncPill');if(!p)return;p.className='sync-pi
 function activeView(){const on=document.querySelector('.view.on');return on?on.id.replace('view-',''):'dash';}
 function refreshView(){const v=activeView();if(v==='dash')renderDash();else if(v==='list')renderList();else if(v==='ledger')renderLedger();else if(v==='map')renderMap();}
 function localWrite(d){try{localStorage.setItem('refort_studio_v1',JSON.stringify(d));}catch(e){}}
+/* 保存の記録（直近50件）。「保存したのに消えた」を後から検証できるようにする */
+const SAVE_LOG_KEY='refort_save_log_v1';
+function saveLog(name,ok,msg){
+  try{ const a=JSON.parse(localStorage.getItem(SAVE_LOG_KEY)||'[]');
+    a.unshift({t:Date.now(),n:String(name||'').slice(0,40),ok:!!ok,m:String(msg||'').slice(0,120)});
+    localStorage.setItem(SAVE_LOG_KEY,JSON.stringify(a.slice(0,50)));
+  }catch(e){}
+}
+function saveLogRows(){ try{ return JSON.parse(localStorage.getItem(SAVE_LOG_KEY)||'[]'); }catch(e){ return []; } }
+window.refortSaveLog=saveLogRows;
 function ensureSB(){return new Promise((res,rej)=>{if(window.supabase)return res(window.supabase);
   const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
   s.onload=()=>window.supabase?res(window.supabase):rej(new Error('lib'));
   s.onerror=()=>rej(new Error('ライブラリ読込失敗（要ネット接続）'));document.head.appendChild(s);});}
 /* 大きな現地画像を含むため、まとめて送らず小分けにする（1リクエストが大きすぎると失敗するため） */
-async function cloudUpsert(deals){if(!sb||!deals.length)return;
-  const rows=deals.filter(Boolean).map(x=>({id:x.id,name:x.name||'',stage:x.stage||'',data:x,
+async function cloudUpsert(deals,force){
+  if(!sb)return;
+  let list=(deals||[]).filter(Boolean); if(!list.length)return;
+  if(!force){
+    /* 他の端末が先に保存した新しい内容を、こちらの古い内容で上書きしないようにする。
+       これがないと、別の社員が開きっぱなしの古い一覧が保存されたときに編集が消える */
+    try{
+      const {data:cur,error}=await sb.from('refort_deals').select('id,updated_at').in('id',list.map(x=>x.id));
+      if(!error){
+        const ct={}; (cur||[]).forEach(r=>{ ct[r.id]=new Date(r.updated_at).getTime()||0; });
+        const before=list.length;
+        list=list.filter(x=>{ const c=ct[x.id]; return (c==null) || ((x.updatedAt||0)+1000>=c); });
+        const skipped=before-list.length;
+        if(skipped){ console.warn('[refort] 他端末の新しいデータを守るため'+skipped+'件の送信をスキップ'); }
+      }
+    }catch(e){ console.warn('[refort] 上書き判定に失敗（そのまま送信）',e); }
+  }
+  if(!list.length)return;
+  const rows=list.map(x=>({id:x.id,name:x.name||'',stage:x.stage||'',data:x,
     updated_at:new Date(x.updatedAt||Date.now()).toISOString()}));
   for(let i=0;i<rows.length;i+=3){
     const {error}=await sb.from('refort_deals').upsert(rows.slice(i,i+3));
@@ -4400,10 +4507,20 @@ async function cloudUpsert(deals){if(!sb||!deals.length)return;
   }}
 /* 1件だけ保存し、成否を呼び出し元へ返す */
 async function cloudSaveOne(deal){
-  if(!sb||!cloudReady) return {ok:false,msg:'共有データベースに接続できていません（この端末のブラウザにしか残っていません）'};
-  try{ await cloudUpsert([deal]); setPill('synced'); return {ok:true}; }
-  catch(e){ setPill('error'); console.warn('[refort] cloud save', e);
-    return {ok:false,msg:(e&&e.message)||String(e)}; }}
+  if(!sb||!cloudReady){
+    const m='共有データベースに接続できていません（この端末のブラウザにしか残っていません）';
+    saveLog(deal&&deal.name,false,m); return {ok:false,msg:m};
+  }
+  try{
+    await cloudUpsert([deal],true);   /* 本人が明示的に保存した内容は必ず反映する */
+    /* 書き込めたことを読み直して確認する（「保存しました」と出たのに入っていない、を防ぐ） */
+    const {data,error}=await sb.from('refort_deals').select('updated_at').eq('id',deal.id).limit(1);
+    if(error)throw error;
+    if(!data||!data.length){ const m='保存後に共有データベースで確認できませんでした';
+      setPill('error'); saveLog(deal.name,false,m); return {ok:false,msg:m}; }
+    setPill('synced'); saveLog(deal.name,true,''); return {ok:true};
+  }catch(e){ setPill('error'); console.warn('[refort] cloud save', e);
+    const m=(e&&e.message)||String(e); saveLog(deal&&deal.name,false,m); return {ok:false,msg:m}; }}
 async function cloudDeleteOne(id){
   if(!sb||!cloudReady){toast('⚠ 共有データベース未接続のため、他の端末では消えていません');return;}
   try{ const {error}=await sb.from('refort_deals').delete().eq('id',id); if(error)throw error; }
@@ -4416,16 +4533,27 @@ async function initCloud(){
     if(error)throw error;
     const rows=(data||[]).map(r=>r.data).filter(Boolean);
     const cloudIds=new Set(rows.map(x=>x&&x.id).filter(Boolean));
-    /* この端末にだけ残っていてクラウドに無い案件＝前回保存できていなかった案件。消さずに拾い上げて復旧する */
+    const localById={}; (DB.deals||[]).forEach(x=>{ if(x&&x.id&&!localById[x.id])localById[x.id]=x; });
+    /* この端末にだけ残っていてクラウドに無い案件＝前回保存できていなかった案件。消さずに拾い上げる */
     const orphans=(DB.deals||[]).filter(x=>x&&x.id&&!cloudIds.has(x.id)&&!/^【サンプル】/.test(x.name||''));
+    /* クラウドにもあるが、この端末の方が新しい案件はローカルを優先する。
+       （保存が届いていなかった場合に、古いクラウドの内容で編集を消さないため） */
+    const newerLocal=[];
+    const merged=rows.map(r=>{
+      const loc=r&&r.id?localById[r.id]:null;
+      if(loc && (loc.updatedAt||0) > (r.updatedAt||0)+1000){ newerLocal.push(loc); return loc; }
+      return r;
+    });
     cloudReady=true;
     if(rows.length===0 && DB.deals.length>0){ await cloudUpsert(DB.deals); }
     else {
-      DB.deals = orphans.concat(rows); localWrite(DB);
+      DB.deals = orphans.concat(merged); localWrite(DB);
       if(activeView()!=='deal') refreshView();
-      if(orphans.length){
-        try{ await cloudUpsert(orphans); toast('未保存だった'+orphans.length+'件を共有データベースへ復旧しました'); }
-        catch(e){ console.warn('[refort] orphan recover', e); toast('⚠ 未同期の'+orphans.length+'件を復旧できませんでした'); }
+      const back=orphans.concat(newerLocal);
+      if(back.length){
+        try{ await cloudUpsert(back,true);
+          toast('この端末の方が新しかった'+back.length+'件を共有データベースへ反映しました'); }
+        catch(e){ console.warn('[refort] recover', e); toast('⚠ 未同期の'+back.length+'件を反映できませんでした'); }
       }
     }
     setPill('synced');
@@ -4433,12 +4561,13 @@ async function initCloud(){
     alert('共有データベースに接続できませんでした。\n\nこの状態で入力した内容は、この端末のブラウザにしか残らず、次に開いたときに消える可能性があります。\n作業を始める前に、ネットワーク接続をご確認いただくか管理者へご連絡ください。\n\n詳細：'+((e&&e.message)||e)); }}
 /* 変更のあった案件だけを送る。ローカルに無いものをクラウドから消す処理（旧cloudReconcile）は廃止
    ―― 他の社員が保存した案件を、別の端末の古い一覧が削除してしまう事故の原因だったため */
-window.__cloudPush=function(d,one){ if(!sb||!cloudReady)return;
+window.__cloudPush=function(d,one,force){ if(!sb||!cloudReady)return;
   const list = one ? [one] : (d&&d.deals)||[];
   clearTimeout(sbPushT);
   sbPushT=setTimeout(async()=>{
-    try{ await cloudUpsert(list); setPill('synced'); }
+    try{ await cloudUpsert(list,force); setPill('synced'); }
     catch(e){ setPill('error'); console.warn('[refort] cloud push', e);
+      saveLog(one&&one.name,false,(e&&e.message)||String(e));
       toast('⚠ 共有データベースへ保存できませんでした。画面を閉じる前に管理者へご連絡ください'); }
   },700); };
 function openSyncModal(){ $('#sbUrl').value=SB_URL; $('#sbKey').value=sbKey();
