@@ -348,6 +348,8 @@ pre{
     <div class="note">連動中は、棚を開くたびにスプレッドシートの内容で上書きします。アプリ側での編集はスプレッドシート側の値に戻されるため、<b>どちらか一方を正</b>としてお使いください。<br>
     スプレッドシートは「リンクを知っている全員が閲覧可」にする必要があります。URLを知る人は誰でも中身を見られるため、<b>シートには社外秘の本文を書かず、リンクと説明だけ</b>に留めてください。</div>
     <div id="lastSync" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+    <div style="margin-top:10px"><button class="btn" id="btnDiag">接続テスト（返ってきた中身を見る）</button></div>
+    <pre id="diagOut" style="display:none;margin-top:10px;white-space:pre-wrap"></pre>
   </div>
   <div class="mfoot">
     <button class="btn" data-close>閉じる</button>
@@ -396,7 +398,8 @@ const VIS    = ["社外提示OK","社内限定","顧客個別（要確認）"];
 const AUD    = ["全社","営業","現場","内勤・営業事務","管理部","幹部のみ"];
 const STATUS = ["最新版","更新必要","旧版（アーカイブ）","廃止候補"];
 
-const SQL = `create table if not exists public.tools (
+const SQL = `-- 何度実行しても大丈夫な形にしてあります
+create table if not exists public.tools (
   id          text primary key,
   name        text not null,
   kind        text,
@@ -415,6 +418,8 @@ const SQL = `create table if not exists public.tools (
   updated_at  timestamptz default now()
 );
 alter table public.tools enable row level security;
+drop policy if exists "tools read"  on public.tools;
+drop policy if exists "tools write" on public.tools;
 create policy "tools read"  on public.tools for select using (true);
 create policy "tools write" on public.tools for all    using (true) with check (true);
 
@@ -425,6 +430,8 @@ create table if not exists public.tool_clicks (
   clicked_at timestamptz default now()
 );
 alter table public.tool_clicks enable row level security;
+drop policy if exists "clicks insert" on public.tool_clicks;
+drop policy if exists "clicks read"   on public.tool_clicks;
 create policy "clicks insert" on public.tool_clicks for insert with check (true);
 create policy "clicks read"   on public.tool_clicks for select using (true);
 
@@ -434,6 +441,8 @@ create table if not exists public.app_settings (
   updated_at timestamptz default now()
 );
 alter table public.app_settings enable row level security;
+drop policy if exists "settings read"  on public.app_settings;
+drop policy if exists "settings write" on public.app_settings;
 create policy "settings read"  on public.app_settings for select using (true);
 create policy "settings write" on public.app_settings for all    using (true) with check (true);`;
 
@@ -472,7 +481,7 @@ function fillSelects(){
   $("#btnSheet").href = sheetUrl();
 }
 
-let SYNC_ERR = null;
+let SYNC_ERR = null, LAST_RAW = "";
 async function load(){
   const url = CFG.gs;
   SYNC_ERR = null;
@@ -801,26 +810,62 @@ async function syncFromGas(url, silent){
   return recs.length;
 }
 
+/* 読みに行くURLの候補（上から順に試す） */
+function csvCandidates(input){
+  const u=(input||"").trim(); if(!u) return [];
+  const bust="_ts="+Date.now();
+  if(u.includes("/pub")) return [u+(u.includes("?")?"&":"?")+bust];
+  const m=u.match(/\/spreadsheets\/d\/([A-Za-z0-9-_]{20,})/);
+  if(!m) return [u+(u.includes("?")?"&":"?")+bust];
+  const id=m[1], g=u.match(/[?&#]gid=(\d+)/), gid=g?g[1]:null;
+  const base="https://docs.google.com/spreadsheets/d/"+id;
+  const list=[];
+  list.push(base+"/gviz/tq?tqx=out:csv&headers=1"+(gid?"&gid="+gid:"&sheet="+encodeURIComponent("棚卸しシート"))+"&"+bust);
+  list.push(base+"/export?format=csv"+(gid?"&gid="+gid:"")+"&"+bust);   // 別方式の書き出し
+  return list;
+}
+function toCsvUrl(input){ return csvCandidates(input)[0]||""; }
+
+/* Googleが返してきた中身から、本当の原因を読み取る */
+function diagnose(text){
+  const head = (text||"").slice(0,600);
+  if(/^\s*</.test(head) || /accounts\.google\.com|ServiceLogin|<HTML/i.test(head))
+    return "SHARE|ログイン画面が返ってきました。共有が「リンクを知っている全員（閲覧者）」になっていません。";
+  if(head.includes("setResponse")){
+    if(/user_not_authenticated|accessDenied|access_denied/i.test(head))
+      return "SHARE|Googleに『権限がない』と拒否されました。共有 → 一般的なアクセス → リンクを知っている全員（閲覧者）に変更してください。";
+    const r = head.match(/"detailed_message":"(.*?)"/) || head.match(/"message":"(.*?)"/);
+    return "HEAD|Googleからエラーが返りました："+(r?r[1].replace(/\\u003c[^>]*\\u003e/g,""):"詳細不明");
+  }
+  return null;
+}
+
 async function syncFromCsvUrl(url, silent){
   if((url||"").includes("script.google.com")) return syncFromGas(url, silent);
-  let res, text;
-  try{
-    res = await fetch(toCsvUrl(url), {cache:"no-store"});
-  }catch(e){
-    throw new Error("SHARE|スプレッドシートに接続できませんでした。共有が「リンクを知っている全員（閲覧者）」になっているか確認してください。");
+  const urls = csvCandidates(url);
+  let lastErr = "HTTP|スプレッドシートを読めませんでした。", rows = null;
+
+  for(const u of urls){
+    let res, text;
+    try{ res = await fetch(u, {cache:"no-store"}); }
+    catch(e){ lastErr = "SHARE|スプレッドシートに接続できませんでした。共有設定を確認してください。"; continue; }
+    if(res.status===401 || res.status===403){
+      lastErr = "SHARE|共有が制限されています（"+res.status+"）。共有 → リンクを知っている全員 → 閲覧者 にしてください。"; continue;
+    }
+    if(!res.ok){ lastErr = "HTTP|読み込みに失敗しました（HTTP "+res.status+"）。"; continue; }
+    text = await res.text();
+    LAST_RAW = text.slice(0,600);
+    const d = diagnose(text);
+    if(d){ lastErr = d; continue; }
+    const r = parseCSV(text);
+    if(!r.some(row=>row.some(c=>normHead(c)==="ツール名"))){
+      lastErr = "HEAD|読み込めましたが、そのタブに「ツール名」の見出しがありません。設定のURLが棚卸しシートのタブ（#gid=…）を指しているか確認してください。";
+      continue;
+    }
+    rows = r; break;
   }
-  if(res.status===401 || res.status===403){
-    throw new Error("SHARE|スプレッドシートの共有が制限されています（"+res.status+"）。共有 → リンクを知っている全員 → 閲覧者 に戻してください。");
-  }
-  if(!res.ok) throw new Error("HTTP|スプレッドシートを読めませんでした（HTTP "+res.status+"）。");
-  text = await res.text();
-  if(/^\s*</.test(text) || /accounts\.google\.com|ServiceLogin|<HTML/i.test(text.slice(0,400))){
-    throw new Error("SHARE|ログイン画面が返ってきました。共有が制限付きに戻っています。共有 → リンクを知っている全員 → 閲覧者 にしてください。");
-  }
-  const rows = parseCSV(text);
-  if(!rows.some(r=>r.some(c=>normHead(c)==="ツール名"))){
-    throw new Error("HEAD|見出し行が見つかりません。読みに行ったタブに「ツール名」の見出しがあるか、タブを指定し直してください（設定のURLに #gid=… まで含めてください）。");
-  }
+  if(!rows) throw new Error(lastErr);
+
   const recs = rowsToRecords(rows);
   if(!recs.length) throw new Error("ROWS|見出しは読めましたが、データ行が0件でした。");
   const {error} = await sb.from("tools").upsert(recs);
@@ -895,6 +940,19 @@ $("#btnSaveSet").onclick = async ()=>{
   $("#mSet").classList.remove("on");
   toast(ok ? "全社員に共通の設定として保存しました" : "保存できませんでした（app_settings テーブルを作成してください）");
   load();
+};
+$("#btnDiag").onclick = async ()=>{
+  const out=$("#diagOut"); out.style.display="block"; out.textContent="読み込み中…";
+  const urls = csvCandidates(CFG.gs);
+  let log = "";
+  for(const u of urls){
+    try{
+      const r = await fetch(u,{cache:"no-store"});
+      const t = await r.text();
+      log += "▼ " + u.split("?")[0].split("/").slice(-2).join("/") + "  HTTP " + r.status + "\n" + t.slice(0,300) + "\n\n";
+    }catch(e){ log += "▼ " + u.split("?")[0] + "  接続できませんでした\n\n"; }
+  }
+  out.textContent = log || "同期URLが未設定です";
 };
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".mask").classList.remove("on"));
 document.querySelectorAll(".mask").forEach(m=>m.onclick=e=>{ if(e.target===m) m.classList.remove("on"); });
