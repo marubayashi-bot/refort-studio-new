@@ -1048,20 +1048,25 @@ function derive(I){
   /* --- FIT残：連系日＋20年 を「引渡日（投資実行日）」から逆算する。
          引渡日が未入力のときだけ本日基準にフォールバックする --- */
   const gridD = I.gridDate? new Date(I.gridDate+'T00:00:00') : null;
-  const baseD = new Date();   /* FIT残は常に「本日時点で何もしなくても残る期間」 */
+  /* 引渡（投資実行）予定日が入っていればその日を基準に、未入力なら本日基準で残FITを出す */
+  const handD = I.handoverDate? new Date(I.handoverDate+'T00:00:00') : null;
+  const useHand = !!(handD && isFinite(handD));
+  const baseD = useHand ? handD : new Date();
   const fitEnd = (gridD && isFinite(gridD))
     ? new Date(gridD.getFullYear()+20, gridD.getMonth(), gridD.getDate()-1) : null;
   const DAY=86400000, YR=365.25*DAY;
   const elapsedExact = (gridD&&isFinite(gridD))? Math.max((baseD-gridD)/YR,0) : 11;
   const residualExact = fitEnd? Math.max((fitEnd-baseD)/YR,0) : null;
   const elapsed = Math.floor(elapsedExact);
-  const investBased=false;
+  const investBased=useHand;
   const residual = residualExact!=null
     ? Math.max(Math.min(Math.floor(residualExact),20),0)
     : Math.max(20-elapsed,0);
   const fitEndStr = fitEnd? (fitEnd.getFullYear()+'/'+String(fitEnd.getMonth()+1).padStart(2,'0')) : '';
   const residualLabel = residualExact==null? '—'
     : (Math.floor(residualExact)+'年'+Math.min(Math.round((residualExact-Math.floor(residualExact))*12),11)+'か月');
+  const baseLabel = useHand? '引渡日基準' : '本日基準';
+  const baseDateStr = baseD.getFullYear()+'/'+String(baseD.getMonth()+1).padStart(2,'0')+'/'+String(baseD.getDate()).padStart(2,'0');
 
   const fit=n(I.fitPrice), gen=n(I.actualGen);
   const rfEx=n(I.rfPriceEx), rfIn=Math.round(rfEx*1.1);
@@ -1081,7 +1086,7 @@ function derive(I){
   const ref50 = gen*fit*RY*0.5 - n(I.landRent)*RY;
   const ref55 = gen*fit*RY*0.55 - n(I.landRent)*RY;
   const retireResid = Math.round(n(I.initialEquip)/17*residLife);
-  return {Y,gridYear,elapsed,elapsedExact,residual,residualExact,residualLabel,fitEnd,fitEndStr,investBased,
+  return {Y,gridYear,elapsed,elapsedExact,residual,residualExact,residualLabel,fitEnd,fitEndStr,investBased,baseLabel,baseDateStr,
     fit,gen,rfEx,rfIn,cost,gross,grossRate,
     secEx,saleEx,gw,saleIn,usedEx,goodwillEx,secGross,secGrossRate,removal,residLife,
     rfGenAfter,rfGenRate,ref50,ref55,retireResid};
@@ -1135,7 +1140,7 @@ function rfRateCell(der){
 function fitCls(y){ if(y==null||!isFinite(y))return 'x'; return y<5?'r':y<10?'o':y<15?'n':'g'; }
 function fitBadge(der){
   if(der.residualExact==null) return '<span class="hint">—</span>';
-  const t='本日時点のFIT残'+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
+  const t=(der.baseLabel||'本日基準')+'（'+(der.baseDateStr||'')+'）のFIT残'+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
   return `<span class="fitchip ${fitCls(der.residualExact)}" title="${t}">${der.residualLabel}</span>`;
 }
 /* GoogleマップURLから緯度経度を読み取る（取得できれば検索より正確） */
@@ -1681,6 +1686,9 @@ const COL_DEFS=[
     csv:d=>{const p=netFit(d).pay;return p!=null?p.toFixed(1):'';}},
   {k:'fitEnd',label:'FIT終了',cell:(d,c)=>c.der.fitEndStr||'<span class="hint">—</span>',csv:(d,c)=>c.der.fitEndStr||''},
   {k:'gridDate',label:'連系日',cell:d=>esc(d.inputs.gridDate||'—'),csv:d=>d.inputs.gridDate||'',edit:EF('gridDate','date')},
+  {k:'handoverDate',label:'引渡予定日',cell:d=>d.inputs.handoverDate?esc(d.inputs.handoverDate):'<span class="hint">未定（本日基準）</span>',
+    csv:d=>d.inputs.handoverDate||'',edit:EF('handoverDate','date')},
+  {k:'fitBase',label:'FIT残の基準',cell:(d,c)=>c.der.baseLabel||'—',csv:(d,c)=>c.der.baseLabel||''},
   {k:'dc',label:'DC容量',r:true,cell:(d,c)=>c.der.gen?n(d.inputs.dcExisting).toLocaleString():'—',csv:d=>n(d.inputs.dcExisting)||'',edit:EF('dcExisting','num')},
   {k:'ac',label:'AC容量',r:true,cell:d=>n(d.inputs.acExisting)?n(d.inputs.acExisting).toLocaleString():'—',csv:d=>n(d.inputs.acExisting)||'',edit:EF('acExisting','num')},
   {k:'gen',label:'発電量/年',r:true,cell:(d,c)=>kwh(c.der.gen),csv:(d,c)=>c.der.gen?Math.round(c.der.gen):'',edit:EF('actualGen','num')},
@@ -2029,11 +2037,12 @@ const ACC=[
     ['sitePhoto','現地画像（表紙に使用）','photo'],
     ['contractType','契約種別','sel',['FIT','FIP','Non-FIT']],
     ['gridDate','連系日','date'],
+    ['handoverDate','引渡（投資実行）予定日','date'],
     ['landType','土地利用形態','sel',['所有','地上権','賃借権']],
   ]},
   {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
     ['fitPrice','FIT単価','num','円/kWh'],
-    ['__residual','FIT残（本日時点）','auto',''],
+    ['__residual','FIT残','auto',''],
     ['__fitEnd','FIT終了（連系＋20年）','auto',''],
     ['__payback','投資回収年数','auto','年'],
     ['__netFit','投資後残FIT（回収後の利益期間）','auto',''],
@@ -2301,7 +2310,7 @@ function styleStatus(s){s.classList.remove('s-ok','s-ng','s-doing');
 function recompute(){
   const d=derive(I());const j=judge(I());
   const set=(k,v)=>{const e=$('#auto_'+k);if(e)e.value=v;};
-  set('__residual',d.residualLabel);
+  set('__residual',d.residualLabel+'　【'+(d.baseLabel||'本日基準')+' '+(d.baseDateStr||'')+'】');
   set('__fitEnd',d.fitEndStr||'—');
   { const nf=netFit(curDeal);
     set('__payback', nf.pay!=null? nf.pay.toFixed(1) : (nf.years===-1?'回収できません':'—'));
@@ -4126,9 +4135,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.28f';
+const APP_VERSION = '2026.08.29';
 
 const CHANGELOG = [
+  ['2026.08.29', [
+    '<b>「引渡（投資実行）予定日」を①案件基本情報に追加しました。</b>入力するとFIT残・シミュレーションがその日を基準に計算されます。<b>未入力の場合は今までどおり本日基準</b>です',
+    'FIT残の欄に、いま何を基準にしているかを併記するようにしました（例：9年11か月　【本日基準 2026/08/29】）。一覧の「⚙ 列設定」からも「引渡予定日」「FIT残の基準」の列を追加できます',
+    '※ 本日基準のままだと、連系日と同じ月日をまたぐたびに残FITが1年減り、事業IRRも動きます。提案書を出した後に数字が変わるのを避けたい案件は、引渡予定日を入れてください',
+  ]],
   ['2026.08.28f', [
     '<b>【原因判明・修正】現地画像やお客様名が消える原因は「📥 Excel取込」でした。</b>取込のたびに案件の入力内容を丸ごと差し替えていたため、<b>Excelに欄が無い項目（現地画像）や、Excel側が空欄の項目（お客様名など）が毎回消えていました</b>',
     '取込を<b>マージ方式</b>に変更しました。Excelに値が入っている項目だけを更新し、<b>現地画像・お客様名・顧客住所・各種URLなど、Excel側が空欄の項目はそのまま残ります</b>',
