@@ -26,9 +26,12 @@ a{color:var(--info);text-decoration:none}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 
 /* ===== top bar ===== */
+/* 折り返しを常に許可する。以前は1行固定だったため、右側のボタンが多いと
+   タブ（案件一覧・台帳・マップ）が押し潰されて見えなくなっていた */
 header.top{position:sticky;top:0;z-index:40;background:var(--navy);
-  border-bottom:2px solid var(--gold);display:flex;align-items:center;gap:18px;
-  padding:0 20px;min-height:58px;box-shadow:0 2px 12px rgba(13,35,64,.18)}
+  border-bottom:2px solid var(--gold);display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;row-gap:6px;padding:6px 20px;min-height:58px;
+  box-shadow:0 2px 12px rgba(13,35,64,.18)}
 .brand{display:flex;align-items:center;gap:11px;color:#fff;white-space:nowrap;flex:none;min-width:0}
 .brand .logo-chip{background:#fff;border-radius:8px;padding:5px 9px;display:flex;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.25);flex:none}
 .brand .logo-chip img{height:24px;width:auto;display:block}
@@ -37,7 +40,7 @@ header.top{position:sticky;top:0;z-index:40;background:var(--navy);
   color:var(--navy);font-weight:800;font-size:15px;box-shadow:0 1px 6px rgba(200,162,74,.4)}
 .brand b{font-size:15.5px;letter-spacing:.02em;font-weight:700}
 .brand span{font-size:10.5px;color:var(--gold2);letter-spacing:.06em;display:block;margin-top:-2px}
-nav.tabs{display:flex;gap:2px;margin-left:6px;flex:0 1 auto;min-width:0;
+nav.tabs{display:flex;gap:2px;margin-left:6px;flex:1 1 auto;min-width:240px;
   overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 nav.tabs::-webkit-scrollbar{display:none}
 nav.tabs button{color:#b9c8da;font-size:13px;font-weight:600;padding:8px 15px;border-radius:7px;
@@ -45,7 +48,8 @@ nav.tabs button{color:#b9c8da;font-size:13px;font-weight:600;padding:8px 15px;bo
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.07)}
 nav.tabs button.on{color:var(--navy);background:var(--gold)}
 .top .spacer{flex:1 1 auto;min-width:0}
-.top .util{display:flex;gap:8px;align-items:center;flex:none;white-space:nowrap}
+.top .util{display:flex;gap:8px;row-gap:6px;align-items:center;flex:0 1 auto;
+  flex-wrap:wrap;justify-content:flex-end;margin-left:auto;white-space:nowrap}
 #userBadge,#userBadge *{white-space:nowrap}
 
 /* ヘッダーの折り返し防止（画面幅が狭いとき） */
@@ -60,7 +64,7 @@ nav.tabs button.on{color:var(--navy);background:var(--gold)}
   .brand b{font-size:14.5px}
 }
 @media(max-width:900px){
-  header.top{flex-wrap:wrap;height:auto;padding:8px 12px;row-gap:6px;align-items:center}
+  header.top{height:auto;padding:8px 12px;row-gap:6px;align-items:center}
   .brand{order:1}
   .top .spacer{order:2}
   .top .util{order:3;flex-wrap:wrap;justify-content:flex-end}
@@ -3969,9 +3973,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.27';
+const APP_VERSION = '2026.08.28';
 
 const CHANGELOG = [
+  ['2026.08.28', [
+    '<b>【不具合修正】画面を最大化すると、上部の「案件一覧」「台帳」「マップ」「活用マニュアル」が消えてしまう不具合を修正しました。</b>ヘッダーが1行に固定されていたため、右側のボタンが入りきらないときにタブ側が押し潰されていたことが原因です',
+    'ヘッダーが横幅に応じて自動で折り返すようになり、どの画面サイズ・拡大率でもタブとボタンの両方が必ず表示されます。ボタンが画面右端で切れることもなくなりました',
+  ]],
   ['2026.08.27', [
     '<b>案件一覧の値を、その場で直接編集できるようにしました。</b>編集できるセルは点線の下線が付いています。クリック→入力→<b>Enterで確定</b>（Escで取り消し）。案件名だけは、名前の右に出る ✎ を押すと編集できます',
     '編集できるのは<b>査定の元になる入力項目だけ</b>です：案件名／お客様／お客様住所／所在地／担当／ステージ／区分／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／次アクション（内容）／次アクション期限',
