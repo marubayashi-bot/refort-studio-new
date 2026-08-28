@@ -3026,15 +3026,17 @@ function sheetM2(deal){
     ['発電量UP率',pct(d.rfGenRate),'up'],
     ['総投資額',nfn(s.totalInv)+' 円(税込)','nv'],
   ]);
+  /* 下段3枚は、年別収支表に出ている償却・除却の実額をそのまま拾う */
+  const totOf=a=>a.reduce((x,y)=>x+y,0), yrOf=a=>a.find(v=>v>0)||0;
   const kpis=shKpiTiles([
     {l:'想定 事業IRR',v:s.dealIRR!=null?pct(s.dealIRR):'—',cls:'nv'},
     {l:'総投資額(税込)',v:yen(s.totalInv)},
     {l:'初年度 表面利回り',v:s.surfaceY!=null?pct(s.surfaceY):'—',cls:'gold'},
     {l:'FIT期間 平均CF',v:yen(s.fitAvgCF),cls:'gold'},
     {l:'20年 累計営業CF',v:yen(s.cf20)},
-    {l:'強化税制ROI',v:pct(s.roi),s:s.roi>=0.15?'適用可能':'要確認'},
-    {l:'即時償却 見込',v:yen(s.immediateDep),s:'RF費用×30%目安'},
-    {l:'発電量UP率',v:pct(d.rfGenRate)},
+    {l:'除却損（RF時）',v:yen(totOf(s.rows.除却損)),s:n(I.skrfRetireYear)+'年目に一括計上'},
+    {l:'営業権償却費',v:yen(yrOf(s.rows.営業権償却)),s:'年額・'+n(I.goodwillYears)+'年償却（計 '+yen(totOf(s.rows.営業権償却))+'）'},
+    {l:'RF時減価償却費',v:yen(yrOf(s.rows.RF減価償却)),s:'年額・'+n(I.rfDepYears)+'年償却（計 '+yen(totOf(s.rows.RF減価償却))+'）'},
   ]);
   const y2=s.rows.営業CF.map(v=>s.totalInv?v/s.totalInv:0);
   const tbl=shYearTable('年別収支（円）',N,[
@@ -3977,9 +3979,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.28b';
+const APP_VERSION = '2026.08.28c';
 
 const CHANGELOG = [
+  ['2026.08.28c', [
+    '② セカンダリーRF の提案シートで、下段3枚の指標を差し替えました。<b>強化税制ROI → 除却損（RF時）／即時償却 見込 → 営業権償却費／発電量UP率 → RF時減価償却費</b>',
+    '3つとも年別収支表に出ている実額と一致します。営業権償却費とRF時減価償却費は<b>年額</b>を大きく表示し、下に償却年数と総額を添えています。除却損は計上年を添えています',
+    '発電量UP率は、シート上部の物件スペック欄に引き続き表示されます',
+  ]],
   ['2026.08.28b', [
     '<b>【重要・計算修正】② セカンダリーRF の「総投資額(税込)」が、販売価格ではなく<u>自社の仕入原価</u>で計算されていた不具合を修正しました。</b>投資家が実際に支払う「セカンダリー販売価格(税込)＋リフォート価格(税込)」で計算するようになり、スプレッドシートの総投資額・物件概要書の投資額と一致します',
     'この修正により、② セカンダリーRF の<b>初年度表面利回りと事業IRRが下がります</b>。これまでは仕入原価を分母にしていたため、実際よりも高い利回りが表示されていました。① セカンダリー（販売価格ベース）や台帳とも基準が揃います',
