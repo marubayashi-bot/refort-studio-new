@@ -1041,6 +1041,16 @@ const yenM = v => { if(v===''||v==null||!isFinite(v))return'—'; const m=v/1000
 const pct = (v,d=1) => (v===''||v==null||!isFinite(v))?'—':(v*100).toFixed(d)+'%';
 const kwh = v => (v===''||v==null||!isFinite(v))?'—':Math.round(v).toLocaleString('ja-JP');
 
+/* 2つの日付の差を「○年○か月○日」に正確に分解する（365.25日の近似ではなく暦どおり） */
+function diffYMD(from,to){
+  if(!from||!to||!isFinite(from)||!isFinite(to)||to<from) return {y:0,m:0,d:0};
+  let y=to.getFullYear()-from.getFullYear();
+  let m=to.getMonth()-from.getMonth();
+  let d=to.getDate()-from.getDate();
+  if(d<0){ m--; d+=new Date(to.getFullYear(),to.getMonth(),0).getDate(); }
+  if(m<0){ y--; m+=12; }
+  return {y:y,m:m,d:d};
+}
 /* ---------- DERIVED values (shared) ---------- */
 function derive(I){
   const Y=new Date().getFullYear();
@@ -1059,12 +1069,14 @@ function derive(I){
   const residualExact = fitEnd? Math.max((fitEnd-baseD)/YR,0) : null;
   const elapsed = Math.floor(elapsedExact);
   const investBased=useHand;
-  const residual = residualExact!=null
-    ? Math.max(Math.min(Math.floor(residualExact),20),0)
-    : Math.max(20-elapsed,0);
+  const rem = fitEnd? diffYMD(baseD,fitEnd) : null;
+  /* シミュレーションで使う年数は、表示している「○年」と必ず一致させる */
+  const residual = rem? Math.max(Math.min(rem.y,20),0)
+    : (residualExact!=null? Math.max(Math.min(Math.floor(residualExact),20),0) : Math.max(20-elapsed,0));
   const fitEndStr = fitEnd? (fitEnd.getFullYear()+'/'+String(fitEnd.getMonth()+1).padStart(2,'0')) : '';
-  const residualLabel = residualExact==null? '—'
-    : (Math.floor(residualExact)+'年'+Math.min(Math.round((residualExact-Math.floor(residualExact))*12),11)+'か月');
+  const fitEndStrFull = fitEnd? (fitEnd.getFullYear()+'/'+String(fitEnd.getMonth()+1).padStart(2,'0')+'/'+String(fitEnd.getDate()).padStart(2,'0')) : '';
+  const residualLabel = !rem? '—' : (rem.y+'年'+rem.m+'か月'+rem.d+'日');
+  const residualLabelShort = !rem? '—' : (rem.y+'年'+rem.m+'か月');
   const baseLabel = useHand? '引渡日基準' : '本日基準';
   const baseDateStr = baseD.getFullYear()+'/'+String(baseD.getMonth()+1).padStart(2,'0')+'/'+String(baseD.getDate()).padStart(2,'0');
 
@@ -1086,7 +1098,7 @@ function derive(I){
   const ref50 = gen*fit*RY*0.5 - n(I.landRent)*RY;
   const ref55 = gen*fit*RY*0.55 - n(I.landRent)*RY;
   const retireResid = Math.round(n(I.initialEquip)/17*residLife);
-  return {Y,gridYear,elapsed,elapsedExact,residual,residualExact,residualLabel,fitEnd,fitEndStr,investBased,baseLabel,baseDateStr,
+  return {Y,gridYear,elapsed,elapsedExact,residual,residualExact,residualLabel,residualLabelShort,rem,fitEnd,fitEndStr,fitEndStrFull,investBased,baseLabel,baseDateStr,
     fit,gen,rfEx,rfIn,cost,gross,grossRate,
     secEx,saleEx,gw,saleIn,usedEx,goodwillEx,secGross,secGrossRate,removal,residLife,
     rfGenAfter,rfGenRate,ref50,ref55,retireResid};
@@ -1140,8 +1152,9 @@ function rfRateCell(der){
 function fitCls(y){ if(y==null||!isFinite(y))return 'x'; return y<5?'r':y<10?'o':y<15?'n':'g'; }
 function fitBadge(der){
   if(der.residualExact==null) return '<span class="hint">—</span>';
-  const t=(der.baseLabel||'本日基準')+'（'+(der.baseDateStr||'')+'）のFIT残'+(der.fitEndStr?'／FIT終了 '+der.fitEndStr:'');
-  return `<span class="fitchip ${fitCls(der.residualExact)}" title="${t}">${der.residualLabel}</span>`;
+  const t=(der.baseLabel||'本日基準')+'（'+(der.baseDateStr||'')+'）から '+der.residualLabel
+    +(der.fitEndStrFull?'／FIT最終日 '+der.fitEndStrFull:'');
+  return `<span class="fitchip ${fitCls(der.residualExact)}" title="${t}">${der.residualLabelShort}</span>`;
 }
 /* GoogleマップURLから緯度経度を読み取る（取得できれば検索より正確） */
 function coordsFromUrl(u){
@@ -2043,7 +2056,7 @@ const ACC=[
   {id:'fit',t:'② FIT条件・運用想定',open:true,fields:[
     ['fitPrice','FIT単価','num','円/kWh'],
     ['__residual','FIT残','auto',''],
-    ['__fitEnd','FIT終了（連系＋20年）','auto',''],
+    ['__fitEnd','FIT最終日（連系＋20年の前日）','auto',''],
     ['__payback','投資回収年数','auto','年'],
     ['__netFit','投資後残FIT（回収後の利益期間）','auto',''],
     ['sotsuFit','卒FIT単価','num','円/kWh'],['sotsuYears','卒FIT想定年数','num','年'],
@@ -2310,8 +2323,8 @@ function styleStatus(s){s.classList.remove('s-ok','s-ng','s-doing');
 function recompute(){
   const d=derive(I());const j=judge(I());
   const set=(k,v)=>{const e=$('#auto_'+k);if(e)e.value=v;};
-  set('__residual',d.residualLabel+'　【'+(d.baseLabel||'本日基準')+' '+(d.baseDateStr||'')+'】');
-  set('__fitEnd',d.fitEndStr||'—');
+  set('__residual',d.residualLabel+'　【'+(d.baseLabel||'本日基準')+' '+(d.baseDateStr||'')+' 起算】');
+  set('__fitEnd',d.fitEndStrFull||'—');
   { const nf=netFit(curDeal);
     set('__payback', nf.pay!=null? nf.pay.toFixed(1) : (nf.years===-1?'回収できません':'—'));
     set('__netFit',  nf.label); }
@@ -4135,9 +4148,15 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29';
+const APP_VERSION = '2026.08.29b';
 
 const CHANGELOG = [
+  ['2026.08.29b', [
+    '<b>FIT残を「○年○か月○日」まで表示するようにしました。</b>これまでは月までの表示で、しかも365.25日で割った概算でしたが、暦どおりに年・月・日を数えるよう計算し直しています（例：9年11か月26日）',
+    '②FIT条件・運用想定の「FIT最終日」も、年月だけでなく<b>日まで</b>表示します（例：2036/08/24）',
+    '一覧のFIT残バッジは幅の都合で「9年11か月」のままですが、マウスを乗せると基準日・残り日数・FIT最終日が出ます',
+    'シミュレーションで使うFIT年数を、表示している「○年」と必ず一致するようにしました（以前は概算の切り捨てだったため、境界日にズレる可能性がありました）',
+  ]],
   ['2026.08.29', [
     '<b>「引渡（投資実行）予定日」を①案件基本情報に追加しました。</b>入力するとFIT残・シミュレーションがその日を基準に計算されます。<b>未入力の場合は今までどおり本日基準</b>です',
     'FIT残の欄に、いま何を基準にしているかを併記するようにしました（例：9年11か月　【本日基準 2026/08/29】）。一覧の「⚙ 列設定」からも「引渡予定日」「FIT残の基準」の列を追加できます',
