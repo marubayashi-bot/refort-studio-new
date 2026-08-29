@@ -595,8 +595,9 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .cv-photo-cap{position:absolute;right:30px;margin-top:-24px;background:rgba(18,58,107,.82);color:#fff;
   font-size:10.5px;padding:3px 10px;border-radius:6px}
 /* ===== 物件チラシ（A4タテ・営業用リーフレット） ===== */
-.sheet.portrait{width:210mm;min-height:297mm;padding:0;font-size:9px;page:portraitPage}
-.fl{display:flex;flex-direction:column;height:297mm;box-sizing:border-box}
+.sheet.portrait{width:210mm;height:296mm;min-height:0;padding:0;font-size:9px;
+  page:portraitPage;overflow:hidden}
+.fl{display:flex;flex-direction:column;height:100%;box-sizing:border-box;overflow:hidden}
 .fl-hero{position:relative;height:78mm;overflow:hidden;background:#0d2340;flex:none}
 .fl-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .fl-hero:after{content:'';position:absolute;inset:0;
@@ -673,7 +674,12 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .fl-foot .tel .t{font-size:19px;font-weight:900;color:#0d2340;letter-spacing:-.01em}
 .fl-foot .tel .u{font-size:8.8px;color:#5b6b7d}
 .fl-note{font-size:6.8px;color:#8a939c;line-height:1.55;padding:0 12px 7px}
-@media print{ @page portraitPage{size:A4 portrait;margin:0} }
+@media print{
+  @page portraitPage{size:A4 portrait;margin:0}
+  /* 端数で2ページ目（白紙）が出ないよう、用紙よりわずかに小さく固定する */
+  .sheet.portrait{height:295mm!important;min-height:0!important;overflow:hidden!important}
+  .sheet.portrait:last-child{page-break-after:auto!important;break-after:auto!important}
+}
 
 .sheet.img-sheet{padding:0!important;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .sheet.img-sheet img{width:100%;height:auto;max-height:209mm;object-fit:contain;display:block}
@@ -771,6 +777,7 @@ table.st tr.hl td.lbl{color:#b9770e}
   .sheet-bar{display:none!important}
   #printRoot{padding:0}
   .sheet{box-shadow:none;margin:0;page-break-after:always;break-after:page}
+  .sheet.portrait{height:295mm!important;min-height:0!important;overflow:hidden!important}
   .sheet:last-child{page-break-after:auto;break-after:auto}
 }
 @media print{
@@ -779,6 +786,8 @@ table.st tr.hl td.lbl{color:#b9770e}
   #allOverlay .sheet-bar{display:none!important}
   #allRoot{padding:0}
   #allRoot .sheet{box-shadow:none;margin:0;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid}
+  #allRoot .sheet.portrait{height:295mm!important;min-height:0!important;overflow:hidden!important}
+  #allRoot .sheet:last-child{page-break-after:auto!important;break-after:auto!important}
   #allRoot .sheet:last-child{page-break-after:auto;break-after:auto}
 }
 /* ===== LEDGER (台帳) ===== */
@@ -4393,9 +4402,12 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29e';
+const APP_VERSION = '2026.08.29f';
 
 const CHANGELOG = [
+  ['2026.08.29f', [
+    '<b>【不具合修正】物件チラシをPDF出力すると2ページになり、2枚目が白紙になる不具合を修正しました。</b>チラシの高さをA4の297mmちょうどに設定していたため、余白の端数で1mmだけはみ出し、次のページが作られていたことが原因です。用紙より少し小さい295mmに固定しました',
+  ]],
   ['2026.08.29e', [
     '<b>物件チラシを、営業用リーフレット（A4タテ）に作り直しました。</b>ヘッダーのキャッチコピー、除却損・FIT単価・発電量UPの3大数値、4ステップのスキーム図、4指標、物件スペック帯、ワンストップサポート、問い合わせ先まで1枚に収めています',
     '数値はすべて案件データから自動で入ります（除却損・FIT単価・残FIT期間・発電量RF前後・表面利回り・FIT期間平均CF・20年累計営業CF・事業IRR）。注釈も自動生成します',
