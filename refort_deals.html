@@ -674,6 +674,7 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .fl-foot .tel .t{font-size:19px;font-weight:900;color:#0d2340;letter-spacing:-.01em}
 .fl-foot .tel .u{font-size:8.8px;color:#5b6b7d}
 .fl-note{font-size:6.8px;color:#8a939c;line-height:1.55;padding:0 12px 7px}
+@page portraitPage{size:A4 portrait;margin:0}
 @media print{
   @page portraitPage{size:A4 portrait;margin:0}
   /* 端数で2ページ目（白紙）が出ないよう、用紙よりわずかに小さく固定する */
@@ -931,6 +932,7 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   <section class="view" id="view-deal"></section>
 </main>
 
+<style id="pageStyle"></style>
 <div class="toast" id="toast"></div>
 <div class="modal-bg" id="modal">
   <div class="modal">
@@ -998,6 +1000,8 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   <div class="sheet-bar">
     <span class="t" id="allTitle">📦 リフォート提案（一括）</span>
     <span class="all-picks" id="allPicks"></span>
+    <button class="btn btn-line btn-sm" id="allNone" title="チェックを全て外す">☐ 全解除</button>
+    <button class="btn btn-line btn-sm" id="allAll" title="全てチェック">☑ 全選択</button>
     <span class="hint" id="allHint" style="font-size:12px;color:#9fb0c4"></span>
     <span class="sp"></span>
     <button class="btn btn-gold btn-sm" id="allPrint">🖨 まとめて印刷 / PDF保存</button>
@@ -4361,6 +4365,12 @@ function openAllSheets(deal,mode){
   $$('[data-all]').forEach(cb=>cb.onchange=e=>{
     allOpt()[e.target.dataset.all]=e.target.checked; renderAllSheets();
   });
+  const setAll=v=>{ const O=allOpt();
+    allSheetDefs().forEach(([k])=>{O[k]=v;});
+    $$('[data-all]').forEach(cb=>{cb.checked=v;});
+    renderAllSheets(); };
+  const bn=$('#allNone'); if(bn)bn.onclick=()=>setAll(false);
+  const ba=$('#allAll');  if(ba)ba.onclick=()=>setAll(true);
   renderAllSheets();
   $('#allOverlay').classList.add('show'); document.body.style.overflow='hidden';
 }
@@ -4402,9 +4412,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29f';
+const APP_VERSION = '2026.08.29g';
 
 const CHANGELOG = [
+  ['2026.08.29g', [
+    '<b>【不具合修正】物件チラシだけを出力しても2ページ（2枚目白紙）になる不具合を、用紙設定から作り直しました。</b>チラシはA4タテ、他のシートはA4ヨコという混在指定が一部の環境で効かず、ヨコ用紙にタテのチラシを載せていたことが原因です。<b>印刷する直前に、出力対象がチラシだけなら用紙をA4タテに自動で切り替える</b>ようにしました',
+    '<b>一括提案の画面に「☐ 全解除」「☑ 全選択」ボタンを追加しました。</b>1枚だけ出したいときは全解除→必要なシートだけチェック、が簡単になります',
+    '※ チラシと他のシートを混ぜて出力すると、タテとヨコが1つのPDFに混在します。チラシだけ別で出す運用をおすすめします',
+  ]],
   ['2026.08.29f', [
     '<b>【不具合修正】物件チラシをPDF出力すると2ページになり、2枚目が白紙になる不具合を修正しました。</b>チラシの高さをA4の297mmちょうどに設定していたため、余白の端数で1mmだけはみ出し、次のページが作られていたことが原因です。用紙より少し小さい295mmに固定しました',
   ]],
@@ -4696,7 +4711,7 @@ $('#fileExcelCur').onchange=e=>{if(e.target.files[0])importExcelCur(e.target.fil
 $('#mCancel').onclick=()=>$('#modal').classList.remove('show');
 $('#modal').onclick=e=>{if(e.target.id==='modal')$('#modal').classList.remove('show');};
 $('#shClose').onclick=closeSheet;
-$('#shPrint').onclick=()=>window.print();
+$('#shPrint').onclick=()=>{applyPageSize('#printRoot');window.print();};
 $('#riskClose').onclick=closeRisk;
 $('#riskPrint').onclick=()=>{try{const w=$('#riskFrame').contentWindow;w.focus();w.print();}catch(e){window.print();}};
 $('#allClose').onclick=closeAll;
@@ -4715,7 +4730,18 @@ function allFileName(deal){
   // ファイル名に使えない文字を除去
   return parts.join('_').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'');
 }
+/* 出力するシートが縦だけならA4タテ、混在・横だけならA4ヨコに用紙を切り替える。
+   名前付きページ（@page portraitPage）が効かない環境でも確実に1枚に収めるため */
+function applyPageSize(rootSel){
+  const root=document.querySelector(rootSel); const st=$('#pageStyle'); if(!st)return;
+  const sheets=root? root.querySelectorAll('.sheet') : [];
+  let port=0, land=0;
+  sheets.forEach(el=>{ el.classList.contains('portrait')? port++ : land++; });
+  const only = (port&&!land)? 'portrait' : (land&&!port)? 'landscape' : '';
+  st.textContent = only? '@media print{@page{size:A4 '+only+';margin:0}}' : '';
+}
 function printAllSheets(){
+  applyPageSize('#allRoot');
   const keep=document.title;
   document.title=allFileName(allCurDeal);
   const restore=()=>{document.title=keep;window.removeEventListener('afterprint',restore);};
