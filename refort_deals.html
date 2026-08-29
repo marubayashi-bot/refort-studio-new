@@ -4412,9 +4412,12 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29g';
+const APP_VERSION = '2026.08.29h';
 
 const CHANGELOG = [
+  ['2026.08.29h', [
+    '<b>【不具合修正】物件チラシ1枚の出力で白紙ページが残る件を修正しました。</b>用紙をA4タテに切り替えたあとも、チラシ側に個別の用紙指定が残っており、その切り替わりの位置でブラウザが改ページを入れていたことが原因です。用紙を切り替えるときは個別指定を打ち消すようにしました',
+  ]],
   ['2026.08.29g', [
     '<b>【不具合修正】物件チラシだけを出力しても2ページ（2枚目白紙）になる不具合を、用紙設定から作り直しました。</b>チラシはA4タテ、他のシートはA4ヨコという混在指定が一部の環境で効かず、ヨコ用紙にタテのチラシを載せていたことが原因です。<b>印刷する直前に、出力対象がチラシだけなら用紙をA4タテに自動で切り替える</b>ようにしました',
     '<b>一括提案の画面に「☐ 全解除」「☑ 全選択」ボタンを追加しました。</b>1枚だけ出したいときは全解除→必要なシートだけチェック、が簡単になります',
@@ -4738,7 +4741,13 @@ function applyPageSize(rootSel){
   let port=0, land=0;
   sheets.forEach(el=>{ el.classList.contains('portrait')? port++ : land++; });
   const only = (port&&!land)? 'portrait' : (land&&!port)? 'landscape' : '';
-  st.textContent = only? '@media print{@page{size:A4 '+only+';margin:0}}' : '';
+  if(!only){ st.textContent=''; return; }
+  /* 用紙自体を切り替えるので、シート個別の名前付きページ指定は打ち消す。
+     残したままだとページ種別の切り替わりで空白ページが1枚増える */
+  st.textContent='@media print{@page{size:A4 '+only+';margin:0}'
+    +' .sheet{page:auto!important}'
+    +' .sheet:last-child{page-break-after:auto!important;break-after:auto!important}'
+    +' .sheet:only-child{page-break-after:avoid!important;break-after:avoid!important}}';
 }
 function printAllSheets(){
   applyPageSize('#allRoot');
