@@ -1907,6 +1907,15 @@ function renderColModal(){
 
 /* ==================== LIST ==================== */
 let listFilter={q:'',stage:'',owner:'',category:'',voltage:'',preset:'',sort:'updated'};
+/* 検索用の正規化：全角英数→半角、カタカナ→ひらがな、小文字化。
+   「セカンダリー」を「せかんだりー」でも引けるようにする */
+function normQ(v){
+  return String(v==null?'':v)
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60))
+    .replace(/[ー－―‐]/g,'-')
+    .toLowerCase().trim();
+}
 function isHV(d){const kw=n(d.inputs.acExisting)||n(d.inputs.dcExisting)||0;return kw>=50;}
 let lastListRows=[];
 function renderList(){
@@ -1918,7 +1927,7 @@ function renderList(){
   html+=`<div class="list-presets">${presets.map(([k,label])=>
     `<button class="preset-chip ${listFilter.preset===k?'on':''}" data-preset="${k}">${label}</button>`).join('')}</div>`;
   html+=`<div class="list-toolbar">
-    <input id="lq" placeholder="🔍 案件名・所在地で検索" value="${esc(listFilter.q)}">
+    <input id="lq" placeholder="🔍 案件名・お客様・所在地・担当で検索" value="${esc(listFilter.q)}">
     <select id="lcat"><option value="">全カテゴリ</option>${LCAT.map(c=>`<option ${listFilter.category===c?'selected':''}>${c}</option>`).join('')}</select>
     <select id="lvolt"><option value="">全区分</option><option ${listFilter.voltage==='高圧'?'selected':''}>高圧</option><option ${listFilter.voltage==='低圧'?'selected':''}>低圧</option></select>
     <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
@@ -1942,8 +1951,11 @@ function renderList(){
     if(listFilter.voltage==='低圧'&&isHV(d))return false;
     if(listFilter.stage&&d.stage!==listFilter.stage)return false;
     if(listFilter.owner&&d.inputs.owner!==listFilter.owner)return false;
-    if(listFilter.q){const q=listFilter.q.toLowerCase();
-      if(!((d.name||'').toLowerCase().includes(q)||(d.inputs.location||'').toLowerCase().includes(q)))return false;}
+    if(listFilter.q){
+      const q=normQ(listFilter.q);
+      const hay=normQ([d.name,d.inputs.customer,d.inputs.location,d.inputs.plantName,
+        d.inputs.custAddress,d.inputs.owner,ledCat(d),d.next].filter(Boolean).join(' '));
+      if(!hay.includes(q))return false;}
     return true;
   });
   const fy=d=>{const x=derive(d.inputs).residualExact;return (x==null||!isFinite(x))?null:x;};
@@ -1977,7 +1989,15 @@ function renderList(){
 function wireList(){
   const lc0=$('#listCount'); if(lc0){const shown=lastListRows.length,tot=DB.deals.length;
     lc0.textContent=(shown===tot?('全'+tot+'件'):(shown+'件表示 ／ 全'+tot+'件'));}
-  const q=$('#lq'); if(q)q.oninput=e=>{listFilter.q=e.target.value;renderListSoft();};
+  const q=$('#lq');
+  if(q){
+    /* 日本語変換中（IME入力中）は検索しない。
+       変換前の「か」などで一時的に0件になるのを防ぐ */
+    let composing=false;
+    q.addEventListener('compositionstart',()=>{composing=true;});
+    q.addEventListener('compositionend',e=>{composing=false;listFilter.q=e.target.value;renderListSoft();});
+    q.addEventListener('input',e=>{ if(composing)return; listFilter.q=e.target.value; renderListSoft(); });
+  }
   const lcat=$('#lcat'); if(lcat)lcat.onchange=e=>{listFilter.category=e.target.value;listFilter.preset='';renderList();};
   const lvolt=$('#lvolt'); if(lvolt)lvolt.onchange=e=>{listFilter.voltage=e.target.value;listFilter.preset='';renderList();};
   $$('[data-preset]').forEach(b=>b.onclick=()=>{listFilter.preset=b.dataset.preset;
@@ -4476,9 +4496,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29i';
+const APP_VERSION = '2026.08.29j';
 
 const CHANGELOG = [
+  ['2026.08.29j', [
+    '<b>案件一覧の検索を直しました。</b>日本語を入力すると、<b>変換を確定する前の文字で検索が走ってしまい</b>、一瞬0件になっていました。変換が確定してから検索するようにしています',
+    '<b>検索対象を広げました。</b>これまでは案件名と所在地だけでしたが、<b>お客様名・発電所名・顧客住所・担当・区分・次アクション</b>でも引けます',
+    '全角と半角、カタカナとひらがなを区別せず検索できます（「ＬＳ」で「LS」、「せかんだりー」で「セカンダリー」が引けます）',
+  ]],
   ['2026.08.29i', [
     '<b>【修正】登録した現地画像②〜④が、どこにも出ていませんでした。</b>チラシをA4タテに作り直した際に掲載欄が抜け落ちていたためです。申し訳ありません',
     '<b>「★ 投資ポイント」ページを追加しました。</b>現地画像②〜④を、キャプション付きでA4タテ1枚に大きく掲載します。稼働実績グラフやリフォート前後の比較表など、中身を読ませたい資料向けです',
