@@ -127,6 +127,7 @@ h2{padding-left:11px;border-left:4px solid var(--accent)}
 .lvrow:not(.off) .lvn.l3{background:#FBF5DE;color:#7A6510}
 .lvrow:not(.off) .lvn.l4{background:var(--warn-soft);color:var(--warn)}
 .lvrow:not(.off) .lvn.l5{background:#FBE9E7;color:#9A2E25}
+.rep.off{border-left-color:#C8D2DE;background:#FAFCFD;padding:12px 15px}
 </style>
 </head>
 <body>
@@ -322,7 +323,31 @@ function vWrite(){
       `<option value="${v2}"${mine && mine.importance===v2 ? ' selected':''}>${t}</option>`).join('')}</select>
     <p class="note" style="margin-top:8px">提出すると、直属上司（${esc(uname(ME.manager_id))}）の確認画面に届きます。</p>
     <button class="act" style="margin-top:10px" id="submitBtn" onclick="submitReport()">提出する</button>
+  </div>
+
+  <div class="card"><h3>日報を書く必要がない日</h3>
+    <p class="note">休日・有給・出張などで業務がなかった日は、こちらを押してください。
+      未提出としてカウントされず、リマインドも届きません。</p>
+    ${mine && mine.status === 'off'
+      ? `<div class="row" style="margin-top:10px"><span class="pill p2">この日は「休み」で登録済みです</span>
+         <button class="ghost" onclick="undoDayOff('${mine.id}')">取り消す</button></div>`
+      : `<button class="ghost" style="margin-top:10px" onclick="markDayOff()">この日は休みだった</button>`}
   </div>`;
+}
+
+async function markDayOff(){
+  const day = EDIT_DATE || TODAY;
+  if (!confirm(day + ' を「休み」として登録します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('daily_reports').upsert(
+    { author_id: ME.id, report_date: day, status: 'off', importance: 2 },
+    { onConflict: 'author_id,report_date' });
+  if (error){ toast('登録できませんでした: ' + error.message); return; }
+  await loadReports(); EDIT_DATE = null; toast('休みとして登録しました'); go('feed');
+}
+async function undoDayOff(id){
+  const { error } = await EC.supabase.from('daily_reports').delete().eq('id', id);
+  if (error){ toast('取り消せませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast('取り消しました');
 }
 
 async function submitReport(){
@@ -379,6 +404,14 @@ function card(r){
   const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
   const vals = r.report_metric_values || [];
   const who = uname(r.author_id);
+  if (r.status === 'off') return `<div class="rep off" id="rep_${r.id}">
+    <div class="row"><span class="avatar">${esc(who.slice(0,1))}</span>
+      <span class="nm">${esc(who)}</span><span class="pill">${esc(udept(r.author_id))}</span>
+      <span class="note num">${r.report_date}</span>
+      <span class="pill p2" style="margin-left:auto">休み</span></div>
+    ${r.author_id === ME.id ? `<div class="row" style="margin-top:9px">
+      <button class="ghost" onclick="undoDayOff('${r.id}')">取り消す</button></div>` : ''}
+  </div>`;
   return `<div class="rep i${r.importance}" id="rep_${r.id}">
     <div class="head">
       <span class="avatar">${esc(who.slice(0,1))}</span>
@@ -466,6 +499,8 @@ function vStatus(){
   const todays = REPORTS.filter(r => r.report_date === TODAY);
   const rows = targets.map(u => {
     const r = todays.find(x => x.author_id === u.id);
+    if (r && r.status === 'off') return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
+      <td><span class="pill p2">休み</span></td><td>—</td><td>—</td><td>—</td></tr>`;
     const seen = r && (r.report_views||[]).length;
     const cmt  = r && (r.report_comments||[]).length;
     const need = r && r.importance >= 4 && !cmt;
@@ -478,8 +513,9 @@ function vStatus(){
 
   const bosses = USERS.filter(u => USERS.some(x => x.manager_id === u.id));
   const bossRows = bosses.map(b => {
-    const subs = USERS.filter(x => x.manager_id === b.id);
-    const rs = todays.filter(r => subs.some(s => s.id === r.author_id));
+    const offIds = todays.filter(r => r.status === 'off').map(r => r.author_id);
+    const subs = USERS.filter(x => x.manager_id === b.id && !offIds.includes(x.id));
+    const rs = todays.filter(r => subs.some(s => s.id === r.author_id) && r.status !== 'off');
     const sub = subs.length ? Math.round(rs.length / subs.length * 100) : 0;
     const seen = rs.length ? Math.round(rs.filter(r => (r.report_views||[]).some(v=>v.viewer_id===b.id)).length / rs.length * 100) : 0;
     const cmt  = rs.length ? Math.round(rs.filter(r => (r.report_comments||[]).some(c=>c.author_id===b.id)).length / rs.length * 100) : 0;
@@ -1003,8 +1039,11 @@ function openReport(id){
 /* ---------- 4. ダッシュボード ---------- */
 function vDash(){
   const todays = REPORTS.filter(r => r.report_date === TODAY);
-  const targets = USERS.filter(u => u.department_id && u.job_grade !== '役員・経営');
-  const rate = targets.length ? Math.round(todays.length / targets.length * 100) : 0;
+  const offIds = todays.filter(r => r.status === 'off').map(r => r.author_id);
+  const submitted = todays.filter(r => r.status !== 'off');
+  const targets = USERS.filter(u => u.department_id && u.job_grade !== '役員・経営'
+                                    && !offIds.includes(u.id));
+  const rate = targets.length ? Math.round(submitted.length / targets.length * 100) : 0;
   const hot = REPORTS.filter(r => r.importance >= 4);
   const unhandled = hot.filter(r => !(r.report_comments||[]).length);
   const lv = [1,2,3,4,5].map(n => REPORTS.filter(r => r.level === n).length);
@@ -1012,7 +1051,7 @@ function vDash(){
   return `<h2>ダッシュボード</h2><p class="sub">${esc(ME.full_name)}／${esc(ME.dept_name||'')}／${TODAY}</p>
   <div class="grid">
     <div class="kpi"><div class="v num">${rate}%</div><div class="l">本日の提出率（見える範囲）</div></div>
-    <div class="kpi"><div class="v num">${todays.length}</div><div class="l">本日の日報</div></div>
+    <div class="kpi"><div class="v num">${submitted.length}</div><div class="l">本日の日報${offIds.length ? `（休み${offIds.length}名）` : ''}</div></div>
     <div class="kpi${unhandled.length ? ' alert' : ''}"><div class="v num" style="color:var(--warn)">${unhandled.length}</div><div class="l">未対応の重要情報</div></div>
     <div class="kpi"><div class="v num">${REPORTS.length}</div><div class="l">直近30日の日報</div></div>
   </div>
