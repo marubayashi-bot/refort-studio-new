@@ -198,6 +198,26 @@ pre{
 .prev{width:100%;border-collapse:collapse;font-size:11px}
 .prev th,.prev td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
 .prev th{background:var(--line-2);font-weight:700;white-space:nowrap}
+.dback{position:fixed;inset:0;background:rgba(16,50,47,.35);z-index:55;opacity:0;pointer-events:none;transition:opacity .18s}
+.dback.on{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:min(620px,94vw);background:#fff;z-index:56;
+  box-shadow:-8px 0 40px rgba(16,50,47,.22);transform:translateX(102%);transition:transform .22s ease;
+  display:flex;flex-direction:column;
+}
+.drawer.on{transform:translateX(0)}
+.dhead{padding:16px 18px;border-bottom:1px solid var(--line)}
+.dhead .ctop{margin-bottom:6px}
+.dhead h3{margin:0;font-size:17px;font-weight:800;line-height:1.45}
+.dclose{position:absolute;top:12px;right:14px;background:none;border:0;font-size:22px;cursor:pointer;color:var(--muted)}
+.dbody{flex:1;overflow:auto;padding:0;background:#F5F7F7;display:flex;flex-direction:column}
+.dbody iframe{width:100%;flex:1;min-height:420px;border:0;background:#fff}
+.dinfo{padding:14px 18px;background:#fff;border-bottom:1px solid var(--line-2)}
+.dfoot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:9px;background:#FAFBFB}
+.dfoot .open{flex:1}
+.noembed{padding:40px 24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.9}
+.cname{cursor:pointer}
+.purpose{cursor:pointer}
 .toast{
   position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:11px 20px;border-radius:9px;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;
@@ -226,6 +246,7 @@ pre{
     <button class="hbtn" id="btnSync" title="スプレッドシートから今すぐ読み込む">↻ 更新</button>
     <button class="hbtn" id="btnImport">取込</button>
     <button class="hbtn primary" id="btnAdd">＋ 追加</button>
+    <button class="hbtn" id="btnHelp" title="活用マニュアル">使い方</button>
     <button class="hbtn" id="btnSet">設定</button>
     <span class="who" id="who"></span>
   </div>
@@ -238,6 +259,7 @@ pre{
     <select id="fAud"><option value="">対象者：すべて</option></select>
     <div class="toggle on" id="tgLatest">最新版のみ</div>
     <div class="toggle" id="tgOut">お客様に出せるものだけ</div>
+    <div class="toggle" id="tgCare">要メンテナンス</div>
     <div class="count" id="cnt"></div>
   </div>
 </div>
@@ -274,7 +296,7 @@ pre{
     <div class="row3">
       <div class="field"><label>版・最終更新日</label><input id="f_ver" placeholder="v14 / 2026-08-01"></div>
       <div class="field"><label>管理担当者</label><input id="f_owner"></div>
-      <div class="field"><label>関連タグ（カンマ区切り）</label><input id="f_tags" placeholder="ReFort,シミュレーション"></div>
+      <div class="field"><label>関連タグ（カンマ区切り）</label><input id="f_tags" list="tagList" placeholder="ReFort,シミュレーション"><datalist id="tagList"></datalist></div>
     </div>
     <div class="field"><label>備考・課題</label><textarea id="f_note"></textarea></div>
   </div>
@@ -357,6 +379,52 @@ pre{
   </div>
 </div></div>
 
+
+<div class="mask" id="mHelp"><div class="modal">
+  <div class="mhead"><h3>営業ツール棚 活用マニュアル</h3><button data-close>×</button></div>
+  <div class="mbody">
+    <h4 style="margin:0 0 6px;font-size:13px">1. 探すとき</h4>
+    <p style="margin:0 0 14px">今いる営業プロセスの段を開いてください。段は上から、初回接触 → 現調 → 提案 → クロージング → 契約・引渡し → アフター → 社内勉強会 → バックオフィス → 業界・競合インプット、の順です。<br>
+    カードには必ず<b>「誰が・いつ・何のために使うか」</b>が書いてあります。開かなくても中身が分かるようにするためです。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">1-2. 中身を確かめるとき</h4>
+    <p style="margin:0 0 14px"><b>カードの名前か用途の文をクリック</b>すると、右側に中身が開きます。スライドはその場でめくれ、動画は再生でき、PDFも読めます。別タブで開いて戻る手間が要りません。<br>
+    そのまま使うと決めたら、右下の「別タブで開く」を押してください。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">2. お客様の前で開くとき</h4>
+    <p style="margin:0 0 14px">上の<b>「お客様に出せるものだけ」</b>を押してください。社内限定の資料が非表示になります。<br>
+    <span class="pill vis-out">社外提示OK</span> そのまま見せてよい　
+    <span class="pill vis-in">社内限定</span> 見せてはいけない　
+    <span class="pill vis-ask">顧客個別（要確認）</span> 上長に確認してから</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">3. 足すとき</h4>
+    <p style="margin:0 0 14px">自分だけが持っている資料、個人PCにしかないExcelを優先して登録してください。<br>
+    1件だけなら<b>「＋追加」</b>、まとめてなら<b>「元シート」</b>から棚卸しシートに直接書いてください。<br>
+    <b>用途の一行は必ず埋めてください。</b>ここが空だと結局開いて確認することになり、棚の意味がなくなります。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">4. 最新に保つ</h4>
+    <p style="margin:0 0 14px">資料を作り直したら、<b>古い方を消さずに「状態」を「旧版（アーカイブ）」に変更</b>してください。棚には最新版だけが並びます。消してしまうと、どれが最新か分からなくなった時に遡れません。<br>
+    版を上げたら<b>「版・最終更新日」</b>を書き換えてください。ここが1年以上前のままだと、カードに「要確認」が出ます。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">5. 月に一度の棚卸し（管理担当者）</h4>
+    <p style="margin:0 0 14px">上の<b>「要メンテナンス」</b>を押すと、用途やURLが未記入のもの、1年以上更新されていないものだけが並びます。<br>
+    自分が管理担当になっているカードを確認し、直すか、旧版に落としてください。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">6. タグ</h4>
+    <p style="margin:0">タグはナレッジアプリと共通です。タグを押すとナレッジ側の該当項目に飛びます。<br>
+    <b>開いて使うもの（ファイル・URL）はこの棚、読んで理解するもの（制度の解説・用語）はナレッジ</b>、で使い分けてください。</p>
+  </div>
+  <div class="mfoot"><button class="btn primary" data-close>閉じる</button></div>
+</div></div>
+
+<div class="dback" id="dback"></div>
+<aside class="drawer" id="drawer" aria-label="プレビュー">
+  <button class="dclose" id="dclose">×</button>
+  <div class="dhead" id="dhead"></div>
+  <div class="dbody" id="dbody"></div>
+  <div class="dfoot" id="dfoot"></div>
+</aside>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -391,7 +459,10 @@ async function saveCfg(){
   }catch(e){ return false; }
 }
 
-const STAGES = ["01 初回接触・集客","02 現地調査","03 提案","04 クロージング","05 契約・引渡し","06 アフター・既存深耕","07 社内勉強会・研修","08 バックオフィス"];
+const STAGES = ["01 初回接触・集客","02 現地調査","03 提案","04 クロージング","05 契約・引渡し","06 アフター・既存深耕","07 社内勉強会・研修","08 バックオフィス","09 業界・競合インプット"];
+// ナレッジアプリと共通で使うタグ候補
+const TAGS = ["競合","他社比較","業界動向","法改正・制度","FIT・FIP","市場価格・相場","税制","金融・融資",
+              "ReFort","セカンダリー","蓄電池","低圧","高圧","現調","提案書","シミュレーション","事例","実績数値","トーク"];
 const KINDS  = ["スライド","動画","Excel","アプリ","PDF","雛形・書式","トークスクリプト","LP・Webページ","その他"];
 const BIZ    = ["全社共通","ReFort","セカンダリー","系統蓄電池","低圧蓄電池","太陽光（新規）","採用・管理","その他事業"];
 const VIS    = ["社外提示OK","社内限定","顧客個別（要確認）"];
@@ -476,6 +547,7 @@ function fillSelects(){
   put("#f_stage",STAGES); put("#f_kind",KINDS); put("#f_biz",BIZ);
   put("#f_vis",VIS); put("#f_aud",AUD); put("#f_status",STATUS);
   $("#sql").textContent = SQL;
+  $("#tagList").innerHTML = TAGS.map(t=>`<option value="${t}">`).join("");
   $("#setGsUrl").value = CFG.gs || "";
   $("#setSheetUrl").value = sheetUrl();
   $("#btnSheet").href = sheetUrl();
@@ -500,6 +572,24 @@ async function load(){
 }
 
 /* ===================== 表示 ===================== */
+/* 「版・最終更新日」から日付を拾い、古さを判定する */
+function ageDays(t){
+  const m = (t.version||"").match(/(20\d{2})[-\/年.](\d{1,2})[-\/月.](\d{1,2})?/);
+  if(!m) return null;
+  const d = new Date(+m[1], +m[2]-1, +(m[3]||1));
+  if(isNaN(d)) return null;
+  return Math.floor((Date.now()-d)/86400000);
+}
+function needsCare(t){
+  if(!t.purpose) return "用途が未記入";
+  if(!t.url) return "URLが未登録";
+  if(!t.owner) return "担当者が未記入";
+  if(t.status==="更新必要") return "更新必要";
+  const a = ageDays(t);
+  if(a!==null && a>365) return "1年以上更新なし";
+  return null;
+}
+
 function filtered(){
   const q = $("#q").value.trim().toLowerCase();
   const fb=$("#fBiz").value, fk=$("#fKind").value, fa=$("#fAud").value;
@@ -511,6 +601,7 @@ function filtered(){
     if(fa && t.audience && t.audience!==fa && t.audience!=="全社") return false;
     if(latest && (t.status==="旧版（アーカイブ）"||t.status==="廃止候補")) return false;
     if(outOnly && t.visibility!=="社外提示OK") return false;
+    if($("#tgCare").classList.contains("on") && !needsCare(t)) return false;
     if(q){
       const hay = [t.name,t.purpose,t.tags,t.owner,t.note,t.kind,t.biz].join(" ").toLowerCase();
       if(!hay.includes(q)) return false;
@@ -580,10 +671,10 @@ function card(t){
   }
   const top = el("div","ctop");
   if(t.kind) top.appendChild(el("span","kind",t.kind));
-  const nm = el("h3","cname",t.name); top.appendChild(nm);
+  const nm = el("h3","cname",t.name); nm.title="中身をプレビューする"; nm.onclick=()=>openPreview(t); top.appendChild(nm);
   c.appendChild(top);
 
-  if(t.purpose) c.appendChild(el("p","purpose",t.purpose));
+  if(t.purpose){ const pp=el("p","purpose",t.purpose); pp.onclick=()=>openPreview(t); c.appendChild(pp); }
   else c.appendChild(el("p","purpose empty","用途が未記入です — 誰が・いつ・何のために使うかを追記してください"));
 
   const m = el("div","meta");
@@ -601,6 +692,12 @@ function card(t){
   });
   c.appendChild(m);
 
+  const care = needsCare(t);
+  if(care && care!=="更新必要"){
+    const w = el("div","meta");
+    w.appendChild(el("span","pill vis-ask","要確認：" + care));
+    c.appendChild(w);
+  }
   if(t.version || t.owner){
     const sub = el("div","meta");
     if(t.version) sub.appendChild(el("span",null,t.version));
@@ -622,6 +719,91 @@ function card(t){
   const ed = el("button","icobtn","✏️"); ed.title="この登録を編集する"; ed.onclick=()=>openEdit(t); bot.appendChild(ed);
   c.appendChild(bot);
   return c;
+}
+
+/* URLから、その場で中身を表示できる形に変換する */
+function embedInfo(url){
+  const u = (url||"").trim();
+  if(!u) return {type:"none"};
+  let m;
+  if((m=u.match(/presentation\/d\/([A-Za-z0-9-_]+)/)))
+    return {type:"iframe", src:"https://docs.google.com/presentation/d/"+m[1]+"/preview", label:"Googleスライド"};
+  if((m=u.match(/spreadsheets\/d\/([A-Za-z0-9-_]+)/))){
+    const g=u.match(/[?&#]gid=(\d+)/);
+    return {type:"iframe", src:"https://docs.google.com/spreadsheets/d/"+m[1]+"/preview"+(g?"#gid="+g[1]:""), label:"スプレッドシート"};
+  }
+  if((m=u.match(/document\/d\/([A-Za-z0-9-_]+)/)))
+    return {type:"iframe", src:"https://docs.google.com/document/d/"+m[1]+"/preview", label:"Googleドキュメント"};
+  if((m=u.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9-_]+)/)))
+    return {type:"iframe", src:"https://drive.google.com/file/d/"+m[1]+"/preview", label:"Driveのファイル"};
+  if((m=u.match(/drive\.google\.com\/open\?id=([A-Za-z0-9-_]+)/)))
+    return {type:"iframe", src:"https://drive.google.com/file/d/"+m[1]+"/preview", label:"Driveのファイル"};
+  if((m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9-_]{6,})/)))
+    return {type:"iframe", src:"https://www.youtube.com/embed/"+m[1], label:"動画"};
+  if((m=u.match(/vimeo\.com\/(\d+)/)))
+    return {type:"iframe", src:"https://player.vimeo.com/video/"+m[1], label:"動画"};
+  if(/\.pdf($|\?)/i.test(u)) return {type:"iframe", src:u, label:"PDF"};
+  if(/github\.io|\.html($|\?|#)/i.test(u)) return {type:"iframe", src:u, label:"アプリ"};
+  return {type:"link"};
+}
+
+let PREVIEWING = null;
+function openPreview(t){
+  PREVIEWING = t;
+  const info = embedInfo(t.url);
+
+  const head = $("#dhead"); head.innerHTML="";
+  const top = el("div","ctop");
+  if(t.kind) top.appendChild(el("span","kind",t.kind));
+  head.appendChild(top);
+  const h3=document.createElement("h3"); h3.textContent=t.name; head.appendChild(h3);
+  const m = el("div","meta"); m.style.marginTop="8px";
+  if(t.visibility){
+    const cls = t.visibility==="社外提示OK"?"vis-out":t.visibility==="社内限定"?"vis-in":"vis-ask";
+    m.appendChild(el("span","pill "+cls,t.visibility));
+  }
+  if(t.biz) m.appendChild(el("span","pill",t.biz));
+  if(t.audience) m.appendChild(el("span","pill",t.audience));
+  if(t.version) m.appendChild(el("span","pill",t.version));
+  if(t.owner) m.appendChild(el("span","pill","担当 "+t.owner));
+  head.appendChild(m);
+
+  const body = $("#dbody"); body.innerHTML="";
+  if(t.purpose || t.note){
+    const d = el("div","dinfo");
+    if(t.purpose) d.appendChild(el("div",null,t.purpose));
+    if(t.note){ const n=el("div","meta",""); n.textContent="備考："+t.note; n.style.marginTop="6px"; d.appendChild(n); }
+    body.appendChild(d);
+  }
+  if(info.type==="iframe"){
+    const f=document.createElement("iframe");
+    f.src=info.src; f.loading="lazy"; f.allow="autoplay; fullscreen";
+    f.referrerPolicy="no-referrer-when-downgrade";
+    body.appendChild(f);
+  }else{
+    body.appendChild(el("div","noembed",
+      t.url ? "このリンクはこの画面の中では表示できない形式です。下の「開く」から別タブでご覧ください。"
+            : "URLが登録されていません。鉛筆マークから登録してください。"));
+  }
+
+  const foot = $("#dfoot"); foot.innerHTML="";
+  const a=document.createElement("a");
+  a.className="open"+(t.url?"":" disabled"); a.textContent=t.url?"別タブで開く":"URL未登録";
+  a.href=t.url||"#"; a.target="_blank"; a.rel="noopener"; a.onclick=()=>logClick(t.id);
+  foot.appendChild(a);
+  if(t.edit_url){
+    const e2=document.createElement("a"); e2.className="btn"; e2.style.textDecoration="none";
+    e2.href=t.edit_url; e2.target="_blank"; e2.rel="noopener"; e2.textContent="原本";
+    foot.appendChild(e2);
+  }
+  const ed=el("button","btn","編集"); ed.onclick=()=>{closePreview();openEdit(t);}; foot.appendChild(ed);
+
+  $("#drawer").classList.add("on"); $("#dback").classList.add("on");
+  logClick(t.id);
+}
+function closePreview(){
+  $("#drawer").classList.remove("on"); $("#dback").classList.remove("on");
+  $("#dbody").innerHTML=""; PREVIEWING=null;   // 動画・iframeを止める
 }
 
 async function logClick(id){
@@ -924,6 +1106,7 @@ $("#btnSync").onclick = async ()=>{
   try{ await syncFromCsvUrl(u); await load(); }
   catch(e){ SYNC_ERR = e.message; render(); toast("同期できませんでした"); }
 };
+$("#btnHelp").onclick = ()=>$("#mHelp").classList.add("on");
 $("#btnAdd").onclick = ()=>openEdit(null);
 $("#btnImport").onclick = ()=>$("#mImport").classList.add("on");
 $("#btnSet").onclick = ()=>{
@@ -956,6 +1139,9 @@ $("#btnDiag").onclick = async ()=>{
 };
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".mask").classList.remove("on"));
 document.querySelectorAll(".mask").forEach(m=>m.onclick=e=>{ if(e.target===m) m.classList.remove("on"); });
+$("#dclose").onclick = closePreview;
+$("#dback").onclick = closePreview;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePreview(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".mask.on").forEach(m=>m.classList.remove("on")); });
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
@@ -966,6 +1152,7 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
 $("#q").oninput = render;
 $("#tgLatest").onclick = e=>{e.target.classList.toggle("on");render()};
 $("#tgOut").onclick = e=>{e.target.classList.toggle("on");render()};
+$("#tgCare").onclick = e=>{e.target.classList.toggle("on");render()};
 </script>
 </body>
 </html>
