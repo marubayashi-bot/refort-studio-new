@@ -243,7 +243,7 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 /* ---------- 画面枠 ---------- */
 function render(){
   TABS = BASE_TABS.concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
-  const tabs = TABS.concat(canAdmin() ? [['admin','管理']] : []);
+  const tabs = TABS.concat([['admin','管理']]);
   if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
@@ -323,6 +323,13 @@ function vWrite(){
       `<option value="${v2}"${mine && mine.importance===v2 ? ' selected':''}>${t}</option>`).join('')}</select>
     <p class="note" style="margin-top:8px">提出すると、直属上司（${esc(uname(ME.manager_id))}）の確認画面に届きます。</p>
     <button class="act" style="margin-top:10px" id="submitBtn" onclick="submitReport()">提出する</button>
+
+    <label style="margin-top:16px">時間を指定して提出（予約）</label>
+    <div class="row">
+      <input type="datetime-local" id="f_publish" style="flex:2;min-width:200px">
+      <button class="ghost" onclick="submitReport(true)">この時刻に提出する</button>
+    </div>
+    <p class="note">指定した時刻になると自動で提出され、Chatworkにも通知されます。それまでは上司に表示されません。</p>
   </div>
 
   <div class="card"><h3>日報を書く必要がない日</h3>
@@ -350,8 +357,10 @@ async function undoDayOff(id){
   await loadReports(); render(); toast('取り消しました');
 }
 
-async function submitReport(){
+async function submitReport(scheduled){
   const btn = document.getElementById('submitBtn');
+  const pub = scheduled ? (document.getElementById('f_publish') || {}).value : '';
+  if (scheduled && !pub){ toast('提出したい日時を選んでください'); return; }
   const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   const day = EDIT_DATE || TODAY;
   const body = {
@@ -359,7 +368,9 @@ async function submitReport(){
     voice: g('f_voice'), rival: g('f_rival'), industry: g('f_industry'),
     thought: g('f_thought'), good_news: g('f_good'), subordinate: g('f_sub'),
     attachments: g('f_attach') ? [g('f_attach')] : [],
-    importance: Number(g('f_imp')) || 2, status: 'submitted'
+    importance: Number(g('f_imp')) || 2,
+    status: scheduled ? 'scheduled' : 'submitted',
+    publish_at: scheduled ? new Date(pub).toISOString() : null
   };
   if (!body.voice && !body.thought){ toast('お客様の声か、自分の考えのどちらかは入力してください'); return; }
 
@@ -373,7 +384,8 @@ async function submitReport(){
   if (vals.length) await EC.supabase.from('report_metric_values').upsert(vals);
 
   await loadReports();
-  toast(EDIT_DATE ? '更新しました' : '提出しました');
+  toast(scheduled ? '予約しました。指定時刻に自動で提出されます'
+                  : (EDIT_DATE ? '更新しました' : '提出しました'));
   EDIT_DATE = null;
   go('feed');
 }
@@ -404,6 +416,14 @@ function card(r){
   const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
   const vals = r.report_metric_values || [];
   const who = uname(r.author_id);
+  if (r.status === 'scheduled') return `<div class="rep off" id="rep_${r.id}">
+    <div class="row"><span class="avatar">${esc(who.slice(0,1))}</span>
+      <span class="nm">${esc(who)}</span><span class="note num">${r.report_date}</span>
+      <span class="pill p3" style="margin-left:auto">予約中 ${r.publish_at ? hhmm(r.publish_at) : ''}</span></div>
+    ${r.author_id === ME.id ? `<div class="row" style="margin-top:9px">
+      <button class="ghost" onclick="editReport('${r.id}')">編集</button>
+      <button class="ghost" onclick="deleteReport('${r.id}','${r.report_date}')">取り消す</button></div>` : ''}
+  </div>`;
   if (r.status === 'off') return `<div class="rep off" id="rep_${r.id}">
     <div class="row"><span class="avatar">${esc(who.slice(0,1))}</span>
       <span class="nm">${esc(who)}</span><span class="pill">${esc(udept(r.author_id))}</span>
@@ -417,7 +437,7 @@ function card(r){
       <span class="avatar">${esc(who.slice(0,1))}</span>
       <span class="nm">${esc(who)}</span>
       <span class="pill">${esc(udept(r.author_id))}</span>
-      <span class="note num">${r.report_date}</span>
+      <span class="note num">${r.report_date}${r.submitted_at ? ' ' + hhmm(r.submitted_at) : ''}</span>
       <span class="pill ${m[2]}" style="margin-left:auto">${m[1]}</span>
       ${r.level > 1 ? `<span class="pill p5" style="cursor:pointer"
         onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
@@ -826,7 +846,7 @@ let ADMIN_METRICS = [];
 function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
-  setTimeout(loadAiAccess, 0);
+  if (canAdmin()) { setTimeout(loadAiAccess, 0); setTimeout(loadOrgLine, 0); }
   return `<h2>管理</h2>
   <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
   <div class="card">
@@ -846,11 +866,15 @@ function vAdmin(){
     </div>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
+  ${canAdmin() ? `<div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
+    <p class="note">直属上司を変えると、日報の閲覧範囲・確認ライン・Chatworkの通知先がすぐに切り替わります。</p>
+    <div id="orgList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
+  </div>
   <div class="card"><h3>AIの利用範囲</h3>
     <p class="note">初期設定では、次長・部門長は個人／上司／部署AIとAI検索・会議資料、役員は全AIを使えます。
       一般・リーダー・課長にはAIタブが表示されません。ここで個別に変更できます。</p>
     <div id="aiList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
-  </div>
+  </div>` : ''}
   <div class="card"><h3>設定のこつ</h3>
     <p class="note">項目は4〜5個までに抑えてください。多すぎると日報が数字を埋める作業になり、お客様の声や考察の質が落ちます。
     目標は最初は控えめに置き、2週間ほど実績を見てから調整するのが確実です。</p></div>`;
@@ -1034,6 +1058,48 @@ function openReport(id){
     el.classList.add('flash');
     setTimeout(() => el.classList.remove('flash'), 2000);
   }, 60);
+}
+
+
+/* ---------- 報告ライン（直属上司）の編集 ---------- */
+function loadOrgLine(){
+  const box = document.getElementById('orgList'); if (!box) return;
+  const sorted = USERS.slice().sort((a,b) =>
+    (a.dept_name||'').localeCompare(b.dept_name||'','ja') ||
+    (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  box.innerHTML = `<table style="margin-top:10px">
+    <tr><th>氏名</th><th>部署</th><th>職位</th><th>直属上司</th></tr>
+    ${sorted.map(u => {
+      const ng = [u.id].concat(descendantsOf(u.id));
+      return `<tr><td>${esc(u.full_name)}</td>
+        <td class="note">${esc(u.dept_name||'')}</td>
+        <td class="note">${esc(u.job_grade||'')}</td>
+        <td><select style="padding:5px;font-size:12px" onchange="setManager('${u.id}',this.value)">
+          <option value="">（上司なし）</option>
+          ${USERS.filter(x => ng.indexOf(x.id) < 0)
+                 .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+                 .map(x => `<option value="${x.id}"${u.manager_id===x.id?' selected':''}>${esc(x.full_name)}（${esc(x.dept_name||'')}）</option>`).join('')}
+        </select></td></tr>`;}).join('')}
+  </table>
+  <p class="note" style="margin-top:8px">自分の部下は上司の候補に出ません（ループ防止）。</p>`;
+}
+function descendantsOf(id, acc){
+  acc = acc || [];
+  USERS.filter(u => u.manager_id === id).forEach(c => { acc.push(c.id); descendantsOf(c.id, acc); });
+  return acc;
+}
+async function setManager(id, bossId){
+  const { error } = await EC.supabase.from('app_users')
+    .update({ manager_id: bossId || null }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const u = USERS.find(x => x.id === id); if (u) u.manager_id = bossId || null;
+  toast('報告ラインを変更しました');
+  loadOrgLine();
+}
+function hhmm(ts){
+  try { const d = new Date(ts);
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+  catch(e){ return ''; }
 }
 
 /* ---------- 4. ダッシュボード ---------- */
