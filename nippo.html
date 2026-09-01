@@ -1082,13 +1082,29 @@ function openReport(id){
 /* ---------- 報告ライン（直属上司）の編集 ---------- */
 function loadOrgLine(q){
   const box = document.getElementById('orgList'); if (!box) return;
-  const key = (q || '').trim();
-  const sorted = USERS.filter(u => !key ||
-      (u.full_name||'').indexOf(key) >= 0 || (u.dept_name||'').indexOf(key) >= 0)
-    .sort((a,b) =>
+  const key = String(q || '').replace(/[\s　]/g, '');
+  const hit = u => {
+    if (!key) return true;
+    const hay = [u.full_name, u.dept_name, u.job_grade, u.email]
+      .map(x => String(x || '').replace(/[\s　]/g, '')).join('｜');
+    return hay.indexOf(key) >= 0;
+  };
+  const sorted = USERS.filter(hit).sort((a,b) =>
     (a.dept_name||'').localeCompare(b.dept_name||'','ja') ||
     (a.full_name||'').localeCompare(b.full_name||'','ja'));
-  box.innerHTML = `<table style="margin-top:10px">
+
+  const depts = [];
+  USERS.forEach(u => { if (u.dept_name && depts.indexOf(u.dept_name) < 0) depts.push(u.dept_name); });
+  const chips = `<div class="row" style="margin:8px 0">
+    ${depts.sort().map(d => `<button class="ghost" onclick="filterOrg('${esc(d)}')">${esc(d)}</button>`).join('')}
+    ${key ? `<button class="ghost" onclick="filterOrg('')">すべて表示</button>` : ''}</div>`;
+
+  if (!sorted.length){
+    box.innerHTML = chips +
+      `<div class="empty">「${esc(q)}」に一致する社員がいません。上の部署名から選ぶか、氏名の一部で探してください。</div>`;
+    return;
+  }
+  box.innerHTML = chips + `<table style="margin-top:4px">
     <tr><th>氏名</th><th>部署</th><th>職位区分</th><th>直属上司</th></tr>
     ${sorted.map(u => {
       const ng = [u.id].concat(descendantsOf(u.id));
@@ -1104,7 +1120,12 @@ function loadOrgLine(q){
                  .map(x => `<option value="${x.id}"${u.manager_id===x.id?' selected':''}>${esc(x.full_name)}（${esc(x.dept_name||'')}）</option>`).join('')}
         </select></td></tr>`;}).join('')}
   </table>
-  <p class="note" style="margin-top:8px">自分の部下は上司の候補に出ません（ループ防止）。</p>`;
+  <p class="note" style="margin-top:8px">${sorted.length}名を表示中／自分の部下は上司の候補に出ません（ループ防止）。</p>`;
+}
+function filterOrg(v){
+  const el = document.getElementById('orgFilter');
+  if (el) el.value = v;
+  loadOrgLine(v);
 }
 function descendantsOf(id, acc){
   acc = acc || [];
