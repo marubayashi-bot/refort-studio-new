@@ -860,7 +860,8 @@ let ADMIN_METRICS = [];
 function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
-  if (canAdmin()) { setTimeout(loadAiAccess, 0); setTimeout(loadOrgLine, 0); }
+  setTimeout(() => loadOrgLine(), 0);
+  if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
   <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
   <div class="card">
@@ -880,12 +881,14 @@ function vAdmin(){
     </div>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
-  ${canAdmin() ? `<div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
+  <div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
     <p class="note">直属上司を変えると閲覧範囲と確認ラインが、職位区分を変えるとChatworkの通知先ルームが切り替わります。
       課長の方が「リーダー」になっていると、係長のチャットに通知が飛びます。</p>
+    <label>氏名・部署で絞り込み</label>
+    <input type="text" id="orgFilter" placeholder="例：相河、営業" oninput="loadOrgLine(this.value)">
     <div id="orgList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>
-  <div class="card"><h3>AIの利用範囲</h3>
+  ${canAdmin() ? `<div class="card"><h3>AIの利用範囲</h3>
     <p class="note">初期設定では、次長・部門長は個人／上司／部署AIとAI検索・会議資料、役員は全AIを使えます。
       一般・リーダー・課長にはAIタブが表示されません。ここで個別に変更できます。</p>
     <div id="aiList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
@@ -1077,9 +1080,12 @@ function openReport(id){
 
 
 /* ---------- 報告ライン（直属上司）の編集 ---------- */
-function loadOrgLine(){
+function loadOrgLine(q){
   const box = document.getElementById('orgList'); if (!box) return;
-  const sorted = USERS.slice().sort((a,b) =>
+  const key = (q || '').trim();
+  const sorted = USERS.filter(u => !key ||
+      (u.full_name||'').indexOf(key) >= 0 || (u.dept_name||'').indexOf(key) >= 0)
+    .sort((a,b) =>
     (a.dept_name||'').localeCompare(b.dept_name||'','ja') ||
     (a.full_name||'').localeCompare(b.full_name||'','ja'));
   box.innerHTML = `<table style="margin-top:10px">
@@ -1110,7 +1116,7 @@ async function setGrade(id, grade){
   if (error){ toast('変更できませんでした: ' + error.message); return; }
   const u = USERS.find(x => x.id === id); if (u) u.job_grade = grade;
   toast('職位区分を変更しました。Chatworkの通知先も切り替わります');
-  loadOrgLine();
+  loadOrgLine((document.getElementById('orgFilter')||{}).value);
 }
 async function setManager(id, bossId){
   const { error } = await EC.supabase.from('app_users')
@@ -1118,7 +1124,7 @@ async function setManager(id, bossId){
   if (error){ toast('変更できませんでした: ' + error.message); return; }
   const u = USERS.find(x => x.id === id); if (u) u.manager_id = bossId || null;
   toast('報告ラインを変更しました');
-  loadOrgLine();
+  loadOrgLine((document.getElementById('orgFilter')||{}).value);
 }
 function hhmm(ts){
   try { const d = new Date(ts);
