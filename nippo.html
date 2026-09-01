@@ -1082,6 +1082,10 @@ function openReport(id){
 /* ---------- 報告ライン（直属上司）の編集 ---------- */
 function loadOrgLine(q){
   const box = document.getElementById('orgList'); if (!box) return;
+  try { drawOrgLine_(box, q); }
+  catch (e) { box.innerHTML = `<div class="empty">表示できませんでした：${esc(String(e))}</div>`; }
+}
+function drawOrgLine_(box, q){
   const key = String(q || '').replace(/[\s　]/g, '');
   const hit = u => {
     if (!key) return true;
