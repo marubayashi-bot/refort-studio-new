@@ -1312,7 +1312,11 @@ document.getElementById('migrateBtn').onclick=migrateLocal;
 
 (async function boot(){
   /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
-  await EC.guard({ allow:['admin','manager','sales'] });
+  await EC.guard({
+    app : 'refort-pipeline',
+    name: 'ReFort提案・パイプライン',
+    allow:['admin','manager','sales','field']
+  });
   /* 認証済みの共通クライアントを使う（ログインした社員の権限で読み書きする） */
   sb = EC.supabase;
   const {data}=await sb.auth.getSession();
