@@ -128,6 +128,7 @@ h2{padding-left:11px;border-left:4px solid var(--accent)}
 .lvrow:not(.off) .lvn.l4{background:var(--warn-soft);color:var(--warn)}
 .lvrow:not(.off) .lvn.l5{background:#FBE9E7;color:#9A2E25}
 .rep.off{border-left-color:#C8D2DE;background:#FAFCFD;padding:12px 15px}
+button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -394,9 +395,33 @@ async function submitReport(scheduled){
 
 /* ---------- 昇格レベルで絞り込む ---------- */
 let LEVEL_FILTER = 0;
+let FEED_FILTER = '';   // '' すべて / 'direct' 直属部下 / 職位区分名
 let OPEN_ID = (new URLSearchParams(location.search)).get('r') || '';
 function showLevel(n){ LEVEL_FILTER = n; OPEN_ID = ''; TAB = 'feed'; render(); window.scrollTo(0,0); }
 function clearLevel(){ LEVEL_FILTER = 0; render(); }
+
+/* 自分から見た近さで並べる（直属部下を先頭に） */
+function lineRank(uid){
+  if (USERS.some(u => u.id === uid && u.manager_id === ME.id)) return 0;  // 直属部下
+  if (inMyLine(uid)) return 1;                                            // 配下（孫以降）
+  if (uid === ME.id) return 2;                                            // 自分
+  return 3;
+}
+function inMyLine(uid){
+  let cur = USERS.find(u => u.id === uid), depth = 0;
+  while (cur && cur.manager_id && depth < 10){
+    if (cur.manager_id === ME.id) return true;
+    cur = USERS.find(u => u.id === cur.manager_id); depth++;
+  }
+  return false;
+}
+function sortFeed(list){
+  return list.slice().sort((a,b) =>
+    lineRank(a.author_id) - lineRank(b.author_id) ||
+    b.report_date.localeCompare(a.report_date) ||
+    (uname(a.author_id)).localeCompare(uname(b.author_id), 'ja'));
+}
+function setFeedFilter(v){ FEED_FILTER = v; LEVEL_FILTER = 0; OPEN_ID = ''; render(); window.scrollTo(0,0); }
 
 /* ---------- 2. 日報一覧 ---------- */
 function vFeed(){
@@ -412,13 +437,34 @@ function vFeed(){
         閲覧できる範囲外か、30日より前の日報の可能性があります。</p>
         <button class="ghost" onclick="OPEN_ID='';render()">すべての日報を見る</button></div>`;
   }
-  const list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
-  const head = `<h2>日報一覧</h2>` + (LEVEL_FILTER
+  let list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
+  if (FEED_FILTER === 'direct')
+    list = list.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id));
+  else if (FEED_FILTER === 'unchecked')
+    list = list.filter(r => !(r.report_views || []).length && r.author_id !== ME.id);
+  else if (FEED_FILTER)
+    list = list.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === FEED_FILTER);
+  list = sortFeed(list);
+
+  const nDirect = REPORTS.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
+  const chip = (v, label, n) => `<button class="ghost${FEED_FILTER===v?' on':''}"
+    onclick="setFeedFilter('${v}')">${label}${n !== undefined ? '（' + n + '）' : ''}</button>`;
+  const grades = ['部門長','次長','課長','リーダー','一般'];
+  const bar = `<div class="row" style="margin-bottom:12px">
+    ${chip('', 'すべて', REPORTS.length)}
+    ${nDirect ? chip('direct', '直属部下', nDirect) : ''}
+    ${chip('unchecked', '未確認')}
+    ${(isExec() || canAdmin()) ? grades.map(g => {
+        const n = REPORTS.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === g).length;
+        return n ? chip(g, g, n) : ''; }).join('') : ''}
+  </div>`;
+
+  const head = `<h2>日報一覧</h2>` + bar + (LEVEL_FILTER
     ? `<div class="card" style="background:var(--accent-soft);border-color:#A9D2BE;padding:11px 14px">
         <div class="row"><b>${LEVELS[LEVEL_FILTER-1]}</b>
         <span class="note">${list.length}件</span>
         <button class="ghost" style="margin-left:auto" onclick="clearLevel()">絞り込みを解除</button></div></div>`
-    : `<p class="sub">直近30日／あなたが見られる範囲のみ表示しています</p>`);
+    : `<p class="sub">直近30日／直属部下を先頭に表示しています</p>`);
   if (!list.length) return head + '<div class="empty">該当する日報がありません。</div>';
   return head + list.map(card).join('');
 }
