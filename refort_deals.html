@@ -296,6 +296,9 @@ table.grid .lnk:hover{color:var(--gold);text-decoration:underline}
 .metric .v{font-size:20px;font-weight:800;color:var(--navy);margin-top:3px;letter-spacing:-.01em}
 .metric .v.pos{color:var(--go)} .metric .v.neg{color:var(--stop)}
 .metric .v small{font-size:12px;font-weight:600;color:var(--muted)}
+.metric .msub{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.pv-plus{color:#111;font-weight:800}
+.pv-minus{color:var(--stop);font-weight:800}
 
 .sec-title{font-size:13px;font-weight:700;color:var(--navy);margin:18px 0 9px;display:flex;align-items:center;gap:8px}
 .sec-title::before{content:"";width:4px;height:15px;background:var(--gold);border-radius:2px}
@@ -2544,7 +2547,29 @@ function judgeHTML(){
   簡易IRRは RATE(20年, 年間ネットCF, −仕入原価) で算出。実数値は税理士確認のうえご判断ください。</div>`;
   return h;
 }
-function metric(l,v,cls){return `<div class="metric"><div class="l">${l}</div><div class="v num ${cls||''}">${v}</div></div>`;}
+function metric(l,v,cls,sub){return `<div class="metric"><div class="l">${l}</div><div class="v num ${cls||''}">${v}</div>${sub?`<div class="msub">${sub}</div>`:''}</div>`;}
+/* 回収年数とFIT残の関係を1行で示す。
+   FIT期間内に回収できる分（プラス）は黒の太字、FIT期間をはみ出す分（マイナス）は赤 */
+/* セカンダリーRFの回収年数：累積CFがプラスに転じる時点（年の途中は按分） */
+function skPay(s){
+  if(s.payback!=null&&isFinite(s.payback))return s.payback;
+  const cum=(s.rows&&s.rows.累積CF)||[], cf=(s.rows&&s.rows.営業CF)||[];
+  for(let t=0;t<cum.length;t++){
+    if(cum[t]>=0){
+      if(t===0)return 1;
+      const prev=cum[t-1], gain=cf[t];
+      return (gain>0)? (t + (-prev)/gain) : (t+1);
+    }
+  }
+  return null;
+}
+function payVsFit(payback,residual){
+  if(payback==null||!isFinite(payback)||!residual) return '';
+  const diff=residual-payback;
+  return diff>=0
+    ? `FIT期間 ${residual}年 − 回収 ${payback.toFixed(1)}年 ＝ <b class="pv-plus">+${diff.toFixed(1)}年</b>`
+    : `FIT期間 ${residual}年 − 回収 ${payback.toFixed(1)}年 ＝ <b class="pv-minus">−${Math.abs(diff).toFixed(1)}年</b>`;
+}
 function trow(l,v,cls){return `<tr class="${cls||''}"><td class="lbl">${l}</td><td class="num">${v}</td></tr>`;}
 
 /* table builder for 20yr */
@@ -2578,7 +2603,7 @@ function m1HTML(){
     ${metric('初年度手残り利回り',s.holdY!=null?pct(s.holdY):'—',s.holdY>=0.08?'pos':'')}
     ${metric('事業IRR',s.dealIRR!=null?pct(s.dealIRR):'—',s.dealIRR>=0.06?'pos':'')}
     ${metric('年間平均売電収入',yen(s.avgRev))}
-    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—')}
+    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—','',payVsFit(s.payback,d.residual))}
   </div>`;
   h+=`<div class="sec-title">20年収支シミュレーション（既存設備運用）</div>`;
   h+=simTable(s.rows,[
@@ -2600,6 +2625,7 @@ function m2HTML(){
     ${metric('FIT期間 平均CF',yen(s.fitAvgCF))}
     ${metric('卒FIT後 平均CF',s.postCF!=null?yen(s.postCF):'—')}
     ${metric('事業IRR',s.dealIRR!=null?pct(s.dealIRR):'—',s.dealIRR>=0.06?'pos':'')}
+    ${metric('回収年数',skPay(s)!=null?skPay(s).toFixed(1)+'年':'—','',payVsFit(skPay(s),d.residual))}
     ${metric('強化税制ROI(初年度)',pct(s.roi),s.roi>=0.15?'pos':'')}
   </div>`;
   h+=`<div class="sec-title">20年収支シミュレーション（取得＋リフォート）</div>`;
@@ -2627,7 +2653,7 @@ function m3HTML(){
     ${metric('RF価格(税込)',yen(s.rfIn))}
     ${metric('収益増加額(20年)',yen(s.incomeTotal),'pos')}
     ${metric('純増効果(20年)',yen(s.netGain20),s.netGain20>=0?'pos':'neg')}
-    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—')}
+    ${metric('回収年数',s.payback!=null?s.payback.toFixed(1)+'年':'—','',payVsFit(s.payback,d.residual))}
     ${metric('発電量(RF前→後)',kwh(d.gen)+' → '+kwh(d.rfGenAfter))}
     ${metric('発電量UP率',pct(d.rfGenRate),d.rfGenRate>=0.3?'pos':'')}
   </div>`;
@@ -4496,9 +4522,15 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.08.29j';
+const APP_VERSION = '2026.08.29k';
 
 const CHANGELOG = [
+  ['2026.08.29k', [
+    '<b>シミュレーションの「回収年数」に、FIT期間との差を併記しました。</b>「FIT期間 10年 − 回収 5.6年 ＝ +4.4年」のように表示します',
+    '<b>FIT期間内に回収できる分（プラス）は黒の太字、FIT期間をはみ出す分（マイナス）は赤</b>で出ます。回収がFIT期間に収まるかどうかが一目で分かります',
+    '<b>② セカンダリーRF に「回収年数」を追加しました。</b>これまで表示がなく、累積CFの表を目で追う必要がありました。累積CFがプラスに転じる時点から算出しています（年の途中は按分）',
+    '① セカンダリー・③ リフォートのみにも同じ併記が入ります',
+  ]],
   ['2026.08.29j', [
     '<b>案件一覧の検索を直しました。</b>日本語を入力すると、<b>変換を確定する前の文字で検索が走ってしまい</b>、一瞬0件になっていました。変換が確定してから検索するようにしています',
     '<b>検索対象を広げました。</b>これまでは案件名と所在地だけでしたが、<b>お客様名・発電所名・顧客住所・担当・区分・次アクション</b>でも引けます',
