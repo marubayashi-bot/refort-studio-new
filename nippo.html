@@ -162,6 +162,7 @@ let REPORTS = [];       // 閲覧できる日報
 let TAB = 'write';
 let TODAY = new Date().toISOString().slice(0,10);
 let EDIT_DATE = null;   // 過去の日報を編集しているときの日付
+let LOAD_SAVED = false; // 提出済みの内容を読み込んで書き直すとき true
 let DEPTS = [];
 /* AIの利用範囲：職位で決まる。ec-users側の個別設定(ai_access)があればそちらが優先 */
 function aiAccess(){
@@ -275,17 +276,27 @@ function isExec(){ return ME.job_grade === '役員・経営'; }
 /* ---------- 1. 日報を書く ---------- */
 function vWrite(){
   const day = EDIT_DATE || TODAY;
-  const mine = REPORTS.find(r => r.author_id === ME.id && r.report_date === day);
+  const saved = REPORTS.find(r => r.author_id === ME.id && r.report_date === day);
+  // 編集を選んだとき、または「読み込む」を押したときだけ内容を差し込む
+  const mine = (EDIT_DATE || LOAD_SAVED) ? saved : null;
   const v = f => mine ? esc(mine[f] || '') : '';
   const mv = id => { if (!mine) return '';
     const f = (mine.report_metric_values||[]).find(x => x.metric_id === id); return f ? f.value : ''; };
   return `
   <h2>${esc(ME.full_name)} さんの日報</h2>
-  <p class="sub">${day}　${esc(ME.dept_name||'')}　${mine ? '提出済みです。書き直して再提出できます。' : '未提出'}</p>
+  <p class="sub">${day}　${esc(ME.dept_name||'')}　${saved ? (saved.status === 'off' ? '休みとして登録済み' : '提出済み') : '未提出'}</p>
+  ${saved && !mine && saved.status !== 'off' ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
+    <b>この日はすでに提出済みです</b>
+    <p class="note" style="margin-top:4px">このまま書いて提出すると、提出済みの内容は新しい内容に置き換わります。
+      前の内容を直したい場合は、読み込んでから修正してください。</p>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" onclick="LOAD_SAVED=true;render()">提出済みの内容を読み込む</button>
+      <button class="ghost" onclick="go('feed')">提出済みの日報を見る</button>
+    </div></div>` : ''}
   ${EDIT_DATE ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
     <b>${EDIT_DATE} の日報を編集しています</b>
     <div class="row" style="margin-top:8px">
-      <button class="ghost" onclick="EDIT_DATE=null;render()">本日の日報に戻る</button></div></div>` : ''}
+      <button class="ghost" onclick="EDIT_DATE=null;LOAD_SAVED=false;render()">本日の日報に戻る</button></div></div>` : ''}
 
   ${METRICS.length ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
     <div class="grid">${METRICS.map(m => `
@@ -393,7 +404,7 @@ async function submitReport(scheduled){
   await loadReports();
   toast(scheduled ? '予約しました。指定時刻に自動で提出されます'
                   : (EDIT_DATE ? '更新しました' : '提出しました'));
-  EDIT_DATE = null;
+  EDIT_DATE = null; LOAD_SAVED = false;
   go('feed');
 }
 
@@ -608,7 +619,7 @@ function card(r){
 
 function editReport(id){
   const r = REPORTS.find(x => x.id === id); if (!r) return;
-  EDIT_DATE = r.report_date;
+  EDIT_DATE = r.report_date; LOAD_SAVED = true;
   TAB = 'write'; render(); window.scrollTo(0,0);
 }
 async function deleteReport(id, date){
