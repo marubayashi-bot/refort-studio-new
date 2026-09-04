@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ReFort 完工アルバム</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --navy:#1F2937; --teal:#0F766E; --gray:#6B7280; --sub:#9CA3AF;
+  --line:#E5E7EB; --bg:#F7F8F9; --white:#fff;
+  --warn:#B45309; --danger:#B91C1C; --amber:#D97706;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--navy);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic Medium","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  font-size:15px; line-height:1.6; -webkit-text-size-adjust:100%;
+}
+button{font-family:inherit; font-size:inherit; cursor:pointer}
+a{color:var(--teal)}
+
+/* --- ヘッダ --- */
+header{
+  position:sticky; top:0; z-index:40; background:var(--navy); color:#fff;
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 0;
+}
+.hd{display:flex; align-items:center; gap:10px; min-height:34px}
+.hd h1{font-size:15px; font-weight:700; margin:0; letter-spacing:.02em}
+.hd .who{margin-left:auto; font-size:11px; color:var(--sub)}
+.tabs{display:flex; gap:2px; margin-top:8px}
+.tabs button{
+  background:none; border:0; color:var(--sub); padding:9px 12px 11px;
+  border-bottom:3px solid transparent; font-size:13px; font-weight:600;
+}
+.tabs button[aria-selected="true"]{color:#fff; border-bottom-color:var(--teal)}
+main{padding:14px 14px 96px; max-width:1120px; margin:0 auto}
+
+/* --- 汎用 --- */
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:14px}
+.card + .card{margin-top:10px}
+.row{display:flex; align-items:center; gap:10px}
+.muted{color:var(--gray); font-size:13px}
+.tiny{font-size:11px; color:var(--sub)}
+.btn{
+  background:var(--navy); color:#fff; border:0; border-radius:8px;
+  padding:12px 16px; font-weight:600; font-size:14px;
+}
+.btn.teal{background:var(--teal)}
+.btn.ghost{background:#fff; color:var(--navy); border:1px solid var(--line)}
+.btn.wide{display:block; width:100%; text-align:center}
+.btn:disabled{opacity:.45}
+input[type=text],input[type=date],textarea,select{
+  width:100%; padding:11px 12px; border:1px solid var(--line);
+  border-radius:8px; font-family:inherit; font-size:15px; background:#fff; color:var(--navy);
+}
+label.f{display:block; margin-bottom:10px}
+label.f > span{display:block; font-size:12px; color:var(--gray); margin-bottom:4px}
+.pill{
+  display:inline-block; padding:3px 9px; border-radius:999px;
+  font-size:11px; font-weight:700; color:#fff;
+}
+.pill.before{background:var(--gray)}
+.pill.after{background:var(--teal)}
+.pill.survey{background:var(--gray)}
+.pill.construction{background:var(--amber)}
+.pill.completed{background:var(--teal)}
+.alert{border-left:4px solid var(--danger); background:#FEF2F2; padding:10px 12px; border-radius:6px; font-size:13px}
+.toast{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+  background:var(--navy); color:#fff; padding:11px 18px; border-radius:8px;
+  font-size:14px; z-index:200; box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+
+/* --- 案件一覧 --- */
+.plist{display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.pcard{background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:14px; text-align:left; width:100%}
+.pcard h3{margin:0 0 4px; font-size:16px}
+.meter{display:flex; gap:14px; margin-top:10px; font-size:12px; color:var(--gray)}
+.meter b{color:var(--navy); font-size:15px}
+
+/* --- スロット --- */
+.slots{display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.slot{background:#fff; border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
+.slot.miss{border-color:#FCA5A5}
+.slot .sh{display:flex; align-items:center; gap:8px; padding:11px 12px; border-bottom:1px solid var(--line)}
+.slot .sh strong{font-size:14px}
+.pair{display:grid; grid-template-columns:1fr 1fr}
+.shot{position:relative; aspect-ratio:4/3; background:#F3F4F6; border:0; padding:0; display:block; width:100%}
+.shot + .shot{border-left:1px solid var(--line)}
+.shot img{width:100%; height:100%; object-fit:cover; display:block}
+.shot .ph{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; color:var(--sub); font-size:13px; gap:4px;
+}
+.shot .ph .plus{font-size:22px; line-height:1}
+.shot .tag{position:absolute; left:6px; top:6px}
+
+/* --- カメラ --- */
+.modal{position:fixed; inset:0; background:#000; z-index:100; display:flex; flex-direction:column}
+.cam{position:relative; flex:1; overflow:hidden; background:#000}
+.cam video, .cam canvas, .cam img.shotimg{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
+}
+.cam img.overlay{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none}
+.camtop{
+  position:absolute; top:0; left:0; right:0; z-index:3; padding:12px 14px;
+  color:#fff; font-size:12px; background:linear-gradient(rgba(0,0,0,.6),transparent);
+}
+.camtop .gps{color:#A7F3D0; font-variant-numeric:tabular-nums}
+.cambar{background:#111; color:#fff; padding:12px 14px calc(env(safe-area-inset-bottom) + 14px)}
+.cambar .op{display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:12px; color:#D1D5DB}
+.cambar input[type=range]{flex:1; accent-color:var(--teal)}
+.cambtns{display:flex; align-items:center; gap:10px}
+.shutter{
+  width:64px; height:64px; border-radius:50%; background:#fff; border:5px solid #4B5563;
+  margin:0 auto; flex:0 0 auto;
+}
+.linkbtn{background:none; border:0; color:#D1D5DB; font-size:13px; padding:8px}
+
+/* --- アルバムプレビュー --- */
+.pages{display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.page{border:1px solid var(--line); border-radius:8px; background:#fff; padding:10px; font-size:13px}
+.page .t{font-size:11px; color:var(--sub)}
+.sticky-cta{
+  position:fixed; left:0; right:0; bottom:0; z-index:30; background:#fff;
+  border-top:1px solid var(--line); padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);
+  display:flex; gap:8px;
+}
+#map{height:calc(100vh - 210px); min-height:340px; border-radius:var(--r); border:1px solid var(--line)}
+.qbar{background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hd">
+    <h1>ReFort 完工アルバム</h1>
+    <span class="who" id="who"></span>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="list" aria-selected="true">案件</button>
+    <button data-tab="map" aria-selected="false">地図</button>
+  </nav>
+</header>
+<main id="view"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="./ec-auth.js" onerror="window.__noAuth=true"></script>
+<script>
+/* =====================================================================
+   ReFort 完工アルバム — Phase 1
+   撮影スロット管理 → 定点撮影 → PPTX / PDF 出力
+   ===================================================================== */
+
+const CFG = {
+  url: "https://aakofrzurgwrkctunthw.supabase.co",
+  key: "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa",
+  bucket: "refort-album",
+  maxEdge: 1600,      // アップロード前に長辺をこのpxへ縮小
+  quality: 0.82,
+};
+const sb = supabase.createClient(CFG.url, CFG.key);
+
+/* ---------- 共通認証（ec-auth.js） ---------------------------------- */
+let ME = { email: "(未認証)", full_name: "" };
+async function auth() {
+  if (window.EC && EC.guard) {
+    await EC.guard({ allow: ["admin", "manager", "sales", "field"] });
+    if (EC.me) ME = await EC.me();
+    if (EC.mountBadge) EC.mountBadge("#who");
+  }
+  document.getElementById("who").textContent = ME.full_name || ME.email || "";
+}
+
+/* ---------- 小物 ---------------------------------------------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const el = (h) => { const d = document.createElement("div"); d.innerHTML = h.trim(); return d.firstElementChild; };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+function toast(msg, ms = 2600) {
+  const t = el(`<div class="toast">${esc(msg)}</div>`);
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+const pubUrl = (p) => sb.storage.from(CFG.bucket).getPublicUrl(p).data.publicUrl;
+const fmtDate = (d) => d ? String(d).replaceAll("-", "/") : "";
+
+/* ---------- 状態 ---------------------------------------------------- */
+const S = { tab: "list", projects: [], slots: [], project: null, photos: [], blocks: [], notes: {}, specs: {}, gen: null, sub: "shoot" };
+
+/* =====================================================================
+   オフライン送信キュー（圏外で撮った写真を溜めて、復帰後に送る）
+   ===================================================================== */
+const Q = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open("refort-album", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("queue", { keyPath: "id" });
+      r.onsuccess = () => { Q.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(mode) { return Q.db.transaction("queue", mode).objectStore("queue"); },
+  add(item) { return new Promise(r => { Q.tx("readwrite").put(item).onsuccess = r; }); },
+  all() { return new Promise(r => { const q = Q.tx("readonly").getAll(); q.onsuccess = () => r(q.result || []); }); },
+  del(id) { return new Promise(r => { Q.tx("readwrite").delete(id).onsuccess = r; }); },
+  async count() { return (await Q.all()).length; },
+  async flush() {
+    const items = await Q.all();
+    if (!items.length) return 0;
+    let ok = 0;
+    for (const it of items) {
+      try { await uploadPhoto(it.meta, it.blob, true); await Q.del(it.id); ok++; }
+      catch (e) { console.warn("再送に失敗", e); break; }
+    }
+    if (ok) toast(`未送信の写真 ${ok}件を送信しました`);
+    return ok;
+  }
+};
+window.addEventListener("online", () => Q.flush().then(() => render()));
+
+/* =====================================================================
+   写真の縮小・アップロード
+   ===================================================================== */
+function resize(blob) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => {
+      const m = Math.max(img.width, img.height);
+      const r = m > CFG.maxEdge ? CFG.maxEdge / m : 1;
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => res(b), "image/jpeg", CFG.quality);
+    };
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+async function uploadPhoto(meta, blob, fromQueue = false) {
+  const key = meta.slot_id || meta.block_id || "misc";
+  const path = `${meta.project_id}/${key}/${meta.phase}/${uuid()}.jpg`;
+  const up = await sb.storage.from(CFG.bucket).upload(path, blob, { contentType: "image/jpeg" });
+  if (up.error) throw up.error;
+  const ins = await sb.from("album_photos").insert({ ...meta, storage_path: path, created_by: ME.email });
+  if (ins.error) throw ins.error;
+  if (!fromQueue) toast("写真を保存しました");
+}
+
+async function savePhoto(meta, rawBlob) {
+  const blob = await resize(rawBlob);
+  try {
+    if (!navigator.onLine) throw new Error("offline");
+    await uploadPhoto(meta, blob);
+  } catch (e) {
+    await Q.add({ id: uuid(), meta, blob });
+    toast("圏外のため端末に保存しました。電波の良い場所で自動送信します");
+  }
+}
+
+/* =====================================================================
+   データ取得
+   ===================================================================== */
+async function loadSlots() {
+  const { data } = await sb.from("album_slots").select("*").eq("is_active", true).order("sort_order");
+  S.slots = data || [];
+}
+async function loadProjects() {
+  const { data } = await sb.from("album_projects").select("*").order("created_at", { ascending: false });
+  S.projects = data || [];
+  const ids = S.projects.map(p => p.id);
+  S.counts = {};
+  if (ids.length) {
+    const { data: ph } = await sb.from("album_photos").select("project_id,slot_id,phase").in("project_id", ids).not("slot_id", "is", null);
+    (ph || []).forEach(p => {
+      const c = S.counts[p.project_id] || (S.counts[p.project_id] = { before: new Set(), after: new Set() });
+      c[p.phase] && c[p.phase].add(p.slot_id);
+    });
+  }
+}
+async function openProject(id) {
+  const [{ data: pj }, { data: ph }, { data: bl }, { data: nt }, { data: sp }, { data: gn }] = await Promise.all([
+    sb.from("album_projects").select("*").eq("id", id).single(),
+    sb.from("album_photos").select("*").eq("project_id", id).order("sort_order"),
+    sb.from("album_blocks").select("*").eq("project_id", id).order("sort_order"),
+    sb.from("album_slot_notes").select("*").eq("project_id", id),
+    sb.from("album_specs").select("*").eq("project_id", id),
+    sb.from("album_generation").select("*").eq("project_id", id).maybeSingle(),
+  ]);
+  S.project = pj; S.photos = ph || []; S.blocks = bl || []; S.gen = gn || null;
+  S.notes = {}; (nt || []).forEach(n => S.notes[n.slot_id] = n);
+  S.specs = { before: {}, after: {} }; (sp || []).forEach(s => S.specs[s.phase] = s);
+  S.tab = "project"; S.sub = "shoot"; render();
+}
+const photoOf = (slot, phase) => S.photos.find(p => p.slot_id === slot && p.phase === phase);
+
+/* =====================================================================
+   画面：案件一覧
+   ===================================================================== */
+function viewList() {
+  const req = S.slots.filter(s => s.required).map(s => s.id);
+  const v = el(`<div></div>`);
+  v.appendChild(el(`<div class="row" style="margin-bottom:12px">
+    <div class="muted">${S.projects.length}件</div>
+    <button class="btn teal" id="new" style="margin-left:auto">案件を追加</button></div>`));
+  const grid = el(`<div class="plist"></div>`);
+  if (!S.projects.length) grid.appendChild(el(`<div class="card muted">まだ案件がありません。「案件を追加」から発電所名を登録すると、撮影メニューが開きます。</div>`));
+  S.projects.forEach(p => {
+    const c = S.counts[p.id] || { before: new Set(), after: new Set() };
+    const missing = req.filter(r => !c.before.has(r));
+    const soon = p.start_date && (new Date(p.start_date) - Date.now()) / 86400000 < 7;
+    const card = el(`<button class="pcard">
+      <h3>${esc(p.plant_name)}</h3>
+      <div class="row" style="gap:6px">
+        <span class="pill ${p.status}">${{ survey: "現調中", construction: "施工中", completed: "完工" }[p.status] || p.status}</span>
+        <span class="tiny">${p.start_date ? "着工 " + fmtDate(p.start_date) : "着工日 未設定"}</span>
+      </div>
+      <div class="meter">
+        <span>ビフォー <b>${c.before.size}</b>/${S.slots.length}</span>
+        <span>アフター <b>${c.after.size}</b>/${S.slots.length}</span>
+      </div>
+      ${missing.length ? `<div class="alert" style="margin-top:10px">ビフォー未撮影：${missing.map(m => esc(S.slots.find(s => s.id === m).name)).join("、")}${soon ? "（着工まで1週間を切っています）" : ""}</div>` : ""}
+    </button>`);
+    card.onclick = () => openProject(p.id);
+    grid.appendChild(card);
+  });
+  v.appendChild(grid);
+  v.querySelector("#new").onclick = newProject;
+  return v;
+}
+
+async function newProject() {
+  const name = prompt("発電所名を入力してください（例：埼玉いわつき発電所）");
+  if (!name) return;
+  const { data, error } = await sb.from("album_projects").insert({ plant_name: name, created_by: ME.email }).select().single();
+  if (error) return toast("登録できませんでした：" + error.message);
+  await loadProjects(); openProject(data.id);
+}
+
+/* =====================================================================
+   画面：案件（撮影 / 概要 / 施工プロセス / アルバム）
+   ===================================================================== */
+function viewProject() {
+  const p = S.project;
+  const v = el(`<div></div>`);
+  v.appendChild(el(`<div class="row" style="margin-bottom:10px">
+    <button class="linkbtn" id="back" style="color:var(--gray);padding-left:0">← 案件一覧</button></div>`));
+  v.appendChild(el(`<h2 style="margin:0 0 2px;font-size:20px">${esc(p.plant_name)}</h2>`));
+  v.appendChild(el(`<div class="muted" style="margin-bottom:12px">${p.address ? esc(p.address) : "所在地 未登録"}${p.lat ? `　${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : ""}</div>`));
+
+  const nav = el(`<div class="tabs" style="background:var(--navy);border-radius:8px;padding:0 6px;margin-bottom:14px"></div>`);
+  [["shoot", "撮影"], ["specs", "概要"], ["progress", "施工プロセス"], ["album", "アルバム"]].forEach(([k, label]) => {
+    const b = el(`<button data-sub="${k}" aria-selected="${S.sub === k}">${label}</button>`);
+    b.onclick = () => { S.sub = k; render(); };
+    nav.appendChild(b);
+  });
+  v.appendChild(nav);
+  v.appendChild({ shoot: paneShoot, specs: paneSpecs, progress: paneProgress, album: paneAlbum }[S.sub]());
+  v.querySelector("#back").onclick = () => { S.tab = "list"; S.project = null; loadProjects().then(render); };
+  return v;
+}
+
+/* --- 撮影メニュー --- */
+function paneShoot() {
+  const w = el(`<div></div>`);
+  const loc = el(`<div class="card" style="margin-bottom:10px">
+    <label class="f"><span>位置URL（Googleマップの共有URL、または「35.123456, 139.123456」）</span>
+    <input type="text" id="locu" value="${esc(S.project.location_url || "")}" placeholder="空撮写真のGPSからも自動でセットされます"></label>
+    <div class="row"><span class="tiny" id="locs">${S.project.lat ? `座標：${S.project.lat}, ${S.project.lng}` : "座標 未登録"}</span>
+    <button class="btn ghost" id="locb" style="margin-left:auto;padding:8px 14px">位置を保存</button></div></div>`);
+  loc.querySelector("#locb").onclick = async () => {
+    const raw = loc.querySelector("#locu").value.trim();
+    const c = parseLatLng(raw);
+    if (raw && !c) return toast("URLから座標を読み取れませんでした。緯度経度を直接入力してください");
+    await sb.from("album_projects").update({ location_url: raw, lat: c?.lat ?? null, lng: c?.lng ?? null }).eq("id", S.project.id);
+    S.project.location_url = raw; S.project.lat = c?.lat ?? null; S.project.lng = c?.lng ?? null;
+    toast("位置を保存しました"); render();
+  };
+  w.appendChild(loc);
+
+  const grid = el(`<div class="slots"></div>`);
+  S.slots.forEach(s => {
+    const b = photoOf(s.id, "before"), a = photoOf(s.id, "after");
+    const miss = s.required && !b;
+    const card = el(`<div class="slot ${miss ? "miss" : ""}">
+      <div class="sh"><strong>${esc(s.name)}</strong>
+        ${s.required ? '<span class="tiny" style="color:var(--danger)">必須</span>' : ""}
+        <span class="tiny" style="margin-left:auto">${s.kind === "drone" ? "ドローン" : "地上"}</span></div>
+      <div class="pair">
+        <button class="shot" data-phase="before">${b ? `<img src="${pubUrl(b.storage_path)}" alt=""><span class="pill before tag">前</span>`
+        : `<div class="ph"><span class="plus">＋</span>ビフォーを撮る</div>`}</button>
+        <button class="shot" data-phase="after">${a ? `<img src="${pubUrl(a.storage_path)}" alt=""><span class="pill after tag">後</span>`
+        : `<div class="ph"><span class="plus">＋</span>アフターを撮る</div>`}</button>
+      </div></div>`);
+    card.querySelectorAll(".shot").forEach(btn => {
+      btn.onclick = () => openCamera({ slot: s, phase: btn.dataset.phase });
+    });
+    grid.appendChild(card);
+  });
+  w.appendChild(grid);
+  return w;
+}
+
+function parseLatLng(s) {
+  if (!s) return null;
+  let m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+    || s.match(/(?:^|[?&=\s])(-?\d{1,3}\.\d{4,})\s*,\s*(-?\d{1,3}\.\d{4,})/);
+  return m ? { lat: +m[1], lng: +m[2] } : null;
+}
+
+/* --- 概要（諸元） --- */
+function paneSpecs() {
+  const rows = [["fit", "FIT"], ["dc_kw", "DC容量"], ["ac_kw", "AC容量"], ["panel", "パネル"], ["pcs", "PCS"], ["other", "その他"]];
+  const w = el(`<div class="card"></div>`);
+  w.appendChild(el(`<div class="muted" style="margin-bottom:12px">概要ページに載る諸元です。Phase 2 で査定シートから自動転記します。</div>`));
+  const g = el(`<div style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))"></div>`);
+  ["before", "after"].forEach(ph => {
+    const box = el(`<div><div style="margin-bottom:8px"><span class="pill ${ph}">${ph === "before" ? "リフォート前" : "リフォート後"}</span></div></div>`);
+    rows.forEach(([k, label]) => {
+      box.appendChild(el(`<label class="f"><span>${label}</span>
+        <input type="text" data-ph="${ph}" data-k="${k}" value="${esc(S.specs[ph]?.[k] || "")}"></label>`));
+    });
+    g.appendChild(box);
+  });
+  w.appendChild(g);
+  const save = el(`<button class="btn teal wide">諸元を保存</button>`);
+  save.onclick = async () => {
+    for (const ph of ["before", "after"]) {
+      const row = { project_id: S.project.id, phase: ph };
+      w.querySelectorAll(`input[data-ph="${ph}"]`).forEach(i => row[i.dataset.k] = i.value.trim());
+      await sb.from("album_specs").upsert(row);
+      S.specs[ph] = row;
+    }
+    toast("諸元を保存しました");
+  };
+  w.appendChild(save);
+  return w;
+}
+
+/* --- 施工プロセス --- */
+function paneProgress() {
+  const w = el(`<div></div>`);
+  w.appendChild(el(`<div class="muted" style="margin-bottom:10px">1ブロック＝アルバム1ページ（写真3枚）。工事進捗報告システムの週次報告と同じ単位です。</div>`));
+  const add = el(`<button class="btn teal wide" style="margin-bottom:12px">進捗ブロックを追加</button>`);
+  add.onclick = async () => {
+    const title = prompt("この週の見出し（例：既設設備の解体に着手）"); if (!title) return;
+    await sb.from("album_blocks").insert({
+      project_id: S.project.id, title, kind: "progress",
+      work_date: new Date().toISOString().slice(0, 10),
+      sort_order: (S.blocks.length + 1) * 10
+    });
+    openProject(S.project.id).then(() => { S.sub = "progress"; render(); });
+  };
+  w.appendChild(add);
+
+  if (!S.blocks.length) w.appendChild(el(`<div class="card muted">まだ進捗ブロックがありません。</div>`));
+  S.blocks.forEach(b => {
+    const ph = S.photos.filter(p => p.block_id === b.id);
+    const c = el(`<div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <strong>${esc(b.title)}</strong>
+        <span class="tiny" style="margin-left:auto">${b.kind === "survey" ? "現地調査" : fmtDate(b.work_date)}</span>
+      </div>
+      <div class="pair" style="grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden"></div>
+      <label class="f" style="margin-top:10px"><span>総括（1行）</span>
+        <input type="text" data-sum value="${esc(b.summary || "")}" placeholder="例：架台の締付ボルト緩め・インシュロック撤去から着手"></label>
+      <button class="btn ghost" data-save style="padding:8px 14px">保存</button></div>`);
+    const pair = c.querySelector(".pair");
+    for (let i = 0; i < 3; i++) {
+      const p = ph[i];
+      const btn = el(`<button class="shot">${p ? `<img src="${pubUrl(p.storage_path)}" alt="">`
+        : `<div class="ph"><span class="plus">＋</span>写真${i + 1}</div>`}</button>`);
+      btn.onclick = () => openCamera({ block: b, phase: "after", index: i });
+      pair.appendChild(btn);
+    }
+    c.querySelector("[data-save]").onclick = async () => {
+      await sb.from("album_blocks").update({ summary: c.querySelector("[data-sum]").value }).eq("id", b.id);
+      b.summary = c.querySelector("[data-sum]").value; toast("保存しました");
+    };
+    w.appendChild(c);
+  });
+  return w;
+}
+
+/* --- アルバム --- */
+function planPages() {
+  const pages = [{ t: "T0", label: "表紙", note: S.project.plant_name }];
+  const ready = S.slots.filter(s => photoOf(s.id, "before") && photoOf(s.id, "after"));
+  const skipped = S.slots.filter(s => !(photoOf(s.id, "before") && photoOf(s.id, "after")));
+  if (ready[0]) pages.push({ t: "T1", label: pageTitle(ready[0]), note: "2分割比較" });
+  pages.push({ t: "T2", label: "概要", note: "諸元表" });
+  ready.slice(1).forEach(s => pages.push({ t: "T1", label: pageTitle(s), note: "2分割比較" }));
+  S.blocks.filter(b => b.kind === "survey" && S.photos.filter(p => p.block_id === b.id).length === 3)
+    .forEach(b => pages.push({ t: "T3", label: b.title, note: "現地調査" }));
+  const prog = S.blocks.filter(b => b.kind === "progress" && S.photos.filter(p => p.block_id === b.id).length === 3);
+  if (prog.length) {
+    pages.push({ t: "T4", label: "施工プロセス", note: "章扉" });
+    prog.forEach(b => pages.push({ t: "T5", label: b.title, note: fmtDate(b.work_date) }));
+  }
+  if (S.gen?.chart_path) {
+    pages.push({ t: "T4", label: "売電実績", note: "章扉" });
+    pages.push({ t: "T6", label: "リフォート後の発電量実績", note: "グラフ" });
+  }
+  if (S.project.lat) pages.push({ t: "T7", label: "発電所 位置図", note: "地図" });
+  return { pages, ready, skipped };
+}
+const pageTitle = (s) => S.notes[s.id]?.page_title || `${s.name.replace(/（.*?）/g, "")}比較`;
+
+function paneAlbum() {
+  const { pages, ready, skipped } = planPages();
+  const w = el(`<div></div>`);
+  w.appendChild(el(`<div class="card" style="margin-bottom:10px">
+    <div class="row"><strong>${pages.length}ページ</strong>
+    <span class="muted" style="margin-left:auto">比較 ${ready.length}件／未完成でスキップ ${skipped.length}件</span></div>
+    ${skipped.length ? `<div class="muted" style="margin-top:8px">スキップ：${skipped.map(s => esc(s.name)).join("、")}</div>` : ""}
+  </div>`));
+  const g = el(`<div class="pages"></div>`);
+  pages.forEach((p, i) => g.appendChild(el(`<div class="page"><div class="t">${i + 1}　${p.t}</div>
+    <div style="font-weight:600">${esc(p.label)}</div><div class="tiny">${esc(p.note)}</div></div>`)));
+  w.appendChild(g);
+
+  const bar = el(`<div class="sticky-cta">
+    <button class="btn teal" style="flex:1" id="pptx">PPTXを出力</button>
+    <button class="btn ghost" id="pdf">PDF用に開く</button></div>`);
+  bar.querySelector("#pptx").onclick = (e) => buildAlbum(e.target);
+  bar.querySelector("#pdf").onclick = () => toast("PPTXを出力し、PowerPointから「PDFとして保存」してください（Phase 1）");
+  w.appendChild(bar);
+  return w;
+}
+
+/* =====================================================================
+   カメラ（定点撮影ガイド：ビフォー写真を重ねて同じ画角で撮る）
+   ===================================================================== */
+let stream = null;
+async function openCamera({ slot, block, phase, index }) {
+  const guide = slot && phase === "after" ? photoOf(slot.id, "before") : null;
+  const m = el(`<div class="modal">
+    <div class="cam">
+      <video autoplay playsinline muted></video>
+      <canvas hidden></canvas>
+      <img class="shotimg" hidden alt="">
+      ${guide ? `<img class="overlay" src="${pubUrl(guide.storage_path)}" style="opacity:.45" alt="">` : ""}
+      <div class="camtop">
+        <div>${esc(slot ? slot.name : block.title)}　<span class="pill ${phase}">${phase === "before" ? "ビフォー" : "アフター"}</span></div>
+        <div class="gps" id="gps">位置情報を取得中…</div>
+      </div>
+    </div>
+    <div class="cambar">
+      ${guide ? `<div class="op"><span>ビフォーの重ね</span><input type="range" min="0" max="100" value="45" id="op"><span id="opv">45%</span></div>` : ""}
+      <div class="cambtns">
+        <button class="linkbtn" id="close">閉じる</button>
+        <button class="shutter" id="shot" aria-label="撮影"></button>
+        <label class="linkbtn" style="cursor:pointer">写真から選ぶ<input type="file" accept="image/*" hidden id="pick"></label>
+      </div>
+      <div id="after" hidden style="margin-top:12px">
+        <input type="text" id="cap" placeholder="キャプション（例：既設パネル 撤去前）" style="margin-bottom:10px">
+        <div class="cambtns"><button class="linkbtn" id="retake">撮り直す</button>
+        <button class="btn teal" id="save" style="flex:1">保存する</button></div>
+      </div>
+    </div></div>`);
+  document.body.appendChild(m);
+
+  const video = m.querySelector("video"), canvas = m.querySelector("canvas"), still = m.querySelector(".shotimg");
+  let blob = null, gps = {};
+
+  navigator.geolocation?.getCurrentPosition(
+    pos => {
+      gps = { lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6), altitude: pos.coords.altitude ?? null, heading: pos.coords.heading ?? null };
+      m.querySelector("#gps").textContent = guide && guide.lat
+        ? `現在地 ${gps.lat}, ${gps.lng}　／　ビフォー撮影地点 ${guide.lat}, ${guide.lng}${guide.altitude ? ` 高度${guide.altitude}m` : ""}`
+        : `現在地 ${gps.lat}, ${gps.lng}`;
+    },
+    () => m.querySelector("#gps").textContent = "位置情報は取得できません",
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    video.srcObject = stream;
+  } catch (e) {
+    video.hidden = true;
+    m.querySelector("#shot").disabled = true;
+    m.querySelector("#gps").insertAdjacentHTML("afterend", `<div style="color:#FCA5A5;margin-top:6px">カメラを起動できません。「写真から選ぶ」を使ってください</div>`);
+  }
+
+  const opInput = m.querySelector("#op");
+  opInput?.addEventListener("input", () => {
+    m.querySelector(".overlay").style.opacity = opInput.value / 100;
+    m.querySelector("#opv").textContent = opInput.value + "%";
+  });
+
+  function showStill(b) {
+    blob = b; still.src = URL.createObjectURL(b); still.hidden = false; video.hidden = true;
+    m.querySelector("#after").hidden = false; m.querySelector("#shot").hidden = true;
+  }
+  m.querySelector("#shot").onclick = () => {
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    canvas.toBlob(showStill, "image/jpeg", 0.92);
+  };
+  m.querySelector("#pick").onchange = (e) => { if (e.target.files[0]) showStill(e.target.files[0]); };
+  m.querySelector("#retake").onclick = () => {
+    blob = null; still.hidden = true; video.hidden = false;
+    m.querySelector("#after").hidden = true; m.querySelector("#shot").hidden = false;
+  };
+  const close = () => { stream?.getTracks().forEach(t => t.stop()); stream = null; m.remove(); };
+  m.querySelector("#close").onclick = close;
+  m.querySelector("#save").onclick = async () => {
+    if (!blob) return;
+    m.querySelector("#save").disabled = true;
+    await savePhoto({
+      project_id: S.project.id,
+      slot_id: slot?.id ?? null,
+      block_id: block?.id ?? null,
+      phase,
+      caption: m.querySelector("#cap").value.trim() || null,
+      taken_at: new Date().toISOString(),
+      sort_order: index ?? 0,
+      source: "field",
+      ...gps
+    }, blob);
+    // 空撮ビフォーのGPSを案件の座標として自動セット
+    if (slot?.kind === "drone" && phase === "before" && gps.lat && !S.project.lat) {
+      await sb.from("album_projects").update({ lat: gps.lat, lng: gps.lng }).eq("id", S.project.id);
+    }
+    close();
+    await openProject(S.project.id);
+  };
+}
+
+/* =====================================================================
+   地図（完工物件マップ）
+   ===================================================================== */
+let map = null;
+function viewMap() {
+  const v = el(`<div><div class="muted" style="margin-bottom:10px">ピンをタップすると案件が開きます。グレー＝現調中／アンバー＝施工中／緑＝完工。</div><div id="map"></div></div>`);
+  setTimeout(() => {
+    const pts = S.projects.filter(p => p.lat && p.lng);
+    map = L.map("map").setView(pts.length ? [pts[0].lat, pts[0].lng] : [35.89, 139.79], pts.length ? 10 : 8);
+    const std = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", { attribution: "地理院タイル", maxZoom: 18 }).addTo(map);
+    const photo = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg", { attribution: "地理院タイル", maxZoom: 18 });
+    L.control.layers({ "地図": std, "航空写真": photo }).addTo(map);
+    const color = { survey: "#6B7280", construction: "#D97706", completed: "#0F766E" };
+    pts.forEach(p => {
+      L.circleMarker([p.lat, p.lng], { radius: 10, color: "#fff", weight: 2, fillColor: color[p.status] || "#6B7280", fillOpacity: 1 })
+        .addTo(map)
+        .bindPopup(`<b>${esc(p.plant_name)}</b><br>${p.completion_date ? "完工 " + fmtDate(p.completion_date) : ""}
+          <br><a href="#" onclick="openProject('${p.id}');return false">案件を開く</a>
+          <br><a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">ここへナビ</a>`);
+    });
+    if (pts.length > 1) map.fitBounds(pts.map(p => [p.lat, p.lng]), { padding: [40, 40] });
+  }, 0);
+  return v;
+}
+
+/* =====================================================================
+   PPTX 生成（album_gen.js をブラウザへ移植）
+   ===================================================================== */
+const C = { navy: "1F2937", teal: "0F766E", gray: "6B7280", sub: "9CA3AF", white: "FFFFFF", line: "E5E7EB" };
+const FONT = "Meiryo", PW = 13.333, MG = 0.6;
+
+async function toDataURL(path) {
+  const res = await fetch(pubUrl(path));
+  const b = await res.blob();
+  return await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
+}
+function footer(s, plant, page) {
+  s.addText(`${plant} リフォート`, { x: MG, y: 6.95, w: 6, h: .3, isTextBox: true, margin: 0, fontSize: 9, color: C.sub, fontFace: FONT, valign: "middle" });
+  s.addText(String(page), { x: PW - MG - 1, y: 6.95, w: 1, h: .3, isTextBox: true, margin: 0, fontSize: 9, color: C.sub, fontFace: FONT, align: "right", valign: "middle" });
+}
+const heading = (s, t) => s.addText(t, { x: MG, y: .38, w: PW - MG * 2, h: .55, isTextBox: true, margin: 0, fontSize: 22, bold: true, color: C.navy, fontFace: FONT, valign: "middle" });
+const tag = (s, t, x, y, fill) => s.addText(t, { x, y, w: 1.5, h: .32, isTextBox: true, margin: 0, fontSize: 11, bold: true, color: C.white, fontFace: FONT, align: "center", valign: "middle", fill: { color: fill } });
+const summary = (s, t, y) => t && s.addText(t, { x: MG, y, w: PW - MG * 2, h: .4, isTextBox: true, margin: 0, fontSize: 11, color: C.gray, fontFace: FONT, valign: "middle" });
+const cap = (s, t, x, y, w) => t && s.addText(t, { x, y, w, h: .3, isTextBox: true, margin: 0, fontSize: 10, color: C.gray, fontFace: FONT, align: "center", valign: "middle" });
+
+async function buildAlbum(btn) {
+  const { pages, ready } = planPages();
+  btn.disabled = true; btn.textContent = "生成中…";
+  try {
+    const p = S.project;
+    const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE"; pres.author = "株式会社アースコム";
+    pres.title = `${p.plant_name} ${p.album_title}`;
+
+    // 画像を先読み
+    const need = [...S.photos];
+    const data = {};
+    for (const ph of need) data[ph.storage_path] = await toDataURL(ph.storage_path);
+    if (S.gen?.chart_path) data[S.gen.chart_path] = await toDataURL(S.gen.chart_path);
+
+    let page = 1;
+    // T0 表紙
+    const c0 = pres.addSlide(); c0.background = { color: C.navy };
+    c0.addText(p.plant_name, { x: 1, y: 2.75, w: 10, h: .4, isTextBox: true, margin: 0, fontSize: 14, color: C.sub, fontFace: FONT });
+    c0.addText(p.album_title, { x: 1, y: 3.2, w: 11, h: .7, isTextBox: true, margin: 0, fontSize: 26, bold: true, color: C.white, fontFace: FONT });
+    c0.addShape(pres.ShapeType.rect, { x: 1, y: 4.1, w: 1.4, h: .05, fill: { color: C.teal } });
+
+    const compare = (slot) => {
+      const b = photoOf(slot.id, "before"), a = photoOf(slot.id, "after"), n = S.notes[slot.id] || {};
+      const s = pres.addSlide();
+      const pw = (PW - MG * 2 - .43) / 2, rx = MG + pw + .43;
+      heading(s, pageTitle(slot));
+      tag(s, n.before_label || "リフォート前", MG, 1.08, C.gray);
+      tag(s, n.after_label || "リフォート後", rx, 1.08, C.teal);
+      s.addImage({ data: data[b.storage_path], x: MG, y: 1.52, w: pw, h: 4.05, sizing: { type: "cover", w: pw, h: 4.05 } });
+      s.addImage({ data: data[a.storage_path], x: rx, y: 1.52, w: pw, h: 4.05, sizing: { type: "cover", w: pw, h: 4.05 } });
+      cap(s, b.caption, MG, 5.65, pw); cap(s, a.caption, rx, 5.65, pw);
+      summary(s, n.summary, (b.caption || a.caption) ? 6.1 : 5.75);
+      footer(s, p.plant_name, ++page);
+    };
+    if (ready[0]) compare(ready[0]);
+
+    // T2 概要
+    const s2 = pres.addSlide();
+    const bw = (PW - MG * 2 - .43) / 2, rx2 = MG + bw + .43;
+    heading(s2, "概要");
+    tag(s2, "リフォート前", MG, 1.08, C.gray); tag(s2, "リフォート後", rx2, 1.08, C.teal);
+    [[MG, S.specs.before || {}], [rx2, S.specs.after || {}]].forEach(([x, d]) => {
+      s2.addShape(pres.ShapeType.rect, { x, y: 1.52, w: bw, h: 4.05, fill: { color: C.white }, line: { color: C.line, width: 1 } });
+      [["FIT", "fit"], ["DC容量", "dc_kw"], ["AC容量", "ac_kw"], ["パネル", "panel"], ["PCS", "pcs"], ["その他", "other"]].forEach((r, i) => {
+        const y = 1.75 + i * .62;
+        s2.addText(r[0] + "：", { x: x + .3, y, w: 1.6, h: .35, isTextBox: true, margin: 0, fontSize: 12, bold: true, color: C.navy, fontFace: FONT, valign: "middle" });
+        s2.addText(String(d[r[1]] || ""), { x: x + 1.9, y, w: bw - 2.2, h: .35, isTextBox: true, margin: 0, fontSize: 12, color: C.gray, fontFace: FONT, valign: "middle" });
+      });
+    });
+    footer(s2, p.plant_name, ++page);
+    ready.slice(1).forEach(compare);
+
+    // T3 / T5 3分割
+    const triple = (b, opts) => {
+      const ph = S.photos.filter(x => x.block_id === b.id).slice(0, 3);
+      if (ph.length < 3) return;
+      const s = pres.addSlide();
+      const pw = (PW - MG * 2 - .52) / 3, xs = [MG, MG + pw + .26, MG + (pw + .26) * 2];
+      heading(s, b.title);
+      if (opts.date) {
+        s.addText(fmtDate(b.work_date), { x: MG, y: 1.02, w: 1.35, h: .32, isTextBox: true, margin: 0, fontSize: 11, bold: true, color: C.white, fontFace: FONT, align: "center", valign: "middle", fill: { color: C.navy } });
+        s.addText(b.status || "完了", { x: MG + 1.45, y: 1.02, w: 1, h: .32, isTextBox: true, margin: 0, fontSize: 11, bold: true, color: C.white, fontFace: FONT, align: "center", valign: "middle", fill: { color: C.teal } });
+      } else tag(s, "現地調査（工事前）", MG, 1.02, C.gray);
+      ph.forEach((x, i) => {
+        s.addImage({ data: data[x.storage_path], x: xs[i], y: 1.52, w: pw, h: 3.7, sizing: { type: "cover", w: pw, h: 3.7 } });
+        cap(s, x.caption, xs[i], 5.32, pw);
+      });
+      summary(s, b.summary, 5.85);
+      footer(s, p.plant_name, ++page);
+    };
+    S.blocks.filter(b => b.kind === "survey").forEach(b => triple(b, {}));
+
+    const section = (label, title) => {
+      const s = pres.addSlide(); s.background = { color: C.navy };
+      s.addText(label, { x: 1, y: 2.9, w: 10, h: .35, isTextBox: true, margin: 0, fontSize: 13, color: C.sub, fontFace: FONT });
+      s.addText(title, { x: 1, y: 3.3, w: 11, h: .7, isTextBox: true, margin: 0, fontSize: 24, bold: true, color: C.white, fontFace: FONT });
+      s.addShape(pres.ShapeType.rect, { x: 1, y: 4.2, w: 1.4, h: .05, fill: { color: C.teal } });
+    };
+    const prog = S.blocks.filter(b => b.kind === "progress" && S.photos.filter(x => x.block_id === b.id).length >= 3);
+    if (prog.length) { section("施工プロセス", "工事進捗（現場写真アルバム）"); prog.forEach(b => triple(b, { date: true })); }
+
+    if (S.gen?.chart_path) {
+      section("売電実績", "リフォート後の発電量実績");
+      const s = pres.addSlide(); heading(s, "リフォート後の発電量実績");
+      s.addImage({ data: data[S.gen.chart_path], x: 1.6, y: 1.35, w: 10.1, h: 4.9, sizing: { type: "contain", w: 10.1, h: 4.9 } });
+      footer(s, p.plant_name, ++page);
+    }
+
+    if (p.lat) {
+      const s = pres.addSlide(); heading(s, "発電所 位置図");
+      s.addText([
+        { text: "所在地\n", options: { bold: true, color: C.navy, fontSize: 12, breakLine: true } },
+        { text: (p.address || "—") + "\n\n", options: { color: C.gray, fontSize: 11, breakLine: true } },
+        { text: "座標\n", options: { bold: true, color: C.navy, fontSize: 12, breakLine: true } },
+        { text: `${p.lat}, ${p.lng}`, options: { color: C.gray, fontSize: 11 } },
+      ], { x: MG, y: 1.5, w: 6, h: 3, isTextBox: true, margin: 0, fontFace: FONT, valign: "top" });
+      footer(s, p.plant_name, ++page);
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+    await pres.writeFile({ fileName: `${p.plant_name}_リフォートビフォーアフター_${stamp}.pptx` });
+    toast(`${pages.length}ページのアルバムを出力しました`);
+  } catch (e) {
+    console.error(e); toast("出力に失敗しました：" + e.message);
+  } finally { btn.disabled = false; btn.textContent = "PPTXを出力"; }
+}
+
+/* =====================================================================
+   描画
+   ===================================================================== */
+async function render() {
+  const v = $("#view"); v.innerHTML = "";
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
+  const n = await Q.count();
+  if (n) v.appendChild(el(`<div class="qbar">未送信の写真が ${n}件あります。電波の良い場所で自動送信します。</div>`));
+  v.appendChild(S.tab === "project" ? viewProject() : S.tab === "map" ? viewMap() : viewList());
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; S.project = null; render(); });
+
+(async () => {
+  await auth();
+  await Q.open();
+  await Promise.all([loadSlots(), loadProjects()]);
+  Q.flush();
+  render();
+})();
+</script>
+</body>
+</html>
