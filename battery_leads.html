@@ -223,6 +223,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div class="fbar" style="margin-top:14px">
       <span style="font-size:12px;font-weight:900;color:var(--navy)">☀ 朝礼・日次報告</span>
       <select id="q4owner"></select>
+      <button class="btn gray" id="q4amt">⚙ シート金額の扱い</button>
       <button class="btn gray" id="q4goal">✎ 個人目標を設定</button>
       <button class="btn" id="q4copy">📋 報告文をコピー</button>
     </div>
@@ -606,7 +607,7 @@ function renderKpis(){
 /* ===== 一覧 ===== */
 const COLS=[
   ['name','顧客名'],['biz','事業'],['kubun','区分'],['status','ステータス'],['temp','温度'],
-  ['mq','MQ（粗利）'],['budget','PQ（金額）'],['finance','支払'],['payday','入金予定'],['ref','紹介者'],['owner','担当'],['next','次回アクション'],['due','期限'],['updated','更新']
+  ['mq','MQ（粗利）'],['budget','PQ（金額）'],['finance','支払'],['payday','入金予定'],['revday','計上予定'],['ref','紹介者'],['owner','担当'],['next','次回アクション'],['due','期限'],['updated','更新']
 ];
 function renderTable(){
   const thead=$('tbl').querySelector('thead');
@@ -639,6 +640,7 @@ function renderTable(){
       <td>${amt(l)? amt(l).toLocaleString()+'万円':'—'}</td>
       <td>${esc(l.finance||'—')}${finRisk(l)&&!['入金済','契約','失注'].includes(l.status)? '<span class="rbadge rb-red">未内諾</span>':''}</td>
       <td>${l.payday? l.payday.slice(5).replace('-','/'):'—'}</td>
+      <td${revDay(l)?'':' style="color:var(--red);font-weight:900"'}>${revDay(l)? revDay(l).slice(5).replace('-','/'):'未設定'}</td>
       <td>${esc(l.ref||'—')}<div class="sub">${esc(l.route||'')}</div></td>
       <td>${esc(l.owner||'—')}</td>
       <td>${esc(l.next||'—')}</td>
@@ -800,10 +802,10 @@ function segOf(l){
 }
 const segRate=n=>{ const s=SEGS.find(x=>x.n===n); return s? s.rate:0.20; };
 function gpOf(l){ const m=Number(l.mq)||0; return m? m : Math.round(salesOf(l)*segRate(segOf(l))); }
-const gpIsEstimate=l=> !(Number(l.mq)>0) && salesOf(l)>0;
+const gpIsEstimate=l=> !!l.mqEst || (!(Number(l.mq)>0) && salesOf(l)>0);
 const gpRateOf=l=> salesOf(l)? gpOf(l)/salesOf(l) : 0;
 const revDay=l=> l.revday||l.payday||'';
-const unitOf=l=> l.unit||'未設定';
+const unitOf=l=> l.unit || ((settings.unitMap||{})[l.owner||''] || '未設定');
 function probOf(l){
   if(['A','B','C'].includes(l.prob)) return l.prob;
   const s=l.status;
@@ -837,7 +839,7 @@ function q4Row(l,extra){
       <div class="s"><span class="pill" style="background:#eef1f5;color:var(--tx2)">${esc(segOf(l))}</span>
       <span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span>
       ${esc(unitOf(l))}　担当：${esc(l.owner||'—')}</div></div>
-    <div class="amt">${salesOf(l)? oku(salesOf(l)):'—'}<small> 売上</small><br><small>粗利 ${gpOf(l)? oku(gpOf(l)):'—'}${gpIsEstimate(l)?'（推定）':''}・率 ${Math.round(gpRateOf(l)*100)}%</small></div>
+    <div class="amt">${salesOf(l)? oku(salesOf(l)):'—'}<small> 売上${l.salesEst?'(推)':''}</small><br><small>粗利 ${gpOf(l)? oku(gpOf(l)):'—'}${gpIsEstimate(l)?'（推定）':''}・率 ${Math.round(gpRateOf(l)*100)}%</small></div>
     <div class="act2"><span class="a">計上予定 ${d? d.slice(5).replace('-','/'):'⚠未設定'}</span>${l.block? `　<span class="rbadge rb-red">${esc(l.block)}</span>`:''}${l.blockdue? `<span class="${l.blockdue<today()?'due-over':''}">（解除 ${l.blockdue.slice(5).replace('-','/')}）</span>`:''}<br>${extra||''}▶ ${esc(l.next||'次回アクション未設定')}</div>
   </div>`;
 }
@@ -943,11 +945,29 @@ function renderQ4(){
       <td><b style="color:${u.sales&&view>=u.sales?'var(--green)':'var(--red)'}">${u.sales? pct(view,u.sales)+'%':'—'}</b></td>
       <td style="color:${gr>=0.2?'var(--green)':'var(--red)'}">${sumS(f)? Math.round(gr*100)+'%':'—'}</td></tr>`;
   }).join('');
+  const owns=[...new Set(pool.map(l=>l.owner||'未設定'))].filter(o=>o!=='未設定').sort();
+  const mapRows=owns.map(o=>{
+    const cur=(settings.unitMap||{})[o]||'';
+    const n=pool.filter(l=>(l.owner||'')===o).length;
+    return `<tr><td><b>${esc(o)}</b><div class="sub">4Q対象 ${n}件</div></td>
+      <td><select class="umap" data-o="${esc(o)}" style="font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+        <option value="">未設定</option>${Q4_UNITS.map(u=>`<option value="${u.n}" ${cur===u.n?'selected':''}>${u.n}</option>`).join('')}
+      </select></td></tr>`;
+  }).join('');
   $('q4split').innerHTML=`
     <div class="fsec"><h3>🏭 事業別 目標と着地見込<small>着地＝確定＋A案件</small></h3>
       ${tbl(segRows,'<th>事業</th><th>売上目標</th><th>確定</th><th>A案件</th><th>B案件</th><th>着地率</th><th>不足額</th>')}</div>
     <div class="fsec"><h3>👥 組織別 責任目標<small>売上と粗利20%はセット。売上だけ達成しても未達</small></h3>
-      ${tbl(unitRows,'<th>組織</th><th>売上目標</th><th>確定</th><th>A案件</th><th>B案件</th><th>着地率</th><th>確定粗利率</th>')}</div>`;
+      ${tbl(unitRows,'<th>組織</th><th>売上目標</th><th>確定</th><th>A案件</th><th>B案件</th><th>着地率</th><th>確定粗利率</th>')}
+      <div style="padding:10px 14px;border-top:1px solid var(--line)">
+        <div style="font-size:12px;font-weight:900;color:var(--navy);margin-bottom:6px">担当者 → 責任組織の割当（一度設定すれば全員に共有され、以後は自動で振り分けます）</div>
+        ${owns.length? tbl(mapRows,'<th>担当者</th><th>責任組織</th>') : '<span class="sub" style="font-size:12px">対象の担当者がいません</span>'}
+      </div></div>`;
+  document.querySelectorAll('#q4split select.umap').forEach(sl=> sl.onchange=async ()=>{
+    settings.unitMap=settings.unitMap||{};
+    if(sl.value) settings.unitMap[sl.dataset.o]=sl.value; else delete settings.unitMap[sl.dataset.o];
+    await saveSettings(); renderQ4();
+  });
 
   /* ── 要対応（ボトルネック） ── */
   const alert1=pool.filter(l=>!isWon(l)&&['A','B'].includes(probOf(l))&&!revDay(l));
@@ -1449,7 +1469,8 @@ function xFinance(v){
   return '未確認';
 }
 function xTemp(k){
-  let v=Number(String(k||'').replace('%',''));
+  const mm=String(k||'').match(/\d+(\.\d+)?/);
+  let v=mm? Number(mm[0]) : NaN;
   if(!isFinite(v)) return 'B（中・検討中）';
   if(v<=1) v=v*100;
   return v>=70? 'A（高い・即動く）' : v>=40? 'B（中・検討中）' : 'C（低・情報収集）';
@@ -1464,9 +1485,40 @@ function xDue(v){
 }
 function xKubun(v){
   const s=String(v||'');
-  if(/来/.test(s)) return '刈り取り（来期以降）';
+  if(/来四半期|来期|来Q/.test(s)) return '刈り取り（来期以降）';
   if(/種/.test(s)) return '種まき（中長期）';
-  return '刈り取り（3Q・8/31まで）';
+  /* 3Qは終了済み。シートに残る「3Q着地」表記も今期＝4Qとして扱う */
+  return '刈り取り（4Q・11/30まで）';
+}
+/* 確度（%）→ A/B/C。80%以上=A、50〜79%=B、49%以下=C */
+function xProb(k){
+  const m=String(k||'').match(/\d+(\.\d+)?/);
+  if(!m) return '';
+  let v=Number(m[0]); if(!isFinite(v)) return '';
+  if(v<=1) v=v*100;
+  return v>=80? 'A' : v>=50? 'B' : 'C';
+}
+/* 決定を阻害している要因（自由記述）→ ボトルネック区分 */
+function xBlock(v){
+  const s=String(v||'').trim();
+  if(!s || /^(無し|なし|特になし|確認中|―|—|-)$/.test(s)) return '';
+  if(/融資|銀行|公庫|資金枠|バックファイナンス/.test(s)) return '融資';
+  if(/決裁者|社長|代表|面談|アポ|会えて/.test(s)) return '決裁者に会えていない';
+  if(/契約書|ドラフト|合意書/.test(s)) return '契約書';
+  if(/稟議|取締役|役員会|社内決/.test(s)) return '稟議・社内決裁';
+  if(/申請|経産省|電力|連系|認定/.test(s)) return '申請（電力・行政）';
+  if(/部材|調達|在庫|パネル手配/.test(s)) return '部材・調達';
+  if(/工事|施工|現調|現場|職人/.test(s)) return '施工枠';
+  if(/検収|書類|必要書類/.test(s)) return '検収・書類';
+  if(/入金|支払|振込/.test(s)) return '入金';
+  return s.length>24? s.slice(0,24)+'…' : s;
+}
+/* MQ（粗利）しか無いときに売上を逆算するための粗利率 */
+function xRate(biz,volt){
+  if(biz==='ReFort') return volt==='低圧'? 0.25 : 0.20;
+  if(biz==='セカンダリー') return 0.20;
+  if(biz==='系統用蓄電池'||biz==='サンキーパー'||biz==='パネル洗浄・O&M') return 0.1375;
+  return 0.20;
 }
 function parseLeadRows(rows){
   let idx=null, section='', parsed=[];
@@ -1483,6 +1535,12 @@ function parseLeadRows(rows){
         if(t.includes('案件ID')||t.includes('案件ＩＤ')) idx.sid=i;
         else if(t.includes('顧客名')) idx.name=i;
         else if(t.includes('提案商品')) idx.prod=i;
+        /* ▼ 4Q管理列（シートに足すと自動で読み込みます） */
+        else if(t.includes('計上')) idx.revday=i;
+        else if(t.includes('契約予定')) idx.cday=i;
+        else if(t.includes('組織')||t.includes('部門')) idx.unit=i;
+        else if(t.includes('解除')) idx.blockdue=i;
+        else if(t.includes('売上')) idx.sales=i;
         else if(t.includes('見込金額')||t.includes('金額')) idx.amt=i;
         else if(t.includes('自己資金')) idx.cash=i;
         else if(t.includes('融資の必要')) idx.fin=i;
@@ -1505,7 +1563,11 @@ function parseLeadRows(rows){
     const stNorm= stRaw? (STATUSES.includes(stRaw)? stRaw
       : /入金/.test(stRaw)? '入金済' : /受注|契約/.test(stRaw)? '契約' : /申込/.test(stRaw)? '申込'
       : /交渉/.test(stRaw)? '条件交渉' : /提案/.test(stRaw)? '提案中' : /失注/.test(stRaw)? '失注' : /保留/.test(stRaw)? '保留' : '') : '';
-    const manYen=Math.round((Number(g('amt'))||0)*100); // 百万円→万円
+    const amtMan=Math.round((Number(g('amt'))||0)*100);          // 「見込金額／MQ」百万円→万円
+    const salesMan=Math.round((Number(g('sales'))||0)*100);      // 売上（列がある場合）
+    const amtIsMq=(settings.sheetAmtIs||'mq')==='mq';            // 既定：MQ（粗利）として扱う
+    const bizX=xBiz(g('prod'));
+    const voltX=/高圧/.test(String(g('prod')))?'高圧':(/蓄電池|低圧|低圧RF/.test(String(g('prod')))?'低圧':'未定');
     const memoParts=[];
     if(g('prod')) memoParts.push('提案商品：'+String(g('prod')).replace(/\n/g,' '));
     if(g('cash')) memoParts.push('自己資金：'+String(g('cash')).replace(/\n/g,' '));
@@ -1517,10 +1579,17 @@ function parseLeadRows(rows){
     parsed.push({
       name:a.replace(/\s*様\s*$/,'').trim(),
       type:/株式会社|有限会社|合同会社|（株）|\(株\)/.test(a)? '法人投資家':'個人投資家',
-      biz:xBiz(g('prod')), need:'', volt:/高圧/.test(String(g('prod')))?'高圧':(/蓄電池|低圧/.test(String(g('prod')))?'低圧':'未定'),
-      budget:manYen, mq:manYen, units:1,
+      biz:bizX, need:'', volt:voltX,
+      budget: salesMan || (amtIsMq? (amtMan? Math.round(amtMan/xRate(bizX,voltX)):0) : amtMan),
+      salesEst: !salesMan && amtIsMq && !!amtMan,
+      mq: amtIsMq? amtMan : Math.round(amtMan*xRate(bizX,voltX)),
+      mqEst: !amtIsMq && !!amtMan,
+      units:1,
+      revday:xDue(g('revday')), cday:xDue(g('cday')),
+      unit:String(g('unit')||'').trim(),
+      prob:xProb(g('prob')), block:xBlock(g('block')), blockdue:xDue(g('blockdue')),
       finance:xFinance(g('fin')), temp:xTemp(g('prob')),
-      kubun: String(g('kubun')||'').trim()? xKubun(g('kubun')) : (section==='next'? '刈り取り（来期以降）':'刈り取り（3Q・8/31まで）'),
+      kubun: String(g('kubun')||'').trim()? xKubun(g('kubun')) : (section==='next'? '刈り取り（来期以降）':'刈り取り（4Q・11/30まで）'),
       status: stNorm || (section==='close'? '条件交渉':'提案中'),
       statusX: !!stNorm,
       next:String(g('next')||'').replace(/\n/g,' '), due:xDue(g('due')),
@@ -1557,7 +1626,9 @@ function applyParsedLeads(parsed, srcLabel){
         if(x.status==='契約' && !l.payday) (l.logs=l.logs||[]).push({d:today(), t:'⚠ 入金予定日が未設定です'});
         l.status=x.status;
       }
-      Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner});
+      Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner,salesEst:x.salesEst,mqEst:x.mqEst});
+      /* 4Q項目：シートに列が無い／空欄のときは、ボードで入力した値を消さない */
+      ['revday','cday','unit','prob','block','blockdue'].forEach(k=>{ if(x[k]) l[k]=x[k]; });
       const base=String(l.memo||'').split(SHEET_MARK)[0].replace(/\s+$/,'');
       l.memo = x.memo ? (base? base+'\n':'')+SHEET_MARK+'\n'+x.memo : base;
       if(l.sheetGone){ delete l.sheetGone; delete l.goneAt; }
@@ -1960,6 +2031,13 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.04';
 const CHANGELOG = [
   ['2026.09.04', [
+    '入力シートの分類「4Q着地見込み／4Q着地（リスクあり・要確認）」を認識するようにしました（従来は全て3Q扱いになっていました）',
+    'シートの「確度（%）」を4Qの確度A/B/Cに自動変換（80%以上＝A、50〜79%＝B、49%以下＝C）。ボードでの再入力は不要です',
+    'シートの「決定を阻害している要因」をボトルネックとして自動取り込み（融資・決裁者・契約書・稟議・申請・部材・施工・検収・入金に自動分類）',
+    'シートの「見込金額／MQ」をMQ（粗利）として扱い、売上は事業別の粗利率目安から推定するようにしました（「(推)」表示）。⚙ボタンで解釈を切り替えられます',
+    '入力シートに「売上（百万円）」「完工・売上計上予定日」「契約予定日」「責任組織」「解除期限」の列を足すと、自動で読み込みます',
+    '担当者→責任組織の割当を4Q作戦タブで設定できるようにしました（一度設定すれば全員に共有）',
+    '一覧タブに「計上予定」列を追加。未設定は赤字で表示します',
     '「🚩 4Q作戦」タブを追加。第4四半期（9/1〜11/30）の売上40億円・粗利8億円に対する着地見込みを、月別・事業別・組織別に表示します',
     '商談に「4Qセグメント」「責任組織」「確度（A/B/C）」「契約予定日」「完工・売上計上予定日」「ボトルネック」「解除期限」を追加しました',
     '確度は原則ステータスから自動判定（申込・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違う場合のみ手動で上書きしてください',
@@ -2001,6 +2079,19 @@ const MANUAL = [
     '<ol><li>ヘッダーの「📋 入力シート」からシートを開く</li><li>担当案件の <b>次回アクション</b>・<b>期限</b>・<b>ステータス</b>・<b>確度</b> を更新する</li><li>ボードに戻り「📗 シート連動」を押す（開いたままでも5分ごとに自動同期）</li></ol>',
     '<p><b>マネージャー・経営</b></p>',
     '<ol><li>「🚩 4Q作戦」で月別の着地見込みと不足額を確認</li><li>「⚠ リスク」の件数をチェックし、期限超過の案件を担当者に振る</li><li>「💼 大型案件」で高圧系統・セカンダリーの大口を確認</li></ol>'
+  ]},
+
+  { id:'q4sheet', t:'★ 入力シートに追加する列（4Q連動）', b:[
+    '<p>いまのシートには<b>売上と計上予定日の列がありません</b>。このままだと月別の着地シミュレーションが作れません。案件ID列の右に、次の列をヘッダー名どおり追加してください。<b>位置は自由</b>で、ヘッダー名で自動判定します。</p>',
+    '<table class="mtbl"><tr><th>追加する列名</th><th>入れる内容</th><th>優先度</th></tr>' +
+    '<tr><td><b>完工・売上計上予定日</b></td><td>日付（例：11/20）。11月30日までに売上計上できる日。<b>これが月別の積み上げの元</b>です</td><td>最優先</td></tr>' +
+    '<tr><td><b>売上（百万円）</b></td><td>売上高。空欄なら「見込金額／MQ」から粗利率目安で自動推定します</td><td>高</td></tr>' +
+    '<tr><td><b>責任組織</b></td><td>営業部／関東エネルギーアセット／東北エネルギーアセット／セカンダリー／社長戦略・大型案件</td><td>中（担当者からの自動割当でも可）</td></tr>' +
+    '<tr><td>契約予定日</td><td>日付。10/31までに受注を確定させる管理に使います</td><td>中</td></tr>' +
+    '<tr><td>解除期限</td><td>ボトルネックを解除する期限。超過するとボードで赤く出ます</td><td>低</td></tr>' +
+    '</table>',
+    '<div class="mnote">既存の「確度（%）」「決定を阻害している要因」「3Q着地／来四半期の分類」はそのまま使えます。確度%はA/B/Cへ、阻害要因はボトルネックへ自動変換します。分類は「4Q着地見込み」と書けば4Q対象になります。</div>',
+    '<div class="mwarn"><b>シートに列が無い間は、ボード側で直接入力できます。</b>商談を開いて「4Q管理」欄に計上予定日を入れてください。シート連動で消えることはありません（シート側が空欄の項目は上書きしません）。</div>'
   ]},
 
   { id:'q4', t:'★ 4Q作戦タブ（9/1〜11/30：売上40億・粗利8億）', b:[
@@ -2162,6 +2253,17 @@ $('q4copy').onclick=async ()=>{
   try{ await navigator.clipboard.writeText(t); $('q4copy').textContent='✓ コピーしました'; }
   catch(e){ $('q4text').select(); document.execCommand('copy'); $('q4copy').textContent='✓ コピーしました'; }
   setTimeout(()=>{ $('q4copy').textContent='📋 報告文をコピー'; },1800);
+};
+$('q4amt').onclick=async ()=>{
+  const cur=(settings.sheetAmtIs||'mq')==='mq'? 'MQ（粗利）':'売上';
+  const ok=confirm('入力シートの「見込金額／MQ（百万円）」列を、いま '+cur+' として集計しています。\n\n'
+    +'OK：もう一方（'+(cur==='MQ（粗利）'?'売上':'MQ（粗利）')+'）に切り替える\n'
+    +'キャンセル：このまま\n\n'
+    +'※もう一方の金額は事業別の粗利率目安から推定し、「(推)」と表示します。売上と粗利を正確に分けたい場合は、シートに「売上（百万円）」列を追加してください。');
+  if(!ok) return;
+  settings.sheetAmtIs=(settings.sheetAmtIs||'mq')==='mq'? 'sales':'mq';
+  await saveSettings();
+  alert('切り替えました。「📗 シート連動」を押すと再計算されます。');
 };
 $('q4goal').onclick=async ()=>{
   const o=q4OwnerSel;
