@@ -186,7 +186,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
 </header>
 
 <div class="tabs">
-  <button class="act" data-tab="focus">🎯 3Qフォーカス</button>
+  <button class="act" data-tab="q4">🚩 4Q作戦</button>
+  <button data-tab="focus">🎯 フォーカス</button>
   <button data-tab="list">一覧</button>
   <button data-tab="funnel">ファネル</button>
   <button data-tab="ref">紹介者別</button>
@@ -211,7 +212,25 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <span class="fcount" id="fCount"></span>
   </div>
 
-  <div id="viewFocus">
+  <div id="viewQ4" style="display:none">
+    <div class="focushead" id="q4head"></div>
+    <div class="fsec"><h3>📅 月別 着地シミュレーション<small>「売上計上予定日」で積み上げています</small></h3><div id="q4month"></div></div>
+    <div style="font-size:13px;font-weight:900;color:var(--navy);margin:14px 0 8px">⏱ 逆算デッドライン</div>
+    <div class="kpis" id="q4check" style="display:grid"></div>
+    <div id="q4split"></div>
+    <div style="font-size:13px;font-weight:900;color:var(--navy);margin:14px 0 8px">🚨 今日つぶすボトルネック</div>
+    <div id="q4alert"></div>
+    <div class="fbar" style="margin-top:14px">
+      <span style="font-size:12px;font-weight:900;color:var(--navy)">☀ 朝礼・日次報告</span>
+      <select id="q4owner"></select>
+      <button class="btn gray" id="q4goal">✎ 個人目標を設定</button>
+      <button class="btn" id="q4copy">📋 報告文をコピー</button>
+    </div>
+    <textarea id="q4text" style="width:100%;min-height:190px;font-family:inherit;font-size:12.5px;line-height:1.7;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff"></textarea>
+    <div id="q4top" style="margin-top:12px"></div>
+  </div>
+
+  <div id="viewFocus" style="display:none">
     <div class="focushead" id="focushead"></div>
     <div id="focusbody"></div>
   </div>
@@ -310,6 +329,17 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
       <div class="fld bizbat"><label>制度</label><select id="i_scheme"><option>未定</option><option>FIP</option><option>非FIT（相対・市場）</option><option>FIT併設</option></select></div>
       <div class="fld bizbat"><label>希望容量（kWh）</label><input type="number" id="i_kwh" placeholder="216"></div>
       <div class="fld bizbat"><label>希望台数・件数</label><input type="number" id="i_units" placeholder="1"></div>
+    </div>
+
+    <div class="sect">4Q管理（9/1〜11/30：売上40億・粗利8億）</div>
+    <div class="grid2">
+      <div class="fld"><label>4Q事業セグメント</label><select id="i_seg"></select></div>
+      <div class="fld"><label>責任組織</label><select id="i_unit"></select></div>
+      <div class="fld"><label>確度（売上計上確率）</label><select id="i_prob"><option value="">自動判定（ステータス連動）</option><option value="A">A：80%以上</option><option value="B">B：50〜79%</option><option value="C">C：49%以下</option></select></div>
+      <div class="fld"><label>契約予定日</label><input type="date" id="i_cday"></div>
+      <div class="fld"><label>完工・売上計上予定日＊</label><input type="date" id="i_revday"></div>
+      <div class="fld"><label>ボトルネック</label><select id="i_block"></select></div>
+      <div class="fld"><label>ボトルネック解除期限</label><input type="date" id="i_blockdue"></div>
     </div>
 
     <div class="sect">販売管理</div>
@@ -418,12 +448,12 @@ const TABLE='battery_leads';
 let sb=null, cloud=false, cloudErr='';
 
 /* ===== マスタ ===== */
-const Q3_END='2026-08-31';
+const Q3_END='2026-11-30';
 const STATUSES=['新規','初回接触','ヒアリング済','提案中','条件交渉','申込','契約','入金済','保留','失注'];
 const ST_COLOR={'新規':'#8a97a8','初回接触':'#3068a8','ヒアリング済':'#2f7fa8','提案中':'#d98b24','条件交渉':'#c9762b','申込':'#7a5cb8','契約':'#2f8f5b','入金済':'#1f6e46','保留':'#9a8f6b','失注':'#c94a4a'};
 const BIZ=['系統用蓄電池','ReFort','セカンダリー','パネル洗浄・O&M','サンキーパー','アセット','その他'];
 const BIZ_COLOR={'系統用蓄電池':'#3068a8','ReFort':'#c9762b','セカンダリー':'#2f8f5b','パネル洗浄・O&M':'#2f7fa8','サンキーパー':'#d98b24','アセット':'#7a5cb8','その他':'#8a97a8'};
-const KUBUN=['刈り取り（3Q・8/31まで）','刈り取り（来期以降）','種まき（中長期）'];
+const KUBUN=['刈り取り（4Q・11/30まで）','刈り取り（3Q・8/31まで）','刈り取り（来期以降）','種まき（中長期）'];
 const FINANCE=['現金','融資（申込前）','融資（審査中）','融資（内諾済）','融資（実行待ち）','リース・割賦','未確認'];
 const NEEDS_BY_BIZ={
   '系統用蓄電池':['権利のみ購入','権利＋EPC','EPCのみ','完成品購入（投資商品）','土地売却・賃貸','共同開発','情報収集'],
@@ -441,9 +471,9 @@ const ROUTES=['既存顧客の紹介','金融機関','税理士・会計士','�
 const PRODUCTS=['EAR-A-168（低圧216kWh）','高圧系統用（開発案件）','低圧 その他','未定'];
 const getBiz=l=> l.biz||'系統用蓄電池';
 const getKubun=l=> l.kubun||'';
-const is3Q=l=> getKubun(l).startsWith('刈り取り（3Q');
+const is3Q=l=> /^刈り取り（[34]Q/.test(getKubun(l));
 const finRisk=l=>{ const f=l.finance||''; return f.startsWith('融資') && !f.includes('内諾') && !f.includes('実行待ち'); };
-const MQ_GOAL_DEFAULT=40000; // 万円（=400百万円）
+const MQ_GOAL_DEFAULT=80000; // 万円（=400百万円）
 const mqOf=l=> (Number(l.mq)||0) || (Number(l.budget)||0)*(Number(l.units)||1);
 const mqGoal=()=> Number(settings.mqGoal)||MQ_GOAL_DEFAULT;
 const fmtOku=v=> v>=10000? (v/10000).toFixed(2).replace(/\.?0+$/,'')+'億円' : v.toLocaleString()+'万円';
@@ -565,10 +595,10 @@ function renderKpis(){
   const sum=a=>a.reduce((s,l)=>s+mqOf(l),0);
   const goal=mqGoal(); const fixed=sum(q3done)+sum(q3won);
   $('kpis').innerHTML=`
-    <div class="kpi"><div class="l">3Q MQ目標／確定</div><div class="v">${fmtOku(fixed)}<small> / ${fmtOku(goal)}</small></div></div>
-    <div class="kpi"><div class="l">3Q 入金済MQ（実績）</div><div class="v" style="color:var(--green)">${sum(q3done).toLocaleString()}<small> 万円・${q3done.length}件</small></div></div>
-    <div class="kpi"><div class="l">3Q 契約済・入金待ちMQ</div><div class="v">${sum(q3won).toLocaleString()}<small> 万円・${q3won.length}件</small></div></div>
-    <div class="kpi"><div class="l">3Q 商談中MQ（見込み）</div><div class="v">${sum(q3live).toLocaleString()}<small> 万円・${q3live.length}件</small></div></div>
+    <div class="kpi"><div class="l">4Q 粗利目標／確定</div><div class="v">${fmtOku(fixed)}<small> / ${fmtOku(goal)}</small></div></div>
+    <div class="kpi"><div class="l">4Q 入金済MQ（実績）</div><div class="v" style="color:var(--green)">${sum(q3done).toLocaleString()}<small> 万円・${q3done.length}件</small></div></div>
+    <div class="kpi"><div class="l">4Q 契約済・入金待ちMQ</div><div class="v">${sum(q3won).toLocaleString()}<small> 万円・${q3won.length}件</small></div></div>
+    <div class="kpi"><div class="l">4Q 商談中MQ（見込み）</div><div class="v">${sum(q3live).toLocaleString()}<small> 万円・${q3live.length}件</small></div></div>
     <div class="kpi"><div class="l">⚠ リスクあり（融資未内諾・期限超過）</div><div class="v" style="color:${risk.length?'var(--red)':'var(--navy)'}">${risk.length}<small> 件</small></div></div>
     <div class="kpi"><div class="l">種まき（中長期）</div><div class="v">${seeds.length}<small> 件</small></div></div>`;
 }
@@ -631,7 +661,7 @@ function riskBadges(l){
   if(l.due && l.due<today()) b.push('<span class="rbadge rb-red">期限超過</span>');
   if(!l.next) b.push('<span class="rbadge rb-amber">次アクション未設定</span>');
   if(!l.payday) b.push('<span class="rbadge rb-amber">入金予定日なし</span>');
-  else if(l.payday>Q3_END) b.push('<span class="rbadge rb-amber">入金予定が8/31超</span>');
+  else if(l.payday>Q3_END) b.push('<span class="rbadge rb-amber">入金予定が11/30超</span>');
   return b.join('');
 }
 function frow(l,i){
@@ -666,8 +696,8 @@ function renderFocus(){
   $('focushead').innerHTML=`
     <div style="flex:1;min-width:280px">
       <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
-        <div class="cd">3Q締め（8/31）まで<b>${daysLeft()}</b>日</div>
-        <div class="fh">3Q MQ目標 <b class="gold">${fmtOku(goal)}</b><span id="goalEdit" style="cursor:pointer;color:#8fa5bf;font-size:11px;margin-left:6px">✎ 変更</span></div>
+        <div class="cd">4Q締め（11/30）まで<b>${daysLeft()}</b>日</div>
+        <div class="fh">4Q 粗利目標 <b class="gold">${fmtOku(goal)}</b><span id="goalEdit" style="cursor:pointer;color:#8fa5bf;font-size:11px;margin-left:6px">✎ 変更</span></div>
         <div class="fh">確定MQ（入金済＋契約）<b>${fmtOku(fixed)}</b></div>
         <div class="fh">目標までのギャップ<b style="color:${gap? '#ff9d9d':'#a9f0c8'}">${gap? fmtOku(gap):'達成！'}</b></div>
         <div class="fh">商談中MQ<b>${fmtOku(pipe)}</b></div>
@@ -686,7 +716,7 @@ function renderFocus(){
       </div>
     </div>`;
   const ge=$('goalEdit'); if(ge) ge.onclick=async ()=>{
-    const v=prompt('3QのMQ目標を万円で入力してください（例：40000 ＝ 4億円）', String(goal));
+    const v=prompt('4Qの粗利目標を万円で入力してください（例：80000 ＝ 8億円）', String(goal));
     if(!v||!Number(v)) return;
     settings.mqGoal=Number(v); await saveSettings(); renderAll();
   };
@@ -721,12 +751,261 @@ function renderFocus(){
     ofHtml
     + sec('🔥 クロージング段階（申込・条件交渉）── 最優先で決め切る', close)
     + sec('💰 契約済・入金待ち ── 入金予定日と融資実行を確認', waitPay)
-    + sec('📣 追い込み（提案中・ヒアリング済）── 8/31から逆算して今週動かす', push)
+    + sec('📣 追い込み（提案中・ヒアリング済）── 11/30から逆算して今週動かす', push)
     + sec('🌱 立ち上げ（新規・初回接触）── 早期にヒアリングを完了させる', early)
     + (unset.length? `<div class="fsec"><h3>⚠ 商談区分が未設定<small>${unset.length}件 ── 刈り取りか種まきかを設定してください</small></h3>${unset.map(l=>frow(l,null)).join('')}</div>`:'')
-    + (!close.length&&!push.length&&!early.length&&!waitPay.length&&!unset.length? '<div class="empty">3Q対象（刈り取り・8/31まで）の商談がありません。各商談の「商談区分」を設定してください。</div>':'');
+    + (!close.length&&!push.length&&!early.length&&!waitPay.length&&!unset.length? '<div class="empty">4Q対象（刈り取り・11/30まで）の商談がありません。各商談の「商談区分」を設定してください。</div>':'');
   $('focusbody').querySelectorAll('.frow,.ofcard').forEach(r=> r.onclick=()=> openModal(r.dataset.id));
 }
+
+/* ===== 4Q作戦（9/1〜11/30：売上40億・粗利8億） ===== */
+const Q4_START='2026-09-01', Q4_END='2026-11-30';
+const Q4_SALES_GOAL=400000, Q4_GP_GOAL=80000;      /* 万円 */
+const Q4_PIPE_SAFE=1200000;                         /* 有効商談の安全ライン120億（万円） */
+const Q4_MONTHS=[
+  {k:'2026-09', label:'9月',  sales:100000, gp:20000},
+  {k:'2026-10', label:'10月', sales:140000, gp:28000},
+  {k:'2026-11', label:'11月', sales:160000, gp:32000}
+];
+const SEGS=[
+  {n:'高圧ReFort',              sales:150000, rate:0.20},
+  {n:'セカンダリーReFort',      sales:100000, rate:0.20},
+  {n:'低圧ReFort',              sales:50000,  rate:0.25},
+  {n:'太陽光・営農型・権利販売', sales:60000,  rate:0.20},
+  {n:'蓄電池・サンキーパー・O&M',sales:40000,  rate:0.1375}
+];
+const Q4_UNITS=[
+  {n:'営業部', sales:120000},
+  {n:'関東エネルギーアセット', sales:80000},
+  {n:'東北エネルギーアセット', sales:60000},
+  {n:'セカンダリー', sales:80000},
+  {n:'社長戦略・大型案件', sales:60000}
+];
+const BLOCKS=['','決裁者に会えていない','契約書','融資','稟議・社内決裁','申請（電力・行政）','部材・調達','施工枠','検収・書類','入金','その他'];
+const Q4_CHECKS=[
+  {d:'2026-09-15', t:'9/15：A案件30億以上／A＋B案件80億以上', tests:[['A案件',300000,'A'],['A＋B案件',800000,'AB']]},
+  {d:'2026-09-30', t:'9/30：受注（契約＋入金済）累計20億／売上計上10億', tests:[['受注累計',200000,'won'],['計上累計',100000,'rec']]},
+  {d:'2026-10-15', t:'10/15：受注累計30億以上', tests:[['受注累計',300000,'won']]},
+  {d:'2026-10-31', t:'10/31：受注40億／計上累計24億', tests:[['受注累計',400000,'won'],['計上累計',240000,'rec']]}
+];
+
+const salesOf=l=> (Number(l.budget)||0)*(Number(l.units)||1);
+function segOf(l){
+  if(l.seg && SEGS.some(s=>s.n===l.seg)) return l.seg;
+  const b=getBiz(l), v=l.volt||'';
+  if(b==='ReFort') return v==='低圧'? '低圧ReFort' : '高圧ReFort';
+  if(b==='セカンダリー') return 'セカンダリーReFort';
+  if(b==='系統用蓄電池'||b==='サンキーパー'||b==='パネル洗浄・O&M') return '蓄電池・サンキーパー・O&M';
+  return '太陽光・営農型・権利販売';
+}
+const segRate=n=>{ const s=SEGS.find(x=>x.n===n); return s? s.rate:0.20; };
+function gpOf(l){ const m=Number(l.mq)||0; return m? m : Math.round(salesOf(l)*segRate(segOf(l))); }
+const gpIsEstimate=l=> !(Number(l.mq)>0) && salesOf(l)>0;
+const gpRateOf=l=> salesOf(l)? gpOf(l)/salesOf(l) : 0;
+const revDay=l=> l.revday||l.payday||'';
+const unitOf=l=> l.unit||'未設定';
+function probOf(l){
+  if(['A','B','C'].includes(l.prob)) return l.prob;
+  const s=l.status;
+  if(['入金済','契約','申込','条件交渉'].includes(s)) return 'A';
+  if(['提案中','ヒアリング済'].includes(s)) return 'B';
+  return 'C';
+}
+const isRec=l=> l.status==='入金済';                       /* 売上計上済とみなす */
+const isWon=l=> ['入金済','契約'].includes(l.status);      /* 受注済 */
+/* 4Q対象プール：計上予定日がQ4内、または日付未設定の刈り取り商談 */
+function q4Pool(){
+  return leads.filter(l=>{
+    if(l.sheetGone) return false;
+    if(['失注'].includes(l.status)) return false;
+    const d=revDay(l);
+    if(d) return d>=Q4_START && d<=Q4_END;
+    return !getKubun(l).startsWith('種まき');
+  });
+}
+const sumS=a=>a.reduce((s,l)=>s+salesOf(l),0);
+const sumG=a=>a.reduce((s,l)=>s+gpOf(l),0);
+const q4Days=()=> Math.max(0, Math.ceil((new Date(Q4_END)-new Date(today()))/86400000));
+const oku=v=> (v/10000).toFixed(2).replace(/\.?0+$/,'')+'億';
+const pct=(a,b)=> b? Math.round(a/b*100):0;
+
+function q4Row(l,extra){
+  const p=probOf(l), d=revDay(l);
+  return `<div class="frow" data-id="${l.id}">
+    <span class="rank" style="background:${p==='A'?'#c94a4a':p==='B'?'#d98b24':'#8a97a8'};color:#fff;font-size:13px;padding:2px 8px;border-radius:6px;align-self:flex-start">${p}</span>
+    <div class="who"><div class="n">${esc(l.name)}</div>
+      <div class="s"><span class="pill" style="background:#eef1f5;color:var(--tx2)">${esc(segOf(l))}</span>
+      <span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span>
+      ${esc(unitOf(l))}　担当：${esc(l.owner||'—')}</div></div>
+    <div class="amt">${salesOf(l)? oku(salesOf(l)):'—'}<small> 売上</small><br><small>粗利 ${gpOf(l)? oku(gpOf(l)):'—'}${gpIsEstimate(l)?'（推定）':''}・率 ${Math.round(gpRateOf(l)*100)}%</small></div>
+    <div class="act2"><span class="a">計上予定 ${d? d.slice(5).replace('-','/'):'⚠未設定'}</span>${l.block? `　<span class="rbadge rb-red">${esc(l.block)}</span>`:''}${l.blockdue? `<span class="${l.blockdue<today()?'due-over':''}">（解除 ${l.blockdue.slice(5).replace('-','/')}）</span>`:''}<br>${extra||''}▶ ${esc(l.next||'次回アクション未設定')}</div>
+  </div>`;
+}
+const q4Sec=(title,arr,note)=> arr.length? `<div class="fsec"><h3>${title}<small>${arr.length}件・売上 ${oku(sumS(arr))}円${note?'　'+note:''}</small></h3>${arr.map(l=>q4Row(l)).join('')}</div>`:'';
+
+function renderQ4(){
+  if($('viewQ4').style.display==='none') return;
+  const pool=q4Pool();
+  const rec=pool.filter(isRec), won=pool.filter(l=>l.status==='契約');
+  const fixed=rec.concat(won);
+  const A=pool.filter(l=>!isWon(l)&&probOf(l)==='A');
+  const B=pool.filter(l=>!isWon(l)&&probOf(l)==='B');
+  const C=pool.filter(l=>!isWon(l)&&probOf(l)==='C');
+  const sFixed=sumS(fixed), gFixed=sumG(fixed);
+  const sA=sumS(A), sB=sumS(B), sC=sumS(C);
+  const weighted=sFixed + sA*0.8 + sB*0.6 + sC*0.3;
+  const total=sFixed+sA+sB+sC;
+  const gapS=Math.max(0,Q4_SALES_GOAL-sFixed), gapG=Math.max(0,Q4_GP_GOAL-gFixed);
+  const rate=sFixed? gFixed/sFixed:0;
+
+  /* ── ヘッダー ── */
+  const bar=(a,b,c)=>`<div style="margin-top:8px;background:#0a1e36;border-radius:8px;height:14px;overflow:hidden;display:flex">
+    <div style="width:${Math.min(100,a)}%;background:var(--gold)"></div>
+    <div style="width:${Math.min(100-Math.min(100,a),b)}%;background:#4a7fb5;opacity:.8"></div>
+    <div style="width:${Math.max(0,Math.min(100-Math.min(100,a)-b,c))}%;background:#2f8f7a;opacity:.55"></div></div>`;
+  $('q4head').innerHTML=`
+    <div style="flex:1;min-width:280px">
+      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
+        <div class="cd">11/30まで<b>${q4Days()}</b>日</div>
+        <div class="fh">売上目標<b class="gold">40億円</b></div>
+        <div class="fh">確定売上（契約＋入金済）<b>${oku(sFixed)}円</b><span style="font-size:11px">達成率 ${pct(sFixed,Q4_SALES_GOAL)}%</span></div>
+        <div class="fh">粗利目標／確定<b>8億 ／ <span style="color:${gFixed>=Q4_GP_GOAL?'#a9f0c8':'#fff'}">${oku(gFixed)}円</span></b><span style="font-size:11px">確定粗利率 ${Math.round(rate*100)}%${rate<0.2&&sFixed?'（⚠20%割れ）':''}</span></div>
+        <div class="fh">残ギャップ<b style="color:${gapS?'#ff9d9d':'#a9f0c8'}">${gapS?oku(gapS)+'円':'達成！'}</b><span style="font-size:11px">粗利 ${gapG?oku(gapG)+'円':'達成'}</span></div>
+        <div class="fh">加重見込<br>（A80/B60/C30%）<b>${oku(weighted)}円</b></div>
+        <div class="fh">有効商談総量<b style="color:${total>=Q4_PIPE_SAFE?'#a9f0c8':'#ffd98a'}">${oku(total)}円</b><span style="font-size:11px">安全ライン120億の ${pct(total,Q4_PIPE_SAFE)}%</span></div>
+      </div>
+      ${bar(pct(sFixed,Q4_SALES_GOAL),pct(sA,Q4_SALES_GOAL),pct(sB,Q4_SALES_GOAL))}
+      <div style="font-size:11px;color:#a9bdd4;font-weight:700;margin-top:4px">
+        ■<span style="color:var(--gold)">確定 ${pct(sFixed,Q4_SALES_GOAL)}%</span>　■<span style="color:#7fb0e0">＋A案件で ${pct(sFixed+sA,Q4_SALES_GOAL)}%</span>　■<span style="color:#7fe0c0">＋B案件で ${pct(sFixed+sA+sB,Q4_SALES_GOAL)}%</span>
+        ${weighted<Q4_SALES_GOAL? `　<span style="color:#ff9d9d">⚠ 加重見込では ${oku(Q4_SALES_GOAL-weighted)}円 不足 ── 案件総量の積み増しが必要です</span>`:''}
+      </div>
+    </div>`;
+
+  /* ── 月別 ── */
+  let cumT=0, cumF=0, cumA=0, cumTg=0, cumGf=0;
+  const mrows=Q4_MONTHS.map(m=>{
+    const inM=a=>a.filter(l=>(revDay(l)||'').slice(0,7)===m.k);
+    const f=inM(fixed), a=inM(A), b=inM(B);
+    cumT+=m.sales; cumF+=sumS(f); cumA+=sumS(a); cumTg+=m.gp; cumGf+=sumG(f);
+    const view=sumS(f)+sumS(a);
+    return `<tr>
+      <td><b>${m.label}</b></td>
+      <td>${oku(m.sales)}円</td>
+      <td style="color:var(--gold);font-weight:900">${oku(sumS(f))}円</td>
+      <td>${oku(sumS(a))}円</td>
+      <td>${oku(sumS(b))}円</td>
+      <td><b style="color:${view>=m.sales?'var(--green)':'var(--red)'}">${pct(view,m.sales)}%</b><div class="sub">確定＋A</div></td>
+      <td>${oku(m.gp)}円</td>
+      <td style="color:${sumG(f)>=m.gp?'var(--green)':'var(--tx)'}">${oku(sumG(f))}円</td>
+      <td class="sub">累計 ${oku(cumF)}／${oku(cumT)}円</td>
+    </tr>`;
+  }).join('');
+  const noDate=pool.filter(l=>!revDay(l));
+  $('q4month').innerHTML=`<div class="tblwrap"><table class="mtbl"><thead><tr>
+      <th>月</th><th>売上目標</th><th>確定（契約＋入金）</th><th>A案件</th><th>B案件</th><th>着地見込</th><th>粗利目標</th><th>確定粗利</th><th>累計</th>
+    </tr></thead><tbody>${mrows}
+    <tr style="background:#f6f8fb"><td><b>合計</b></td><td><b>40億円</b></td><td><b>${oku(sFixed)}円</b></td><td>${oku(sA)}円</td><td>${oku(sB)}円</td><td><b>${pct(sFixed+sA,Q4_SALES_GOAL)}%</b></td><td><b>8億円</b></td><td><b>${oku(gFixed)}円</b></td><td class="sub">${noDate.length? '⚠ 計上予定日なし '+noDate.length+'件':''}</td></tr>
+    </tbody></table></div>`;
+
+  /* ── デッドライン・チェックポイント ── */
+  const wonS=sumS(fixed), recS=sumS(rec);
+  const val=k=> k==='A'? sA+sFixed : k==='AB'? sFixed+sA+sB : k==='won'? wonS : recS;
+  $('q4check').innerHTML=Q4_CHECKS.map(c=>{
+    const past=c.d<today();
+    const items=c.tests.map(t=>{
+      const v=val(t[2]), ok=v>=t[1];
+      return `<span style="font-size:12px;font-weight:700;color:${ok?'var(--green)':past?'var(--red)':'var(--tx2)'}">${t[0]} ${oku(v)}円 / ${oku(t[1])}円 ${ok?'✓':past?'✗未達':'…'}</span>`;
+    }).join('<br>');
+    return `<div class="kpi" style="border-left:4px solid ${past?(c.tests.every(t=>val(t[2])>=t[1])?'var(--green)':'var(--red)'):'var(--gold)'}">
+      <div class="l">${esc(c.t)}</div><div style="margin-top:6px">${items}</div>
+      <div class="sub" style="font-size:11px;margin-top:4px">${past?'期限経過':'あと'+Math.ceil((new Date(c.d)-new Date(today()))/86400000)+'日'}</div></div>`;
+  }).join('');
+
+  /* ── 事業別・組織別 ── */
+  const tbl=(rows,head)=>`<div class="tblwrap"><table class="mtbl"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  const segRows=SEGS.map(s=>{
+    const inS=a=>a.filter(l=>segOf(l)===s.n);
+    const f=inS(fixed), a=inS(A), b=inS(B);
+    const view=sumS(f)+sumS(a);
+    return `<tr><td><b>${s.n}</b><div class="sub">粗利率目安 ${Math.round(s.rate*1000)/10}%</div></td>
+      <td>${oku(s.sales)}円</td><td style="color:var(--gold);font-weight:900">${oku(sumS(f))}円</td><td>${oku(sumS(a))}円</td><td>${oku(sumS(b))}円</td>
+      <td><b style="color:${view>=s.sales?'var(--green)':'var(--red)'}">${pct(view,s.sales)}%</b></td>
+      <td style="color:${sumS(f)+sumS(a)>=s.sales?'var(--green)':'var(--red)'}">${Math.max(0,s.sales-view)? oku(s.sales-view)+'円':'—'}</td></tr>`;
+  }).join('');
+  const unitRows=Q4_UNITS.concat([{n:'未設定',sales:0}]).map(u=>{
+    const inU=a=>a.filter(l=>unitOf(l)===u.n);
+    const f=inU(fixed), a=inU(A), b=inU(B);
+    const view=sumS(f)+sumS(a);
+    const g=sumG(f), gr=sumS(f)? g/sumS(f):0;
+    if(u.n==='未設定' && !f.length && !a.length && !b.length) return '';
+    return `<tr><td><b>${u.n}</b></td>
+      <td>${u.sales? oku(u.sales)+'円':'—'}</td><td style="color:var(--gold);font-weight:900">${oku(sumS(f))}円</td><td>${oku(sumS(a))}円</td><td>${oku(sumS(b))}円</td>
+      <td><b style="color:${u.sales&&view>=u.sales?'var(--green)':'var(--red)'}">${u.sales? pct(view,u.sales)+'%':'—'}</b></td>
+      <td style="color:${gr>=0.2?'var(--green)':'var(--red)'}">${sumS(f)? Math.round(gr*100)+'%':'—'}</td></tr>`;
+  }).join('');
+  $('q4split').innerHTML=`
+    <div class="fsec"><h3>🏭 事業別 目標と着地見込<small>着地＝確定＋A案件</small></h3>
+      ${tbl(segRows,'<th>事業</th><th>売上目標</th><th>確定</th><th>A案件</th><th>B案件</th><th>着地率</th><th>不足額</th>')}</div>
+    <div class="fsec"><h3>👥 組織別 責任目標<small>売上と粗利20%はセット。売上だけ達成しても未達</small></h3>
+      ${tbl(unitRows,'<th>組織</th><th>売上目標</th><th>確定</th><th>A案件</th><th>B案件</th><th>着地率</th><th>確定粗利率</th>')}</div>`;
+
+  /* ── 要対応（ボトルネック） ── */
+  const alert1=pool.filter(l=>!isWon(l)&&['A','B'].includes(probOf(l))&&!revDay(l));
+  const alert2=fixed.concat(A).filter(l=>salesOf(l)>0 && gpRateOf(l)<0.2 && !gpIsEstimate(l));
+  const alert3=pool.filter(l=>l.blockdue && l.blockdue<today() && !isRec(l));
+  const alert4=leads.filter(l=>!l.sheetGone && l.status!=='失注' && revDay(l) && revDay(l)>Q4_END && !getKubun(l).startsWith('種まき'));
+  const alert5=pool.filter(l=>probOf(l)==='A' && !isRec(l) && finRisk(l));
+  const alert6=pool.filter(l=>!l.unit && !isRec(l));
+  $('q4alert').innerHTML=
+      q4Sec('⚠ ① 計上予定日が未設定のA・B案件 ── 11/30までに乗るか今日決める', alert1)
+    + q4Sec('⚠ ② 粗利率20%割れ ── 売上達成でも粗利8億に届きません', alert2)
+    + q4Sec('⚠ ③ ボトルネック解除期限の超過 ── 24時間以内に次の行動を決める', alert3)
+    + q4Sec('⚠ ④ 計上予定が11/30より後 ── 前倒し交渉の対象', alert4)
+    + q4Sec('⚠ ⑤ A案件だが融資が未内諾 ── 資金確定を最優先', alert5)
+    + q4Sec('⚠ ⑥ 責任組織が未設定 ── 誰の数字か決める', alert6)
+    + (!alert1.length&&!alert2.length&&!alert3.length&&!alert4.length&&!alert5.length&&!alert6.length? '<div class="empty">要対応の案件はありません。</div>':'');
+  document.querySelectorAll('#q4alert .frow, #q4top .frow').forEach(r=> r.onclick=()=> openModal(r.dataset.id));
+
+  /* ── 担当者別・本日の最重要3案件 ── */
+  const rank={'申込':0,'条件交渉':1,'提案中':2,'ヒアリング済':3,'初回接触':4,'新規':5};
+  const owners={};
+  pool.filter(l=>!isRec(l)).forEach(l=>{ const o=l.owner||'未設定'; (owners[o]=owners[o]||[]).push(l); });
+  const opts=Object.keys(owners).sort();
+  $('q4owner').innerHTML='<option value="">担当者：全て</option>'+opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  const sel=opts.includes(q4OwnerSel)? q4OwnerSel : '';
+  q4OwnerSel=sel; $('q4owner').value=sel;
+  const top=(sel? [sel] : opts).map(o=>{
+    const arr=(owners[o]||[]).slice().sort((a,b)=>{
+      const r=(rank[a.status]??9)-(rank[b.status]??9); if(r) return r;
+      return salesOf(b)-salesOf(a);
+    }).slice(0,3);
+    if(!arr.length) return '';
+    return `<div class="fsec"><h3>👤 ${esc(o)}<small>本日の最重要3案件・売上 ${oku(sumS(arr))}円</small></h3>${arr.map(l=>q4Row(l)).join('')}</div>`;
+  }).join('');
+  $('q4top').innerHTML=top||'<div class="empty">対象商談がありません。</div>';
+  document.querySelectorAll('#q4top .frow').forEach(r=> r.onclick=()=> openModal(r.dataset.id));
+
+  /* ── 朝礼テキスト ── */
+  const who=sel||'（担当者名）';
+  const mine= sel? (owners[sel]||[]) : pool.filter(l=>!isRec(l));
+  const mFixed=(sel? fixed.filter(l=>l.owner===sel):fixed);
+  const mRec=(sel? rec.filter(l=>l.owner===sel):rec);
+  const goal=(settings.q4Owner||{})[sel]||null;
+  const top3=mine.slice().sort((a,b)=>((rank[a.status]??9)-(rank[b.status]??9))||salesOf(b)-salesOf(a)).slice(0,3);
+  const blocks=mine.filter(l=>l.block).slice(0,3);
+  q4Text=`【第4四半期40億・粗利8億／日次報告】${today().slice(5).replace('-','/')}　${who}
+①売上目標 ${goal? oku(goal.sales)+'円':'（未設定）'} ／ 粗利目標 ${goal? oku(goal.gp)+'円':'（未設定）'}
+②受注確定額（契約＋入金済）：${oku(sumS(mFixed))}円 ／ 粗利 ${oku(sumG(mFixed))}円
+③11/30までの売上計上確定額：${oku(sumS(mRec))}円（残り計上予定 ${oku(sumS(mFixed)-sumS(mRec))}円）
+④本日進める最重要3案件：
+${top3.length? top3.map((l,i)=>`　${i+1}. ${l.name}（${oku(salesOf(l))}円・${l.status}・計上予定${revDay(l)?revDay(l).slice(5).replace('-','/'):'未設定'}）`).join('\n'):'　（該当なし）'}
+⑤受注・計上を止めているボトルネック：
+${blocks.length? blocks.map(l=>`　・${l.name}：${l.block}`).join('\n'):'　（未登録 ── ボードのボトルネック欄に入力してください）'}
+⑥本日中に誰が・何を・いつまでに解決するか：
+${top3.length? top3.map(l=>`　・${l.owner||who} が「${l.next||'次アクション未設定'}」を ${l.due? l.due.slice(5).replace('-','/'):'本日中'} までに`).join('\n'):'　（記入してください）'}`;
+  $('q4text').value=q4Text;
+}
+let q4OwnerSel='', q4Text='';
 
 /* ===== ファネル ===== */
 function renderKanban(){
@@ -1088,6 +1367,8 @@ function openModal(id){
   $('i_volt').value=l?.volt||'低圧'; setSelectValue('i_product',l?.product||PRODUCTS[0]); $('i_scheme').value=l?.scheme||'未定';
   set('i_wantarea',l?.wantarea); set('i_kwh',l?.kwh); set('i_units',l?.units??1); set('i_budget',l?.budget); set('i_mq',l?.mq); set('i_when',l?.when);
   setSelectValue('i_finance', l?.finance||'未確認'); set('i_payday',l?.payday);
+  setSelectValue('i_seg', l?.seg||''); setSelectValue('i_unit', l?.unit||''); $('i_prob').value=l?.prob||'';
+  set('i_cday',l?.cday); set('i_revday',l?.revday); setSelectValue('i_block', l?.block||''); set('i_blockdue',l?.blockdue);
   $('i_status').value=l?.status||'新規'; $('i_temp').value=l?.temp||'B（中・検討中）'; set('i_owner',l?.owner); set('i_next',l?.next); set('i_due',l?.due); set('i_lost',l?.lost); set('i_memo',l?.memo);
   editLogs=(l?.logs||[]).slice(); renderLogs(); $('i_log').value='';
   const sel=new Set(l?.props||[]);
@@ -1116,6 +1397,8 @@ $('btnSave').onclick=()=>{
     volt:$('i_volt').value, need:$('i_need').value, product:$('i_product').value, scheme:$('i_scheme').value,
     wantarea:$('i_wantarea').value.trim(), kwh:$('i_kwh').value, units:$('i_units').value||1, budget:$('i_budget').value, mq:$('i_mq').value, when:$('i_when').value.trim(),
     finance:$('i_finance').value, payday:$('i_payday').value,
+    seg:$('i_seg').value, unit:$('i_unit').value, prob:$('i_prob').value,
+    cday:$('i_cday').value, revday:$('i_revday').value, block:$('i_block').value, blockdue:$('i_blockdue').value,
     status:$('i_status').value, temp:$('i_temp').value, owner:$('i_owner').value.trim(), next:$('i_next').value.trim(), due:$('i_due').value, lost:$('i_lost').value.trim(), memo:$('i_memo').value,
     props:[...$('propCheck').querySelectorAll('input:checked')].map(c=>c.value),
     logs:editLogs, updated:today()
@@ -1137,8 +1420,8 @@ $('btnDel').onclick=()=>{
 
 /* ===== CSV ===== */
 $('btnCsv').onclick=()=>{
-  const H=['顧客名','担当者','種別','連絡先','所在地','事業区分','商談区分','紹介者','経路種別','紹介日','紹介料','ニーズ詳細','商談金額PQ万円','MQ粗利万円','台数','支払方法','入金予定日','希望エリア','希望時期','電圧区分','対象商品','制度','希望容量kWh','提案物件','ステータス','温度感','社内担当','次回アクション','期限','失注保留理由','メモ','登録日','更新日'];
-  const rows=filtered().map(l=>[l.name,l.contact,l.type,l.tel,l.area,getBiz(l),getKubun(l),l.ref,l.route,l.refdate,l.reffee,l.need,l.budget,mqOf(l),l.units,l.finance,l.payday,l.wantarea,l.when,l.volt,l.product,l.scheme,l.kwh,leadProps(l).join('、'),l.status,l.temp,l.owner,l.next,l.due,l.lost,(l.memo||'').replace(/\n/g,' '),l.created,l.updated]);
+  const H=['顧客名','担当者','種別','連絡先','所在地','事業区分','商談区分','紹介者','経路種別','紹介日','紹介料','ニーズ詳細','商談金額PQ万円','MQ粗利万円','台数','支払方法','入金予定日','希望エリア','希望時期','電圧区分','対象商品','制度','希望容量kWh','提案物件','ステータス','温度感','社内担当','次回アクション','期限','失注保留理由','メモ','登録日','更新日','4Qセグメント','責任組織','確度','契約予定日','売上計上予定日','ボトルネック','解除期限'];
+  const rows=filtered().map(l=>[l.name,l.contact,l.type,l.tel,l.area,getBiz(l),getKubun(l),l.ref,l.route,l.refdate,l.reffee,l.need,l.budget,mqOf(l),l.units,l.finance,l.payday,l.wantarea,l.when,l.volt,l.product,l.scheme,l.kwh,leadProps(l).join('、'),l.status,l.temp,l.owner,l.next,l.due,l.lost,(l.memo||'').replace(/\n/g,' '),l.created,l.updated,segOf(l),unitOf(l),probOf(l),l.cday,revDay(l),l.block,l.blockdue]);
   const csv='\uFEFF'+[H,...rows].map(r=> r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -1583,6 +1866,7 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('act'));
   b.classList.add('act');
   const t=b.dataset.tab;
+  $('viewQ4').style.display= t==='q4'?'':'none';
   $('viewFocus').style.display= t==='focus'?'':'none';
   $('viewList').style.display= t==='list'?'':'none';
   $('viewFunnel').style.display= t==='funnel'?'':'none';
@@ -1591,8 +1875,9 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewMap').style.display= t==='map'?'':'none';
   $('viewAsset').style.display= t==='asset'?'':'none';
   $('viewMan').style.display= t==='man'?'':'none';
-  $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man')?'none':'';
-  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man')?'none':'';
+  $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man'||t==='q4')?'none':'';
+  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4')?'none':'';
+  if(t==='q4') renderQ4();
   if(t==='asset') loadAssets();
   if(t==='man') renderManual();
   if(t==='map'){ renderMap(); setTimeout(()=>{ if(map) map.invalidateSize(); },60); geocodeAll(false); }
@@ -1672,8 +1957,16 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.08.08';
+const APP_VERSION = '2026.09.04';
 const CHANGELOG = [
+  ['2026.09.04', [
+    '「🚩 4Q作戦」タブを追加。第4四半期（9/1〜11/30）の売上40億円・粗利8億円に対する着地見込みを、月別・事業別・組織別に表示します',
+    '商談に「4Qセグメント」「責任組織」「確度（A/B/C）」「契約予定日」「完工・売上計上予定日」「ボトルネック」「解除期限」を追加しました',
+    '確度は原則ステータスから自動判定（申込・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違う場合のみ手動で上書きしてください',
+    '逆算デッドライン（9/15・9/30・10/15・10/31）の達成状況を自動判定。未達は赤で表示します',
+    '朝礼用の日次報告6項目を自動生成し、コピーしてChatworkに貼れるようにしました',
+    '商談区分に「刈り取り（4Q・11/30まで）」を追加し、フォーカスタブの締切を11/30に変更しました'
+  ]],
   ['2026.08.05', [
     '「📖 活用マニュアル」タブを追加。アプリ本体に同梱しているため、アプリを更新すればマニュアルも自動で最新になります',
     '「💼 大型案件」タブを追加。蓄電池 案件管理表（高圧系統・低圧・セカンダリー）をボード内で閲覧できるようになりました',
@@ -1707,12 +2000,27 @@ const MANUAL = [
     '<p><b>営業担当</b></p>',
     '<ol><li>ヘッダーの「📋 入力シート」からシートを開く</li><li>担当案件の <b>次回アクション</b>・<b>期限</b>・<b>ステータス</b>・<b>確度</b> を更新する</li><li>ボードに戻り「📗 シート連動」を押す（開いたままでも5分ごとに自動同期）</li></ol>',
     '<p><b>マネージャー・経営</b></p>',
-    '<ol><li>「🎯 3Qフォーカス」で着地見込みと不足額を確認</li><li>「⚠ リスク」の件数をチェックし、期限超過の案件を担当者に振る</li><li>「💼 大型案件」で高圧系統・セカンダリーの大口を確認</li></ol>'
+    '<ol><li>「🚩 4Q作戦」で月別の着地見込みと不足額を確認</li><li>「⚠ リスク」の件数をチェックし、期限超過の案件を担当者に振る</li><li>「💼 大型案件」で高圧系統・セカンダリーの大口を確認</li></ol>'
+  ]},
+
+  { id:'q4', t:'★ 4Q作戦タブ（9/1〜11/30：売上40億・粗利8億）', b:[
+    '<p>この四半期は<b>「件数」ではなく「売上計上額」と「粗利額」で管理</b>します。11月は契約月ではなく<b>完工・売上計上月</b>です。</p>',
+    '<p><b>入力すべきは次の3つ</b>。これが埋まらないと着地見込みが出ません。</p>',
+    '<table class="mtbl"><tr><th>項目</th><th>意味</th></tr>' +
+    '<tr><td>完工・売上計上予定日</td><td><b>最重要</b>。この日付で月別に積み上げます。空欄だと「⚠計上予定日なし」に出ます</td></tr>' +
+    '<tr><td>責任組織</td><td>営業部／関東アセット／東北アセット／セカンダリー／社長戦略。誰の数字かを決めます</td></tr>' +
+    '<tr><td>ボトルネック＋解除期限</td><td>決裁者・契約・融資・稟議・申請・部材・施工・検収・入金のどこで止まっているか。24時間以内に次の行動を決めます</td></tr>' +
+    '</table>',
+    '<p><b>確度A/B/C</b>はステータスから自動で判定します（申込・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違うときだけ手動で上書きしてください。</p>',
+    '<div class="mnote">粗利が未入力の商談は、事業別の粗利率目安（高圧ReFort20%／セカンダリー20%／低圧25%／太陽光20%／蓄電池13.75%）で推定して表示します。「（推定）」と出ている商談は実額を入れてください。</div>',
+    '<div class="mwarn"><b>売上だけ達成しても未達です。</b>粗利率20%を割った商談は「⚠②粗利率20%割れ」に自動で出ます。値引きの前に必ず確認してください。</div>',
+    '<p>画面下の<b>朝礼・日次報告</b>で担当者を選ぶと、報告6項目が自動生成されます。「📋 報告文をコピー」でChatworkにそのまま貼れます。</p>'
   ]},
 
   { id:'tabs', t:'③ 各タブの見方', b:[
     '<table class="mtbl"><tr><th>タブ</th><th>用途</th></tr>' +
-    '<tr><td>🎯 3Qフォーカス</td><td>四半期の着地見込み。契約済・入金待ちMQと商談中MQを分けて表示し、目標との差額を出します</td></tr>' +
+    '<tr><td>🚩 4Q作戦</td><td>9/1〜11/30の売上40億・粗利8億に対する着地見込み。月別・逆算デッドライン・事業別・組織別・ボトルネック・朝礼報告</td></tr>' +
+    '<tr><td>🎯 フォーカス</td><td>四半期の着地見込み。契約済・入金待ちMQと商談中MQを分けて表示し、目標との差額を出します</td></tr>' +
     '<tr><td>一覧</td><td>全商談の明細。列見出しをクリックで並び替え、上部で絞り込み</td></tr>' +
     '<tr><td>ファネル</td><td>ステータス別の件数と金額。どの段階で滞留しているかを見ます</td></tr>' +
     '<tr><td>紹介者別</td><td>紹介ルート別の実績。どのチャネルが効いているかの判断材料</td></tr>' +
@@ -1828,12 +2136,13 @@ function refreshFilterOptions(){
   keepP($('pCat'),CATS,'カテゴリー');
   keepP($('pOwner'),[...new Set(props.map(p=>p.owner||'（担当未設定）'))].sort(),'担当者');
 }
-function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
+function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderQ4(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
 
 /* ===== 初期化 ===== */
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
 fillSelect('i_biz',BIZ); fillSelect('i_kubun',KUBUN); fillSelect('i_finance',FINANCE);
 fillSelect('i_need',NEEDS_BY_BIZ['系統用蓄電池']); fillSelect('i_product',PRODUCTS); fillSelect('i_status',STATUSES);
+fillSelect('i_seg',SEGS.map(x=>x.n),true); fillSelect('i_unit',Q4_UNITS.map(x=>x.n),true); fillSelect('i_block',BLOCKS.slice(1),true);
 fillSelect('p_volt',VOLTS); fillSelect('p_rights',RIGHTS); fillSelect('p_sell',SELLS); fillSelect('p_status',PSTATUS); fillSelect('p_phase',PHASES); fillSelect('p_cat',CATS);
 loadLocal();
 if(!leads.length){
@@ -1846,9 +2155,31 @@ if(!leads.length){
     memo:'※動作確認用のサンプルです。不要なら削除してください。',logs:[{d:today(),t:'サンプル登録'}]}];
   saveLocal();
 }
+/* ===== 4Q作戦タブのイベント ===== */
+$('q4owner').addEventListener('change',e=>{ q4OwnerSel=e.target.value; renderQ4(); });
+$('q4copy').onclick=async ()=>{
+  const t=$('q4text').value;
+  try{ await navigator.clipboard.writeText(t); $('q4copy').textContent='✓ コピーしました'; }
+  catch(e){ $('q4text').select(); document.execCommand('copy'); $('q4copy').textContent='✓ コピーしました'; }
+  setTimeout(()=>{ $('q4copy').textContent='📋 報告文をコピー'; },1800);
+};
+$('q4goal').onclick=async ()=>{
+  const o=q4OwnerSel;
+  if(!o){ alert('先に担当者を選んでください。'); return; }
+  const cur=(settings.q4Owner||{})[o]||{};
+  const s1=prompt(o+' さんの4Q売上目標を万円で入力（例：30000 ＝ 3億円）', cur.sales||'');
+  if(s1===null) return;
+  const g1=prompt(o+' さんの4Q粗利目標を万円で入力（例：6000 ＝ 0.6億円）', cur.gp|| (Number(s1)? Math.round(Number(s1)*0.2):''));
+  if(g1===null) return;
+  settings.q4Owner=settings.q4Owner||{};
+  settings.q4Owner[o]={sales:Number(s1)||0, gp:Number(g1)||0};
+  await saveSettings(); renderQ4();
+};
+
 /* ===== 認証ゲート：ログインが通ってからアプリを起動する ===== */
 EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
   const ub=document.getElementById('userBadge'); if(ub) EC.mountBadge('#userBadge');
+  $('viewQ4').style.display=''; $('viewFocus').style.display='none'; $('kpis').style.display='none'; $('fbar').style.display='none';
   renderAll();
   initCloud();
 });
