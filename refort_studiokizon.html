@@ -1313,7 +1313,8 @@ document.getElementById('migrateBtn').onclick=migrateLocal;
 (async function boot(){
   /* ===== 認証ゲート：会社のGoogleアカウントでログイン ===== */
   await EC.guard({
-    app : 'refort-pipeline',
+    /* 全社員に公開するため、アプリ別の利用許可（app）は指定しない。
+       承認済み（is_active）で役割が付いている社員は全員閲覧できます。 */
     name: 'ReFort提案・パイプライン',
     allow:['admin','manager','sales','field']
   });
