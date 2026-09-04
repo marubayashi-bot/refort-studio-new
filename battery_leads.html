@@ -29,7 +29,16 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:7px;font-siz
 .btn.ghost{background:transparent;color:#fff;border:1px solid #4a648a;padding:7px 12px}
 .btn.gray{background:#e8edf3;color:var(--tx);padding:8px 12px}
 .btn.danger{background:#f7e2e2;color:var(--red)}
-.tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px}
+.tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px;position:sticky;top:var(--hh,54px);z-index:49;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+/* スクロール中はヘッダーを薄くして画面を広く使う */
+header.mini{padding:4px 18px;gap:8px}
+header.mini h1{font-size:14px}
+header.mini h1 span{display:none}
+header.mini #verBadge,header.mini #syncBadge{display:none}
+header.mini .btn{padding:5px 10px;font-size:12px}
+header.mini .btn.ghost{padding:4px 9px}
+.tabs button{white-space:nowrap;flex:0 0 auto}
 .tabs button{background:transparent;color:#8fa5bf;padding:11px 16px;border-radius:0;border-bottom:3px solid transparent;font-size:13px}
 .tabs button.act{color:#fff;border-bottom-color:var(--gold)}
 a.btn{display:inline-flex;align-items:center;text-decoration:none;line-height:1}
@@ -2204,6 +2213,22 @@ function renderManual(){
 }
 $('manQ').addEventListener('input', renderManual);
 $('verBadge').textContent = 'v' + APP_VERSION;
+
+/* ===== ヘッダー＋タブを固定（ヘッダーの折り返し高さに追従） ===== */
+function syncStickyOffset(){
+  const h=document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--hh', h.offsetHeight+'px');
+}
+syncStickyOffset();
+window.addEventListener('resize', syncStickyOffset);
+window.addEventListener('load', syncStickyOffset);
+if(window.ResizeObserver){ new ResizeObserver(syncStickyOffset).observe(document.querySelector('header')); }
+setTimeout(syncStickyOffset, 300);
+window.addEventListener('scroll', ()=>{
+  const h=document.querySelector('header'); if(!h) return;
+  const mini=window.scrollY>40;
+  if(h.classList.contains('mini')!==mini){ h.classList.toggle('mini',mini); syncStickyOffset(); }
+}, {passive:true});
 $('verBadge').onclick = ()=>{ const b=document.querySelector('.tabs button[data-tab="man"]'); if(b) b.click(); };
 
 $('btnNew').onclick=()=> openModal(null);
