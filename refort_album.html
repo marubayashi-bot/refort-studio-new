@@ -145,7 +145,7 @@ label.f > span{display:block; font-size:12px; color:var(--gray); margin-bottom:4
     <button data-tab="map" aria-selected="false">地図</button>
   </nav>
 </header>
-<main id="view"></main>
+<main id="view"><div class="card muted" id="boot">読み込み中…</div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
@@ -164,17 +164,33 @@ const CFG = {
   maxEdge: 1600,      // アップロード前に長辺をこのpxへ縮小
   quality: 0.82,
 };
-const sb = supabase.createClient(CFG.url, CFG.key);
+let sb = null;
+function bootError(msg) {
+  const v = document.getElementById("view");
+  if (v) v.innerHTML = `<div class="card" style="border-color:#FCA5A5">
+    <strong style="color:var(--danger)">起動できませんでした</strong>
+    <div class="muted" style="margin-top:8px">${msg}</div>
+    <button class="btn ghost wide" style="margin-top:10px" onclick="location.reload()">読み込み直す</button></div>`;
+}
+try {
+  if (!window.supabase || !window.supabase.createClient) throw new Error("Supabaseライブラリを読み込めません（社内ネットワークがCDNを遮断している可能性）");
+  sb = window.supabase.createClient(CFG.url, CFG.key);
+} catch (e) { bootError(e.message); throw e; }
 
 /* ---------- 共通認証（ec-auth.js） ---------------------------------- */
 let ME = { email: "(未認証)", full_name: "" };
 async function auth() {
-  if (window.EC && EC.guard) {
-    await EC.guard({ allow: ["admin", "manager", "sales", "field"] });
-    if (EC.me) ME = await EC.me();
-    if (EC.mountBadge) EC.mountBadge("#who");
-  }
-  document.getElementById("who").textContent = ME.full_name || ME.email || "";
+  try {
+    if (window.EC && EC.guard) {
+      const timeout = new Promise((_, rj) => setTimeout(() => rj(new Error("認証の応答がありません")), 5000));
+      await Promise.race([EC.guard({ allow: ["admin", "manager", "sales", "field"] }), timeout]);
+      if (EC.me) ME = (await EC.me()) || ME;
+      if (EC.mountBadge) EC.mountBadge("#who");
+      DIAG.auth = "ok";
+    } else DIAG.auth = "ec-auth.js なし（認証スキップ）";
+  } catch (e) { DIAG.auth = "認証エラー: " + (e.message || e); }
+  const w = document.getElementById("who");
+  if (w && !w.textContent) w.textContent = ME.full_name || ME.email || "";
 }
 
 /* ---------- 小物 ---------------------------------------------------- */
@@ -190,6 +206,7 @@ const pubUrl = (p) => sb.storage.from(CFG.bucket).getPublicUrl(p).data.publicUrl
 const fmtDate = (d) => d ? String(d).replaceAll("-", "/") : "";
 
 /* ---------- 状態 ---------------------------------------------------- */
+const DIAG = { auth: "-", db: "-", store: "-", err: null };
 const S = { tab: "list", projects: [], slots: [], project: null, photos: [], blocks: [], notes: {}, specs: {}, gen: null, sub: "shoot" };
 
 /* =====================================================================
@@ -206,11 +223,13 @@ const Q = {
     });
   },
   tx(mode) { return Q.db.transaction("queue", mode).objectStore("queue"); },
+  ready() { return !!Q.db; },
   add(item) { return new Promise(r => { Q.tx("readwrite").put(item).onsuccess = r; }); },
   all() { return new Promise(r => { const q = Q.tx("readonly").getAll(); q.onsuccess = () => r(q.result || []); }); },
   del(id) { return new Promise(r => { Q.tx("readwrite").delete(id).onsuccess = r; }); },
-  async count() { return (await Q.all()).length; },
+  async count() { try { return Q.db ? (await Q.all()).length : 0; } catch (e) { return 0; } },
   async flush() {
+    if (!Q.db) return 0;
     const items = await Q.all();
     if (!items.length) return 0;
     let ok = 0;
@@ -267,11 +286,14 @@ async function savePhoto(meta, rawBlob) {
    データ取得
    ===================================================================== */
 async function loadSlots() {
-  const { data } = await sb.from("album_slots").select("*").eq("is_active", true).order("sort_order");
+  const { data, error } = await sb.from("album_slots").select("*").eq("is_active", true).order("sort_order");
+  if (error) { DIAG.db = "album_slots: " + error.message; throw error; }
   S.slots = data || [];
+  DIAG.db = `スロット${S.slots.length}件`;
 }
 async function loadProjects() {
-  const { data } = await sb.from("album_projects").select("*").order("created_at", { ascending: false });
+  const { data, error } = await sb.from("album_projects").select("*").order("created_at", { ascending: false });
+  if (error) { DIAG.db = "album_projects: " + error.message; throw error; }
   S.projects = data || [];
   const ids = S.projects.map(p => p.id);
   S.counts = {};
@@ -789,22 +811,53 @@ async function buildAlbum(btn) {
 /* =====================================================================
    描画
    ===================================================================== */
+function diagBox() {
+  return el(`<div class="card" style="border-color:#FCA5A5">
+    <strong style="color:var(--danger)">画面を表示できません</strong>
+    <div class="muted" style="margin-top:8px">下の内容をそのまま共有してください。</div>
+    <pre style="white-space:pre-wrap;font-size:12px;background:#F9FAFB;padding:10px;border-radius:6px;margin-top:8px">認証: ${esc(DIAG.auth)}
+DB: ${esc(DIAG.db)}
+保存領域: ${esc(DIAG.store)}
+エラー: ${esc(DIAG.err || "-")}</pre>
+    <button class="btn ghost wide" onclick="location.reload()">読み込み直す</button></div>`);
+}
 async function render() {
-  const v = $("#view"); v.innerHTML = "";
+  const v = $("#view");
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
-  const n = await Q.count();
-  if (n) v.appendChild(el(`<div class="qbar">未送信の写真が ${n}件あります。電波の良い場所で自動送信します。</div>`));
-  v.appendChild(S.tab === "project" ? viewProject() : S.tab === "map" ? viewMap() : viewList());
+  try {
+    v.innerHTML = "";
+    const n = await Q.count();
+    if (n) v.appendChild(el(`<div class="qbar">未送信の写真が ${n}件あります。電波の良い場所で自動送信します。</div>`));
+    v.appendChild(S.tab === "project" ? viewProject() : S.tab === "map" ? viewMap() : viewList());
+    if (DIAG.err) v.appendChild(el(`<div class="qbar" style="margin-top:12px">${esc(DIAG.err)}</div>`));
+  } catch (e) {
+    DIAG.err = e.message || String(e);
+    v.innerHTML = ""; v.appendChild(diagBox());
+  }
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; S.project = null; render(); });
 
+window.addEventListener("error", e => { DIAG.err = DIAG.err || (e.message + " @" + (e.filename || "").split("/").pop() + ":" + e.lineno); });
+
 (async () => {
+  const boot = document.getElementById("boot");
+  const step = (t) => { if (document.getElementById("boot")) document.getElementById("boot").textContent = t; };
+  setTimeout(() => { if (document.getElementById("boot")) { DIAG.err = "読み込みが完了しません（" + document.getElementById("boot").textContent + " で停止）"; $("#view").innerHTML = ""; $("#view").appendChild(diagBox()); } }, 12000);
+  step("認証を確認中…");
   await auth();
-  await Q.open();
-  await Promise.all([loadSlots(), loadProjects()]);
+  step("データを読み込み中…");
+  try { await Q.open(); DIAG.store = "ok"; }
+  catch (e) { DIAG.store = "端末保存が使えません（" + (e.message || e) + "）"; }
+  try {
+    await Promise.all([loadSlots(), loadProjects()]);
+  } catch (e) {
+    DIAG.err = "データベースに接続できません。SQLの実行がまだの可能性があります。（" + (e.message || e) + "）";
+    $("#view").appendChild(diagBox());
+    return;
+  }
   Q.flush();
   render();
-})();
+})().catch(e => { DIAG.err = e.message || String(e); const v = $("#view"); v.innerHTML = ""; v.appendChild(diagBox()); });
 </script>
 </body>
 </html>
