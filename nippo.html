@@ -234,7 +234,7 @@ async function boot(){
 async function loadReports(){
   const since = new Date(); since.setDate(since.getDate() - 30);
   const { data, error } = await EC.supabase.from('daily_reports')
-    .select('*, report_metric_values(metric_id,value), report_comments(id,author_id,body,created_at), report_views(viewer_id,viewed_at)')
+    .select('*, report_metric_values(metric_id,value), report_comments(id,author_id,body,created_at,read_at), report_views(viewer_id,viewed_at)')
     .gte('report_date', since.toISOString().slice(0,10))
     .order('report_date', { ascending: false });
   if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
@@ -245,13 +245,17 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 
 /* ---------- 画面枠 ---------- */
 function render(){
-  TABS = BASE_TABS.concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
+  const nUnread = myNotifs().length;
+  TABS = [['write','日報を書く'],['feed','日報一覧'],
+          ['notify', '通知' + (nUnread ? '（' + nUnread + '）' : '')],
+          ['status','提出・確認状況'],['dash','ダッシュボード']]
+         .concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
   const tabs = TABS.concat([['admin','管理']]);
   if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
+    ({ write:vWrite, feed:vFeed, notify:vNotify, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -422,6 +426,72 @@ function sortFeed(list){
     (uname(a.author_id)).localeCompare(uname(b.author_id), 'ja'));
 }
 function setFeedFilter(v){ FEED_FILTER = v; LEVEL_FILTER = 0; OPEN_ID = ''; render(); window.scrollTo(0,0); }
+
+
+/* ---------- 通知（自分あての未読コメント） ---------- */
+function myNotifs(){
+  const out = [];
+  REPORTS.forEach(r => {
+    (r.report_comments || []).forEach(c => {
+      if (c.read_at) return;
+      if (c.author_id === ME.id) return;                    // 自分が書いたものは除く
+      const isMine = r.author_id === ME.id;                 // 自分の日報へのコメント
+      const isReplyToMe = c.author_id === r.author_id &&     // 部下からの返信
+        USERS.some(u => u.id === r.author_id && u.manager_id === ME.id);
+      if (isMine || isReplyToMe) out.push({ c: c, r: r });
+    });
+  });
+  return out.sort((a,b) => String(b.c.created_at).localeCompare(String(a.c.created_at)));
+}
+
+function vNotify(){
+  const list = myNotifs();
+  const read = REPORTS.flatMap(r => (r.report_comments || [])
+    .filter(c => c.read_at && c.author_id !== ME.id &&
+      (r.author_id === ME.id ||
+       USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)))
+    .map(c => ({ c: c, r: r })))
+    .sort((a,b) => String(b.c.created_at).localeCompare(String(a.c.created_at))).slice(0, 10);
+
+  return `<h2>通知</h2>
+  <p class="sub">自分の日報についたコメントと、部下からの返信が届きます。</p>
+  ${list.length ? `<div class="row" style="margin-bottom:12px">
+      <button class="ghost" onclick="markAllRead()">すべて既読にする</button></div>` : ''}
+  <div class="card"><h3>未読 ${list.length}件</h3>
+    ${list.length ? list.map(x => notifRow(x, false)).join('')
+      : '<div class="empty">未読の通知はありません。</div>'}</div>
+  ${read.length ? `<div class="card"><h3>既読</h3>
+    ${read.map(x => notifRow(x, true)).join('')}</div>` : ''}`;
+}
+
+function notifRow(x, isRead){
+  const c = x.c, r = x.r;
+  return `<div class="hotrow" onclick="openNotif('${c.id}','${r.id}')">
+    <div class="row" style="gap:7px">
+      ${isRead ? '' : '<span class="pill p4">未読</span>'}
+      <b>${esc(uname(c.author_id))}</b>
+      <span class="note">${esc(uname(r.author_id))}さんの${r.report_date}の日報へ</span>
+      <span class="note num" style="margin-left:auto">${(c.created_at||'').slice(5,16).replace('T',' ')}</span>
+    </div>
+    <div class="hotbody">${esc(c.body)}</div></div>`;
+}
+
+async function openNotif(commentId, reportId){
+  await EC.supabase.from('report_comments')
+    .update({ read_at: new Date().toISOString() }).eq('id', commentId);
+  await loadReports();
+  OPEN_ID = reportId; LEVEL_FILTER = 0; FEED_FILTER = ''; TAB = 'feed';
+  render(); window.scrollTo(0,0);
+}
+
+async function markAllRead(){
+  const ids = myNotifs().map(x => x.c.id);
+  if (!ids.length) return;
+  const { error } = await EC.supabase.from('report_comments')
+    .update({ read_at: new Date().toISOString() }).in('id', ids);
+  if (error){ toast('更新できませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast('すべて既読にしました');
+}
 
 /* ---------- 2. 日報一覧 ---------- */
 function vFeed(){
