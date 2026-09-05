@@ -1021,13 +1021,21 @@ function vAdmin(){
       <div><label>入力する層</label><select id="ad_scope">
         ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
       <div><label>対象者</label><select id="ad_user">
-        <option value="">部署全体</option>
-        ${USERS.filter(u => u.department_id === ADMIN_DEPT)
-               .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
-               .map(u => `<option value="${u.id}">${esc(u.full_name)} 専用</option>`).join('')}
+        <option value="">部署全体（選んだ部署の全員）</option>
+        ${DEPTS.map(d => {
+          const list = USERS.filter(u => u.department_id === d.id)
+            .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
+          return list.length ? `<optgroup label="${esc(d.name)}">
+            ${list.map(u => `<option value="${u.id}">${esc(u.full_name)} 専用</option>`).join('')}
+          </optgroup>` : '';
+        }).join('')}
+        ${USERS.filter(u => !u.department_id).length ? `<optgroup label="部署未設定">
+          ${USERS.filter(u => !u.department_id)
+                 .map(u => `<option value="${u.id}">${esc(u.full_name)} 専用</option>`).join('')}
+        </optgroup>` : ''}
       </select></div>
     </div>
-    <p class="note">「対象者」で個人を選ぶと、その人の日報にだけ出る項目になります。
+    <p class="note">「対象者」で個人を選ぶと、その人の日報にだけ出る項目になります。所属部署を問わず全社員から選べます。
       個人ごとの目標を追いたいときに使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
@@ -1075,12 +1083,14 @@ async function loadAdminMetrics(){
 async function addMetric(){
   const name = document.getElementById('ad_name').value.trim();
   if (!name){ toast('項目名を入力してください'); return; }
+  const uid = (document.getElementById('ad_user') || {}).value || null;
+  const target = uid ? (USERS.find(u => u.id === uid) || {}).department_id : null;
   const { error } = await EC.supabase.from('report_metrics').insert({
-    department_id: ADMIN_DEPT, name,
+    department_id: uid ? (target || ADMIN_DEPT) : ADMIN_DEPT, name,
     unit: document.getElementById('ad_unit').value.trim() || '件',
     target: Number(document.getElementById('ad_target').value) || 0,
     job_grades: scopeValue(document.getElementById('ad_scope').value),
-    user_id: (document.getElementById('ad_user') || {}).value || null,
+    user_id: uid,
     sort_order: (ADMIN_METRICS.length + 1) * 10
   });
   if (error){ toast('追加できませんでした: ' + error.message); return; }
