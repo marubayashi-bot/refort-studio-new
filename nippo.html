@@ -238,11 +238,16 @@ async function boot(){
   render();
 }
 
-async function loadReports(){
+async function loadReports(fromDate){
   const since = new Date(); since.setDate(since.getDate() - 30);
+  if (fromDate && fromDate < since.toISOString().slice(0,10)) {
+    LOAD_FROM = fromDate;
+  } else if (!LOAD_FROM || since.toISOString().slice(0,10) < LOAD_FROM) {
+    LOAD_FROM = since.toISOString().slice(0,10);
+  }
   const { data, error } = await EC.supabase.from('daily_reports')
     .select('*, report_metric_values(metric_id,value), report_comments(id,author_id,body,created_at,read_at), report_views(viewer_id,viewed_at)')
-    .gte('report_date', since.toISOString().slice(0,10))
+    .gte('report_date', LOAD_FROM)
     .order('report_date', { ascending: false });
   if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
   REPORTS = data || [];
@@ -417,6 +422,8 @@ async function submitReport(scheduled){
 /* ---------- 昇格レベルで絞り込む ---------- */
 let LEVEL_FILTER = 0;
 let FEED_FILTER = '';   // '' すべて / 'direct' 直属部下 / 職位区分名
+let FEED_FROM = '', FEED_TO = '', FEED_USER = '', FEED_DEPT = '';
+let LOAD_FROM = '';     // 読み込み済みの最古日
 let OPEN_ID = (new URLSearchParams(location.search)).get('r') || '';
 function showLevel(n){ LEVEL_FILTER = n; OPEN_ID = ''; TAB = 'feed'; render(); window.scrollTo(0,0); }
 function clearLevel(){ LEVEL_FILTER = 0; render(); }
@@ -441,6 +448,18 @@ function sortFeed(list){
     lineRank(a.author_id) - lineRank(b.author_id) ||
     b.report_date.localeCompare(a.report_date) ||
     (uname(a.author_id)).localeCompare(uname(b.author_id), 'ja'));
+}
+async function applyFeedRange(){
+  FEED_FROM = (document.getElementById('ff_from')||{}).value || '';
+  FEED_TO   = (document.getElementById('ff_to')||{}).value || '';
+  FEED_DEPT = (document.getElementById('ff_dept')||{}).value || '';
+  FEED_USER = (document.getElementById('ff_user')||{}).value || '';
+  OPEN_ID = ''; LEVEL_FILTER = 0;
+  if (FEED_FROM && FEED_FROM < LOAD_FROM){ toast('過去の日報を読み込んでいます…'); await loadReports(FEED_FROM); }
+  render(); window.scrollTo(0,0);
+}
+function clearFeedRange(){
+  FEED_FROM = FEED_TO = FEED_DEPT = FEED_USER = ''; FEED_FILTER = ''; render();
 }
 function setFeedFilter(v){ FEED_FILTER = v; LEVEL_FILTER = 0; OPEN_ID = ''; render(); window.scrollTo(0,0); }
 
@@ -525,6 +544,10 @@ function vFeed(){
         <button class="ghost" onclick="OPEN_ID='';render()">すべての日報を見る</button></div>`;
   }
   let list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
+  if (FEED_FROM) list = list.filter(r => r.report_date >= FEED_FROM);
+  if (FEED_TO)   list = list.filter(r => r.report_date <= FEED_TO);
+  if (FEED_DEPT) list = list.filter(r => udept(r.author_id) === FEED_DEPT);
+  if (FEED_USER) list = list.filter(r => r.author_id === FEED_USER);
   if (FEED_FILTER === 'direct')
     list = list.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id));
   else if (FEED_FILTER === 'unchecked')
@@ -549,7 +572,28 @@ function vFeed(){
         return n ? chip(g, g, n) : ''; }).join('') : ''}
   </div>`;
 
-  const head = `<h2>日報一覧</h2>` + bar + (LEVEL_FILTER
+  const finder = `<div class="card" style="padding:12px 14px">
+    <div class="grid" style="gap:8px">
+      <div><label>開始日</label><input type="date" id="ff_from" value="${FEED_FROM}"></div>
+      <div><label>終了日</label><input type="date" id="ff_to" value="${FEED_TO}"></div>
+      <div><label>部署</label><select id="ff_dept">
+        <option value="">すべて</option>
+        ${DEPTS.map(d => `<option value="${esc(d.name)}"${FEED_DEPT===d.name?' selected':''}>${esc(d.name)}</option>`).join('')}
+      </select></div>
+      <div><label>社員</label><select id="ff_user">
+        <option value="">すべて</option>
+        ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+          .map(u => `<option value="${u.id}"${FEED_USER===u.id?' selected':''}>${esc(u.full_name)}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="act" style="padding:8px 16px;font-size:13px" onclick="applyFeedRange()">この条件で表示</button>
+      <button class="ghost" onclick="clearFeedRange()">条件をクリア</button>
+      ${(FEED_FROM||FEED_TO||FEED_USER||FEED_DEPT) ? `<span class="note">絞り込み中：
+        ${FEED_FROM||'最古'}〜${FEED_TO||'最新'}${FEED_DEPT?'／'+esc(FEED_DEPT):''}${FEED_USER?'／'+esc(uname(FEED_USER)):''}</span>` : ''}
+    </div></div>`;
+
+  const head = `<h2>日報一覧</h2>` + finder + bar + (LEVEL_FILTER
     ? `<div class="card" style="background:var(--accent-soft);border-color:#A9D2BE;padding:11px 14px">
         <div class="row"><b>${LEVELS[LEVEL_FILTER-1]}</b>
         <span class="note">${list.length}件</span>
@@ -758,9 +802,25 @@ const LAYERS = [
   ['company','D 全社AI','部署をまたいだ共通問題と、つながっていない情報を発見'],
   ['exec','E 経営AI','今日判断すべき事項と、会社で起き始めている変化']
 ];
+let AI_DAYS = 21;
+async function setAiDays(v){
+  AI_DAYS = Number(v) || 21;
+  const from = new Date(); from.setDate(from.getDate() - AI_DAYS);
+  const f = from.toISOString().slice(0,10);
+  if (f < LOAD_FROM){ toast('過去の日報を読み込んでいます…'); await loadReports(f); }
+  render();
+}
 function vAI(){
   return `<h2>AI分析</h2>
   <p class="sub">出力は必ず「事実 → AI分析 → AI提案」。提案はその場でタスク・議題・ナレッジにできます。</p>
+  <div class="card" style="padding:12px 14px">
+    <label>分析する期間</label>
+    <select onchange="setAiDays(this.value)">
+      ${[[7,'直近7日'],[14,'直近14日'],[21,'直近21日'],[30,'直近30日'],[60,'直近60日'],[90,'直近90日']]
+        .map(([d,t]) => `<option value="${d}"${AI_DAYS===d?' selected':''}>${t}</option>`).join('')}
+    </select>
+    <p class="note" style="margin-top:6px">期間を広げるほど傾向は見えますが、費用も上がります。</p>
+  </div>
   ${LAYERS.filter(([k]) => allowedLayers().includes(k)).map(([k,t,d]) => `<div class="card"><h3>${t}</h3><p class="note">${d}</p>
     <button class="act" style="margin-top:10px" onclick="runAI('${k}')">分析する</button>
     <div id="ai_${k}"></div></div>`).join('')}`;
@@ -774,7 +834,7 @@ async function runAI(k){
     scope = REPORTS.filter(r => subs.includes(r.author_id)); title = '直属部下'; }
   if (k === 'dept'){ scope = REPORTS.filter(r => udept(r.author_id) === ME.dept_name); title = ME.dept_name || '自部署'; }
   if (k === 'company' || k === 'exec'){ title = '全社'; }
-  const data = packReports(scope, 21);
+  const data = packReports(scope, AI_DAYS);
   if (!data.length){ box.innerHTML = '<div class="empty">対象の日報がありません。</div>'; return; }
 
   const ask = {
@@ -783,7 +843,7 @@ async function runAI(k){
     dept:'部署全体の傾向、繰り返し発生している問題、成功パターンを整理してください。',
     company:'部署をまたいで共通する問題や、部署間でつながっていない情報を発見してください。',
     exec:'経営者が今日判断すべき事項と、会社で起き始めている変化を指摘してください。'
-  }[k];
+  }[k] + '（対象期間：直近' + AI_DAYS + '日）';
 
   const r = await callAI(`日報データを分析します。${ask}
 必ずJSONのみで返答してください。日本語。
