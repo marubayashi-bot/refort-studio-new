@@ -225,9 +225,13 @@ async function boot(){
 
   if (ME.department_id) {
     const { data: ms } = await EC.supabase.from('report_metrics')
-      .select('id,name,unit,target,is_required,sort_order,job_grades')
+      .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
       .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
-    METRICS = (ms || []).filter(metricAppliesToMe);
+    const dept = (ms || []).filter(m => !m.user_id).filter(metricAppliesToMe);
+    const { data: mine } = await EC.supabase.from('report_metrics')
+      .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
+      .eq('user_id', ME.id).eq('is_active', true).order('sort_order');
+    METRICS = dept.concat(mine || []);
   }
   await loadReports();
   if (OPEN_ID) TAB = 'feed';
@@ -1016,7 +1020,15 @@ function vAdmin(){
       <div><label>1日の目標</label><input type="number" step="any" id="ad_target" placeholder="0"></div>
       <div><label>入力する層</label><select id="ad_scope">
         ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
+      <div><label>対象者</label><select id="ad_user">
+        <option value="">部署全体</option>
+        ${USERS.filter(u => u.department_id === ADMIN_DEPT)
+               .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+               .map(u => `<option value="${u.id}">${esc(u.full_name)} 専用</option>`).join('')}
+      </select></div>
     </div>
+    <p class="note">「対象者」で個人を選ぶと、その人の日報にだけ出る項目になります。
+      個人ごとの目標を追いたいときに使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
   <div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
@@ -1038,19 +1050,23 @@ function vAdmin(){
 async function loadAdminMetrics(){
   const box = document.getElementById('adList'); if (!box) return;
   if (!ADMIN_DEPT){ box.innerHTML = '<div class="empty" style="margin-top:12px">部署が選べません。管理者にご連絡ください。</div>'; return; }
+  const memberIds = USERS.filter(u => u.department_id === ADMIN_DEPT).map(u => u.id);
   const { data, error } = await EC.supabase.from('report_metrics')
-    .select('*').eq('department_id', ADMIN_DEPT).eq('is_active', true).order('sort_order');
+    .select('*').eq('is_active', true).order('sort_order');
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
-  ADMIN_METRICS = data || [];
+  ADMIN_METRICS = (data || []).filter(m =>
+    (!m.user_id && m.department_id === ADMIN_DEPT) || (m.user_id && memberIds.indexOf(m.user_id) >= 0));
   box.innerHTML = ADMIN_METRICS.length
-    ? `<table style="margin-top:12px"><tr><th>項目</th><th>単位</th><th>目標</th><th>入力する層</th><th></th></tr>
+    ? `<table style="margin-top:12px"><tr><th>項目</th><th>対象</th><th>単位</th><th>目標</th><th>入力する層</th><th></th></tr>
        ${ADMIN_METRICS.map(m => `<tr>
-         <td>${esc(m.name)}</td><td>${esc(m.unit)}</td>
+         <td>${esc(m.name)}</td>
+         <td class="note">${m.user_id ? esc(uname(m.user_id)) + ' 専用' : '部署全体'}</td>
+         <td>${esc(m.unit)}</td>
          <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
               onchange="setTarget('${m.id}',this.value)"></td>
-         <td><select style="padding:5px;font-size:12px" onchange="setScope('${m.id}',this.value)">
-              ${SCOPES.map(sc => `<option value="${sc[0]}"${scopeKey(m.job_grades)===sc[0]?' selected':''}>${sc[1]}</option>`).join('')}
-             </select></td>
+         <td>${m.user_id ? '<span class="note">—</span>' : `<select style="padding:5px;font-size:12px" onchange="setScope('${m.id}',this.value)">`}
+              ${m.user_id ? '' : SCOPES.map(sc => `<option value="${sc[0]}"${scopeKey(m.job_grades)===sc[0]?' selected':''}>${sc[1]}</option>`).join('')}
+             ${m.user_id ? '' : '</select>'}</td>
          <td><button class="ghost" onclick="delMetric('${m.id}','${esc(m.name)}')">削除</button></td></tr>`).join('')}
        </table>
        <p class="note" style="margin-top:8px">「入力する層」で選んだ職位の社員にだけ、その項目が日報画面に出ます。</p>`
@@ -1064,6 +1080,7 @@ async function addMetric(){
     unit: document.getElementById('ad_unit').value.trim() || '件',
     target: Number(document.getElementById('ad_target').value) || 0,
     job_grades: scopeValue(document.getElementById('ad_scope').value),
+    user_id: (document.getElementById('ad_user') || {}).value || null,
     sort_order: (ADMIN_METRICS.length + 1) * 10
   });
   if (error){ toast('追加できませんでした: ' + error.message); return; }
@@ -1095,9 +1112,12 @@ async function delMetric(id, name){
 }
 async function reloadMyMetrics(){
   const { data } = await EC.supabase.from('report_metrics')
-    .select('id,name,unit,target,is_required,sort_order,job_grades')
+    .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
     .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
-  METRICS = (data || []).filter(metricAppliesToMe);
+  const { data: mine2 } = await EC.supabase.from('report_metrics')
+    .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
+    .eq('user_id', ME.id).eq('is_active', true).order('sort_order');
+  METRICS = (data || []).filter(m => !m.user_id).filter(metricAppliesToMe).concat(mine2 || []);
 }
 
 
