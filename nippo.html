@@ -129,6 +129,8 @@ h2{padding-left:11px;border-left:4px solid var(--accent)}
 .lvrow:not(.off) .lvn.l5{background:#FBE9E7;color:#9A2E25}
 .rep.off{border-left-color:#C8D2DE;background:#FAFCFD;padding:12px 15px}
 button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rep.unseen{background:#FFFCF7;border-color:#E7C4A6;box-shadow:0 0 0 2px rgba(180,84,31,.08)}
+.rep.unseen .head{border-bottom-color:#E7C4A6}
 </style>
 </head>
 <body>
@@ -522,7 +524,8 @@ function vFeed(){
   if (FEED_FILTER === 'direct')
     list = list.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id));
   else if (FEED_FILTER === 'unchecked')
-    list = list.filter(r => !(r.report_views || []).length && r.author_id !== ME.id);
+    list = list.filter(r => r.author_id !== ME.id
+      && !(r.report_views || []).some(v => v.viewer_id === ME.id));
   else if (FEED_FILTER)
     list = list.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === FEED_FILTER);
   list = sortFeed(list);
@@ -534,7 +537,9 @@ function vFeed(){
   const bar = `<div class="row" style="margin-bottom:12px">
     ${chip('', 'すべて', REPORTS.length)}
     ${nDirect ? chip('direct', '直属部下', nDirect) : ''}
-    ${chip('unchecked', '未確認')}
+    ${chip('unchecked', '未確認', REPORTS.filter(r => r.author_id !== ME.id
+        && !(r.report_views||[]).some(v => v.viewer_id === ME.id)
+        && (isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade))).length)}
     ${(isExec() || canAdmin()) ? grades.map(g => {
         const n = REPORTS.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === g).length;
         return n ? chip(g, g, n) : ''; }).join('') : ''}
@@ -556,6 +561,9 @@ function card(r){
   const cmts = r.report_comments || [];
   const isMine = r.author_id === ME.id;
   const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
+  const iSaw  = (r.report_views || []).some(v => v.viewer_id === ME.id);
+  const isDirect = USERS.some(u => u.id === r.author_id && u.manager_id === ME.id);
+  const needCheck = !isMine && !iSaw && (isDirect || canAct);
   const vals = r.report_metric_values || [];
   const who = uname(r.author_id);
   if (r.status === 'scheduled') return `<div class="rep off" id="rep_${r.id}">
@@ -574,8 +582,9 @@ function card(r){
     ${r.author_id === ME.id ? `<div class="row" style="margin-top:9px">
       <button class="ghost" onclick="undoDayOff('${r.id}')">取り消す</button></div>` : ''}
   </div>`;
-  return `<div class="rep i${r.importance}" id="rep_${r.id}">
+  return `<div class="rep i${r.importance}${needCheck ? ' unseen' : ''}" id="rep_${r.id}">
     <div class="head">
+      ${needCheck ? `<span class="pill p4">${isDirect ? '直属部下・未確認' : '未確認'}</span>` : ''}
       <span class="avatar">${esc(who.slice(0,1))}</span>
       <span class="nm">${esc(who)}</span>
       <span class="pill">${esc(udept(r.author_id))}</span>
@@ -598,7 +607,7 @@ function card(r){
     ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${linkify(r.attachments[0])}</div></div>` : ''}
     <div class="line">
       <div class="done">提出</div>
-      <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}</div>
+      <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}${iSaw ? '' : (canAct ? '（自分は未確認）' : '')}</div>
       <div class="${cmts.length ? 'done' : ''}">コメント ${cmts.length ? '済' : '未'}</div>
       <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
     </div>
@@ -610,7 +619,8 @@ function card(r){
         style="color:var(--warn);border-color:#E7C4A6">削除</button>
     </div>` : ''}
     ${canAct || isMine ? `<div class="row" style="margin-top:8px">
-      ${canAct ? `<button class="ghost" onclick="markSeen('${r.id}')">確認済みにする</button>` : ''}
+      ${canAct && !iSaw ? `<button class="act" style="padding:7px 14px;font-size:13px"
+        onclick="markSeen('${r.id}')">確認済みにする</button>` : ''}
       <button class="ghost" onclick="openComment('${r.id}')">${isMine && !canAct ? '返信する' : 'コメント'}</button>
       ${canAct ? `<button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>` : ''}
     </div><div id="cbox_${r.id}"></div>` : ''}
