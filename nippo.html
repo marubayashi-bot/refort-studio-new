@@ -1051,6 +1051,21 @@ function vAdmin(){
       一般・リーダー・課長にはAIタブが表示されません。ここで個別に変更できます。</p>
     <div id="aiList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
+  <div class="card"><h3>本人の画面プレビュー</h3>
+    <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
+    <label>確認する社員</label>
+    <select id="pvUser" onchange="loadPreview(this.value)">
+      <option value="">選んでください</option>
+      ${DEPTS.map(d => {
+        const list = USERS.filter(u => u.department_id === d.id)
+          .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
+        return list.length ? `<optgroup label="${esc(d.name)}">
+          ${list.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}
+        </optgroup>` : '';
+      }).join('')}
+    </select>
+    <div id="pvBox"></div>
+  </div>
   <div class="card"><h3>設定のこつ</h3>
     <p class="note">項目は4〜5個までに抑えてください。多すぎると日報が数字を埋める作業になり、お客様の声や考察の質が落ちます。
     目標は最初は控えめに置き、2週間ほど実績を見てから調整するのが確実です。</p></div>`;
@@ -1323,6 +1338,60 @@ function hhmm(ts){
   try { const d = new Date(ts);
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
   catch(e){ return ''; }
+}
+
+
+/* ---------- 本人の画面プレビュー ---------- */
+async function loadPreview(uid){
+  const box = document.getElementById('pvBox'); if (!box) return;
+  if (!uid){ box.innerHTML = ''; return; }
+  const u = USERS.find(x => x.id === uid); if (!u) return;
+  box.innerHTML = '<p class="note" style="margin-top:12px">読み込み中…</p>';
+
+  const { data, error } = await EC.supabase.from('report_metrics')
+    .select('*').eq('is_active', true).order('sort_order');
+  if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+
+  const applies = m => !m.job_grades || !m.job_grades.length || m.job_grades.includes(u.job_grade);
+  const dept = (data || []).filter(m => !m.user_id && m.department_id === u.department_id && applies(m));
+  const own  = (data || []).filter(m => m.user_id === u.id);
+  const list = dept.concat(own);
+
+  const boss = USERS.find(x => x.id === u.manager_id);
+  const aiLabel = u.ai_access === 'none' ? 'なし'
+    : u.ai_access === 'exec' ? '全AI'
+    : u.ai_access === 'manager' ? '部署AIまで'
+    : (u.job_grade === '役員・経営' ? '全AI（職位どおり）'
+      : ['次長','部門長'].includes(u.job_grade) ? '部署AIまで（職位どおり）' : 'なし（職位どおり）');
+  const room = (({'一般':'日報【課員】','リーダー':'日報_係長','課長':'日報_課長'})[u.job_grade]
+                || '日報【部長・次長】');
+
+  box.innerHTML = `
+    <div class="card" style="margin-top:14px;background:#FBFCFD">
+      <div class="row" style="margin-bottom:10px">
+        <span class="avatar">${esc((u.full_name||'').slice(0,1))}</span>
+        <b>${esc(u.full_name)}</b>
+        <span class="pill">${esc(u.dept_name || '部署未設定')}</span>
+        <span class="pill">${esc(u.job_grade || '職位未設定')}</span>
+      </div>
+      <table>
+        <tr><th>直属上司</th><td>${boss ? esc(boss.full_name) : '<span style="color:var(--warn)">未設定（日報が誰にも届きません）</span>'}</td></tr>
+        <tr><th>Chatwork通知先</th><td>${room}</td></tr>
+        <tr><th>個別チャット</th><td>${u.chatwork_room_id ? '登録済み' : '<span style="color:var(--warn)">未登録（コメント通知は職位ルームへ）</span>'}</td></tr>
+        <tr><th>AIの利用範囲</th><td>${aiLabel}</td></tr>
+      </table>
+
+      <h3 style="margin-top:16px">数値情報（${list.length}項目）</h3>
+      ${list.length ? `<div class="grid">${list.map(m => `
+        <div class="kpi">
+          <div class="l">${esc(m.name)}（${esc(m.unit)}）${m.user_id ? '　<b style="color:var(--accent)">個人専用</b>' : ''}</div>
+          <div class="v num" style="font-size:16px">目標 ${m.target ?? '—'}</div>
+        </div>`).join('')}</div>`
+        : '<div class="empty">この方の画面には数値項目が表示されません。</div>'}
+      <p class="note" style="margin-top:10px">
+        部署共通 ${dept.length}項目／個人専用 ${own.length}項目
+      </p>
+    </div>`;
 }
 
 /* ---------- 4. ダッシュボード ---------- */
