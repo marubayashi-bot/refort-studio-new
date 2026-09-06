@@ -28,25 +28,26 @@ body{margin:0;background:var(--paper);color:var(--ink);
 /* スクロールしても帯を画面上部に固定する */
 .topbar{position:sticky;top:0;z-index:60;box-shadow:0 4px 14px rgba(11,37,62,.22)}
 header{
-  display:flex;align-items:center;gap:18px;
-  padding:0 20px;min-height:76px;
+  display:flex;align-items:center;gap:16px;
+  padding:0 16px;min-height:76px;
   background:#0B253E;color:#fff;
   border-bottom:1px solid rgba(255,255,255,.10);
+  overflow:hidden;                 /* 画面幅を超えて広がらないようにする */
 }
-header .t{display:flex;align-items:center;gap:11px;flex:0 0 auto}
+header .t{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-width:0}
 header .logo{display:flex;align-items:center}
 header h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.03em;line-height:1.1}
 header .tagline{
   font-size:11px;line-height:1.4;color:#9DB3CA;max-width:120px;
   padding-left:12px;border-left:1px solid rgba(255,255,255,.14);
 }
-.hstats{display:flex;align-items:center;gap:20px;flex:0 0 auto}
+.hstats{display:flex;align-items:center;gap:16px;flex:0 1 auto;min-width:0}
 
 /* 最重要ボタン */
 .cta{
   display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;white-space:nowrap;
   background:#F26A21;color:#fff;border:0;border-radius:12px;
-  height:46px;padding:0 20px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;
+  height:44px;padding:0 17px;font-weight:800;font-size:14.5px;cursor:pointer;font-family:inherit;
   box-shadow:0 6px 16px rgba(242,106,33,.34);
   transition:background .15s,transform .1s,box-shadow .15s}
 .cta:hover{background:#FF8340}
@@ -63,47 +64,48 @@ header .tagline{
 .streak b i{font-size:13px;font-style:normal;font-weight:700;color:#fff;margin-left:2px}
 
 /* 本日の日付・四半期の経過／残り */
-.qbox{display:flex;align-items:center;gap:18px;padding-left:20px;
+.qbox{display:flex;align-items:center;gap:16px;padding-left:16px;
   border-left:1px solid rgba(255,255,255,.12);white-space:nowrap}
-.qcell{display:flex;flex-direction:column;gap:2px}
-.qcell .lbl{font-size:11px;color:#9DB3CA;line-height:1.2}
-.qcell b{font-size:23px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#fff}
-.qcell b i{font-size:12.5px;font-style:normal;font-weight:700;color:#9DB3CA;margin-left:2px}
-.qcell.rest b{color:#F26A21}
-.qcell.rest b i{color:#fff}
-@media(max-width:1180px){.qbox .qcell.today{display:none}}
+.qcell{display:flex;flex-direction:column;gap:3px}
+.qcell .lbl{font-size:10.5px;color:#9DB3CA;line-height:1.2}
+.qcell b{font-size:20px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#fff}
+.qcell b i{font-size:12px;font-style:normal;font-weight:700;color:#9DB3CA;margin-left:1px}
+.qcell.rest b{color:#F26A21;font-size:22px}
+.qcell.rest b i{color:#fff;font-size:12.5px}
 
 /* 今月の達成率リング */
 .ringwrap{display:flex;align-items:center;gap:9px}
-.ring{position:relative;width:50px;height:50px;flex:none}
+.ring{position:relative;width:44px;height:44px;flex:none}
 .ring svg{transform:rotate(-90deg)}
 .ring .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums}
+  font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
 .ring .val i{font-size:9px;font-style:normal;font-weight:700;margin-left:1px}
-.ringwrap .lbl{font-size:11px;color:#9DB3CA;line-height:1.35;white-space:nowrap}
-@media(max-width:1320px){.ringwrap{display:none}}
+.ringwrap .lbl{font-size:10.5px;color:#9DB3CA;line-height:1.35;white-space:nowrap}
 
 /* キャラクター */
 .mascot{position:relative;display:flex;align-items:flex-end;gap:6px;flex:0 0 auto;
   margin-left:auto;height:76px;cursor:pointer}
-.mascot img{height:86px;width:auto;display:block;margin-bottom:-4px;
+.mascot img{height:76px;width:auto;display:block;margin-bottom:0;
   image-rendering:-webkit-optimize-contrast}
 .bubble{position:relative;align-self:center;background:#fff;color:#0B253E;
-  font-size:13px;font-weight:700;line-height:1.35;padding:8px 13px;border-radius:12px;
+  font-size:12.5px;font-weight:700;line-height:1.35;padding:8px 13px;border-radius:12px;
   white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25)}
 .bubble:after{content:'';position:absolute;right:-7px;bottom:9px;width:0;height:0;
   border-left:7px solid #fff;border-top:6px solid transparent;border-bottom:6px solid transparent}
 
 /* ユーザー情報 */
-#userBadge{display:flex;align-items:center;gap:10px;flex:0 0 auto;white-space:nowrap;
-  padding-left:18px;border-left:1px solid rgba(255,255,255,.14);font-size:13px;color:#DCE6F0}
+#userBadge{display:flex;align-items:center;gap:9px;flex:0 0 auto;white-space:nowrap;
+  padding-left:14px;border-left:1px solid rgba(255,255,255,.14);font-size:13px;color:#DCE6F0}
 #userBadge a,#userBadge button{color:#9DB3CA;font-family:inherit}
 #userBadge a:hover,#userBadge button:hover{color:#fff}
 
-@media(max-width:1280px){header .tagline{display:none}}
-@media(max-width:1120px){.mascot .bubble{display:none}}
-@media(max-width:960px){.ringwrap .lbl{display:none}}
-@media(max-width:860px){.mascot{display:none}}
+/* 狭くなったら、重要度の低いものから順に隠していく */
+@media(max-width:1560px){header .tagline{display:none}}
+@media(max-width:1440px){.ringwrap .lbl{display:none}}
+@media(max-width:1340px){.ringwrap{display:none}}
+@media(max-width:1220px){.mascot .bubble{display:none}}
+@media(max-width:1080px){.qbox .qcell.today{display:none}}
+@media(max-width:940px){.mascot{display:none}}
 @media(max-width:760px){
   header{gap:12px;padding:0 12px;min-height:66px;flex-wrap:wrap}
   .streak{padding-left:12px}
@@ -536,14 +538,10 @@ function drawHeaderStats(){
     <span class="qbox">
       <span class="qcell today">
         <span class="lbl">本日</span>
-        <b>${now.getMonth() + 1}<i>月</i>${now.getDate()}<i>日（${dow}）</i></b>
-      </span>
-      <span class="qcell">
-        <span class="lbl">第${Q.q}四半期 経過</span>
-        <b>${Q.elapsed}<i>日目 / ${Q.total}日</i></b>
+        <b>${now.getMonth() + 1}<i>/</i>${now.getDate()}<i>（${dow}）</i></b>
       </span>
       <span class="qcell rest">
-        <span class="lbl">GOAL（${goal}）まで</span>
+        <span class="lbl">第${Q.q}四半期　${Q.elapsed}日目 / ${Q.total}日　GOAL ${goal}</span>
         <b>あと${Q.left}<i>日</i></b>
       </span>
     </span>
@@ -2125,6 +2123,11 @@ async function delHoliday(d){
 
 /* ================= 週次報告 ================= */
 let QGOALS = [], WTARGETS = [], WREPORT = null, WEEK_START = '';
+let GOALS_ALL = [];            // 全員分の四半期目標（部下の進捗を見るため）
+let WMODE = 'me';              // 'me' = 自分の週次報告 / 'team' = 部下の週次報告
+let WUSER = null;              // 部下モードで開いている相手
+let TEAMW = [], TEAMHIST = []; // 部下の週次報告（今週分・履歴）
+let MYHIST = [];               // 自分の過去の週次報告
 
 function mondayOf(d){
   const dow = ME.week_start_dow == null ? 1 : ME.week_start_dow;
@@ -2137,8 +2140,23 @@ function addDays(ymd, n){ const d = new Date(ymd); d.setDate(d.getDate() + n); r
 async function loadGoals(){
   const { data } = await EC.supabase.from('quarter_goals')
     .select('*').eq('is_active', true);
-  QGOALS = (data || []).filter(g => g.user_id === ME.id ||
+  GOALS_ALL = data || [];
+  QGOALS = GOALS_ALL.filter(g => g.user_id === ME.id ||
     (!g.user_id && g.department_id === ME.department_id));
+}
+
+/* 指定した社員に紐づく四半期目標 */
+function goalsOf(uid){
+  const u = USERS.find(x => x.id === uid);
+  return GOALS_ALL.filter(g => g.user_id === uid ||
+    (!g.user_id && u && g.department_id === u.department_id));
+}
+
+/* 週次報告を見られる相手（直属部下＋その配下） */
+function weeklyMembers(){
+  return USERS.filter(u => u.is_active !== false && u.id !== ME.id && inMyLine(u.id))
+    .sort((a,b) => lineRank(a.id) - lineRank(b.id) ||
+      String(a.full_name||'').localeCompare(String(b.full_name||''), 'ja'));
 }
 
 /* 日報の数値から期間内の実績を合計する */
@@ -2156,11 +2174,18 @@ function actualSum(metricId, from, to, uid){
 
 function vWeekly(){
   if (!WEEK_START) WEEK_START = mondayOf(new Date());
-  setTimeout(loadWeekly, 0);
+  const members = weeklyMembers();
+  setTimeout(WMODE === 'team' ? loadWeeklyTeam : loadWeekly, 0);
   return `<h2>週次報告</h2>
   <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。</p>
+  ${members.length ? `<div class="row" style="margin-bottom:12px">
+    <button class="${WMODE === 'me' ? 'act' : 'ghost'}" onclick="setWMode('me')">自分の週次報告</button>
+    <button class="${WMODE === 'team' ? 'act' : 'ghost'}" onclick="setWMode('team')">部下の週次報告（${members.length}名）</button>
+  </div>` : ''}
   <div id="wkBox"><div class="empty">読み込み中…</div></div>`;
 }
+function setWMode(m){ WMODE = m; WUSER = null; render(); }
+function openWUser(uid){ WUSER = (WUSER === uid ? null : uid); loadWeeklyTeam(); }
 
 async function loadWeekly(){
   const box = document.getElementById('wkBox'); if (!box) return;
@@ -2170,17 +2195,32 @@ async function loadWeekly(){
   const oldest = QGOALS.reduce((a, g) => (!a || g.period_from < a) ? g.period_from : a, '');
   if (oldest && oldest < LOAD_FROM){ await loadReports(oldest); }
 
-  const [wr, wt] = await Promise.all([
+  const [wr, wt, hs] = await Promise.all([
     EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
       .eq('user_id', ME.id).eq('week_start', WEEK_START).maybeSingle(),
-    EC.supabase.from('weekly_targets').select('*').eq('user_id', ME.id).eq('week_start', WEEK_START)
+    EC.supabase.from('weekly_targets').select('*').eq('user_id', ME.id).eq('week_start', WEEK_START),
+    EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
+      .eq('user_id', ME.id).lt('week_start', WEEK_START)
+      .order('week_start', { ascending: false }).limit(8)
   ]);
   WREPORT = wr.data || null;
   WTARGETS = wt.data || [];
+  MYHIST = hs.data || [];
 
   if (!QGOALS.length){
-    box.innerHTML = `<div class="card"><div class="empty">
-      四半期目標がまだ登録されていません。「管理」タブの「四半期目標」から登録してください。</div></div>`;
+    const members = weeklyMembers();
+    box.innerHTML = `<div class="card">
+      <h3>あなた自身の四半期目標がまだ登録されていません</h3>
+      <p class="note">この画面は「ログインしている本人」の目標と実績を出します。
+        部下の名前で登録した目標はここには出ません。${members.length
+          ? '部下の分は上の<b>「部下の週次報告」</b>から確認できます。' : ''}
+        自分の分は「管理」タブの「四半期目標」で、対象を自分にして登録してください。</p>
+      ${members.length ? `<div class="row" style="margin-top:10px">
+        <button class="act" onclick="setWMode('team')">部下の週次報告を見る</button>
+        <button class="ghost" onclick="go('admin')">四半期目標を登録する</button></div>`
+        : `<button class="ghost" style="margin-top:10px" onclick="go('admin')">四半期目標を登録する</button>`}
+    </div>
+    <div class="card"><h3>登録するとこう見えます（サンプル）</h3>${wkSampleHtml()}</div>`;
     return;
   }
 
@@ -2280,9 +2320,183 @@ async function loadWeekly(){
   ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
     ${WREPORT.weekly_comments.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
       <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
-  </div>` : ''}`;
+  </div>` : ''}
+
+  <div class="card"><h3>過去の週次報告（直近8週）</h3>
+    ${MYHIST.length ? MYHIST.map(r => `
+      <div class="sec s-num" style="margin-top:12px">
+        <span class="lab">${r.week_start} 〜 ${addDays(r.week_start,6)}</span>
+        <div><b>未達要因</b>：${r.gap_cause ? esc(r.gap_cause) : '記入なし'}</div>
+        <div><b>行動変化</b>：${r.action_change ? esc(r.action_change) : '記入なし'}</div>
+        ${r.consult ? `<div><b>相談</b>：${esc(r.consult)}</div>` : ''}
+        ${(r.weekly_comments||[]).map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b><br>${linkify(c.body)}</div>`).join('')}
+      </div>`).join('')
+      : '<div class="empty">まだ提出履歴がありません。</div>'}
+  </div>`;
 }
 
+
+/* ---------- 部下の週次報告（上司ビュー） ---------- */
+async function loadWeeklyTeam(){
+  const box = document.getElementById('wkBox'); if (!box) return;
+  const members = weeklyMembers();
+  if (!members.length){ box.innerHTML = `<div class="card"><div class="empty">部下が登録されていません。</div></div>`; return; }
+  box.innerHTML = `<div class="empty">読み込み中…</div>`;
+
+  const ids = members.map(u => u.id);
+  const weekEnd = addDays(WEEK_START, 6);
+  const from8 = addDays(WEEK_START, -49);   // 直近8週ぶんの履歴
+
+  // 部下の日報も四半期の頭まで読み込む（実績集計に使う）
+  const oldest = GOALS_ALL.reduce((a, g) => (!a || g.period_from < a) ? g.period_from : a, '');
+  if (oldest && oldest < LOAD_FROM){ await loadReports(oldest); }
+
+  const { data } = await EC.supabase.from('weekly_reports')
+    .select('*, weekly_comments(*)')
+    .in('user_id', ids).gte('week_start', from8).lte('week_start', WEEK_START)
+    .order('week_start', { ascending: false });
+  TEAMHIST = data || [];
+  TEAMW = TEAMHIST.filter(r => r.week_start === WEEK_START);
+
+  const done = TEAMW.length, rate = Math.round(done / members.length * 100);
+
+  box.innerHTML = `
+  <div class="card">
+    <div class="row">
+      <button class="ghost" onclick="moveWeek(-7)">← 前の週</button>
+      <b>${WEEK_START} 〜 ${weekEnd}</b>
+      ${WEEK_START < mondayOf(new Date()) ? `<button class="ghost" onclick="moveWeek(7)">次の週 →</button>` : ''}
+      <span class="pill ${rate === 100 ? 'p2' : 'p4'}" style="margin-left:auto">
+        提出 ${done} / ${members.length}名（${rate}%）</span>
+    </div>
+  </div>
+
+  <div class="card"><h3>今週の提出状況</h3>
+    <table><tr><th>氏名</th><th>提出</th><th>四半期の達成率</th><th>今週の未達</th><th></th></tr>
+    ${members.map(u => {
+      const w = TEAMW.find(x => x.user_id === u.id);
+      const gs = goalsOf(u.id);
+      const q = gs.map(g => ({ g, total: actualSum(g.metric_id, g.period_from, g.period_to, u.id) }));
+      const qRate = q.length
+        ? Math.round(q.reduce((a,x) => a + (x.g.target ? x.total / x.g.target : 0), 0) / q.length * 100) : null;
+      const missN = gs.filter(g => {
+        const wk = actualSum(g.metric_id, WEEK_START, weekEnd, u.id);
+        return wk < Number(g.target) / (g.weeks || 13);
+      }).length;
+      return `<tr>
+        <td><b>${esc(u.full_name || u.email)}</b><br><span class="note">${esc(u.dept_name||'')} ${esc(u.job_grade||'')}</span></td>
+        <td><span class="pill ${w ? 'p2' : 'p4'}">${w ? '提出済み' : '未提出'}</span></td>
+        <td class="num">${qRate == null ? '<span class="note">目標未登録</span>'
+          : `<span style="color:${qRate>=100?'var(--accent)':qRate>=70?'var(--amber)':'var(--warn)'}">${qRate}%</span>`}</td>
+        <td class="num">${gs.length ? (missN ? '<span style="color:var(--warn)">' + missN + '件</span>' : '—') : '—'}</td>
+        <td><button class="ghost" onclick="openWUser('${u.id}')">${WUSER === u.id ? '閉じる' : '中身を見る'}</button></td>
+      </tr>`;
+    }).join('')}
+    </table>
+    <p class="note" style="margin-top:8px">四半期の達成率は、その人に紐づく目標の平均です。実績は日報の数値から自動集計しています。</p>
+  </div>
+
+  ${WUSER ? wkMemberDetail(WUSER) : `<div class="card"><div class="empty">
+    「中身を見る」を押すと、その人の四半期進捗・未達要因・行動変化・次週目標と、過去8週の履歴が開きます。</div></div>`}`;
+}
+
+/* 部下1人ぶんの中身と履歴 */
+function wkMemberDetail(uid){
+  const u = USERS.find(x => x.id === uid); if (!u) return '';
+  const weekEnd = addDays(WEEK_START, 6);
+  const gs = goalsOf(uid);
+  const w  = TEAMW.find(x => x.user_id === uid);
+  const hist = TEAMHIST.filter(x => x.user_id === uid && x.week_start !== WEEK_START);
+
+  const rows = gs.map(g => {
+    const total = actualSum(g.metric_id, g.period_from, g.period_to, uid);
+    const week  = actualSum(g.metric_id, WEEK_START, weekEnd, uid);
+    const per   = Number(g.target) / (g.weeks || 13);
+    const left  = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(TODAY)) / 604800000));
+    return { g, total, week, per, left,
+      need: Math.max(0, (Number(g.target) - total) / left),
+      qRate: g.target ? Math.round(total / g.target * 100) : 0,
+      wRate: per ? Math.round(week / per * 100) : 0 };
+  });
+
+  return `
+  <div class="card">
+    <h3>${esc(u.full_name || u.email)} さんの週次報告（${WEEK_START} 〜 ${weekEnd}）</h3>
+    ${gs.length ? `<table><tr><th>項目</th><th>四半期目標</th><th>累計</th><th>達成率</th><th>今週目標</th><th>今週実績</th><th>必要ペース／週</th></tr>
+      ${rows.map(r => `<tr>
+        <td>${esc(r.g.name)}${r.g.kind === 'KGI' ? ' <span class="pill">KGI</span>' : ''}</td>
+        <td class="num">${r.g.target}${esc(r.g.unit)}</td>
+        <td class="num">${Math.round(r.total*10)/10}</td>
+        <td class="num" style="color:${r.qRate>=100?'var(--accent)':r.qRate>=70?'var(--amber)':'var(--warn)'}">${r.qRate}%</td>
+        <td class="num">${Math.round(r.per*10)/10}</td>
+        <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${Math.round(r.week*10)/10}（${r.wRate}%）</td>
+        <td class="num"><b>${Math.round(r.need*10)/10}</b>${esc(r.g.unit)}</td></tr>`).join('')}
+      </table>`
+      : `<div class="empty">この方の四半期目標が登録されていません。</div>`}
+  </div>
+
+  ${w ? `<div class="card">
+    <div class="sec s-rival"><span class="lab">未達要因</span><div>${w.gap_cause ? linkify(w.gap_cause) : '<span class="note">記入なし</span>'}</div></div>
+    <div class="sec s-think"><span class="lab">行動変化</span><div>${w.action_change ? linkify(w.action_change) : '<span class="note">記入なし</span>'}</div></div>
+    <div class="sec s-voice"><span class="lab">その他相談</span><div>${w.consult ? linkify(w.consult) : '<span class="note">なし</span>'}</div></div>
+
+    <h3 style="margin-top:16px">上司コメント</h3>
+    ${(w.weekly_comments||[]).length ? (w.weekly_comments||[]).map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')
+      : '<p class="note">まだコメントがありません。</p>'}
+    <textarea id="wc_${w.id}" style="min-height:70px;margin-top:8px" placeholder="例：現調の件数ではなく、週前半の架電が0だったことが原因という整理は正しい。来週は月曜9時までの架電5件を完了条件にして、水曜に一度報告してください。"></textarea>
+    <button class="act" style="margin-top:8px" onclick="addWeeklyComment('${w.id}')">コメントする</button>
+  </div>` : `<div class="card"><div class="empty">この週はまだ提出されていません。</div></div>`}
+
+  <div class="card"><h3>過去の週次報告（直近8週）</h3>
+    ${hist.length ? hist.map(r => `
+      <div class="sec s-num" style="margin-top:12px">
+        <span class="lab">${r.week_start} 〜 ${addDays(r.week_start,6)}</span>
+        <div><b>未達要因</b>：${r.gap_cause ? esc(r.gap_cause) : '記入なし'}</div>
+        <div><b>行動変化</b>：${r.action_change ? esc(r.action_change) : '記入なし'}</div>
+        ${r.consult ? `<div><b>相談</b>：${esc(r.consult)}</div>` : ''}
+        ${(r.weekly_comments||[]).length ? `<div class="note">上司コメント ${r.weekly_comments.length}件</div>` : ''}
+      </div>`).join('')
+      : '<div class="empty">この期間の提出はありません。</div>'}
+  </div>`;
+}
+
+async function addWeeklyComment(reportId){
+  const el = document.getElementById('wc_' + reportId);
+  const body = (el && el.value || '').trim();
+  if (!body){ toast('コメントを入力してください'); return; }
+  let { error } = await EC.supabase.from('weekly_comments')
+    .insert({ weekly_report_id: reportId, author_id: ME.id, body: body });
+  if (error){   // 列名が report_id の場合にも対応する
+    const r2 = await EC.supabase.from('weekly_comments')
+      .insert({ report_id: reportId, author_id: ME.id, body: body });
+    error = r2.error;
+  }
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+  toast('コメントしました');
+  loadWeeklyTeam();
+}
+
+/* 週次報告のサンプル表示（データが無いときの見本） */
+function wkSampleHtml(){
+  return `
+  <table><tr><th>項目</th><th>四半期目標</th><th>累計</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
+    <tr><td>全社予算進行入金済MQ <span class="pill">KGI</span></td><td class="num">1000百万円</td>
+      <td class="num">180</td><td class="num" style="color:var(--warn)">18%</td><td class="num">12週</td><td class="num"><b>68.3</b>百万円</td></tr>
+    <tr><td>リエネ契約数 <span class="pill">KGI</span></td><td class="num">32件</td>
+      <td class="num">9</td><td class="num" style="color:var(--amber)">28%</td><td class="num">12週</td><td class="num"><b>1.9</b>件</td></tr>
+  </table>
+  <p class="note" style="margin-top:8px">四半期目標を週数で割ったものが今週の目標です。遅れた分は翌週以降の必要ペースに自動で上乗せされます。</p>
+
+  <div class="sec s-rival" style="margin-top:14px"><span class="lab">未達要因（記入例）</span>
+    <div>現調6件の目標に対し3件。うち2件は先方都合の延期だが、残り1件は打診が水曜以降になり日程が取れなかった。週前半の架電が0件だったことが直接の要因。</div></div>
+  <div class="sec s-think"><span class="lab">行動変化（記入例）</span>
+    <div>やめる…金曜午後の資料作成（月曜午前に移す）／始める…月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる。</div></div>
+  <div class="sec s-voice"><span class="lab">その他相談（記入例）</span>
+    <div>A社の値引き要請について、どこまで対応してよいか判断をお願いしたい。</div></div>
+  <div class="cmt" style="margin-top:12px"><b>上司コメント（記入例）</b><br>
+    週前半の架電0が原因という整理は正しい。来週は月曜9時までに架電5件を完了条件とし、水曜に一度中間報告をしてください。</div>`;
+}
 
 function toggleWkGuide(){
   const el = document.getElementById('wkGuide'); if (!el) return;
