@@ -155,7 +155,7 @@ button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./ec-auth.js"></script>
 <script>
-const GRADES = ['一般','リーダー','課長','次長','部門長','役員・経営'];
+let GRADES = ['一般','主任','係長','課長','次長','部門長','役員・経営'];  // 起動時にDBから読み直す
 const IMP = [
   [5,'経営判断が必要','p5'], [4,'上司判断が必要','p4'],
   [3,'部署で共有','p3'],     [2,'記録のみ','p2']
@@ -177,14 +177,14 @@ let TODAY = new Date().toISOString().slice(0,10);
 let EDIT_DATE = null;   // 過去の日報を編集しているときの日付
 let LOAD_SAVED = false; // 提出済みの内容を読み込んで書き直すとき true
 let DEPTS = [];
-/* AIの利用範囲：職位で決まる。ec-users側の個別設定(ai_access)があればそちらが優先 */
+/* AIの利用範囲：役職で決まる。ec-users側の個別設定(ai_access)があればそちらが優先 */
 function aiAccess(){
   const ov = ME.ai_access;
   if (ov === 'none') return 'none';
   if (ov === 'manager') return 'manager';
   if (ov === 'exec') return 'exec';
   if (ME.job_grade === '役員・経営') return 'exec';
-  if (['次長','部門長'].includes(ME.job_grade)) return 'manager';
+  if (['次長','部長'].includes(ME.job_grade) || isDeptHead()) return 'manager';
   return 'none';
 }
 function canUseAI(){ return aiAccess() !== 'none'; }
@@ -194,7 +194,10 @@ function allowedLayers(){
   if (a === 'manager') return ['personal','boss','dept'];
   return [];
 }
-function canAdmin(){ return ME.role === 'admin' || ['次長','部門長','役員・経営'].includes(ME.job_grade); }
+/* 部門長は役職ではなく「その部署を任されている人」。課長でも係長でも就ける */
+function isDeptHead(uid){ return DEPTS.some(d => d.head_user_id === (uid || ME.id)); }
+function headOfDept(deptId){ const d = DEPTS.find(x => x.id === deptId); return d ? d.head_user_id : null; }
+function canAdmin(){ return ME.role === 'admin' || ['次長','部長','役員・経営'].includes(ME.job_grade) || isDeptHead(); }
 
 /* ---------- 起動 ---------- */
 EC.guard({
@@ -225,8 +228,12 @@ async function boot(){
     .select('id,name,unit,target,department_id,job_grades').order('sort_order');
   METRICS_ALL = ma || [];
 
+  const { data: gs } = await EC.supabase.from('job_grades')
+    .select('name,sort_order').eq('is_active', true).order('sort_order');
+  if (gs && gs.length) GRADES = gs.map(g => g.name);
+
   const { data: ds, error: de } = await EC.supabase.from('departments')
-    .select('id,name,sort_order').order('sort_order');
+    .select('id,name,sort_order,head_user_id').order('sort_order');
   DEPTS = ds || [];
   if (de) console.warn('departments 読み込みエラー', de.message);
   if (!DEPTS.length){
@@ -271,7 +278,7 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 /* ---------- 画面枠 ---------- */
 function render(){
   const nUnread = myNotifs().length;
-  const canWeekly = ['次長','部門長','役員・経営'].includes(ME.job_grade) || QGOALS.length > 0;
+  const canWeekly = ['次長','部長','役員・経営'].includes(ME.job_grade) || isDeptHead() || QGOALS.length > 0;
   TABS = [['write','日報を書く'],['feed','日報一覧']]
     .concat(canWeekly ? [['weekly','週次報告']] : [])
     .concat([
@@ -459,7 +466,7 @@ async function submitReport(scheduled){
 
 /* ---------- 昇格レベルで絞り込む ---------- */
 let LEVEL_FILTER = 0;
-let FEED_FILTER = '';   // '' すべて / 'direct' 直属部下 / 職位区分名
+let FEED_FILTER = '';   // '' すべて / 'direct' 直属部下 / 役職名
 let FEED_FROM = '', FEED_TO = '', FEED_USER = '', FEED_DEPT = '';
 let LOAD_FROM = '';     // 読み込み済みの最古日
 let OPEN_ID = (new URLSearchParams(location.search)).get('r') || '';
@@ -598,13 +605,13 @@ function vFeed(){
   const nDirect = REPORTS.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
   const chip = (v, label, n) => `<button class="ghost${FEED_FILTER===v?' on':''}"
     onclick="setFeedFilter('${v}')">${label}${n !== undefined ? '（' + n + '）' : ''}</button>`;
-  const grades = ['部門長','次長','課長','リーダー','一般'];
+  const grades = GRADES.slice().reverse();
   const bar = `<div class="row" style="margin-bottom:12px">
     ${chip('', 'すべて', REPORTS.length)}
     ${nDirect ? chip('direct', '直属部下', nDirect) : ''}
     ${chip('unchecked', '未確認', REPORTS.filter(r => r.author_id !== ME.id
         && !(r.report_views||[]).some(v => v.viewer_id === ME.id)
-        && (isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade))).length)}
+        && (isBossOf(r.author_id) || isExec() || ['部長','次長'].includes(ME.job_grade) || isDeptHead())).length)}
     ${(isExec() || canAdmin()) ? grades.map(g => {
         const n = REPORTS.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === g).length;
         return n ? chip(g, g, n) : ''; }).join('') : ''}
@@ -646,7 +653,8 @@ function card(r){
   const seen = (r.report_views || []).length;
   const cmts = r.report_comments || [];
   const isMine = r.author_id === ME.id;
-  const canAct = isBossOf(r.author_id) || isExec() || ['部門長','次長'].includes(ME.job_grade);
+  const canAct = isBossOf(r.author_id) || isExec() || ['部長','次長'].includes(ME.job_grade)
+                 || (isDeptHead() && headOfDept(USERS.find(u => u.id === r.author_id)?.department_id) === ME.id);
   const iSaw  = (r.report_views || []).some(v => v.viewer_id === ME.id);
   const isDirect = USERS.some(u => u.id === r.author_id && u.manager_id === ME.id);
   const needCheck = !isMine && !iSaw && (isDirect || canAct);
@@ -1075,7 +1083,7 @@ async function doneTask(id){
 
 
 
-/* 数値項目の対象職位（プリセット） */
+/* 数値項目の対象役職（プリセット） */
 const SCOPES = [
   ['all','全員', null],
   ['staff','一般のみ', ['一般']],
@@ -1104,7 +1112,7 @@ function vAdmin(){
   setTimeout(drawOrgChart, 0);
   setTimeout(loadRetired, 0);
   setTimeout(loadGoalList, 0);
-  if (canAdmin()) setTimeout(loadDeptAdmin, 0);
+  if (canAdmin()) { setTimeout(loadDeptAdmin, 0); setTimeout(loadGradeAdmin, 0); }
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
@@ -1150,8 +1158,8 @@ function vAdmin(){
     <div id="orgChart"><p class="note">読み込み中…</p></div>
   </div>
   <div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
-    <p class="note">所属部署・職位区分・直属上司をその場で変更できます。
-      部署を変えると数値項目が、職位区分を変えるとChatworkの通知先ルームが、直属上司を変えると閲覧範囲と確認ラインが切り替わります。
+    <p class="note">所属部署・役職・直属上司をその場で変更できます。
+      部署を変えると数値項目が、役職を変えるとChatworkの通知先ルームが、直属上司を変えると閲覧範囲と確認ラインが切り替わります。
       課長の方が「リーダー」になっていると、係長のチャットに通知が飛びます。</p>
     <label>氏名・部署で絞り込み</label>
     <input type="text" id="orgFilter" placeholder="例：相河、営業" oninput="loadOrgLine(this.value)">
@@ -1166,7 +1174,7 @@ function vAdmin(){
       <div><label>所属部署</label><select id="nu_dept">
         <option value="">（未設定）</option>
         ${DEPTS.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></div>
-      <div><label>職位区分</label><select id="nu_grade">
+      <div><label>役職</label><select id="nu_grade">
         ${GRADES.map(g => `<option${g==='一般'?' selected':''}>${g}</option>`).join('')}</select></div>
       <div><label>直属上司</label><select id="nu_boss">
         <option value="">（未設定）</option>
@@ -1188,8 +1196,13 @@ function vAdmin(){
     <p class="note">ここで設定した曜日・日付は、未提出リマインドの対象外になります。</p>
     <div id="holBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
-  ${canAdmin() ? `<div class="card"><h3>部署</h3>
-    <p class="note">名称を変えると、所属している社員の表示もまとめて更新されます。</p>
+  ${canAdmin() ? `<div class="card"><h3>役職</h3>
+    <p class="note">並び順は下位から上位の順です。Chatworkの通知先やAIの利用範囲の判定にも使われます。</p>
+    <div id="gradeBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
+  </div>
+  <div class="card"><h3>部署</h3>
+    <p class="note">名称を変えると、所属している社員の表示もまとめて更新されます。
+      部門長は役職とは別の役割です。課長でも係長でも設定でき、その部署の日報を確認できるようになります。</p>
     <div id="deptBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
   <div class="card"><h3>四半期目標（KGI・KPI）</h3>
@@ -1254,7 +1267,7 @@ async function loadAdminMetrics(){
              ${m.user_id ? '' : '</select>'}</td>
          <td><button class="ghost" onclick="delMetric('${m.id}','${esc(m.name)}')">削除</button></td></tr>`).join('')}
        </table>
-       <p class="note" style="margin-top:8px">「入力する層」で選んだ職位の社員にだけ、その項目が日報画面に出ます。</p>`
+       <p class="note" style="margin-top:8px">「入力する層」で選んだ役職の社員にだけ、その項目が日報画面に出ます。</p>`
     : '<div class="empty" style="margin-top:12px">この部署にはまだ数値項目がありません。</div>';
 }
 async function addMetric(){
@@ -1386,12 +1399,12 @@ async function loadAiAccess(){
     (a.dept_name||'').localeCompare(b.dept_name||'','ja') ||
     (a.full_name||'').localeCompare(b.full_name||'','ja'));
   box.innerHTML = `<table style="margin-top:10px">
-    <tr><th>氏名</th><th>部署</th><th>職位</th><th>AIの利用範囲</th></tr>
+    <tr><th>氏名</th><th>部署</th><th>役職</th><th>AIの利用範囲</th></tr>
     ${list.map(u => `<tr>
       <td>${esc(u.full_name)}</td><td class="note">${esc(u.dept_name||'')}</td>
       <td class="note">${esc(u.job_grade||'')}</td>
       <td><select style="padding:5px;font-size:12px" onchange="setAiAccess('${u.id}',this.value)">
-        <option value=""${!u.ai_access?' selected':''}>職位どおり（${aiLabel_(u)}）</option>
+        <option value=""${!u.ai_access?' selected':''}>役職どおり（${aiLabel_(u)}）</option>
         <option value="none"${u.ai_access==='none'?' selected':''}>使わせない</option>
         <option value="manager"${u.ai_access==='manager'?' selected':''}>個人・上司・部署AIまで</option>
         <option value="exec"${u.ai_access==='exec'?' selected':''}>全AI（全社・経営を含む）</option>
@@ -1400,7 +1413,7 @@ async function loadAiAccess(){
 }
 function aiLabel_(u){
   if (u.job_grade === '役員・経営') return '全AI';
-  if (['次長','部門長'].includes(u.job_grade)) return '部署AIまで';
+  if (['次長','部長'].includes(u.job_grade) || isDeptHead(u.id)) return '部署AIまで';
   return 'なし';
 }
 async function setAiAccess(id, v){
@@ -1448,7 +1461,7 @@ function drawOrgChart(){
         <div class="row" style="gap:6px">
           ${list.map(u => `<span class="pcard${u.id===ME.id?' me':''}" title="上司：${esc(uname(u.manager_id))}">
             <b>${esc(u.full_name)}</b>
-            <span class="note">${esc(u.job_grade||'')}</span>
+            <span class="note">${esc(u.job_grade||'')}${isDeptHead(u.id) ? '・部門長' : ''}</span>
             <span class="note" style="font-size:10px">▲${esc(uname(u.manager_id))}</span>
           </span>`).join('')}
         </div></div>`;
@@ -1459,7 +1472,7 @@ function drawOrgChart(){
   const roots = act.filter(u => !u.manager_id || !act.some(x => x.id === u.manager_id));
   box.innerHTML = (roots.length ? roots.map(u => orgNode(u, act, 0)).join('')
     : '<div class="empty">頂点となる社員が見つかりません。</div>')
-    + '<p class="note" style="margin-top:10px">上司の下に部下が並びます。名前の右は職位区分と所属部署です。</p>';
+    + '<p class="note" style="margin-top:10px">上司の下に部下が並びます。名前の右は役職と所属部署です。</p>';
 }
 
 function orgNode(u, act, depth){
@@ -1470,7 +1483,8 @@ function orgNode(u, act, depth){
     <div class="orow${u.id===ME.id?' me':''}">
       <span class="avatar">${esc((u.full_name||'?').slice(0,1))}</span>
       <b>${esc(u.full_name)}</b>
-      <span class="pill">${esc(u.job_grade || '職位未設定')}</span>
+      <span class="pill">${esc(u.job_grade || '役職未設定')}</span>
+      ${isDeptHead(u.id) ? '<span class="pill p4">部門長</span>' : ''}
       <span class="note">${esc(u.dept_name || '')}</span>
       ${kids.length ? `<span class="pill p2">部下${kids.length}</span>` : ''}
     </div>
@@ -1579,7 +1593,7 @@ function drawOrgLine_(box, q){
     return;
   }
   box.innerHTML = chips + `<table style="margin-top:4px">
-    <tr><th>氏名</th><th>部署</th><th>職位区分</th><th>直属上司</th><th>在籍</th></tr>
+    <tr><th>氏名</th><th>部署</th><th>役職</th><th>直属上司</th><th>在籍</th></tr>
     ${sorted.map(u => {
       const ng = [u.id].concat(descendantsOf(u.id));
       return `<tr><td><input type="text" value="${esc(u.full_name||'')}" style="padding:5px;min-width:110px"
@@ -1626,7 +1640,7 @@ async function setGrade(id, grade){
   const { error } = await EC.supabase.from('app_users').update({ job_grade: grade }).eq('id', id);
   if (error){ toast('変更できませんでした: ' + error.message); return; }
   const u = USERS.find(x => x.id === id); if (u) u.job_grade = grade;
-  toast('職位区分を変更しました。Chatworkの通知先も切り替わります');
+  toast('役職を変更しました。Chatworkの通知先も切り替わります');
   loadOrgLine((document.getElementById('orgFilter')||{}).value);
 }
 async function setManager(id, bossId){
@@ -1664,8 +1678,8 @@ async function loadPreview(uid){
   const aiLabel = u.ai_access === 'none' ? 'なし'
     : u.ai_access === 'exec' ? '全AI'
     : u.ai_access === 'manager' ? '部署AIまで'
-    : (u.job_grade === '役員・経営' ? '全AI（職位どおり）'
-      : ['次長','部門長'].includes(u.job_grade) ? '部署AIまで（職位どおり）' : 'なし（職位どおり）');
+    : (u.job_grade === '役員・経営' ? '全AI（役職どおり）'
+      : ['次長','部門長'].includes(u.job_grade) ? '部署AIまで（役職どおり）' : 'なし（役職どおり）');
   const room = (({'一般':'日報【課員】','リーダー':'日報_係長','課長':'日報_課長'})[u.job_grade]
                 || '日報【部長・次長】');
 
@@ -1675,12 +1689,13 @@ async function loadPreview(uid){
         <span class="avatar">${esc((u.full_name||'').slice(0,1))}</span>
         <b>${esc(u.full_name)}</b>
         <span class="pill">${esc(u.dept_name || '部署未設定')}</span>
-        <span class="pill">${esc(u.job_grade || '職位未設定')}</span>
+        <span class="pill">${esc(u.job_grade || '役職未設定')}</span>
+        ${isDeptHead(u.id) ? '<span class="pill p4">部門長</span>' : ''}
       </div>
       <table>
         <tr><th>直属上司</th><td>${boss ? esc(boss.full_name) : '<span style="color:var(--warn)">未設定（日報が誰にも届きません）</span>'}</td></tr>
         <tr><th>Chatwork通知先</th><td>${room}</td></tr>
-        <tr><th>個別チャット</th><td>${u.chatwork_room_id ? '登録済み' : '<span style="color:var(--warn)">未登録（コメント通知は職位ルームへ）</span>'}</td></tr>
+        <tr><th>個別チャット</th><td>${u.chatwork_room_id ? '登録済み' : '<span style="color:var(--warn)">未登録（コメント通知は役職ルームへ）</span>'}</td></tr>
         <tr><th>AIの利用範囲</th><td>${aiLabel}</td></tr>
       </table>
 
@@ -2036,6 +2051,78 @@ async function delGoal(id){
 }
 
 
+
+/* ---------- 役職の編集 ---------- */
+async function loadGradeAdmin(){
+  const box = document.getElementById('gradeBox'); if (!box) return;
+  const { data, error } = await EC.supabase.from('job_grades')
+    .select('*').eq('is_active', true).order('sort_order');
+  if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+  const list = data || [];
+  box.innerHTML = `<table style="margin-top:10px">
+    <tr><th>役職</th><th>人数</th><th>並び順</th><th></th></tr>
+    ${list.map(g => {
+      const n = USERS.filter(u => u.job_grade === g.name).length;
+      return `<tr>
+        <td><input type="text" value="${esc(g.name)}" style="padding:5px"
+             onchange="renameGrade('${g.id}', this.value, '${esc(g.name)}')"></td>
+        <td class="num">${n}名</td>
+        <td><input type="number" value="${g.sort_order}" style="width:70px;padding:5px"
+             onchange="setGradeOrder('${g.id}', this.value)"></td>
+        <td><button class="ghost" onclick="delGrade('${g.id}','${esc(g.name)}',${n})">削除</button></td></tr>`;
+    }).join('')}
+  </table>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="ng_name" placeholder="新しい役職" style="flex:2;min-width:150px">
+    <input type="number" id="ng_order" placeholder="並び順" style="flex:1;min-width:90px">
+    <button class="act" style="padding:8px 16px;font-size:13px" onclick="addGrade()">追加</button>
+  </div>
+  <p class="note" style="margin-top:8px">新しい役職を追加したら、Chatworkの通知先ルームの設定も必要です。ご相談ください。</p>`;
+}
+async function renameGrade(id, name, before){
+  name = (name || '').trim();
+  if (!name || name === before) return;
+  const n = USERS.filter(u => u.job_grade === before).length;
+  if (n && !confirm(before + ' を「' + name + '」に変更します。該当する ' + n + '名の役職も更新されます。よろしいですか。')){
+    loadGradeAdmin(); return;
+  }
+  const { error } = await EC.supabase.from('job_grades').update({ name: name }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  await EC.supabase.from('app_users').update({ job_grade: name }).eq('job_grade', before);
+  await EC.supabase.from('chatwork_rooms').update({ job_grade: name }).eq('job_grade', before);
+  USERS.forEach(u => { if (u.job_grade === before) u.job_grade = name; });
+  if (ME.job_grade === before) ME.job_grade = name;
+  GRADES = GRADES.map(g => g === before ? name : g);
+  toast('役職を変更しました');
+  loadGradeAdmin(); loadOrgLine(); drawOrgChart();
+}
+async function setGradeOrder(id, v){
+  const { error } = await EC.supabase.from('job_grades').update({ sort_order: Number(v) || 100 }).eq('id', id);
+  if (error){ toast('変更できませんでした'); return; }
+  const { data } = await EC.supabase.from('job_grades')
+    .select('name').eq('is_active', true).order('sort_order');
+  if (data) GRADES = data.map(g => g.name);
+  toast('並び順を変更しました'); loadGradeAdmin();
+}
+async function addGrade(){
+  const name = (document.getElementById('ng_name')||{}).value.trim();
+  if (!name){ toast('役職を入力してください'); return; }
+  const { error } = await EC.supabase.from('job_grades').insert({
+    name: name, sort_order: Number((document.getElementById('ng_order')||{}).value) || 100 });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  GRADES.push(name);
+  toast('追加しました。この役職の通知先ルームの設定をお忘れなく');
+  loadGradeAdmin();
+}
+async function delGrade(id, name, n){
+  if (n > 0){ toast(name + ' には ' + n + '名が該当します。先に別の区分へ変更してください'); return; }
+  if (!confirm(name + ' を削除します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('job_grades').update({ is_active: false }).eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  GRADES = GRADES.filter(g => g !== name);
+  toast('削除しました'); loadGradeAdmin();
+}
+
 /* ---------- 部署マスタの編集 ---------- */
 async function loadDeptAdmin(){
   const box = document.getElementById('deptBox'); if (!box) return;
@@ -2044,12 +2131,17 @@ async function loadDeptAdmin(){
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   const list = data || [];
   box.innerHTML = `<table style="margin-top:10px">
-    <tr><th>部署名</th><th>人数</th><th>表示順</th><th></th></tr>
+    <tr><th>部署名</th><th>部門長</th><th>人数</th><th>表示順</th><th></th></tr>
     ${list.map(d => {
       const n = USERS.filter(u => u.department_id === d.id).length;
       return `<tr>
         <td><input type="text" value="${esc(d.name)}" style="padding:5px"
              onchange="renameDept('${d.id}', this.value, '${esc(d.name)}')"></td>
+        <td><select style="padding:5px;font-size:12px" onchange="setDeptHead('${d.id}',this.value)">
+          <option value="">（未設定）</option>
+          ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+            .map(u => `<option value="${u.id}"${d.head_user_id===u.id?' selected':''}>${esc(u.full_name)}（${esc(u.job_grade||'')}）</option>`).join('')}
+        </select></td>
         <td class="num">${n}名</td>
         <td><input type="number" value="${d.sort_order || 100}" style="width:70px;padding:5px"
              onchange="setDeptOrder('${d.id}', this.value)"></td>
@@ -2061,6 +2153,14 @@ async function loadDeptAdmin(){
     <input type="number" id="nd_order" placeholder="表示順" style="flex:1;min-width:90px">
     <button class="act" style="padding:8px 16px;font-size:13px" onclick="addDept()">部署を追加</button>
   </div>`;
+}
+async function setDeptHead(deptId, uid){
+  const { error } = await EC.supabase.from('departments')
+    .update({ head_user_id: uid || null }).eq('id', deptId);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const d = DEPTS.find(x => x.id === deptId); if (d) d.head_user_id = uid || null;
+  toast(uid ? uname(uid) + ' を部門長に設定しました' : '部門長を解除しました');
+  loadDeptAdmin(); drawOrgChart();
 }
 async function renameDept(id, name, before){
   name = (name || '').trim();
