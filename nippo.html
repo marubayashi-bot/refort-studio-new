@@ -168,6 +168,7 @@ let TABS = BASE_TABS.concat(TAIL_TABS);
 
 let ME = null;          // app_users の自分の行
 let USERS = [];         // 在籍者
+let ALL_USERS = [];     // 退職者を含む全員
 let METRICS = [];       // 自部署の数値項目（入力用）
 let METRICS_ALL = [];   // 全部署の項目（表示用）
 let REPORTS = [];       // 閲覧できる日報
@@ -212,9 +213,10 @@ async function boot(){
   const { data: us, error: ue } = await EC.supabase
     .from('app_users')
     .select('id,email,full_name,dept_name,department_id,manager_id,job_grade,exec_watch,is_active,role,ai_access')
-    .eq('is_active', true);
+    ;
   if (ue) { fail('社員情報を読み込めませんでした: ' + ue.message); return; }
-  USERS = us || [];
+  ALL_USERS = us || [];
+  USERS = ALL_USERS.filter(u => u.is_active !== false);
   ME = USERS.find(u => u.id === meId)
     || USERS.find(u => email && u.email.toLowerCase() === email.toLowerCase());
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
@@ -1100,6 +1102,7 @@ function vAdmin(){
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
   setTimeout(drawOrgChart, 0);
+  setTimeout(loadRetired, 0);
   setTimeout(loadGoalList, 0);
   if (canAdmin()) setTimeout(loadDeptAdmin, 0);
   if (canAdmin()) setTimeout(loadHolidays, 0);
@@ -1153,6 +1156,28 @@ function vAdmin(){
     <label>氏名・部署で絞り込み</label>
     <input type="text" id="orgFilter" placeholder="例：相河、営業" oninput="loadOrgLine(this.value)">
     <div id="orgList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
+
+    <h3 style="margin-top:20px">社員を追加</h3>
+    <p class="note">会社のGoogleアカウントで初回ログインすると自動登録されますが、
+      入社前に登録しておきたい場合はここから追加できます。</p>
+    <div class="grid" style="gap:8px">
+      <div><label>氏名</label><input type="text" id="nu_name" placeholder="例：山田 太郎"></div>
+      <div><label>メールアドレス</label><input type="text" id="nu_email" placeholder="taro@earthcom-eco.jp"></div>
+      <div><label>所属部署</label><select id="nu_dept">
+        <option value="">（未設定）</option>
+        ${DEPTS.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></div>
+      <div><label>職位区分</label><select id="nu_grade">
+        ${GRADES.map(g => `<option${g==='一般'?' selected':''}>${g}</option>`).join('')}</select></div>
+      <div><label>直属上司</label><select id="nu_boss">
+        <option value="">（未設定）</option>
+        ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+          .map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}</select></div>
+    </div>
+    <button class="act" style="margin-top:10px" onclick="addUser()">社員を追加</button>
+
+    <h3 style="margin-top:20px">退職者</h3>
+    <p class="note">組織図や日報一覧には出ませんが、過去の記録は残ります。</p>
+    <div id="retiredBox"></div>
   </div>
   ${canAdmin() ? `<div class="card"><h3>AIの利用範囲</h3>
     <p class="note">初期設定では、次長・部門長は個人／上司／部署AIとAI検索・会議資料、役員は全AIを使えます。
@@ -1453,6 +1478,77 @@ function orgNode(u, act, depth){
   </div>`;
 }
 
+
+/* ---------- 社員の追加・編集・退職 ---------- */
+async function renameUser(id, name){
+  name = (name || '').trim(); if (!name) return;
+  const { error } = await EC.supabase.from('app_users').update({ full_name: name }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const u = USERS.find(x => x.id === id); if (u) u.full_name = name;
+  const a = ALL_USERS.find(x => x.id === id); if (a) a.full_name = name;
+  toast('氏名を変更しました');
+}
+async function retireUser(id, name){
+  if (!confirm(name + ' を退職として登録します。\n過去の日報・週次報告は残りますが、組織図や一覧には表示されなくなります。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('app_users')
+    .update({ is_active: false, manager_id: null }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  // この人を上司にしていた社員は上司なしに戻す
+  const kids = USERS.filter(u => u.manager_id === id);
+  for (const k of kids){
+    await EC.supabase.from('app_users').update({ manager_id: null }).eq('id', k.id);
+    k.manager_id = null;
+  }
+  USERS = USERS.filter(u => u.id !== id);
+  const a = ALL_USERS.find(x => x.id === id); if (a) a.is_active = false;
+  toast(kids.length ? '退職にしました。部下' + kids.length + '名の上司が未設定になりました' : '退職として登録しました');
+  loadOrgLine((document.getElementById('orgFilter')||{}).value); drawOrgChart(); loadRetired();
+}
+async function reviveUser(id){
+  const { error } = await EC.supabase.from('app_users').update({ is_active: true }).eq('id', id);
+  if (error){ toast('戻せませんでした: ' + error.message); return; }
+  const a = ALL_USERS.find(x => x.id === id);
+  if (a){ a.is_active = true; USERS.push(a); }
+  toast('在籍に戻しました');
+  loadOrgLine(); drawOrgChart(); loadRetired();
+}
+async function addUser(){
+  const name  = (document.getElementById('nu_name')||{}).value.trim();
+  const email = (document.getElementById('nu_email')||{}).value.trim();
+  if (!name || !email){ toast('氏名とメールアドレスを入力してください'); return; }
+  const dept  = (document.getElementById('nu_dept')||{}).value || null;
+  const d = DEPTS.find(x => x.id === dept);
+  const { data, error } = await EC.supabase.from('app_users').insert({
+    full_name: name, email: email, is_active: true, role: 'field',
+    department_id: dept, dept_name: d ? d.name : null,
+    job_grade: (document.getElementById('nu_grade')||{}).value || '一般',
+    manager_id: (document.getElementById('nu_boss')||{}).value || null
+  }).select().single();
+  if (error){
+    toast('追加できませんでした: ' + error.message +
+      '（初回ログイン時に自動登録される仕組みのため、本人にログインしてもらう方法もあります）');
+    return;
+  }
+  USERS.push(data); ALL_USERS.push(data);
+  document.getElementById('nu_name').value = '';
+  document.getElementById('nu_email').value = '';
+  toast('社員を追加しました');
+  loadOrgLine(); drawOrgChart();
+}
+function loadRetired(){
+  const box = document.getElementById('retiredBox'); if (!box) return;
+  const list = ALL_USERS.filter(u => u.is_active === false)
+    .sort((a,b) => (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  box.innerHTML = list.length
+    ? `<table style="margin-top:10px"><tr><th>氏名</th><th>部署</th><th></th></tr>
+      ${list.map(u => `<tr><td>${esc(u.full_name||u.email)}</td>
+        <td class="note">${esc(u.dept_name||'')}</td>
+        <td><button class="ghost" onclick="reviveUser('${u.id}')">在籍に戻す</button></td></tr>`).join('')}
+      </table>
+      <p class="note" style="margin-top:8px">過去の日報・週次報告・コメントはそのまま残っています。</p>`
+    : '<p class="note" style="margin-top:10px">退職として登録された社員はいません。</p>';
+}
+
 /* ---------- 報告ライン（直属上司）の編集 ---------- */
 function loadOrgLine(q){
   const box = document.getElementById('orgList'); if (!box) return;
@@ -1483,10 +1579,11 @@ function drawOrgLine_(box, q){
     return;
   }
   box.innerHTML = chips + `<table style="margin-top:4px">
-    <tr><th>氏名</th><th>部署</th><th>職位区分</th><th>直属上司</th></tr>
+    <tr><th>氏名</th><th>部署</th><th>職位区分</th><th>直属上司</th><th>在籍</th></tr>
     ${sorted.map(u => {
       const ng = [u.id].concat(descendantsOf(u.id));
-      return `<tr><td>${esc(u.full_name)}</td>
+      return `<tr><td><input type="text" value="${esc(u.full_name||'')}" style="padding:5px;min-width:110px"
+        onchange="renameUser('${u.id}', this.value)"></td>
         <td><select style="padding:5px;font-size:12px" onchange="setDept('${u.id}',this.value)">
           <option value="">（未設定）</option>
           ${DEPTS.map(d => `<option value="${d.id}"${u.department_id===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}
@@ -1499,7 +1596,8 @@ function drawOrgLine_(box, q){
           ${USERS.filter(x => ng.indexOf(x.id) < 0)
                  .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
                  .map(x => `<option value="${x.id}"${u.manager_id===x.id?' selected':''}>${esc(x.full_name)}（${esc(x.dept_name||'')}）</option>`).join('')}
-        </select></td></tr>`;}).join('')}
+        </select></td>
+        <td><button class="ghost" onclick="retireUser('${u.id}','${esc(u.full_name)}')">退職</button></td></tr>`;}).join('')}
   </table>
   <p class="note" style="margin-top:8px">${sorted.length}名を表示中／自分の部下は上司の候補に出ません（ループ防止）。</p>`;
 }
