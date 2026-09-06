@@ -1141,6 +1141,8 @@ function vAdmin(){
       ${DEPTS.length ? DEPTS.map(d => `<option value="${d.id}"${d.id===ADMIN_DEPT?' selected':''}>${esc(d.name)}</option>`).join('')
         : '<option value="">部署を読み込めませんでした</option>'}
     </select>
+    <label>項目名で絞り込み</label>
+    <input type="text" id="adFind" placeholder="例：契約、MQ" oninput="loadAdminMetrics()">
     <div id="adList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
     <h3 style="margin-top:20px">項目を追加</h3>
     <div class="grid">
@@ -1238,15 +1240,32 @@ function vAdmin(){
         ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
           .map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('')}
       </select></div>
-      <div><label>紐づける数値項目</label><select id="qg_metric" onchange="fillGoalName(this.value)">
+      <div><label>紐づける数値項目（${METRICS_ALL.length}件）</label>
+        <select id="qg_metric" onchange="fillGoalName(this.value)">
         <option value="">選んでください</option>
-        ${METRICS_ALL.map(m => `<option value="${m.id}">${esc(m.name)}（${esc(m.unit)}）</option>`).join('')}
-      </select></div>
+        ${METRICS_ALL.map(m => `<option value="${m.id}">${esc(m.name)}（${esc(m.unit)}）${m.user_id ? '／' + esc(uname(m.user_id)) + '専用' : ''}</option>`).join('')}
+      </select>
+      <a href="#" onclick="toggleNewMetric();return false" style="color:var(--accent);font-size:12px">
+        項目が無い場合はここで作成</a></div>
       <div><label>種別</label><select id="qg_kind">
         <option value="KPI">KPI（先行指標）</option><option value="KGI">KGI（結果目標）</option></select></div>
       <div><label>四半期の目標値</label><input type="number" step="any" id="qg_target" placeholder="0"></div>
       <div><label>開始日</label><input type="date" id="qg_from"></div>
       <div><label>終了日</label><input type="date" id="qg_to"></div>
+    </div>
+    <div id="qgNewMetric" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#FBFCFD">
+      <b style="font-size:13px">数値項目を新しく作る</b>
+      <div class="grid" style="gap:8px;margin-top:8px">
+        <div><label>項目名</label><input type="text" id="qm_name" placeholder="例：リエネ契約数"></div>
+        <div><label>単位</label><input type="text" id="qm_unit" value="件"></div>
+        <div><label>1日の目標</label><input type="number" step="any" id="qm_target" placeholder="0"></div>
+        <div><label>対象</label><select id="qm_scope">
+          <option value="dept">選択中の対象者の部署全体</option>
+          <option value="user">選択中の対象者だけ</option>
+        </select></div>
+      </div>
+      <button class="ghost" style="margin-top:10px" onclick="createMetricHere()">この項目を作成して選ぶ</button>
+      <p class="note" style="margin-top:6px">作成した項目は日報の入力画面にも出るようになります。</p>
     </div>
     <button class="act" style="margin-top:12px" onclick="addGoal()">四半期目標を追加</button>
     <div id="qgList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
@@ -1277,14 +1296,18 @@ async function loadAdminMetrics(){
   const { data, error } = await EC.supabase.from('report_metrics')
     .select('*').eq('is_active', true).order('sort_order');
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+  const q = ((document.getElementById('adFind')||{}).value || '').replace(/[\s　]/g,'');
   ADMIN_METRICS = (data || []).filter(m =>
-    (!m.user_id && m.department_id === ADMIN_DEPT) || (m.user_id && memberIds.indexOf(m.user_id) >= 0));
+    ((!m.user_id && m.department_id === ADMIN_DEPT) || (m.user_id && memberIds.indexOf(m.user_id) >= 0))
+    && (!q || String(m.name||'').replace(/[\s　]/g,'').indexOf(q) >= 0));
   box.innerHTML = ADMIN_METRICS.length
     ? `<table style="margin-top:12px"><tr><th>項目</th><th>対象</th><th>単位</th><th>目標</th><th>入力する層</th><th></th></tr>
        ${ADMIN_METRICS.map(m => `<tr>
-         <td>${esc(m.name)}</td>
+         <td><input type="text" value="${esc(m.name)}" style="padding:5px;min-width:130px"
+              onchange="updMetric('${m.id}','name',this.value)"></td>
          <td class="note">${m.user_id ? esc(uname(m.user_id)) + ' 専用' : '部署全体'}</td>
-         <td>${esc(m.unit)}</td>
+         <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:70px"
+              onchange="updMetric('${m.id}','unit',this.value)"></td>
          <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
               onchange="setTarget('${m.id}',this.value)"></td>
          <td>${m.user_id ? '<span class="note">—</span>' : `<select style="padding:5px;font-size:12px" onchange="setScope('${m.id}',this.value)">`}
@@ -1314,6 +1337,14 @@ async function addMetric(){
   toast('追加しました');
   if (ADMIN_DEPT === ME.department_id) await reloadMyMetrics();
   loadAdminMetrics();
+}
+async function updMetric(id, field, value){
+  const patch = {}; patch[field] = value;
+  const { error } = await EC.supabase.from('report_metrics').update(patch).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const m = METRICS_ALL.find(x => x.id === id); if (m) m[field] = value;
+  toast('数値項目を更新しました');
+  loadAdminMetrics(); reloadMyMetrics();
 }
 async function setTarget(id, v){
   const { error } = await EC.supabase.from('report_metrics').update({ target: Number(v) || 0 }).eq('id', id);
@@ -2036,6 +2067,35 @@ function fillGoalName(mid){
   const el = document.getElementById('qg_target');
   if (el && !el.value) el.focus();
 }
+function toggleNewMetric(){
+  const el = document.getElementById('qgNewMetric'); if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+async function createMetricHere(){
+  const name = ((document.getElementById('qm_name')||{}).value || '').trim();
+  if (!name){ toast('項目名を入力してください'); return; }
+  const uid  = (document.getElementById('qg_user')||{}).value || null;
+  const scope = (document.getElementById('qm_scope')||{}).value;
+  const u = USERS.find(x => x.id === uid);
+  const deptId = u ? u.department_id : ADMIN_DEPT;
+  const { data, error } = await EC.supabase.from('report_metrics').insert({
+    department_id: deptId,
+    user_id: (scope === 'user' && uid) ? uid : null,
+    name: name,
+    unit: ((document.getElementById('qm_unit')||{}).value || '件').trim(),
+    target: Number((document.getElementById('qm_target')||{}).value) || 0,
+    sort_order: (METRICS_ALL.length + 1) * 10
+  }).select().single();
+  if (error){ toast('作成できませんでした: ' + error.message); return; }
+  METRICS_ALL.push(data);
+  toast('数値項目を作成しました');
+  render();
+  setTimeout(() => {
+    const sel = document.getElementById('qg_metric');
+    if (sel){ sel.value = data.id; sel.scrollIntoView({ block: 'center' }); }
+  }, 100);
+}
+
 function filterGoalUsers(){
   const q = ((document.getElementById('qg_ufind')||{}).value || '').replace(/[\s　]/g,'');
   const sel = document.getElementById('qg_user'); if (!sel) return;
