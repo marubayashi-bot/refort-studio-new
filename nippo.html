@@ -1468,6 +1468,22 @@ function vAdmin(){
       個人ごとの目標を追いたいときに使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
+  <div class="card"><h3>本人の画面プレビュー</h3>
+    <p class="note">上で設定した内容が、実際にどう見えるかをここで確認できます。</p>
+    <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
+    <label>確認する社員</label>
+    <select id="pvUser" onchange="loadPreview(this.value)">
+      <option value="">選んでください</option>
+      ${DEPTS.map(d => {
+        const list = USERS.filter(u => u.department_id === d.id)
+          .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
+        return list.length ? `<optgroup label="${esc(d.name)}">
+          ${list.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}
+        </optgroup>` : '';
+      }).join('')}
+    </select>
+    <div id="pvBox"></div>
+  </div>
   <div class="card"><h3>組織図</h3>
     <div class="row" style="margin-bottom:8px">
       <button class="ghost" onclick="setOrgView('tree')" id="ovTree">指揮系統で見る</button>
@@ -1569,21 +1585,6 @@ function vAdmin(){
     </div>
     <button class="act" style="margin-top:12px" onclick="addGoal()">四半期目標を追加</button>
     <div id="qgList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
-  </div>
-  <div class="card"><h3>本人の画面プレビュー</h3>
-    <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
-    <label>確認する社員</label>
-    <select id="pvUser" onchange="loadPreview(this.value)">
-      <option value="">選んでください</option>
-      ${DEPTS.map(d => {
-        const list = USERS.filter(u => u.department_id === d.id)
-          .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
-        return list.length ? `<optgroup label="${esc(d.name)}">
-          ${list.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}
-        </optgroup>` : '';
-      }).join('')}
-    </select>
-    <div id="pvBox"></div>
   </div>
   <div class="card"><h3>設定のこつ</h3>
     <p class="note">項目は4〜5個までに抑えてください。多すぎると日報が数字を埋める作業になり、お客様の声や考察の質が落ちます。
