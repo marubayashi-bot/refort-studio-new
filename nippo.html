@@ -264,14 +264,14 @@ function render(){
     .concat(canWeekly ? [['weekly','週次報告']] : [])
     .concat([
           ['notify', '通知' + (nUnread ? '（' + nUnread + '）' : '')],
-          ['status','提出・確認状況'],['dash','ダッシュボード']])
+          ['status','提出・確認状況'],['dash','ダッシュボード'],['result','実績一覧']])
          .concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
   const tabs = TABS.concat([['admin','管理']]);
   if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
+    ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, result:vResult, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -1090,6 +1090,7 @@ function vAdmin(){
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
   setTimeout(loadGoalList, 0);
+  if (canAdmin()) setTimeout(loadDeptAdmin, 0);
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
@@ -1142,6 +1143,10 @@ function vAdmin(){
   ${canAdmin() ? `<div class="card"><h3>提出不要日（全社）</h3>
     <p class="note">ここで設定した曜日・日付は、未提出リマインドの対象外になります。</p>
     <div id="holBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
+  </div>` : ''}
+  ${canAdmin() ? `<div class="card"><h3>部署</h3>
+    <p class="note">名称を変えると、所属している社員の表示もまとめて更新されます。</p>
+    <div id="deptBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
   <div class="card"><h3>四半期目標（KGI・KPI）</h3>
     <p class="note">日報の数値項目と紐づけると、実績が自動で集計され、週次報告に反映されます。</p>
@@ -1843,6 +1848,179 @@ async function delGoal(id){
   const { error } = await EC.supabase.from('quarter_goals').update({ is_active: false }).eq('id', id);
   if (error){ toast('削除できませんでした: ' + error.message); return; }
   toast('削除しました'); loadGoalList(); loadGoals();
+}
+
+
+/* ---------- 部署マスタの編集 ---------- */
+async function loadDeptAdmin(){
+  const box = document.getElementById('deptBox'); if (!box) return;
+  const { data, error } = await EC.supabase.from('departments')
+    .select('*').eq('is_active', true).order('sort_order');
+  if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+  const list = data || [];
+  box.innerHTML = `<table style="margin-top:10px">
+    <tr><th>部署名</th><th>人数</th><th>表示順</th><th></th></tr>
+    ${list.map(d => {
+      const n = USERS.filter(u => u.department_id === d.id).length;
+      return `<tr>
+        <td><input type="text" value="${esc(d.name)}" style="padding:5px"
+             onchange="renameDept('${d.id}', this.value, '${esc(d.name)}')"></td>
+        <td class="num">${n}名</td>
+        <td><input type="number" value="${d.sort_order || 100}" style="width:70px;padding:5px"
+             onchange="setDeptOrder('${d.id}', this.value)"></td>
+        <td><button class="ghost" onclick="delDept('${d.id}','${esc(d.name)}',${n})">削除</button></td></tr>`;
+    }).join('')}
+  </table>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="nd_name" placeholder="新しい部署名" style="flex:2;min-width:160px">
+    <input type="number" id="nd_order" placeholder="表示順" style="flex:1;min-width:90px">
+    <button class="act" style="padding:8px 16px;font-size:13px" onclick="addDept()">部署を追加</button>
+  </div>`;
+}
+async function renameDept(id, name, before){
+  name = (name || '').trim();
+  if (!name || name === before) return;
+  const { error } = await EC.supabase.from('departments').update({ name: name }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  // 所属社員の表示名もまとめて更新
+  await EC.supabase.from('app_users').update({ dept_name: name }).eq('department_id', id);
+  USERS.forEach(u => { if (u.department_id === id) u.dept_name = name; });
+  const d = DEPTS.find(x => x.id === id); if (d) d.name = name;
+  if (ME.department_id === id) ME.dept_name = name;
+  toast('部署名を変更しました');
+  loadDeptAdmin();
+}
+async function setDeptOrder(id, v){
+  const { error } = await EC.supabase.from('departments').update({ sort_order: Number(v) || 100 }).eq('id', id);
+  toast(error ? '変更できませんでした' : '表示順を変更しました');
+  loadDeptAdmin();
+}
+async function addDept(){
+  const name = (document.getElementById('nd_name')||{}).value.trim();
+  if (!name){ toast('部署名を入力してください'); return; }
+  const code = 'd' + Date.now();
+  const { error } = await EC.supabase.from('departments').insert({
+    code: code, name: name, sort_order: Number((document.getElementById('nd_order')||{}).value) || 100 });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  const { data } = await EC.supabase.from('departments').select('id,name,sort_order')
+    .eq('is_active', true).order('sort_order');
+  DEPTS = data || [];
+  toast('部署を追加しました'); loadDeptAdmin();
+}
+async function delDept(id, name, n){
+  if (n > 0){ toast(name + ' には ' + n + '名が所属しています。先に異動させてください'); return; }
+  if (!confirm(name + ' を削除します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('departments').update({ is_active: false }).eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  DEPTS = DEPTS.filter(d => d.id !== id);
+  toast('削除しました'); loadDeptAdmin();
+}
+
+
+/* ================= 実績一覧 ================= */
+let RES_FROM = '', RES_TO = '', RES_UNIT = 'dept', RES_DEPT = '';
+
+function vResult(){
+  if (!RES_FROM){
+    const d = new Date(); d.setDate(d.getDate() - 27);
+    RES_FROM = d.toISOString().slice(0,10); RES_TO = TODAY;
+  }
+  setTimeout(drawResult, 0);
+  return `<h2>実績一覧</h2>
+  <p class="sub">日報に入力された数値を、期間・単位ごとに集計します。</p>
+  <div class="card" style="padding:12px 14px">
+    <div class="grid" style="gap:8px">
+      <div><label>開始日</label><input type="date" id="rs_from" value="${RES_FROM}"></div>
+      <div><label>終了日</label><input type="date" id="rs_to" value="${RES_TO}"></div>
+      <div><label>集計単位</label><select id="rs_unit">
+        <option value="all"${RES_UNIT==='all'?' selected':''}>全社（合計）</option>
+        <option value="dept"${RES_UNIT==='dept'?' selected':''}>部署別</option>
+        <option value="user"${RES_UNIT==='user'?' selected':''}>個人別</option>
+      </select></div>
+      <div><label>部署で絞る</label><select id="rs_dept">
+        <option value="">すべて</option>
+        ${DEPTS.map(d => `<option value="${esc(d.name)}"${RES_DEPT===d.name?' selected':''}>${esc(d.name)}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="act" style="padding:8px 16px;font-size:13px" onclick="applyResult()">集計する</button>
+      ${[[7,'直近7日'],[28,'直近4週'],[91,'直近3か月'],[182,'直近半年']].map(([d,t]) =>
+        `<button class="ghost" onclick="quickResult(${d})">${t}</button>`).join('')}
+    </div>
+  </div>
+  <div id="resBox"><div class="empty">集計しています…</div></div>`;
+}
+
+async function applyResult(){
+  RES_FROM = (document.getElementById('rs_from')||{}).value || RES_FROM;
+  RES_TO   = (document.getElementById('rs_to')||{}).value || RES_TO;
+  RES_UNIT = (document.getElementById('rs_unit')||{}).value || 'dept';
+  RES_DEPT = (document.getElementById('rs_dept')||{}).value || '';
+  if (RES_FROM < LOAD_FROM){ toast('過去の日報を読み込んでいます…'); await loadReports(RES_FROM); }
+  render();
+}
+async function quickResult(days){
+  const d = new Date(); d.setDate(d.getDate() - days + 1);
+  RES_FROM = d.toISOString().slice(0,10); RES_TO = TODAY;
+  if (RES_FROM < LOAD_FROM){ toast('過去の日報を読み込んでいます…'); await loadReports(RES_FROM); }
+  render();
+}
+
+async function drawResult(){
+  const box = document.getElementById('resBox'); if (!box) return;
+  if (RES_FROM < LOAD_FROM){ await loadReports(RES_FROM); }
+
+  const inRange = REPORTS.filter(r => r.report_date >= RES_FROM && r.report_date <= RES_TO
+    && r.status !== 'off' && (!RES_DEPT || udept(r.author_id) === RES_DEPT));
+
+  // 集計キーごとに { 提出件数, 人数, 数値項目合計 }
+  const buckets = {};
+  inRange.forEach(r => {
+    const key = RES_UNIT === 'all' ? '全社'
+              : RES_UNIT === 'dept' ? (udept(r.author_id) || '部署なし')
+              : uname(r.author_id);
+    const b = buckets[key] = buckets[key] || { n: 0, users: {}, m: {} };
+    b.n++; b.users[r.author_id] = true;
+    (r.report_metric_values || []).forEach(v => {
+      b.m[v.metric_id] = (b.m[v.metric_id] || 0) + (Number(v.value) || 0);
+    });
+  });
+
+  const keys = Object.keys(buckets);
+  if (!keys.length){ box.innerHTML = '<div class="empty">対象の日報がありません。</div>'; return; }
+
+  // 期間内に使われた数値項目だけを列にする
+  const used = [];
+  keys.forEach(k => Object.keys(buckets[k].m).forEach(id => { if (used.indexOf(id) < 0) used.push(id); }));
+  const cols = used.map(id => METRICS_ALL.find(m => m.id === id)).filter(Boolean)
+    .sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+
+  const days = Math.max(1, Math.round((new Date(RES_TO) - new Date(RES_FROM)) / 86400000) + 1);
+  box.innerHTML = `
+  <div class="card">
+    <h3>${RES_FROM} 〜 ${RES_TO}（${days}日間）${RES_DEPT ? '／' + esc(RES_DEPT) : ''}</h3>
+    <div style="overflow-x:auto">
+    <table><tr><th>${RES_UNIT === 'user' ? '氏名' : RES_UNIT === 'dept' ? '部署' : '対象'}</th>
+      <th>日報</th><th>人数</th>
+      ${cols.map(m => `<th>${esc(m.name)}<br><span class="note">${esc(m.unit)}</span></th>`).join('')}</tr>
+    ${keys.sort().map(k => {
+      const b = buckets[k];
+      return `<tr><td><b>${esc(k)}</b></td>
+        <td class="num">${b.n}</td>
+        <td class="num">${Object.keys(b.users).length}</td>
+        ${cols.map(m => `<td class="num">${b.m[m.id] !== undefined
+            ? Math.round(b.m[m.id]*10)/10 : '<span class="note">—</span>'}</td>`).join('')}
+      </tr>`;}).join('')}
+    ${keys.length > 1 ? `<tr style="background:#F5F8FB"><td><b>合計</b></td>
+      <td class="num"><b>${inRange.length}</b></td>
+      <td class="num"><b>${Object.keys(inRange.reduce((a,r)=>{a[r.author_id]=1;return a;},{})).length}</b></td>
+      ${cols.map(m => {
+        const t = keys.reduce((a,k) => a + (buckets[k].m[m.id] || 0), 0);
+        return `<td class="num"><b>${Math.round(t*10)/10}</b></td>`;}).join('')}
+    </tr>` : ''}
+    </table></div>
+    <p class="note" style="margin-top:8px">「日報」は提出件数、「人数」は提出した人の数です。休みで登録された日は除いています。</p>
+  </div>`;
 }
 
 /* ---------- 4. ダッシュボード ---------- */
