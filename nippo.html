@@ -1226,6 +1226,12 @@ function vAdmin(){
   </div>` : ''}
   <div class="card"><h3>四半期目標（KGI・KPI）</h3>
     <p class="note">日報の数値項目と紐づけると、実績が自動で集計され、週次報告に反映されます。</p>
+    <div class="row" style="margin-bottom:8px">
+      <div style="flex:1;min-width:180px"><label>対象者を絞り込み</label>
+        <input type="text" id="qg_ufind" placeholder="氏名・部署" oninput="filterGoalUsers()"></div>
+      <div style="flex:1;min-width:180px"><label>数値項目を絞り込み</label>
+        <input type="text" id="qg_mfind" placeholder="項目名" oninput="filterGoalMetrics()"></div>
+    </div>
     <div class="grid" style="gap:8px">
       <div><label>対象者</label><select id="qg_user">
         <option value="">部署全体（${esc((DEPTS.find(d=>d.id===ADMIN_DEPT)||{}).name || '')}）</option>
@@ -2030,24 +2036,64 @@ function fillGoalName(mid){
   const el = document.getElementById('qg_target');
   if (el && !el.value) el.focus();
 }
+function filterGoalUsers(){
+  const q = ((document.getElementById('qg_ufind')||{}).value || '').replace(/[\s　]/g,'');
+  const sel = document.getElementById('qg_user'); if (!sel) return;
+  const cur = sel.value;
+  const list = USERS.filter(u => !q ||
+    (String(u.full_name||'') + String(u.dept_name||'')).replace(/[\s　]/g,'').indexOf(q) >= 0)
+    .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
+  sel.innerHTML = `<option value="">部署全体（${esc((DEPTS.find(d=>d.id===ADMIN_DEPT)||{}).name || '')}）</option>`
+    + list.map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('');
+  sel.value = cur;
+}
+function filterGoalMetrics(){
+  const q = ((document.getElementById('qg_mfind')||{}).value || '').replace(/[\s　]/g,'');
+  const sel = document.getElementById('qg_metric'); if (!sel) return;
+  const cur = sel.value;
+  const list = METRICS_ALL.filter(m => !q || String(m.name||'').replace(/[\s　]/g,'').indexOf(q) >= 0);
+  sel.innerHTML = '<option value="">選んでください</option>'
+    + list.map(m => `<option value="${m.id}">${esc(m.name)}（${esc(m.unit)}）</option>`).join('');
+  sel.value = cur;
+}
+
+let SHOW_ARCHIVED = false;
+function toggleArchived(){ SHOW_ARCHIVED = !SHOW_ARCHIVED; loadGoalList(); }
+
 async function loadGoalList(){
   const box = document.getElementById('qgList'); if (!box) return;
   const { data, error } = await EC.supabase.from('quarter_goals')
-    .select('*').eq('is_active', true).order('period_from', { ascending: false });
+    .select('*').order('period_from', { ascending: false });
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   ALL_GOALS = data || [];
-  box.innerHTML = ALL_GOALS.length
-    ? `<table style="margin-top:14px"><tr><th>対象</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
-      ${ALL_GOALS.map(g => `<tr>
+  const list = ALL_GOALS.filter(g => SHOW_ARCHIVED ? true : g.is_active !== false);
+  box.innerHTML = `<div class="row" style="margin-top:14px">
+      <button class="ghost" onclick="toggleArchived()">${SHOW_ARCHIVED ? '有効なものだけ表示' : 'アーカイブも表示'}</button>
+      <span class="note">${list.length}件</span></div>`
+    + (list.length
+    ? `<div style="overflow-x:auto"><table style="margin-top:8px">
+      <tr><th>対象</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
+      ${list.map(g => `<tr${g.is_active === false ? ' style="opacity:.5"' : ''}>
         <td>${g.user_id ? esc(uname(g.user_id)) : '部署全体'}</td>
         <td>${esc(g.name)}</td>
-        <td>${g.kind === 'KGI' ? '<span class="pill p4">KGI</span>' : 'KPI'}</td>
-        <td class="num">${g.target}${esc(g.unit)}</td>
-        <td class="num" style="font-size:11px">${g.period_from}〜${g.period_to}</td>
+        <td><select style="padding:4px;font-size:11px" onchange="updGoal('${g.id}','kind',this.value)">
+          <option value="KPI"${g.kind==='KPI'?' selected':''}>KPI</option>
+          <option value="KGI"${g.kind==='KGI'?' selected':''}>KGI</option></select></td>
+        <td><input type="number" step="any" value="${g.target}" style="width:90px;padding:4px"
+             onchange="updGoal('${g.id}','target',this.value)">${esc(g.unit)}</td>
+        <td><input type="date" value="${g.period_from}" style="padding:4px;font-size:11px"
+             onchange="updGoal('${g.id}','period_from',this.value)">
+            <input type="date" value="${g.period_to}" style="padding:4px;font-size:11px"
+             onchange="updGoal('${g.id}','period_to',this.value)"></td>
         <td class="num">${Math.round(g.target / (g.weeks||13) * 10)/10}</td>
-        <td><button class="ghost" onclick="delGoal('${g.id}')">削除</button></td></tr>`).join('')}
-      </table>`
-    : '<div class="empty" style="margin-top:12px">四半期目標がまだ登録されていません。</div>';
+        <td>${g.is_active === false
+          ? `<button class="ghost" onclick="updGoal('${g.id}','is_active',true)">戻す</button>`
+          : `<button class="ghost" onclick="updGoal('${g.id}','is_active',false)">アーカイブ</button>`}
+          <button class="ghost" onclick="delGoal('${g.id}')" style="color:var(--warn)">削除</button></td>
+      </tr>`).join('')}
+      </table></div>
+      <p class="note" style="margin-top:8px">アーカイブすると週次報告には出ませんが、過去の記録は残ります。削除は完全に消えます。</p>`
+    : '<div class="empty" style="margin-top:8px">四半期目標がまだ登録されていません。</div>');
 }
 async function addGoal(){
   const mid = (document.getElementById('qg_metric')||{}).value;
@@ -2070,9 +2116,23 @@ async function addGoal(){
   document.getElementById('qg_target').value = '';
   loadGoalList(); loadGoals();
 }
+async function updGoal(id, field, value){
+  const g = ALL_GOALS.find(x => x.id === id); if (!g) return;
+  const patch = {};
+  patch[field] = (field === 'target') ? Number(value) || 0 : value;
+  if (field === 'period_from' || field === 'period_to'){
+    const from = field === 'period_from' ? value : g.period_from;
+    const to   = field === 'period_to'   ? value : g.period_to;
+    patch.weeks = Math.max(1, Math.round((new Date(to) - new Date(from)) / 604800000));
+  }
+  const { error } = await EC.supabase.from('quarter_goals').update(patch).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  toast(field === 'is_active' ? (value ? '有効に戻しました' : 'アーカイブしました') : '更新しました');
+  loadGoalList(); loadGoals();
+}
 async function delGoal(id){
-  if (!confirm('この四半期目標を削除します。よろしいですか。')) return;
-  const { error } = await EC.supabase.from('quarter_goals').update({ is_active: false }).eq('id', id);
+  if (!confirm('この四半期目標を完全に削除します。元に戻せません。\n残しておく場合は「アーカイブ」を使ってください。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('quarter_goals').delete().eq('id', id);
   if (error){ toast('削除できませんでした: ' + error.message); return; }
   toast('削除しました'); loadGoalList(); loadGoals();
 }
