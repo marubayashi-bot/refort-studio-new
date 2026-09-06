@@ -44,6 +44,14 @@ header .tagline{font-size:11px;color:#8FA3B8}
 .streak b{color:#F5A05A;font-size:17px;font-family:ui-monospace,Menlo,monospace}
 .ring{width:40px;height:40px;flex:none}
 .ring text{font-size:10px;font-weight:700;fill:#fff}
+.mascot{position:relative;display:flex;align-items:flex-end;flex:none;cursor:pointer}
+.mascot img{filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.bubble{position:absolute;right:46px;bottom:22px;background:#fff;color:var(--ink);
+  font-size:11.5px;font-weight:700;line-height:1.4;padding:6px 11px;border-radius:12px;
+  white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.bubble:after{content:'';position:absolute;right:-5px;bottom:9px;width:0;height:0;
+  border-left:7px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent}
+@media(max-width:860px){.mascot{display:none}}
 @media(max-width:700px){header .tagline{display:none}.hstats{gap:9px}}
 @media(max-width:520px){.streak span{display:none}}
 header .tagline{font-size:11px;color:#8FA3B8}
@@ -190,6 +198,10 @@ button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
     <span class="tagline">今日の一歩を、成果につなげる。</span>
   </div>
   <div id="hstats" class="hstats"></div>
+  <div class="mascot" id="mascot">
+    <div class="bubble" id="mbubble"></div>
+    <img src="./mascot.png" alt="" width="52" height="52">
+  </div>
   <div id="userBadge"></div>
 </header>
 <nav id="nav"></nav>
@@ -427,6 +439,23 @@ function drawHeaderStats(){
         stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 18 18)"/>
       <text x="18" y="21" text-anchor="middle">${rate}%</text>
     </svg>`;
+  drawBubble(!!today, n, rate);
+}
+
+/* キャラクターのひとこと（状況で変わる） */
+function drawBubble(done, streak, rate){
+  const el = document.getElementById('mbubble'); if (!el) return;
+  const unseen = REPORTS.filter(r => r.author_id !== ME.id
+    && !(r.report_views||[]).some(v => v.viewer_id === ME.id)
+    && USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
+  let msg;
+  if (!done)                 msg = '今日の一歩、書いていきましょう！';
+  else if (unseen)           msg = '部下の日報が' + unseen + '件、未確認です';
+  else if (streak >= 20)     msg = streak + '日連続！すごい積み重ねです';
+  else if (streak >= 5)      msg = streak + '日連続、いい流れです！';
+  else if (rate >= 90)       msg = '今月の提出率' + rate + '％。お見事です';
+  else                       msg = '今日も一歩、前進！';
+  el.textContent = msg;
 }
 
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
