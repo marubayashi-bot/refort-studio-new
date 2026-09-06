@@ -131,6 +131,16 @@ h2{padding-left:11px;border-left:4px solid var(--accent)}
 button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .rep.unseen{background:#FFFCF7;border-color:#E7C4A6;box-shadow:0 0 0 2px rgba(180,84,31,.08)}
 .rep.unseen .head{border-bottom-color:#E7C4A6}
+.onode{margin:2px 0}
+.orow{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;flex-wrap:wrap}
+.orow:hover{background:#F4F8FB}
+.orow.me{background:var(--accent-soft)}
+.okids{margin-left:13px;padding-left:12px;border-left:2px solid var(--line)}
+.deptbox{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:10px;background:#FBFCFD}
+.depthead{font-weight:700;font-size:13px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.pcard{display:inline-flex;flex-direction:column;gap:1px;border:1px solid var(--line);background:#fff;
+  border-radius:8px;padding:6px 10px;line-height:1.4}
+.pcard.me{border-color:var(--accent);background:var(--accent-soft)}
 </style>
 </head>
 <body>
@@ -1089,6 +1099,7 @@ function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
+  setTimeout(drawOrgChart, 0);
   setTimeout(loadGoalList, 0);
   if (canAdmin()) setTimeout(loadDeptAdmin, 0);
   if (canAdmin()) setTimeout(loadHolidays, 0);
@@ -1127,6 +1138,13 @@ function vAdmin(){
     <p class="note">「対象者」で個人を選ぶと、その人の日報にだけ出る項目になります。所属部署を問わず全社員から選べます。
       個人ごとの目標を追いたいときに使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
+  </div>
+  <div class="card"><h3>組織図</h3>
+    <div class="row" style="margin-bottom:8px">
+      <button class="ghost" onclick="setOrgView('tree')" id="ovTree">指揮系統で見る</button>
+      <button class="ghost" onclick="setOrgView('dept')" id="ovDept">部署で見る</button>
+    </div>
+    <div id="orgChart"><p class="note">読み込み中…</p></div>
   </div>
   <div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
     <p class="note">所属部署・職位区分・直属上司をその場で変更できます。
@@ -1380,6 +1398,60 @@ function openReport(id){
   }, 60);
 }
 
+
+
+/* ---------- 組織図の可視化 ---------- */
+let ORG_VIEW = 'tree';
+function setOrgView(v){ ORG_VIEW = v; drawOrgChart(); }
+
+function drawOrgChart(){
+  const box = document.getElementById('orgChart'); if (!box) return;
+  const act = USERS.filter(u => u.is_active !== false && u.department_id);
+
+  const t = document.getElementById('ovTree'), d = document.getElementById('ovDept');
+  if (t) t.className = 'ghost' + (ORG_VIEW === 'tree' ? ' on' : '');
+  if (d) d.className = 'ghost' + (ORG_VIEW === 'dept' ? ' on' : '');
+
+  if (ORG_VIEW === 'dept'){
+    box.innerHTML = DEPTS.map(dep => {
+      const list = act.filter(u => u.department_id === dep.id)
+        .sort((a,b) => GRADES.indexOf(b.job_grade) - GRADES.indexOf(a.job_grade)
+                    || (a.full_name||'').localeCompare(b.full_name||'','ja'));
+      if (!list.length) return '';
+      return `<div class="deptbox">
+        <div class="depthead">${esc(dep.name)}<span class="note">　${list.length}名</span></div>
+        <div class="row" style="gap:6px">
+          ${list.map(u => `<span class="pcard${u.id===ME.id?' me':''}" title="上司：${esc(uname(u.manager_id))}">
+            <b>${esc(u.full_name)}</b>
+            <span class="note">${esc(u.job_grade||'')}</span>
+            <span class="note" style="font-size:10px">▲${esc(uname(u.manager_id))}</span>
+          </span>`).join('')}
+        </div></div>`;
+    }).join('') || '<div class="empty">表示できる社員がいません。</div>';
+    return;
+  }
+
+  const roots = act.filter(u => !u.manager_id || !act.some(x => x.id === u.manager_id));
+  box.innerHTML = (roots.length ? roots.map(u => orgNode(u, act, 0)).join('')
+    : '<div class="empty">頂点となる社員が見つかりません。</div>')
+    + '<p class="note" style="margin-top:10px">上司の下に部下が並びます。名前の右は職位区分と所属部署です。</p>';
+}
+
+function orgNode(u, act, depth){
+  const kids = act.filter(x => x.manager_id === u.id)
+    .sort((a,b) => GRADES.indexOf(b.job_grade) - GRADES.indexOf(a.job_grade)
+                || (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  return `<div class="onode">
+    <div class="orow${u.id===ME.id?' me':''}">
+      <span class="avatar">${esc((u.full_name||'?').slice(0,1))}</span>
+      <b>${esc(u.full_name)}</b>
+      <span class="pill">${esc(u.job_grade || '職位未設定')}</span>
+      <span class="note">${esc(u.dept_name || '')}</span>
+      ${kids.length ? `<span class="pill p2">部下${kids.length}</span>` : ''}
+    </div>
+    ${kids.length ? `<div class="okids">${kids.map(k => orgNode(k, act, depth+1)).join('')}</div>` : ''}
+  </div>`;
+}
 
 /* ---------- 報告ライン（直属上司）の編集 ---------- */
 function loadOrgLine(q){
