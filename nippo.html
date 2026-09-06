@@ -1129,7 +1129,8 @@ function vAdmin(){
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
   <div class="card"><h3>報告ライン（誰の日報を誰が見るか）</h3>
-    <p class="note">直属上司を変えると閲覧範囲と確認ラインが、職位区分を変えるとChatworkの通知先ルームが切り替わります。
+    <p class="note">所属部署・職位区分・直属上司をその場で変更できます。
+      部署を変えると数値項目が、職位区分を変えるとChatworkの通知先ルームが、直属上司を変えると閲覧範囲と確認ラインが切り替わります。
       課長の方が「リーダー」になっていると、係長のチャットに通知が飛びます。</p>
     <label>氏名・部署で絞り込み</label>
     <input type="text" id="orgFilter" placeholder="例：相河、営業" oninput="loadOrgLine(this.value)">
@@ -1414,7 +1415,10 @@ function drawOrgLine_(box, q){
     ${sorted.map(u => {
       const ng = [u.id].concat(descendantsOf(u.id));
       return `<tr><td>${esc(u.full_name)}</td>
-        <td class="note">${esc(u.dept_name||'')}</td>
+        <td><select style="padding:5px;font-size:12px" onchange="setDept('${u.id}',this.value)">
+          <option value="">（未設定）</option>
+          ${DEPTS.map(d => `<option value="${d.id}"${u.department_id===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}
+        </select></td>
         <td><select style="padding:5px;font-size:12px" onchange="setGrade('${u.id}',this.value)">
           ${GRADES.map(g => `<option${u.job_grade===g?' selected':''}>${g}</option>`).join('')}
         </select></td>
@@ -1436,6 +1440,17 @@ function descendantsOf(id, acc){
   acc = acc || [];
   USERS.filter(u => u.manager_id === id).forEach(c => { acc.push(c.id); descendantsOf(c.id, acc); });
   return acc;
+}
+async function setDept(id, deptId){
+  const d = DEPTS.find(x => x.id === deptId);
+  const { error } = await EC.supabase.from('app_users')
+    .update({ department_id: deptId || null, dept_name: d ? d.name : null }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const u = USERS.find(x => x.id === id);
+  if (u){ u.department_id = deptId || null; u.dept_name = d ? d.name : null; }
+  if (id === ME.id){ ME.department_id = deptId || null; ME.dept_name = d ? d.name : null; }
+  toast('所属部署を変更しました');
+  loadOrgLine((document.getElementById('orgFilter')||{}).value);
 }
 async function setGrade(id, grade){
   const { error } = await EC.supabase.from('app_users').update({ job_grade: grade }).eq('id', id);
