@@ -613,6 +613,32 @@ function udept(id){ const u = USERS.find(x=>x.id===id); return u ? (u.dept_name 
 function impMeta(v){ return IMP.find(i => i[0] === v) || IMP[3]; }
 function isBossOf(uid){ const u = USERS.find(x=>x.id===uid); return u && u.manager_id === ME.id; }
 function isExec(){ return ME.job_grade === '役員・経営'; }
+/* 自分が uid の上司ライン上にいるか（間接の上司も含む） */
+function isBossChainOf(uid){
+  let cur = USERS.find(x => x.id === uid), n = 0;
+  while (cur && n++ < 12){
+    if (cur.manager_id && cur.manager_id === ME.id) return true;
+    cur = USERS.find(x => x.id === cur.manager_id);
+  }
+  return false;
+}
+/* uid の数値項目・目標を編集してよいか（上司が部下の分を編集できる） */
+function canEditMetricsOf(uid){
+  if (ME.role === 'admin' || isExec()) return true;
+  if (isBossChainOf(uid)) return true;
+  const u = USERS.find(x => x.id === uid);
+  return !!(u && isDeptHead() && myDeptScope().indexOf(u.department_id) >= 0);
+}
+/* 目標の変更ログ（テーブルが無い環境ではそのまま素通りします） */
+async function logTargetChange(m, uid, before, after){
+  try{
+    await EC.supabase.from('metric_target_logs').insert({
+      metric_id: m.id, metric_name: m.name, target_user_id: uid || null,
+      before_target: (before === null || before === undefined || before === '') ? null : Number(before),
+      after_target: (after === null || after === undefined || after === '') ? null : Number(after),
+      changed_by: ME.id, changed_by_name: ME.full_name || ME.email });
+  }catch(e){}
+}
 
 /* ---------- 1. 日報を書く ---------- */
 function vWrite(){
@@ -1720,8 +1746,13 @@ async function updMetric(id, field, value){
   loadAdminMetrics(); reloadMyMetrics();
 }
 async function setTarget(id, v){
+  const before = (ADMIN_METRICS.find(x => x.id === id) || {}).target;
   const { error } = await EC.supabase.from('report_metrics').update({ target: Number(v) || 0 }).eq('id', id);
   toast(error ? '更新できませんでした' : '目標を更新しました');
+  if (!error){
+    const m = ADMIN_METRICS.find(x => x.id === id);
+    if (m){ logTargetChange(m, m.user_id, before, v); m.target = Number(v) || 0; }
+  }
   if (ADMIN_DEPT === ME.department_id) reloadMyMetrics();
 }
 async function setScope(id, key){
@@ -2111,6 +2142,8 @@ async function loadPreview(uid){
       : ['次長','部門長'].includes(u.job_grade) ? '部署AIまで（役職どおり）' : 'なし（役職どおり）');
   const room = (({'一般':'日報【課員】','リーダー':'日報_係長','課長':'日報_課長'})[u.job_grade]
                 || '日報【部長・次長】');
+  const canEdit = canEditMetricsOf(u.id);
+  PV_LIST = list;
 
   box.innerHTML = `
     <div class="card" style="margin-top:14px;background:#FBFCFD">
@@ -2128,19 +2161,136 @@ async function loadPreview(uid){
         <tr><th>AIの利用範囲</th><td>${aiLabel}</td></tr>
       </table>
 
-      <h3 style="margin-top:16px">数値情報（${list.length}項目）</h3>
-      ${list.length ? `<div class="grid">${list.map(m => `
+      <h3 style="margin-top:16px">数値情報（${list.length}項目）${canEdit ? '<span class="note" style="font-weight:400">　この場で書き換えれば保存されます</span>' : ''}</h3>
+      ${list.length ? `<div class="grid">${list.map((m, i) => `
         <div class="kpi">
-          <div class="l">${esc(m.name)}（${esc(m.unit)}）${m.user_id ? '　<b style="color:var(--accent)">個人専用</b>' : ''}</div>
-          <div class="v num" style="font-size:16px">目標 ${m.target ?? '—'}</div>
+          <div class="l">${canEdit
+            ? `<input type="text" value="${esc(m.name)}" style="padding:4px;font-size:12px;width:100%;max-width:180px"
+                 onchange="pvSetField('${m.id}','${uid}','name',this.value)">`
+            : esc(m.name)}
+            ${canEdit
+              ? `<input type="text" value="${esc(m.unit)}" style="padding:4px;font-size:12px;width:52px;margin-left:4px"
+                   onchange="pvSetField('${m.id}','${uid}','unit',this.value)">`
+              : '（' + esc(m.unit) + '）'}
+            ${m.user_id ? '　<b style="color:var(--accent)">個人専用</b>' : '　<b style="color:var(--muted)">部署共通</b>'}</div>
+          <div class="v num" style="font-size:16px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            目標
+            ${canEdit
+              ? `<input type="number" step="any" value="${m.target ?? ''}" style="width:92px;padding:5px;font-size:15px"
+                   onchange="pvSetTarget('${m.id}','${uid}',this.value)">`
+              : (m.target ?? '—')}
+            ${canEdit ? `<span style="margin-left:auto;display:flex;gap:2px">
+              <button class="ghost" style="padding:3px 7px;font-size:11px" title="上へ"
+                onclick="pvMove('${m.id}','${uid}',-1)"${i === 0 ? ' disabled' : ''}>▲</button>
+              <button class="ghost" style="padding:3px 7px;font-size:11px" title="下へ"
+                onclick="pvMove('${m.id}','${uid}',1)"${i === list.length - 1 ? ' disabled' : ''}>▼</button>
+              <button class="ghost" style="padding:3px 7px;font-size:11px;color:var(--warn)"
+                onclick="pvRemove('${m.id}','${uid}')">外す</button>
+            </span>` : ''}
+          </div>
+          ${canEdit && !m.user_id ? '<div class="note" style="font-size:11px;margin-top:4px">同じ部署の全員に反映されます</div>' : ''}
         </div>`).join('')}</div>`
         : '<div class="empty">この方の画面には数値項目が表示されません。</div>'}
       <p class="note" style="margin-top:10px">
         部署共通 ${dept.length}項目／個人専用 ${own.length}項目
       </p>
+
+      ${canEdit ? `<div style="margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px">
+        <b style="font-size:13px">この方だけの項目を追加する</b>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:2;min-width:150px"><label>項目名</label>
+            <input type="text" id="pv_name" placeholder="例：自クロ商談件数"></div>
+          <div style="flex:1;min-width:80px"><label>単位</label>
+            <input type="text" id="pv_unit" value="件"></div>
+          <div style="flex:1;min-width:90px"><label>目標</label>
+            <input type="number" step="any" id="pv_target" placeholder="0"></div>
+        </div>
+        <button class="act" style="margin-top:10px" onclick="pvAdd('${uid}')">この方に追加する</button>
+        <p class="note" style="margin-top:8px">
+          追加した項目は${esc(u.full_name)}さんの日報入力画面だけに出ます。
+          部署の全員に出す項目は、上の「数値項目の設定」から追加してください。</p>
+      </div>` : `<p class="note" style="margin-top:12px">
+        この方の項目を変更する権限がありません。直属の上司か管理者に依頼してください。</p>`}
     </div>`;
 }
 
+
+/* ---------- プレビューから数値項目を編集する ---------- */
+let PV_LIST = [];
+function pvGuard(uid){
+  if (canEditMetricsOf(uid)) return true;
+  toast('この方の項目を変更する権限がありません'); return false;
+}
+async function pvSetTarget(id, uid, v){
+  if (!pvGuard(uid)) return;
+  const m = PV_LIST.find(x => x.id === id); if (!m) return;
+  if (!m.user_id && !confirm('「' + m.name + '」は部署共通の項目です。\n目標を ' + (m.target ?? '—') + ' → ' + v
+      + ' に変更すると、同じ部署の全員に反映されます。よろしいですか。')){ loadPreview(uid); return; }
+  const before = m.target;
+  const { error } = await EC.supabase.from('report_metrics')
+    .update({ target: Number(v) || 0 }).eq('id', id);
+  if (error){ toast('更新できませんでした: ' + error.message); return; }
+  await logTargetChange(m, m.user_id || uid, before, v);
+  toast('目標を更新しました');
+  await refreshMetricCaches(); loadPreview(uid);
+}
+async function pvSetField(id, uid, field, v){
+  if (!pvGuard(uid)) return;
+  const m = PV_LIST.find(x => x.id === id); if (!m) return;
+  const val = String(v || '').trim();
+  if (!val){ toast('空にはできません'); loadPreview(uid); return; }
+  if (!m.user_id && !confirm('「' + m.name + '」は部署共通の項目です。変更は同じ部署の全員に反映されます。よろしいですか。')){
+    loadPreview(uid); return; }
+  const patch = {}; patch[field] = val;
+  const { error } = await EC.supabase.from('report_metrics').update(patch).eq('id', id);
+  if (error){ toast('更新できませんでした: ' + error.message); return; }
+  toast(field === 'name' ? '項目名を変更しました' : '単位を変更しました');
+  await refreshMetricCaches(); loadPreview(uid);
+}
+async function pvAdd(uid){
+  if (!pvGuard(uid)) return;
+  const u = USERS.find(x => x.id === uid); if (!u) return;
+  const name = ((document.getElementById('pv_name')||{}).value || '').trim();
+  if (!name){ toast('項目名を入力してください'); return; }
+  const unit = ((document.getElementById('pv_unit')||{}).value || '件').trim();
+  const target = Number((document.getElementById('pv_target')||{}).value) || 0;
+  const { error } = await EC.supabase.from('report_metrics').insert({
+    department_id: u.department_id, user_id: uid, name: name, unit: unit,
+    target: target, sort_order: (PV_LIST.length + 1) * 10 });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  toast(u.full_name + 'さんに「' + name + '」を追加しました');
+  await refreshMetricCaches(); loadPreview(uid);
+  if (typeof loadAdminMetrics === 'function') loadAdminMetrics();
+}
+async function pvRemove(id, uid){
+  if (!pvGuard(uid)) return;
+  const m = PV_LIST.find(x => x.id === id); if (!m) return;
+  if (!m.user_id){
+    if (!confirm('「' + m.name + '」は部署共通の項目です。\n外すと同じ部署の全員の日報から消えます。\n'
+      + 'この方だけ外すことはできません。よろしいですか。')) return;
+  } else {
+    if (!confirm('「' + m.name + '」を' + uname(uid) + 'さんの日報から外します。\n'
+      + '過去に入力された数値と集計はそのまま残ります。よろしいですか。')) return;
+  }
+  const { error } = await EC.supabase.from('report_metrics').update({ is_active: false }).eq('id', id);
+  if (error){ toast('外せませんでした: ' + error.message); return; }
+  toast('日報の入力画面から外しました（過去の数値は残っています）');
+  await refreshMetricCaches(); loadPreview(uid);
+  if (typeof loadAdminMetrics === 'function') loadAdminMetrics();
+}
+async function pvMove(id, uid, dir){
+  if (!pvGuard(uid)) return;
+  const i = PV_LIST.findIndex(x => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= PV_LIST.length) return;
+  const arr = PV_LIST.slice();
+  const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  for (let k = 0; k < arr.length; k++){
+    await EC.supabase.from('report_metrics').update({ sort_order: (k + 1) * 10 }).eq('id', arr[k].id);
+  }
+  toast('並び順を変更しました');
+  await refreshMetricCaches(); loadPreview(uid);
+}
 
 /* ---------- 提出不要日（全社） ---------- */
 let HOLIDAYS = [], NSET = {};
