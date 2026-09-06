@@ -233,6 +233,7 @@ async function boot(){
       .eq('user_id', ME.id).eq('is_active', true).order('sort_order');
     METRICS = dept.concat(mine || []);
   }
+  await loadGoals();
   await loadReports();
   if (OPEN_ID) TAB = 'feed';
   render();
@@ -258,16 +259,19 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 /* ---------- 画面枠 ---------- */
 function render(){
   const nUnread = myNotifs().length;
-  TABS = [['write','日報を書く'],['feed','日報一覧'],
+  const canWeekly = ['次長','部門長','役員・経営'].includes(ME.job_grade) || QGOALS.length > 0;
+  TABS = [['write','日報を書く'],['feed','日報一覧']]
+    .concat(canWeekly ? [['weekly','週次報告']] : [])
+    .concat([
           ['notify', '通知' + (nUnread ? '（' + nUnread + '）' : '')],
-          ['status','提出・確認状況'],['dash','ダッシュボード']]
+          ['status','提出・確認状況'],['dash','ダッシュボード']])
          .concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
   const tabs = TABS.concat([['admin','管理']]);
   if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${t}</button>`).join('');
   document.getElementById('view').innerHTML =
-    ({ write:vWrite, feed:vFeed, notify:vNotify, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
+    ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
 }
 function go(k){ TAB = k; render(); window.scrollTo(0,0); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
@@ -1085,6 +1089,7 @@ function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
+  setTimeout(loadGoalList, 0);
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
@@ -1138,6 +1143,27 @@ function vAdmin(){
     <p class="note">ここで設定した曜日・日付は、未提出リマインドの対象外になります。</p>
     <div id="holBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
+  <div class="card"><h3>四半期目標（KGI・KPI）</h3>
+    <p class="note">日報の数値項目と紐づけると、実績が自動で集計され、週次報告に反映されます。</p>
+    <div class="grid" style="gap:8px">
+      <div><label>対象者</label><select id="qg_user">
+        <option value="">部署全体（${esc((DEPTS.find(d=>d.id===ADMIN_DEPT)||{}).name || '')}）</option>
+        ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
+          .map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('')}
+      </select></div>
+      <div><label>紐づける数値項目</label><select id="qg_metric" onchange="fillGoalName(this.value)">
+        <option value="">選んでください</option>
+        ${METRICS_ALL.map(m => `<option value="${m.id}">${esc(m.name)}（${esc(m.unit)}）</option>`).join('')}
+      </select></div>
+      <div><label>種別</label><select id="qg_kind">
+        <option value="KPI">KPI（先行指標）</option><option value="KGI">KGI（結果目標）</option></select></div>
+      <div><label>四半期の目標値</label><input type="number" step="any" id="qg_target" placeholder="0"></div>
+      <div><label>開始日</label><input type="date" id="qg_from"></div>
+      <div><label>終了日</label><input type="date" id="qg_to"></div>
+    </div>
+    <button class="act" style="margin-top:12px" onclick="addGoal()">四半期目標を追加</button>
+    <div id="qgList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
+  </div>
   <div class="card"><h3>本人の画面プレビュー</h3>
     <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
     <label>確認する社員</label>
@@ -1534,6 +1560,289 @@ async function delHoliday(d){
   const { error } = await EC.supabase.from('nippo_holidays').delete().eq('holiday_date', d);
   if (error){ toast('削除できませんでした: ' + error.message); return; }
   toast('削除しました'); loadHolidays();
+}
+
+
+/* ================= 週次報告 ================= */
+let QGOALS = [], WTARGETS = [], WREPORT = null, WEEK_START = '';
+
+function mondayOf(d){
+  const dow = ME.week_start_dow == null ? 1 : ME.week_start_dow;
+  const x = new Date(d); const diff = (x.getDay() - dow + 7) % 7;
+  x.setDate(x.getDate() - diff);
+  return x.toISOString().slice(0,10);
+}
+function addDays(ymd, n){ const d = new Date(ymd); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
+
+async function loadGoals(){
+  const { data } = await EC.supabase.from('quarter_goals')
+    .select('*').eq('is_active', true);
+  QGOALS = (data || []).filter(g => g.user_id === ME.id ||
+    (!g.user_id && g.department_id === ME.department_id));
+}
+
+/* 日報の数値から期間内の実績を合計する */
+function actualSum(metricId, from, to, uid){
+  let sum = 0;
+  REPORTS.forEach(r => {
+    if (r.author_id !== (uid || ME.id)) return;
+    if (r.report_date < from || r.report_date > to) return;
+    (r.report_metric_values || []).forEach(v => {
+      if (v.metric_id === metricId) sum += Number(v.value) || 0;
+    });
+  });
+  return sum;
+}
+
+function vWeekly(){
+  if (!WEEK_START) WEEK_START = mondayOf(new Date());
+  setTimeout(loadWeekly, 0);
+  return `<h2>週次報告</h2>
+  <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。</p>
+  <div id="wkBox"><div class="empty">読み込み中…</div></div>`;
+}
+
+async function loadWeekly(){
+  const box = document.getElementById('wkBox'); if (!box) return;
+  const weekEnd = addDays(WEEK_START, 6);
+
+  // 四半期の開始まで日報を読み込む
+  const oldest = QGOALS.reduce((a, g) => (!a || g.period_from < a) ? g.period_from : a, '');
+  if (oldest && oldest < LOAD_FROM){ await loadReports(oldest); }
+
+  const [wr, wt] = await Promise.all([
+    EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
+      .eq('user_id', ME.id).eq('week_start', WEEK_START).maybeSingle(),
+    EC.supabase.from('weekly_targets').select('*').eq('user_id', ME.id).eq('week_start', WEEK_START)
+  ]);
+  WREPORT = wr.data || null;
+  WTARGETS = wt.data || [];
+
+  if (!QGOALS.length){
+    box.innerHTML = `<div class="card"><div class="empty">
+      四半期目標がまだ登録されていません。「管理」タブの「四半期目標」から登録してください。</div></div>`;
+    return;
+  }
+
+  const rows = QGOALS.map(g => {
+    const total   = actualSum(g.metric_id, g.period_from, g.period_to);
+    const week    = actualSum(g.metric_id, WEEK_START, weekEnd);
+    const wt      = WTARGETS.find(x => x.goal_id === g.id);
+    const perWeek = Number(g.target) / (g.weeks || 13);
+    const wTarget = wt ? Number(wt.target) : Math.round(perWeek * 10) / 10;
+    // 残り週数と必要ペース
+    const today   = TODAY;
+    const left    = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(today)) / 604800000));
+    const need    = Math.max(0, (Number(g.target) - total) / left);
+    return { g, total, week, wTarget, perWeek, left, need,
+             qRate: g.target ? Math.round(total / g.target * 100) : 0,
+             wRate: wTarget ? Math.round(week / wTarget * 100) : 0 };
+  });
+
+  const miss = rows.filter(r => r.wRate < 100);
+
+  box.innerHTML = `
+  <div class="card">
+    <div class="row">
+      <button class="ghost" onclick="moveWeek(-7)">← 前の週</button>
+      <b>${WEEK_START} 〜 ${weekEnd}</b>
+      ${WEEK_START < mondayOf(new Date()) ? `<button class="ghost" onclick="moveWeek(7)">次の週 →</button>` : ''}
+      <span class="pill ${WREPORT ? 'p2' : 'p4'}" style="margin-left:auto">
+        ${WREPORT ? '提出済み' : '未提出'}</span>
+    </div>
+  </div>
+
+  <div class="card"><h3>四半期の進捗</h3>
+    <table><tr><th>項目</th><th>目標</th><th>実績</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
+    ${rows.map(r => `<tr>
+      <td>${esc(r.g.name)}${r.g.kind === 'KGI' ? ' <span class="pill">KGI</span>' : ''}</td>
+      <td class="num">${r.g.target}${esc(r.g.unit)}</td>
+      <td class="num">${Math.round(r.total*10)/10}</td>
+      <td class="num" style="color:${r.qRate >= 100 ? 'var(--accent)' : r.qRate >= 70 ? 'var(--amber)' : 'var(--warn)'}">${r.qRate}%</td>
+      <td class="num">${r.left}週</td>
+      <td class="num"><b>${Math.round(r.need*10)/10}</b>${esc(r.g.unit)}</td></tr>`).join('')}
+    </table>
+    <p class="note" style="margin-top:8px">必要ペースは、残りの週数から毎週引き直しています。遅れは翌週以降に跳ね返ります。</p>
+  </div>
+
+  <div class="card"><h3>今週の目標と結果</h3>
+    <table><tr><th>項目</th><th>今週目標</th><th>実績</th><th>過不足</th><th>達成率</th></tr>
+    ${rows.map(r => `<tr>
+      <td>${esc(r.g.name)}</td>
+      <td class="num">${r.wTarget}${esc(r.g.unit)}</td>
+      <td class="num">${Math.round(r.week*10)/10}</td>
+      <td class="num" style="color:${r.week >= r.wTarget ? 'var(--accent)' : 'var(--warn)'}">
+        ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(Math.round((r.week - r.wTarget)*10)/10)}</td>
+      <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
+    </table>
+    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力は不要です。</p>
+  </div>
+
+  ${miss.length ? `<div class="card" style="border-color:#E7C4A6">
+    <h3>未達の項目（${miss.length}）</h3>
+    ${miss.map(r => `<div class="sec s-rival"><span class="lab">${esc(r.g.name)}</span>
+      <div>目標 ${r.wTarget}${esc(r.g.unit)} に対して実績 ${Math.round(r.week*10)/10}（${r.wRate}%）</div></div>`).join('')}
+  </div>` : `<div class="card"><div class="ok" style="padding:0">今週の目標はすべて達成しています。</div></div>`}
+
+  <div class="card">
+    <div class="row"><h3 style="border:0;padding:0;margin:0">書き方</h3>
+      <button class="ghost" style="margin-left:auto" onclick="toggleWkGuide()">サンプルを見る</button></div>
+    <div id="wkGuide" style="display:none">${wkGuideHtml()}</div>
+  </div>
+
+  <div class="card">
+    <h3>未達要因</h3>
+    <p class="note">なぜ足りなかったか。「頑張りが足りない」ではなく、事実で書きます。
+      数字のどこが詰まったか（入口が少ない／途中で止まった／決め切れない）を特定してください。</p>
+    <textarea id="w_cause" placeholder="例：現調6件の目標に対し3件。うち2件は先方都合の延期だが、残り1件は打診が水曜以降になり日程が取れなかった。週前半の架電が0件だったことが直接の要因。">${esc(WREPORT ? WREPORT.gap_cause : '')}</textarea>
+
+    <h3 style="margin-top:16px">行動変化</h3>
+    <p class="note">来週、何をやめて何を始めるか。<b>やめることを1つは書いてください。</b>
+      足し算だけの計画は、時間が足りずに実行されません。</p>
+    <textarea id="w_action" placeholder="例：やめる…金曜午後の資料作成（月曜午前に移す）／始める…月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる">${esc(WREPORT ? WREPORT.action_change : '')}</textarea>
+
+    <h3 style="margin-top:16px">次週の目標</h3>
+    <p class="note">初期値は「残り週数から逆算した必要ペース」です。遅れた分が上乗せされています。
+      下げる場合は、四半期目標に届く筋道を未達要因か行動変化に書いてください。</p>
+    <div class="grid">${rows.map(r => `
+      <div><label>${esc(r.g.name)}（${esc(r.g.unit)}）　推奨 ${Math.round(r.need*10)/10}</label>
+      <input type="number" step="any" id="wt_${r.g.id}" value="${Math.round(r.need*10)/10}"></div>`).join('')}
+    </div>
+
+    <h3 style="margin-top:16px">その他相談</h3>
+    <p class="note">自分では決められないこと、上司に判断してほしいことを書きます。なければ空欄で構いません。</p>
+    <textarea id="w_consult" style="min-height:56px" placeholder="例：A社の値引き要請について、どこまで対応してよいか判断をお願いしたい">${esc(WREPORT ? WREPORT.consult : '')}</textarea>
+
+    <button class="act" style="margin-top:14px" onclick="submitWeekly()">
+      ${WREPORT ? '更新する' : '提出する'}</button>
+  </div>
+
+  ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
+    ${WREPORT.weekly_comments.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
+  </div>` : ''}`;
+}
+
+
+function toggleWkGuide(){
+  const el = document.getElementById('wkGuide'); if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function wkGuideHtml(){
+  return `
+  <div class="sec s-num" style="margin-top:12px"><span class="lab">この報告で見るもの</span>
+    <div>四半期の目標を13週で割ったものが今週の目標です。足りなければ、その分が翌週以降の必要ペースに上乗せされます。
+      <b>数字は日報から自動で入るので、書くのは要因・行動変化・次週目標の3つだけ</b>です。</div></div>
+
+  <div class="sec s-voice"><span class="lab">未達要因　良い例</span>
+    <div>現調6件の目標に対し3件。うち2件は先方都合の延期だが、残り1件は打診が水曜以降になり日程が取れなかった。
+      週前半の架電が0件だったことが直接の要因。</div></div>
+  <div class="sec s-rival"><span class="lab">未達要因　もったいない例</span>
+    <div>訪問件数が足りなかったため。来週は頑張ります。</div></div>
+  <p class="note" style="margin:6px 0 0 11px">
+    「件数が足りない」は結果であって要因ではありません。<b>どの工程が詰まったのか</b>まで下ろすと、翌週の手が決まります。</p>
+
+  <div class="sec s-voice" style="margin-top:14px"><span class="lab">行動変化　良い例</span>
+    <div>やめる … 金曜午後の資料作成（月曜午前に移す）<br>
+      始める … 月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる</div></div>
+  <div class="sec s-rival"><span class="lab">行動変化　もったいない例</span>
+    <div>訪問件数を増やす。意識して取り組む。</div></div>
+  <p class="note" style="margin:6px 0 0 11px">
+    <b>やめることが書かれていない計画は実行されません。</b>時間は増えないからです。
+    「いつまでに」「何件」まで入れると、翌週その通りにできたか検証できます。</p>
+
+  <div class="sec s-think" style="margin-top:14px"><span class="lab">次週の目標の決め方</span>
+    <div>初期値は逆算された必要ペースです。たとえば四半期1,300に対し3週終了で240（目標300、▲60）なら、
+      残り10週で1,060が必要となり、週あたりは100から106に上がります。<br>
+      <b>下げること自体は問題ありません。</b>ただし、四半期の目標に届く筋道を示すことがセットになります。</div></div>
+
+  <div class="sec s-good"><span class="lab">上司の方へ</span>
+    <div>見るべきは達成率ではなく、<b>未達要因と行動変化がつながっているか</b>です。
+      要因が「架電が遅れた」なのに行動変化が「訪問を増やす」では噛み合っていません。
+      また、前週と同じ行動変化が並んでいたら、実行されなかった理由のほうを扱ってください。</div></div>`;
+}
+
+function moveWeek(n){ WEEK_START = addDays(WEEK_START, n); render(); }
+
+async function submitWeekly(){
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const weekEnd = addDays(WEEK_START, 6);
+  const results = {};
+  QGOALS.forEach(x => { results[x.name] = actualSum(x.metric_id, WEEK_START, weekEnd); });
+
+  const { error } = await EC.supabase.from('weekly_reports').upsert({
+    user_id: ME.id, week_start: WEEK_START, results: results,
+    gap_cause: g('w_cause'), action_change: g('w_action'), consult: g('w_consult'),
+    status: 'submitted'
+  }, { onConflict: 'user_id,week_start' });
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+
+  // 次週の目標を登録
+  const next = addDays(WEEK_START, 7);
+  const rows = QGOALS.map(x => ({
+    goal_id: x.id, user_id: ME.id, week_start: next,
+    target: Number(g('wt_' + x.id)) || 0, is_manual: true
+  })).filter(x => x.target > 0);
+  if (rows.length) await EC.supabase.from('weekly_targets')
+    .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
+
+  toast('週次報告を提出しました');
+  loadWeekly();
+}
+
+
+/* ---------- 四半期目標の管理 ---------- */
+let ALL_GOALS = [];
+function fillGoalName(mid){
+  const m = METRICS_ALL.find(x => x.id === mid); if (!m) return;
+  const el = document.getElementById('qg_target');
+  if (el && !el.value) el.focus();
+}
+async function loadGoalList(){
+  const box = document.getElementById('qgList'); if (!box) return;
+  const { data, error } = await EC.supabase.from('quarter_goals')
+    .select('*').eq('is_active', true).order('period_from', { ascending: false });
+  if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
+  ALL_GOALS = data || [];
+  box.innerHTML = ALL_GOALS.length
+    ? `<table style="margin-top:14px"><tr><th>対象</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
+      ${ALL_GOALS.map(g => `<tr>
+        <td>${g.user_id ? esc(uname(g.user_id)) : '部署全体'}</td>
+        <td>${esc(g.name)}</td>
+        <td>${g.kind === 'KGI' ? '<span class="pill p4">KGI</span>' : 'KPI'}</td>
+        <td class="num">${g.target}${esc(g.unit)}</td>
+        <td class="num" style="font-size:11px">${g.period_from}〜${g.period_to}</td>
+        <td class="num">${Math.round(g.target / (g.weeks||13) * 10)/10}</td>
+        <td><button class="ghost" onclick="delGoal('${g.id}')">削除</button></td></tr>`).join('')}
+      </table>`
+    : '<div class="empty" style="margin-top:12px">四半期目標がまだ登録されていません。</div>';
+}
+async function addGoal(){
+  const mid = (document.getElementById('qg_metric')||{}).value;
+  const m = METRICS_ALL.find(x => x.id === mid);
+  if (!m){ toast('数値項目を選んでください'); return; }
+  const uid = (document.getElementById('qg_user')||{}).value || null;
+  const from = (document.getElementById('qg_from')||{}).value;
+  const to   = (document.getElementById('qg_to')||{}).value;
+  const target = Number((document.getElementById('qg_target')||{}).value);
+  if (!from || !to){ toast('期間を選んでください'); return; }
+  if (!target){ toast('目標値を入力してください'); return; }
+  const weeks = Math.max(1, Math.round((new Date(to) - new Date(from)) / 604800000));
+
+  const { error } = await EC.supabase.from('quarter_goals').insert({
+    user_id: uid, department_id: uid ? null : ADMIN_DEPT, metric_id: mid,
+    name: m.name, unit: m.unit, kind: (document.getElementById('qg_kind')||{}).value || 'KPI',
+    target: target, period_from: from, period_to: to, weeks: weeks, created_by: ME.id });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  toast('四半期目標を追加しました（週割 ' + Math.round(target/weeks*10)/10 + m.unit + '）');
+  document.getElementById('qg_target').value = '';
+  loadGoalList(); loadGoals();
+}
+async function delGoal(id){
+  if (!confirm('この四半期目標を削除します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('quarter_goals').update({ is_active: false }).eq('id', id);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  toast('削除しました'); loadGoalList(); loadGoals();
 }
 
 /* ---------- 4. ダッシュボード ---------- */
