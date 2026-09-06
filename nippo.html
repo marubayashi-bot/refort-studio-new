@@ -195,6 +195,24 @@ function allowedLayers(){
   return [];
 }
 /* 部門長は役職ではなく「その部署を任されている人」。課長でも係長でも就ける */
+/* 部署の親子関係 */
+function deptAncestors(deptId, acc){
+  acc = acc || []; const d = DEPTS.find(x => x.id === deptId);
+  if (d && d.parent_id && acc.indexOf(d.parent_id) < 0){ acc.push(d.parent_id); deptAncestors(d.parent_id, acc); }
+  return acc;
+}
+function deptDescendants(deptId, acc){
+  acc = acc || [];
+  DEPTS.filter(d => d.parent_id === deptId).forEach(c => { acc.push(c.id); deptDescendants(c.id, acc); });
+  return acc;
+}
+/* 自分が部門長として面倒を見る部署（配下の課も含む） */
+function myDeptScope(){
+  const mine = DEPTS.filter(d => d.head_user_id === ME.id).map(d => d.id);
+  const all = mine.slice();
+  mine.forEach(id => deptDescendants(id).forEach(x => { if (all.indexOf(x) < 0) all.push(x); }));
+  return all;
+}
 function isDeptHead(uid){ return DEPTS.some(d => d.head_user_id === (uid || ME.id)); }
 function headOfDept(deptId){ const d = DEPTS.find(x => x.id === deptId); return d ? d.head_user_id : null; }
 function canAdmin(){ return ME.role === 'admin' || ['次長','部長','役員・経営'].includes(ME.job_grade) || isDeptHead(); }
@@ -233,7 +251,7 @@ async function boot(){
   if (gs && gs.length) GRADES = gs.map(g => g.name);
 
   const { data: ds, error: de } = await EC.supabase.from('departments')
-    .select('id,name,sort_order,head_user_id').order('sort_order');
+    .select('id,name,sort_order,head_user_id,parent_id').order('sort_order');
   DEPTS = ds || [];
   if (de) console.warn('departments 読み込みエラー', de.message);
   if (!DEPTS.length){
@@ -654,7 +672,7 @@ function card(r){
   const cmts = r.report_comments || [];
   const isMine = r.author_id === ME.id;
   const canAct = isBossOf(r.author_id) || isExec() || ['部長','次長'].includes(ME.job_grade)
-                 || (isDeptHead() && headOfDept(USERS.find(u => u.id === r.author_id)?.department_id) === ME.id);
+                 || (isDeptHead() && myDeptScope().indexOf((USERS.find(u => u.id === r.author_id)||{}).department_id) >= 0);
   const iSaw  = (r.report_views || []).some(v => v.viewer_id === ME.id);
   const isDirect = USERS.some(u => u.id === r.author_id && u.manager_id === ME.id);
   const needCheck = !isMine && !iSaw && (isDirect || canAct);
@@ -1202,7 +1220,8 @@ function vAdmin(){
   </div>
   <div class="card"><h3>部署</h3>
     <p class="note">名称を変えると、所属している社員の表示もまとめて更新されます。
-      部門長は役職とは別の役割です。課長でも係長でも設定でき、その部署の日報を確認できるようになります。</p>
+      部門長は役職とは別の役割です。課長でも係長でも設定でき、その部署の日報を確認できるようになります。
+      上位部署を設定すると部と課がつながり、部の部門長は配下の課の日報も確認できます。</p>
     <div id="deptBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
   <div class="card"><h3>四半期目標（KGI・KPI）</h3>
@@ -1451,21 +1470,9 @@ function drawOrgChart(){
   if (d) d.className = 'ghost' + (ORG_VIEW === 'dept' ? ' on' : '');
 
   if (ORG_VIEW === 'dept'){
-    box.innerHTML = DEPTS.map(dep => {
-      const list = act.filter(u => u.department_id === dep.id)
-        .sort((a,b) => GRADES.indexOf(b.job_grade) - GRADES.indexOf(a.job_grade)
-                    || (a.full_name||'').localeCompare(b.full_name||'','ja'));
-      if (!list.length) return '';
-      return `<div class="deptbox">
-        <div class="depthead">${esc(dep.name)}<span class="note">　${list.length}名</span></div>
-        <div class="row" style="gap:6px">
-          ${list.map(u => `<span class="pcard${u.id===ME.id?' me':''}" title="上司：${esc(uname(u.manager_id))}">
-            <b>${esc(u.full_name)}</b>
-            <span class="note">${esc(u.job_grade||'')}${isDeptHead(u.id) ? '・部門長' : ''}</span>
-            <span class="note" style="font-size:10px">▲${esc(uname(u.manager_id))}</span>
-          </span>`).join('')}
-        </div></div>`;
-    }).join('') || '<div class="empty">表示できる社員がいません。</div>';
+    const roots = DEPTS.filter(d => !d.parent_id || !DEPTS.some(x => x.id === d.parent_id));
+    box.innerHTML = roots.map(d => deptBlock(d, act, 0)).join('')
+      || '<div class="empty">表示できる部署がありません。</div>';
     return;
   }
 
@@ -1473,6 +1480,26 @@ function drawOrgChart(){
   box.innerHTML = (roots.length ? roots.map(u => orgNode(u, act, 0)).join('')
     : '<div class="empty">頂点となる社員が見つかりません。</div>')
     + '<p class="note" style="margin-top:10px">上司の下に部下が並びます。名前の右は役職と所属部署です。</p>';
+}
+
+function deptBlock(dep, act, depth){
+  const list = act.filter(u => u.department_id === dep.id)
+    .sort((a,b) => GRADES.indexOf(b.job_grade) - GRADES.indexOf(a.job_grade)
+                || (a.full_name||'').localeCompare(b.full_name||'','ja'));
+  const kids = DEPTS.filter(d => d.parent_id === dep.id);
+  const head = dep.head_user_id ? uname(dep.head_user_id) : '';
+  return `<div class="deptbox" style="margin-left:${depth * 16}px">
+    <div class="depthead">${esc(dep.name)}
+      ${head ? `<span class="pill p4" style="margin-left:6px">部門長 ${esc(head)}</span>` : ''}
+      <span class="note">　${list.length}名</span></div>
+    ${list.length ? `<div class="row" style="gap:6px">
+      ${list.map(u => `<span class="pcard${u.id===ME.id?' me':''}">
+        <b>${esc(u.full_name)}</b>
+        <span class="note">${esc(u.job_grade||'')}${isDeptHead(u.id) ? '・部門長' : ''}</span>
+        <span class="note" style="font-size:10px">▲${esc(uname(u.manager_id))}</span>
+      </span>`).join('')}</div>` : '<p class="note">所属者なし</p>'}
+    ${kids.map(k => deptBlock(k, act, depth + 1)).join('')}
+  </div>`;
 }
 
 function orgNode(u, act, depth){
@@ -2131,12 +2158,17 @@ async function loadDeptAdmin(){
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   const list = data || [];
   box.innerHTML = `<table style="margin-top:10px">
-    <tr><th>部署名</th><th>部門長</th><th>人数</th><th>表示順</th><th></th></tr>
+    <tr><th>部署名</th><th>上位部署</th><th>部門長</th><th>人数</th><th>表示順</th><th></th></tr>
     ${list.map(d => {
       const n = USERS.filter(u => u.department_id === d.id).length;
       return `<tr>
         <td><input type="text" value="${esc(d.name)}" style="padding:5px"
              onchange="renameDept('${d.id}', this.value, '${esc(d.name)}')"></td>
+        <td><select style="padding:5px;font-size:12px" onchange="setDeptParent('${d.id}',this.value)">
+          <option value="">（最上位）</option>
+          ${list.filter(x => x.id !== d.id && deptDescendants(d.id).indexOf(x.id) < 0)
+            .map(x => `<option value="${x.id}"${d.parent_id===x.id?' selected':''}>${esc(x.name)}</option>`).join('')}
+        </select></td>
         <td><select style="padding:5px;font-size:12px" onchange="setDeptHead('${d.id}',this.value)">
           <option value="">（未設定）</option>
           ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
@@ -2153,6 +2185,14 @@ async function loadDeptAdmin(){
     <input type="number" id="nd_order" placeholder="表示順" style="flex:1;min-width:90px">
     <button class="act" style="padding:8px 16px;font-size:13px" onclick="addDept()">部署を追加</button>
   </div>`;
+}
+async function setDeptParent(deptId, parentId){
+  const { error } = await EC.supabase.from('departments')
+    .update({ parent_id: parentId || null }).eq('id', deptId);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const d = DEPTS.find(x => x.id === deptId); if (d) d.parent_id = parentId || null;
+  toast(parentId ? '上位部署を設定しました' : '最上位に設定しました');
+  loadDeptAdmin(); drawOrgChart();
 }
 async function setDeptHead(deptId, uid){
   const { error } = await EC.supabase.from('departments')
@@ -2220,6 +2260,7 @@ function vResult(){
       <div><label>集計単位</label><select id="rs_unit">
         <option value="all"${RES_UNIT==='all'?' selected':''}>全社（合計）</option>
         <option value="dept"${RES_UNIT==='dept'?' selected':''}>部署別</option>
+        <option value="parent"${RES_UNIT==='parent'?' selected':''}>部署別（課を部にまとめる）</option>
         <option value="user"${RES_UNIT==='user'?' selected':''}>個人別</option>
       </select></div>
       <div><label>部署で絞る</label><select id="rs_dept">
@@ -2261,9 +2302,16 @@ async function drawResult(){
   // 集計キーごとに { 提出件数, 人数, 数値項目合計 }
   const buckets = {};
   inRange.forEach(r => {
-    const key = RES_UNIT === 'all' ? '全社'
-              : RES_UNIT === 'dept' ? (udept(r.author_id) || '部署なし')
-              : uname(r.author_id);
+    let key;
+    if (RES_UNIT === 'all') key = '全社';
+    else if (RES_UNIT === 'user') key = uname(r.author_id);
+    else if (RES_UNIT === 'parent'){
+      const did = (USERS.find(u => u.id === r.author_id) || {}).department_id;
+      const chain = deptAncestors(did);
+      const topId = chain.length ? chain[chain.length - 1] : did;
+      key = (DEPTS.find(d => d.id === topId) || {}).name || '部署なし';
+    }
+    else key = udept(r.author_id) || '部署なし';
     const b = buckets[key] = buckets[key] || { n: 0, users: {}, m: {} };
     b.n++; b.users[r.author_id] = true;
     (r.report_metric_values || []).forEach(v => {
