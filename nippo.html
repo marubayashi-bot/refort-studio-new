@@ -371,6 +371,28 @@ function vWrite(){
   </div>`;
 }
 
+function futureOff(){
+  return REPORTS.filter(r => r.author_id === ME.id && r.status === 'off' && r.report_date >= TODAY)
+    .sort((a,b) => a.report_date.localeCompare(b.report_date));
+}
+async function markRangeOff(){
+  const f = (document.getElementById('off_from')||{}).value;
+  const t = (document.getElementById('off_to')||{}).value || f;
+  if (!f){ toast('開始日を選んでください'); return; }
+  if (t < f){ toast('終了日が開始日より前になっています'); return; }
+  const rows = [];
+  for (let d = new Date(f); d <= new Date(t); d.setDate(d.getDate() + 1)){
+    rows.push({ author_id: ME.id, report_date: d.toISOString().slice(0,10),
+                status: 'off', importance: 2 });
+  }
+  if (rows.length > 62){ toast('一度に登録できるのは2か月分までです'); return; }
+  if (!confirm(f + ' 〜 ' + t + ' の ' + rows.length + '日間を休みとして登録します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('daily_reports')
+    .upsert(rows, { onConflict: 'author_id,report_date' });
+  if (error){ toast('登録できませんでした: ' + error.message); return; }
+  await loadReports(); render(); toast(rows.length + '日分を休みで登録しました');
+}
+
 async function markDayOff(){
   const day = EDIT_DATE || TODAY;
   if (!confirm(day + ' を「休み」として登録します。よろしいですか。')) return;
@@ -1063,6 +1085,7 @@ function vAdmin(){
   if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
+  if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
   <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
@@ -1110,6 +1133,10 @@ function vAdmin(){
     <p class="note">初期設定では、次長・部門長は個人／上司／部署AIとAI検索・会議資料、役員は全AIを使えます。
       一般・リーダー・課長にはAIタブが表示されません。ここで個別に変更できます。</p>
     <div id="aiList"><p class="note" style="margin-top:10px">読み込み中…</p></div>
+  </div>` : ''}
+  ${canAdmin() ? `<div class="card"><h3>提出不要日（全社）</h3>
+    <p class="note">ここで設定した曜日・日付は、未提出リマインドの対象外になります。</p>
+    <div id="holBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
   <div class="card"><h3>本人の画面プレビュー</h3>
     <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
@@ -1452,6 +1479,61 @@ async function loadPreview(uid){
         部署共通 ${dept.length}項目／個人専用 ${own.length}項目
       </p>
     </div>`;
+}
+
+
+/* ---------- 提出不要日（全社） ---------- */
+let HOLIDAYS = [], NSET = {};
+async function loadHolidays(){
+  const box = document.getElementById('holBox'); if (!box) return;
+  const [h, st] = await Promise.all([
+    EC.supabase.from('nippo_holidays').select('*').gte('holiday_date', TODAY)
+      .order('holiday_date').limit(60),
+    EC.supabase.from('nippo_settings').select('*')
+  ]);
+  if (h.error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(h.error.message)}</p>`; return; }
+  HOLIDAYS = h.data || [];
+  NSET = {}; (st.data || []).forEach(x => NSET[x.key] = x.value);
+
+  box.innerHTML = `
+    <div class="row" style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--ink)">
+        <input type="checkbox" style="width:auto" ${NSET.skip_saturday !== 'false' ? 'checked' : ''}
+          onchange="setNSet('skip_saturday', this.checked)"> 土曜は提出不要</label>
+      <label style="display:flex;align-items:center;gap:6px;margin:0 0 0 16px;font-size:13px;color:var(--ink)">
+        <input type="checkbox" style="width:auto" ${NSET.skip_sunday !== 'false' ? 'checked' : ''}
+          onchange="setNSet('skip_sunday', this.checked)"> 日曜は提出不要</label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div style="flex:1;min-width:150px"><label>日付を追加</label><input type="date" id="hol_date"></div>
+      <div style="flex:2;min-width:160px"><label>名称</label><input type="text" id="hol_label" placeholder="例：夏季休業、経営計画発表会"></div>
+    </div>
+    <button class="ghost" style="margin-top:10px" onclick="addHoliday()">追加する</button>
+    ${HOLIDAYS.length ? `<table style="margin-top:14px"><tr><th>日付</th><th>名称</th><th></th></tr>
+      ${HOLIDAYS.map(x => `<tr><td class="num">${x.holiday_date}</td><td>${esc(x.label||'')}</td>
+        <td><button class="ghost" onclick="delHoliday('${x.holiday_date}')">削除</button></td></tr>`).join('')}
+      </table>`
+      : '<p class="note" style="margin-top:12px">個別の提出不要日は登録されていません。</p>'}`;
+}
+async function setNSet(key, on){
+  const { error } = await EC.supabase.from('nippo_settings')
+    .upsert({ key: key, value: on ? 'true' : 'false' }, { onConflict: 'key' });
+  toast(error ? '変更できませんでした' : '設定を変更しました');
+  loadHolidays();
+}
+async function addHoliday(){
+  const d = (document.getElementById('hol_date')||{}).value;
+  if (!d){ toast('日付を選んでください'); return; }
+  const { error } = await EC.supabase.from('nippo_holidays').upsert({
+    holiday_date: d, label: (document.getElementById('hol_label')||{}).value || '休業日',
+    created_by: ME.id }, { onConflict: 'holiday_date' });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+  toast('追加しました'); loadHolidays();
+}
+async function delHoliday(d){
+  const { error } = await EC.supabase.from('nippo_holidays').delete().eq('holiday_date', d);
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  toast('削除しました'); loadHolidays();
 }
 
 /* ---------- 4. ダッシュボード ---------- */
