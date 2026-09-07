@@ -1079,7 +1079,12 @@ function card(r){
       ${vals.map(v => { const mm = METRICS_ALL.find(x=>x.id===v.metric_id) || METRICS.find(x=>x.id===v.metric_id);
         return mm ? `<span class="mv">${esc(mm.name)}<b>${v.value}</b><small>${esc(mm.unit)}</small></span>`
                   : `<span class="mv"><b>${v.value}</b></span>`; }).join('')}
-    </div></div>` : ''}
+    </div></div>`
+    : (r.status === 'off' ? '' : `<div class="sec s-num"><span class="lab">数値</span>
+      <div style="color:var(--warn)">数値の入力がありません
+        ${r.author_id === ME.id
+          ? '<button class="ghost" style="margin-left:10px;padding:3px 10px;font-size:11px" onclick="editReport(\'' + r.id + '\')">数値を入れる</button>'
+          : ''}</div></div>`)}
     ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${linkify(r.voice)}</div></div>` : ''}
     ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${linkify(r.rival)}</div></div>` : ''}
     ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${linkify(r.industry)}</div></div>` : ''}
