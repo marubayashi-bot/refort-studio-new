@@ -2516,10 +2516,12 @@ async function loadWeeklySelf(){
   const oldest = QGOALS.reduce((a, g) => (!a || g.period_from < a) ? g.period_from : a, '');
   if (oldest && oldest < LOAD_FROM){ await loadReports(oldest); }
 
-  const [wr, wt, hs] = await Promise.all([
+  const [wr, wt, ex, hs] = await Promise.all([
     EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
       .eq('user_id', ME.id).eq('week_start', WEEK_START).maybeSingle(),
     EC.supabase.from('weekly_targets').select('*').eq('user_id', ME.id).eq('week_start', WEEK_START),
+    EC.supabase.from('weekly_targets').select('*')
+      .eq('user_id', ME.id).eq('week_start', addDays(WEEK_START, 7)).is('goal_id', null),
     EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
       .eq('user_id', ME.id).lt('week_start', WEEK_START)
       .order('week_start', { ascending: false }).limit(8)
@@ -2527,6 +2529,7 @@ async function loadWeeklySelf(){
   WREPORT = wr.data || null;
   WTARGETS = wt.data || [];
   MYHIST = hs.data || [];
+  WT_EXTRA = (ex.data || []).map(x => ({ label: x.label || '', unit: x.unit || '', target: x.target }));
 
   if (!QGOALS.length){
     const members = weeklyMembers();
@@ -2562,6 +2565,7 @@ async function loadWeeklySelf(){
     ${wkHistoryHtml()}
 
     <div class="card"><h3>四半期目標を登録するとこう見えます（サンプル）</h3>${wkSampleHtml()}</div>`;
+    drawExtraTargets();
     return;
   }
 
@@ -2647,6 +2651,7 @@ ${wkFormHtml(rows)}
   </div>` : ''}
 
 ${wkHistoryHtml()}`;
+  drawExtraTargets();
 }
 
 
@@ -2670,13 +2675,19 @@ function wkFormHtml(rows){
       足し算だけの計画は、時間が足りずに実行されません。</p>
     <textarea id="w_action" placeholder="例：やめる…金曜午後の資料作成（月曜午前に移す）／始める…月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる">${esc(WREPORT ? WREPORT.action_change : '')}</textarea>
 
-    ${rows.length ? `<h3 style="margin-top:16px">次週の目標</h3>
-    <p class="note">初期値は「残り週数から逆算した必要ペース」です。遅れた分が上乗せされています。
+    <h3 style="margin-top:16px">次週の目標</h3>
+    ${rows.length ? `<p class="note">初期値は「残り週数から逆算した必要ペース」です。遅れた分が上乗せされています。
       下げる場合は、四半期目標に届く筋道を未達要因か行動変化に書いてください。</p>
     <div class="grid">${rows.map(r => `
       <div><label>${esc(r.g.name)}（${esc(r.g.unit)}）　推奨 ${Math.round(r.need*10)/10}</label>
       <input type="number" step="any" id="wt_${r.g.id}" value="${Math.round(r.need*10)/10}"></div>`).join('')}
-    </div>` : ''}
+    </div>` : '<p class="note">四半期目標に紐づく項目はありません。下から自由に項目を足せます。</p>'}
+
+    <h4 style="margin-top:16px;font-size:13px">来週だけ追う項目を足す</h4>
+    <p class="note">四半期目標に無い項目も、来週の目標として登録できます。
+      項目名・単位・目標値を入れてください。上司が承認すると週次報告に残ります。</p>
+    <div id="wtExtra"></div>
+    <button class="ghost" style="margin-top:8px" onclick="addExtraTarget()">＋ 項目を足す</button>
 
     <h3 style="margin-top:16px">その他相談</h3>
     <p class="note">自分では決められないこと、上司に判断してほしいことを書きます。なければ空欄で構いません。</p>
@@ -2894,6 +2905,7 @@ async function loadApproval(uid){
     return;
   }
 
+  const free = rows.filter(r => !r.goal_id);
   const nApproved = rows.filter(r => r.approved_at).length;
   box.innerHTML = `<h3>次週の目標の承認（${next} 〜 ${addDays(next,6)}）</h3>
     <p class="note">承認した項目だけが、その人の日報の数値入力欄に出ます。数字はここで直せます。</p>
@@ -2911,7 +2923,15 @@ async function loadApproval(uid){
           ? '<span class="pill p2">承認済み</span>'
           : '<span class="pill p4">未承認</span>'}</td>
       </tr>`;}).join('')}
+    ${free.map(r => `<tr>
+        <td>${esc(r.label || '（項目名なし）')}</td>
+        <td><span class="note">来週だけ</span></td>
+        <td class="num">${r.target}${esc(r.unit || '')}</td>
+        <td><input type="number" step="any" id="apvx_${r.id}" value="${r.target}" style="width:90px;padding:5px"></td>
+        <td>${r.approved_at ? '<span class="pill p2">承認済み</span>' : '<span class="pill p4">未承認</span>'}</td>
+      </tr>`).join('')}
     </table>
+    ${free.length ? '<p class="note" style="margin-top:6px">「来週だけ」の行は、本人が今回の週次報告で足した項目です。</p>' : ''}
     <div class="row" style="margin-top:12px">
       <button class="act" onclick="approveTargets('${uid}')">この内容で承認する</button>
       ${nApproved ? `<button class="ghost" onclick="unapproveTargets('${uid}')">承認を取り消す</button>` : ''}
@@ -2933,11 +2953,22 @@ async function approveTargets(uid){
              _raw: el ? String(el.value).trim() : '' };
   }).filter(x => x._raw !== '' && !Number.isNaN(x.target) && x.target >= 0)
     .map(x => { delete x._raw; return x; });
-  if (!rows.length){ toast('承認する数字を入れてください（0でも承認できます）'); return; }
-  const { error } = await EC.supabase.from('weekly_targets')
-    .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
-  if (error){ toast('承認できませんでした: ' + error.message); return; }
-  toast(rows.length + '項目を承認しました');
+  // 本人が足した自由項目も一緒に承認する
+  const freeEls = Array.from(document.querySelectorAll('[id^="apvx_"]'));
+  for (const el of freeEls){
+    const id = el.id.replace('apvx_', '');
+    await EC.supabase.from('weekly_targets')
+      .update({ target: Number(el.value) || 0, approved_by: ME.id, approved_at: now })
+      .eq('id', id);
+  }
+
+  if (!rows.length && !freeEls.length){ toast('承認する数字を入れてください（0でも承認できます）'); return; }
+  if (rows.length){
+    const { error } = await EC.supabase.from('weekly_targets')
+      .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
+    if (error){ toast('承認できませんでした: ' + error.message); return; }
+  }
+  toast((rows.length + freeEls.length) + '項目を承認しました');
   loadApproval(uid);
 }
 
@@ -3029,6 +3060,29 @@ function wkGuideHtml(){
 
 function moveWeek(n){ WEEK_START = addDays(WEEK_START, n); render(); }
 
+/* 来週だけ追う自由項目 */
+let WT_EXTRA = [];   // [{label, unit, target}]
+
+function drawExtraTargets(){
+  const box = document.getElementById('wtExtra'); if (!box) return;
+  box.innerHTML = WT_EXTRA.map((x, i) => `
+    <div class="row" style="gap:8px;margin-top:8px;align-items:flex-end">
+      <div style="flex:2;min-width:160px"><label>項目名</label>
+        <input type="text" value="${esc(x.label)}" placeholder="例：既存客へのフォロー架電"
+          onchange="setExtraTarget(${i},'label',this.value)"></div>
+      <div style="flex:0 0 80px"><label>単位</label>
+        <input type="text" value="${esc(x.unit)}" placeholder="件"
+          onchange="setExtraTarget(${i},'unit',this.value)"></div>
+      <div style="flex:0 0 110px"><label>来週の目標</label>
+        <input type="number" step="any" value="${x.target}" placeholder="0"
+          onchange="setExtraTarget(${i},'target',this.value)"></div>
+      <button class="ghost" onclick="removeExtraTarget(${i})" style="color:var(--warn)">削除</button>
+    </div>`).join('');
+}
+function addExtraTarget(){ WT_EXTRA.push({ label:'', unit:'件', target:'' }); drawExtraTargets(); }
+function removeExtraTarget(i){ WT_EXTRA.splice(i,1); drawExtraTargets(); }
+function setExtraTarget(i, field, v){ if (WT_EXTRA[i]) WT_EXTRA[i][field] = v; }
+
 async function submitWeekly(){
   const g = id => (document.getElementById(id) || {}).value || '';
   const weekEnd = addDays(WEEK_START, 6);
@@ -3042,14 +3096,30 @@ async function submitWeekly(){
   }, { onConflict: 'user_id,week_start' });
   if (error){ toast('保存できませんでした: ' + error.message); return; }
 
-  // 次週の目標を登録
+  // 次週の目標を登録（四半期目標に紐づくもの）
   const next = addDays(WEEK_START, 7);
   const rows = QGOALS.map(x => ({
     goal_id: x.id, user_id: ME.id, week_start: next,
     target: Number(g('wt_' + x.id)) || 0, is_manual: true
   })).filter(x => x.target > 0);
-  if (rows.length) await EC.supabase.from('weekly_targets')
-    .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
+  if (rows.length){
+    const r1 = await EC.supabase.from('weekly_targets')
+      .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
+    if (r1.error) toast('次週の目標を保存できませんでした: ' + r1.error.message);
+  }
+
+  // 来週だけ追う自由項目
+  const extra = WT_EXTRA
+    .filter(x => String(x.label||'').trim() !== '' && String(x.target).trim() !== '')
+    .map(x => ({ goal_id: null, user_id: ME.id, week_start: next,
+                 label: String(x.label).trim(), unit: String(x.unit||'').trim(),
+                 target: Number(x.target) || 0, is_manual: true }));
+  if (extra.length){
+    await EC.supabase.from('weekly_targets')
+      .delete().eq('user_id', ME.id).eq('week_start', next).is('goal_id', null);
+    const r2 = await EC.supabase.from('weekly_targets').insert(extra);
+    if (r2.error) toast('追加項目を保存できませんでした: ' + r2.error.message);
+  }
 
   toast('週次報告を提出しました');
   loadWeekly();
