@@ -188,6 +188,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <span class="gasnote" id="gasStatus" style="color:#a9f0c8"></span>
     <span class="badge" id="lastSync" style="cursor:pointer" title="最終同期時刻（クリックで即時同期）">最終同期 —</span>
     <button class="btn ghost" id="btnClean">🧹 データ整理<span id="cleanCnt"></span></button>
+    <button class="btn ghost" id="lsWarn" style="display:none;background:#7a2b2b;border-color:#a04a4a;color:#ffd7d7" title="この端末のブラウザ保存容量がいっぱいです。データはクラウドに保存されているため業務への影響はありません。">⚠ 端末の保存容量</button>
     <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/1H9H1NT84qBzORVD_dlI6bzO83kS04DKFb9lj3JCnVgc/edit" target="_blank" rel="noopener" title="商談見込み 入力シートを開く">📋 入力シート</a>
     <a class="btn ghost" href="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit" target="_blank" rel="noopener" title="蓄電池 案件管理表を開く">📊 案件管理表</a>
     <button class="btn" id="btnNew">＋ 商談登録</button>
@@ -564,7 +565,38 @@ function isFromSheet(l){
 let showGone=false;   /* 一覧に「シート消失」も表示するか */
 
 /* ===== 保存・同期 ===== */
-function saveLocal(){ localStorage.setItem('battery_leads_v1', JSON.stringify(leads)); localStorage.setItem('battery_props_v1', JSON.stringify(props)); }
+/* ローカル控えの保存。
+   github.io は全アプリで1つの保存領域（約5MB）を共有するため、
+   容量オーバーになることがある。データ本体はSupabaseにあるので、
+   ここが失敗しても業務は止めない。段階的に軽くして保存を試みる。 */
+let lsDegraded=false, lsWarned=false;
+const LOG_KEEP=60;
+function trimLogs(){ leads.forEach(l=>{ if(Array.isArray(l.logs) && l.logs.length>LOG_KEEP) l.logs=l.logs.slice(-LOG_KEEP); }); }
+function lsLight(l){ const o=Object.assign({},l); if(Array.isArray(o.logs)&&o.logs.length>12) o.logs=o.logs.slice(-12); return o; }
+function saveLocal(){
+  trimLogs();
+  const put=(k,v)=>localStorage.setItem(k,v);
+  /* 段階1：通常保存 */
+  try{ put('battery_leads_v1', JSON.stringify(leads)); put('battery_props_v1', JSON.stringify(props)); lsDegraded=false; lsBadge(); return true; }catch(e){}
+  /* 段階2：地図の座標キャッシュを捨てて再試行 */
+  try{ localStorage.removeItem('battery_leads_geo_v1'); geoCache={}; }catch(e){}
+  try{ put('battery_leads_v1', JSON.stringify(leads)); put('battery_props_v1', JSON.stringify(props)); lsDegraded=false; lsBadge(); return true; }catch(e){}
+  /* 段階3：履歴を直近12件に間引いて再試行 */
+  try{ put('battery_leads_v1', JSON.stringify(leads.map(lsLight))); put('battery_props_v1', JSON.stringify(props)); lsDegraded=false; lsBadge(); return true; }catch(e){}
+  /* 段階4：ローカル控えを諦める（Supabaseに保存済みなのでデータは失われない） */
+  try{ localStorage.removeItem('battery_leads_v1'); localStorage.removeItem('battery_props_v1'); }catch(e){}
+  lsDegraded=true; lsBadge();
+  if(!lsWarned){ lsWarned=true; console.warn('localStorage quota exceeded — cloud only mode'); }
+  return false;
+}
+function lsBadge(){
+  const el=document.getElementById('lsWarn'); if(!el) return;
+  el.style.display = lsDegraded? '' : 'none';
+}
+function lsUsage(){
+  let n=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); n+=(k.length+(localStorage.getItem(k)||'').length)*2; } }catch(e){}
+  return n;
+}
 function loadLocal(){
   try{ leads=JSON.parse(localStorage.getItem('battery_leads_v1')||'[]'); }catch(e){ leads=[]; }
   try{ props=JSON.parse(localStorage.getItem('battery_props_v1')||'[]'); }catch(e){ props=[]; }
@@ -1357,7 +1389,7 @@ $('btnNewProp').onclick=()=> openPropModal(null);
 /* ===== 地図（国土地理院） ===== */
 let map=null, mapLayer=null, geoBusy=false;
 let geoCache={}; try{ geoCache=JSON.parse(localStorage.getItem('battery_leads_geo_v1')||'{}'); }catch(e){ geoCache={}; }
-function saveGeo(){ localStorage.setItem('battery_leads_geo_v1', JSON.stringify(geoCache)); }
+function saveGeo(){ try{ localStorage.setItem('battery_leads_geo_v1', JSON.stringify(geoCache)); }catch(e){ /* 容量オーバー時は座標キャッシュを諦める（次回再取得） */ try{ localStorage.removeItem('battery_leads_geo_v1'); }catch(e2){} geoCache={}; } }
 function geoKey(p){ return ((p.addr||'')+(p.pref||'')).trim(); }
 async function gsiSearch(q){
   try{
@@ -1922,7 +1954,25 @@ function renderClean(){
    + '<li><b>終わった商談は行を消さずステータスを「入金済」「失注」に</b>：行ごと削除するとボード側に取り残しが出ます</li>'
    + '<li><b>新しい行には必ず案件IDを採番</b>：空欄のまま取り込むと社名だけで照合するため、表記ゆれで重複します</li>'
    + '</ul>';
+  /* ③ この端末の保存容量 */
+  const kb=Math.round(lsUsage()/1024);
+  h+='<div class="sect">③ この端末の保存容量'+(lsDegraded?'（⚠ 容量オーバー）':'')+'</div>';
+  h+='<p style="font-size:12px;color:var(--tx2);padding:6px 0;line-height:1.8">'
+   + 'ブラウザに置いている<b>ローカル控え</b>の使用量：<b>約 '+kb.toLocaleString()+' KB</b>（上限の目安 5,000KB）<br>'
+   + 'この控えはオフライン時の表示用です。商談データ本体はクラウド（共有）に保存されているため、削除しても失われません。<br>'
+   + '同じ marubayashi-bot.github.io 上の他のアプリと容量を共有しているため、いっぱいになることがあります。'
+   + (lsDegraded? '<br><b style="color:var(--red)">現在この端末では控えを保存できていません。動作に支障はありませんが、下のボタンで空けてください。</b>':'')
+   + '</p>';
+  h+='<div style="padding:0 0 6px"><button class="btn gray" id="clnLs" style="font-size:12px">この端末の控えを削除して空ける</button></div>';
   $('clnBody').innerHTML=h;
+  const lsBtn=document.getElementById('clnLs');
+  if(lsBtn) lsBtn.onclick=()=>{
+    if(!confirm('この端末に保存しているローカル控えを削除します。\n商談データはクラウドに保存されているため失われません。よろしいですか？')) return;
+    ['battery_leads_v1','battery_props_v1','battery_leads_geo_v1'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    geoCache={}; lsDegraded=false; lsWarned=false; lsBadge();
+    saveLocal(); renderClean();
+    alert('空けました。（現在の使用量：約 '+Math.round(lsUsage()/1024).toLocaleString()+' KB）');
+  };
 }
 function doMerge(dropId){
   const sel=$('mg_'+dropId); if(!sel||!sel.value){ alert('統合先の商談を選んでください'); return; }
@@ -2089,7 +2139,14 @@ async function syncSheet(silent){
     if(silent && needClean) updateCleanBadge();
   }catch(e){
     $('gasStatus').textContent='';
-    if(!silent) alert('シート連動エラー：'+(e.message||e)+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
+    if(!silent){
+      const m=String(e&&e.message||e);
+      if(/quota|Storage|exceeded/i.test(m)){
+        alert('この端末の保存容量がいっぱいのため、ローカル控えを保存できませんでした。\n\nシートの読み込み自体は完了しており、データはクラウド（共有）に保存されています。業務への影響はありません。\n\n気になる場合は「🧹 データ整理」→「この端末の保存容量」から控えを削除してください。');
+      }else{
+        alert('シート連動エラー：'+m+'\nGAS URLとデプロイ設定（全員がアクセス可）をご確認ください。');
+      }
+    }
   }
 }
 $('btnGas').onclick=()=> syncSheet(false);
@@ -2208,6 +2265,10 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
   ['2026.09.07', [
+    '「シート連動エラー：… exceeded the quota」が出ていた不具合を修正しました。ブラウザのローカル控えが容量オーバーになっても、シート連動と保存は止まりません（データ本体はクラウドに保存されています）',
+    '容量オーバー時は、地図の座標キャッシュ → 古い活動ログの順に自動で軽くして保存を試みます。それでも入らない場合はクラウドのみで動作し、ヘッダーに「⚠ 端末の保存容量」と表示します',
+    '活動ログは1商談あたり直近60件までに自動で丸めるようにしました（際限なく増えて重くなるのを防ぎます）',
+    '「🧹 データ整理」に「③ この端末の保存容量」を追加。使用量の確認と、控えの削除ができます',
     '入力シートのステータス「合意意向済」をボードでも正式なステータスとして扱うようにしました（申込の一歩手前・確度A・フェーズPH06に自動判定）。これまで「提案中」に落ちて取り込まれていた商談が、正しい段階で表示されます',
     '「🧭 フェーズ」タブを追加しました。商談を PH01〜PH08 の8フェーズで可視化し、フェーズごとの件数・MQ・通過率（PH01→PH08）を表示します',
     'フェーズはステータスから自動判定されます（新規=PH01／初回接触=PH02／ヒアリング済=PH03／提案中=PH05／条件交渉・合意意向済=PH06／申込=PH07／契約・入金済=PH08）。実態と違うときは商談カードのドラッグ、または商談編集画面の「商談フェーズ」で上書きできます',
