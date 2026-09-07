@@ -692,7 +692,7 @@ function vWrite(){
     : (!APPROVAL_STRICT && METRICS.length
       ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <div class="sec s-rival"><span class="lab">暫定表示</span>
-        <div>今週の目標がまだ上司に承認されていないため、これまでの項目を表示しています。
+        <div>今週の目標がまだ上司に承認されていないため、「管理」タブの<b>① 日報の数値設定</b>の項目を表示しています。
           承認されると、承認された項目だけに切り替わります。</div></div>
       <div class="grid" style="margin-top:12px">${METRICS.map(m => {
         const day = EDIT_DATE || TODAY;
@@ -1544,7 +1544,23 @@ function vAdmin(){
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
-  <p class="sub">部署ごとの数値項目を設定します。ここで追加した項目が、その部署の日報入力画面に出ます。</p>
+  <p class="sub">数値の設定は2種類あります。用途が違うので、混同しないようご注意ください。</p>
+  <div class="card" style="background:#F7FAFC">
+    <table>
+      <tr><th>設定</th><th>何を決めるか</th><th>どこに出るか</th></tr>
+      <tr><td><b>① 日報の数値設定</b></td>
+        <td>毎日入力する項目と、その1週間ぶんの目標</td>
+        <td>日報を書く画面の「数値情報」</td></tr>
+      <tr><td><b>② 四半期の数値設定</b></td>
+        <td>四半期を通して追うKGI・KPIと、その期間の目標値</td>
+        <td>週次報告の「四半期の進捗」</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px">①で作った項目を②で選んで紐づけると、日報に入力された数値が
+      四半期の実績として自動集計されます。まず①で項目を作り、次に②で四半期の目標値を決める順番です。</p>
+  </div>
+
+  <h3 style="margin-top:24px;border:0;padding:0">① 日報の数値設定（毎日入力する項目）</h3>
+  <p class="sub">部署ごと、または個人ごとに、日報で入力する数値項目を設定します。目標は1週間ぶんの数字です。</p>
   <div class="card">
     <div class="grid">
       <div><label>部署</label>
@@ -1562,7 +1578,7 @@ function vAdmin(){
       <span class="note" id="adCount"></span>
     </div>
     <div id="adList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
-    <h3 style="margin-top:20px">項目を追加</h3>
+    <h3 style="margin-top:20px">日報の数値項目を追加する</h3>
     <div class="grid">
       <div><label>項目名</label><input type="text" id="ad_name" placeholder="例：幹部・社員面談"></div>
       <div><label>単位</label><input type="text" id="ad_unit" value="件"></div>
@@ -1588,8 +1604,8 @@ function vAdmin(){
       個人ごとの目標を追いたいときに使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
-  <div class="card"><h3>本人の画面プレビュー</h3>
-    <p class="note">上で設定した内容が、実際にどう見えるかをここで確認できます。</p>
+  <div class="card"><h3>本人の画面プレビュー（①の確認）</h3>
+    <p class="note">①で設定した項目が、その人の日報入力画面にどう出るかを確認できます。</p>
     <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
     <label>確認する社員</label>
     <select id="pvUser" onchange="loadPreview(this.value)">
@@ -1660,8 +1676,11 @@ function vAdmin(){
       上位部署を設定すると部と課がつながり、部の部門長は配下の課の日報も確認できます。</p>
     <div id="deptBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
-  <div class="card"><h3>四半期目標（KGI・KPI）</h3>
-    <p class="note">日報の数値項目と紐づけると、実績が自動で集計され、週次報告に反映されます。</p>
+  <h3 style="margin-top:28px;border:0;padding:0">② 四半期の数値設定（KGI・KPI）</h3>
+  <p class="sub">四半期を通して追う目標です。①で作った項目に紐づけると、日報の数値が実績として自動集計されます。</p>
+  <div class="card">
+    <p class="note">対象者・項目・種別・四半期の目標値・期間を決めて登録します。
+      週次報告の「四半期の進捗」と「今週の目標と結果」は、ここでの登録内容から作られます。</p>
     <div class="row" style="margin-bottom:8px">
       <div style="flex:1;min-width:180px"><label>対象者を絞り込み</label>
         <input type="text" id="qg_ufind" placeholder="氏名・部署" oninput="filterGoalUsers()"></div>
@@ -1679,7 +1698,7 @@ function vAdmin(){
         <input type="hidden" id="qg_metric" value="">
         <div id="qgPicked" class="picked-none">項目を選んでください</div>
         <a href="#" onclick="toggleNewMetric();return false" style="color:var(--accent);font-size:12px">
-          項目が無い場合はここで作成</a>
+          項目が無い場合はここで作成（①に追加されます）</a>
         <a href="#" onclick="gotoMetricAdmin();return false" style="color:var(--accent);font-size:12px;margin-left:10px">
           項目の編集・アーカイブ・削除</a></div>
       <div><label>種別</label><select id="qg_kind">
@@ -2558,7 +2577,7 @@ async function loadWeeklySelf(){
     </table>
     <p class="note" style="margin-top:8px">必要ペースは、残りの週数から毎週引き直しています。遅れは翌週以降に跳ね返ります。</p>
     <div class="sec s-rival" style="margin-top:12px"><span class="lab">項目が自分のものと違うとき</span>
-      <div>ここに出る項目は「管理」タブの四半期目標で決まります。
+      <div>ここに出る項目は「管理」タブの<b>② 四半期の数値設定</b>で決まります。
         <b>対象</b>が「部署全体」の項目は、同じ部署の全員に同じものが出ます。
         自分専用の目標にしたい場合は、対象者を本人にした目標を登録し直す必要があります。
         ${canAdmin() || isDeptHead()
