@@ -1559,7 +1559,7 @@ function vAdmin(){
   setTimeout(() => loadOrgLine(), 0);
   setTimeout(drawOrgChart, 0);
   setTimeout(loadRetired, 0);
-  setTimeout(() => { loadGoalList(); filterGoalMetrics(); if (ADMIN_USER && ADMIN_USER !== '__all') loadPreview(ADMIN_USER); }, 0);
+  setTimeout(() => { loadGoalList(); if (ADMIN_USER && ADMIN_USER !== '__all') loadPreview(ADMIN_USER); }, 0);
   if (canAdmin()) { setTimeout(loadDeptAdmin, 0); setTimeout(loadGradeAdmin, 0); }
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
@@ -1698,49 +1698,27 @@ function vAdmin(){
   <h3 style="margin-top:28px;border:0;padding:0">② 四半期の数値設定（KGI・KPI）</h3>
   <p class="sub">四半期を通して追う目標です。①で作った項目に紐づけると、日報の数値が実績として自動集計されます。</p>
   <div class="card">
-    <p class="note">対象者・項目・種別・四半期の目標値・期間を決めて登録します。
-      週次報告の「四半期の進捗」と「今週の目標と結果」は、ここでの登録内容から作られます。</p>
-    <div class="row" style="margin-bottom:8px">
-      <div style="flex:1;min-width:180px"><label>対象者を絞り込み</label>
-        <input type="text" id="qg_ufind" placeholder="氏名・部署" oninput="filterGoalUsers()"></div>
-      <div style="flex:1;min-width:180px"><label>数値項目を探す</label>
-        <input type="text" id="qg_mfind" placeholder="項目名の一部（例：MQ、契約）" oninput="filterGoalMetrics()"></div>
+    <p class="note">「＋ 目標を追加」を押すと、一覧の先頭に空の行が出ます。
+      対象者・項目・種別・目標・期間をその行で選んで保存してください。
+      登録済みの行も、そのまま書き換えれば保存されます。</p>
+    <div class="row" style="margin-bottom:10px">
+      <button class="act" onclick="startNewGoal()">＋ 目標を追加</button>
+      <a href="#" onclick="gotoMetricAdmin();return false" style="color:var(--accent);font-size:12px;align-self:center">
+        項目の編集・アーカイブ・削除</a>
     </div>
-    <div id="qgMetricList" class="mpick"></div>
-    <div class="grid" style="gap:8px">
-      <div><label>対象者</label><select id="qg_user" onchange="filterGoalMetrics()">
-        <option value="">部署全体（${esc((DEPTS.find(d=>d.id===adminDeptId())||{}).name || '')}）</option>
-        ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
-          .map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('')}
-      </select></div>
-      <div><label>紐づける数値項目（${METRICS_ALL.length}件）</label>
-        <input type="hidden" id="qg_metric" value="">
-        <div id="qgPicked" class="picked-none">項目を選んでください</div>
-        <a href="#" onclick="toggleNewMetric();return false" style="color:var(--accent);font-size:12px">
-          項目が無い場合はここで作成（①に追加されます）</a>
-        <a href="#" onclick="gotoMetricAdmin();return false" style="color:var(--accent);font-size:12px;margin-left:10px">
-          項目の編集・アーカイブ・削除</a></div>
-      <div><label>種別</label><select id="qg_kind">
-        <option value="KPI">KPI（先行指標）</option><option value="KGI">KGI（結果目標）</option></select></div>
-      <div><label>四半期の目標値</label><input type="number" step="any" id="qg_target" placeholder="0"></div>
-      <div><label>開始日</label><input type="date" id="qg_from"></div>
-      <div><label>終了日</label><input type="date" id="qg_to"></div>
-    </div>
-    <div id="qgNewMetric" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#FBFCFD">
-      <b style="font-size:13px">数値項目を新しく作る</b>
+    <div id="qgNewMetric" style="display:none;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#FBFCFD">
+      <b style="font-size:13px">数値項目を新しく作る（①に追加されます）</b>
       <div class="grid" style="gap:8px;margin-top:8px">
         <div><label>項目名</label><input type="text" id="qm_name" placeholder="例：リエネ契約数"></div>
         <div><label>単位</label><input type="text" id="qm_unit" value="件"></div>
         <div><label>1週間の目標</label><input type="number" step="any" id="qm_target" placeholder="0"></div>
         <div><label>対象</label><select id="qm_scope">
-          <option value="dept">選択中の対象者の部署全体</option>
-          <option value="user">選択中の対象者だけ</option>
+          <option value="user">追加する行の対象者だけ</option>
+          <option value="dept">その対象者の部署全体</option>
         </select></div>
       </div>
       <button class="ghost" style="margin-top:10px" onclick="createMetricHere()">この項目を作成して選ぶ</button>
-      <p class="note" style="margin-top:6px">作成した項目は日報の入力画面にも出るようになります。</p>
     </div>
-    <button class="act" style="margin-top:12px" onclick="addGoal()">四半期目標を追加</button>
     <div id="qgList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
   </div>
   <div class="card"><h3>設定のこつ</h3>
@@ -1809,7 +1787,7 @@ async function loadAdminMetrics(){
 function gotoMetricAdmin(){
   ADMIN_USER = '__all'; ADMIN_DEPT = '__all';
   const du = document.getElementById('adUser'); if (du) du.value = '__all';
-  const sel = document.getElementById('qg_metric');
+  const sel = document.getElementById('ng_metric');
   const m = sel && METRICS_ALL.find(x => x.id === sel.value);
   const dept = document.getElementById('adDept'); if (dept) dept.value = '__all';
   const find = document.getElementById('adFind'); if (find) find.value = m ? m.name : '';
@@ -3047,7 +3025,7 @@ function toggleNewMetric(){
 async function createMetricHere(){
   const name = ((document.getElementById('qm_name')||{}).value || '').trim();
   if (!name){ toast('項目名を入力してください'); return; }
-  const uid  = (document.getElementById('qg_user')||{}).value || null;
+  const uid  = (document.getElementById('ng_user')||{}).value || null;
   const scope = (document.getElementById('qm_scope')||{}).value;
   const u = USERS.find(x => x.id === uid);
   const deptId = u ? u.department_id : adminDeptId();
@@ -3062,20 +3040,16 @@ async function createMetricHere(){
   if (error){ toast('作成できませんでした: ' + error.message); return; }
   METRICS_ALL.push(data);
 
-  // 画面を作り直さず、その場で候補に追加してそのまま選択状態にする
-  const sel = document.getElementById('qg_metric');
-  if (sel) sel.value = data.id;
-  const find = document.getElementById('qg_mfind'); if (find) find.value = '';
-  filterGoalMetrics();
-
-  // 作成フォームを空にして閉じる
+  // 追加中の行にそのまま反映する
+  if (NEW_GOAL) NEW_GOAL.metric_id = data.id;
   ['qm_name','qm_target'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   const box = document.getElementById('qgNewMetric'); if (box) box.style.display = 'none';
 
+  await loadGoalList();        // 追加行の項目リストに即反映
   loadAdminMetrics();          // ①の一覧にも即反映
   reloadMyMetrics();           // 自分の日報入力欄にも反映
-  toast('「' + data.name + '」を作成して選びました。目標値を入れて「四半期目標を追加」を押してください');
-  const t = document.getElementById('qg_target'); if (t) t.focus();
+  toast('「' + data.name + '」を作成して選びました。目標値を入れて保存してください');
+  const t = document.getElementById('ng_target'); if (t) t.focus();
 }
 
 function filterGoalUsers(){
@@ -3141,6 +3115,7 @@ function drawPickedMetric(){
 
 let SHOW_ARCHIVED = false;
 let GOAL_DEPT = '', GOAL_USER = '', GOAL_FIND = '';
+let NEW_GOAL = null;   // 一覧の先頭に出す「追加中の行」
 function toggleArchived(){ SHOW_ARCHIVED = !SHOW_ARCHIVED; loadGoalList(); }
 function setGoalFilter(kind, v){
   if (kind === 'dept'){ GOAL_DEPT = v; GOAL_USER = ''; }
@@ -3194,18 +3169,62 @@ async function loadGoalList(){
       <span class="note">${list.length}件 / 全${ALL_GOALS.filter(g => SHOW_ARCHIVED ? true : g.is_active !== false).length}件</span>
     </div>`;
 
+  // 対象者の選択肢（全社員）
+  const userOpts = (sel) => `<option value="">部署全体</option>` +
+    DEPTS.map(d => {
+      const ls = USERS.filter(u => u.department_id === d.id && u.is_active !== false)
+        .sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||''),'ja'));
+      return ls.length ? `<optgroup label="${esc(d.name)}">${ls.map(u =>
+        `<option value="${u.id}"${sel===u.id?' selected':''}>${esc(u.full_name)}</option>`).join('')}</optgroup>` : '';
+    }).join('');
+
+  // 項目の選択肢（アーカイブ済みは出さない）
+  const metricOpts = (sel, uid) => {
+    const u = USERS.find(x => x.id === uid);
+    const dept = u ? u.department_id : adminDeptId();
+    const mine  = METRICS_ALL.filter(m => (uid && m.user_id === uid) || (!m.user_id && m.department_id === dept));
+    const other = METRICS_ALL.filter(m => mine.indexOf(m) < 0);
+    const op = m => `<option value="${m.id}"${sel===m.id?' selected':''}>${esc(m.name)}（${esc(m.unit)}）</option>`;
+    return `<option value="">選んでください</option>`
+      + (mine.length  ? `<optgroup label="この対象者の項目">${mine.map(op).join('')}</optgroup>` : '')
+      + (other.length ? `<optgroup label="その他">${other.map(op).join('')}</optgroup>` : '');
+  };
+
+  const Q = quarterInfo();
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const newRow = NEW_GOAL ? `<tr style="background:#F2F8F5">
+    <td><select id="ng_user" onchange="onNewGoalUser(this.value)">${userOpts(NEW_GOAL.user_id)}</select></td>
+    <td class="note">${esc((DEPTS.find(d => d.id === (NEW_GOAL.user_id
+        ? (USERS.find(u=>u.id===NEW_GOAL.user_id)||{}).department_id : adminDeptId()))||{}).name || '—')}</td>
+    <td><select id="ng_metric" style="min-width:160px">${metricOpts(NEW_GOAL.metric_id, NEW_GOAL.user_id)}</select>
+      <a href="#" onclick="toggleNewMetric();return false" style="color:var(--accent);font-size:11px">＋新しい項目</a></td>
+    <td><select id="ng_kind" style="padding:4px;font-size:11px">
+      <option value="KPI">KPI</option><option value="KGI">KGI</option></select></td>
+    <td><input type="number" step="any" id="ng_target" placeholder="0" style="width:90px;padding:4px"></td>
+    <td><input type="date" id="ng_from" value="${ymd(Q.start)}" style="padding:4px;font-size:11px">
+        <input type="date" id="ng_to" value="${ymd(Q.end)}" style="padding:4px;font-size:11px"></td>
+    <td class="note">自動</td>
+    <td style="white-space:nowrap">
+      <button class="act" style="padding:5px 12px" onclick="saveNewGoal()">保存</button>
+      <button class="ghost" onclick="cancelNewGoal()">取消</button></td>
+  </tr>` : '';
+
   box.innerHTML = filterBar
-    + (list.length
+    + ((list.length || NEW_GOAL)
     ? `<div style="overflow-x:auto"><table style="margin-top:8px">
       <tr><th>対象</th><th>部署</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
+      ${newRow}
       ${list.map(g => `<tr${g.is_active === false ? ' style="opacity:.5"' : ''}>
-        <td>${g.user_id ? esc(uname(g.user_id)) : '部署全体'}</td>
+        <td><select style="padding:4px;font-size:11px;max-width:130px"
+             onchange="setGoalUser('${g.id}',this.value)">${userOpts(g.user_id)}</select></td>
         <td class="note">${esc((DEPTS.find(d => d.id === deptOf(g))||{}).name || '—')}</td>
-        <td>${esc(g.name)}</td>
+        <td><select style="padding:4px;font-size:11px;max-width:180px"
+             onchange="setGoalMetric('${g.id}',this.value)">${metricOpts(g.metric_id, g.user_id)}</select></td>
         <td><select style="padding:4px;font-size:11px" onchange="updGoal('${g.id}','kind',this.value)">
           <option value="KPI"${g.kind==='KPI'?' selected':''}>KPI</option>
           <option value="KGI"${g.kind==='KGI'?' selected':''}>KGI</option></select></td>
-        <td><input type="number" step="any" value="${g.target}" style="width:90px;padding:4px"
+        <td><input type="number" step="any" value="${g.target}" style="width:80px;padding:4px"
              onchange="updGoal('${g.id}','target',this.value)">${esc(g.unit)}</td>
         <td><input type="date" value="${g.period_from}" style="padding:4px;font-size:11px"
              onchange="updGoal('${g.id}','period_from',this.value)">
@@ -3213,16 +3232,83 @@ async function loadGoalList(){
              onchange="updGoal('${g.id}','period_to',this.value)"></td>
         <td class="num">${isZeroGoal(g.target) ? '<span class="note">ゼロ維持</span>'
           : Math.round(g.target / (g.weeks||13) * 10)/10}</td>
-        <td>${g.is_active === false
+        <td style="white-space:nowrap">${g.is_active === false
           ? `<button class="ghost" onclick="updGoal('${g.id}','is_active',true)">戻す</button>`
           : `<button class="ghost" onclick="updGoal('${g.id}','is_active',false)">アーカイブ</button>`}
           <button class="ghost" onclick="delGoal('${g.id}')" style="color:var(--warn)">削除</button></td>
       </tr>`).join('')}
       </table></div>
-      <p class="note" style="margin-top:8px">アーカイブすると週次報告には出ませんが、過去の記録は残ります。削除は完全に消えます。</p>`
+      <p class="note" style="margin-top:8px">各行はその場で書き換えれば保存されます。
+        アーカイブすると週次報告には出ませんが、過去の記録は残ります。削除は完全に消えます。</p>`
     : `<div class="empty" style="margin-top:8px">${(GOAL_DEPT || GOAL_USER || GOAL_FIND)
         ? 'この条件に合う四半期目標がありません。<br><button class="ghost" style="margin-top:8px" onclick="clearGoalFilter()">絞り込みを解除</button>'
-        : '四半期目標がまだ登録されていません。'}</div>`);
+        : '四半期目標がまだ登録されていません。「＋ 目標を追加」から登録してください。'}</div>`);
+}
+
+/* ---------- 一覧の中で追加・編集する ---------- */
+function startNewGoal(){
+  NEW_GOAL = { user_id: (ADMIN_USER && ADMIN_USER !== '__all') ? ADMIN_USER : '', metric_id: '' };
+  loadGoalList();
+}
+function cancelNewGoal(){ NEW_GOAL = null; loadGoalList(); }
+function onNewGoalUser(v){
+  NEW_GOAL = NEW_GOAL || {};
+  NEW_GOAL.user_id = v;
+  NEW_GOAL.metric_id = (document.getElementById('ng_metric')||{}).value || '';
+  loadGoalList();
+}
+
+async function saveNewGoal(){
+  const g = id => (document.getElementById(id)||{}).value;
+  const uid = g('ng_user') || null;
+  const mid = g('ng_metric');
+  const m = METRICS_ALL.find(x => x.id === mid);
+  if (!m){ toast('項目を選んでください'); return; }
+  const from = g('ng_from'), to = g('ng_to');
+  if (!from || !to){ toast('期間を入れてください'); return; }
+  const raw = String(g('ng_target')).trim();
+  const target = Number(raw);
+  if (raw === '' || Number.isNaN(target)){ toast('目標値を入れてください（0でも登録できます）'); return; }
+  if (target < 0){ toast('目標値にマイナスは入れられません'); return; }
+  const weeks = Math.max(1, Math.round((new Date(to) - new Date(from)) / 604800000));
+  const dept = uid ? ((USERS.find(x => x.id === uid)||{}).department_id || null) : adminDeptId();
+
+  const { error } = await EC.supabase.from('quarter_goals').insert({
+    user_id: uid, department_id: uid ? null : dept, metric_id: mid,
+    name: m.name, unit: m.unit, kind: g('ng_kind') || 'KPI',
+    target: target, period_from: from, period_to: to, weeks: weeks, created_by: ME.id });
+  if (error){ toast('追加できませんでした: ' + error.message); return; }
+
+  NEW_GOAL = null;
+  GOAL_FIND = '';
+  GOAL_USER = uid || '';
+  GOAL_DEPT = dept || '';
+  toast(target === 0 ? '追加しました（発生ゼロを維持する目標）'
+                     : '追加しました（週割 ' + Math.round(target/weeks*10)/10 + m.unit + '）');
+  await loadGoalList();
+  loadGoals();
+}
+
+/* 既存行の対象者を変える */
+async function setGoalUser(id, v){
+  const uid = v || null;
+  const dept = uid ? ((USERS.find(x => x.id === uid)||{}).department_id || null) : adminDeptId();
+  const { error } = await EC.supabase.from('quarter_goals')
+    .update({ user_id: uid, department_id: uid ? null : dept }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  toast('対象者を変更しました');
+  loadGoalList(); loadGoals();
+}
+
+/* 既存行の項目を差し替える */
+async function setGoalMetric(id, mid){
+  const m = METRICS_ALL.find(x => x.id === mid);
+  if (!m){ toast('項目を選んでください'); return; }
+  const { error } = await EC.supabase.from('quarter_goals')
+    .update({ metric_id: mid, name: m.name, unit: m.unit }).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  toast('項目を変更しました');
+  loadGoalList(); loadGoals();
 }
 async function addGoal(){
   const mid = (document.getElementById('qg_metric')||{}).value;
