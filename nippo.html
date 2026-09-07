@@ -2307,19 +2307,29 @@ function actualSum(metricId, from, to, uid){
 function vWeekly(){
   if (!WEEK_START) WEEK_START = mondayOf(new Date());
   const members = weeklyMembers();
-  setTimeout(WMODE === 'team' ? loadWeeklyTeam : loadWeekly, 0);
+  setTimeout(loadWeekly, 0);
   return `<h2>週次報告</h2>
   <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。</p>
   ${members.length ? `<div class="row" style="margin-bottom:12px">
-    <button class="${WMODE === 'me' ? 'act' : 'ghost'}" onclick="setWMode('me')">自分の週次報告</button>
-    <button class="${WMODE === 'team' ? 'act' : 'ghost'}" onclick="setWMode('team')">部下の週次報告（${members.length}名）</button>
+    <button class="ghost" onclick="jumpWk('wkBox')">自分の目標と週次報告</button>
+    <button class="ghost" onclick="jumpWk('wkTeam')">部下の目標と週次報告（${members.length}名）</button>
   </div>` : ''}
-  <div id="wkBox"><div class="empty">読み込み中…</div></div>`;
+  <div id="wkBox"><div class="empty">読み込み中…</div></div>
+  <div id="wkTeam"></div>`;
 }
-function setWMode(m){ WMODE = m; WUSER = null; render(); }
+function jumpWk(id){
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function setWMode(m){ jumpWk(m === 'team' ? 'wkTeam' : 'wkBox'); }
 function openWUser(uid){ WUSER = (WUSER === uid ? null : uid); loadWeeklyTeam(); }
 
 async function loadWeekly(){
+  await loadWeeklySelf();
+  if (weeklyMembers().length) loadWeeklyTeam();
+}
+
+async function loadWeeklySelf(){
   const box = document.getElementById('wkBox'); if (!box) return;
   const weekEnd = addDays(WEEK_START, 6);
 
@@ -2343,12 +2353,11 @@ async function loadWeekly(){
     const members = weeklyMembers();
     box.innerHTML = `<div class="card">
       <h3>あなた自身の四半期目標がまだ登録されていません</h3>
-      <p class="note">この画面は「ログインしている本人」の目標と実績を出します。
-        部下の名前で登録した目標はここには出ません。${members.length
-          ? '部下の分は上の<b>「部下の週次報告」</b>から確認できます。' : ''}
+      <p class="note">ここに出るのは「ログインしている本人」の目標と実績です。
+        部下の名前で登録した目標は${members.length ? 'このページの下の<b>「部下の目標と週次報告」</b>に出ます。' : 'ここには出ません。'}
         自分の分は「管理」タブの「四半期目標」で、対象を自分にして登録してください。</p>
       ${members.length ? `<div class="row" style="margin-top:10px">
-        <button class="act" onclick="setWMode('team')">部下の週次報告を見る</button>
+        <button class="act" onclick="jumpWk('wkTeam')">部下の分を見る（${members.length}名）</button>
         <button class="ghost" onclick="go('admin')">四半期目標を登録する</button></div>`
         : `<button class="ghost" style="margin-top:10px" onclick="go('admin')">四半期目標を登録する</button>`}
     </div>
@@ -2470,7 +2479,7 @@ async function loadWeekly(){
 
 /* ---------- 部下の週次報告（上司ビュー） ---------- */
 async function loadWeeklyTeam(){
-  const box = document.getElementById('wkBox'); if (!box) return;
+  const box = document.getElementById('wkTeam'); if (!box) return;
   const members = weeklyMembers();
   if (!members.length){ box.innerHTML = `<div class="card"><div class="empty">部下が登録されていません。</div></div>`; return; }
   box.innerHTML = `<div class="empty">読み込み中…</div>`;
@@ -2493,6 +2502,8 @@ async function loadWeeklyTeam(){
   const done = TEAMW.length, rate = Math.round(done / members.length * 100);
 
   box.innerHTML = `
+  <h2 style="margin-top:28px">部下の目標と週次報告</h2>
+  <p class="sub">配下 ${members.length}名の四半期進捗と提出状況です。</p>
   <div class="card">
     <div class="row">
       <button class="ghost" onclick="moveWeek(-7)">← 前の週</button>
@@ -2503,7 +2514,7 @@ async function loadWeeklyTeam(){
     </div>
   </div>
 
-  <div class="card"><h3>今週の提出状況</h3>
+  <div class="card"><h3>今週の提出状況と四半期の進捗</h3>
     <table><tr><th>氏名</th><th>提出</th><th>四半期の達成率</th><th>今週の未達</th><th></th></tr>
     ${members.map(u => {
       const w = TEAMW.find(x => x.user_id === u.id);
@@ -2529,7 +2540,24 @@ async function loadWeeklyTeam(){
   </div>
 
   ${WUSER ? wkMemberDetail(WUSER) : `<div class="card"><div class="empty">
-    「中身を見る」を押すと、その人の四半期進捗・未達要因・行動変化・次週目標と、過去8週の履歴が開きます。</div></div>`}`;
+    「中身を見る」を押すと、その人の四半期進捗・未達要因・行動変化・次週目標と、過去8週の履歴が開きます。</div></div>`}
+
+  <div class="card"><h3>週次報告一覧（全員・直近8週）</h3>
+    ${TEAMHIST.length ? `<div style="overflow-x:auto"><table>
+      <tr><th>週</th><th>氏名</th><th>未達要因</th><th>行動変化</th><th>コメント</th><th></th></tr>
+      ${TEAMHIST.slice(0, 80).map(r => `<tr>
+        <td class="num" style="white-space:nowrap">${r.week_start.slice(5)}</td>
+        <td style="white-space:nowrap">${esc(uname(r.user_id))}</td>
+        <td>${r.gap_cause ? esc(String(r.gap_cause).slice(0, 60)) + (String(r.gap_cause).length > 60 ? '…' : '') : '<span class="note">記入なし</span>'}</td>
+        <td>${r.action_change ? esc(String(r.action_change).slice(0, 60)) + (String(r.action_change).length > 60 ? '…' : '') : '<span class="note">記入なし</span>'}</td>
+        <td class="num">${(r.weekly_comments||[]).length ? (r.weekly_comments||[]).length + '件'
+          : '<span style="color:var(--warn)">未</span>'}</td>
+        <td><button class="ghost" onclick="openWUser('${r.user_id}')">開く</button></td>
+      </tr>`).join('')}
+      </table></div>
+      <p class="note" style="margin-top:8px">コメント欄が「未」の行は、上司がまだ返していない週次報告です。</p>`
+      : '<div class="empty">直近8週に提出された週次報告がありません。</div>'}
+  </div>`;
 }
 
 /* 部下1人ぶんの中身と履歴 */
@@ -2755,7 +2783,15 @@ function filterGoalMetrics(){
 }
 
 let SHOW_ARCHIVED = false;
+let GOAL_DEPT = '', GOAL_USER = '', GOAL_FIND = '';
 function toggleArchived(){ SHOW_ARCHIVED = !SHOW_ARCHIVED; loadGoalList(); }
+function setGoalFilter(kind, v){
+  if (kind === 'dept'){ GOAL_DEPT = v; GOAL_USER = ''; }
+  if (kind === 'user') GOAL_USER = v;
+  if (kind === 'find') GOAL_FIND = v;
+  loadGoalList();
+}
+function clearGoalFilter(){ GOAL_DEPT = ''; GOAL_USER = ''; GOAL_FIND = ''; loadGoalList(); }
 
 async function loadGoalList(){
   const box = document.getElementById('qgList'); if (!box) return;
@@ -2763,15 +2799,51 @@ async function loadGoalList(){
     .select('*').order('period_from', { ascending: false });
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   ALL_GOALS = data || [];
-  const list = ALL_GOALS.filter(g => SHOW_ARCHIVED ? true : g.is_active !== false);
-  box.innerHTML = `<div class="row" style="margin-top:14px">
+  const deptOf = g => {
+    if (g.user_id){ const u = USERS.find(x => x.id === g.user_id); return u ? u.department_id : null; }
+    return g.department_id || null;
+  };
+  const q = String(GOAL_FIND || '').replace(/[\s　]/g,'');
+  const list = ALL_GOALS
+    .filter(g => SHOW_ARCHIVED ? true : g.is_active !== false)
+    .filter(g => !GOAL_DEPT || deptOf(g) === GOAL_DEPT)
+    .filter(g => !GOAL_USER || g.user_id === GOAL_USER)
+    .filter(g => !q || String(g.name||'').replace(/[\s　]/g,'').indexOf(q) >= 0);
+
+  // 部署が選ばれていれば、その部署の人だけを「対象者」の候補に出す
+  const people = USERS
+    .filter(u => u.is_active !== false && (!GOAL_DEPT || u.department_id === GOAL_DEPT))
+    .filter(u => ALL_GOALS.some(g => g.user_id === u.id))
+    .sort((a,b) => String(a.full_name||'').localeCompare(String(b.full_name||''), 'ja'));
+
+  const filterBar = `<div class="grid" style="margin-top:14px;gap:8px">
+      <div><label>部署で絞り込む</label>
+        <select onchange="setGoalFilter('dept',this.value)">
+          <option value="">すべての部署</option>
+          ${DEPTS.map(d => `<option value="${d.id}"${GOAL_DEPT===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}
+        </select></div>
+      <div><label>対象者で絞り込む</label>
+        <select onchange="setGoalFilter('user',this.value)">
+          <option value="">すべての対象者</option>
+          ${people.map(u => `<option value="${u.id}"${GOAL_USER===u.id?' selected':''}>${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('')}
+        </select></div>
+      <div><label>項目名で探す</label>
+        <input type="text" value="${esc(GOAL_FIND)}" placeholder="例：MQ、契約"
+          onchange="setGoalFilter('find',this.value)"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
       <button class="ghost" onclick="toggleArchived()">${SHOW_ARCHIVED ? '有効なものだけ表示' : 'アーカイブも表示'}</button>
-      <span class="note">${list.length}件</span></div>`
+      ${(GOAL_DEPT || GOAL_USER || GOAL_FIND) ? `<button class="ghost" onclick="clearGoalFilter()">絞り込みを解除</button>` : ''}
+      <span class="note">${list.length}件 / 全${ALL_GOALS.filter(g => SHOW_ARCHIVED ? true : g.is_active !== false).length}件</span>
+    </div>`;
+
+  box.innerHTML = filterBar
     + (list.length
     ? `<div style="overflow-x:auto"><table style="margin-top:8px">
-      <tr><th>対象</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
+      <tr><th>対象</th><th>部署</th><th>項目</th><th>種別</th><th>目標</th><th>期間</th><th>週割</th><th></th></tr>
       ${list.map(g => `<tr${g.is_active === false ? ' style="opacity:.5"' : ''}>
         <td>${g.user_id ? esc(uname(g.user_id)) : '部署全体'}</td>
+        <td class="note">${esc((DEPTS.find(d => d.id === deptOf(g))||{}).name || '—')}</td>
         <td>${esc(g.name)}</td>
         <td><select style="padding:4px;font-size:11px" onchange="updGoal('${g.id}','kind',this.value)">
           <option value="KPI"${g.kind==='KPI'?' selected':''}>KPI</option>
@@ -2790,7 +2862,9 @@ async function loadGoalList(){
       </tr>`).join('')}
       </table></div>
       <p class="note" style="margin-top:8px">アーカイブすると週次報告には出ませんが、過去の記録は残ります。削除は完全に消えます。</p>`
-    : '<div class="empty" style="margin-top:8px">四半期目標がまだ登録されていません。</div>');
+    : `<div class="empty" style="margin-top:8px">${(GOAL_DEPT || GOAL_USER || GOAL_FIND)
+        ? 'この条件に合う四半期目標がありません。<br><button class="ghost" style="margin-top:8px" onclick="clearGoalFilter()">絞り込みを解除</button>'
+        : '四半期目標がまだ登録されていません。'}</div>`);
 }
 async function addGoal(){
   const mid = (document.getElementById('qg_metric')||{}).value;
