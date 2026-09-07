@@ -2441,6 +2441,29 @@ function goalScope(g){
   return '部署全体' + (d ? '（' + esc(d.name) + '）' : '');
 }
 
+/* 四半期の実績。手入力があればそれを、無ければ日報の自動集計を使う */
+function quarterActual(g, uid){
+  if (g.actual_override !== null && g.actual_override !== undefined && g.actual_override !== '')
+    return Number(g.actual_override);
+  return actualSum(g.metric_id, g.period_from, g.period_to, uid);
+}
+function isOverridden(g){
+  return g.actual_override !== null && g.actual_override !== undefined && g.actual_override !== '';
+}
+/* 四半期の実績を手入力で上書きする。空にすると自動集計に戻る */
+async function setGoalActual(id, v){
+  const val = String(v).trim() === '' ? null : Number(v);
+  if (val !== null && Number.isNaN(val)){ toast('数字を入れてください'); return; }
+  const { error } = await EC.supabase.from('quarter_goals')
+    .update({ actual_override: val }).eq('id', id);
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+  const g = (ALL_GOALS || []).find(x => x.id === id); if (g) g.actual_override = val;
+  const g2 = (QGOALS || []).find(x => x.id === id); if (g2) g2.actual_override = val;
+  const g3 = (GOALS_ALL || []).find(x => x.id === id); if (g3) g3.actual_override = val;
+  toast(val === null ? '日報の自動集計に戻しました' : '四半期の実績を更新しました');
+  if (TAB === 'weekly') loadWeekly(); else loadGoalList();
+}
+
 function goalRate(total, target){
   const t = Number(target);
   if (t > 0) return Math.round(Number(total) / t * 100);
@@ -2543,7 +2566,7 @@ async function loadWeeklySelf(){
   }
 
   const rows = QGOALS.map(g => {
-    const total   = actualSum(g.metric_id, g.period_from, g.period_to);
+    const total   = quarterActual(g);
     const week    = actualSum(g.metric_id, WEEK_START, weekEnd);
     const wt      = WTARGETS.find(x => x.goal_id === g.id);
     const perWeek = Number(g.target) / (g.weeks || 13);
@@ -2571,17 +2594,22 @@ async function loadWeeklySelf(){
   </div>
 
   <div class="card"><h3>四半期の進捗</h3>
-    <table><tr><th>項目</th><th>対象</th><th>目標</th><th>実績</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
+    <table><tr><th>項目</th><th>対象</th><th>目標</th><th>実績（入力できます）</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
     ${rows.map(r => `<tr>
       <td>${esc(r.g.name)}${r.g.kind === 'KGI' ? ' <span class="pill">KGI</span>' : ''}</td>
       <td class="note">${goalScope(r.g)}</td>
       <td class="num">${r.g.target}${esc(r.g.unit)}</td>
-      <td class="num">${Math.round(r.total*10)/10}</td>
+      <td><input type="number" step="any" style="width:95px;padding:5px;font-weight:700"
+           value="${isOverridden(r.g) ? r.g.actual_override : Math.round(r.total*10)/10}"
+           onchange="setGoalActual('${r.g.id}',this.value)">${esc(r.g.unit)}
+        <div class="note" style="font-size:10.5px">${isOverridden(r.g)
+          ? '手入力（空にすると日報集計に戻ります）' : '日報の自動集計'}</div></td>
       <td class="num" style="color:${r.qRate >= 100 ? 'var(--accent)' : r.qRate >= 70 ? 'var(--amber)' : 'var(--warn)'}">${r.qRate}%</td>
       <td class="num">${r.left}週</td>
       <td class="num"><b>${Math.round(r.need*10)/10}</b>${esc(r.g.unit)}</td></tr>`).join('')}
     </table>
-    <p class="note" style="margin-top:8px">必要ペースは、残りの週数から毎週引き直しています。遅れは翌週以降に跳ね返ります。</p>
+    <p class="note" style="margin-top:8px">必要ペースは、残りの週数から毎週引き直しています。遅れは翌週以降に跳ね返ります。<br>
+      率や外部システムの数字など、日報の足し算では出せない項目は実績を直接入力してください。空にすると自動集計に戻ります。</p>
     <div class="sec s-rival" style="margin-top:12px"><span class="lab">項目が自分のものと違うとき</span>
       <div>ここに出る項目は「管理」タブの<b>② 四半期の数値設定</b>で決まります。
         <b>対象</b>が「部署全体」の項目は、同じ部署の全員に同じものが出ます。
@@ -2777,7 +2805,7 @@ function wkMemberDetail(uid){
   const hist = TEAMHIST.filter(x => x.user_id === uid && x.week_start !== WEEK_START);
 
   const rows = gs.map(g => {
-    const total = actualSum(g.metric_id, g.period_from, g.period_to, uid);
+    const total = quarterActual(g, uid);
     const week  = actualSum(g.metric_id, WEEK_START, weekEnd, uid);
     const per   = Number(g.target) / (g.weeks || 13);
     const left  = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(TODAY)) / 604800000));
@@ -2789,19 +2817,36 @@ function wkMemberDetail(uid){
 
   return `
   <div class="card">
-    <h3>${esc(u.full_name || u.email)} さんの週次報告（${WEEK_START} 〜 ${weekEnd}）</h3>
-    ${gs.length ? `<table><tr><th>項目</th><th>四半期目標</th><th>累計</th><th>達成率</th><th>今週目標</th><th>今週実績</th><th>必要ペース／週</th></tr>
+    <h3>${esc(u.full_name || u.email)} さんの四半期の現状（${rows.length ? rows[0].g.period_from + ' 〜 ' + rows[0].g.period_to : ''}）</h3>
+    ${gs.length ? `<table><tr><th>項目</th><th>四半期目標</th><th>実績（入力できます）</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
       ${rows.map(r => `<tr>
         <td>${esc(r.g.name)}${r.g.kind === 'KGI' ? ' <span class="pill">KGI</span>' : ''}</td>
         <td class="num">${r.g.target}${esc(r.g.unit)}</td>
-        <td class="num">${Math.round(r.total*10)/10}</td>
+        <td><input type="number" step="any" style="width:95px;padding:5px;font-weight:700"
+             value="${isOverridden(r.g) ? r.g.actual_override : Math.round(r.total*10)/10}"
+             onchange="setGoalActual('${r.g.id}',this.value)">${esc(r.g.unit)}
+          <div class="note" style="font-size:10.5px">${isOverridden(r.g)
+            ? '手入力（空にすると日報集計に戻ります）' : '日報の自動集計'}</div></td>
         <td class="num" style="color:${r.qRate>=100?'var(--accent)':r.qRate>=70?'var(--amber)':'var(--warn)'}">${r.qRate}%</td>
-        <td class="num">${Math.round(r.per*10)/10}</td>
-        <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${Math.round(r.week*10)/10}（${r.wRate}%）</td>
+        <td class="num">${r.left}週</td>
         <td class="num"><b>${Math.round(r.need*10)/10}</b>${esc(r.g.unit)}</td></tr>`).join('')}
-      </table>`
+      </table>
+      <p class="note" style="margin-top:8px">率や外部システムの数字など、日報の足し算では出せない項目は実績を直接入力してください。
+        入力した数字は達成率と必要ペースにそのまま反映されます。</p>`
       : `<div class="empty">この方の四半期目標が登録されていません。</div>`}
   </div>
+
+  ${gs.length ? `<div class="card">
+    <h3>今週の実績（${WEEK_START} 〜 ${weekEnd}）</h3>
+    <table><tr><th>項目</th><th>今週目標</th><th>今週実績</th><th>達成率</th></tr>
+      ${rows.map(r => `<tr>
+        <td>${esc(r.g.name)}</td>
+        <td class="num">${Math.round(r.per*10)/10}${esc(r.g.unit)}</td>
+        <td class="num">${Math.round(r.week*10)/10}${esc(r.g.unit)}</td>
+        <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
+    </table>
+    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力はできません。</p>
+  </div>` : ''}
 
   <div class="card" id="apvBox_${uid}"><h3>次週の目標の承認</h3>
     <p class="note">承認した項目だけが、その人の日報の数値入力欄に出ます。承認前は入力欄が出ません。</p>
