@@ -128,6 +128,8 @@ nav .navdot{background:#F26A21;color:#fff;border-radius:9px;min-width:18px;heigh
   padding:0 5px;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;
   justify-content:center;line-height:1}
 main{max-width:960px;margin:0 auto;padding:22px 18px 80px}
+.wkbar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin:6px 0 3px}
+.wkbar span{display:block;height:100%;border-radius:3px}
 h2{font-size:14px;margin:0 0 4px;letter-spacing:.03em}
 .sub{color:var(--muted);font-size:12px;margin:0 0 14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
@@ -645,9 +647,21 @@ function vWrite(){
       <button class="ghost" onclick="EDIT_DATE=null;LOAD_SAVED=false;render()">本日の日報に戻る</button></div></div>` : ''}
 
   ${METRICS.length ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
-    <div class="grid">${METRICS.map(m => `
-      <div><label>${esc(m.name)}（${esc(m.unit)}）　目標 ${m.target ?? '—'}</label>
-      <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="0"></div>`).join('')}
+    <p class="note">目標は1週間の数字です。今週の月曜から前日までの実績を横に出しています。</p>
+    <div class="grid">${METRICS.map(m => {
+      const day = EDIT_DATE || TODAY;
+      const wk  = mondayOf(new Date(day));
+      const sofar = actualSum(m.id, wk, prevDay(day));
+      const tgt = Number(m.target) || 0;
+      const rate = tgt ? Math.round(sofar / tgt * 100) : null;
+      return `<div><label>${esc(m.name)}（${esc(m.unit)}）　
+        <span class="note">今週の目標 ${m.target ?? '—'}</span></label>
+      <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="0">
+      ${tgt ? `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
+          background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
+        <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(m.unit)} / ${tgt}${esc(m.unit)}（${rate}%）　
+          残り <b>${Math.max(0, Math.round((tgt - sofar)*10)/10)}${esc(m.unit)}</b></div>`
+        : '<div class="note">週の目標が未設定です</div>'}</div>`;}).join('')}
     </div></div>` : `<div class="card"><h3>数値情報</h3>
       <p class="note">あなたの部署の数値項目がまだ設定されていません。管理者にご相談ください。</p></div>`}
 
@@ -1455,7 +1469,7 @@ function vAdmin(){
     <div class="grid">
       <div><label>項目名</label><input type="text" id="ad_name" placeholder="例：幹部・社員面談"></div>
       <div><label>単位</label><input type="text" id="ad_unit" value="件"></div>
-      <div><label>1日の目標</label><input type="number" step="any" id="ad_target" placeholder="0"></div>
+      <div><label>1週間の目標</label><input type="number" step="any" id="ad_target" placeholder="0"></div>
       <div><label>入力する層</label><select id="ad_scope">
         ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
       <div><label>対象者</label><select id="ad_user">
@@ -1583,7 +1597,7 @@ function vAdmin(){
       <div class="grid" style="gap:8px;margin-top:8px">
         <div><label>項目名</label><input type="text" id="qm_name" placeholder="例：リエネ契約数"></div>
         <div><label>単位</label><input type="text" id="qm_unit" value="件"></div>
-        <div><label>1日の目標</label><input type="number" step="any" id="qm_target" placeholder="0"></div>
+        <div><label>1週間の目標</label><input type="number" step="any" id="qm_target" placeholder="0"></div>
         <div><label>対象</label><select id="qm_scope">
           <option value="dept">選択中の対象者の部署全体</option>
           <option value="user">選択中の対象者だけ</option>
@@ -1620,7 +1634,7 @@ async function loadAdminMetrics(){
   const deptName = id => (DEPTS.find(d => d.id === id) || {}).name || '';
 
   box.innerHTML = ADMIN_METRICS.length
-    ? `<table style="margin-top:12px"><tr><th>項目</th>${all ? '<th>部署</th>' : ''}<th>対象</th><th>単位</th><th>目標</th><th>入力する層</th><th>状態</th><th></th></tr>
+    ? `<table style="margin-top:12px"><tr><th>項目</th>${all ? '<th>部署</th>' : ''}<th>対象</th><th>単位</th><th>週の目標</th><th>入力する層</th><th>状態</th><th></th></tr>
        ${ADMIN_METRICS.map(m => {
          const off = (m.is_active === false);
          return `<tr${off ? ' style="opacity:.55"' : ''}>
@@ -1730,8 +1744,10 @@ async function updMetric(id, field, value){
 }
 async function setTarget(id, v){
   const { error } = await EC.supabase.from('report_metrics').update({ target: Number(v) || 0 }).eq('id', id);
-  toast(error ? '更新できませんでした' : '目標を更新しました');
-  if (ADMIN_DEPT === ME.department_id) reloadMyMetrics();
+  if (error){ toast('更新できませんでした: ' + error.message); return; }
+  const m = METRICS_ALL.find(x => x.id === id); if (m) m.target = Number(v) || 0;
+  toast('週の目標を更新しました');
+  reloadMyMetrics();
 }
 async function setScope(id, key){
   const { error } = await EC.supabase.from('report_metrics')
@@ -2151,14 +2167,26 @@ async function loadPreview(uid){
       </table>
 
       <h3 style="margin-top:16px">数値情報（${list.length}項目）</h3>
-      ${list.length ? `<div class="grid">${list.map(m => `
-        <div class="kpi">
-          <div class="l">${esc(m.name)}（${esc(m.unit)}）${m.user_id ? '　<b style="color:var(--accent)">個人専用</b>' : ''}</div>
-          <div class="v num" style="font-size:16px">目標 ${m.target ?? '—'}</div>
-        </div>`).join('')}</div>`
+      ${list.length ? `<table>
+        <tr><th>項目</th><th>単位</th><th>週の目標</th><th>種類</th><th></th></tr>
+        ${list.map(m => `<tr>
+          <td><input type="text" value="${esc(m.name)}" style="padding:5px;min-width:150px"
+               onchange="updMetric('${m.id}','name',this.value);loadPreview('${uid}')"></td>
+          <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:60px"
+               onchange="updMetric('${m.id}','unit',this.value)"></td>
+          <td><input type="number" step="any" value="${m.target ?? ''}" placeholder="0"
+               style="padding:5px;width:90px;font-weight:700"
+               onchange="setTarget('${m.id}',this.value)"></td>
+          <td class="note">${m.user_id ? '<b style="color:var(--accent)">個人専用</b>' : '部署共通'}</td>
+          <td style="white-space:nowrap">
+            <button class="ghost" onclick="archiveMetric('${m.id}','${esc(m.name)}').then(()=>loadPreview('${uid}'))">アーカイブ</button>
+          </td></tr>`).join('')}
+      </table>`
         : '<div class="empty">この方の画面には数値項目が表示されません。</div>'}
       <p class="note" style="margin-top:10px">
-        部署共通 ${dept.length}項目／個人専用 ${own.length}項目
+        部署共通 ${dept.length}項目／個人専用 ${own.length}項目。
+        項目名・単位・週の目標は、この表の中で直接書き換えれば保存されます。
+        <b>部署共通</b>の項目を変えると、同じ部署の全員に反映されます。
       </p>
     </div>`;
 }
@@ -2259,6 +2287,11 @@ function weeklyMembers(){
 }
 
 /* 日報の数値から期間内の実績を合計する */
+/* その日の前日（週の途中経過を出すのに使う） */
+function prevDay(d){
+  const t = new Date(d); t.setDate(t.getDate() - 1);
+  return t.toISOString().slice(0,10);
+}
 function actualSum(metricId, from, to, uid){
   let sum = 0;
   REPORTS.forEach(r => {
