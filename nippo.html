@@ -670,15 +670,21 @@ function vWrite(){
       const wk  = mondayOf(new Date(day));
       const sofar = actualSum(g.metric_id, wk, prevDay(day));
       const tgt = Number(t.target) || 0;
-      const rate = tgt ? Math.round(sofar / tgt * 100) : 0;
+      const zero = isZeroGoal(tgt);
+      const rate = goalRate(sofar, tgt);
       return `<div><label>${esc(g.name)}（${esc(g.unit)}）
         ${g.kind === 'KGI' ? '<span class="pill">KGI</span>' : ''}　
-        <span class="note">今週の目標 ${tgt}</span></label>
+        <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + tgt}</span></label>
       <input type="number" step="any" id="mt_${g.metric_id}" value="${mv(g.metric_id)}" placeholder="0">
-      <div class="wkbar"><span style="width:${Math.min(100, rate)}%;
-        background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
-      <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(g.unit)} / ${tgt}${esc(g.unit)}（${rate}%）　
-        残り <b>${Math.max(0, Math.round((tgt - sofar)*10)/10)}${esc(g.unit)}</b></div></div>`;}).join('')}
+      ${zero
+        ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
+            ${sofar > 0
+              ? '今週すでに ' + Math.round(sofar*10)/10 + esc(g.unit) + ' 発生しています'
+              : '今週はここまで発生ゼロ。維持しましょう'}</div>`
+        : `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
+            background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
+          <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(g.unit)} / ${tgt}${esc(g.unit)}（${rate}%）　
+            残り <b>${Math.max(0, Math.round((tgt - sofar)*10)/10)}${esc(g.unit)}</b></div>`}</div>`;}).join('')}
     </div></div>`
     : `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <p class="note">今週の目標がまだ承認されていないため、入力欄は出ていません。<br>
@@ -2328,6 +2334,14 @@ function prevDay(d){
   const t = new Date(d); t.setDate(t.getDate() - 1);
   return t.toISOString().slice(0,10);
 }
+/* 達成率。目標が0の項目は「発生させないこと」が目標なので、0件なら100%とする */
+function goalRate(total, target){
+  const t = Number(target);
+  if (t > 0) return Math.round(Number(total) / t * 100);
+  return Number(total) > 0 ? 0 : 100;
+}
+function isZeroGoal(target){ return Number(target) === 0; }
+
 function actualSum(metricId, from, to, uid){
   let sum = 0;
   REPORTS.forEach(r => {
@@ -2433,8 +2447,8 @@ async function loadWeeklySelf(){
     const left    = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(today)) / 604800000));
     const need    = Math.max(0, (Number(g.target) - total) / left);
     return { g, total, week, wTarget, perWeek, left, need,
-             qRate: g.target ? Math.round(total / g.target * 100) : 0,
-             wRate: wTarget ? Math.round(week / wTarget * 100) : 0 };
+             qRate: goalRate(total, g.target),
+             wRate: goalRate(week, wTarget), zero: isZeroGoal(g.target) };
   });
 
   const miss = rows.filter(r => r.wRate < 100);
@@ -2597,10 +2611,10 @@ async function loadWeeklyTeam(){
       const gs = goalsOf(u.id);
       const q = gs.map(g => ({ g, total: actualSum(g.metric_id, g.period_from, g.period_to, u.id) }));
       const qRate = q.length
-        ? Math.round(q.reduce((a,x) => a + (x.g.target ? x.total / x.g.target : 0), 0) / q.length * 100) : null;
+        ? Math.round(q.reduce((a,x) => a + goalRate(x.total, x.g.target), 0) / q.length) : null;
       const missN = gs.filter(g => {
         const wk = actualSum(g.metric_id, WEEK_START, weekEnd, u.id);
-        return wk < Number(g.target) / (g.weeks || 13);
+        return isZeroGoal(g.target) ? wk > 0 : wk < Number(g.target) / (g.weeks || 13);
       }).length;
       return `<tr>
         <td><b>${esc(u.full_name || u.email)}</b><br><span class="note">${esc(u.dept_name||'')} ${esc(u.job_grade||'')}</span></td>
@@ -2654,8 +2668,8 @@ function wkMemberDetail(uid){
     const left  = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(TODAY)) / 604800000));
     return { g, total, week, per, left,
       need: Math.max(0, (Number(g.target) - total) / left),
-      qRate: g.target ? Math.round(total / g.target * 100) : 0,
-      wRate: per ? Math.round(week / per * 100) : 0 };
+      qRate: goalRate(total, g.target),
+      wRate: goalRate(week, per) };
   });
 
   return `
@@ -2726,7 +2740,7 @@ async function loadApproval(uid){
     <table><tr><th>項目</th><th>種別</th><th>本人の申請</th><th>承認する数字</th><th>状態</th></tr>
     ${gs.map(g => {
       const r = rows.find(x => x.goal_id === g.id);
-      const per = Math.round(Number(g.target) / (g.weeks || 13) * 10) / 10;
+      const per = isZeroGoal(g.target) ? 0 : Math.round(Number(g.target) / (g.weeks || 13) * 10) / 10;
       const val = r ? r.target : per;
       return `<tr>
         <td>${esc(g.name)}</td>
@@ -2755,9 +2769,11 @@ async function approveTargets(uid){
     const el = document.getElementById('apv_' + g.id);
     const v = el ? Number(el.value) : 0;
     return { goal_id: g.id, user_id: uid, week_start: next, target: v,
-             is_manual: true, approved_by: ME.id, approved_at: now };
-  }).filter(x => x.target > 0);
-  if (!rows.length){ toast('承認する数字を入れてください'); return; }
+             is_manual: true, approved_by: ME.id, approved_at: now,
+             _raw: el ? String(el.value).trim() : '' };
+  }).filter(x => x._raw !== '' && !Number.isNaN(x.target) && x.target >= 0)
+    .map(x => { delete x._raw; return x; });
+  if (!rows.length){ toast('承認する数字を入れてください（0でも承認できます）'); return; }
   const { error } = await EC.supabase.from('weekly_targets')
     .upsert(rows, { onConflict: 'goal_id,user_id,week_start' });
   if (error){ toast('承認できませんでした: ' + error.message); return; }
@@ -3054,7 +3070,8 @@ async function loadGoalList(){
              onchange="updGoal('${g.id}','period_from',this.value)">
             <input type="date" value="${g.period_to}" style="padding:4px;font-size:11px"
              onchange="updGoal('${g.id}','period_to',this.value)"></td>
-        <td class="num">${Math.round(g.target / (g.weeks||13) * 10)/10}</td>
+        <td class="num">${isZeroGoal(g.target) ? '<span class="note">ゼロ維持</span>'
+          : Math.round(g.target / (g.weeks||13) * 10)/10}</td>
         <td>${g.is_active === false
           ? `<button class="ghost" onclick="updGoal('${g.id}','is_active',true)">戻す</button>`
           : `<button class="ghost" onclick="updGoal('${g.id}','is_active',false)">アーカイブ</button>`}
@@ -3073,9 +3090,11 @@ async function addGoal(){
   const uid = (document.getElementById('qg_user')||{}).value || null;
   const from = (document.getElementById('qg_from')||{}).value;
   const to   = (document.getElementById('qg_to')||{}).value;
-  const target = Number((document.getElementById('qg_target')||{}).value);
+  const raw = String((document.getElementById('qg_target')||{}).value).trim();
+  const target = Number(raw);
   if (!from || !to){ toast('期間を選んでください'); return; }
-  if (!target){ toast('目標値を入力してください'); return; }
+  if (raw === '' || Number.isNaN(target)){ toast('目標値を入力してください（0でも登録できます）'); return; }
+  if (target < 0){ toast('目標値にマイナスは入れられません'); return; }
   const weeks = Math.max(1, Math.round((new Date(to) - new Date(from)) / 604800000));
 
   const { error } = await EC.supabase.from('quarter_goals').insert({
@@ -3083,7 +3102,9 @@ async function addGoal(){
     name: m.name, unit: m.unit, kind: (document.getElementById('qg_kind')||{}).value || 'KPI',
     target: target, period_from: from, period_to: to, weeks: weeks, created_by: ME.id });
   if (error){ toast('追加できませんでした: ' + error.message); return; }
-  toast('四半期目標を追加しました（週割 ' + Math.round(target/weeks*10)/10 + m.unit + '）');
+  toast(target === 0
+    ? '四半期目標を追加しました（発生ゼロを維持する目標）'
+    : '四半期目標を追加しました（週割 ' + Math.round(target/weeks*10)/10 + m.unit + '）');
   document.getElementById('qg_target').value = '';
   loadGoalList(); loadGoals();
 }
