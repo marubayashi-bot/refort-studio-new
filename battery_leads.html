@@ -477,8 +477,8 @@ let sb=null, cloud=false, cloudErr='';
 
 /* ===== マスタ ===== */
 const Q3_END='2026-11-30';
-const STATUSES=['新規','初回接触','ヒアリング済','提案中','条件交渉','申込','契約','入金済','保留','失注'];
-const ST_COLOR={'新規':'#8a97a8','初回接触':'#3068a8','ヒアリング済':'#2f7fa8','提案中':'#d98b24','条件交渉':'#c9762b','申込':'#7a5cb8','契約':'#2f8f5b','入金済':'#1f6e46','保留':'#9a8f6b','失注':'#c94a4a'};
+const STATUSES=['新規','初回接触','ヒアリング済','提案中','条件交渉','合意意向済','申込','契約','入金済','保留','失注'];
+const ST_COLOR={'新規':'#8a97a8','初回接触':'#3068a8','ヒアリング済':'#2f7fa8','提案中':'#d98b24','条件交渉':'#c9762b','合意意向済':'#a4599b','申込':'#7a5cb8','契約':'#2f8f5b','入金済':'#1f6e46','保留':'#9a8f6b','失注':'#c94a4a'};
 const BIZ=['系統用蓄電池','ReFort','セカンダリー','パネル洗浄・O&M','サンキーパー','アセット','その他'];
 const BIZ_COLOR={'系統用蓄電池':'#3068a8','ReFort':'#c9762b','セカンダリー':'#2f8f5b','パネル洗浄・O&M':'#2f7fa8','サンキーパー':'#d98b24','アセット':'#7a5cb8','その他':'#8a97a8'};
 const KUBUN=['刈り取り（4Q・11/30まで）','刈り取り（3Q・8/31まで）','刈り取り（来期以降）','種まき（中長期）'];
@@ -534,7 +534,7 @@ const PH8_COLOR={'PH01':'#8a97a8','PH02':'#3068a8','PH03':'#2f7fa8','PH04':'#4a8
 const phDefs=()=> (Array.isArray(settings.phDefs)&&settings.phDefs.length===8)? settings.phDefs : PH_DEF_DEFAULT;
 const phDef=id=> phDefs().find(x=>x.id===id) || {id:id,n:'',d:''};
 const phLabel=id=> id? (id+' '+(phDef(id).n||'')) : '未設定';
-const PH_BY_STATUS={'新規':'PH01','初回接触':'PH02','ヒアリング済':'PH03','提案中':'PH05','条件交渉':'PH06','申込':'PH07','契約':'PH08','入金済':'PH08'};
+const PH_BY_STATUS={'新規':'PH01','初回接触':'PH02','ヒアリング済':'PH03','提案中':'PH05','条件交渉':'PH06','合意意向済':'PH06','申込':'PH07','契約':'PH08','入金済':'PH08'};
 const phOf=l=> (l.ph && PH_IDS.includes(l.ph))? l.ph : (PH_BY_STATUS[l.status]||'');
 const phNo=l=> PH_IDS.indexOf(phOf(l));
 const phLive=l=> !['失注','保留'].includes(l.status);
@@ -776,7 +776,7 @@ function renderFocus(){
     settings.mqGoal=Number(v); await saveSettings(); renderAll();
   };
 
-  const rank=st=>({'申込':0,'条件交渉':1,'提案中':2,'ヒアリング済':3,'初回接触':4,'新規':5}[st]??9);
+  const rank=st=>({'申込':0,'合意意向済':1,'条件交渉':2,'提案中':3,'ヒアリング済':4,'初回接触':5,'新規':6}[st]??9);
   const sorted=live.slice().sort((a,b)=>{
     const r=rank(a.status)-rank(b.status); if(r) return r;
     const pa=a.payday||'9999-12-31', pb=b.payday||'9999-12-31';
@@ -796,7 +796,7 @@ function renderFocus(){
         <b>${mqOf(l)? 'MQ '+mqOf(l).toLocaleString()+'万円':''}</b>${l.payday? '　入金予定 '+l.payday.slice(5).replace('-','/'):''}</div>
         <div class="da">▶ ${esc(l.next||'次回アクション未設定')}${l.due? `<span class="${l.due<today()?'due-over':''}">（${l.due.slice(5).replace('-','/')}）</span>`:''}<br>${riskBadges(l)}</div>
       </div>`).join('')}</div>` : '';
-  const close=sorted.filter(l=>['申込','条件交渉'].includes(l.status));
+  const close=sorted.filter(l=>['申込','合意意向済','条件交渉'].includes(l.status));
   const push=sorted.filter(l=>['提案中','ヒアリング済'].includes(l.status));
   const early=sorted.filter(l=>['新規','初回接触'].includes(l.status));
   const waitPay=won;
@@ -804,7 +804,7 @@ function renderFocus(){
   const sec=(title,arr,note)=> arr.length? `<div class="fsec"><h3>${title}<small>${arr.length}件・MQ ${sumMq(arr).toLocaleString()}万円</small></h3>${arr.map((l,i)=>frow(l,i)).join('')}</div>` : '';
   $('focusbody').innerHTML=
     ofHtml
-    + sec('🔥 クロージング段階（申込・条件交渉）── 最優先で決め切る', close)
+    + sec('🔥 クロージング段階（申込・合意意向済・条件交渉）── 最優先で決め切る', close)
     + sec('💰 契約済・入金待ち ── 入金予定日と融資実行を確認', waitPay)
     + sec('📣 追い込み（提案中・ヒアリング済）── 11/30から逆算して今週動かす', push)
     + sec('🌱 立ち上げ（新規・初回接触）── 早期にヒアリングを完了させる', early)
@@ -862,7 +862,7 @@ const unitOf=l=> l.unit || ((settings.unitMap||{})[l.owner||''] || '未設定');
 function probOf(l){
   if(['A','B','C'].includes(l.prob)) return l.prob;
   const s=l.status;
-  if(['入金済','契約','申込','条件交渉'].includes(s)) return 'A';
+  if(['入金済','契約','申込','合意意向済','条件交渉'].includes(s)) return 'A';
   if(['提案中','ヒアリング済'].includes(s)) return 'B';
   return 'C';
 }
@@ -1040,7 +1040,7 @@ function renderQ4(){
   document.querySelectorAll('#q4alert .frow, #q4top .frow').forEach(r=> r.onclick=()=> openModal(r.dataset.id));
 
   /* ── 担当者別・本日の最重要3案件 ── */
-  const rank={'申込':0,'条件交渉':1,'提案中':2,'ヒアリング済':3,'初回接触':4,'新規':5};
+  const rank={'申込':0,'合意意向済':1,'条件交渉':2,'提案中':3,'ヒアリング済':4,'初回接触':5,'新規':6};
   const owners={};
   pool.filter(l=>!isRec(l)).forEach(l=>{ const o=l.owner||'未設定'; (owners[o]=owners[o]||[]).push(l); });
   const opts=Object.keys(owners).sort();
@@ -1227,7 +1227,7 @@ function renderRef(){
   $('refgrid').innerHTML=keys.map(k=>{
     const arr=map[k];
     const won=arr.filter(l=>l.status==='契約').length;
-    const nego=arr.filter(l=>['提案中','条件交渉','申込'].includes(l.status)).length;
+    const nego=arr.filter(l=>['提案中','条件交渉','合意意向済','申込'].includes(l.status)).length;
     const amt=arr.filter(l=>!['失注'].includes(l.status)).reduce((s,l)=> s+(Number(l.budget)||0)*(Number(l.units)||1),0);
     const route=arr[0].route||'';
     return `<div class="refcard"><h3>${esc(k)}<small>${esc(route)}</small></h3>
@@ -1722,7 +1722,7 @@ function parseLeadRows(rows){
     const stRaw=String(g('status')||'').trim();
     const stNorm= stRaw? (STATUSES.includes(stRaw)? stRaw
       : /入金/.test(stRaw)? '入金済' : /受注|契約/.test(stRaw)? '契約' : /申込/.test(stRaw)? '申込'
-      : /交渉/.test(stRaw)? '条件交渉' : /提案/.test(stRaw)? '提案中' : /失注/.test(stRaw)? '失注' : /保留/.test(stRaw)? '保留' : '') : '';
+      : /合意/.test(stRaw)? '合意意向済' : /交渉/.test(stRaw)? '条件交渉' : /提案/.test(stRaw)? '提案中' : /失注/.test(stRaw)? '失注' : /保留/.test(stRaw)? '保留' : '') : '';
     const phX=(function(){ const v=String(g('ph')||'').replace(/[０-９Ａ-Ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); const m=v.match(/([1-8])/); return m? 'PH0'+m[1] : ''; })();
     const amtMan=Math.round((Number(g('amt'))||0)*100);          // 「見込金額／MQ」百万円→万円
     const salesMan=Math.round((Number(g('sales'))||0)*100);      // 売上（列がある場合）
@@ -2208,8 +2208,9 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
   ['2026.09.07', [
+    '入力シートのステータス「合意意向済」をボードでも正式なステータスとして扱うようにしました（申込の一歩手前・確度A・フェーズPH06に自動判定）。これまで「提案中」に落ちて取り込まれていた商談が、正しい段階で表示されます',
     '「🧭 フェーズ」タブを追加しました。商談を PH01〜PH08 の8フェーズで可視化し、フェーズごとの件数・MQ・通過率（PH01→PH08）を表示します',
-    'フェーズはステータスから自動判定されます（新規=PH01／初回接触=PH02／ヒアリング済=PH03／提案中=PH05／条件交渉=PH06／申込=PH07／契約・入金済=PH08）。実態と違うときは商談カードのドラッグ、または商談編集画面の「商談フェーズ」で上書きできます',
+    'フェーズはステータスから自動判定されます（新規=PH01／初回接触=PH02／ヒアリング済=PH03／提案中=PH05／条件交渉・合意意向済=PH06／申込=PH07／契約・入金済=PH08）。実態と違うときは商談カードのドラッグ、または商談編集画面の「商談フェーズ」で上書きできます',
     'フェーズ名は「✎ フェーズ名を編集」から全員共通で変更できます（自社の商談プロセス定義に合わせてください）',
     '「👤 担当別」タブを追加しました。担当者ごとの件数・確定MQ・商談中MQ・個人粗利目標に対する進捗・期限超過・次アクション未設定・フェーズ分布を一覧できます',
     'フェーズタブ下部に「担当者 × フェーズ」のマトリクス（件数／MQ）を追加。誰がどのフェーズに滞留しているかが1枚で分かります',
@@ -2226,7 +2227,7 @@ const CHANGELOG = [
     '一覧タブに「計上予定」列を追加。未設定は赤字で表示します',
     '「🚩 4Q作戦」タブを追加。第4四半期（9/1〜11/30）の売上40億円・粗利8億円に対する着地見込みを、月別・事業別・組織別に表示します',
     '商談に「4Qセグメント」「責任組織」「確度（A/B/C）」「契約予定日」「完工・売上計上予定日」「ボトルネック」「解除期限」を追加しました',
-    '確度は原則ステータスから自動判定（申込・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違う場合のみ手動で上書きしてください',
+    '確度は原則ステータスから自動判定（申込・合意意向済・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違う場合のみ手動で上書きしてください',
     '逆算デッドライン（9/15・9/30・10/15・10/31）の達成状況を自動判定。未達は赤で表示します',
     '朝礼用の日次報告6項目を自動生成し、コピーしてChatworkに貼れるようにしました',
     '商談区分に「刈り取り（4Q・11/30まで）」を追加し、フォーカスタブの締切を11/30に変更しました'
@@ -2261,7 +2262,7 @@ const MANUAL = [
       '<tr><td>PH03 課題確認</td><td>ヒアリング済</td></tr>' +
       '<tr><td>PH04 診断・提案準備</td><td>（自動判定なし・手動で設定）</td></tr>' +
       '<tr><td>PH05 提案</td><td>提案中</td></tr>' +
-      '<tr><td>PH06 条件調整・合意</td><td>条件交渉</td></tr>' +
+      '<tr><td>PH06 条件調整・合意</td><td>条件交渉／合意意向済</td></tr>' +
       '<tr><td>PH07 最終判断</td><td>申込</td></tr>' +
       '<tr><td>PH08 受注・入金</td><td>契約／入金済</td></tr></table>',
     '<div class="mnote">PH04（診断・提案準備）はステータスに対応する段階が無いため、自動では入りません。カードをドラッグするか、商談編集画面の「商談フェーズ」で設定してください。一度設定すると、以後はステータスが変わっても手動設定が優先されます。</div>',
@@ -2304,7 +2305,7 @@ const MANUAL = [
     '<tr><td>責任組織</td><td>営業部／関東アセット／東北アセット／セカンダリー／社長戦略。誰の数字かを決めます</td></tr>' +
     '<tr><td>ボトルネック＋解除期限</td><td>決裁者・契約・融資・稟議・申請・部材・施工・検収・入金のどこで止まっているか。24時間以内に次の行動を決めます</td></tr>' +
     '</table>',
-    '<p><b>確度A/B/C</b>はステータスから自動で判定します（申込・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違うときだけ手動で上書きしてください。</p>',
+    '<p><b>確度A/B/C</b>はステータスから自動で判定します（申込・合意意向済・条件交渉＝A、提案中・ヒアリング済＝B、新規・初回接触＝C）。実態と違うときだけ手動で上書きしてください。</p>',
     '<div class="mnote">粗利が未入力の商談は、事業別の粗利率目安（高圧ReFort20%／セカンダリー20%／低圧25%／太陽光20%／蓄電池13.75%）で推定して表示します。「（推定）」と出ている商談は実額を入れてください。</div>',
     '<div class="mwarn"><b>売上だけ達成しても未達です。</b>粗利率20%を割った商談は「⚠②粗利率20%割れ」に自動で出ます。値引きの前に必ず確認してください。</div>',
     '<p>画面下の<b>朝礼・日次報告</b>で担当者を選ぶと、報告6項目が自動生成されます。「📋 報告文をコピー」でChatworkにそのまま貼れます。</p>'
@@ -2340,7 +2341,7 @@ const MANUAL = [
     '<tr><td>見込金額／MQ</td><td>百万円単位の数値（例：8）。単位や「万円」は書かない</td></tr>' +
     '<tr><td>確度</td><td>%の数値（例：70）。ボードでは温度感の判定に使います</td></tr>' +
     '<tr><td>期限・次回アクション日</td><td>日付形式（例：7/24）。文字を混ぜると読み取れません</td></tr>' +
-    '<tr><td>ステータス</td><td>提案中／条件交渉／契約／入金済／失注 など。表記を揺らさない</td></tr>' +
+    '<tr><td>ステータス</td><td>提案中／条件交渉／合意意向済／申込／契約／入金済／失注 など。表記を揺らさない</td></tr>' +
     '<tr><td>担当者</td><td>姓のみ（例：石野）。ボードの担当者フィルタに直結します</td></tr>' +
     '</table>',
     '<p>行の追加・削除は自由です。3つのセクション（今月決定できる案件／条件が整えば決定できる案件／来四半期以降の案件）のどこに入れても取り込まれます。</p>',
