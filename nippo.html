@@ -1531,6 +1531,11 @@ function metricAppliesToMe(m){
 
 /* ---------- 9. 管理（数値項目の設定） ---------- */
 let ADMIN_DEPT = null;
+/* 登録に使う部署ID。「すべての部署」表示中は自分の部署を使う */
+function adminDeptId(){
+  return (ADMIN_DEPT && ADMIN_DEPT !== '__all')
+    ? ADMIN_DEPT : (ME.department_id || (DEPTS[0] || {}).id);
+}
 let ADMIN_METRICS = [];
 let MET_ARCHIVED = false;   // アーカイブ済みの数値項目も表示するか
 function vAdmin(){
@@ -1690,7 +1695,7 @@ function vAdmin(){
     <div id="qgMetricList" class="mpick"></div>
     <div class="grid" style="gap:8px">
       <div><label>対象者</label><select id="qg_user" onchange="filterGoalMetrics()">
-        <option value="">部署全体（${esc((DEPTS.find(d=>d.id===ADMIN_DEPT)||{}).name || '')}）</option>
+        <option value="">部署全体（${esc((DEPTS.find(d=>d.id===adminDeptId())||{}).name || '')}）</option>
         ${USERS.slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'))
           .map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('')}
       </select></div>
@@ -1835,7 +1840,7 @@ async function addMetric(){
   const uid = (document.getElementById('ad_user') || {}).value || null;
   const target = uid ? (USERS.find(u => u.id === uid) || {}).department_id : null;
   const { error } = await EC.supabase.from('report_metrics').insert({
-    department_id: uid ? (target || ADMIN_DEPT) : ADMIN_DEPT, name,
+    department_id: uid ? (target || adminDeptId()) : adminDeptId(), name,
     unit: document.getElementById('ad_unit').value.trim() || '件',
     target: Number(document.getElementById('ad_target').value) || 0,
     job_grades: scopeValue(document.getElementById('ad_scope').value),
@@ -3022,7 +3027,7 @@ async function createMetricHere(){
   const uid  = (document.getElementById('qg_user')||{}).value || null;
   const scope = (document.getElementById('qm_scope')||{}).value;
   const u = USERS.find(x => x.id === uid);
-  const deptId = u ? u.department_id : ADMIN_DEPT;
+  const deptId = u ? u.department_id : adminDeptId();
   const { data, error } = await EC.supabase.from('report_metrics').insert({
     department_id: deptId,
     user_id: (scope === 'user' && uid) ? uid : null,
@@ -3033,17 +3038,21 @@ async function createMetricHere(){
   }).select().single();
   if (error){ toast('作成できませんでした: ' + error.message); return; }
   METRICS_ALL.push(data);
-  toast('数値項目を作成しました');
-  render();
-  setTimeout(() => {
-    const sel = document.getElementById('qg_metric');
-    if (sel){
-      sel.value = data.id;
-      filterGoalMetrics();
-      const out = document.getElementById('qgPicked');
-      if (out) out.scrollIntoView({ block: 'center' });
-    }
-  }, 100);
+
+  // 画面を作り直さず、その場で候補に追加してそのまま選択状態にする
+  const sel = document.getElementById('qg_metric');
+  if (sel) sel.value = data.id;
+  const find = document.getElementById('qg_mfind'); if (find) find.value = '';
+  filterGoalMetrics();
+
+  // 作成フォームを空にして閉じる
+  ['qm_name','qm_target'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const box = document.getElementById('qgNewMetric'); if (box) box.style.display = 'none';
+
+  loadAdminMetrics();          // ①の一覧にも即反映
+  reloadMyMetrics();           // 自分の日報入力欄にも反映
+  toast('「' + data.name + '」を作成して選びました。目標値を入れて「四半期目標を追加」を押してください');
+  const t = document.getElementById('qg_target'); if (t) t.focus();
 }
 
 function filterGoalUsers(){
@@ -3053,7 +3062,7 @@ function filterGoalUsers(){
   const list = USERS.filter(u => !q ||
     (String(u.full_name||'') + String(u.dept_name||'')).replace(/[\s　]/g,'').indexOf(q) >= 0)
     .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
-  sel.innerHTML = `<option value="">部署全体（${esc((DEPTS.find(d=>d.id===ADMIN_DEPT)||{}).name || '')}）</option>`
+  sel.innerHTML = `<option value="">部署全体（${esc((DEPTS.find(d=>d.id===adminDeptId())||{}).name || '')}）</option>`
     + list.map(u => `<option value="${u.id}">${esc(u.full_name)}（${esc(u.dept_name||'')}）</option>`).join('');
   sel.value = cur;
   filterGoalMetrics();
@@ -3207,15 +3216,25 @@ async function addGoal(){
   const weeks = Math.max(1, Math.round((new Date(to) - new Date(from)) / 604800000));
 
   const { error } = await EC.supabase.from('quarter_goals').insert({
-    user_id: uid, department_id: uid ? null : ADMIN_DEPT, metric_id: mid,
+    user_id: uid, department_id: uid ? null : adminDeptId(), metric_id: mid,
     name: m.name, unit: m.unit, kind: (document.getElementById('qg_kind')||{}).value || 'KPI',
     target: target, period_from: from, period_to: to, weeks: weeks, created_by: ME.id });
   if (error){ toast('追加できませんでした: ' + error.message); return; }
   toast(target === 0
     ? '四半期目標を追加しました（発生ゼロを維持する目標）'
     : '四半期目標を追加しました（週割 ' + Math.round(target/weeks*10)/10 + m.unit + '）');
+  // 追加したものが一覧に必ず見えるように、絞り込みを合わせる
+  GOAL_FIND = '';
+  GOAL_USER = uid || '';
+  GOAL_DEPT = uid ? ((USERS.find(x => x.id === uid) || {}).department_id || '') : adminDeptId();
+
   document.getElementById('qg_target').value = '';
-  loadGoalList(); loadGoals();
+  const sel = document.getElementById('qg_metric'); if (sel) sel.value = '';
+  filterGoalMetrics();
+  await loadGoalList();
+  loadGoals();
+  const list = document.getElementById('qgList');
+  if (list) list.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 async function updGoal(id, field, value){
   const g = ALL_GOALS.find(x => x.id === id); if (!g) return;
