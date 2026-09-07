@@ -209,8 +209,8 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .s-think{border-left-color:#8A5AB8} .s-think .lab{background:#F1E9F8;color:#6B3E96}
 .s-good{border-left-color:#C8901C}  .s-good .lab{background:#FBF3DE;color:#8A6410}
 .s-sub{border-left-color:#5C6D86}   .s-sub .lab{background:#EEF1F5;color:#4A5A70}
-.mv{display:inline-flex;align-items:baseline;gap:5px;background:#F5F8FB;border:1px solid var(--line);
-  border-radius:8px;padding:4px 10px;font-size:12px}
+.mv{display:inline-flex;align-items:baseline;gap:4px;background:#F5F8FB;border:1px solid var(--line);
+  border-radius:8px;padding:4px 10px;font-size:12px;line-height:1.5}
 .mv b{font-size:15px}
 .mv small{color:var(--muted)}
 .mv.over b{color:var(--accent)}
@@ -1075,16 +1075,13 @@ function card(r){
       ${r.level > 1 ? `<span class="pill p5" style="cursor:pointer"
         onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
     </div>
-    ${vals.length ? `<div class="sec s-num"><span class="lab">数値</span><div class="row num" style="gap:14px">
-      ${vals.map(v => { const mm = METRICS_ALL.find(x=>x.id===v.metric_id) || METRICS.find(x=>x.id===v.metric_id);
-        return mm ? `<span class="mv">${esc(mm.name)}<b>${v.value}</b><small>${esc(mm.unit)}</small></span>`
-                  : `<span class="mv"><b>${v.value}</b></span>`; }).join('')}
-    </div></div>`
-    : (r.status === 'off' ? '' : `<div class="sec s-num"><span class="lab">数値</span>
-      <div style="color:var(--warn)">数値の入力がありません
+    ${r.status === 'off' ? '' : `<div class="sec s-num"><span class="lab">数値（目標／実績）</span>
+      <div class="row num" style="gap:10px;flex-wrap:wrap">${metricChips(r, vals)}</div>
+      ${!vals.length ? `<div style="color:var(--warn);margin-top:6px">数値の入力がありません
         ${r.author_id === ME.id
           ? '<button class="ghost" style="margin-left:10px;padding:3px 10px;font-size:11px" onclick="editReport(\'' + r.id + '\')">数値を入れる</button>'
-          : ''}</div></div>`)}
+          : ''}</div>` : ''}
+    </div>`}
     ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${linkify(r.voice)}</div></div>` : ''}
     ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${linkify(r.rival)}</div></div>` : ''}
     ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${linkify(r.industry)}</div></div>` : ''}
@@ -1112,6 +1109,43 @@ function card(r){
       ${canAct ? `<button class="ghost" onclick="escalate('${r.id}', ${r.level})">上位課題へ昇格</button>` : ''}
     </div><div id="cbox_${r.id}"></div>` : ''}
   </div>`;
+}
+
+/* その社員に設定されている数値項目（部署共通＋個人専用） */
+function metricsFor(uid){
+  const u = USERS.find(x => x.id === uid);
+  return METRICS_ALL.filter(m => m.user_id === uid
+    || (!m.user_id && u && m.department_id === u.department_id));
+}
+
+/* 日報一覧の数値チップ。目標と実績を並べて出す */
+function metricChips(r, vals){
+  const list = metricsFor(r.author_id);
+  const seen = {};
+  (vals || []).forEach(v => { seen[v.metric_id] = Number(v.value); });
+
+  const chip = (name, unit, tgt, act) => {
+    const has = act !== undefined && act !== null;
+    const rate = (tgt === null || tgt === undefined) ? null : goalRate(has ? act : 0, tgt);
+    const col = rate === null ? 'var(--muted)'
+      : (rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)');
+    return `<span class="mv">${esc(name)}
+      <small>目標</small><b style="font-size:13px">${tgt === null || tgt === undefined ? '—' : tgt}</b>
+      <small>実績</small><b style="color:${has ? col : 'var(--warn)'}">${has ? act : '未入力'}</b>
+      <small>${esc(unit)}</small></span>`;
+  };
+
+  // 設定されている項目を基準に並べる（未入力の項目も出す）
+  let out = list.map(m => chip(m.name, m.unit, (m.target === null ? null : m.target), seen[m.id])).join('');
+
+  // 設定から外れた項目に値がある場合も落とさない
+  (vals || []).forEach(v => {
+    if (list.some(m => m.id === v.metric_id)) return;
+    const mm = METRICS_ALL.find(x => x.id === v.metric_id);
+    out += chip(mm ? mm.name : '項目', mm ? mm.unit : '', mm ? mm.target : null, Number(v.value));
+  });
+
+  return out || '<span class="note">この方に数値項目が設定されていません</span>';
 }
 
 function editReport(id){
