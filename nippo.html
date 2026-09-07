@@ -128,18 +128,25 @@ nav .navdot{background:#F26A21;color:#fff;border-radius:9px;min-width:18px;heigh
   padding:0 5px;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;
   justify-content:center;line-height:1}
 main{max-width:960px;margin:0 auto;padding:22px 18px 80px}
-.mtable{min-width:1000px}
-.mtable td{vertical-align:top;padding-top:10px;padding-bottom:10px}
-.mtable th{white-space:nowrap}
-.showcell label{display:flex;align-items:center;gap:5px;font-size:11.5px;white-space:nowrap;margin-bottom:5px}
-.showcell label:last-child{margin-bottom:0}
-.showcell input[type=checkbox]{margin:0;flex:none}
-.qcellbox .qline{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:nowrap}
-.qcellbox select{padding:4px;font-size:11px;width:66px}
-.qcellbox .qnum{width:82px;padding:4px;font-size:12px}
-.qcellbox .qu{font-size:11px;color:var(--muted)}
-.qcellbox .qdate{padding:3px;font-size:10.5px;width:112px}
-.qcellbox .qnote{font-size:10.5px;line-height:1.4;display:block}
+.mtable{width:100%;table-layout:fixed;font-size:11.5px}
+.mtable th,.mtable td{vertical-align:top;padding:9px 5px;overflow:hidden}
+.mtable input,.mtable select{padding:4px;font-size:11.5px;width:100%;box-sizing:border-box}
+.mtable .nm{font-weight:600}
+/* 表示先：3つのトグル */
+.showcell{display:flex;flex-direction:column;gap:4px}
+.showcell button{border:1px solid var(--line);background:#fff;color:var(--muted);
+  border-radius:6px;padding:3px 0;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;width:100%}
+.showcell button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+/* 四半期の設定 */
+.qcellbox .qline{display:flex;align-items:center;gap:4px;margin-bottom:4px}
+.qcellbox .qkind{flex:0 0 58px}
+.qcellbox .qnum{flex:1}
+.qcellbox .qu{flex:0 0 auto;font-size:10.5px;color:var(--muted)}
+.qcellbox .qdate{font-size:10px;padding:3px 2px}
+.qcellbox .qnote{font-size:10px;line-height:1.35;display:block;color:var(--muted)}
+/* 操作 */
+.actcell{display:flex;flex-direction:column;gap:4px}
+.actcell button{padding:3px 4px;font-size:10.5px;width:100%}
 .kpiwrap{margin:10px 0 14px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#FBFCFD}
 .kpihead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .kpihead .lab{font-size:12px;font-weight:700;color:var(--ink)}
@@ -1821,35 +1828,36 @@ async function loadAdminMetrics(){
   const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   box.innerHTML = ADMIN_METRICS.length
-    ? `<div style="overflow-x:auto"><table class="mtable" style="margin-top:12px">
-       <tr><th style="min-width:150px">項目</th>${all ? '<th>部署</th>' : ''}<th>対象</th><th>単位</th>
-           <th style="width:90px">週の目標</th><th style="width:96px">表示先</th>
-           <th style="min-width:230px">四半期の目標・期間</th><th>状態</th><th></th></tr>
+    ? `<table class="mtable" style="margin-top:12px">
+       <colgroup>
+         <col style="width:auto"><col style="width:64px"><col style="width:52px"><col style="width:66px">
+         <col style="width:76px"><col style="width:190px"><col style="width:78px">
+       </colgroup>
+       <tr><th>項目</th><th>対象</th><th>単位</th><th>週の目標</th>
+           <th>表示先</th><th>四半期の目標・期間</th><th></th></tr>
        ${ADMIN_METRICS.map(m => {
          const off = (m.is_active === false);
          const g = goalOf(m);
-         return `<tr${off ? ' style="opacity:.55"' : ''}>
-         <td><input type="text" value="${esc(m.name)}" style="padding:5px;min-width:130px"
-              onchange="updMetric('${m.id}','name',this.value)"></td>
-         ${all ? `<td class="note">${esc((DEPTS.find(d => d.id === m.department_id)||{}).name || '')}</td>` : ''}
-         <td class="note">${m.user_id
-           ? (m.user_id === ADMIN_USER ? '<b style="color:var(--accent)">本人専用</b>' : esc(uname(m.user_id)) + ' 専用')
+         return `<tr${off ? ' style="opacity:.5"' : ''}>
+         <td><input type="text" class="nm" value="${esc(m.name)}"
+              onchange="updMetric('${m.id}','name',this.value)">
+             ${off ? '<div class="note" style="font-size:10px">アーカイブ中</div>' : ''}
+             ${all ? `<div class="note" style="font-size:10px">${esc((DEPTS.find(d => d.id === m.department_id)||{}).name || '')}</div>` : ''}</td>
+         <td class="note" style="font-size:10.5px;line-height:1.4">${m.user_id
+           ? (m.user_id === ADMIN_USER ? '<b style="color:var(--accent)">本人専用</b>' : esc(uname(m.user_id)) + '専用')
            : '部署共通'}</td>
-         <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:60px"
+         <td><input type="text" value="${esc(m.unit)}"
               onchange="updMetric('${m.id}','unit',this.value)"></td>
-         <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
+         <td><input type="number" step="any" value="${m.target ?? ''}"
               onchange="setTarget('${m.id}',this.value)"></td>
-         <td class="showcell">
-           <label><input type="checkbox" ${m.show_daily !== false ? 'checked' : ''}
-             onchange="setMetricShow('${m.id}','show_daily',this.checked)"><span>日報</span></label>
-           <label><input type="checkbox" ${m.show_weekly !== false ? 'checked' : ''}
-             onchange="setMetricShow('${m.id}','show_weekly',this.checked)"><span>週報</span></label>
-           <label><input type="checkbox" ${g ? 'checked' : ''}
-             onchange="toggleQuarter('${m.id}',this.checked)"><span>四半期</span></label>
-         </td>
+         <td><div class="showcell">
+           <button class="${m.show_daily  !== false ? 'on' : ''}" onclick="setMetricShow('${m.id}','show_daily',${m.show_daily  === false})">日報</button>
+           <button class="${m.show_weekly !== false ? 'on' : ''}" onclick="setMetricShow('${m.id}','show_weekly',${m.show_weekly === false})">週報</button>
+           <button class="${g ? 'on' : ''}" onclick="toggleQuarter('${m.id}',${g ? 'false' : 'true'})">四半期</button>
+         </div></td>
          <td class="qcellbox">${g
            ? `<div class="qline">
-                <select onchange="updGoal('${g.id}','kind',this.value)">
+                <select class="qkind" onchange="updGoal('${g.id}','kind',this.value)">
                   <option value="KPI"${g.kind==='KPI'?' selected':''}>KPI</option>
                   <option value="KGI"${g.kind==='KGI'?' selected':''}>KGI</option></select>
                 <input type="number" step="any" value="${g.target}" class="qnum"
@@ -1861,16 +1869,15 @@ async function loadAdminMetrics(){
                 <input type="date" value="${g.period_to}" class="qdate"
                   onchange="updGoal('${g.id}','period_to',this.value)">
               </div>
-              <div class="note qnote">週割 ${isZeroGoal(g.target) ? 'ゼロ維持'
+              <div class="qnote">週割 ${isZeroGoal(g.target) ? 'ゼロ維持'
                 : Math.round(g.target / (g.weeks||13) * 10)/10}</div>`
-           : '<span class="note qnote">「四半期」にチェックを入れると<br>設定できます</span>'}</td>
-         <td style="white-space:nowrap">${off ? '<span class="pill p4">アーカイブ</span>' : '<span class="pill p2">利用中</span>'}</td>
-         <td style="white-space:nowrap">
+           : '<span class="qnote">未設定</span>'}</td>
+         <td><div class="actcell">
            ${off ? `<button class="ghost" onclick="restoreMetric('${m.id}')">戻す</button>`
                  : `<button class="ghost" onclick="archiveMetric('${m.id}','${esc(m.name)}')">アーカイブ</button>`}
            <button class="ghost" style="color:var(--warn)" onclick="hardDelMetric('${m.id}','${esc(m.name)}')">完全削除</button>
-         </td></tr>`;}).join('')}
-       </table></div>
+         </div></td></tr>`;}).join('')}
+       </table>
        <p class="note" style="margin-top:8px">
          項目名・単位・目標はその場で書き換えれば保存されます。<br>
          <b>表示先</b>…日報と週報は「週の目標」を使います。四半期にチェックを入れると、四半期の目標値と期間を設定できます。<br>
