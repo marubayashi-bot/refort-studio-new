@@ -1538,13 +1538,28 @@ function adminDeptId(){
 }
 let ADMIN_METRICS = [];
 let MET_ARCHIVED = false;   // アーカイブ済みの数値項目も表示するか
+let ADMIN_USER = null;      // ①で設定対象にしている社員
+
+function setAdminUser(v){
+  ADMIN_USER = v;
+  const u = USERS.find(x => x.id === v);
+  ADMIN_DEPT = (v === '__all') ? '__all' : ((u && u.department_id) || ME.department_id);
+  const sel = document.getElementById('ad_user');
+  if (sel) sel.value = (v === '__all') ? '' : v;      // 追加フォームの対象者も合わせる
+  loadAdminMetrics();
+  loadPreview(v === '__all' ? '' : v);
+}
 function vAdmin(){
-  if (!ADMIN_DEPT) ADMIN_DEPT = ME.department_id || (DEPTS[0] && DEPTS[0].id);
+  if (!ADMIN_USER) ADMIN_USER = ME.id;
+  if (!ADMIN_DEPT){
+    const au = USERS.find(x => x.id === ADMIN_USER);
+    ADMIN_DEPT = (au && au.department_id) || ME.department_id || (DEPTS[0] && DEPTS[0].id);
+  }
   setTimeout(loadAdminMetrics, 0);
   setTimeout(() => loadOrgLine(), 0);
   setTimeout(drawOrgChart, 0);
   setTimeout(loadRetired, 0);
-  setTimeout(() => { loadGoalList(); filterGoalMetrics(); }, 0);
+  setTimeout(() => { loadGoalList(); filterGoalMetrics(); if (ADMIN_USER && ADMIN_USER !== '__all') loadPreview(ADMIN_USER); }, 0);
   if (canAdmin()) { setTimeout(loadDeptAdmin, 0); setTimeout(loadGradeAdmin, 0); }
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
@@ -1565,18 +1580,26 @@ function vAdmin(){
   </div>
 
   <h3 style="margin-top:24px;border:0;padding:0">① 日報の数値設定（毎日入力する項目）</h3>
-  <p class="sub">部署ごと、または個人ごとに、日報で入力する数値項目を設定します。目標は1週間ぶんの数字です。</p>
+  <p class="sub">社員を選ぶと、その人の日報に出る数値項目が並びます。目標は1週間ぶんの数字です。</p>
   <div class="card">
-    <div class="grid">
-      <div><label>部署</label>
-        <select id="adDept" onchange="ADMIN_DEPT=this.value;loadAdminMetrics()">
-          <option value="__all"${ADMIN_DEPT==='__all'?' selected':''}>すべての部署</option>
-          ${DEPTS.length ? DEPTS.map(d => `<option value="${d.id}"${d.id===ADMIN_DEPT?' selected':''}>${esc(d.name)}</option>`).join('')
-            : '<option value="">部署を読み込めませんでした</option>'}
-        </select></div>
-      <div><label>項目名で絞り込み</label>
-        <input type="text" id="adFind" placeholder="例：契約、MQ" oninput="loadAdminMetrics()"></div>
-    </div>
+    <label>設定する社員</label>
+    <select id="adUser" onchange="setAdminUser(this.value)">
+      <option value="__all"${ADMIN_USER==='__all'?' selected':''}>全社員の項目をまとめて見る</option>
+      ${DEPTS.map(d => {
+        const list = USERS.filter(u => u.department_id === d.id && u.is_active !== false)
+          .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
+        return list.length ? `<optgroup label="${esc(d.name)}">
+          ${list.map(u => `<option value="${u.id}"${u.id===ADMIN_USER?' selected':''}>${esc(u.full_name)}</option>`).join('')}
+        </optgroup>` : '';
+      }).join('')}
+      ${USERS.filter(u => !u.department_id && u.is_active !== false).length ? `<optgroup label="部署未設定">
+        ${USERS.filter(u => !u.department_id && u.is_active !== false)
+               .map(u => `<option value="${u.id}"${u.id===ADMIN_USER?' selected':''}>${esc(u.full_name)}</option>`).join('')}
+      </optgroup>` : ''}
+    </select>
+    <p class="note" id="adWho" style="margin-top:6px"></p>
+    <div style="margin-top:10px"><label>項目名で絞り込み</label>
+      <input type="text" id="adFind" placeholder="例：契約、MQ" oninput="loadAdminMetrics()"></div>
     <div class="row" style="margin-top:10px">
       <button class="${MET_ARCHIVED ? 'act' : 'ghost'}" onclick="MET_ARCHIVED=!MET_ARCHIVED;loadAdminMetrics()">
         ${MET_ARCHIVED ? 'アーカイブを表示中' : 'アーカイブも表示'}</button>
@@ -1591,12 +1614,12 @@ function vAdmin(){
       <div><label>入力する層</label><select id="ad_scope">
         ${SCOPES.map(sc => `<option value="${sc[0]}">${sc[1]}</option>`).join('')}</select></div>
       <div><label>対象者</label><select id="ad_user">
-        <option value="">部署全体（選んだ部署の全員）</option>
+        <option value=""${ADMIN_USER==='__all'?' selected':''}>部署全体（選んだ部署の全員）</option>
         ${DEPTS.map(d => {
           const list = USERS.filter(u => u.department_id === d.id)
             .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
           return list.length ? `<optgroup label="${esc(d.name)}">
-            ${list.map(u => `<option value="${u.id}">${esc(u.full_name)} 専用</option>`).join('')}
+            ${list.map(u => `<option value="${u.id}"${u.id===ADMIN_USER?' selected':''}>${esc(u.full_name)} 専用</option>`).join('')}
           </optgroup>` : '';
         }).join('')}
         ${USERS.filter(u => !u.department_id).length ? `<optgroup label="部署未設定">
@@ -1605,24 +1628,15 @@ function vAdmin(){
         </optgroup>` : ''}
       </select></div>
     </div>
-    <p class="note">「対象者」で個人を選ぶと、その人の日報にだけ出る項目になります。所属部署を問わず全社員から選べます。
-      個人ごとの目標を追いたいときに使ってください。</p>
+    <p class="note">対象者は、上で選んだ社員が初期値です。
+      <b>◯◯ 専用</b>を選ぶとその人の日報にだけ出ます。
+      <b>部署全体</b>を選ぶと、その部署の全員の日報に同じ項目が出ます。
+      特定の人だけの数字を追うなら「専用」を使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
   <div class="card"><h3>本人の画面プレビュー（①の確認）</h3>
-    <p class="note">①で設定した項目が、その人の日報入力画面にどう出るかを確認できます。</p>
-    <p class="note">社員を選ぶと、その人の日報入力画面に出る数値項目を確認できます。</p>
-    <label>確認する社員</label>
-    <select id="pvUser" onchange="loadPreview(this.value)">
-      <option value="">選んでください</option>
-      ${DEPTS.map(d => {
-        const list = USERS.filter(u => u.department_id === d.id)
-          .sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'','ja'));
-        return list.length ? `<optgroup label="${esc(d.name)}">
-          ${list.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}
-        </optgroup>` : '';
-      }).join('')}
-    </select>
+    <p class="note">上で選んだ社員の日報入力画面に、①の項目がどう出るかを確認できます。
+      社員を切り替えると、ここも一緒に切り替わります。</p>
     <div id="pvBox"></div>
   </div>
   <div class="card"><h3>組織図</h3>
@@ -1735,16 +1749,22 @@ function vAdmin(){
 }
 async function loadAdminMetrics(){
   const box = document.getElementById('adList'); if (!box) return;
-  const all = (ADMIN_DEPT === '__all');
-  if (!ADMIN_DEPT){ box.innerHTML = '<div class="empty" style="margin-top:12px">部署が選べません。管理者にご連絡ください。</div>'; return; }
-  const memberIds = USERS.filter(u => u.department_id === ADMIN_DEPT).map(u => u.id);
+  const all = (ADMIN_USER === '__all');
+  const who = USERS.find(x => x.id === ADMIN_USER);
+  const whoDept = who ? who.department_id : ADMIN_DEPT;
+
+  const label = document.getElementById('adWho');
+  if (label) label.innerHTML = all
+    ? '全社員ぶんの数値項目を表示しています。'
+    : (who ? `<b>${esc(who.full_name)}</b> さん（${esc(who.dept_name || '')}）の日報に出る項目です。
+        <b>部署共通</b>はこの部署の全員に出ます。<b>本人専用</b>はこの方だけに出ます。` : '');
   let qy = EC.supabase.from('report_metrics').select('*').order('sort_order');
   if (!MET_ARCHIVED) qy = qy.eq('is_active', true);
   const { data, error } = await qy;
   if (error){ box.innerHTML = `<p class="note">読み込めませんでした：${esc(error.message)}</p>`; return; }
   const q = ((document.getElementById('adFind')||{}).value || '').replace(/[\s　]/g,'');
   ADMIN_METRICS = (data || []).filter(m =>
-    (all || (!m.user_id && m.department_id === ADMIN_DEPT) || (m.user_id && memberIds.indexOf(m.user_id) >= 0))
+    (all || (!m.user_id && m.department_id === whoDept) || m.user_id === ADMIN_USER)
     && (!q || String(m.name||'').replace(/[\s　]/g,'').indexOf(q) >= 0));
 
   const cnt = document.getElementById('adCount');
@@ -1761,7 +1781,9 @@ async function loadAdminMetrics(){
          <td><input type="text" value="${esc(m.name)}" style="padding:5px;min-width:130px"
               onchange="updMetric('${m.id}','name',this.value)"></td>
          ${all ? `<td class="note">${esc(deptName(m.department_id))}</td>` : ''}
-         <td class="note">${m.user_id ? esc(uname(m.user_id)) + ' 専用' : '部署全体'}</td>
+         <td class="note">${m.user_id
+           ? (m.user_id === ADMIN_USER ? '<b style="color:var(--accent)">本人専用</b>' : esc(uname(m.user_id)) + ' 専用')
+           : '部署共通'}</td>
          <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:70px"
               onchange="updMetric('${m.id}','unit',this.value)"></td>
          <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
@@ -1785,7 +1807,8 @@ async function loadAdminMetrics(){
 
 /* 四半期目標の画面から、数値項目の管理カードへ移動する */
 function gotoMetricAdmin(){
-  ADMIN_DEPT = '__all';
+  ADMIN_USER = '__all'; ADMIN_DEPT = '__all';
+  const du = document.getElementById('adUser'); if (du) du.value = '__all';
   const sel = document.getElementById('qg_metric');
   const m = sel && METRICS_ALL.find(x => x.id === sel.value);
   const dept = document.getElementById('adDept'); if (dept) dept.value = '__all';
@@ -2259,7 +2282,7 @@ function hhmm(ts){
 /* ---------- 本人の画面プレビュー ---------- */
 async function loadPreview(uid){
   const box = document.getElementById('pvBox'); if (!box) return;
-  if (!uid){ box.innerHTML = ''; return; }
+  if (!uid){ box.innerHTML = '<div class="empty" style="margin-top:12px">上で社員を選ぶと、その人の画面が表示されます。</div>'; return; }
   const u = USERS.find(x => x.id === uid); if (!u) return;
   box.innerHTML = '<p class="note" style="margin-top:12px">読み込み中…</p>';
 
