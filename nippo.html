@@ -417,15 +417,14 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 /* ---------- 画面枠 ---------- */
 function render(){
   const nUnread = myNotifs().length;
-  const canWeekly = canSeeAll() || ['次長','部長','役員・経営'].includes(ME.job_grade) || isDeptHead() || QGOALS.length > 0;
-  TABS = [['write','日報を書く'],['feed','日報一覧']]
-    .concat(canWeekly ? [['weekly','週次報告']] : [])
+  // 日報を書くのは上のオレンジのボタンに集約したので、ナビからは外す
+  TABS = [['weekly','週次報告を書く'],['feed','日報一覧']]
     .concat([
           ['notify', '通知' + (nUnread ? ' <span class=\"navdot\">' + nUnread + '</span>' : '')],
           ['status','提出・確認状況'],['dash','ダッシュボード'],['result','実績一覧']])
          .concat(canUseAI() ? AI_TABS : []).concat(TAIL_TABS);
   const tabs = TABS.concat([['admin','管理']]);
-  if (!TABS.some(t => t[0] === TAB) && TAB !== 'admin') TAB = 'write';
+  if (!TABS.some(t => t[0] === TAB) && !['admin','write'].includes(TAB)) TAB = 'write';
   document.getElementById('nav').innerHTML = tabs.map(([k,t]) =>
     `<button class="${TAB===k?'on':''}" onclick="go('${k}')">${icon(k)}${t}</button>`).join('');
   document.getElementById('view').innerHTML =
@@ -2351,17 +2350,38 @@ async function loadWeeklySelf(){
 
   if (!QGOALS.length){
     const members = weeklyMembers();
-    box.innerHTML = `<div class="card">
-      <h3>あなた自身の四半期目標がまだ登録されていません</h3>
-      <p class="note">ここに出るのは「ログインしている本人」の目標と実績です。
-        部下の名前で登録した目標は${members.length ? 'このページの下の<b>「部下の目標と週次報告」</b>に出ます。' : 'ここには出ません。'}
-        自分の分は「管理」タブの「四半期目標」で、対象を自分にして登録してください。</p>
-      ${members.length ? `<div class="row" style="margin-top:10px">
-        <button class="act" onclick="jumpWk('wkTeam')">部下の分を見る（${members.length}名）</button>
-        <button class="ghost" onclick="go('admin')">四半期目標を登録する</button></div>`
-        : `<button class="ghost" style="margin-top:10px" onclick="go('admin')">四半期目標を登録する</button>`}
+    box.innerHTML = `
+    <div class="card">
+      <div class="row">
+        <button class="ghost" onclick="moveWeek(-7)">← 前の週</button>
+        <b>${WEEK_START} 〜 ${weekEnd}</b>
+        ${WEEK_START < mondayOf(new Date()) ? `<button class="ghost" onclick="moveWeek(7)">次の週 →</button>` : ''}
+        <span class="pill ${WREPORT ? 'p2' : 'p4'}" style="margin-left:auto">${WREPORT ? '提出済み' : '未提出'}</span>
+      </div>
     </div>
-    <div class="card"><h3>登録するとこう見えます（サンプル）</h3>${wkSampleHtml()}</div>`;
+
+    <div class="card" style="border-color:#E7C4A6">
+      <h3>四半期目標が未登録のため、数値の自動集計は出ません</h3>
+      <p class="note">「管理」タブの「四半期目標」で対象を自分にして登録すると、
+        日報の数値から進捗・達成率・必要ペースが自動で出るようになります。
+        ${members.length ? '部下の分はこのページの下の<b>「部下の目標と週次報告」</b>に出ます。' : ''}
+        登録前でも、下の欄で週次報告を書いて提出できます。</p>
+      <div class="row" style="margin-top:10px">
+        <button class="act" onclick="go('admin')">四半期目標を登録する</button>
+        ${members.length ? `<button class="ghost" onclick="jumpWk('wkTeam')">部下の分を見る（${members.length}名）</button>` : ''}
+      </div>
+    </div>
+
+    ${wkFormHtml([])}
+
+    ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
+      ${WREPORT.weekly_comments.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+        <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
+    </div>` : ''}
+
+    ${wkHistoryHtml()}
+
+    <div class="card"><h3>四半期目標を登録するとこう見えます（サンプル）</h3>${wkSampleHtml()}</div>`;
     return;
   }
 
@@ -2425,7 +2445,21 @@ async function loadWeeklySelf(){
       <div>目標 ${r.wTarget}${esc(r.g.unit)} に対して実績 ${Math.round(r.week*10)/10}（${r.wRate}%）</div></div>`).join('')}
   </div>` : `<div class="card"><div class="ok" style="padding:0">今週の目標はすべて達成しています。</div></div>`}
 
-  <div class="card">
+${wkFormHtml(rows)}
+
+  ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
+    ${WREPORT.weekly_comments.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
+  </div>` : ''}
+
+${wkHistoryHtml()}`;
+}
+
+
+/* 週次報告の入力フォーム（四半期目標が無くても書ける） */
+function wkFormHtml(rows){
+  rows = rows || [];
+  return `  <div class="card">
     <div class="row"><h3 style="border:0;padding:0;margin:0">書き方</h3>
       <button class="ghost" style="margin-left:auto" onclick="toggleWkGuide()">サンプルを見る</button></div>
     <div id="wkGuide" style="display:none">${wkGuideHtml()}</div>
@@ -2442,13 +2476,13 @@ async function loadWeeklySelf(){
       足し算だけの計画は、時間が足りずに実行されません。</p>
     <textarea id="w_action" placeholder="例：やめる…金曜午後の資料作成（月曜午前に移す）／始める…月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる">${esc(WREPORT ? WREPORT.action_change : '')}</textarea>
 
-    <h3 style="margin-top:16px">次週の目標</h3>
+    ${rows.length ? `<h3 style="margin-top:16px">次週の目標</h3>
     <p class="note">初期値は「残り週数から逆算した必要ペース」です。遅れた分が上乗せされています。
       下げる場合は、四半期目標に届く筋道を未達要因か行動変化に書いてください。</p>
     <div class="grid">${rows.map(r => `
       <div><label>${esc(r.g.name)}（${esc(r.g.unit)}）　推奨 ${Math.round(r.need*10)/10}</label>
       <input type="number" step="any" id="wt_${r.g.id}" value="${Math.round(r.need*10)/10}"></div>`).join('')}
-    </div>
+    </div>` : ''}
 
     <h3 style="margin-top:16px">その他相談</h3>
     <p class="note">自分では決められないこと、上司に判断してほしいことを書きます。なければ空欄で構いません。</p>
@@ -2456,14 +2490,12 @@ async function loadWeeklySelf(){
 
     <button class="act" style="margin-top:14px" onclick="submitWeekly()">
       ${WREPORT ? '更新する' : '提出する'}</button>
-  </div>
+  </div>`;
+}
 
-  ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
-    ${WREPORT.weekly_comments.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
-      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
-  </div>` : ''}
-
-  <div class="card"><h3>過去の週次報告（直近8週）</h3>
+/* 自分の過去の週次報告 */
+function wkHistoryHtml(){
+  return `  <div class="card"><h3>過去の週次報告（直近8週）</h3>
     ${MYHIST.length ? MYHIST.map(r => `
       <div class="sec s-num" style="margin-top:12px">
         <span class="lab">${r.week_start} 〜 ${addDays(r.week_start,6)}</span>
