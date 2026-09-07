@@ -359,6 +359,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
             <button class="btn gray" id="aiDiag">📊 パイプライン診断</button>
             <button class="btn gray" id="aiOne">🗣 1on1準備シート</button>
             <button class="btn gray" id="aiStallBtn">🚨 停滞の打ち手</button>
+            <button class="btn gray" id="aiTestBtn" style="font-size:11px">🔧 接続テスト</button>
           </div>
         </div>
       </div>
@@ -1282,6 +1283,9 @@ function allTasks(){
   leads.forEach(l=>(l.tasks||[]).forEach(t=> out.push({t:t,l:l})));
   return out;
 }
+/* 決着済み（契約・入金済）と、失注・保留を除いた「進行中の商談」 */
+const DEAL_CLOSED=['契約','入金済','失注','保留'];
+const isOpenDeal=l=> !DEAL_CLOSED.includes(l.status);
 let tkInit=false;
 function tkOpen(t){ return t.st==='todo'||t.st==='doing'; }
 function tkOver(t){ return tkOpen(t) && t.due && t.due<today(); }
@@ -1473,19 +1477,48 @@ function aiPhaseStats(list){
 }
 
 /* Edge Function 経由でAIを呼ぶ（APIキーはHTMLに持たない） */
-async function aiCall(system, prompt, maxTokens){
+async function aiCall(system, prompt, maxTokens, rawMode){
   let token=SB_KEY_HARD;
   try{ const r=await sb.auth.getSession(); const t=r&&r.data&&r.data.session&&r.data.session.access_token; if(t) token=t; }catch(e){}
+  /* 受け口の実装差を吸収するため、代表的なキー名をまとめて送る */
+  const body={ system:system, prompt:prompt, max_tokens:maxTokens||2000,
+               input:prompt, text:prompt, messages:[{role:'user',content:prompt}] };
   const res=await fetch(AI_URL,{ method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SB_KEY_HARD},
-    body:JSON.stringify({ system:system, prompt:prompt, max_tokens:maxTokens||2200 }) });
+    body:JSON.stringify(body) });
   const raw=await res.text();
-  if(!res.ok) throw new Error('AI応答エラー ('+res.status+')：'+raw.slice(0,160));
+  if(rawMode) return { status:res.status, raw:raw, sent:prompt.length };
+  if(!res.ok) throw new Error('AI応答エラー（HTTP '+res.status+'）\n'+raw.slice(0,400));
   let j=null; try{ j=JSON.parse(raw); }catch(e){ return raw; }
-  const out = j.text || j.output || j.completion || j.result
+  const out = j.text || j.output || j.completion || j.result || j.answer
     || (Array.isArray(j.content)&&j.content[0]&&j.content[0].text)
-    || (j.message&&j.message.content);
-  return out || raw;
+    || (j.message&&(j.message.content||j.message.text));
+  if(!out || !String(out).trim()){
+    throw new Error('AIから空の回答が返りました（HTTP '+res.status+'）。\n\n'
+      +'送信した文字数：'+prompt.length+'　上限トークン：'+(maxTokens||2000)+'\n'
+      +'受け取った内容：'+raw.slice(0,400)+'\n\n'
+      +'※ 右下の「🔧 接続テスト」を押すと、短い文章での応答をそのまま表示します。'
+      +'そこでも空なら、Edge Function（ai）側の受け口かAPIキーの設定をご確認ください。');
+  }
+  return String(out);
+}
+
+/* AI接続テスト：加工せず生の応答を表示する */
+async function aiTest(){
+  if(aiBusy) return;
+  aiBusyState(true,'AIの接続を確認しています…');
+  try{
+    const r=await aiCall('あなたは日本語で答えるアシスタントです。','「接続OK」とだけ返してください。',64,true);
+    let keys=''; try{ keys='\n\n応答に含まれるキー：'+Object.keys(JSON.parse(r.raw)).join(', '); }catch(e){}
+    const empty=/(text|output|completion|content|answer)"?\s*:\s*""/.test(r.raw);
+    aiShow('■ AI接続テストの結果\n\nHTTPステータス：'+r.status+'\n送信した文字数：'+r.sent
+      +'\n\n受け取った内容（そのまま）：\n'+r.raw.slice(0,1200)+keys
+      +'\n\n──────────\n判定：'
+      +(r.status!==200 ? '接続に失敗しています。Edge Function（ai）のURL・認証をご確認ください。'
+        : empty ? '接続はできていますが、AIの回答が空です。Edge Function側で受け取るキー名（prompt / messages）か、ANTHROPIC_API_KEY の設定をご確認ください。'
+        : '正常に応答しています。'));
+  }catch(e){ aiShow('接続テストに失敗しました。\n\n'+(e.message||e)); }
+  finally{ aiBusyState(false); }
 }
 
 const AI_SYSTEM = [
@@ -1513,13 +1546,14 @@ async function aiRun(mode){
   const owner=$('aiOwner').value;
   const base=filtered();
   const list= owner? base.filter(l=>(l.owner||'未設定')===owner) : base;
-  const live=list.filter(phLive);
-  if(!live.length){ alert('対象の商談がありません。絞り込み条件をご確認ください。'); return; }
+  const live=list.filter(isOpenDeal);   /* 契約・入金済・失注・保留は対象外 */
+  if(!live.length){ alert('進行中の商談がありません。絞り込み条件をご確認ください。'); return; }
   const scope= owner? ('担当者「'+owner+'」') : '全体';
-  const goal=mqGoal();
+  const goal= owner? (Number(((settings.q4Owner||{})[owner]||{}).gp)||0) : mqGoal();
   const fixed=base.filter(l=>['契約','入金済'].includes(l.status)).reduce((s,l)=>s+mqOf(l),0);
-  const head='【対象】'+scope+'　【生きている商談】'+live.length+'件　【商談中MQ合計】'
-    +live.reduce((s,l)=>s+mqOf(l),0)+'万円\n【4Q粗利目標】'+(goal||'未設定')+'万円　【確定済み（契約＋入金）】'+fixed+'万円\n';
+  const head='【対象】'+scope+'　【進行中の商談】'+live.length+'件　【商談中MQ合計】'
+    +live.reduce((s,l)=>s+mqOf(l),0)+'万円\n【粗利目標】'+(goal? goal+'万円':'未設定')+'　【確定済み（契約＋入金）】'+fixed+'万円\n'
+    +'※ 契約済み・入金済み・失注・保留の商談は対象に含めていません。\n';
   let prompt='', title='';
   if(mode==='today'){
     const t3=stallList(live).slice(0,3);
@@ -1586,29 +1620,35 @@ function renderAi(){
   el.innerHTML='<option value="">対象：全体</option>'+owners.map(o=>`<option value="${esc(o)}">対象：${esc(o)}</option>`).join('');
   el.value=cur;
 
-  const base=filtered().filter(l=> !el.value || (l.owner||'')===el.value);
+  const owner=el.value;
+  const base=filtered().filter(l=> !owner || (l.owner||'')===owner);
   const live=base.filter(phLive);
+  const open=base.filter(isOpenDeal);          /* 停滞・アラートの対象はここだけ */
   const sum=a=>a.reduce((s,l)=>s+mqOf(l),0);
-  const goal=mqGoal();
+  const goal= owner? (Number(((settings.q4Owner||{})[owner]||{}).gp)||0) : mqGoal();
+  const hasGoal= goal>0;
   const fixed=sum(base.filter(l=>['契約','入金済'].includes(l.status)));
-  const pipe=sum(live.filter(l=>{ const n=phNo(l); return n>=3 && !['契約','入金済'].includes(l.status); }));
-  const gap=goal-fixed;
-  const rate= goal? Math.min(100,Math.round(fixed/goal*100)) : 0;
+  const pipe=sum(open.filter(l=> phNo(l)>=3));
+  const gap= hasGoal? goal-fixed : null;
+  const rate= hasGoal? Math.min(100,Math.round(fixed/goal*100)) : 0;
 
   /* KPI */
   $('aiKpis').innerHTML=`
     <div class="aikpi"><div class="ic" style="background:#eaf1f9;color:#3068a8">🎯</div><div style="flex:1">
-      <div class="lb">4Q 粗利目標</div><div class="vl">${fmtOku(goal)}</div></div></div>
+      <div class="lb">${owner? esc(owner)+' の個人粗利目標' : '4Q 粗利目標'}</div>
+      <div class="vl">${hasGoal? fmtOku(goal) : '未設定'}</div>
+      ${owner&&!hasGoal? '<div class="lb" style="margin-top:3px">「🚩4Q作戦 ▶ ✎個人目標を設定」で登録できます</div>':''}</div></div>
     <div class="aikpi"><div class="ic" style="background:#e9f5ee;color:#2f8f5b">📊</div><div style="flex:1">
       <div class="lb">確定粗利（契約＋入金）</div><div class="vl">${fmtOku(fixed)}</div>
-      <div class="aibar"><i style="width:${rate}%"></i></div>
-      <div class="lb" style="margin-top:3px">達成率 ${rate}%</div></div></div>
+      ${hasGoal? `<div class="aibar"><i style="width:${rate}%"></i></div><div class="lb" style="margin-top:3px">達成率 ${rate}%</div>`
+               : '<div class="lb" style="margin-top:3px">目標が未設定のため達成率は出せません</div>'}</div></div>
     <div class="aikpi"><div class="ic" style="background:#eef0fa;color:#5a5fb8">🗄</div><div style="flex:1">
       <div class="lb">PH04以降のパイプライン</div><div class="vl">${fmtOku(pipe)}</div>
-      <div class="lb" style="margin-top:3px">${live.filter(l=>phNo(l)>=3&&!['契約','入金済'].includes(l.status)).length}件</div></div></div>
-    <div class="aikpi"><div class="ic" style="background:${gap>0?'#fdeeee':'#e9f5ee'};color:${gap>0?'#c94a4a':'#2f8f5b'}">${gap>0?'⚠':'✔'}</div><div style="flex:1">
-      <div class="lb">目標差分</div><div class="vl" style="color:${gap>0?'var(--red)':'var(--green)'}">${gap>0? '▲'+fmtOku(gap) : '達成'}</div>
-      <div class="lb" style="margin-top:3px">${gap>0? 'パイプラインで'+(pipe>=gap? '充足':'不足 '+fmtOku(gap-pipe)) : ''}</div></div></div>`;
+      <div class="lb" style="margin-top:3px">進行中 ${open.filter(l=>phNo(l)>=3).length}件</div></div></div>
+    <div class="aikpi"><div class="ic" style="background:${!hasGoal?'#eef2f7':gap>0?'#fdeeee':'#e9f5ee'};color:${!hasGoal?'#8a97a8':gap>0?'#c94a4a':'#2f8f5b'}">${!hasGoal?'—':gap>0?'⚠':'✔'}</div><div style="flex:1">
+      <div class="lb">目標差分</div>
+      <div class="vl" style="color:${!hasGoal?'var(--tx2)':gap>0?'var(--red)':'var(--green)'}">${!hasGoal? '—' : gap>0? '▲'+fmtOku(gap) : '達成'}</div>
+      <div class="lb" style="margin-top:3px">${!hasGoal? '目標が未設定です' : gap>0? 'パイプラインで'+(pipe>=gap? '充足':'不足 '+fmtOku(gap-pipe)) : ''}</div></div></div>`;
 
   /* フェーズ別ボード */
   $('aiBoard').innerHTML=PH_IDS.map(id=>{
@@ -1633,8 +1673,8 @@ function renderAi(){
   }).join('');
   $('aiBoard').querySelectorAll('.aicard').forEach(c=> c.onclick=()=> openModal(c.dataset.id));
 
-  /* 今日の3つの行動 */
-  const t3=stallList(live).slice(0,3);
+  /* 今日の3つの行動（進行中の商談のみ） */
+  const t3=stallList(open).slice(0,3);
   $('aiTop3').innerHTML= t3.length? t3.map((x,i)=>`
     <div class="aiact" data-id="${x.l.id}">
       <div class="no">${i+1}</div>
@@ -1649,11 +1689,11 @@ function renderAi(){
   const gain=t3.reduce((s,x)=>s+mqOf(x.l),0);
   $('aiGain').innerHTML= t3.length
     ? `この3件が決まると 確定粗利は <b>${(fixed+gain).toLocaleString()}万円</b>（+${gain.toLocaleString()}万円）。`
-      + (gap>0? ` 目標差分は ▲${gap.toLocaleString()} → <b>${Math.max(0,gap-gain).toLocaleString()}万円</b>に縮まります。` : '')
-    : '';
+      + (hasGoal&&gap>0? ` 目標差分は ▲${gap.toLocaleString()} → <b>${Math.max(0,gap-gain).toLocaleString()}万円</b>に縮まります。` : '')
+    : '進行中の商談で止まっているものはありません。';
 
   /* 要注意カード */
-  const A=aiAlertSets(live);
+  const A=aiAlertSets(open);
   $('aiAlerts').innerHTML=Object.keys(A).map(k=>`
     <div class="aialert ${aiFilter===k?'on':''}" data-k="${k}">
       <div class="ic" style="font-size:19px">${k==='over'?'❗':k==='next'?'👤':'📅'}</div>
@@ -1663,7 +1703,7 @@ function renderAi(){
   $('aiAlerts').querySelectorAll('.aialert').forEach(c=> c.onclick=()=>{ aiFilter= (aiFilter===c.dataset.k)? '' : c.dataset.k; renderAi(); });
 
   /* 停滞アラート表 */
-  let src=live;
+  let src=open;
   if(aiFilter && A[aiFilter]) src=A[aiFilter].list;
   $('aiStallTtl').innerHTML= aiFilter
     ? `🚨 ${A[aiFilter].lb}の商談<small>カードをもう一度押すと絞り込みを解除します</small>`
@@ -2717,6 +2757,7 @@ $('btnAddTask').onclick=()=>{
 };
 
 $('aiStart').onclick=()=> aiRun('today');
+$('aiTestBtn').onclick=()=> aiTest();
 $('aiDiag').onclick=()=> aiRun('diag');
 $('aiOne').onclick=()=> aiRun('one2one');
 $('aiStallBtn').onclick=()=> aiRun('stall');
@@ -2874,6 +2915,9 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
   ['2026.09.07', [
+    '停滞アラート・今日の3つの行動・要注意カードの対象から、契約済み・入金済み・失注・保留の商談を除外しました。決着済みの商談が「期限超過40日」として上位に並んでいた不具合の修正です',
+    'AIマネージャーの対象で担当者を選んだとき、目標をその人の個人粗利目標に切り替えるようにしました（未設定の場合は達成率・目標差分を出しません）。全社目標と個人の数字を比べていた不具合の修正です',
+    'AIから空の回答が返ったとき、そのまま表示せずエラーとして原因を出すようにしました。原因切り分け用に「🔧 接続テスト」ボタンを追加しています',
     '「🤖 AIマネージャー」タブを画面ごと作り直しました。上段に 4Q粗利目標・確定粗利（達成率バー）・PH04以降のパイプライン・目標差分 の4指標、左にフェーズ別ボード、右にAIマネージャーのパネルを配置しています',
     'AIパネルに「今日、案件を前に進める3つの行動」を追加。停滞スコアの高い順に3件を出し、押すとその商談が開きます。「▶ 今日のアクションを開始」で、その3件について今日着手できる行動・完了条件・期限・相手への切り出し方をAIが作ります',
     '3件が決まった場合に確定粗利がいくらになり、目標差分がどこまで縮まるかを併記しました（AIの予測ではなく、ボードの金額の単純計算です）',
