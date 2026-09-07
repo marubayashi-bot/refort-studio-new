@@ -199,6 +199,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <button data-tab="focus">🎯 フォーカス</button>
   <button data-tab="list">一覧</button>
   <button data-tab="funnel">ファネル</button>
+  <button data-tab="phase">🧭 フェーズ</button>
+  <button data-tab="own">👤 担当別</button>
   <button data-tab="ref">紹介者別</button>
   <button data-tab="prop">物件</button>
   <button data-tab="map">地図</button>
@@ -214,6 +216,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <select id="fBiz"><option value="">事業：全て</option></select>
     <select id="fKubun"><option value="">区分：全て</option></select>
     <select id="fStatus"><option value="">ステータス：全て</option></select>
+    <select id="fPh"><option value="">フェーズ：全て</option></select>
     <select id="fRef"><option value="">紹介者：全て</option></select>
     <select id="fOwner"><option value="">社内担当：全て</option></select>
     <select id="fTemp"><option value="">温度感：全て</option><option>A</option><option>B</option><option>C</option></select>
@@ -247,6 +250,20 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
 
   <div id="viewList" style="display:none"><div class="tblwrap"><table id="tbl"><thead></thead><tbody></tbody></table></div></div>
   <div id="viewFunnel" style="display:none"><div class="kb" id="kb"></div></div>
+  <div id="viewPhase" style="display:none">
+    <div class="focushead" id="phHead"></div>
+    <div style="display:flex;gap:10px;align-items:center;margin:0 0 8px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:900;color:var(--navy)">🧭 フェーズ別ボード</div>
+      <small style="color:var(--tx2);font-size:11px">カードをドラッグするとフェーズを移動できます（ステータスは変わりません）</small>
+      <button class="btn gray" id="phEdit" style="margin-left:auto;font-size:12px;padding:6px 10px">✎ フェーズ名を編集</button>
+    </div>
+    <div class="kb" id="phkb"></div>
+    <div class="fsec" style="margin-top:16px"><h3>担当者 × フェーズ<small>上段＝件数／下段＝MQ（万円）</small></h3><div class="tblwrap"><table id="phMatrix"></table></div></div>
+  </div>
+  <div id="viewOwn" style="display:none">
+    <div class="focushead" id="ownHead"></div>
+    <div class="refgrid" id="owngrid"></div>
+  </div>
   <div id="viewRef" style="display:none"><div class="refgrid" id="refgrid"></div></div>
 
   <div id="viewProp" style="display:none">
@@ -355,6 +372,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div class="sect">販売管理</div>
     <div class="grid2">
       <div class="fld"><label>ステータス＊</label><select id="i_status"></select></div>
+      <div class="fld"><label>商談フェーズ（PH01〜08）</label><select id="i_ph"></select></div>
       <div class="fld"><label>温度感</label><select id="i_temp"><option>A（高い・即動く）</option><option>B（中・検討中）</option><option>C（低・情報収集）</option></select></div>
       <div class="fld"><label>社内担当＊</label><input id="i_owner" list="ownerList"><datalist id="ownerList"></datalist></div>
       <div class="fld"><label>次回アクション</label><input id="i_next" placeholder="例：EAR-A-168提案書を送付"></div>
@@ -500,6 +518,27 @@ const PH_COLOR={'情報取得':'#8a97a8','現調':'#3068a8','受付':'#2f7fa8','
 const phaseIdx=p=> PHASES.indexOf(p.phase||'情報取得');
 const mqP=p=> Number(p.mq)||0;
 
+/* ===== 商談フェーズ PH01〜PH08 ===== */
+const PH_IDS=['PH01','PH02','PH03','PH04','PH05','PH06','PH07','PH08'];
+const PH_DEF_DEFAULT=[
+  {id:'PH01',n:'案件見極め',    d:'見込みとして追うか判断した状態'},
+  {id:'PH02',n:'商談化',        d:'アポ取得後、商談が検討できる状態'},
+  {id:'PH03',n:'課題確認',      d:'投資意向・資金・対象設備のヒアリングが完了した状態'},
+  {id:'PH04',n:'診断・提案準備',d:'診断に必要な見積と発電量シミュレーションが揃った状態'},
+  {id:'PH05',n:'提案',          d:'提案書・シミュレーションを提示した状態'},
+  {id:'PH06',n:'条件調整・合意',d:'条件が合意された状態（合意書取得・申込意向）'},
+  {id:'PH07',n:'最終判断',      d:'申込書受領・契約書ドラフト確認・決裁待ち'},
+  {id:'PH08',n:'受注・入金',    d:'契約締結／手付・契約金いずれかの入金'}
+];
+const PH8_COLOR={'PH01':'#8a97a8','PH02':'#3068a8','PH03':'#2f7fa8','PH04':'#4a86c5','PH05':'#d98b24','PH06':'#c9762b','PH07':'#7a5cb8','PH08':'#1f6e46'};
+const phDefs=()=> (Array.isArray(settings.phDefs)&&settings.phDefs.length===8)? settings.phDefs : PH_DEF_DEFAULT;
+const phDef=id=> phDefs().find(x=>x.id===id) || {id:id,n:'',d:''};
+const phLabel=id=> id? (id+' '+(phDef(id).n||'')) : '未設定';
+const PH_BY_STATUS={'新規':'PH01','初回接触':'PH02','ヒアリング済':'PH03','提案中':'PH05','条件交渉':'PH06','申込':'PH07','契約':'PH08','入金済':'PH08'};
+const phOf=l=> (l.ph && PH_IDS.includes(l.ph))? l.ph : (PH_BY_STATUS[l.status]||'');
+const phNo=l=> PH_IDS.indexOf(phOf(l));
+const phLive=l=> !['失注','保留'].includes(l.status);
+
 /* ===== 状態 ===== */
 let leads=[]; let props=[]; let editId=null; let editPropId=null; let editLogs=[]; let sortKey='updated', sortAsc=false;
 const $=id=>document.getElementById(id);
@@ -582,6 +621,9 @@ function filtered(){
   return leads.filter(l=>{
     if(l.sheetGone && !showGone) return false;   /* シートから消えた商談は集計・一覧から除外 */
     if($('fStatus').value && l.status!==$('fStatus').value) return false;
+    { const pv=$('fPh').value;
+      if(pv==='_none'){ if(phOf(l)) return false; }
+      else if(pv && phOf(l)!==pv) return false; }
     if($('fBiz').value && getBiz(l)!==$('fBiz').value) return false;
     if($('fKubun').value && (getKubun(l)||'（未設定）')!==$('fKubun').value) return false;
     if($('fRef').value && (l.ref||'（紹介者なし）')!==$('fRef').value) return false;
@@ -615,7 +657,7 @@ function renderKpis(){
 
 /* ===== 一覧 ===== */
 const COLS=[
-  ['name','顧客名'],['biz','事業'],['kubun','区分'],['status','ステータス'],['temp','温度'],
+  ['name','顧客名'],['biz','事業'],['kubun','区分'],['status','ステータス'],['ph','フェーズ'],['temp','温度'],
   ['mq','MQ（粗利）'],['budget','PQ（金額）'],['finance','支払'],['payday','入金予定'],['revday','計上予定'],['ref','紹介者'],['owner','担当'],['next','次回アクション'],['due','期限'],['updated','更新']
 ];
 function renderTable(){
@@ -631,6 +673,7 @@ function renderTable(){
     if(sortKey==='biz'){x=getBiz(a);y=getBiz(b);}
     if(sortKey==='kubun'){x=getKubun(a);y=getKubun(b);}
     if(sortKey==='status'){x=STATUSES.indexOf(a.status);y=STATUSES.indexOf(b.status);}
+    if(sortKey==='ph'){x=phNo(a);y=phNo(b);}
     return (x<y?-1:x>y?1:0)*(sortAsc?1:-1);
   });
   const tb=$('tbl').querySelector('tbody');
@@ -644,6 +687,7 @@ function renderTable(){
       <td><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span></td>
       <td><span class="pill" style="background:${kShort==='刈3Q'?'#fdeaea':kShort==='種まき'?'#e6f4ec':'#eef1f5'};color:${kShort==='刈3Q'?'var(--red)':kShort==='種まき'?'var(--green)':'var(--tx2)'}">${kShort}</span></td>
       <td><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></td>
+      <td>${phOf(l)? `<span class="pill" style="background:${PH8_COLOR[phOf(l)]}1f;color:${PH8_COLOR[phOf(l)]}">${phOf(l)}</span><div class="sub">${esc(phDef(phOf(l)).n)}</div>` : '<span class="sub">—</span>'}</td>
       <td class="temp" style="color:${l.temp&&l.temp[0]==='A'?'var(--red)':l.temp&&l.temp[0]==='B'?'var(--amber)':'var(--tx2)'}">${l.temp?l.temp[0]:'—'}</td>
       <td><b>${mqOf(l)? mqOf(l).toLocaleString()+'万円':'—'}</b>${!Number(l.mq)&&amt(l)? '<div class="sub">PQから仮計上</div>':''}</td>
       <td>${amt(l)? amt(l).toLocaleString()+'万円':'—'}</td>
@@ -1068,6 +1112,111 @@ function renderKanban(){
   });
 }
 
+/* ===== フェーズ（PH01〜PH08） ===== */
+function renderPhase(){
+  const f=filtered().filter(phLive);
+  const reach=PH_IDS.map((id,i)=> f.filter(l=> phNo(l)>=i).length);
+  const cells=PH_IDS.map((id,i)=>{
+    const rate= (i>0 && reach[i-1])? Math.round(reach[i]/reach[i-1]*100) : null;
+    return `<div class="fh" style="text-align:center;min-width:70px">${id}<br><span style="font-size:10px">${esc(phDef(id).n)}</span><b>${reach[i]}</b>${rate!=null? `<span style="font-size:10px;color:#a9bdd4">▶ ${rate}%</span>`:''}</div>`;
+  }).join('<div style="color:#4a648a;font-weight:900">→</div>');
+  const overall=reach[0]? Math.round(reach[7]/reach[0]*100):0;
+  $('phHead').innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">${cells}
+    <div class="fh" style="margin-left:12px">全体通過率<br>（PH01→PH08）<b class="gold">${overall}%</b></div>
+    <div class="fh">生きている商談MQ<br>（失注・保留を除く）<b>${fmtOku(f.reduce((s,l)=>s+mqOf(l),0))}</b></div></div>`;
+
+  const cols=PH_IDS.concat(['']);
+  $('phkb').innerHTML=cols.map(id=>{
+    const items= id? f.filter(l=>phOf(l)===id) : filtered().filter(l=> !phLive(l) || !phOf(l));
+    const c= id? PH8_COLOR[id] : '#9a8f6b';
+    const mq=items.reduce((s,l)=>s+mqOf(l),0);
+    return `<div class="kcol" data-ph="${id}">
+      <h3><span style="color:${c}">■</span>${id? esc(phLabel(id)) : '未設定・保留・失注'}<em>${items.length}</em></h3>
+      <div style="font-size:11px;color:var(--tx2);padding:0 6px 6px;font-weight:700">MQ ${mq.toLocaleString()}万円</div>
+      ${items.map(l=>`<div class="kcard" draggable="true" data-id="${l.id}" style="border-left-color:${c}">
+        <div class="n">${esc(l.name)}</div>
+        <div class="m"><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span> ${mqOf(l)? 'MQ '+mqOf(l).toLocaleString()+'万円':''}<br>
+        担当：${esc(l.owner||'—')}　<span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${esc(l.status)}</span><br>
+        ${l.next? '▶ '+esc(l.next):''}${l.due? `<span class="${l.due<today()?'due-over':''}">（${l.due.slice(5).replace('-','/')}）</span>`:''}</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  $('phkb').querySelectorAll('.kcard').forEach(c=>{
+    c.ondragstart=e=> e.dataTransfer.setData('text/plain', c.dataset.id);
+    c.onclick=()=> openModal(c.dataset.id);
+  });
+  $('phkb').querySelectorAll('.kcol').forEach(col=>{
+    col.ondragover=e=>{ e.preventDefault(); col.classList.add('dragover'); };
+    col.ondragleave=()=> col.classList.remove('dragover');
+    col.ondrop=e=>{
+      e.preventDefault(); col.classList.remove('dragover');
+      const id=e.dataTransfer.getData('text/plain'); const l=leads.find(x=>x.id===id);
+      const to=col.dataset.ph||'';
+      if(l && phOf(l)!==to){
+        l.ph=to; l.updated=today();
+        (l.logs=l.logs||[]).push({d:today(), t:'フェーズを「'+(to? phLabel(to):'未設定')+'」に変更'});
+        saveLocal(); pushLead(l); renderAll();
+      }
+    };
+  });
+  renderPhMatrix(f);
+}
+function renderPhMatrix(f){
+  const owners=[...new Set(f.map(l=>l.owner||'未設定'))].sort();
+  const cell=(a)=> a.length? `<td style="text-align:center"><b>${a.length}</b><div class="sub">${a.reduce((s,l)=>s+mqOf(l),0).toLocaleString()}</div></td>` : '<td style="text-align:center;color:#c8d2dd">—</td>';
+  const head='<thead><tr><th>担当者</th>'+PH_IDS.map(id=>`<th style="text-align:center">${id}<div class="sub" style="font-weight:700">${esc(phDef(id).n)}</div></th>`).join('')+'<th style="text-align:center">合計</th></tr></thead>';
+  const rows=owners.map(o=>{
+    const arr=f.filter(l=>(l.owner||'未設定')===o);
+    return `<tr><td><b>${esc(o)}</b></td>${PH_IDS.map(id=>cell(arr.filter(l=>phOf(l)===id))).join('')}${cell(arr)}</tr>`;
+  }).join('');
+  const tot=`<tr style="background:#f2f5f9"><td><b>全体</b></td>${PH_IDS.map(id=>cell(f.filter(l=>phOf(l)===id))).join('')}${cell(f)}</tr>`;
+  $('phMatrix').innerHTML= owners.length? head+'<tbody>'+rows+tot+'</tbody>' : '<tbody><tr><td><div class="empty">データがありません。</div></td></tr></tbody>';
+}
+
+/* ===== 担当別 ===== */
+function renderOwner(){
+  const f=filtered();
+  const sum=a=>a.reduce((s,l)=>s+mqOf(l),0);
+  const owners=[...new Set(f.map(l=>l.owner||'未設定'))];
+  if(!owners.length){ $('ownHead').innerHTML=''; $('owngrid').innerHTML='<div class="empty">データがありません。</div>'; return; }
+  const rows=owners.map(o=>{
+    const arr=f.filter(l=>(l.owner||'未設定')===o);
+    const paid=arr.filter(l=>l.status==='入金済'), won=arr.filter(l=>l.status==='契約');
+    const live=arr.filter(l=>!['入金済','契約','失注','保留'].includes(l.status));
+    const over=arr.filter(l=> phLive(l) && l.due && l.due<today());
+    const noNext=arr.filter(l=> phLive(l) && !l.next);
+    const g=(settings.q4Owner||{})[o]||{};
+    return {o, arr, paid:sum(paid), fixed:sum(paid)+sum(won), live:sum(live), over, noNext,
+            goal:Number(g.gp)||0, unit:(settings.unitMap||{})[o]||''};
+  }).sort((a,b)=> (b.fixed+b.live)-(a.fixed+a.live));
+  const T=k=>rows.reduce((s,r)=>s+(Array.isArray(r[k])? r[k].length : r[k]),0);
+  $('ownHead').innerHTML=`
+    <div class="fh">担当者<b>${rows.length}名</b></div>
+    <div class="fh">確定MQ（契約＋入金）<b class="gold">${fmtOku(T('fixed'))}</b></div>
+    <div class="fh">商談中MQ<b>${fmtOku(T('live'))}</b></div>
+    <div class="fh">個人粗利目標の合計<b>${T('goal')? fmtOku(T('goal')):'未設定'}</b></div>
+    <div class="fh">期限超過<b style="color:${T('over')?'#ff9d9d':'#fff'}">${T('over')}件</b></div>
+    <div class="fh">次アクション未設定<b style="color:${T('noNext')?'#ffd98a':'#fff'}">${T('noNext')}件</b></div>`;
+  $('owngrid').innerHTML=rows.map(r=>{
+    const pct=r.goal? Math.min(100,Math.round(r.fixed/r.goal*100)) : null;
+    const chips=PH_IDS.map(id=>{ const n=r.arr.filter(l=>phOf(l)===id && phLive(l)).length;
+      return n? `<span class="pill" style="background:${PH8_COLOR[id]}1f;color:${PH8_COLOR[id]}">${id} ${n}</span>`:''; }).join(' ');
+    const top=r.arr.filter(phLive).sort((a,b)=> mqOf(b)-mqOf(a)).slice(0,6);
+    return `<div class="refcard"><h3>${esc(r.o)}<small>${esc(r.unit||'責任組織 未設定')}</small></h3>
+      <div class="stats"><span>担当 <b>${r.arr.length}</b>件</span><span>確定MQ <b>${r.fixed.toLocaleString()}</b></span><span>商談中MQ <b>${r.live.toLocaleString()}</b></span><span>期限超過 <b style="color:${r.over.length?'var(--red)':'inherit'}">${r.over.length}</b></span></div>
+      ${r.goal
+        ? `<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">個人粗利目標 ${r.goal.toLocaleString()}万円 に対して <b style="color:var(--navy)">${pct}%</b>（残り ${Math.max(0,r.goal-r.fixed).toLocaleString()}万円）</div>
+           <div style="height:8px;border-radius:5px;background:#e6ecf3;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:${pct}%;background:var(--green)"></div></div>`
+        : `<div style="font-size:11px;color:var(--tx2);margin-bottom:8px">個人目標は「🚩4Q作戦 ▶ ✎個人目標を設定」から登録できます</div>`}
+      <div style="margin-bottom:6px;line-height:1.9">${chips||'<span style="font-size:11px;color:var(--tx2)">進行中の商談はありません</span>'}</div>
+      <ul>${top.map(l=>`<li data-id="${l.id}"><span>${esc(l.name)}<span class="sub">（${esc(phLabel(phOf(l)))}）</span></span><span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${l.status}</span></li>`).join('')}</ul>
+      ${r.arr.length>top.length? `<div class="sub" style="margin-top:6px">ほか ${r.arr.length-top.length}件</div>`:''}
+    </div>`;
+  }).join('');
+  $('owngrid').querySelectorAll('li').forEach(li=> li.onclick=()=> openModal(li.dataset.id));
+}
+
 /* ===== 紹介者別 ===== */
 function renderRef(){
   const f=filtered();
@@ -1398,7 +1547,7 @@ function openModal(id){
   setSelectValue('i_finance', l?.finance||'未確認'); set('i_payday',l?.payday);
   setSelectValue('i_seg', l?.seg||''); setSelectValue('i_unit', l?.unit||''); $('i_prob').value=l?.prob||'';
   set('i_cday',l?.cday); set('i_revday',l?.revday); setSelectValue('i_block', l?.block||''); set('i_blockdue',l?.blockdue);
-  $('i_status').value=l?.status||'新規'; $('i_temp').value=l?.temp||'B（中・検討中）'; set('i_owner',l?.owner); set('i_next',l?.next); set('i_due',l?.due); set('i_lost',l?.lost); set('i_memo',l?.memo);
+  $('i_status').value=l?.status||'新規'; $('i_ph').value=l?.ph||''; $('i_temp').value=l?.temp||'B（中・検討中）'; set('i_owner',l?.owner); set('i_next',l?.next); set('i_due',l?.due); set('i_lost',l?.lost); set('i_memo',l?.memo);
   editLogs=(l?.logs||[]).slice(); renderLogs(); $('i_log').value='';
   const sel=new Set(l?.props||[]);
   $('propCheck').innerHTML= props.length? props.map(p=>
@@ -1418,7 +1567,7 @@ $('btnSave').onclick=()=>{
   if(!name){ alert('顧客名は必須です'); return; }
   if(!$('i_owner').value.trim()){ alert('社内担当は必須です'); return; }
   const l= editId? leads.find(x=>x.id===editId) : {id:uid(), created:today()};
-  const prevFin=l.finance, prevSt=l.status;
+  const prevFin=l.finance, prevSt=l.status, prevPh=l.ph||'';
   Object.assign(l,{
     name, contact:$('i_contact').value.trim(), tel:$('i_tel').value.trim(), type:$('i_type').value, area:$('i_area').value.trim(),
     ref:$('i_ref').value.trim(), route:$('i_route').value, refdate:$('i_refdate').value, reffee:$('i_reffee').value,
@@ -1428,11 +1577,12 @@ $('btnSave').onclick=()=>{
     finance:$('i_finance').value, payday:$('i_payday').value,
     seg:$('i_seg').value, unit:$('i_unit').value, prob:$('i_prob').value,
     cday:$('i_cday').value, revday:$('i_revday').value, block:$('i_block').value, blockdue:$('i_blockdue').value,
-    status:$('i_status').value, temp:$('i_temp').value, owner:$('i_owner').value.trim(), next:$('i_next').value.trim(), due:$('i_due').value, lost:$('i_lost').value.trim(), memo:$('i_memo').value,
+    status:$('i_status').value, ph:$('i_ph').value, temp:$('i_temp').value, owner:$('i_owner').value.trim(), next:$('i_next').value.trim(), due:$('i_due').value, lost:$('i_lost').value.trim(), memo:$('i_memo').value,
     props:[...$('propCheck').querySelectorAll('input:checked')].map(c=>c.value),
     logs:editLogs, updated:today()
   });
   if(editId && prevFin && prevFin!==l.finance) (l.logs=l.logs||[]).push({d:today(), t:'支払方法を「'+prevFin+'」→「'+l.finance+'」に変更'});
+  if(editId && prevPh!==(l.ph||'')) (l.logs=l.logs||[]).push({d:today(), t:'フェーズを「'+(l.ph? phLabel(l.ph):'自動判定')+'」に設定'});
   if(editId && prevSt && prevSt!==l.status) (l.logs=l.logs||[]).push({d:today(), t:'ステータスを「'+l.status+'」に変更'});
   if(!editId) leads.unshift(l);
   saveLocal(); pushLead(l);
@@ -1449,8 +1599,8 @@ $('btnDel').onclick=()=>{
 
 /* ===== CSV ===== */
 $('btnCsv').onclick=()=>{
-  const H=['顧客名','担当者','種別','連絡先','所在地','事業区分','商談区分','紹介者','経路種別','紹介日','紹介料','ニーズ詳細','商談金額PQ万円','MQ粗利万円','台数','支払方法','入金予定日','希望エリア','希望時期','電圧区分','対象商品','制度','希望容量kWh','提案物件','ステータス','温度感','社内担当','次回アクション','期限','失注保留理由','メモ','登録日','更新日','4Qセグメント','責任組織','確度','契約予定日','売上計上予定日','ボトルネック','解除期限'];
-  const rows=filtered().map(l=>[l.name,l.contact,l.type,l.tel,l.area,getBiz(l),getKubun(l),l.ref,l.route,l.refdate,l.reffee,l.need,l.budget,mqOf(l),l.units,l.finance,l.payday,l.wantarea,l.when,l.volt,l.product,l.scheme,l.kwh,leadProps(l).join('、'),l.status,l.temp,l.owner,l.next,l.due,l.lost,(l.memo||'').replace(/\n/g,' '),l.created,l.updated,segOf(l),unitOf(l),probOf(l),l.cday,revDay(l),l.block,l.blockdue]);
+  const H=['顧客名','担当者','種別','連絡先','所在地','事業区分','商談区分','紹介者','経路種別','紹介日','紹介料','ニーズ詳細','商談金額PQ万円','MQ粗利万円','台数','支払方法','入金予定日','希望エリア','希望時期','電圧区分','対象商品','制度','希望容量kWh','提案物件','ステータス','フェーズ','温度感','社内担当','次回アクション','期限','失注保留理由','メモ','登録日','更新日','4Qセグメント','責任組織','確度','契約予定日','売上計上予定日','ボトルネック','解除期限'];
+  const rows=filtered().map(l=>[l.name,l.contact,l.type,l.tel,l.area,getBiz(l),getKubun(l),l.ref,l.route,l.refdate,l.reffee,l.need,l.budget,mqOf(l),l.units,l.finance,l.payday,l.wantarea,l.when,l.volt,l.product,l.scheme,l.kwh,leadProps(l).join('、'),l.status,phOf(l)? phLabel(phOf(l)):'',l.temp,l.owner,l.next,l.due,l.lost,(l.memo||'').replace(/\n/g,' '),l.created,l.updated,segOf(l),unitOf(l),probOf(l),l.cday,revDay(l),l.block,l.blockdue]);
   const csv='\uFEFF'+[H,...rows].map(r=> r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -1561,6 +1711,7 @@ function parseLeadRows(rows){
         else if(t.includes('次回アクション')) idx.next=i;
         else if(t.includes('担当者')) idx.owner=i;
         else if(t.includes('期限')) idx.due=i;
+        else if(t.includes('フェーズ')) idx.ph=i;
         else if(t.includes('ステータス')) idx.status=i;
         else if(t.includes('分類')||t.includes('3Q')) idx.kubun=i;
       });
@@ -1572,6 +1723,7 @@ function parseLeadRows(rows){
     const stNorm= stRaw? (STATUSES.includes(stRaw)? stRaw
       : /入金/.test(stRaw)? '入金済' : /受注|契約/.test(stRaw)? '契約' : /申込/.test(stRaw)? '申込'
       : /交渉/.test(stRaw)? '条件交渉' : /提案/.test(stRaw)? '提案中' : /失注/.test(stRaw)? '失注' : /保留/.test(stRaw)? '保留' : '') : '';
+    const phX=(function(){ const v=String(g('ph')||'').replace(/[０-９Ａ-Ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); const m=v.match(/([1-8])/); return m? 'PH0'+m[1] : ''; })();
     const amtMan=Math.round((Number(g('amt'))||0)*100);          // 「見込金額／MQ」百万円→万円
     const salesMan=Math.round((Number(g('sales'))||0)*100);      // 売上（列がある場合）
     const amtIsMq=(settings.sheetAmtIs||'mq')==='mq';            // 既定：MQ（粗利）として扱う
@@ -1596,6 +1748,7 @@ function parseLeadRows(rows){
       units:1,
       revday:xDue(g('revday')), cday:xDue(g('cday')),
       unit:String(g('unit')||'').trim(),
+      ph:phX,
       prob:xProb(g('prob')), block:xBlock(g('block')), blockdue:xDue(g('blockdue')),
       finance:xFinance(g('fin')), temp:xTemp(g('prob')),
       kubun: String(g('kubun')||'').trim()? xKubun(g('kubun')) : (section==='next'? '刈り取り（来期以降）':'刈り取り（4Q・11/30まで）'),
@@ -1637,7 +1790,7 @@ function applyParsedLeads(parsed, srcLabel){
       }
       Object.assign(l,{next:x.next,due:x.due,budget:x.budget,mq:x.mq,temp:x.temp,finance:x.finance,kubun:x.kubun,owner:x.owner,salesEst:x.salesEst,mqEst:x.mqEst});
       /* 4Q項目：シートに列が無い／空欄のときは、ボードで入力した値を消さない */
-      ['revday','cday','unit','prob','block','blockdue'].forEach(k=>{ if(x[k]) l[k]=x[k]; });
+      ['revday','cday','unit','prob','block','blockdue','ph'].forEach(k=>{ if(x[k]) l[k]=x[k]; });
       const base=String(l.memo||'').split(SHEET_MARK)[0].replace(/\s+$/,'');
       l.memo = x.memo ? (base? base+'\n':'')+SHEET_MARK+'\n'+x.memo : base;
       if(l.sheetGone){ delete l.sheetGone; delete l.goneAt; }
@@ -1941,6 +2094,17 @@ async function syncSheet(silent){
 }
 $('btnGas').onclick=()=> syncSheet(false);
 
+/* フェーズ名の編集（全員共通・Supabaseに保存） */
+$('phEdit').onclick=async ()=>{
+  const cur=phDefs().map(x=>x.n).join(' / ');
+  const v=prompt('PH01〜PH08の名称を「/」区切りで8つ入力してください。\n（全員共通の設定として保存されます）', cur);
+  if(v==null) return;
+  const arr=v.split(/[\/／]/).map(x=>x.trim()).filter(x=>x!=='');
+  if(arr.length!==8){ alert('8つ入力してください（現在 '+arr.length+' つ）'); return; }
+  settings.phDefs=PH_IDS.map((id,i)=>({id:id, n:arr[i], d:(phDefs()[i]||{}).d||''}));
+  await saveSettings(); renderAll(); alert('フェーズ名を保存しました');
+};
+
 /* ===== タブ・共通 ===== */
 document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('act'));
@@ -1950,6 +2114,8 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewFocus').style.display= t==='focus'?'':'none';
   $('viewList').style.display= t==='list'?'':'none';
   $('viewFunnel').style.display= t==='funnel'?'':'none';
+  $('viewPhase').style.display= t==='phase'?'':'none';
+  $('viewOwn').style.display= t==='own'?'':'none';
   $('viewRef').style.display= t==='ref'?'':'none';
   $('viewProp').style.display= t==='prop'?'':'none';
   $('viewMap').style.display= t==='map'?'':'none';
@@ -1957,6 +2123,8 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewMan').style.display= t==='man'?'':'none';
   $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man'||t==='q4')?'none':'';
   $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4')?'none':'';
+  if(t==='phase') renderPhase();
+  if(t==='own') renderOwner();
   if(t==='q4') renderQ4();
   if(t==='asset') loadAssets();
   if(t==='man') renderManual();
@@ -2037,8 +2205,17 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.09.04';
+const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
+  ['2026.09.07', [
+    '「🧭 フェーズ」タブを追加しました。商談を PH01〜PH08 の8フェーズで可視化し、フェーズごとの件数・MQ・通過率（PH01→PH08）を表示します',
+    'フェーズはステータスから自動判定されます（新規=PH01／初回接触=PH02／ヒアリング済=PH03／提案中=PH05／条件交渉=PH06／申込=PH07／契約・入金済=PH08）。実態と違うときは商談カードのドラッグ、または商談編集画面の「商談フェーズ」で上書きできます',
+    'フェーズ名は「✎ フェーズ名を編集」から全員共通で変更できます（自社の商談プロセス定義に合わせてください）',
+    '「👤 担当別」タブを追加しました。担当者ごとの件数・確定MQ・商談中MQ・個人粗利目標に対する進捗・期限超過・次アクション未設定・フェーズ分布を一覧できます',
+    'フェーズタブ下部に「担当者 × フェーズ」のマトリクス（件数／MQ）を追加。誰がどのフェーズに滞留しているかが1枚で分かります',
+    '絞り込みバーに「フェーズ」を追加。一覧タブとCSV出力にもフェーズ列を追加しました',
+    '入力シートに「フェーズ」列（PH04 などの表記）を足すと、シート連動でそのまま取り込みます'
+  ]],
   ['2026.09.04', [
     '入力シートの分類「4Q着地見込み／4Q着地（リスクあり・要確認）」を認識するようにしました（従来は全て3Q扱いになっていました）',
     'シートの「確度（%）」を4Qの確度A/B/Cに自動変換（80%以上＝A、50〜79%＝B、49%以下＝C）。ボードでの再入力は不要です',
@@ -2075,7 +2252,23 @@ const CHANGELOG = [
 ];
 
 const MANUAL = [
-  { id:'flow', t:'① 全体像とデータの流れ', b:[
+
+  {id:'phase', t:'🧭 フェーズ（PH01〜PH08）と担当別の見方', b:[
+    '<p>商談の進み具合を、ステータスとは別に <b>PH01〜PH08</b> の8フェーズで管理します。役割定義・週次報告で使っている「商談PH02数」「PH04件数」「PH06通過（合意書取得）」と同じ言葉でボードを見るための軸です。</p>',
+    '<table class="mtbl"><tr><th>フェーズ</th><th>ステータスからの自動判定</th></tr>' +
+      '<tr><td>PH01 案件見極め</td><td>新規</td></tr>' +
+      '<tr><td>PH02 商談化</td><td>初回接触</td></tr>' +
+      '<tr><td>PH03 課題確認</td><td>ヒアリング済</td></tr>' +
+      '<tr><td>PH04 診断・提案準備</td><td>（自動判定なし・手動で設定）</td></tr>' +
+      '<tr><td>PH05 提案</td><td>提案中</td></tr>' +
+      '<tr><td>PH06 条件調整・合意</td><td>条件交渉</td></tr>' +
+      '<tr><td>PH07 最終判断</td><td>申込</td></tr>' +
+      '<tr><td>PH08 受注・入金</td><td>契約／入金済</td></tr></table>',
+    '<div class="mnote">PH04（診断・提案準備）はステータスに対応する段階が無いため、自動では入りません。カードをドラッグするか、商談編集画面の「商談フェーズ」で設定してください。一度設定すると、以後はステータスが変わっても手動設定が優先されます。</div>',
+    '<p><b>フェーズ名を自社定義に合わせる</b>：フェーズタブ右上の「✎ フェーズ名を編集」から、8つの名称を「/」区切りで入力すると全員共通で変わります。</p>',
+    '<p><b>担当別タブ</b>では、担当者ごとに 件数／確定MQ（契約＋入金）／商談中MQ／個人粗利目標に対する進捗／期限超過／次アクション未設定 と、フェーズ分布を確認できます。個人目標は「🚩 4Q作戦 ▶ ✎ 個人目標を設定」で登録した値を使います。</p>',
+    '<p><b>使いどころ</b>：週次会議は「担当別」で担当ごとの確定と不足を確認し、「フェーズ」で通過率の落ちている段階（例：PH05→PH06が極端に低い＝提案から合意に進んでいない）を特定します。</p>'
+  ]},  { id:'flow', t:'① 全体像とデータの流れ', b:[
     '<p>このボードは<b>スプレッドシートが「正」</b>です。数字や状況の修正は必ずシート側で行ってください。ボードは集計・可視化を担当します。</p>',
     '<div class="mbox"><b>商談パイプライン</b><br>商談見込み 入力シート → GAS → ボード（3Qフォーカス／一覧／ファネル／紹介者別）</div>',
     '<div class="mbox"><b>大型案件</b><br>蓄電池 案件管理表 → GAS → Supabase → ボード（💼 大型案件タブ）</div>',
@@ -2233,7 +2426,7 @@ $('verBadge').onclick = ()=>{ const b=document.querySelector('.tabs button[data-
 
 $('btnNew').onclick=()=> openModal(null);
 $('btnReload').onclick=reload;
-['fQ','fBiz','fKubun','fStatus','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
+['fQ','fBiz','fKubun','fStatus','fPh','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
 $('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
 $('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
 $('i_biz').addEventListener('change',()=> updateNeedOptions());
@@ -2243,6 +2436,11 @@ function refreshFilterOptions(){
   keep($('fBiz'),BIZ,'事業');
   keep($('fKubun'),[...KUBUN,'（未設定）'],'区分');
   keep($('fStatus'),STATUSES,'ステータス');
+  (function(){ const el=$('fPh'), cur=el.value;
+    el.innerHTML='<option value="">フェーズ：全て</option>'+PH_IDS.map(id=>`<option value="${id}">${esc(phLabel(id))}</option>`).join('')+'<option value="_none">（未設定）</option>';
+    el.value=cur;
+    const ip=$('i_ph'); if(ip){ const c2=ip.value; ip.innerHTML='<option value="">自動判定（ステータス連動）</option>'+PH_IDS.map(id=>`<option value="${id}">${esc(phLabel(id))}</option>`).join(''); ip.value=c2; }
+  })();
   keep($('fRef'),[...new Set(leads.map(l=>l.ref||'（紹介者なし）'))].sort(),'紹介者');
   keep($('fOwner'),[...new Set(leads.map(l=>l.owner).filter(Boolean))].sort(),'社内担当');
   $('refList').innerHTML=[...new Set(leads.map(l=>l.ref).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
@@ -2252,7 +2450,7 @@ function refreshFilterOptions(){
   keepP($('pCat'),CATS,'カテゴリー');
   keepP($('pOwner'),[...new Set(props.map(p=>p.owner||'（担当未設定）'))].sort(),'担当者');
 }
-function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderQ4(); renderFocus(); renderTable(); renderKanban(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
+function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderQ4(); renderFocus(); renderTable(); renderKanban(); renderPhase(); renderOwner(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
 
 /* ===== 初期化 ===== */
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
