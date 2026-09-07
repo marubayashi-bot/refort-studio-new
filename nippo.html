@@ -597,7 +597,10 @@ function remainingCoreCount(){
   if (TAB !== 'write') return 5;
   let rest = 0;
   const filled = id => { const e = document.getElementById(id); return e && String(e.value || '').trim() !== ''; };
-  if (!WK_APPROVED.length || !WK_APPROVED.some(t => filled('mt_' + t.quarter_goals.metric_id))) rest++;
+  const coreMetrics = WK_APPROVED.length
+    ? WK_APPROVED.map(t => t.quarter_goals.metric_id)
+    : (APPROVAL_STRICT ? [] : METRICS.map(m => m.id));
+  if (!coreMetrics.length || !coreMetrics.some(id => filled('mt_' + id))) rest++;
   ['f_voice','f_rival','f_industry','f_thought'].forEach(id => { if (!filled(id)) rest++; });
   return rest;
 }
@@ -686,10 +689,34 @@ function vWrite(){
           <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(g.unit)} / ${tgt}${esc(g.unit)}（${rate}%）　
             残り <b>${Math.max(0, Math.round((tgt - sofar)*10)/10)}${esc(g.unit)}</b></div>`}</div>`;}).join('')}
     </div></div>`
-    : `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
+    : (!APPROVAL_STRICT && METRICS.length
+      ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
+      <div class="sec s-rival"><span class="lab">暫定表示</span>
+        <div>今週の目標がまだ上司に承認されていないため、これまでの項目を表示しています。
+          承認されると、承認された項目だけに切り替わります。</div></div>
+      <div class="grid" style="margin-top:12px">${METRICS.map(m => {
+        const day = EDIT_DATE || TODAY;
+        const wk  = mondayOf(new Date(day));
+        const sofar = actualSum(m.id, wk, prevDay(day));
+        const tgt = Number(m.target) || 0;
+        const zero = isZeroGoal(tgt);
+        const rate = goalRate(sofar, tgt);
+        return `<div><label>${esc(m.name)}（${esc(m.unit)}）　
+          <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + (m.target ?? '—')}</span></label>
+        <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="0">
+        ${zero
+          ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
+              ${sofar > 0 ? '今週すでに ' + Math.round(sofar*10)/10 + esc(m.unit) + ' 発生しています'
+                          : '今週はここまで発生ゼロ。維持しましょう'}</div>`
+          : (tgt ? `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
+              background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
+            <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(m.unit)} / ${tgt}${esc(m.unit)}（${rate}%）</div>`
+            : '<div class="note">週の目標が未設定です</div>')}</div>`;}).join('')}
+      </div></div>`
+      : `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <p class="note">今週の目標がまだ承認されていないため、入力欄は出ていません。<br>
         週次報告で次週の目標を提出し、上司の承認を受けると、ここに入力欄が並びます。</p>
-      <button class="ghost" style="margin-top:8px" onclick="go('weekly')">週次報告を開く</button></div>`}
+      <button class="ghost" style="margin-top:8px" onclick="go('weekly')">週次報告を開く</button></div>`)}
 
   <div class="card">
     <h3><span class="eyebrow">必須 02</span>お客様の声</h3>
@@ -805,7 +832,9 @@ async function submitReport(scheduled){
     .upsert(body, { onConflict: 'author_id,report_date' }).select().single();
   if (error){ btn.disabled = false; btn.textContent = '提出する'; toast('保存できませんでした: ' + error.message); return; }
 
-  const inputMetrics = WK_APPROVED.map(t => ({ id: t.quarter_goals.metric_id }));
+  const inputMetrics = WK_APPROVED.length
+    ? WK_APPROVED.map(t => ({ id: t.quarter_goals.metric_id }))
+    : (APPROVAL_STRICT ? [] : METRICS.map(m => ({ id: m.id })));
   const vals = inputMetrics.map(m => ({ report_id: data.id, metric_id: m.id, value: Number(g('mt_' + m.id)) }))
     .filter(x => !Number.isNaN(x.value)
       && document.getElementById('mt_' + x.metric_id)
@@ -2296,6 +2325,12 @@ let APV_COUNT = {};            // 部下ごとの、次週の承認済み項目�
 let MYHIST = [];               // 自分の過去の週次報告
 let WK_APPROVED = [];          // 上司が承認した今週の目標（日報の数値欄はこれで決まる）
 let WK_APPROVED_WEEK = '';     // WK_APPROVED がどの週のものか
+
+/* 承認が無い週の扱い。
+   false … 承認がまだの人には、従来どおり部署・個人の項目を出す（移行期の安全策）
+   true  … 承認された項目だけを出す。承認ゼロなら入力欄も出ない
+   全員の承認運用が回り始めたら true にしてください。 */
+const APPROVAL_STRICT = false;
 
 function mondayOf(d){
   const dow = ME.week_start_dow == null ? 1 : ME.week_start_dow;
