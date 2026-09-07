@@ -202,6 +202,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <button data-tab="funnel">ファネル</button>
   <button data-tab="phase">🧭 フェーズ</button>
   <button data-tab="own">👤 担当別</button>
+  <button data-tab="ai" id="tabAi" style="display:none">🤖 AIマネージャー</button>
   <button data-tab="ref">紹介者別</button>
   <button data-tab="prop">物件</button>
   <button data-tab="map">地図</button>
@@ -264,6 +265,25 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <div id="viewOwn" style="display:none">
     <div class="focushead" id="ownHead"></div>
     <div class="refgrid" id="owngrid"></div>
+  </div>
+  <div id="viewAi" style="display:none">
+    <div class="fsec">
+      <h3>🚨 停滞アラート<small>期限超過・次アクション未設定・更新が止まっている商談を、金額と併せて自動でスコア化</small></h3>
+      <div class="tblwrap"><table id="aiStall"></table></div>
+    </div>
+    <div class="fsec" style="margin-top:14px">
+      <h3>🤖 AIマネージャー<small>ボードの事実をもとに、次の一手と論点を整理します</small></h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0 10px">
+        <select id="aiOwner" style="min-width:150px"><option value="">対象：全体</option></select>
+        <button class="btn" id="aiDiag">📊 パイプライン診断</button>
+        <button class="btn" id="aiOne">🗣 1on1準備シート</button>
+        <button class="btn" id="aiStallBtn">🚨 停滞商談の打ち手</button>
+        <label style="font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:4px;margin-left:auto"><input type="checkbox" id="aiWrap" checked> Chatwork用に[info]で囲んでコピー</label>
+        <button class="btn gray" id="aiCopy" style="display:none">📋 コピー</button>
+      </div>
+      <div id="aiOut" style="display:none;white-space:pre-wrap;font-size:13px;line-height:1.85;background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:14px 16px;max-height:640px;overflow:auto"></div>
+      <div id="aiNote" style="font-size:11px;color:var(--tx2);padding:6px 2px">※ AIの出力は下書きです。数字はボードの値をそのまま使っていますが、判断は必ずご自身で確認してください。</div>
+    </div>
   </div>
   <div id="viewRef" style="display:none"><div class="refgrid" id="refgrid"></div></div>
 
@@ -388,6 +408,10 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div class="sect">活動ログ</div>
     <div class="logbox" id="logbox"></div>
     <div class="addlog"><input id="i_log" placeholder="例：7/12 電話。提案書送付済み、来週再連絡"><button class="btn gray" id="btnAddLog">追加</button></div>
+
+    <div class="sect">🤖 AIコーチ</div>
+    <div style="padding:2px 0 8px"><button class="btn gray" id="btnAiLead" style="font-size:12px">この商談の「次の一手」をAIに聞く</button></div>
+    <div id="aiLeadOut" style="display:none;white-space:pre-wrap;font-size:12.5px;line-height:1.8;background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:6px"></div>
 
     <div class="mfoot">
       <button class="btn danger" id="btnDel" style="margin-right:auto">削除</button>
@@ -1144,6 +1168,176 @@ function renderKanban(){
   });
 }
 
+/* ===== AIマネージャー ===== */
+const AI_URL='https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai';
+let aiBusy=false;
+
+function dayDiff(a,b){ if(!a||!b) return null; const x=new Date(a), y=new Date(b); if(isNaN(x)||isNaN(y)) return null; return Math.round((y-x)/86400000); }
+
+/* 停滞スコア（AIを使わない機械的な判定。AIにもこの事実を渡す） */
+function stallOf(l){
+  const t=today(); let s=0; const why=[];
+  if(l.due && l.due<t){ const d=dayDiff(l.due,t)||0; s+=3+Math.min(4,Math.floor(d/7)); why.push('期限超過'+d+'日'); }
+  else if(!l.due){ s+=1; why.push('期限なし'); }
+  if(!l.next){ s+=2; why.push('次アクション未設定'); }
+  const up=dayDiff(l.updated,t);
+  if(up!=null && up>=14){ s+= (up>=28?4:2); why.push('最終更新から'+up+'日'); }
+  if(l.block){ s+=1; why.push('阻害：'+l.block); }
+  if(mqOf(l)>=3000) s+=2;
+  if((l.prob||'')==='A' && l.due && l.due<t){ s+=2; why.push('確度Aなのに期限超過'); }
+  return {score:s, why:why};
+}
+function stallList(list){
+  return list.map(l=>Object.assign({l:l}, stallOf(l))).filter(x=>x.score>0 && x.why.length)
+    .sort((a,b)=> b.score-a.score || mqOf(b.l)-mqOf(a.l));
+}
+
+/* AIに渡す事実（1行1商談。余計な項目は渡さない） */
+function aiLine(l){
+  const st=stallOf(l);
+  return ['「'+(l.name||'')+'」', getBiz(l), 'ステータス:'+l.status, 'フェーズ:'+(phOf(l)||'未設定'),
+    'MQ:'+mqOf(l)+'万円', '担当:'+(l.owner||'未設定'), '期限:'+(l.due||'なし'),
+    '次アクション:'+(l.next||'未設定'), '最終更新:'+(l.updated||'不明'),
+    l.prob? '確度:'+l.prob:'', l.block? '阻害要因:'+l.block:'',
+    st.why.length? '停滞:'+st.why.join('・'):''].filter(Boolean).join(' / ');
+}
+function aiFacts(list, cap){
+  const arr=list.slice(0, cap||60);
+  return arr.map(aiLine).join('\n') + (list.length>arr.length? '\n（ほか'+(list.length-arr.length)+'件は省略）':'');
+}
+function aiOwnerStats(list){
+  const owners=[...new Set(list.map(l=>l.owner||'未設定'))];
+  return owners.map(o=>{
+    const a=list.filter(l=>(l.owner||'未設定')===o);
+    const fixed=a.filter(l=>['契約','入金済'].includes(l.status)).reduce((s,l)=>s+mqOf(l),0);
+    const live=a.filter(l=>phLive(l)&&!['契約','入金済'].includes(l.status)).reduce((s,l)=>s+mqOf(l),0);
+    const g=((settings.q4Owner||{})[o]||{}).gp||0;
+    const over=a.filter(l=>phLive(l)&&l.due&&l.due<today()).length;
+    const noNext=a.filter(l=>phLive(l)&&!l.next).length;
+    const ph=PH_IDS.map(id=>id+':'+a.filter(l=>phOf(l)===id&&phLive(l)).length).join(' ');
+    return o+' … 担当'+a.length+'件 / 確定MQ'+fixed+'万 / 商談中MQ'+live+'万 / 個人粗利目標'+(g?g+'万':'未設定')
+      +' / 期限超過'+over+'件 / 次アクション未設定'+noNext+'件 / フェーズ内訳 '+ph;
+  }).join('\n');
+}
+function aiPhaseStats(list){
+  const live=list.filter(phLive);
+  const reach=PH_IDS.map((id,i)=> live.filter(l=>phNo(l)>=i).length);
+  return PH_IDS.map((id,i)=>{
+    const rate= (i>0&&reach[i-1])? Math.round(reach[i]/reach[i-1]*100)+'%' : '—';
+    return id+' '+phDef(id).n+'：到達'+reach[i]+'件（前段からの通過率 '+rate+'）';
+  }).join('\n');
+}
+
+/* Edge Function 経由でAIを呼ぶ（APIキーはHTMLに持たない） */
+async function aiCall(system, prompt, maxTokens){
+  let token=SB_KEY_HARD;
+  try{ const r=await sb.auth.getSession(); const t=r&&r.data&&r.data.session&&r.data.session.access_token; if(t) token=t; }catch(e){}
+  const res=await fetch(AI_URL,{ method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SB_KEY_HARD},
+    body:JSON.stringify({ system:system, prompt:prompt, max_tokens:maxTokens||2200 }) });
+  const raw=await res.text();
+  if(!res.ok) throw new Error('AI応答エラー ('+res.status+')：'+raw.slice(0,160));
+  let j=null; try{ j=JSON.parse(raw); }catch(e){ return raw; }
+  const out = j.text || j.output || j.completion || j.result
+    || (Array.isArray(j.content)&&j.content[0]&&j.content[0].text)
+    || (j.message&&j.message.content);
+  return out || raw;
+}
+
+const AI_SYSTEM = [
+ 'あなたは株式会社アースコムの営業部門を見る、経験豊富な営業マネージャーです。',
+ '識学の考え方に沿って助言します。姿勢や努力・経過は評価せず、目標に対する結果と不足の事実だけを扱います。',
+ '曖昧な精神論は書かず、必ず「誰が・いつまでに・何ができていれば完了か」まで落とします。',
+ '数字は与えられたデータの値だけを使い、推測で数字を作らないこと。データに無いことは「データなし」と書くこと。',
+ '出力はChatworkにそのまま貼れるプレーンテキストにします。HTMLタグ・Markdownの記号（#、*、-、|）は一切使わないこと。',
+ '見出しは「■ 」、箇条書きは「・」、強調は【】、番号は「1．」を使います。'
+].join('\n');
+
+function aiShow(text){
+  const el=$('aiOut'); el.style.display=''; el.textContent=text; $('aiCopy').style.display='';
+}
+function aiBusyState(on, msg){
+  aiBusy=on;
+  ['aiDiag','aiOne','aiStallBtn'].forEach(id=>{ const b=$(id); if(b) b.disabled=on; });
+  if(on){ const el=$('aiOut'); el.style.display=''; el.textContent=(msg||'AIが分析中です…')+'\n（20〜40秒ほどかかります）'; $('aiCopy').style.display='none'; }
+}
+async function aiRun(mode){
+  if(aiBusy) return;
+  const owner=$('aiOwner').value;
+  const base=filtered();
+  const list= owner? base.filter(l=>(l.owner||'未設定')===owner) : base;
+  const live=list.filter(phLive);
+  if(!live.length){ alert('対象の商談がありません。絞り込み条件をご確認ください。'); return; }
+  const scope= owner? ('担当者「'+owner+'」') : '全体';
+  const goal=mqGoal();
+  const fixed=base.filter(l=>['契約','入金済'].includes(l.status)).reduce((s,l)=>s+mqOf(l),0);
+  const head='【対象】'+scope+'　【生きている商談】'+live.length+'件　【商談中MQ合計】'
+    +live.reduce((s,l)=>s+mqOf(l),0)+'万円\n【4Q粗利目標】'+(goal||'未設定')+'万円　【確定済み（契約＋入金）】'+fixed+'万円\n';
+  let prompt='', title='';
+  if(mode==='diag'){
+    title='パイプライン診断（'+scope+'）';
+    prompt=head+'\n■ フェーズ別の到達状況\n'+aiPhaseStats(list)
+      +'\n\n■ 担当者別\n'+aiOwnerStats(list)
+      +'\n\n■ 商談一覧\n'+aiFacts(live,60)
+      +'\n\n上のデータだけを根拠に、次の構成で書いてください。\n'
+      +'1．結論（3行以内）… 4Q目標に対して届くのか、届かないなら不足はいくらか\n'
+      +'2．ボトルネックのフェーズ … 通過率が落ちている段階と、その原因として考えられること\n'
+      +'3．いま最優先で動かすべき商談 5件 … 商談名・理由・次の一手（1つ）・期限の目安\n'
+      +'4．担当者別の指摘 … 各人1〜2行。事実と不足だけを書き、姿勢は評価しない\n'
+      +'5．上司・社長が外すべき障害 … 3つ以内\n';
+  }else if(mode==='one2one'){
+    if(!owner){ alert('1on1準備シートは、上の「対象」で担当者を選んでから実行してください。'); return; }
+    title='1on1準備シート（'+owner+'）';
+    prompt=head+'\n■ この担当者の状況\n'+aiOwnerStats(list)
+      +'\n\n■ 担当商談一覧\n'+aiFacts(live,40)
+      +'\n\n1on1パイプライン進捗MTGで上司が使う準備シートを作ってください。構成は次のとおりです。\n'
+      +'1．今週の事実（数字のみ。3行以内）\n'
+      +'2．止まっている商談と、止まっている理由（最大5件）\n'
+      +'3．この1on1で決める論点 … 商談ごとに「追う／寝かせる／落とす」のどれを問うか、次の一手の候補は何か\n'
+      +'4．上司が引き取るべき障害（同行・条件承認・他部門依頼など）\n'
+      +'5．本人に確認する質問（3つまで。「なぜできていないか」ではなく「何があれば動くか」を聞く形にする）\n';
+  }else{
+    title='停滞商談の打ち手（'+scope+'）';
+    const st=stallList(live).slice(0,10);
+    if(!st.length){ aiShow('停滞している商談はありません。期限・次アクションはすべて埋まっています。'); return; }
+    prompt=head+'\n■ 停滞スコアの高い商談（上位'+st.length+'件）\n'
+      +st.map((x,i)=>(i+1)+'．'+aiLine(x.l)).join('\n')
+      +'\n\n各商談について、次の形式で1件ずつ書いてください。前置きや総括は不要です。\n'
+      +'商談名\n・状況（1行）\n・次の一手（1つだけ。誰が何をするか）\n・完了条件（何ができていれば完了か）\n・期限の目安\n・想定される障害と、その外し方\n';
+  }
+  aiBusyState(true,'AIが'+title+'を作成中です…');
+  try{
+    const out=await aiCall(AI_SYSTEM, prompt, 2600);
+    aiShow('■ '+title+'（'+today()+' 時点）\n\n'+String(out).trim());
+  }catch(e){
+    aiShow('AIの呼び出しに失敗しました。\n\n'+(e.message||e)+'\n\n・時間をおいて再実行してください。\n・繰り返す場合は、Supabaseの ai ファンクションが動いているかご確認ください。');
+  }finally{ aiBusyState(false); }
+}
+
+function renderAi(){
+  /* 担当者の選択肢 */
+  const el=$('aiOwner'), cur=el.value;
+  const owners=[...new Set(leads.filter(phLive).map(l=>l.owner).filter(Boolean))].sort();
+  el.innerHTML='<option value="">対象：全体</option>'+owners.map(o=>`<option value="${esc(o)}">対象：${esc(o)}</option>`).join('');
+  el.value=cur;
+  /* 停滞アラート */
+  const rows=stallList(filtered().filter(phLive)).slice(0,20);
+  if(!rows.length){ $('aiStall').innerHTML='<tbody><tr><td><div class="empty">停滞している商談はありません。</div></td></tr></tbody>'; return; }
+  $('aiStall').innerHTML='<thead><tr><th style="width:52px;text-align:center">度合</th><th>顧客名</th><th>担当</th><th style="text-align:center">フェーズ</th><th style="text-align:right">MQ</th><th>止まっている理由</th></tr></thead><tbody>'
+    + rows.map(x=>{
+        const l=x.l, lv= x.score>=8?'#c94a4a' : x.score>=5?'#d98b24' : '#8a97a8';
+        return `<tr data-id="${l.id}" style="cursor:pointer">
+          <td style="text-align:center"><span class="pill" style="background:${lv}1f;color:${lv};font-weight:900">${x.score}</span></td>
+          <td><b>${esc(l.name)}</b><div class="sub">${esc(l.status)}</div></td>
+          <td>${esc(l.owner||'—')}</td>
+          <td style="text-align:center">${phOf(l)? `<span class="pill" style="background:${PH8_COLOR[phOf(l)]}1f;color:${PH8_COLOR[phOf(l)]}">${phOf(l)}</span>`:'<span class="sub">—</span>'}</td>
+          <td style="text-align:right">${mqOf(l).toLocaleString()}</td>
+          <td style="font-size:12px">${esc(x.why.join(' / '))}</td>
+        </tr>`;
+      }).join('') + '</tbody>';
+  $('aiStall').querySelectorAll('tr[data-id]').forEach(tr=> tr.onclick=()=> openModal(tr.dataset.id));
+}
+
 /* ===== フェーズ（PH01〜PH08） ===== */
 function renderPhase(){
   const f=filtered().filter(phLive);
@@ -1581,6 +1775,7 @@ function openModal(id){
   set('i_cday',l?.cday); set('i_revday',l?.revday); setSelectValue('i_block', l?.block||''); set('i_blockdue',l?.blockdue);
   $('i_status').value=l?.status||'新規'; $('i_ph').value=l?.ph||''; $('i_temp').value=l?.temp||'B（中・検討中）'; set('i_owner',l?.owner); set('i_next',l?.next); set('i_due',l?.due); set('i_lost',l?.lost); set('i_memo',l?.memo);
   editLogs=(l?.logs||[]).slice(); renderLogs(); $('i_log').value='';
+  { const ab=$('aiLeadOut'); if(ab){ ab.style.display='none'; ab.textContent=''; } }
   const sel=new Set(l?.props||[]);
   $('propCheck').innerHTML= props.length? props.map(p=>
     `<label><input type="checkbox" value="${p.id}" ${sel.has(p.id)?'checked':''}><span>${esc(p.name)}<span class="ps">（${esc(p.volt||'')}・${esc(p.sell||'')}・${p.price?Number(p.price).toLocaleString()+'万円':'価格未定'}・${esc(p.pstatus||'')}）</span></span></label>`
@@ -2151,6 +2346,34 @@ async function syncSheet(silent){
 }
 $('btnGas').onclick=()=> syncSheet(false);
 
+$('aiDiag').onclick=()=> aiRun('diag');
+$('aiOne').onclick=()=> aiRun('one2one');
+$('aiStallBtn').onclick=()=> aiRun('stall');
+$('aiOwner').onchange=()=> renderAi();
+$('aiCopy').onclick=async ()=>{
+  let t=$('aiOut').textContent||'';
+  if($('aiWrap').checked){
+    const lines=t.split('\n'); const head=(lines[0]||'').replace(/^■\s*/,'');
+    t='[info][title]'+head+'[/title]\n'+lines.slice(1).join('\n').replace(/^\n+/,'')+'[/info]';
+  }
+  try{ await navigator.clipboard.writeText(t); alert('コピーしました。Chatworkに貼り付けてください。'); }
+  catch(e){ alert('コピーできませんでした。文章を選択して手動でコピーしてください。'); }
+};
+
+/* 商談ごとのAIコーチ（モーダル内） */
+$('btnAiLead').onclick=async ()=>{
+  const l=leads.find(x=>x.id===editId);
+  if(!l){ alert('先に保存してから実行してください。'); return; }
+  const box=$('aiLeadOut'); box.style.display=''; box.textContent='AIが次の一手を検討中です…';
+  const prompt='次の商談について助言してください。\n\n'+aiLine(l)
+    +(l.memo? '\n\nメモ：\n'+String(l.memo).slice(0,800):'')
+    +((l.logs&&l.logs.length)? '\n\n直近の活動ログ：\n'+l.logs.slice(-8).map(g=>g.d+' '+g.t).join('\n'):'')
+    +'\n\n次の形式で、前置きなしに書いてください。\n'
+    +'■ 状況（1行）\n■ 次の一手（1つだけ。誰が何をするか）\n■ 完了条件（何ができていれば完了か）\n■ 期限の目安\n■ 想定される障害と外し方\n■ お客様への切り出し方（そのまま使える3行）\n';
+  try{ const out=await aiCall(AI_SYSTEM, prompt, 1400); box.textContent=String(out).trim(); }
+  catch(e){ box.textContent='AIの呼び出しに失敗しました：'+(e.message||e); }
+};
+
 /* フェーズ名の編集（全員共通・Supabaseに保存） */
 $('phEdit').onclick=async ()=>{
   const cur=phDefs().map(x=>x.n).join(' / ');
@@ -2171,6 +2394,7 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewFocus').style.display= t==='focus'?'':'none';
   $('viewList').style.display= t==='list'?'':'none';
   $('viewFunnel').style.display= t==='funnel'?'':'none';
+  $('viewAi').style.display= t==='ai'?'':'none';
   $('viewPhase').style.display= t==='phase'?'':'none';
   $('viewOwn').style.display= t==='own'?'':'none';
   $('viewRef').style.display= t==='ref'?'':'none';
@@ -2179,7 +2403,8 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewAsset').style.display= t==='asset'?'':'none';
   $('viewMan').style.display= t==='man'?'':'none';
   $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man'||t==='q4')?'none':'';
-  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4')?'none':'';
+  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4'||t==='ai')?'none':'';
+  if(t==='ai') renderAi();
   if(t==='phase') renderPhase();
   if(t==='own') renderOwner();
   if(t==='q4') renderQ4();
@@ -2265,6 +2490,9 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
   ['2026.09.07', [
+    '「🤖 AIマネージャー」タブを追加しました（管理者・マネージャーのみ表示）。ボードの事実だけを根拠に、パイプライン診断・1on1準備シート・停滞商談の打ち手をAIが下書きします。出力はChatworkにそのまま貼れる形式で、[info]で囲んでコピーできます',
+    'AIタブ上部に「🚨 停滞アラート」を追加。期限超過・次アクション未設定・更新が止まっている期間・金額から停滞スコアを自動算出し、優先度順に並べます（AIを使わない機械判定なので常に表示されます）',
+    '商談の編集画面に「🤖 AIコーチ」を追加。その商談の次の一手・完了条件・期限の目安・想定される障害・お客様への切り出し方を、メモと活動ログを踏まえて提案します（全員が利用できます）',
     '「シート連動エラー：… exceeded the quota」が出ていた不具合を修正しました。ブラウザのローカル控えが容量オーバーになっても、シート連動と保存は止まりません（データ本体はクラウドに保存されています）',
     '容量オーバー時は、地図の座標キャッシュ → 古い活動ログの順に自動で軽くして保存を試みます。それでも入らない場合はクラウドのみで動作し、ヘッダーに「⚠ 端末の保存容量」と表示します',
     '活動ログは1商談あたり直近60件までに自動で丸めるようにしました（際限なく増えて重くなるのを防ぎます）',
@@ -2315,6 +2543,18 @@ const CHANGELOG = [
 
 const MANUAL = [
 
+  {id:'aimgr', t:'🤖 AIマネージャーの使い方', b:[
+    '<p>ボードに入っている事実（ステータス・フェーズ・MQ・期限・次アクション・最終更新日・阻害要因）だけを根拠に、AIが次の一手と論点を下書きします。<b>数字はボードの値をそのまま使い、AIが数字を作ることはありません。</b></p>',
+    '<table class="mtbl"><tr><th>ボタン</th><th>出るもの</th><th>使う場面</th></tr>' +
+      '<tr><td>📊 パイプライン診断</td><td>4Q目標に対する結論／ボトルネックのフェーズ／最優先で動かす商談5件／担当者別の指摘／上司が外すべき障害</td><td>週次会議・部門長会議の前</td></tr>' +
+      '<tr><td>🗣 1on1準備シート</td><td>今週の事実／止まっている商談と理由／1on1で決める論点／上司が引き取る障害／本人に確認する質問</td><td>1on1パイプライン進捗MTGの前（対象で担当者を選んでから実行）</td></tr>' +
+      '<tr><td>🚨 停滞商談の打ち手</td><td>停滞スコア上位10件について、次の一手・完了条件・期限・障害の外し方</td><td>動いていない商談をまとめて片付けたいとき</td></tr></table>',
+    '<p><b>対象の絞り込み</b>：上の「対象」で担当者を選ぶと、その人の商談だけを見ます。事業や区分で絞りたいときは、通常の絞り込みバーを使ってから実行してください。</p>',
+    '<p><b>コピー</b>：「📋 コピー」を押すと、Chatworkの [info] で囲んだ形でクリップボードに入ります。囲みたくないときは右のチェックを外してください。</p>',
+    '<div class="mnote">停滞スコアは、期限超過の日数・次アクション未設定・最終更新からの経過日数・阻害要因・金額の大きさ・確度から機械的に計算しています。AIの判断ではないので、AIを使わなくても常に見られます。8点以上が赤、5点以上が橙です。</div>',
+    '<p><b>商談ごとのAIコーチ</b>：商談カードを開くと下のほうに「この商談の『次の一手』をAIに聞く」があります。メモと活動ログも読んだうえで、次の一手・完了条件・期限の目安・想定される障害・お客様への切り出し方を出します。担当者全員が使えます。</p>',
+    '<div class="mnote">AIの出力はあくまで下書きです。決めるのは人です。実態と違うと感じたら、その感覚のほうが正しいので、ボードの入力（期限・次アクション・阻害要因）を直してから再実行してください。入力が正確なほどAIの精度は上がります。</div>'
+  ]},
   {id:'phase', t:'🧭 フェーズ（PH01〜PH08）と担当別の見方', b:[
     '<p>商談の進み具合を、ステータスとは別に <b>PH01〜PH08</b> の8フェーズで管理します。役割定義・週次報告で使っている「商談PH02数」「PH04件数」「PH06通過（合意書取得）」と同じ言葉でボードを見るための軸です。</p>',
     '<table class="mtbl"><tr><th>フェーズ</th><th>ステータスからの自動判定</th></tr>' +
@@ -2512,7 +2752,7 @@ function refreshFilterOptions(){
   keepP($('pCat'),CATS,'カテゴリー');
   keepP($('pOwner'),[...new Set(props.map(p=>p.owner||'（担当未設定）'))].sort(),'担当者');
 }
-function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderQ4(); renderFocus(); renderTable(); renderKanban(); renderPhase(); renderOwner(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
+function renderAll(){ if(typeof updateCleanBadge==='function') updateCleanBadge(); refreshFilterOptions(); renderKpis(); renderQ4(); renderFocus(); renderTable(); renderKanban(); renderPhase(); renderOwner(); renderAi(); renderRef(); renderProps(); if(map && $('viewMap').style.display!=='none') renderMap(); }
 
 /* ===== 初期化 ===== */
 fillSelect('i_type',TYPES); fillSelect('i_route',ROUTES); fillSelect('i_volt',VOLTS);
@@ -2565,7 +2805,10 @@ $('q4goal').onclick=async ()=>{
 
 /* ===== 認証ゲート：ログインが通ってからアプリを起動する ===== */
 EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
+  window.__me=me;
   const ub=document.getElementById('userBadge'); if(ub) EC.mountBadge('#userBadge');
+  /* AIマネージャータブは管理者・マネージャーのみ（商談ごとのAIコーチは全員が使えます） */
+  if(!me || ['admin','manager'].indexOf(me.role)>=0){ const ta=document.getElementById('tabAi'); if(ta) ta.style.display=''; }
   $('viewQ4').style.display=''; $('viewFocus').style.display='none'; $('kpis').style.display='none'; $('fbar').style.display='none';
   renderAll();
   initCloud();
