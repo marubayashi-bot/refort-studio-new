@@ -389,7 +389,7 @@ async function boot(){
   if (!ME) { fail('あなたの社員情報が見つかりません。管理者に連絡してください。'); return; }
 
   const { data: ma } = await EC.supabase.from('report_metrics')
-    .select('id,name,unit,target,department_id,user_id,is_active,job_grades')
+    .select('id,name,unit,target,department_id,user_id,is_active,show_daily,show_weekly,job_grades')
     .eq('is_active', true).order('sort_order');
   METRICS_ALL = ma || [];
 
@@ -706,7 +706,7 @@ function vWrite(){
     : (!APPROVAL_STRICT && METRICS.length
       ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <div class="sec s-rival"><span class="lab">暫定表示</span>
-        <div>今週の目標がまだ上司に承認されていないため、「管理」タブの<b>① 日報の数値設定</b>の項目を表示しています。
+        <div>今週の目標がまだ上司に承認されていないため、「管理」タブの<b>数値項目の設定</b>で「日報」にチェックが入っている項目を表示しています。
           承認されると、承認された項目だけに切り替わります。</div></div>
       <div class="grid" style="margin-top:12px">${METRICS.map(m => {
         const day = EDIT_DATE || TODAY;
@@ -1120,10 +1120,11 @@ function card(r){
 }
 
 /* その社員に設定されている数値項目（部署共通＋個人専用） */
-function metricsFor(uid){
+function metricsFor(uid, key){
   const u = USERS.find(x => x.id === uid);
-  return METRICS_ALL.filter(m => m.user_id === uid
-    || (!m.user_id && u && m.department_id === u.department_id));
+  const k = key || 'show_daily';
+  return METRICS_ALL.filter(m => (m.user_id === uid
+    || (!m.user_id && u && m.department_id === u.department_id)) && m[k] !== false);
 }
 
 /* 日報一覧のKPIパネル。今週の目標と当日の実績をカードで並べる */
@@ -1588,6 +1589,7 @@ function adminDeptId(){
 }
 let ADMIN_METRICS = [];
 let MET_ARCHIVED = false;   // アーカイブ済みの数値項目も表示するか
+let ADMIN_GOALS = [];       // 表示中の項目に紐づく四半期目標
 let ADMIN_USER = null;      // ①で設定対象にしている社員
 
 function setAdminUser(v){
@@ -1614,23 +1616,20 @@ function vAdmin(){
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   return `<h2>管理</h2>
-  <p class="sub">数値の設定は2種類あります。用途が違うので、混同しないようご注意ください。</p>
+  <p class="sub">数値項目は1か所で管理します。項目ごとに、どこに出すかをチェックで切り替えてください。</p>
   <div class="card" style="background:#F7FAFC">
     <table>
-      <tr><th>設定</th><th>何を決めるか</th><th>どこに出るか</th></tr>
-      <tr><td><b>① 日報の数値設定</b></td>
-        <td>毎日入力する項目と、その1週間ぶんの目標</td>
-        <td>日報を書く画面の「数値情報」</td></tr>
-      <tr><td><b>② 四半期の数値設定</b></td>
-        <td>四半期を通して追うKGI・KPIと、その期間の目標値</td>
-        <td>週次報告の「四半期の進捗」</td></tr>
+      <tr><th>表示先</th><th>使う数字</th><th>出る場所</th></tr>
+      <tr><td><b>日報</b></td><td>週の目標</td><td>日報を書く画面の「数値情報」／日報一覧のKPI</td></tr>
+      <tr><td><b>週報</b></td><td>週の目標</td><td>週次報告の「今週の目標と結果」</td></tr>
+      <tr><td><b>四半期</b></td><td>四半期の目標値と期間</td><td>週次報告の「四半期の現状」</td></tr>
     </table>
-    <p class="note" style="margin-top:8px">①で作った項目を②で選んで紐づけると、日報に入力された数値が
-      四半期の実績として自動集計されます。まず①で項目を作り、次に②で四半期の目標値を決める順番です。</p>
+    <p class="note" style="margin-top:8px">日報に入力された数値は、週報と四半期の実績として自動集計されます。
+      四半期にチェックを入れると、目標値と期間の欄が使えるようになります。</p>
   </div>
 
-  <h3 style="margin-top:24px;border:0;padding:0">① 日報の数値設定（毎日入力する項目）</h3>
-  <p class="sub">社員を選ぶと、その人の日報に出る数値項目が並びます。目標は1週間ぶんの数字です。</p>
+  <h3 style="margin-top:24px;border:0;padding:0">数値項目の設定</h3>
+  <p class="sub">社員を選ぶと、その人の数値項目が並びます。項目ごとに、日報・週報・四半期のどこに出すかを選べます。</p>
   <div class="card">
     <label>設定する社員</label>
     <select id="adUser" onchange="setAdminUser(this.value)">
@@ -1656,7 +1655,7 @@ function vAdmin(){
       <span class="note" id="adCount"></span>
     </div>
     <div id="adList"><p class="note" style="margin-top:12px">読み込み中…</p></div>
-    <h3 style="margin-top:20px">日報の数値項目を追加する</h3>
+    <h3 style="margin-top:20px">数値項目を追加する</h3>
     <div class="grid">
       <div><label>項目名</label><input type="text" id="ad_name" placeholder="例：幹部・社員面談"></div>
       <div><label>単位</label><input type="text" id="ad_unit" value="件"></div>
@@ -1684,8 +1683,8 @@ function vAdmin(){
       特定の人だけの数字を追うなら「専用」を使ってください。</p>
     <button class="act" style="margin-top:12px" onclick="addMetric()">追加する</button>
   </div>
-  <div class="card"><h3>本人の画面プレビュー（①の確認）</h3>
-    <p class="note">上で選んだ社員の日報入力画面に、①の項目がどう出るかを確認できます。
+  <div class="card"><h3>本人の画面プレビュー</h3>
+    <p class="note">上で選んだ社員の日報入力画面に、設定した項目がどう出るかを確認できます。
       社員を切り替えると、ここも一緒に切り替わります。</p>
     <div id="pvBox"></div>
   </div>
@@ -1745,19 +1744,18 @@ function vAdmin(){
       上位部署を設定すると部と課がつながり、部の部門長は配下の課の日報も確認できます。</p>
     <div id="deptBox"><p class="note" style="margin-top:10px">読み込み中…</p></div>
   </div>` : ''}
-  <h3 style="margin-top:28px;border:0;padding:0">② 四半期の数値設定（KGI・KPI）</h3>
-  <p class="sub">四半期を通して追う目標です。①で作った項目に紐づけると、日報の数値が実績として自動集計されます。</p>
+  <h3 style="margin-top:28px;border:0;padding:0">四半期目標の一覧（全社）</h3>
+  <p class="sub">上の設定で「四半期」にチェックを入れたものが、ここに全社ぶん並びます。部署や対象者を横断して確認・修正するときに使ってください。</p>
   <div class="card">
-    <p class="note">「＋ 目標を追加」を押すと、一覧の先頭に空の行が出ます。
-      対象者・項目・種別・目標・期間をその行で選んで保存してください。
-      登録済みの行も、そのまま書き換えれば保存されます。</p>
+    <p class="note">通常は上の「数値項目の設定」で四半期にチェックを入れてください。
+      ここは全社を横断して確認・修正する場所です。「＋ 目標を追加」で直接登録することもできます。</p>
     <div class="row" style="margin-bottom:10px">
       <button class="act" onclick="startNewGoal()">＋ 目標を追加</button>
       <a href="#" onclick="gotoMetricAdmin();return false" style="color:var(--accent);font-size:12px;align-self:center">
         項目の編集・アーカイブ・削除</a>
     </div>
     <div id="qgNewMetric" style="display:none;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#FBFCFD">
-      <b style="font-size:13px">数値項目を新しく作る（①に追加されます）</b>
+      <b style="font-size:13px">数値項目を新しく作る</b>
       <div class="grid" style="gap:8px;margin-top:8px">
         <div><label>項目名</label><input type="text" id="qm_name" placeholder="例：リエネ契約数"></div>
         <div><label>単位</label><input type="text" id="qm_unit" value="件"></div>
@@ -1801,36 +1799,108 @@ async function loadAdminMetrics(){
 
   const deptName = id => (DEPTS.find(d => d.id === id) || {}).name || '';
 
+  // その人に紐づく四半期目標を引く
+  const { data: gdata } = await EC.supabase.from('quarter_goals').select('*').eq('is_active', true);
+  ADMIN_GOALS = gdata || [];
+  const goalOf = m => ADMIN_GOALS.find(g => g.metric_id === m.id
+    && (m.user_id ? g.user_id === m.user_id : (g.department_id === m.department_id || g.user_id === ADMIN_USER)));
+
+  const Q = quarterInfo();
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
   box.innerHTML = ADMIN_METRICS.length
-    ? `<table style="margin-top:12px"><tr><th>項目</th>${all ? '<th>部署</th>' : ''}<th>対象</th><th>単位</th><th>週の目標</th><th>入力する層</th><th>状態</th><th></th></tr>
+    ? `<div style="overflow-x:auto"><table style="margin-top:12px">
+       <tr><th>項目</th>${all ? '<th>部署</th>' : ''}<th>対象</th><th>単位</th>
+           <th>週の目標</th><th>表示先</th><th>四半期の目標・期間</th><th>状態</th><th></th></tr>
        ${ADMIN_METRICS.map(m => {
          const off = (m.is_active === false);
+         const g = goalOf(m);
          return `<tr${off ? ' style="opacity:.55"' : ''}>
          <td><input type="text" value="${esc(m.name)}" style="padding:5px;min-width:130px"
               onchange="updMetric('${m.id}','name',this.value)"></td>
-         ${all ? `<td class="note">${esc(deptName(m.department_id))}</td>` : ''}
+         ${all ? `<td class="note">${esc((DEPTS.find(d => d.id === m.department_id)||{}).name || '')}</td>` : ''}
          <td class="note">${m.user_id
            ? (m.user_id === ADMIN_USER ? '<b style="color:var(--accent)">本人専用</b>' : esc(uname(m.user_id)) + ' 専用')
            : '部署共通'}</td>
-         <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:70px"
+         <td><input type="text" value="${esc(m.unit)}" style="padding:5px;width:60px"
               onchange="updMetric('${m.id}','unit',this.value)"></td>
          <td><input type="number" step="any" value="${m.target ?? ''}" style="width:80px;padding:5px"
               onchange="setTarget('${m.id}',this.value)"></td>
-         <td>${m.user_id ? '<span class="note">—</span>' : `<select style="padding:5px;font-size:12px" onchange="setScope('${m.id}',this.value)">`}
-              ${m.user_id ? '' : SCOPES.map(sc => `<option value="${sc[0]}"${scopeKey(m.job_grades)===sc[0]?' selected':''}>${sc[1]}</option>`).join('')}
-             ${m.user_id ? '' : '</select>'}</td>
+         <td style="white-space:nowrap;font-size:11px">
+           <label style="display:block"><input type="checkbox" ${m.show_daily !== false ? 'checked' : ''}
+             onchange="setMetricShow('${m.id}','show_daily',this.checked)"> 日報</label>
+           <label style="display:block"><input type="checkbox" ${m.show_weekly !== false ? 'checked' : ''}
+             onchange="setMetricShow('${m.id}','show_weekly',this.checked)"> 週報</label>
+           <label style="display:block"><input type="checkbox" ${g ? 'checked' : ''}
+             onchange="toggleQuarter('${m.id}',this.checked)"> 四半期</label>
+         </td>
+         <td style="white-space:nowrap">${g
+           ? `<select style="padding:4px;font-size:11px" onchange="updGoal('${g.id}','kind',this.value)">
+                <option value="KPI"${g.kind==='KPI'?' selected':''}>KPI</option>
+                <option value="KGI"${g.kind==='KGI'?' selected':''}>KGI</option></select>
+              <input type="number" step="any" value="${g.target}" style="width:80px;padding:4px"
+                onchange="updGoal('${g.id}','target',this.value)">${esc(m.unit)}
+              <div style="margin-top:3px">
+                <input type="date" value="${g.period_from}" style="padding:3px;font-size:10.5px"
+                  onchange="updGoal('${g.id}','period_from',this.value)">
+                <input type="date" value="${g.period_to}" style="padding:3px;font-size:10.5px"
+                  onchange="updGoal('${g.id}','period_to',this.value)"></div>
+              <div class="note" style="font-size:10.5px">週割 ${isZeroGoal(g.target) ? 'ゼロ維持'
+                : Math.round(g.target / (g.weeks||13) * 10)/10}</div>`
+           : '<span class="note">四半期にチェックを入れると設定できます</span>'}</td>
          <td>${off ? '<span class="pill p4">アーカイブ</span>' : '<span class="pill p2">利用中</span>'}</td>
          <td style="white-space:nowrap">
            ${off ? `<button class="ghost" onclick="restoreMetric('${m.id}')">戻す</button>`
                  : `<button class="ghost" onclick="archiveMetric('${m.id}','${esc(m.name)}')">アーカイブ</button>`}
            <button class="ghost" style="color:var(--warn)" onclick="hardDelMetric('${m.id}','${esc(m.name)}')">完全削除</button>
          </td></tr>`;}).join('')}
-       </table>
+       </table></div>
        <p class="note" style="margin-top:8px">
          項目名・単位・目標はその場で書き換えれば保存されます。<br>
-         <b>アーカイブ</b>…日報の入力画面と四半期目標の選択肢から外れます。過去に入力された数値と集計はそのまま残ります。通常はこちらを使ってください。<br>
-         <b>完全削除</b>…項目そのものを消します。過去に入力された数値も一緒に消えるため、間違えて作った項目にだけ使ってください。</p>`
+         <b>表示先</b>…日報と週報は「週の目標」を使います。四半期にチェックを入れると、四半期の目標値と期間を設定できます。<br>
+         <b>アーカイブ</b>…どこにも出なくなりますが、過去に入力された数値と集計は残ります。通常はこちらを使ってください。<br>
+         <b>完全削除</b>…項目そのものを消します。過去に入力された数値も一緒に消えます。</p>`
     : `<div class="empty" style="margin-top:12px">該当する数値項目がありません。</div>`;
+}
+
+/* 表示先の切り替え */
+async function setMetricShow(id, field, on){
+  const patch = {}; patch[field] = on;
+  const { error } = await EC.supabase.from('report_metrics').update(patch).eq('id', id);
+  if (error){ toast('変更できませんでした: ' + error.message); return; }
+  const m = METRICS_ALL.find(x => x.id === id); if (m) m[field] = on;
+  toast(on ? '表示するようにしました' : '表示しないようにしました');
+  await refreshMetricCaches();
+  loadAdminMetrics(); loadPreview(ADMIN_USER === '__all' ? '' : ADMIN_USER);
+}
+
+/* 四半期に出すかどうか。オンなら四半期目標を作り、オフならアーカイブする */
+async function toggleQuarter(metricId, on){
+  const m = METRICS_ALL.find(x => x.id === metricId);
+  if (!m){ toast('項目が見つかりません'); return; }
+  const uid = m.user_id || ((ADMIN_USER && ADMIN_USER !== '__all') ? ADMIN_USER : null);
+  const g = ADMIN_GOALS.find(x => x.metric_id === metricId
+    && (m.user_id ? x.user_id === m.user_id : (x.department_id === m.department_id || x.user_id === uid)));
+
+  if (!on){
+    if (!g){ loadAdminMetrics(); return; }
+    const { error } = await EC.supabase.from('quarter_goals').update({ is_active: false }).eq('id', g.id);
+    if (error){ toast('外せませんでした: ' + error.message); return; }
+    toast('四半期から外しました');
+  } else {
+    const Q = quarterInfo();
+    const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const weeks = Math.max(1, Math.round((Q.end - Q.start) / 604800000));
+    const { error } = await EC.supabase.from('quarter_goals').insert({
+      user_id: m.user_id || uid, department_id: (m.user_id || uid) ? null : m.department_id,
+      metric_id: metricId, name: m.name, unit: m.unit, kind: 'KPI',
+      target: Number(m.target) * weeks || 0,
+      period_from: ymd(Q.start), period_to: ymd(Q.end), weeks: weeks, created_by: ME.id });
+    if (error){ toast('追加できませんでした: ' + error.message); return; }
+    toast('四半期に追加しました。目標値と期間を確認してください');
+  }
+  await loadGoals();
+  loadAdminMetrics();
 }
 
 /* 四半期目標の画面から、数値項目の管理カードへ移動する */
@@ -1939,13 +2009,13 @@ async function loadApprovedTargets(day){
 }
 
 async function reloadMyMetrics(){
+  const cols = 'id,name,unit,target,is_required,sort_order,job_grades,user_id,show_daily,show_weekly';
   const { data } = await EC.supabase.from('report_metrics')
-    .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
-    .eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
+    .select(cols).eq('department_id', ME.department_id).eq('is_active', true).order('sort_order');
   const { data: mine2 } = await EC.supabase.from('report_metrics')
-    .select('id,name,unit,target,is_required,sort_order,job_grades,user_id')
-    .eq('user_id', ME.id).eq('is_active', true).order('sort_order');
-  METRICS = (data || []).filter(m => !m.user_id).filter(metricAppliesToMe).concat(mine2 || []);
+    .select(cols).eq('user_id', ME.id).eq('is_active', true).order('sort_order');
+  METRICS = (data || []).filter(m => !m.user_id).filter(metricAppliesToMe).concat(mine2 || [])
+    .filter(m => m.show_daily !== false);   // 日報に出す指定のものだけ
 }
 
 
@@ -2634,7 +2704,11 @@ async function loadWeeklySelf(){
              wRate: goalRate(week, wTarget), zero: isZeroGoal(g.target) };
   });
 
-  const miss = rows.filter(r => r.wRate < 100);
+  const weeklyRows = rows.filter(r => {
+    const m = METRICS_ALL.find(x => x.id === r.g.metric_id);
+    return !m || m.show_weekly !== false;
+  });
+  const miss = weeklyRows.filter(r => r.wRate < 100);
 
   box.innerHTML = `
   <div class="card">
@@ -2665,7 +2739,7 @@ async function loadWeeklySelf(){
     <p class="note" style="margin-top:8px">必要ペースは、残りの週数から毎週引き直しています。遅れは翌週以降に跳ね返ります。<br>
       率や外部システムの数字など、日報の足し算では出せない項目は実績を直接入力してください。空にすると自動集計に戻ります。</p>
     <div class="sec s-rival" style="margin-top:12px"><span class="lab">項目が自分のものと違うとき</span>
-      <div>ここに出る項目は「管理」タブの<b>② 四半期の数値設定</b>で決まります。
+      <div>ここに出る項目は「管理」タブの<b>数値項目の設定</b>で「四半期」にチェックを入れた項目です。
         <b>対象</b>が「部署全体」の項目は、同じ部署の全員に同じものが出ます。
         自分専用の目標にしたい場合は、対象者を本人にした目標を登録し直す必要があります。
         ${canAdmin() || isDeptHead()
@@ -2673,9 +2747,9 @@ async function loadWeeklySelf(){
           : '<br>管理タブは上司・管理者の権限が必要です。直属の上司に依頼してください。'}</div></div>
   </div>
 
-  <div class="card"><h3>今週の目標と結果</h3>
+  ${weeklyRows.length ? `<div class="card"><h3>今週の目標と結果</h3>
     <table><tr><th>項目</th><th>対象</th><th>今週目標</th><th>実績</th><th>過不足</th><th>達成率</th></tr>
-    ${rows.map(r => `<tr>
+    ${weeklyRows.map(r => `<tr>
       <td>${esc(r.g.name)}</td>
       <td class="note">${goalScope(r.g)}</td>
       <td class="num">${r.wTarget}${esc(r.g.unit)}</td>
@@ -2684,8 +2758,9 @@ async function loadWeeklySelf(){
         ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(Math.round((r.week - r.wTarget)*10)/10)}</td>
       <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
     </table>
-    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力は不要です。</p>
-  </div>
+    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力は不要です。<br>
+      ここに出す項目は、管理タブの「数値項目の設定」で<b>週報</b>にチェックを入れたものです。</p>
+  </div>` : ''}
 
   ${miss.length ? `<div class="card" style="border-color:#E7C4A6">
     <h3>未達の項目（${miss.length}）</h3>
