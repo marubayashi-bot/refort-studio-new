@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ReFort クイック試算</title>
+<style>
+:root{
+  --ink:#0E2430;
+  --ink-2:#1B3A49;
+  --line:#D6DEDC;
+  --paper:#EFF3F2;
+  --white:#fff;
+  --text:#12262F;
+  --muted:#5C7079;
+  --sun:#E39400;
+  --sun-soft:#FDF3DE;
+  --hi:#0E7A57;
+  --mid:#B57A00;
+  --lo:#6B7C85;
+  --ng:#A32E24;
+  --radius:14px;
+  --shadow:0 1px 0 rgba(14,36,48,.06), 0 8px 24px rgba(14,36,48,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic Medium",system-ui,sans-serif;
+  background:var(--paper); color:var(--text);
+  -webkit-text-size-adjust:100%;
+  font-feature-settings:"palt" 1;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ---------- shell ---------- */
+header.topbar{
+  position:sticky;top:0;z-index:40;
+  background:var(--ink); color:#EAF1EF;
+  padding:calc(env(safe-area-inset-top) + 10px) 18px 0;
+}
+.topbar .row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-size:17px;font-weight:700;letter-spacing:.02em}
+.brand span{color:var(--sun)}
+.ver{font-size:11px;color:#8FA7AE;margin-left:2px}
+.spacer{flex:1}
+.status{font-size:12px;color:#9DB4BB}
+nav.tabs{display:flex;gap:2px;margin-top:10px;overflow-x:auto}
+nav.tabs button{
+  background:transparent;border:0;color:#9DB4BB;
+  padding:11px 16px;font-size:14px;font-weight:600;border-radius:10px 10px 0 0;white-space:nowrap;
+}
+nav.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink)}
+main{padding:22px 18px 80px;max-width:1120px;margin:0 auto}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- search ---------- */
+.searchwrap{margin:8vh 0 0}
+.searchwrap h1{
+  font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:.01em;
+}
+.searchwrap p.lead{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.7;max-width:56ch}
+.searchbox{display:flex;gap:10px;align-items:stretch}
+.searchbox input{
+  flex:1;border:2px solid var(--ink);border-radius:var(--radius);background:var(--white);
+  padding:18px 18px;font-size:20px;min-width:0;
+}
+.searchbox input:focus{outline:3px solid var(--sun);outline-offset:1px}
+.searchbox button{
+  border:0;background:var(--ink);color:#fff;border-radius:var(--radius);padding:0 26px;font-size:17px;font-weight:700;
+}
+.hint{margin-top:10px;font-size:13px;color:var(--muted)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:26px}
+.recent{margin-top:30px}
+.recent h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{
+  background:var(--white);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:14px;
+}
+
+/* ---------- lists ---------- */
+.crumb{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.back{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:10px 15px;font-size:14px;font-weight:600}
+.crumb h2{font-size:20px;margin:0;font-weight:700}
+.crumb .sub{color:var(--muted);font-size:13px}
+.sorter{display:flex;gap:6px;margin:0 0 14px}
+.sorter button{background:var(--white);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;color:var(--muted)}
+.sorter button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.cardlist{display:grid;gap:10px}
+.pcard{
+  background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;display:grid;grid-template-columns:60px 1fr auto;gap:16px;align-items:center;
+  text-align:left;width:100%;box-shadow:var(--shadow);
+}
+.pcard:focus-visible{outline:3px solid var(--sun)}
+.pcard .name{font-size:17px;font-weight:700;margin-bottom:4px}
+.pcard .meta{font-size:13px;color:var(--muted);line-height:1.6}
+.pcard .figure{text-align:right}
+.pcard .figure .big{font-size:24px;font-weight:700}
+.pcard .figure .cap{font-size:11px;color:var(--muted)}
+.badge{
+  width:60px;height:60px;border-radius:12px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#fff;font-weight:700;
+}
+.badge b{font-size:24px;line-height:1}
+.badge i{font-style:normal;font-size:10px;opacity:.85;margin-top:2px}
+.b-hi{background:var(--hi)} .b-mid{background:var(--mid)} .b-lo{background:var(--lo)} .b-ng{background:var(--ng)}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;color:#fff}
+.empty{background:var(--white);border:1px dashed var(--line);border-radius:var(--radius);padding:36px 24px;text-align:center;color:var(--muted);line-height:1.8}
+.empty strong{display:block;color:var(--text);font-size:16px;margin-bottom:6px}
+
+/* ---------- detail ---------- */
+.hero{
+  background:var(--ink);color:#EAF1EF;border-radius:var(--radius);padding:22px 24px;margin-bottom:14px;
+}
+.hero .ttl{font-size:19px;font-weight:700}
+.hero .loc{font-size:13px;color:#9DB4BB;margin-top:4px}
+.heronums{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-top:20px}
+.heronums div .cap{font-size:12px;color:#9DB4BB;margin-bottom:4px}
+.heronums div .val{font-size:38px;font-weight:700;line-height:1.05}
+.heronums div .val small{font-size:16px;font-weight:600;margin-left:3px}
+.gold{color:var(--sun)}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.panel h3{font-size:14px;margin:0 0 14px;font-weight:700}
+table.calc{width:100%;border-collapse:collapse;font-size:14px}
+table.calc td{padding:11px 2px;border-bottom:1px solid var(--paper);vertical-align:baseline}
+table.calc td.k{color:var(--muted);width:46%}
+table.calc td.v{text-align:right;font-weight:700}
+table.calc td.v em{font-style:normal;font-weight:400;font-size:12px;color:var(--muted);display:block;margin-top:2px}
+table.calc tr.total td{border-top:2px solid var(--ink);border-bottom:0;padding-top:14px}
+.formula{font-size:12px;color:var(--muted);line-height:1.8;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px}
+.actions button{background:var(--ink);color:#fff;border:0;border-radius:11px;padding:13px 20px;font-size:14px;font-weight:700}
+.actions button.ghost{background:var(--white);color:var(--ink);border:1px solid var(--line)}
+.warn{background:var(--sun-soft);border:1px solid #EBD6A5;border-radius:11px;padding:12px 15px;font-size:13px;line-height:1.7;margin-bottom:14px}
+
+/* ---------- forms / data ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+label.f{display:block;margin-bottom:12px;font-size:13px;color:var(--muted);font-weight:600}
+label.f input,label.f select{
+  display:block;width:100%;margin-top:5px;padding:11px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--white);font-size:15px;color:var(--text);font-weight:600;
+}
+.drop{
+  border:2px dashed var(--line);border-radius:var(--radius);background:var(--white);
+  padding:34px 20px;text-align:center;color:var(--muted);line-height:1.8;
+}
+.drop.hot{border-color:var(--sun);background:var(--sun-soft)}
+.btn{background:var(--ink);color:#fff;border:0;border-radius:11px;padding:12px 18px;font-size:14px;font-weight:700}
+.btn.ghost{background:var(--white);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--ng)}
+.kv{display:flex;gap:26px;flex-wrap:wrap;font-size:14px;margin-bottom:16px}
+.kv b{font-size:22px;display:block;margin-top:2px}
+table.map{width:100%;border-collapse:collapse;font-size:13px}
+table.map th{text-align:left;color:var(--muted);font-weight:700;padding:8px 6px;border-bottom:1px solid var(--line)}
+table.map td{padding:7px 6px;border-bottom:1px solid var(--paper)}
+table.map select{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--white)}
+.note{font-size:13px;color:var(--muted);line-height:1.8}
+details.manual{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;margin-bottom:10px}
+details.manual summary{font-weight:700;font-size:15px;cursor:pointer}
+details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-top:10px}
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:13px 22px;border-radius:999px;font-size:14px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;
+}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:640px){
+  .pcard{grid-template-columns:52px 1fr;grid-template-areas:"b n" "f f"}
+  .pcard .badge{grid-area:b;width:52px;height:52px}
+  .pcard .info{grid-area:n}
+  .pcard .figure{grid-area:f;text-align:left;padding-top:8px;border-top:1px solid var(--paper)}
+  .heronums div .val{font-size:30px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand">ReFort<span>／</span>クイック試算<span class="ver" id="verTag"></span></div>
+    <div class="spacer"></div>
+    <div class="status" id="dbStatus">データ読込中…</div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="search" aria-selected="true">試算</button>
+    <button role="tab" data-tab="data" aria-selected="false">データ</button>
+    <button role="tab" data-tab="config" aria-selected="false">計算設定</button>
+    <button role="tab" data-tab="manual" aria-selected="false">使い方</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ 検索 ============ -->
+  <section class="view on" id="v-search">
+    <div class="searchwrap">
+      <h1>お客様の発電所を、その場で試算する。</h1>
+      <p class="lead">企業名か代表者名を入れて検索します。保有発電所を特定し、ReFort実施時の増加売電収入と回収余剰年数を自動で計算します。</p>
+      <div class="searchbox">
+        <input id="q" type="search" placeholder="例）アースコム、丸林" autocomplete="off" enterkeyhint="search">
+        <button id="goSearch">検索</button>
+      </div>
+      <div class="hint" id="searchHint"></div>
+      <div class="legend" id="legend"></div>
+      <div class="recent" id="recentWrap" hidden>
+        <h2>最近見た企業</h2>
+        <div class="chips" id="recentChips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 一覧 ============ -->
+  <section class="view" id="v-list">
+    <div class="crumb">
+      <button class="back" data-goto="search">← 検索に戻る</button>
+      <div><h2 id="listTitle"></h2><div class="sub" id="listSub"></div></div>
+    </div>
+    <div class="sorter" id="sorter">
+      <button data-sort="surplus" aria-pressed="true">回収余剰年数順</button>
+      <button data-sort="income" aria-pressed="false">増加売電収入順</button>
+      <button data-sort="kw" aria-pressed="false">出力順</button>
+    </div>
+    <div class="cardlist" id="listBody"></div>
+  </section>
+
+  <!-- ============ 詳細 ============ -->
+  <section class="view" id="v-detail">
+    <div class="crumb">
+      <button class="back" data-goto="list">← 発電所一覧</button>
+    </div>
+    <div id="detailBody"></div>
+  </section>
+
+  <!-- ============ データ ============ -->
+  <section class="view" id="v-data">
+    <div class="panel">
+      <h3>登録済みデータ</h3>
+      <div class="kv">
+        <div>発電所<b class="num" id="cntPlants">0</b>件</div>
+        <div>企業<b class="num" id="cntCompanies">0</b>社</div>
+        <div>最終更新<b id="lastImport">—</b></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn ghost" id="loadDemo">サンプルデータを入れる</button>
+        <button class="btn danger" id="clearDb">全データを削除</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>計算書リストを取り込む</h3>
+      <div class="drop" id="drop">
+        CSV・Excel（.xlsx）をここにドラッグ、または<br>
+        <button class="btn" id="pickFile" style="margin-top:12px">ファイルを選ぶ</button>
+        <input type="file" id="file" accept=".csv,.xlsx,.xls,.txt" hidden multiple>
+      </div>
+      <p class="note" style="margin-top:12px">都道府県ごとのファイルを1つずつ取り込めます。取り込むたびに追加され、同じ発電所は上書きされます。</p>
+      <div id="mapWrap" hidden style="margin-top:18px">
+        <h3 id="mapFileName"></h3>
+        <p class="note">列の対応を確認してください。自動で推定した内容が入っています。</p>
+        <table class="map"><thead><tr><th style="width:38%">アプリの項目</th><th>ファイルの列</th></tr></thead><tbody id="mapRows"></tbody></table>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn" id="doImport">この対応で取り込む</button>
+          <button class="btn ghost" id="cancelImport">やめる</button>
+        </div>
+        <p class="note" id="mapPreview" style="margin-top:12px"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 設定 ============ -->
+  <section class="view" id="v-config">
+    <div class="warn">ここの数値は仮置きです。村田さんの確定ロジックの数字に入れ替えてから現場で使ってください。変更は端末に保存され、全ての試算に即反映されます。</div>
+
+    <div class="panel">
+      <h3>ReFort工事と改善効果</h3>
+      <div class="grid2" id="cfgMain"></div>
+    </div>
+
+    <div class="panel">
+      <h3>発電量の前提</h3>
+      <div class="grid2" id="cfgGen"></div>
+      <p class="formula">現状年間発電量 ＝ 交流出力(kW) × 8,760時間 × 適用設備利用率。<br>
+      過積載率が閾値を超えた分だけ、逓減係数をかけて設備利用率を上げ、上限値で頭打ちにします。<br>
+      交流出力がデータに無い場合は「パネル出力 ÷ 想定過積載率」で代用します。</p>
+    </div>
+
+    <div class="panel">
+      <h3>判定基準（回収余剰年数）</h3>
+      <div class="grid2" id="cfgJudge"></div>
+    </div>
+
+    <div class="panel">
+      <h3>都道府県別 設備利用率（％）</h3>
+      <p class="note" style="margin-bottom:12px">空欄の県は全国平均を使います。NEDOのエリア別データが揃ったらここに入れてください。</p>
+      <div class="grid2" id="cfgPref"></div>
+    </div>
+
+    <div class="panel">
+      <h3>FIT調達単価（円/kWh・税抜）</h3>
+      <p class="note" style="margin-bottom:12px">データに調達価格の列があればそちらを優先します。無い場合だけ、認定年度からこの表を引きます。</p>
+      <div class="grid2" id="cfgFit"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:30px">
+      <button class="btn" id="saveCfg">設定を保存</button>
+      <button class="btn ghost" id="resetCfg">初期値に戻す</button>
+      <button class="btn ghost" id="exportCfg">設定を書き出す</button>
+      <button class="btn ghost" id="importCfg">設定を読み込む</button>
+      <input type="file" id="cfgFile" accept=".json" hidden>
+    </div>
+  </section>
+
+  <!-- ============ 使い方 ============ -->
+  <section class="view" id="v-manual">
+    <div id="manualBody"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==========================================================
+   ReFort クイック試算
+   ========================================================== */
+const APP_VERSION = "v2026.09.08";
+const CHANGELOG = [
+  ["v2026.09.08","初版。検索・一覧・詳細の3画面、CSV/Excel取込、計算パラメータ編集、Chatwork貼り付け用コピーを実装。"]
+];
+document.getElementById('verTag').textContent = APP_VERSION;
+
+/* ---- 共通認証（ec-auth.js が同じ場所にあるときだけ有効） ---- */
+(function(){
+  const s = document.createElement('script');
+  s.src = 'ec-auth.js';
+  s.onload = () => { try{ EC.guard({allow:['admin','manager','sales','field','viewer']}); EC.mountBadge && EC.mountBadge(); }catch(e){} };
+  s.onerror = () => {};
+  document.head.appendChild(s);
+})();
+
+/* ---------- 設定 ---------- */
+const PREFS = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+
+const DEFAULT_CFG = {
+  improveRate: 15,        // 発電量改善率 %
+  costPerKw: 30000,       // 工事費 円/kW（パネル出力あたり）
+  costMin: 3000000,       // 最低工事費 円
+  fitTerm: 20,            // FIT期間 年
+  roundRemain: "round",   // 残FIT年数の端数処理
+  baseUtil: 13,           // 全国平均設備利用率 %
+  overloadStart: 1.2,     // 調整開始の過積載率
+  overloadCoef: 0.5,      // 逓減係数
+  utilCap: 18,            // 適用設備利用率の上限 %
+  assumedOverload: 1.3,   // 交流出力不明時の想定過積載率
+  judgeHigh: 7,           // 余剰年数 これ以上で「高」
+  judgeMid: 4,
+  judgeLow: 1,
+  prefUtil: {},           // 都道府県 → %
+  fitTable: {             // 認定年度 → 円/kWh（税抜・50kW以上）
+    2012:40, 2013:36, 2014:32, 2015:27, 2016:24, 2017:21, 2018:18,
+    2019:14, 2020:12, 2021:11, 2022:10, 2023:9.5, 2024:9.2, 2025:8.9, 2026:8.5
+  },
+  fitTableLow: {          // 10〜50kW
+    2012:40, 2013:36, 2014:32, 2015:27, 2016:24, 2017:21, 2018:18,
+    2019:14, 2020:13, 2021:12, 2022:11, 2023:10, 2024:10, 2025:10, 2026:10
+  }
+};
+let CFG = loadCfg();
+function loadCfg(){
+  try{
+    const raw = localStorage.getItem('rfqs.cfg');
+    if(!raw) return structuredClone(DEFAULT_CFG);
+    const o = JSON.parse(raw);
+    return Object.assign(structuredClone(DEFAULT_CFG), o);
+  }catch(e){ return structuredClone(DEFAULT_CFG); }
+}
+function saveCfg(){ localStorage.setItem('rfqs.cfg', JSON.stringify(CFG)); }
+
+/* ---------- IndexedDB ---------- */
+const DB = (()=>{
+  let dbp;
+  function open(){
+    if(dbp) return dbp;
+    dbp = new Promise((res,rej)=>{
+      const r = indexedDB.open('rfqs', 1);
+      r.onupgradeneeded = e => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('plants')) db.createObjectStore('plants',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta',{keyPath:'k'});
+      };
+      r.onsuccess = ()=>res(r.result);
+      r.onerror = ()=>rej(r.error);
+    });
+    return dbp;
+  }
+  async function tx(store, mode){ const db = await open(); return db.transaction(store, mode).objectStore(store); }
+  return {
+    async all(){ const st = await tx('plants','readonly');
+      return new Promise((res,rej)=>{ const q=st.getAll(); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); },
+    async putMany(rows){ const db = await open();
+      return new Promise((res,rej)=>{ const t=db.transaction('plants','readwrite'); const st=t.objectStore('plants');
+        rows.forEach(r=>st.put(r)); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); },
+    async clear(){ const st = await tx('plants','readwrite');
+      return new Promise((res,rej)=>{ const q=st.clear(); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); }); },
+    async setMeta(k,v){ const st = await tx('meta','readwrite'); st.put({k,v}); },
+    async getMeta(k){ const st = await tx('meta','readonly');
+      return new Promise(res=>{ const q=st.get(k); q.onsuccess=()=>res(q.result?q.result.v:null); q.onerror=()=>res(null); }); }
+  };
+})();
+
+/* ---------- 文字正規化 ---------- */
+function norm(s){
+  if(s==null) return '';
+  return String(s).normalize('NFKC').toLowerCase()
+    .replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)|㈱|㈲/g,'')
+    .replace(/[\s　・,，.．\-‐－ー_]/g,'');
+}
+
+/* ---------- 計算ロジック ---------- */
+function fiscalYear(d){
+  if(!d) return null;
+  const dt = (d instanceof Date) ? d : parseDate(d);
+  if(!dt) return null;
+  return dt.getMonth()+1 >= 4 ? dt.getFullYear() : dt.getFullYear()-1;
+}
+function parseDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return isNaN(v)?null:v;
+  const s = String(v).trim();
+  let m = s.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{4})[\/\-]?(\d{2})$/);
+  if(m) return new Date(+m[1], +m[2]-1, 1);
+  m = s.match(/^(\d{4})$/);
+  if(m) return new Date(+m[1], 3, 1);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function num(v){
+  if(v==null||v==='') return null;
+  const n = parseFloat(String(v).normalize('NFKC').replace(/[^\d.\-]/g,''));
+  return isNaN(n) ? null : n;
+}
+
+function calc(p){
+  const c = CFG, out = { notes:[] };
+
+  // 出力
+  out.panelKw = p.panelKw ?? null;
+  out.pcsKw = p.pcsKw ?? null;
+  if(!out.pcsKw && out.panelKw){
+    out.pcsKw = out.panelKw / c.assumedOverload;
+    out.notes.push(`交流出力が未登録のため、パネル出力 ÷ ${c.assumedOverload} で仮置き`);
+  }
+  if(!out.panelKw && out.pcsKw){
+    out.panelKw = out.pcsKw * c.assumedOverload;
+    out.notes.push(`パネル出力が未登録のため、交流出力 × ${c.assumedOverload} で仮置き`);
+  }
+  if(!out.pcsKw){ out.error = "出力が登録されていないため試算できません"; return out; }
+
+  // 設備利用率
+  const base = (c.prefUtil[p.pref] ?? c.baseUtil);
+  out.baseUtil = base;
+  out.overload = out.panelKw / out.pcsKw;
+  let util = base;
+  if(out.overload > c.overloadStart){
+    util = base * (1 + (out.overload - c.overloadStart) * c.overloadCoef);
+    util = Math.min(util, c.utilCap);
+    out.adjusted = true;
+  }
+  out.util = util;
+
+  // 現状年間発電量
+  out.genKwh = out.pcsKw * 8760 * (util/100);
+
+  // FIT単価
+  let year = p.certYear ?? fiscalYear(p.startDate);
+  out.certYear = year;
+  if(p.fitPrice){ out.fit = p.fitPrice; out.fitSrc = "データの調達価格"; }
+  else if(year){
+    const tbl = (out.pcsKw < 50) ? c.fitTableLow : c.fitTable;
+    const keys = Object.keys(tbl).map(Number).sort((a,b)=>a-b);
+    const y = Math.min(Math.max(year, keys[0]), keys[keys.length-1]);
+    out.fit = tbl[y];
+    out.fitSrc = `${y}年度 認定単価表`;
+  }
+  if(!out.fit){ out.error = "FIT単価も認定年度も分からないため試算できません"; return out; }
+
+  // 残FIT年数
+  const st = parseDate(p.startDate);
+  if(st){
+    const elapsed = (Date.now() - st.getTime()) / (365.25*24*3600*1000);
+    const raw = c.fitTerm - elapsed;
+    out.remainRaw = raw;
+    out.remain = Math.max(0, c.roundRemain==='floor' ? Math.floor(raw) : Math.round(raw));
+  }else{
+    out.remain = null;
+    out.notes.push("運転開始日が未登録のため、残FIT年数を計算できません");
+  }
+
+  // 効果
+  out.addKwh = out.genKwh * (c.improveRate/100);
+  out.addIncome = out.addKwh * out.fit;
+  out.cost = Math.max(out.panelKw * c.costPerKw, c.costMin);
+  out.payback = out.addIncome > 0 ? out.cost / out.addIncome : null;
+  out.surplus = (out.remain!=null && out.payback!=null) ? out.remain - out.payback : null;
+  if(out.remain!=null){
+    out.totalGain = out.addIncome * out.remain;
+    out.netGain = out.totalGain - out.cost;
+  }
+
+  // 判定
+  if(out.surplus==null) out.judge = {k:'?',label:'不明',cls:'b-lo'};
+  else if(out.surplus >= c.judgeHigh) out.judge = {k:'高',label:'最優先',cls:'b-hi'};
+  else if(out.surplus >= c.judgeMid) out.judge = {k:'中',label:'有望',cls:'b-mid'};
+  else if(out.surplus >= c.judgeLow) out.judge = {k:'低',label:'条件次第',cls:'b-lo'};
+  else out.judge = {k:'不',label:'適さない',cls:'b-ng'};
+
+  return out;
+}
+
+/* ---------- 表示ユーティリティ ---------- */
+const yen = n => n==null ? '—' : Math.round(n).toLocaleString('ja-JP');
+const man = n => n==null ? '—' : (n/10000).toLocaleString('ja-JP',{maximumFractionDigits:0});
+const f1 = n => n==null ? '—' : n.toLocaleString('ja-JP',{maximumFractionDigits:1});
+const f2 = n => n==null ? '—' : n.toLocaleString('ja-JP',{maximumFractionDigits:2});
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+
+/* ---------- 状態 ---------- */
+let PLANTS = [];
+let CUR = { companyKey:null, list:[], sort:'surplus', plant:null };
+
+async function boot(){
+  PLANTS = await DB.all();
+  refreshCounts();
+  renderLegend();
+  renderRecent();
+  buildConfigUI();
+  buildManual();
+  document.getElementById('searchHint').textContent =
+    PLANTS.length ? `${PLANTS.length.toLocaleString()}件の発電所から探します。` : 'まだデータがありません。「データ」タブから計算書リストを取り込むか、サンプルを入れてください。';
+}
+function refreshCounts(){
+  const comps = new Set(PLANTS.map(p=>p.companyKey));
+  document.getElementById('cntPlants').textContent = PLANTS.length.toLocaleString();
+  document.getElementById('cntCompanies').textContent = comps.size.toLocaleString();
+  document.getElementById('dbStatus').textContent =
+    PLANTS.length ? `${PLANTS.length.toLocaleString()}件 / ${comps.size.toLocaleString()}社` : 'データ未登録';
+  DB.getMeta('lastImport').then(v=>{ document.getElementById('lastImport').textContent = v || '—'; });
+}
+function renderLegend(){
+  const c = CFG;
+  const items = [
+    ['b-hi','高', `余剰 ${c.judgeHigh}年以上`],
+    ['b-mid','中', `${c.judgeMid}〜${c.judgeHigh}年`],
+    ['b-lo','低', `${c.judgeLow}〜${c.judgeMid}年`],
+    ['b-ng','不', `${c.judgeLow}年未満`]
+  ];
+  document.getElementById('legend').innerHTML = items.map(([cls,k,t])=>
+    `<span class="tag ${cls}">${k}　${t}</span>`).join('');
+}
+
+/* ---------- タブ ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.setAttribute('aria-selected', x===b));
+    show(b.dataset.tab === 'search' ? 'search' : b.dataset.tab);
+  };
+});
+function show(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('on'));
+  document.getElementById('v-'+v).classList.add('on');
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('[data-goto]').forEach(b=> b.onclick = ()=> show(b.dataset.goto));
+
+/* ---------- 検索 ---------- */
+document.getElementById('goSearch').onclick = doSearch;
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+function doSearch(){
+  const raw = document.getElementById('q').value.trim();
+  if(!raw){ toast('企業名か代表者名を入れてください'); return; }
+  const k = norm(raw);
+  const hit = PLANTS.filter(p => p.searchKey.includes(k));
+  if(!hit.length){
+    CUR.list = [];
+    document.getElementById('listTitle').textContent = `「${raw}」`;
+    document.getElementById('listSub').textContent = '';
+    document.getElementById('listBody').innerHTML =
+      `<div class="empty"><strong>該当する発電所は登録されていません</strong>
+       別の表記（略称・代表者名）で試すか、その都道府県の計算書リストを取り込んでください。</div>`;
+    show('list'); return;
+  }
+  // 1社に絞れる場合はそのまま一覧、複数社なら会社選択
+  const comps = [...new Set(hit.map(p=>p.companyKey))];
+  if(comps.length === 1){ openCompany(comps[0], raw); }
+  else { openCompanyPicker(hit, comps, raw); }
+}
+
+function openCompanyPicker(hit, comps, raw){
+  CUR.companyKey = null;
+  document.getElementById('listTitle').textContent = `「${raw}」の検索結果`;
+  document.getElementById('listSub').textContent = `${comps.length}社 / ${hit.length}件の発電所`;
+  document.getElementById('listBody').innerHTML = comps.map(ck=>{
+    const rows = hit.filter(p=>p.companyKey===ck);
+    const best = rows.map(calc).filter(r=>r.surplus!=null).sort((a,b)=>b.surplus-a.surplus)[0];
+    const j = best ? best.judge : {k:'?',label:'',cls:'b-lo'};
+    return `<button class="pcard" data-company="${esc(ck)}">
+      <span class="badge ${j.cls}"><b>${j.k}</b><i>最良</i></span>
+      <span class="info"><span class="name">${esc(rows[0].company||'（企業名なし）')}</span>
+        <span class="meta">${esc(rows[0].rep? '代表者 '+rows[0].rep+' / ':'')}発電所 ${rows.length}件</span></span>
+      <span class="figure"><span class="big num">${rows.length}</span><span class="cap">件を見る</span></span>
+    </button>`;
+  }).join('');
+  document.getElementById('listBody').querySelectorAll('[data-company]').forEach(b=>{
+    b.onclick = ()=> openCompany(b.dataset.company, raw);
+  });
+  show('list');
+}
+
+function openCompany(ck, raw){
+  CUR.companyKey = ck;
+  CUR.list = PLANTS.filter(p=>p.companyKey===ck);
+  pushRecent(CUR.list[0].company, ck);
+  renderList();
+  show('list');
+}
+
+document.getElementById('sorter').querySelectorAll('button').forEach(b=>{
+  b.onclick = ()=>{
+    CUR.sort = b.dataset.sort;
+    document.getElementById('sorter').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+    renderList();
+  };
+});
+
+function renderList(){
+  const rows = CUR.list.map(p=>({p, r:calc(p)}));
+  const key = CUR.sort;
+  rows.sort((a,b)=>{
+    const g = o => key==='surplus' ? (o.r.surplus ?? -999)
+             : key==='income' ? (o.r.addIncome ?? -1)
+             : (o.r.panelKw ?? -1);
+    return g(b) - g(a);
+  });
+  const c0 = rows[0].p;
+  document.getElementById('listTitle').textContent = c0.company || '（企業名なし）';
+  document.getElementById('listSub').textContent =
+    `${c0.rep ? '代表者 '+c0.rep+' / ' : ''}発電所 ${rows.length}件`;
+  document.getElementById('listBody').innerHTML = rows.map(({p,r})=>{
+    const j = r.judge || {k:'?',label:'',cls:'b-lo'};
+    return `<button class="pcard" data-id="${esc(p.id)}">
+      <span class="badge ${j.cls}"><b>${j.k}</b><i>${esc(j.label)}</i></span>
+      <span class="info">
+        <span class="name">${esc(p.plantName || p.city || '発電所')}</span>
+        <span class="meta">${esc([p.pref,p.city].filter(Boolean).join(' '))}　
+          ${r.panelKw?f1(r.panelKw)+'kW':'出力不明'}　
+          ${r.fit?r.fit+'円':'単価不明'}　
+          残FIT ${r.remain!=null?r.remain+'年':'—'}</span>
+      </span>
+      <span class="figure">
+        <span class="big num gold">${r.addIncome!=null?'+'+man(r.addIncome):'—'}<small style="font-size:13px">万円/年</small></span>
+        <span class="cap">回収余剰 ${r.surplus!=null?f1(r.surplus)+'年':'—'}</span>
+      </span>
+    </button>`;
+  }).join('');
+  document.getElementById('listBody').querySelectorAll('[data-id]').forEach(b=>{
+    b.onclick = ()=> openDetail(b.dataset.id);
+  });
+}
+
+/* ---------- 詳細 ---------- */
+function openDetail(id){
+  const p = PLANTS.find(x=>x.id===id);
+  if(!p) return;
+  CUR.plant = p;
+  const r = calc(p);
+  const j = r.judge || {k:'?',label:'',cls:'b-lo'};
+
+  const head = `
+  <div class="hero">
+    <div class="ttl">${esc(p.plantName || '発電所')}</div>
+    <div class="loc">${esc(p.company||'')}　${esc([p.pref,p.city].filter(Boolean).join(' '))}</div>
+    <div class="heronums">
+      <div><div class="cap">ReFort後の増加売電収入</div>
+        <div class="val gold num">${r.addIncome!=null?'+'+man(r.addIncome):'—'}<small>万円/年</small></div></div>
+      <div><div class="cap">回収余剰年数</div>
+        <div class="val num">${r.surplus!=null?f1(r.surplus):'—'}<small>年</small></div></div>
+      <div><div class="cap">判定</div>
+        <div class="val">${j.k}<small style="opacity:.7">${esc(j.label)}</small></div></div>
+    </div>
+  </div>`;
+
+  if(r.error){
+    document.getElementById('detailBody').innerHTML = head +
+      `<div class="warn">${esc(r.error)}</div>` + currentPanel(p,r);
+    show('detail'); return;
+  }
+
+  const body = `
+  ${r.notes.length?`<div class="warn">${r.notes.map(esc).join('<br>')}</div>`:''}
+  ${currentPanel(p,r)}
+  <div class="panel">
+    <h3>ReFort実施後の試算</h3>
+    <table class="calc">
+      <tr><td class="k">発電量改善率</td><td class="v num">${CFG.improveRate} %</td></tr>
+      <tr><td class="k">増加発電量</td><td class="v num">${yen(r.addKwh)} kWh/年</td></tr>
+      <tr><td class="k">増加売電収入</td><td class="v num gold">+${yen(r.addIncome)} 円/年<em>${man(r.addIncome)}万円/年</em></td></tr>
+      <tr><td class="k">工事費用</td><td class="v num">${yen(r.cost)} 円<em>${f1(r.panelKw)}kW × ${yen(CFG.costPerKw)}円/kW（最低${man(CFG.costMin)}万円）</em></td></tr>
+      <tr><td class="k">費用回収年数</td><td class="v num">${f1(r.payback)} 年</td></tr>
+      <tr><td class="k">残FIT年数</td><td class="v num">${r.remain!=null?r.remain+' 年':'—'}<em>${r.remainRaw!=null?'実残 '+f2(r.remainRaw)+'年を'+(CFG.roundRemain==='floor'?'切り捨て':'四捨五入'):''}</em></td></tr>
+      <tr class="total"><td class="k">回収余剰年数</td><td class="v num">${r.surplus!=null?f1(r.surplus)+' 年':'—'}<em>回収後にまるごと利益になる期間</em></td></tr>
+      <tr><td class="k">残FIT期間の増収合計</td><td class="v num">${man(r.totalGain)} 万円</td></tr>
+      <tr><td class="k">工事費を引いた純増</td><td class="v num gold">${r.netGain!=null?(r.netGain>=0?'+':'')+man(r.netGain)+' 万円':'—'}</td></tr>
+    </table>
+    <div class="formula">
+      増加売電収入 ＝ 現状年間発電量 × 改善率 × FIT単価<br>
+      費用回収年数 ＝ 工事費用 ÷ 増加売電収入<br>
+      回収余剰年数 ＝ 残FIT年数 − 費用回収年数
+    </div>
+  </div>
+  <div class="actions">
+    <button id="copyChatwork">Chatwork用にコピー</button>
+    <button class="ghost" id="copyTalk">お客様提示用の文章をコピー</button>
+    <button class="ghost" data-goto2="config">計算の前提を見る</button>
+  </div>`;
+
+  document.getElementById('detailBody').innerHTML = head + body;
+  document.getElementById('copyChatwork').onclick = ()=>copyText(chatworkText(p,r),'Chatwork用の文章をコピーしました');
+  document.getElementById('copyTalk').onclick = ()=>copyText(talkText(p,r),'提示用の文章をコピーしました');
+  document.querySelector('[data-goto2]').onclick = ()=>{
+    document.querySelector('nav.tabs button[data-tab="config"]').click();
+  };
+  show('detail');
+}
+
+function currentPanel(p,r){
+  return `<div class="panel">
+    <h3>現状データ</h3>
+    <table class="calc">
+      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}</td></tr>
+      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}</td></tr>
+      <tr><td class="k">過積載率</td><td class="v num">${r.overload?f2(r.overload):'—'}</td></tr>
+      <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載で調整`:`${p.pref||'全国'}の基準値`}</em></td></tr>
+      <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年</td></tr>
+      <tr><td class="k">FIT単価</td><td class="v num">${r.fit?r.fit+' 円/kWh':'—'}<em>${esc(r.fitSrc||'')}</em></td></tr>
+      <tr><td class="k">運転開始日</td><td class="v">${p.startDate?fmtDate(p.startDate):'—'}</td></tr>
+      <tr><td class="k">現状の年間売電収入</td><td class="v num">${yen(r.genKwh*r.fit)} 円/年</td></tr>
+    </table>
+  </div>`;
+}
+function fmtDate(v){ const d=parseDate(v); return d? `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日` : String(v); }
+
+function chatworkText(p,r){
+  return [
+`[title]ReFort概算試算　${p.company||''}　${p.plantName||''}[/title]`,
+`■発電所`,
+`所在地：${[p.pref,p.city].filter(Boolean).join(' ')||'—'}`,
+`出力：パネル ${r.panelKw?f1(r.panelKw)+'kW':'—'} / 交流 ${r.pcsKw?f1(r.pcsKw)+'kW':'—'}`,
+`FIT単価：${r.fit?r.fit+'円/kWh':'—'}　残FIT：${r.remain!=null?r.remain+'年':'—'}`,
+`[hr]`,
+`■試算結果`,
+`現状年間発電量：${yen(r.genKwh)}kWh`,
+`増加売電収入：【+${man(r.addIncome)}万円/年】`,
+`工事費用：${man(r.cost)}万円`,
+`費用回収年数：${f1(r.payback)}年`,
+`回収余剰年数：【${r.surplus!=null?f1(r.surplus)+'年':'—'}】`,
+`判定：【${r.judge.k}】${r.judge.label}`,
+`[hr]`,
+`■次のアクション`,
+`現地調査の日程調整`,
+`※本試算は概算です。確定値は現地調査後の詳細シミュレーションによります。`
+  ].join('\n');
+}
+function talkText(p,r){
+  return `${p.plantName||'こちらの発電所'}は、現状の年間発電量が約${yen(r.genKwh)}kWhです。`+
+  `ReFortを実施すると発電量が約${CFG.improveRate}％改善し、売電収入が年間で約${man(r.addIncome)}万円増えます。`+
+  `工事費用は約${man(r.cost)}万円、回収までが約${f1(r.payback)}年。`+
+  `残りのFIT期間が${r.remain}年ですので、回収後も約${r.surplus!=null?f1(r.surplus):'—'}年間はそのまま利益として残る計算です。`;
+}
+function copyText(t,msg){
+  navigator.clipboard.writeText(t).then(()=>toast(msg))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(msg); });
+}
+
+/* ---------- 最近見た企業 ---------- */
+function pushRecent(name, key){
+  let r = JSON.parse(localStorage.getItem('rfqs.recent')||'[]');
+  r = r.filter(x=>x.key!==key); r.unshift({name,key}); r = r.slice(0,8);
+  localStorage.setItem('rfqs.recent', JSON.stringify(r)); renderRecent();
+}
+function renderRecent(){
+  const r = JSON.parse(localStorage.getItem('rfqs.recent')||'[]').filter(x=>PLANTS.some(p=>p.companyKey===x.key));
+  const w = document.getElementById('recentWrap');
+  w.hidden = !r.length;
+  document.getElementById('recentChips').innerHTML = r.map(x=>`<button data-key="${esc(x.key)}">${esc(x.name)}</button>`).join('');
+  document.getElementById('recentChips').querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=> openCompany(b.dataset.key);
+  });
+}
+
+/* ---------- 取込 ---------- */
+const FIELDS = [
+  ['company','企業名（設備所有者）',['設備所有者','事業者名','会社名','企業名','発電事業者','所有者','法人名','名称']],
+  ['rep','代表者名',['代表者','代表取締役','代表者名']],
+  ['plantName','発電所名',['発電所名','設備名','案件名','物件名','設備の名称']],
+  ['pref','都道府県',['都道府県','県名']],
+  ['city','市区町村・所在地',['市区町村','所在地','住所','設備所在地']],
+  ['panelKw','パネル出力(kW)',['太陽電池','パネル出力','モジュール','太陽光パネル']],
+  ['pcsKw','交流出力(kW)',['交流','pcs','パワコン','発電出力','設備出力','出力']],
+  ['certYear','認定年度',['認定年度','認定日','認定']],
+  ['startDate','運転開始日',['運転開始','供給開始','連系日']],
+  ['fitPrice','調達価格(円/kWh)',['調達価格','買取価格','売電単価','単価']]
+];
+let IMP = null;
+
+document.getElementById('pickFile').onclick = ()=>document.getElementById('file').click();
+document.getElementById('file').onchange = e => { if(e.target.files[0]) readFile(e.target.files[0]); };
+const drop = document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot')}));
+drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+
+async function readFile(file){
+  try{
+    let rows;
+    if(/\.xlsx?$/i.test(file.name)) rows = await readExcel(file);
+    else rows = parseCSV(await file.text());
+    if(!rows || rows.length < 2){ toast('データが読み取れませんでした'); return; }
+    IMP = { name:file.name, header:rows[0].map(h=>String(h||'').trim()), rows:rows.slice(1) };
+    buildMapUI();
+  }catch(err){ toast('読み込みに失敗しました：'+err.message); }
+}
+function readExcel(file){
+  return new Promise((res,rej)=>{
+    const go = ()=>{
+      const fr = new FileReader();
+      fr.onload = ()=>{
+        try{
+          const wb = XLSX.read(new Uint8Array(fr.result),{type:'array',cellDates:true});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          res(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}));
+        }catch(e){ rej(e); }
+      };
+      fr.onerror = ()=>rej(new Error('ファイル読込エラー'));
+      fr.readAsArrayBuffer(file);
+    };
+    if(window.XLSX) return go();
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = go;
+    s.onerror = ()=>rej(new Error('Excel読込にはネット接続が必要です。CSVに変換して取り込んでください'));
+    document.head.appendChild(s);
+  });
+}
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,'');
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cell); cell=''; }
+      else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(ch==='\r'){}
+      else cell+=ch;
+    }
+  }
+  if(cell||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function guessCol(header, keys){
+  for(const k of keys){
+    const i = header.findIndex(h=>norm(h).includes(norm(k)));
+    if(i>=0) return i;
+  }
+  return -1;
+}
+function buildMapUI(){
+  document.getElementById('mapFileName').textContent = IMP.name;
+  document.getElementById('mapRows').innerHTML = FIELDS.map(([key,label,keys])=>{
+    const g = guessCol(IMP.header, keys);
+    return `<tr><td>${label}</td><td><select data-f="${key}">
+      <option value="-1">（使わない）</option>
+      ${IMP.header.map((h,i)=>`<option value="${i}" ${i===g?'selected':''}>${esc(h||('列'+(i+1)))}</option>`).join('')}
+    </select></td></tr>`;
+  }).join('');
+  document.getElementById('mapPreview').textContent = `${IMP.rows.length.toLocaleString()}行を読み込みました。`;
+  document.getElementById('mapWrap').hidden = false;
+  document.getElementById('mapWrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+document.getElementById('cancelImport').onclick = ()=>{ IMP=null; document.getElementById('mapWrap').hidden=true; };
+document.getElementById('doImport').onclick = async ()=>{
+  const m = {};
+  document.querySelectorAll('#mapRows select').forEach(s=>{ m[s.dataset.f] = +s.value; });
+  if(m.company < 0){ toast('企業名の列を選んでください'); return; }
+  const get = (r,f)=> m[f]>=0 ? r[m[f]] : null;
+  const out = [];
+  IMP.rows.forEach((r,idx)=>{
+    const company = String(get(r,'company')||'').trim();
+    if(!company) return;
+    const plantName = String(get(r,'plantName')||'').trim();
+    const city = String(get(r,'city')||'').trim();
+    let pref = String(get(r,'pref')||'').trim();
+    if(!pref) pref = PREFS.find(p=>city.startsWith(p)) || '';
+    const rep = String(get(r,'rep')||'').trim();
+    const cy = get(r,'certYear');
+    const p = {
+      id: 'p_'+hash(company+'|'+plantName+'|'+city+'|'+(get(r,'startDate')||'')+'|'+idx),
+      company, rep, plantName, pref,
+      city: city.replace(pref,''),
+      panelKw: num(get(r,'panelKw')),
+      pcsKw: num(get(r,'pcsKw')),
+      certYear: cy ? (num(cy) && String(cy).length<=4 ? num(cy) : fiscalYear(cy)) : null,
+      startDate: get(r,'startDate') ? (parseDate(get(r,'startDate'))||'').toString() && parseDate(get(r,'startDate')).toISOString() : null,
+      fitPrice: num(get(r,'fitPrice')),
+      companyKey: norm(company) + (rep?'#'+norm(rep):''),
+      searchKey: norm(company+rep+plantName)
+    };
+    out.push(p);
+  });
+  if(!out.length){ toast('取り込める行がありませんでした'); return; }
+  await DB.putMany(out);
+  await DB.setMeta('lastImport', new Date().toLocaleString('ja-JP'));
+  PLANTS = await DB.all();
+  IMP = null; document.getElementById('mapWrap').hidden = true;
+  refreshCounts(); boot();
+  toast(`${out.length.toLocaleString()}件を取り込みました`);
+};
+function hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h).toString(36); }
+
+document.getElementById('clearDb').onclick = async ()=>{
+  if(!confirm('登録済みの発電所データをすべて削除します。よろしいですか。')) return;
+  await DB.clear(); PLANTS=[]; refreshCounts(); boot(); toast('削除しました');
+};
+document.getElementById('loadDemo').onclick = async ()=>{
+  const d = [
+    ['アースコム開発合同会社','丸林 信宏','越谷第一発電所','埼玉県','越谷市',540,440,'2014-11-20',32],
+    ['アースコム開発合同会社','丸林 信宏','春日部ソーラー','埼玉県','春日部市',1980,1500,'2015-08-01',27],
+    ['アースコム開発合同会社','丸林 信宏','三郷第二発電所','埼玉県','三郷市',49.5,49.5,'2019-03-15',14],
+    ['株式会社北関東エナジー','高橋 誠','前橋飯土井発電所','群馬県','前橋市',620,500,'2013-12-01',36],
+    ['株式会社北関東エナジー','高橋 誠','太田西発電所','群馬県','太田市',330,250,'2016-06-10',24],
+    ['株式会社北関東エナジー','高橋 誠','伊勢崎第三発電所','群馬県','伊勢崎市',99,75,'2020-10-05',12],
+    ['東北アセットソーラー株式会社','狐塚 健','郡山南発電所','福島県','郡山市',1250,1000,'2014-03-28',32],
+    ['東北アセットソーラー株式会社','狐塚 健','いわき勿来発電所','福島県','いわき市',760,600,'2015-01-15',27],
+    ['株式会社村田電興','村田 亮','水戸内原発電所','茨城県','水戸市',420,350,'2017-09-01',21],
+    ['株式会社村田電興','村田 亮','土浦第一発電所','茨城県','土浦市',88,50,'2013-06-20',36],
+    ['湘南グリーンパワー株式会社','奥田 直人','平塚発電所','神奈川県','平塚市',260,200,'2018-04-02',18],
+    ['湘南グリーンパワー株式会社','奥田 直人','小田原曽我発電所','神奈川県','小田原市',1100,900,'2014-08-08',32]
+  ].map((r,i)=>({
+    id:'demo_'+i, company:r[0], rep:r[1], plantName:r[2], pref:r[3], city:r[4],
+    panelKw:r[5], pcsKw:r[6], startDate:new Date(r[7]).toISOString(), fitPrice:r[8], certYear:null,
+    companyKey: norm(r[0])+'#'+norm(r[1]), searchKey: norm(r[0]+r[1]+r[2])
+  }));
+  await DB.putMany(d);
+  await DB.setMeta('lastImport','サンプル '+new Date().toLocaleString('ja-JP'));
+  PLANTS = await DB.all(); refreshCounts(); boot();
+  toast('サンプル12件を入れました');
+};
+
+/* ---------- 設定UI ---------- */
+function field(key,label,unit,step){
+  return `<label class="f">${label}${unit?`（${unit}）`:''}
+    <input type="number" step="${step||'any'}" data-cfg="${key}" value="${CFG[key]}"></label>`;
+}
+function buildConfigUI(){
+  document.getElementById('cfgMain').innerHTML =
+    field('improveRate','発電量改善率','％','0.1') +
+    field('costPerKw','工事費単価','円/kW','100') +
+    field('costMin','最低工事費','円','10000') +
+    field('fitTerm','FIT期間','年','1') +
+    `<label class="f">残FIT年数の端数
+      <select data-cfg="roundRemain">
+        <option value="round" ${CFG.roundRemain==='round'?'selected':''}>四捨五入</option>
+        <option value="floor" ${CFG.roundRemain==='floor'?'selected':''}>切り捨て</option>
+      </select></label>`;
+  document.getElementById('cfgGen').innerHTML =
+    field('baseUtil','全国平均 設備利用率','％','0.1') +
+    field('overloadStart','調整を始める過積載率','倍','0.05') +
+    field('overloadCoef','逓減係数','','0.05') +
+    field('utilCap','設備利用率の上限','％','0.1') +
+    field('assumedOverload','交流出力不明時の想定過積載率','倍','0.05');
+  document.getElementById('cfgJudge').innerHTML =
+    field('judgeHigh','「高」の下限','年','0.5') +
+    field('judgeMid','「中」の下限','年','0.5') +
+    field('judgeLow','「低」の下限','年','0.5');
+  document.getElementById('cfgPref').innerHTML = PREFS.map(p=>
+    `<label class="f">${p}<input type="number" step="0.1" data-pref="${p}" value="${CFG.prefUtil[p]??''}" placeholder="${CFG.baseUtil}"></label>`).join('');
+  const years = Object.keys(CFG.fitTable).map(Number).sort((a,b)=>a-b);
+  document.getElementById('cfgFit').innerHTML = years.map(y=>
+    `<label class="f">${y}年度
+      <input type="number" step="0.1" data-fit="${y}" value="${CFG.fitTable[y]}">
+      <span style="font-weight:400;font-size:11px">50kW以上　／　10〜50kW</span>
+      <input type="number" step="0.1" data-fitlow="${y}" value="${CFG.fitTableLow[y]}"></label>`).join('');
+}
+document.getElementById('saveCfg').onclick = ()=>{
+  document.querySelectorAll('[data-cfg]').forEach(el=>{
+    CFG[el.dataset.cfg] = el.type==='number' ? (parseFloat(el.value)||0) : el.value;
+  });
+  CFG.prefUtil = {};
+  document.querySelectorAll('[data-pref]').forEach(el=>{ if(el.value!=='') CFG.prefUtil[el.dataset.pref] = parseFloat(el.value); });
+  document.querySelectorAll('[data-fit]').forEach(el=>{ CFG.fitTable[el.dataset.fit] = parseFloat(el.value); });
+  document.querySelectorAll('[data-fitlow]').forEach(el=>{ CFG.fitTableLow[el.dataset.fitlow] = parseFloat(el.value); });
+  saveCfg(); renderLegend(); toast('設定を保存しました');
+};
+document.getElementById('resetCfg').onclick = ()=>{
+  if(!confirm('計算設定を初期値に戻します。よろしいですか。')) return;
+  CFG = structuredClone(DEFAULT_CFG); saveCfg(); buildConfigUI(); renderLegend(); toast('初期値に戻しました');
+};
+document.getElementById('exportCfg').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(CFG,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'refort-quick-sim-config.json'; a.click();
+};
+document.getElementById('importCfg').onclick = ()=>document.getElementById('cfgFile').click();
+document.getElementById('cfgFile').onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    CFG = Object.assign(structuredClone(DEFAULT_CFG), JSON.parse(await f.text()));
+    saveCfg(); buildConfigUI(); renderLegend(); toast('設定を読み込みました');
+  }catch(err){ toast('読み込みに失敗しました'); }
+};
+
+/* ---------- 使い方 ---------- */
+function buildManual(){
+  const secs = [
+    ['このアプリでできること',
+     `企業名か代表者名を入れると、その会社が持つ発電所を一覧で出し、ReFortを実施した場合の増加売電収入・工事費用・回収余剰年数を自動で計算します。判定は【高・中・低・不】の4段階です。<br>
+      商談・EXPO・架電フォローで、iPadを開いて1分以内に数字を出すことを目的にしています。`],
+    ['使う手順',
+     `1. 「試算」タブの検索窓に企業名か代表者名を入れる<br>
+      2. 発電所一覧から、判定と増加売電収入を見て提案する発電所を選ぶ<br>
+      3. 詳細画面の数字をお客様に見せながら説明する<br>
+      4. 「お客様提示用の文章をコピー」で読み上げ文が取れます<br>
+      5. 商談後は「Chatwork用にコピー」でそのまま社内共有できます`],
+    ['判定の意味',
+     `【高】回収余剰${CFG.judgeHigh}年以上。回収後も長く利益が残るため最優先で現調へ。<br>
+      【中】${CFG.judgeMid}〜${CFG.judgeHigh}年。条件を詰めれば十分成立します。<br>
+      【低】${CFG.judgeLow}〜${CFG.judgeMid}年。工事内容を絞る前提での提案になります。<br>
+      【不】${CFG.judgeLow}年未満。ReFort単体では適さず、セカンダリー売却など別の切り口を検討します。`],
+    ['データの入れ方',
+     `「データ」タブから、都道府県ごとの計算書リスト（CSVまたはExcel）を取り込みます。<br>
+      取り込む前に列の対応を確認する画面が出ます。自動で推定していますが、必ず目視で確認してください。<br>
+      データは端末の中に保存されます。別の端末で使う場合はその端末でも取り込みが必要です。`],
+    ['計算の前提',
+     `現状年間発電量 ＝ 交流出力 × 8,760時間 × 設備利用率<br>
+      増加売電収入 ＝ 現状年間発電量 × 改善率 × FIT単価<br>
+      工事費用 ＝ パネル出力 × 工事費単価（最低額あり）<br>
+      費用回収年数 ＝ 工事費用 ÷ 増加売電収入<br>
+      回収余剰年数 ＝ 残FIT年数 − 費用回収年数<br>
+      各数値は「計算設定」タブで変更できます。`],
+    ['お客様に伝えるときの注意',
+     `この数字は概算です。「現地調査で確定します」を必ず添えてください。<br>
+      設備利用率とFIT単価が推定値の場合、詳細画面の上部に注意が出ます。その場合は金額を断定せず、幅を持たせて話してください。`],
+    ['更新履歴', CHANGELOG.map(([v,t])=>`${v}　${t}`).join('<br>')]
+  ];
+  document.getElementById('manualBody').innerHTML = secs.map(([t,b],i)=>
+    `<details class="manual" ${i===0?'open':''}><summary>${t}</summary><div class="body">${b}</div></details>`).join('');
+}
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+boot();
+</script>
+</body>
+</html>
