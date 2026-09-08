@@ -2325,9 +2325,12 @@ function parseLeadRows(rows){
     if(a.startsWith('【')) { return; }
     if(a==='顧客名'){
       idx={};
+      window.__sheetHead=r.map(h=>String(h||'').trim());
       r.forEach((h,i)=>{
         const t=String(h||'');
-        if(t.includes('案件ID')||t.includes('案件ＩＤ')) idx.sid=i;
+        const tu=t.toUpperCase().replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\s/g,'');
+        if(/フェーズ|ﾌｪｰｽﾞ|フエーズ|PH|商談段階|営業段階|ステップ/.test(tu) && !/物件|工事/.test(tu)) idx.ph=i;
+        else if(t.includes('案件ID')||t.includes('案件ＩＤ')) idx.sid=i;
         else if(t.includes('顧客名')) idx.name=i;
         else if(t.includes('提案商品')) idx.prod=i;
         /* ▼ 4Q管理列（シートに足すと自動で読み込みます） */
@@ -2347,10 +2350,10 @@ function parseLeadRows(rows){
         else if(t.includes('次回アクション')) idx.next=i;
         else if(t.includes('担当者')) idx.owner=i;
         else if(t.includes('期限')) idx.due=i;
-        else if(t.includes('フェーズ')) idx.ph=i;
         else if(t.includes('ステータス')) idx.status=i;
         else if(t.includes('分類')||t.includes('3Q')) idx.kubun=i;
       });
+      window.__sheetMap=Object.assign({},idx);
       return;
     }
     if(!idx || !a || a.startsWith('【') || a.startsWith('③') || a.includes('記入例')) return;
@@ -2359,7 +2362,13 @@ function parseLeadRows(rows){
     const stNorm= stRaw? (STATUSES.includes(stRaw)? stRaw
       : /入金/.test(stRaw)? '入金済' : /受注|契約/.test(stRaw)? '契約' : /申込/.test(stRaw)? '申込'
       : /合意/.test(stRaw)? '合意意向済' : /交渉/.test(stRaw)? '条件交渉' : /提案/.test(stRaw)? '提案中' : /失注/.test(stRaw)? '失注' : /保留/.test(stRaw)? '保留' : '') : '';
-    const phX=(function(){ const v=String(g('ph')||'').replace(/[０-９Ａ-Ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); const m=v.match(/([1-8])/); return m? 'PH0'+m[1] : ''; })();
+    const phX=(function(){
+      const v=String(g('ph')||'').replace(/[０-９Ａ-Ｚａ-ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase();
+      let m=v.match(/PH\s*-?\s*0?([1-8])/); if(m) return 'PH0'+m[1];
+      m=v.match(/(?:フェーズ|ﾌｪｰｽﾞ|段階|ステップ)\s*0?([1-8])/); if(m) return 'PH0'+m[1];
+      m=v.match(/^0?([1-8])$/); if(m) return 'PH0'+m[1];
+      m=v.match(/([1-8])/); return m? 'PH0'+m[1] : '';
+    })();
     const amtMan=Math.round((Number(g('amt'))||0)*100);          // 「見込金額／MQ」百万円→万円
     const salesMan=Math.round((Number(g('sales'))||0)*100);      // 売上（列がある場合）
     const amtIsMq=(settings.sheetAmtIs||'mq')==='mq';            // 既定：MQ（粗利）として扱う
@@ -2559,9 +2568,34 @@ function renderClean(){
    + '<li><b>終わった商談は行を消さずステータスを「入金済」「失注」に</b>：行ごと削除するとボード側に取り残しが出ます</li>'
    + '<li><b>新しい行には必ず案件IDを採番</b>：空欄のまま取り込むと社名だけで照合するため、表記ゆれで重複します</li>'
    + '</ul>';
-  /* ③ この端末の保存容量 */
+  /* ③ 入力シートの列の認識状況 */
+  {
+    const FIELD={sid:'案件ID',name:'顧客名',prod:'提案商品',revday:'計上予定日',cday:'契約予定日',unit:'責任組織',
+      blockdue:'解除期限',sales:'売上',amt:'見込金額／MQ',cash:'自己資金',fin:'融資の必要性',bank:'融資相談先',
+      who:'決裁者',cond:'決裁条件',prob:'確度',block:'阻害要因',next:'次回アクション',owner:'担当者',
+      due:'期限',ph:'フェーズ',status:'ステータス',kubun:'分類'};
+    const head=window.__sheetHead||[], map=window.__sheetMap||{};
+    const rev={}; Object.keys(map).forEach(k=>{ if(map[k]!=null) rev[map[k]]=k; });
+    h+='<div class="sect">③ 入力シートの列の認識状況'+(map.ph==null?'（⚠ フェーズ列なし）':'')+'</div>';
+    if(!head.length){
+      h+='<p style="font-size:12px;color:var(--tx2);padding:6px 0">まだシート連動をしていません。ヘッダーの「🟩 シート連動」を押すと、ここに認識結果が出ます。</p>';
+    }else{
+      if(map.ph==null){
+        h+='<div class="mnote" style="margin:6px 0">入力シートに<b>「フェーズ」列が見つかりません</b>。下の一覧に「未使用」と出ている見出しが実際の列名です。見出しに「フェーズ」または「PH」の文字を入れると読み込みます。</div>';
+      }else{
+        const n=leads.filter(l=>l.ph).length;
+        h+='<div class="mnote" style="margin:6px 0">フェーズ列＝<b>'+esc(head[map.ph]||'')+'</b>　読み取れた商談：<b>'+n+'件</b>'
+          +(n? '' : '<br>値が1件も読み取れていません。セルに PH03 / 03 / フェーズ03 のいずれかの形で入れてください。')+'</div>';
+      }
+      h+='<div class="tblwrap" style="max-height:280px;overflow:auto"><table><thead><tr><th style="width:44px">列</th><th>シートの見出し</th><th style="width:150px">ボードでの扱い</th></tr></thead><tbody>'
+        + head.map((t,i)=> t? `<tr><td style="text-align:center;color:var(--tx2)">${i+1}</td><td><b>${esc(t)}</b></td><td>${rev[i]? esc(FIELD[rev[i]]||rev[i]) : '<span style="color:#b9c3ce">未使用</span>'}</td></tr>`:'').join('')
+        + '</tbody></table></div>';
+    }
+  }
+
+  /* ④ この端末の保存容量 */
   const kb=Math.round(lsUsage()/1024);
-  h+='<div class="sect">③ この端末の保存容量'+(lsDegraded?'（⚠ 容量オーバー）':'')+'</div>';
+  h+='<div class="sect">④ この端末の保存容量'+(lsDegraded?'（⚠ 容量オーバー）':'')+'</div>';
   h+='<p style="font-size:12px;color:var(--tx2);padding:6px 0;line-height:1.8">'
    + 'ブラウザに置いている<b>ローカル控え</b>の使用量：<b>約 '+kb.toLocaleString()+' KB</b>（上限の目安 5,000KB）<br>'
    + 'この控えはオフライン時の表示用です。商談データ本体はクラウド（共有）に保存されているため、削除しても失われません。<br>'
@@ -2739,7 +2773,12 @@ async function syncSheet(silent){
     lastSyncAt=Date.now(); renderSyncAge(); updateCleanBadge();
     $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+(bits.length? '（'+bits.join('・')+'）':'（変更なし）');
     const needClean = goneLeads().length + dupGroups().length;
-    if(!silent) alert('シート連動が完了しました。\n\n新規：'+r.added+'件\n更新：'+r.updated+'件\n顧客名の変更：'+r.renamed+'件\nシートに無くなった商談：'+r.gone+'件\n物件：'+(rp.added+rp.updated)+'件'
+    const phCol=(window.__sheetMap&&window.__sheetMap.ph!=null);
+    const phCnt=leads.filter(l=>l.ph).length;
+    const phMsg= !phCol
+      ? '\n\n⚠ 入力シートに「フェーズ」列が見つかりませんでした。\n見出しに「フェーズ」または「PH」を含む列を作ると読み込みます。\n（いまはステータスからの自動判定だけで表示しています）\n\n読み取れた見出し：\n'+((window.__sheetHead||[]).filter(Boolean).join(' ／ ')||'—')
+      : (phCnt? '\n\nフェーズ列を読み込みました：'+phCnt+'件' : '\n\n⚠ フェーズ列（見出し：'+((window.__sheetHead||[])[window.__sheetMap.ph]||'')+'）は見つかりましたが、PH01〜PH08として読み取れる値が1件もありませんでした。セルの表記をご確認ください。');
+    if(!silent) alert('シート連動が完了しました。\n\n新規：'+r.added+'件\n更新：'+r.updated+'件\n顧客名の変更：'+r.renamed+'件\nシートに無くなった商談：'+r.gone+'件\n物件：'+(rp.added+rp.updated)+'件'+phMsg
       +(needClean? '\n\n⚠ 要整理が '+needClean+' 件あります。\nシートから消えた商談は集計から自動で除外していますが、「🧹 データ整理」から統合・削除してください。':''));
     if(silent && needClean) updateCleanBadge();
   }catch(e){
@@ -2934,6 +2973,9 @@ $('aReload').onclick=()=> loadAssets(true);
 const APP_VERSION = '2026.09.07';
 const CHANGELOG = [
   ['2026.09.07', [
+    '入力シートの「フェーズ」列が読み込まれない不具合を直しました。見出しに「フェーズ」または「PH」を含む列を最優先で探すようにし、値も PH03／03／フェーズ03 のいずれの書き方でも読み取ります',
+    'シート連動の完了メッセージに、フェーズ列を認識できたか・何件読み取れたかを表示するようにしました。列が見つからない場合はシートの見出し一覧をそのまま出します',
+    '「🧹 データ整理」に「③ 入力シートの列の認識状況」を追加。どの列がボードのどの項目として読み込まれているかを一覧で確認できます',
     '停滞アラート・今日の3つの行動・要注意カードの対象から、契約済み・入金済み・失注・保留の商談を除外しました。決着済みの商談が「期限超過40日」として上位に並んでいた不具合の修正です',
     'AIマネージャーの対象で担当者を選んだとき、目標をその人の個人粗利目標に切り替えるようにしました（未設定の場合は達成率・目標差分を出しません）。全社目標と個人の数字を比べていた不具合の修正です',
     'AIから空の回答が返ったとき、そのまま表示せずエラーとして原因を出すようにしました。原因切り分け用に「🔧 接続テスト」ボタンを追加しています',
