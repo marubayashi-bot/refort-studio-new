@@ -2528,6 +2528,7 @@ let GOALS_ALL = [];            // 全員分の四半期目標（部下の進捗�
 let WMODE = 'me';              // 'me' = 自分の週次報告 / 'team' = 部下の週次報告
 let WUSER = null;              // 部下モードで開いている相手
 let TEAMW = [], TEAMHIST = []; // 部下の週次報告（今週分・履歴）
+let TEAM_WTARGETS = [];        // 表示中の部下の、今週の週次目標
 let APV_COUNT = {};            // 部下ごとの、次週の承認済み項目数
 let MYHIST = [];               // 自分の過去の週次報告
 let WK_APPROVED = [];          // 上司が承認した今週の目標（日報の数値欄はこれで決まる）
@@ -2605,6 +2606,21 @@ async function setGoalActual(id, v){
   const g3 = (GOALS_ALL || []).find(x => x.id === id); if (g3) g3.actual_override = val;
   toast(val === null ? '日報の自動集計に戻しました' : '四半期の実績を更新しました');
   if (TAB === 'weekly') loadWeekly(); else loadGoalList();
+}
+
+/* 週報に出す行を作る。四半期目標の有無に関係なく、週報にチェックした項目を出す */
+function weeklyRowsFor(uid, weekStart, goals, targets){
+  const weekEnd = addDays(weekStart, 6);
+  return metricsFor(uid, 'show_weekly').map(m => {
+    const g = (goals || []).find(x => x.metric_id === m.id);
+    const t = g ? (targets || []).find(x => x.goal_id === g.id) : null;
+    const wTarget = t ? Number(t.target)
+      : (g ? Math.round(Number(g.target) / (g.weeks || 13) * 10) / 10
+           : Number(m.target) || 0);
+    const week = actualSum(m.id, weekStart, weekEnd, uid);
+    return { m, g, name: m.name, unit: m.unit, wTarget: wTarget, week: week,
+             wRate: goalRate(week, wTarget) };
+  });
 }
 
 function goalRate(total, target){
@@ -2698,6 +2714,20 @@ async function loadWeeklySelf(){
       </div>
     </div>
 
+    ${(() => {
+      const wr = weeklyRowsFor(ME.id, WEEK_START, [], []);
+      return wr.length ? `<div class="card"><h3>今週の目標と結果</h3>
+        <table><tr><th>項目</th><th>今週目標</th><th>実績</th><th>達成率</th></tr>
+        ${wr.map(r => `<tr><td>${esc(r.name)}</td>
+          <td class="num">${r.wTarget}${esc(r.unit)}</td>
+          <td class="num">${Math.round(r.week*10)/10}</td>
+          <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
+        </table>
+        <p class="note" style="margin-top:8px">日報に入力された数値の合計です。
+          ここに出る項目は、管理タブの「数値項目の設定」で<b>週報</b>をオンにしたものです。</p>
+      </div>` : '';
+    })()}
+
     ${wkFormHtml([])}
 
     ${WREPORT && (WREPORT.weekly_comments||[]).length ? `<div class="card"><h3>上司コメント</h3>
@@ -2727,10 +2757,8 @@ async function loadWeeklySelf(){
              wRate: goalRate(week, wTarget), zero: isZeroGoal(g.target) };
   });
 
-  const weeklyRows = rows.filter(r => {
-    const m = METRICS_ALL.find(x => x.id === r.g.metric_id);
-    return !m || m.show_weekly !== false;
-  });
+  // 「今週の目標と結果」は、週報にチェックが入っている数値項目から作る
+  const weeklyRows = weeklyRowsFor(ME.id, WEEK_START, QGOALS, WTARGETS);
   const miss = weeklyRows.filter(r => r.wRate < 100);
 
   box.innerHTML = `
@@ -2773,9 +2801,9 @@ async function loadWeeklySelf(){
   ${weeklyRows.length ? `<div class="card"><h3>今週の目標と結果</h3>
     <table><tr><th>項目</th><th>対象</th><th>今週目標</th><th>実績</th><th>過不足</th><th>達成率</th></tr>
     ${weeklyRows.map(r => `<tr>
-      <td>${esc(r.g.name)}</td>
-      <td class="note">${goalScope(r.g)}</td>
-      <td class="num">${r.wTarget}${esc(r.g.unit)}</td>
+      <td>${esc(r.name)}</td>
+      <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
+      <td class="num">${r.wTarget}${esc(r.unit)}</td>
       <td class="num">${Math.round(r.week*10)/10}</td>
       <td class="num" style="color:${r.week >= r.wTarget ? 'var(--accent)' : 'var(--warn)'}">
         ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(Math.round((r.week - r.wTarget)*10)/10)}</td>
@@ -2787,8 +2815,8 @@ async function loadWeeklySelf(){
 
   ${miss.length ? `<div class="card" style="border-color:#E7C4A6">
     <h3>未達の項目（${miss.length}）</h3>
-    ${miss.map(r => `<div class="sec s-rival"><span class="lab">${esc(r.g.name)}</span>
-      <div>目標 ${r.wTarget}${esc(r.g.unit)} に対して実績 ${Math.round(r.week*10)/10}（${r.wRate}%）</div></div>`).join('')}
+    ${miss.map(r => `<div class="sec s-rival"><span class="lab">${esc(r.name)}</span>
+      <div>目標 ${r.wTarget}${esc(r.unit)} に対して実績 ${Math.round(r.week*10)/10}（${r.wRate}%）</div></div>`).join('')}
   </div>` : `<div class="card"><div class="ok" style="padding:0">今週の目標はすべて達成しています。</div></div>`}
 
 ${wkFormHtml(rows)}
@@ -2889,6 +2917,11 @@ async function loadWeeklyTeam(){
     .order('week_start', { ascending: false });
   TEAMHIST = data || [];
   TEAMW = TEAMHIST.filter(r => r.week_start === WEEK_START);
+
+  // 表示中の週の、部下の週次目標
+  const { data: twt } = await EC.supabase.from('weekly_targets')
+    .select('*').in('user_id', ids).eq('week_start', WEEK_START);
+  TEAM_WTARGETS = twt || [];
 
   // 次週ぶんの承認済み件数
   APV_COUNT = {};
@@ -3001,17 +3034,22 @@ function wkMemberDetail(uid){
       : `<div class="empty">この方の四半期目標が登録されていません。</div>`}
   </div>
 
-  ${gs.length ? `<div class="card">
-    <h3>今週の実績（${WEEK_START} 〜 ${weekEnd}）</h3>
-    <table><tr><th>項目</th><th>今週目標</th><th>今週実績</th><th>達成率</th></tr>
-      ${rows.map(r => `<tr>
-        <td>${esc(r.g.name)}</td>
-        <td class="num">${Math.round(r.per*10)/10}${esc(r.g.unit)}</td>
-        <td class="num">${Math.round(r.week*10)/10}${esc(r.g.unit)}</td>
-        <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
-    </table>
-    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力はできません。</p>
-  </div>` : ''}
+  ${(() => {
+    const wr = weeklyRowsFor(uid, WEEK_START, gs, TEAM_WTARGETS);
+    return wr.length ? `<div class="card">
+      <h3>今週の実績（${WEEK_START} 〜 ${weekEnd}）</h3>
+      <table><tr><th>項目</th><th>対象</th><th>今週目標</th><th>今週実績</th><th>達成率</th></tr>
+        ${wr.map(r => `<tr>
+          <td>${esc(r.name)}</td>
+          <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
+          <td class="num">${r.wTarget}${esc(r.unit)}</td>
+          <td class="num">${Math.round(r.week*10)/10}${esc(r.unit)}</td>
+          <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
+      </table>
+      <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力はできません。<br>
+        ここに出る項目は、管理タブの「数値項目の設定」で<b>週報</b>をオンにしたものです。</p>
+    </div>` : '';
+  })()}
 
   <div class="card" id="apvBox_${uid}"><h3>次週の目標の承認</h3>
     <p class="note">承認した項目だけが、その人の日報の数値入力欄に出ます。承認前は入力欄が出ません。</p>
