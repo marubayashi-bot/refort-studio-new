@@ -1425,9 +1425,10 @@ function openEditor(id){
           <div style="display:flex;gap:12px;align-items:center">
             <div id="logoPrev" style="flex:none"></div>
             <input id="fLogo" value="${esc(editing.logoUrl||'')}" placeholder="https://.../logo.png（空欄なら自動生成）"
-              oninput="logoPreview()"></div>
-          <div class="hint">空欄のままで構いません。アプリ名・アイコン表記・カテゴリからロゴを自動で作ります。
-            画像を用意したら、正方形のPNGかSVGのURLを入れると差し替わります。</div></div>
+              oninput="logoPreviewSoon()"></div>
+          <div class="hint" id="logoStat" style="margin-top:6px"></div>
+          <div class="hint">画像を使うときは、末尾が .png / .svg / .jpg の「画像そのもののURL」を入れてください。
+            ページのURLでは表示できません。正方形の画像を推奨します。</div></div>
         <div class="field"><label>今回の更新内容（1行・カードに2週間表示されます）</label>
           <input id="fChange" value="${esc(editing.changelog||'')}" placeholder="例：地図表示を追加しました"></div>
         <div class="f2">
@@ -1447,13 +1448,39 @@ function openEditor(id){
       <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
         <button class="btn" onclick="saveApp()">保存する</button></div>
     </div></div>`;
-  logoPreview();
+  logoLastUrl=null; logoPreview();
   setTimeout(()=>document.getElementById('fName').focus(),30);
+}
+let logoTimer=null, logoLastUrl=null;
+function logoPreviewSoon(){clearTimeout(logoTimer); logoTimer=setTimeout(logoPreview,450);}
+function logoFormApp(){
+  const g=id=>{const n=document.getElementById(id); return n?n.value:'';};
+  return {name:g('fName'),tape:g('fTape'),cat:g('fCat'),logoUrl:g('fLogo')};
+}
+function logoSay(text,color){
+  const st=document.getElementById('logoStat'); if(!st) return;
+  st.innerHTML=text; st.style.color=color;
 }
 function logoPreview(){
   const el=document.getElementById('logoPrev'); if(!el) return;
-  const g=id=>{const n=document.getElementById(id); return n?n.value:'';};
-  el.innerHTML=appLogoHtml({name:g('fName'),tape:g('fTape'),cat:g('fCat'),logoUrl:g('fLogo')},58);
+  const a=logoFormApp(), url=String(a.logoUrl||'').trim();
+  if(!url){
+    logoLastUrl=null; el.innerHTML=appLogoSvg(a,58);
+    logoSay('自動生成のロゴを使います。','var(--muted)'); return;
+  }
+  if(url===logoLastUrl) return;              /* 同じURLを何度も読みに行かない */
+  logoLastUrl=url;
+  el.innerHTML=`<img class="applogo" src="${esc(url)}" alt="" width="58" height="58"
+    style="width:58px;height:58px" onload="logoLoaded(true)" onerror="logoLoaded(false)">`;
+  logoSay('画像を読み込んでいます…','var(--muted)');
+}
+function logoLoaded(ok){
+  if(ok){ logoSay('この画像をロゴに使います。','var(--teal)'); return; }
+  const el=document.getElementById('logoPrev');
+  if(el) el.innerHTML=appLogoSvg(logoFormApp(),58);
+  logoSay('<b>画像を読み込めませんでした。</b>URLが画像ファイルを指しているか確認してください。'
+    +'<br>いまは自動生成のロゴが表示されています。このまま保存すると、社員の画面でも自動生成のロゴになります。',
+    'var(--rust)');
 }
 function onScopeChange(){
   const ltd=document.getElementById('fScope').value==='限定';
