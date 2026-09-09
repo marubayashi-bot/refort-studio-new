@@ -82,6 +82,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .appcard.ltd{border-color:#B4A3D0;background:linear-gradient(180deg,#FBFAFE,#fff)}
 .appcard.fresh{border-color:var(--amber)}
 .ac-top{display:flex;gap:12px;align-items:flex-start}
+.applogo{flex:none;border-radius:3px;display:block}
+img.applogo{object-fit:cover;background:var(--paper)}
 .tape{flex:none;width:46px;height:46px;border-radius:3px;display:grid;place-items:center;
   font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:15px;line-height:1.1;color:#fff;text-align:center}
 .ac-title{flex:1;min-width:0}
@@ -993,6 +995,44 @@ function visibleApps(){
     return true;
   }).sort((x,y)=>((isNewApp(y)||isUpdated(y))?1:0)-((isNewApp(x)||isUpdated(x))?1:0));
 }
+/* =========================================================
+   ロゴマーク
+   logoUrl があればその画像。空ならアプリ名とカテゴリから自動生成する。
+   同じ名前なら毎回まったく同じマークになる。
+   ========================================================= */
+function logoHash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return Math.abs(h);}
+function logoLines(a){
+  const raw=String(a.tape||a.name||'').replace(/[\s　]/g,'').slice(0,4)||'？';
+  return raw.length>=4?[raw.slice(0,2),raw.slice(2,4)]:[raw];
+}
+function appLogoSvg(a,size){
+  size=size||46;
+  const bg=CATS[a.cat]||'#65767F', lines=logoLines(a), two=lines.length>1;
+  const marks=['<rect x="74" y="0" width="26" height="26" fill="#fff" opacity=".2"/>',
+    '<path d="M0 100 L0 70 L30 100 Z" fill="#fff" opacity=".2"/>',
+    '<rect x="0" y="86" width="100" height="14" fill="#fff" opacity=".2"/>',
+    '<rect x="0" y="0" width="11" height="100" fill="#fff" opacity=".2"/>'];
+  const mk=marks[logoHash(String(a.name||'')+'|'+String(a.tape||''))%4];
+  const fs=two?30:(lines[0].length>=3?24:34);
+  const at=`fill="#fff" font-size="${fs}" font-weight="900" letter-spacing="-1"
+    font-family="'Zen Kaku Gothic New',sans-serif" text-anchor="middle" dominant-baseline="central"`;
+  const t=two
+    ?`<text x="50" y="34" ${at}>${esc(lines[0])}</text><text x="50" y="70" ${at}>${esc(lines[1])}</text>`
+    :`<text x="50" y="53" ${at}>${esc(lines[0])}</text>`;
+  return `<svg class="applogo" viewBox="0 0 100 100" width="${size}" height="${size}"
+    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(a.name||'')}">
+    <rect width="100" height="100" rx="6" fill="${bg}"/>${mk}${t}</svg>`;
+}
+function appLogoHtml(a,size){
+  size=size||46;
+  const url=String(a.logoUrl||'').trim();
+  if(!url) return appLogoSvg(a,size);
+  return `<img class="applogo" src="${esc(url)}" alt="${esc(a.name||'')}"
+    width="${size}" height="${size}" style="width:${size}px;height:${size}px"
+    data-fb="${esc(encodeURIComponent(appLogoSvg(a,size)))}"
+    onerror="this.outerHTML=decodeURIComponent(this.dataset.fb)">`;
+}
+
 function renderCards(){
   const s=stats(), topId=s.appRank[0]?s.appRank[0][0]:null, list=visibleApps();
   const host=document.getElementById('cards');
@@ -1005,7 +1045,7 @@ function renderCards(){
     return `<article class="appcard ${a.status!=='公開中'?'off':''} ${ltd?'ltd':''} ${nw||up?'fresh':''}">
       <button class="star ${on?'on':''}" aria-label="お気に入り" onclick="toggleFav('${a.id}')">${on?'★':'☆'}</button>
       <div class="ac-top">
-        <div class="tape" style="background:${CATS[a.cat]||'#65767F'}">${esc(a.tape||a.name.slice(0,2)).replace(/\n/g,'<br>')}</div>
+        ${appLogoHtml(a,46)}
         <div class="ac-title"><h3>${esc(a.name)}</h3>
           <div class="ac-meta">${esc(a.cat)}　/　${esc(a.owner||'担当未設定')}</div>
           <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">
@@ -1136,8 +1176,10 @@ function renderAdmin(s,mo){
 
   document.getElementById('adminRows').innerHTML=state.apps.map(a=>{
     const or=openReqs(a.id);
-    return `<tr><td><b>${esc(a.name)}</b>${isNewApp(a)?' <span class="tag new">NEW</span>':(isUpdated(a)?' <span class="tag upd">更新</span>':'')}
-      <div style="font-size:11px;color:var(--muted)">${a.url?esc(a.url.slice(0,36)):'URL未設定'}</div></td>
+    return `<tr><td><div style="display:flex;gap:9px;align-items:flex-start">
+      ${appLogoHtml(a,26)}
+      <div><b>${esc(a.name)}</b>${isNewApp(a)?' <span class="tag new">NEW</span>':(isUpdated(a)?' <span class="tag upd">更新</span>':'')}
+      <div style="font-size:11px;color:var(--muted)">${a.url?esc(a.url.slice(0,36)):'URL未設定'}</div></div></div></td>
       <td>${scopeOf(a)==='限定'?'<span class="tag ltd">🔒 限定</span>':'<span style="color:var(--muted)">全社</span>'}</td>
       <td>${esc(a.owner||'—')}</td>
       <td><span class="badge ${STATUS[a.status].cls}">${esc(a.status)}</span></td>
@@ -1360,7 +1402,7 @@ function openEditor(id){
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-hd"><h2>${isNew?'アプリを追加':'アプリを編集'}</h2><button onclick="closeModal()" aria-label="閉じる">×</button></div>
       <div class="modal-bd">
-        <div class="field"><label>アプリ名</label><input id="fName" value="${esc(editing.name)}" placeholder="例：工事進捗報告システム"></div>
+        <div class="field"><label>アプリ名</label><input id="fName" value="${esc(editing.name)}" placeholder="例：工事進捗報告システム" oninput="logoPreview()"></div>
         <div class="field"><label>何ができるか（社員が読む説明）</label>
           <textarea id="fDesc" placeholder="誰が、どの業務で、何を短縮できるかを1〜2文で">${esc(editing.desc)}</textarea></div>
         <div class="field"><label>使い方（3行）</label>
@@ -1379,15 +1421,22 @@ function openEditor(id){
         <div class="hint" id="scopeHint" style="margin:-6px 0 14px">${ltd
           ?'管理キーを入れていない社員には、一覧にも検索にも出ません。'
           :'社員全員のアプリ一覧に表示されます。'}</div>
+        <div class="field"><label>ロゴ</label>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div id="logoPrev" style="flex:none"></div>
+            <input id="fLogo" value="${esc(editing.logoUrl||'')}" placeholder="https://.../logo.png（空欄なら自動生成）"
+              oninput="logoPreview()"></div>
+          <div class="hint">空欄のままで構いません。アプリ名・アイコン表記・カテゴリからロゴを自動で作ります。
+            画像を用意したら、正方形のPNGかSVGのURLを入れると差し替わります。</div></div>
         <div class="field"><label>今回の更新内容（1行・カードに2週間表示されます）</label>
           <input id="fChange" value="${esc(editing.changelog||'')}" placeholder="例：地図表示を追加しました"></div>
         <div class="f2">
-          <div class="field"><label>カテゴリ</label><select id="fCat">
+          <div class="field"><label>カテゴリ</label><select id="fCat" onchange="logoPreview()">
             ${Object.keys(CATS).map(k=>`<option ${editing.cat===k?'selected':''}>${k}</option>`).join('')}</select></div>
           <div class="field"><label>状態</label><select id="fStatus">
             ${Object.keys(STATUS).map(k=>`<option ${editing.status===k?'selected':''}>${k}</option>`).join('')}</select></div>
           <div class="field"><label>担当（部署または氏名）</label><input id="fOwner" value="${esc(editing.owner)}" placeholder="例：営業部 / 村田"></div>
-          <div class="field"><label>アイコン表記（2〜4文字）</label><input id="fTape" value="${esc(editing.tape)}" maxlength="4" placeholder="例：進捗"></div>
+          <div class="field"><label>ロゴの文字（2〜4文字）</label><input id="fTape" value="${esc(editing.tape)}" maxlength="4" placeholder="例：進捗" oninput="logoPreview()"></div>
           <div class="field"><label>1回あたりの削減時間（分）</label><input id="fPerUse" type="number" min="0" value="${+editing.perUse||0}"></div>
           <div class="field"><label>作成にかけた工数（分）</label><input id="fBuild" type="number" min="0" value="${+editing.build||0}"></div>
         </div>
@@ -1398,7 +1447,13 @@ function openEditor(id){
       <div class="modal-ft"><button class="btn ghost" onclick="closeModal()">やめる</button>
         <button class="btn" onclick="saveApp()">保存する</button></div>
     </div></div>`;
+  logoPreview();
   setTimeout(()=>document.getElementById('fName').focus(),30);
+}
+function logoPreview(){
+  const el=document.getElementById('logoPrev'); if(!el) return;
+  const g=id=>{const n=document.getElementById(id); return n?n.value:'';};
+  el.innerHTML=appLogoHtml({name:g('fName'),tape:g('fTape'),cat:g('fCat'),logoUrl:g('fLogo')},58);
 }
 function onScopeChange(){
   const ltd=document.getElementById('fScope').value==='限定';
@@ -1414,7 +1469,8 @@ function saveApp(){
   const changelog=g('fChange').trim();
   const isNew=!state.apps.some(x=>x.id===editing.id);
   const a={...editing,name,desc:g('fDesc').trim(),url:g('fUrl').trim(),cat:g('fCat'),status:g('fStatus'),
-    owner:g('fOwner').trim(),tape:g('fTape').trim()||name.slice(0,2),perUse:+g('fPerUse')||0,build:+g('fBuild')||0,
+    owner:g('fOwner').trim(),tape:g('fTape').trim()||name.slice(0,2),logoUrl:g('fLogo').trim(),
+    perUse:+g('fPerUse')||0,build:+g('fBuild')||0,
     scope:g('fScope'),members:g('fScope')==='限定'?g('fMembers').trim():'',
     howto:[g('fH1').trim(),g('fH2').trim(),g('fH3').trim()].filter(Boolean),
     changelog,tracked:document.getElementById('fTracked').checked,
