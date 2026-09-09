@@ -300,8 +300,8 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 
     <div class="panel">
       <h3>FIT調達単価（円/kWh・税抜）</h3>
-      <p class="note" style="margin-bottom:12px">データに調達価格の列があればそちらを優先します。無い場合だけ、認定年度からこの表を引きます。</p>
-      <div class="grid2" id="cfgFit"></div>
+      <p class="note" style="margin-bottom:12px">認定日から年度（4月始まり）を判定して、この表を引きます。データに調達価格の列があり、値が妥当な範囲であればそちらを優先します。</p>
+      <div id="cfgFit"></div>
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:30px">
@@ -325,8 +325,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "v2026.09.08";
+const APP_VERSION = "v2026.09.09";
 const CHANGELOG = [
+  ["v2026.09.09","FIT単価の判定を修正。認定日から年度（4月始まり）を判定して単価表を引く方式に変更。年をそのまま単価として扱ってしまう不具合を修正。単価表を10〜50kW／50kW以上の2区分＋2015年度前期に対応。詳細画面で単価の手入力上書きを追加。"],
   ["v2026.09.08","初版。検索・一覧・詳細の3画面、CSV/Excel取込、計算パラメータ編集、Chatwork貼り付け用コピーを実装。"]
 ];
 document.getElementById('verTag').textContent = APP_VERSION;
@@ -358,13 +359,23 @@ const DEFAULT_CFG = {
   judgeMid: 4,
   judgeLow: 1,
   prefUtil: {},           // 都道府県 → %
-  fitTable: {             // 認定年度 → 円/kWh（税抜・50kW以上）
-    2012:40, 2013:36, 2014:32, 2015:27, 2016:24, 2017:21, 2018:18,
-    2019:14, 2020:12, 2021:11, 2022:10, 2023:9.5, 2024:9.2, 2025:8.9, 2026:8.5
-  },
-  fitTableLow: {          // 10〜50kW
-    2012:40, 2013:36, 2014:32, 2015:27, 2016:24, 2017:21, 2018:18,
-    2019:14, 2020:13, 2021:12, 2022:11, 2023:10, 2024:10, 2025:10, 2026:10
+  fit2015H1: 29,          // 2015年度のうち6月30日までの認定
+  fitTable: {             // 認定年度 → { low:10〜50kW, mid:50kW以上 } 円/kWh・税抜
+    2012:{low:40,  mid:40},
+    2013:{low:36,  mid:36},
+    2014:{low:32,  mid:32},
+    2015:{low:27,  mid:27},
+    2016:{low:24,  mid:24},
+    2017:{low:21,  mid:21},
+    2018:{low:18,  mid:18},
+    2019:{low:14,  mid:14},
+    2020:{low:13,  mid:12},
+    2021:{low:12,  mid:11},
+    2022:{low:11,  mid:10},
+    2023:{low:10,  mid:9.5},
+    2024:{low:10,  mid:9.2},
+    2025:{low:10,  mid:8.9},
+    2026:{low:10,  mid:8.5}
   }
 };
 let CFG = loadCfg();
@@ -373,6 +384,11 @@ function loadCfg(){
     const raw = localStorage.getItem('rfqs.cfg');
     if(!raw) return structuredClone(DEFAULT_CFG);
     const o = JSON.parse(raw);
+    // v2026.09.08 以前の単価表（年度→数値）は構造が違うので破棄して作り直す
+    if(o.fitTable){
+      const first = o.fitTable[Object.keys(o.fitTable)[0]];
+      if(typeof first !== 'object'){ delete o.fitTable; delete o.fitTableLow; }
+    }
     return Object.assign(structuredClone(DEFAULT_CFG), o);
   }catch(e){ return structuredClone(DEFAULT_CFG); }
 }
@@ -444,6 +460,29 @@ function num(v){
   return isNaN(n) ? null : n;
 }
 
+// FIT単価としてありえる範囲か（年や出力が紛れ込むのを防ぐ）
+function validFit(v){
+  const n = num(v);
+  if(n==null) return null;
+  return (n >= 5 && n <= 60) ? n : null;
+}
+// 認定年度と出力区分から単価表を引く
+function fitFromTable(year, kw, certDate){
+  const c = CFG;
+  const keys = Object.keys(c.fitTable).map(Number).sort((a,b)=>a-b);
+  const y = Math.min(Math.max(year, keys[0]), keys[keys.length-1]);
+  const band = (kw < 50) ? 'low' : 'mid';
+  const bandName = (kw < 50) ? '10〜50kW' : '50kW以上';
+  let price = c.fitTable[y] ? c.fitTable[y][band] : null;
+  let label = `${y}年度認定・${bandName}の単価表`;
+  if(y === 2015 && certDate && certDate < new Date(2015,6,1)){
+    price = c.fit2015H1;
+    label = '2015年度（6月30日まで）認定の単価表';
+  }
+  if(y !== year) label += `（表の範囲外のため${y}年度で計算）`;
+  return {price, label};
+}
+
 function calc(p){
   const c = CFG, out = { notes:[] };
 
@@ -475,18 +514,30 @@ function calc(p){
   // 現状年間発電量
   out.genKwh = out.pcsKw * 8760 * (util/100);
 
-  // FIT単価
-  let year = p.certYear ?? fiscalYear(p.startDate);
-  out.certYear = year;
-  if(p.fitPrice){ out.fit = p.fitPrice; out.fitSrc = "データの調達価格"; }
-  else if(year){
-    const tbl = (out.pcsKw < 50) ? c.fitTableLow : c.fitTable;
-    const keys = Object.keys(tbl).map(Number).sort((a,b)=>a-b);
-    const y = Math.min(Math.max(year, keys[0]), keys[keys.length-1]);
-    out.fit = tbl[y];
-    out.fitSrc = `${y}年度 認定単価表`;
+  // ---- FIT単価：認定日 → 認定年度（4月始まり）→ 単価表 ----
+  const cd = parseDate(p.certDate);
+  let year = null, ysrc = '';
+  if(cd){ year = fiscalYear(cd); ysrc = `認定日 ${fmtDate(cd)}`; }
+  else if(p.certYear!=null){ year = +p.certYear; ysrc = 'データの認定年度'; }
+  else if(p.startDate){
+    year = fiscalYear(p.startDate); ysrc = '運転開始日からの推定';
+    out.notes.push('認定日が登録されていないため、運転開始日から認定年度を推定しています。実際の単価と異なる場合があるので、詳細画面で単価を手入力して確認してください。');
   }
-  if(!out.fit){ out.error = "FIT単価も認定年度も分からないため試算できません"; return out; }
+  out.certYear = year; out.certDate = cd; out.certYearSrc = ysrc;
+
+  const dataFit = validFit(p.fitPrice);
+  if(p.fitPrice!=null && p.fitPrice!=='' && dataFit==null){
+    out.notes.push(`データの調達価格「${p.fitPrice}」はFIT単価として扱えない値のため使いません。認定年度から単価表を引いています。`);
+  }
+  if(p.fitOverride!=null){
+    out.fit = p.fitOverride; out.fitSrc = 'この画面で手入力した単価';
+  }else if(dataFit!=null){
+    out.fit = dataFit; out.fitSrc = 'データの調達価格';
+  }else if(year!=null){
+    const t = fitFromTable(year, out.pcsKw, cd);
+    out.fit = t.price; out.fitSrc = t.label;
+  }
+  if(!out.fit){ out.error = "認定日・認定年度が分からないため、FIT単価を判定できません"; return out; }
 
   // 残FIT年数
   const st = parseDate(p.startDate);
@@ -701,7 +752,7 @@ function openDetail(id){
   if(r.error){
     document.getElementById('detailBody').innerHTML = head +
       `<div class="warn">${esc(r.error)}</div>` + currentPanel(p,r);
-    show('detail'); return;
+    bindFitOverride(p); show('detail'); return;
   }
 
   const body = `
@@ -733,12 +784,24 @@ function openDetail(id){
   </div>`;
 
   document.getElementById('detailBody').innerHTML = head + body;
+  bindFitOverride(p);
   document.getElementById('copyChatwork').onclick = ()=>copyText(chatworkText(p,r),'Chatwork用の文章をコピーしました');
   document.getElementById('copyTalk').onclick = ()=>copyText(talkText(p,r),'提示用の文章をコピーしました');
   document.querySelector('[data-goto2]').onclick = ()=>{
     document.querySelector('nav.tabs button[data-tab="config"]').click();
   };
   show('detail');
+}
+
+function bindFitOverride(p){
+  const ap = document.getElementById('applyFit');
+  if(ap) ap.onclick = ()=>{
+    const v = validFit(document.getElementById('fitOv').value);
+    if(v==null){ toast('FIT単価は5〜60円の範囲で入れてください'); return; }
+    p.fitOverride = v; openDetail(p.id); renderList(); toast(`${v}円/kWh で計算し直しました`);
+  };
+  const rs = document.getElementById('resetFit');
+  if(rs) rs.onclick = ()=>{ delete p.fitOverride; openDetail(p.id); renderList(); toast('元の単価に戻しました'); };
 }
 
 function currentPanel(p,r){
@@ -750,10 +813,22 @@ function currentPanel(p,r){
       <tr><td class="k">過積載率</td><td class="v num">${r.overload?f2(r.overload):'—'}</td></tr>
       <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載で調整`:`${p.pref||'全国'}の基準値`}</em></td></tr>
       <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年</td></tr>
+      <tr><td class="k">認定日</td><td class="v">${r.certDate?fmtDate(r.certDate):'—'}</td></tr>
+      <tr><td class="k">認定年度</td><td class="v num">${r.certYear!=null?r.certYear+' 年度':'—'}<em>${esc(r.certYearSrc||'')}</em></td></tr>
       <tr><td class="k">FIT単価</td><td class="v num">${r.fit?r.fit+' 円/kWh':'—'}<em>${esc(r.fitSrc||'')}</em></td></tr>
       <tr><td class="k">運転開始日</td><td class="v">${p.startDate?fmtDate(p.startDate):'—'}</td></tr>
-      <tr><td class="k">現状の年間売電収入</td><td class="v num">${yen(r.genKwh*r.fit)} 円/年</td></tr>
+      <tr><td class="k">現状の年間売電収入</td><td class="v num">${r.fit?yen(r.genKwh*r.fit)+' 円/年':'—'}</td></tr>
     </table>
+    <div class="formula">
+      FIT単価は認定日の年度（4月始まり）で決まります。たとえば2013年3月認定は<b>2012年度＝40円</b>です。<br>
+      表示が実際と違う場合は、ここで単価を直して試算をやり直してください。
+      <span style="display:inline-flex;gap:8px;align-items:center;margin-top:10px">
+        <input type="number" step="0.1" id="fitOv" value="${r.fit||''}" style="width:110px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-weight:700">
+        <span>円/kWh</span>
+        <button class="btn" id="applyFit" style="padding:9px 16px">この単価で計算</button>
+        ${p.fitOverride!=null?'<button class="btn ghost" id="resetFit" style="padding:9px 16px">元に戻す</button>':''}
+      </span>
+    </div>
   </div>`;
 }
 function fmtDate(v){ const d=parseDate(v); return d? `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日` : String(v); }
@@ -815,9 +890,10 @@ const FIELDS = [
   ['city','市区町村・所在地',['市区町村','所在地','住所','設備所在地']],
   ['panelKw','パネル出力(kW)',['太陽電池','パネル出力','モジュール','太陽光パネル']],
   ['pcsKw','交流出力(kW)',['交流','pcs','パワコン','発電出力','設備出力','出力']],
-  ['certYear','認定年度',['認定年度','認定日','認定']],
-  ['startDate','運転開始日',['運転開始','供給開始','連系日']],
-  ['fitPrice','調達価格(円/kWh)',['調達価格','買取価格','売電単価','単価']]
+  ['certDate','認定日（FIT単価の判定に使用）',['認定日','設備認定日','認定取得日','認定年月日','新規認定日']],
+  ['certYear','認定年度（認定日が無い場合）',['認定年度']],
+  ['startDate','運転開始日（残FIT年数に使用）',['運転開始','供給開始','連系日']],
+  ['fitPrice','調達価格(円/kWh)',['調達価格','買取価格','売電単価','調達単価']]
 ];
 let IMP = null;
 
@@ -905,7 +981,7 @@ document.getElementById('doImport').onclick = async ()=>{
   document.querySelectorAll('#mapRows select').forEach(s=>{ m[s.dataset.f] = +s.value; });
   if(m.company < 0){ toast('企業名の列を選んでください'); return; }
   const get = (r,f)=> m[f]>=0 ? r[m[f]] : null;
-  const out = [];
+  const out = []; let badFit = 0;
   IMP.rows.forEach((r,idx)=>{
     const company = String(get(r,'company')||'').trim();
     if(!company) return;
@@ -915,15 +991,19 @@ document.getElementById('doImport').onclick = async ()=>{
     if(!pref) pref = PREFS.find(p=>city.startsWith(p)) || '';
     const rep = String(get(r,'rep')||'').trim();
     const cy = get(r,'certYear');
+    const cd = parseDate(get(r,'certDate'));
+    const fp = validFit(get(r,'fitPrice'));
+    if(get(r,'fitPrice') && fp==null) badFit++;
     const p = {
       id: 'p_'+hash(company+'|'+plantName+'|'+city+'|'+(get(r,'startDate')||'')+'|'+idx),
       company, rep, plantName, pref,
       city: city.replace(pref,''),
       panelKw: num(get(r,'panelKw')),
       pcsKw: num(get(r,'pcsKw')),
-      certYear: cy ? (num(cy) && String(cy).length<=4 ? num(cy) : fiscalYear(cy)) : null,
-      startDate: get(r,'startDate') ? (parseDate(get(r,'startDate'))||'').toString() && parseDate(get(r,'startDate')).toISOString() : null,
-      fitPrice: num(get(r,'fitPrice')),
+      certDate: cd ? cd.toISOString() : null,
+      certYear: cy!=null && cy!=='' ? (String(cy).replace(/\D/g,'').length<=4 ? num(cy) : fiscalYear(cy)) : null,
+      startDate: parseDate(get(r,'startDate')) ? parseDate(get(r,'startDate')).toISOString() : null,
+      fitPrice: fp,
       companyKey: norm(company) + (rep?'#'+norm(rep):''),
       searchKey: norm(company+rep+plantName)
     };
@@ -935,6 +1015,9 @@ document.getElementById('doImport').onclick = async ()=>{
   PLANTS = await DB.all();
   IMP = null; document.getElementById('mapWrap').hidden = true;
   refreshCounts(); boot();
+  if(badFit){
+    alert(`${out.length.toLocaleString()}件を取り込みました。\n\nうち${badFit.toLocaleString()}件は、調達価格の列にFIT単価として使えない値（年など）が入っていたため無視し、認定日から単価表を引いて計算します。\n列の対応が正しいか確認してください。`);
+  }
   toast(`${out.length.toLocaleString()}件を取り込みました`);
 };
 function hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h).toString(36); }
@@ -944,22 +1027,25 @@ document.getElementById('clearDb').onclick = async ()=>{
   await DB.clear(); PLANTS=[]; refreshCounts(); boot(); toast('削除しました');
 };
 document.getElementById('loadDemo').onclick = async ()=>{
+  // [社名, 代表者, 発電所名, 県, 市, パネルkW, 交流kW, 認定日, 運転開始日]
   const d = [
-    ['アースコム開発合同会社','丸林 信宏','越谷第一発電所','埼玉県','越谷市',540,440,'2014-11-20',32],
-    ['アースコム開発合同会社','丸林 信宏','春日部ソーラー','埼玉県','春日部市',1980,1500,'2015-08-01',27],
-    ['アースコム開発合同会社','丸林 信宏','三郷第二発電所','埼玉県','三郷市',49.5,49.5,'2019-03-15',14],
-    ['株式会社北関東エナジー','高橋 誠','前橋飯土井発電所','群馬県','前橋市',620,500,'2013-12-01',36],
-    ['株式会社北関東エナジー','高橋 誠','太田西発電所','群馬県','太田市',330,250,'2016-06-10',24],
-    ['株式会社北関東エナジー','高橋 誠','伊勢崎第三発電所','群馬県','伊勢崎市',99,75,'2020-10-05',12],
-    ['東北アセットソーラー株式会社','狐塚 健','郡山南発電所','福島県','郡山市',1250,1000,'2014-03-28',32],
-    ['東北アセットソーラー株式会社','狐塚 健','いわき勿来発電所','福島県','いわき市',760,600,'2015-01-15',27],
-    ['株式会社村田電興','村田 亮','水戸内原発電所','茨城県','水戸市',420,350,'2017-09-01',21],
-    ['株式会社村田電興','村田 亮','土浦第一発電所','茨城県','土浦市',88,50,'2013-06-20',36],
-    ['湘南グリーンパワー株式会社','奥田 直人','平塚発電所','神奈川県','平塚市',260,200,'2018-04-02',18],
-    ['湘南グリーンパワー株式会社','奥田 直人','小田原曽我発電所','神奈川県','小田原市',1100,900,'2014-08-08',32]
+    ['アースコム開発合同会社','丸林 信宏','越谷第一発電所','埼玉県','越谷市',540,440,'2013-03-11','2014-11-20'],
+    ['アースコム開発合同会社','丸林 信宏','春日部ソーラー','埼玉県','春日部市',1980,1500,'2015-05-20','2016-08-01'],
+    ['アースコム開発合同会社','丸林 信宏','三郷第二発電所','埼玉県','三郷市',49.5,49.5,'2018-09-03','2019-03-15'],
+    ['株式会社北関東エナジー','高橋 誠','前橋飯土井発電所','群馬県','前橋市',620,500,'2013-08-19','2014-12-01'],
+    ['株式会社北関東エナジー','高橋 誠','太田西発電所','群馬県','太田市',330,250,'2016-06-10','2017-06-10'],
+    ['株式会社北関東エナジー','高橋 誠','伊勢崎第三発電所','群馬県','伊勢崎市',99,75,'2020-04-15','2021-10-05'],
+    ['東北アセットソーラー株式会社','狐塚 健','郡山南発電所','福島県','郡山市',1250,1000,'2013-02-14','2014-03-28'],
+    ['東北アセットソーラー株式会社','狐塚 健','いわき勿来発電所','福島県','いわき市',760,600,'2015-09-01','2016-01-15'],
+    ['株式会社村田電興','村田 亮','水戸内原発電所','茨城県','水戸市',420,350,'2017-05-22','2018-09-01'],
+    ['株式会社村田電興','村田 亮','土浦第一発電所','茨城県','土浦市',88,50,'2013-06-20','2014-06-20'],
+    ['湘南グリーンパワー株式会社','奥田 直人','平塚発電所','神奈川県','平塚市',260,200,'2018-04-02','2019-04-02'],
+    ['湘南グリーンパワー株式会社','奥田 直人','小田原曽我発電所','神奈川県','小田原市',1100,900,'2014-08-08','2015-10-08']
   ].map((r,i)=>({
     id:'demo_'+i, company:r[0], rep:r[1], plantName:r[2], pref:r[3], city:r[4],
-    panelKw:r[5], pcsKw:r[6], startDate:new Date(r[7]).toISOString(), fitPrice:r[8], certYear:null,
+    panelKw:r[5], pcsKw:r[6],
+    certDate:new Date(r[7]).toISOString(), certYear:null,
+    startDate:new Date(r[8]).toISOString(), fitPrice:null,
     companyKey: norm(r[0])+'#'+norm(r[1]), searchKey: norm(r[0]+r[1]+r[2])
   }));
   await DB.putMany(d);
@@ -997,11 +1083,14 @@ function buildConfigUI(){
   document.getElementById('cfgPref').innerHTML = PREFS.map(p=>
     `<label class="f">${p}<input type="number" step="0.1" data-pref="${p}" value="${CFG.prefUtil[p]??''}" placeholder="${CFG.baseUtil}"></label>`).join('');
   const years = Object.keys(CFG.fitTable).map(Number).sort((a,b)=>a-b);
-  document.getElementById('cfgFit').innerHTML = years.map(y=>
-    `<label class="f">${y}年度
-      <input type="number" step="0.1" data-fit="${y}" value="${CFG.fitTable[y]}">
-      <span style="font-weight:400;font-size:11px">50kW以上　／　10〜50kW</span>
-      <input type="number" step="0.1" data-fitlow="${y}" value="${CFG.fitTableLow[y]}"></label>`).join('');
+  const cell = (attr,y,v)=>`<input type="number" step="0.1" ${attr}="${y}" value="${v}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-weight:700;text-align:right">`;
+  document.getElementById('cfgFit').innerHTML =
+    `<table class="map"><thead><tr><th style="width:34%">認定年度</th><th>10〜50kW</th><th>50kW以上</th></tr></thead><tbody>` +
+    years.map(y=>`<tr><td>${y}年度</td>
+      <td>${cell('data-fit-low',y,CFG.fitTable[y].low)}</td>
+      <td>${cell('data-fit-mid',y,CFG.fitTable[y].mid)}</td></tr>`).join('') +
+    `<tr><td>うち2015年6月30日まで</td><td colspan="2">${cell('data-fit-h1','2015',CFG.fit2015H1)}</td></tr>` +
+    `</tbody></table>`;
 }
 document.getElementById('saveCfg').onclick = ()=>{
   document.querySelectorAll('[data-cfg]').forEach(el=>{
@@ -1009,8 +1098,9 @@ document.getElementById('saveCfg').onclick = ()=>{
   });
   CFG.prefUtil = {};
   document.querySelectorAll('[data-pref]').forEach(el=>{ if(el.value!=='') CFG.prefUtil[el.dataset.pref] = parseFloat(el.value); });
-  document.querySelectorAll('[data-fit]').forEach(el=>{ CFG.fitTable[el.dataset.fit] = parseFloat(el.value); });
-  document.querySelectorAll('[data-fitlow]').forEach(el=>{ CFG.fitTableLow[el.dataset.fitlow] = parseFloat(el.value); });
+  document.querySelectorAll('[data-fit-low]').forEach(el=>{ CFG.fitTable[el.dataset.fitLow].low = parseFloat(el.value); });
+  document.querySelectorAll('[data-fit-mid]').forEach(el=>{ CFG.fitTable[el.dataset.fitMid].mid = parseFloat(el.value); });
+  const h1 = document.querySelector('[data-fit-h1]'); if(h1) CFG.fit2015H1 = parseFloat(h1.value);
   saveCfg(); renderLegend(); toast('設定を保存しました');
 };
 document.getElementById('resetCfg').onclick = ()=>{
@@ -1048,6 +1138,15 @@ function buildManual(){
       【中】${CFG.judgeMid}〜${CFG.judgeHigh}年。条件を詰めれば十分成立します。<br>
       【低】${CFG.judgeLow}〜${CFG.judgeMid}年。工事内容を絞る前提での提案になります。<br>
       【不】${CFG.judgeLow}年未満。ReFort単体では適さず、セカンダリー売却など別の切り口を検討します。`],
+    ['FIT単価はどう決まるか',
+     `単価は<b>認定日の年度</b>で決まります。年度は4月始まりです。<br>
+      たとえば<b>2013年3月認定は2012年度扱いで40円</b>、2013年4月認定は2013年度で36円になります。西暦の年で見ると間違えるので注意してください。<br>
+      アプリは次の順番で単価を決めています。<br>
+      1. 詳細画面で手入力した単価<br>
+      2. データの調達価格の列（5〜60円の範囲に入っている場合のみ）<br>
+      3. 認定日から年度を判定して単価表を引く<br>
+      4. 認定日が無い場合のみ、運転開始日から推定（詳細画面に注意が出ます）<br>
+      表示された単価が実際と違うときは、詳細画面の入力欄に正しい単価を入れて「この単価で計算」を押してください。その場で試算し直します。`],
     ['データの入れ方',
      `「データ」タブから、都道府県ごとの計算書リスト（CSVまたはExcel）を取り込みます。<br>
       取り込む前に列の対応を確認する画面が出ます。自動で推定していますが、必ず目視で確認してください。<br>
