@@ -245,8 +245,10 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn ghost" id="loadDemo">サンプルデータを入れる</button>
+        <button class="btn ghost" id="swapAll">登録済み全件のパネルと交流を入れ替える</button>
         <button class="btn danger" id="clearDb">全データを削除</button>
       </div>
+      <p class="note" style="margin-top:10px">パネル出力＝「太陽電池の合計出力（kW）」、交流出力＝「発電出力（kW）」です。過積載率が1を下回る発電所が多い場合は、列が逆に取り込まれています。</p>
     </div>
 
     <div class="panel">
@@ -259,10 +261,12 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
       <p class="note" style="margin-top:12px">都道府県ごとのファイルを1つずつ取り込めます。取り込むたびに追加され、同じ発電所は上書きされます。</p>
       <div id="mapWrap" hidden style="margin-top:18px">
         <h3 id="mapFileName"></h3>
-        <p class="note">列の対応を確認してください。自動で推定した内容が入っています。</p>
+        <p class="note">列の対応を確認してください。自動で推定した内容が入っています。パネル出力は「太陽電池の合計出力（kW）」、交流出力は「発電出力（kW）」です。</p>
+        <div class="warn" id="mapDup" hidden></div>
         <table class="map"><thead><tr><th style="width:38%">アプリの項目</th><th>ファイルの列</th></tr></thead><tbody id="mapRows"></tbody></table>
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
           <button class="btn" id="doImport">この対応で取り込む</button>
+          <button class="btn ghost" id="swapCols">パネルと交流を入れ替える</button>
           <button class="btn ghost" id="cancelImport">やめる</button>
         </div>
         <p class="note" id="mapPreview" style="margin-top:12px"></p>
@@ -325,8 +329,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "v2026.09.09";
+const APP_VERSION = "v2026.09.10";
 const CHANGELOG = [
+  ["v2026.09.10","パネル出力と交流出力の参照元を修正。パネル出力＝太陽電池の合計出力、交流出力＝発電出力。列の自動推定を完全一致優先にし、同じ列が両方に割り当たらないようにした。逆に取り込まれている場合の検知と一括入れ替えを追加。"],
   ["v2026.09.09","FIT単価の判定を修正。認定日から年度（4月始まり）を判定して単価表を引く方式に変更。年をそのまま単価として扱ってしまう不具合を修正。単価表を10〜50kW／50kW以上の2区分＋2015年度前期に対応。詳細画面で単価の手入力上書きを追加。"],
   ["v2026.09.08","初版。検索・一覧・詳細の3画面、CSV/Excel取込、計算パラメータ編集、Chatwork貼り付け用コピーを実装。"]
 ];
@@ -503,6 +508,9 @@ function calc(p){
   const base = (c.prefUtil[p.pref] ?? c.baseUtil);
   out.baseUtil = base;
   out.overload = out.panelKw / out.pcsKw;
+  if(out.overload < 1){
+    out.notes.push('パネル出力が交流出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
+  }
   let util = base;
   if(out.overload > c.overloadStart){
     util = base * (1 + (out.overload - c.overloadStart) * c.overloadCoef);
@@ -808,9 +816,9 @@ function currentPanel(p,r){
   return `<div class="panel">
     <h3>現状データ</h3>
     <table class="calc">
-      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}</td></tr>
-      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}</td></tr>
-      <tr><td class="k">過積載率</td><td class="v num">${r.overload?f2(r.overload):'—'}</td></tr>
+      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力</em></td></tr>
+      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力</em></td></tr>
+      <tr><td class="k">過積載率</td><td class="v num">${r.overload?f2(r.overload):'—'}<em>パネル出力 ÷ 交流出力</em></td></tr>
       <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載で調整`:`${p.pref||'全国'}の基準値`}</em></td></tr>
       <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年</td></tr>
       <tr><td class="k">認定日</td><td class="v">${r.certDate?fmtDate(r.certDate):'—'}</td></tr>
@@ -888,8 +896,8 @@ const FIELDS = [
   ['plantName','発電所名',['発電所名','設備名','案件名','物件名','設備の名称']],
   ['pref','都道府県',['都道府県','県名']],
   ['city','市区町村・所在地',['市区町村','所在地','住所','設備所在地']],
-  ['panelKw','パネル出力(kW)',['太陽電池','パネル出力','モジュール','太陽光パネル']],
-  ['pcsKw','交流出力(kW)',['交流','pcs','パワコン','発電出力','設備出力','出力']],
+  ['panelKw','パネル出力(kW)　＝ 太陽電池の合計出力',['太陽電池の合計出力','太陽電池合計出力','太陽電池','パネル出力','モジュール出力','太陽光パネル出力']],
+  ['pcsKw','交流出力(kW)　＝ 発電出力（PCS）',['発電出力','交流出力','pcs出力','パワーコンディショナ出力','パワコン出力','pcs']],
   ['certDate','認定日（FIT単価の判定に使用）',['認定日','設備認定日','認定取得日','認定年月日','新規認定日']],
   ['certYear','認定年度（認定日が無い場合）',['認定年度']],
   ['startDate','運転開始日（残FIT年数に使用）',['運転開始','供給開始','連系日']],
@@ -955,33 +963,65 @@ function parseCSV(text){
   if(cell||row.length){ row.push(cell); rows.push(row); }
   return rows.filter(r=>r.some(c=>String(c).trim()!==''));
 }
-function guessCol(header, keys){
+// 完全一致を最優先し、次に部分一致。すでに他の項目が取った列は選ばない
+function guessCol(header, keys, taken){
+  taken = taken || [];
+  const H = header.map(h=>norm(h));
   for(const k of keys){
-    const i = header.findIndex(h=>norm(h).includes(norm(k)));
+    const nk = norm(k);
+    const i = H.findIndex((h,idx)=> h===nk && !taken.includes(idx));
+    if(i>=0) return i;
+  }
+  for(const k of keys){
+    const nk = norm(k);
+    const i = H.findIndex((h,idx)=> h.includes(nk) && !taken.includes(idx));
     if(i>=0) return i;
   }
   return -1;
 }
 function buildMapUI(){
   document.getElementById('mapFileName').textContent = IMP.name;
+  const taken = [];
   document.getElementById('mapRows').innerHTML = FIELDS.map(([key,label,keys])=>{
-    const g = guessCol(IMP.header, keys);
+    const g = guessCol(IMP.header, keys, taken);
+    if(g>=0) taken.push(g);
     return `<tr><td>${label}</td><td><select data-f="${key}">
       <option value="-1">（使わない）</option>
       ${IMP.header.map((h,i)=>`<option value="${i}" ${i===g?'selected':''}>${esc(h||('列'+(i+1)))}</option>`).join('')}
     </select></td></tr>`;
   }).join('');
+  document.getElementById('mapRows').querySelectorAll('select').forEach(s=> s.onchange = checkMap);
   document.getElementById('mapPreview').textContent = `${IMP.rows.length.toLocaleString()}行を読み込みました。`;
   document.getElementById('mapWrap').hidden = false;
+  checkMap();
   document.getElementById('mapWrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
+function selOf(f){ return document.querySelector(`#mapRows select[data-f="${f}"]`); }
+function checkMap(){
+  const used = {}, dup = [];
+  document.querySelectorAll('#mapRows select').forEach(s=>{
+    const v = s.value; if(v==='-1') return;
+    if(used[v]) dup.push(IMP.header[+v]||('列'+(+v+1)));
+    used[v] = true;
+  });
+  const w = document.getElementById('mapDup');
+  w.innerHTML = dup.length
+    ? `同じ列を複数の項目に割り当てています：${dup.map(esc).join('、')}。どちらかを選び直してください。`
+    : '';
+  w.hidden = !dup.length;
+}
+document.getElementById('swapCols').onclick = ()=>{
+  const a = selOf('panelKw'), b = selOf('pcsKw');
+  const t = a.value; a.value = b.value; b.value = t;
+  checkMap(); toast('パネル出力と交流出力を入れ替えました');
+};
 document.getElementById('cancelImport').onclick = ()=>{ IMP=null; document.getElementById('mapWrap').hidden=true; };
 document.getElementById('doImport').onclick = async ()=>{
   const m = {};
   document.querySelectorAll('#mapRows select').forEach(s=>{ m[s.dataset.f] = +s.value; });
   if(m.company < 0){ toast('企業名の列を選んでください'); return; }
   const get = (r,f)=> m[f]>=0 ? r[m[f]] : null;
-  const out = []; let badFit = 0;
+  const out = []; let badFit = 0, both = 0, reversed = 0;
   IMP.rows.forEach((r,idx)=>{
     const company = String(get(r,'company')||'').trim();
     if(!company) return;
@@ -999,8 +1039,7 @@ document.getElementById('doImport').onclick = async ()=>{
       company, rep, plantName, pref,
       city: city.replace(pref,''),
       panelKw: num(get(r,'panelKw')),
-      pcsKw: num(get(r,'pcsKw')),
-      certDate: cd ? cd.toISOString() : null,
+      pcsKw: num(get(r,'pcsKw')),      certDate: cd ? cd.toISOString() : null,
       certYear: cy!=null && cy!=='' ? (String(cy).replace(/\D/g,'').length<=4 ? num(cy) : fiscalYear(cy)) : null,
       startDate: parseDate(get(r,'startDate')) ? parseDate(get(r,'startDate')).toISOString() : null,
       fitPrice: fp,
@@ -1008,8 +1047,17 @@ document.getElementById('doImport').onclick = async ()=>{
       searchKey: norm(company+rep+plantName)
     };
     out.push(p);
+    if(p.panelKw && p.pcsKw){ both++; if(p.panelKw < p.pcsKw) reversed++; }
   });
   if(!out.length){ toast('取り込める行がありませんでした'); return; }
+  if(both >= 5 && reversed / both > 0.5){
+    const ok = confirm(
+      `パネル出力より交流出力のほうが大きい行が ${reversed.toLocaleString()}/${both.toLocaleString()}件あります。\n\n`+
+      `パネル出力と交流出力の列が逆になっている可能性が高いです。\n`+
+      `パネル出力＝太陽電池の合計出力（kW）、交流出力＝発電出力（kW）です。\n\n`+
+      `OKを押すと2つを入れ替えて取り込みます。キャンセルするとこのまま取り込みます。`);
+    if(ok) out.forEach(p=>{ const t = p.panelKw; p.panelKw = p.pcsKw; p.pcsKw = t; });
+  }
   await DB.putMany(out);
   await DB.setMeta('lastImport', new Date().toLocaleString('ja-JP'));
   PLANTS = await DB.all();
@@ -1022,6 +1070,14 @@ document.getElementById('doImport').onclick = async ()=>{
 };
 function hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h).toString(36); }
 
+document.getElementById('swapAll').onclick = async ()=>{
+  if(!PLANTS.length){ toast('データがありません'); return; }
+  if(!confirm('登録済み全件のパネル出力と交流出力を入れ替えます。よろしいですか。')) return;
+  const rows = PLANTS.map(p=>Object.assign({}, p, {panelKw:p.pcsKw, pcsKw:p.panelKw}));
+  await DB.putMany(rows);
+  PLANTS = await DB.all(); refreshCounts();
+  toast(`${rows.length.toLocaleString()}件を入れ替えました`);
+};
 document.getElementById('clearDb').onclick = async ()=>{
   if(!confirm('登録済みの発電所データをすべて削除します。よろしいですか。')) return;
   await DB.clear(); PLANTS=[]; refreshCounts(); boot(); toast('削除しました');
@@ -1147,6 +1203,11 @@ function buildManual(){
       3. 認定日から年度を判定して単価表を引く<br>
       4. 認定日が無い場合のみ、運転開始日から推定（詳細画面に注意が出ます）<br>
       表示された単価が実際と違うときは、詳細画面の入力欄に正しい単価を入れて「この単価で計算」を押してください。その場で試算し直します。`],
+    ['パネル出力と交流出力の違い',
+     `<b>パネル出力＝太陽電池の合計出力（kW）</b>。パネルの合計です。工事費用の計算に使います。<br>
+      <b>交流出力＝発電出力（kW）</b>。PCSの出力です。発電量の計算に使います。<br>
+      過積載率 ＝ パネル出力 ÷ 交流出力 なので、通常は1以上になります。<br>
+      詳細画面で過積載率が1を下回っている場合は、取り込んだ列が逆になっています。「データ」タブの【登録済み全件のパネルと交流を入れ替える】で直せます。`],
     ['データの入れ方',
      `「データ」タブから、都道府県ごとの計算書リスト（CSVまたはExcel）を取り込みます。<br>
       取り込む前に列の対応を確認する画面が出ます。自動で推定していますが、必ず目視で確認してください。<br>
