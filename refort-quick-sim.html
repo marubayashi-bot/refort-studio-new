@@ -236,6 +236,7 @@ table.map{width:100%;border-collapse:collapse;font-size:13px}
 table.map th{text-align:left;color:var(--muted);font-weight:700;padding:8px 6px;border-bottom:1px solid var(--line)}
 table.map td{padding:7px 6px;border-bottom:1px solid var(--paper)}
 table.map select{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--white)}
+.samp{font-size:11px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
 .note{font-size:13px;color:var(--muted);line-height:1.8}
 details.manual{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;margin-bottom:10px}
 details.manual summary{font-weight:700;font-size:15px;cursor:pointer}
@@ -376,6 +377,8 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
         <button class="btn ghost" id="swapAll">登録済み全件のパネルと交流を入れ替える</button>
         <button class="btn danger" id="clearDb">全データを削除</button>
       </div>
+      <div id="diag" class="note" style="margin:14px 0 0"></div>
+      <div id="srcCols" class="note" style="margin:14px 0 0"></div>
       <p class="note" style="margin-top:10px">パネル出力＝「太陽電池の合計出力（kW）」、交流出力＝「発電出力（kW）」です。過積載率が1を下回る発電所が多い場合は、列が逆に取り込まれています。</p>
     </div>
 
@@ -416,7 +419,7 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
       <div class="grid2" id="cfgGen"></div>
       <p class="formula">現状年間発電量 ＝ 交流出力(kW) × 8,760時間 × 適用設備利用率。<br>
       過積載率が閾値を超えた分だけ、逓減係数をかけて設備利用率を上げ、上限値で頭打ちにします。<br>
-      交流出力がデータに無い場合は「パネル出力 ÷ 想定過積載率」で代用します。</p>
+      発電出力（kW）PCS が未登録の発電所は、推定値を作らず「算出不可」として扱います。</p>
     </div>
 
     <div class="panel">
@@ -464,8 +467,10 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.11c";
+const APP_VERSION = "ver.2026.09.12";
 const CHANGELOG = [
+  ["ver.2026.09.12","見出し行の自動判定を追加（表題行があるシートに対応）。PCS列が未選択・空のまま取り込めないよう検証を追加。データタブに取り込み状態の診断、詳細画面に元データ確認を追加。"],
+  ["ver.2026.09.11d","似た列名が併存する統合シートで、パネル出力とPCS出力が別の列から取得されていた不具合を修正。列推定を最も具体的な見出しを選ぶ方式に変更し、÷1.3の推定処理を全廃。取込画面にサンプル値表示、データタブに取り込み時の列対応の確認欄を追加。"],
   ["ver.2026.09.11c","過積載率が1.30固定になる不具合を修正。欠けている出力を1.3倍で補完していたのをやめ、太陽電池の合計出力と発電出力の実データが揃っている場合のみ過積載率を算出するよう変更。発電量は発電出力（PCS）基準、工事費用は太陽電池の合計出力基準（無い場合はPCS）に明確化。"],
   ["ver.2026.09.11b","ヘッダーとフッターにアースコムのロゴを追加。earthcom-logo.png を同じ場所に置いてください。"],
   ["ver.2026.09.11","試算タブのトップ画面をヒーローレイアウトに刷新。判定バッジを絞り込みフィルターとして機能するように変更。背景画像 refort-hero.jpg を同じ場所に置いてください。"],
@@ -498,7 +503,6 @@ const DEFAULT_CFG = {
   overloadStart: 1.2,     // 調整開始の過積載率
   overloadCoef: 0.5,      // 逓減係数
   utilCap: 18,            // 適用設備利用率の上限 %
-  assumedOverload: 1.3,   // 発電出力が未登録のときだけ使う（過積載率の表示には使わない）
   judgeHigh: 7,           // 余剰年数 これ以上で「高」
   judgeMid: 4,
   judgeLow: 1,
@@ -630,24 +634,23 @@ function fitFromTable(year, kw, certDate){
 function calc(p){
   const c = CFG, out = { notes:[] };
 
-  // 出力（実データを優先。欠けている場合だけ推定し、推定であることを持ち回る）
-  const realPanel = p.panelKw || null;   // 太陽電池の合計出力
-  const realPcs   = p.pcsKw   || null;   // 発電出力（PCS）
+  // 出力：元データの値をそのまま使う。推定値は作らない。
+  const realPanel = (p.panelKw > 0) ? p.panelKw : null;   // 太陽電池の合計出力（kW）パネル
+  const realPcs   = (p.pcsKw   > 0) ? p.pcsKw   : null;   // 発電出力（kW）PCS
   out.panelKw = realPanel;
   out.pcsKw   = realPcs;
-  out.panelEst = false; out.pcsEst = false;
 
-  if(!realPcs && realPanel){
-    out.pcsKw = realPanel / c.assumedOverload; out.pcsEst = true;
-    out.notes.push(`発電出力（PCS）が未登録のため、太陽電池の合計出力 ÷ ${c.assumedOverload} で仮置きしています。発電量は目安です。`);
+  if(!realPcs){
+    out.overload = null;
+    out.error = '発電出力（kW）PCS が登録されていないため、発電量以降を算出できません。データタブで該当列が取り込まれているか確認してください。';
+    return out;
   }
-  if(!realPanel && realPcs){
-    out.notes.push('太陽電池の合計出力が未登録のため、過積載率は算出できません。工事費用は発電出力（PCS）を基準に概算しています。');
+  if(!realPanel){
+    out.notes.push('太陽電池の合計出力（kW）パネル が未登録のため、過積載率は算出できません。工事費用は発電出力（PCS）を基準に概算しています。');
   }
-  if(!out.pcsKw){ out.error = "発電出力（PCS）も太陽電池の合計出力も登録されていないため試算できません"; return out; }
 
-  // 過積載率は、実データが両方そろっているときだけ算出する
-  out.overload = (realPanel && realPcs) ? (realPanel / realPcs) : null;
+  // 過積載率 ＝ 太陽電池の合計出力 ÷ 発電出力（実データのみ）
+  out.overload = realPanel ? (realPanel / realPcs) : null;
   if(out.overload != null && out.overload < 1){
     out.notes.push('太陽電池の合計出力が発電出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
   }
@@ -744,10 +747,17 @@ function toast(msg){
 /* ---------- 状態 ---------- */
 let PLANTS = [];
 let CUR = { companyKey:null, list:[], sort:'surplus', plant:null };
+let SRC = null;
+function srcName(label){
+  if(!SRC) return '（記録なし）';
+  const hit = SRC.find(x=>x[0]===label);
+  return hit ? hit[1] : '（記録なし）';
+}
 const FILTER = new Set();
 
 async function boot(){
   PLANTS = await DB.all();
+  SRC = await DB.getMeta('srcCols');
   refreshCounts();
   renderLegend();
   renderRecent();
@@ -762,6 +772,28 @@ function refreshCounts(){
   document.getElementById('cntCompanies').textContent = comps.size.toLocaleString();
   document.getElementById('dbStatus').textContent =
     PLANTS.length ? `${PLANTS.length.toLocaleString()}件 / ${comps.size.toLocaleString()}社` : 'データ未登録';  DB.getMeta('lastImport').then(v=>{ document.getElementById('lastImport').textContent = v || '—'; });
+  (function(){
+    const el = document.getElementById('diag');
+    if(!el || !PLANTS.length) return;
+    const pcs = PLANTS.filter(p=>p.pcsKw>0).length;
+    const panel = PLANTS.filter(p=>p.panelKw>0).length;
+    const ng = PLANTS.length - pcs;
+    el.innerHTML =
+      '<b>取り込み済みデータの状態</b><table class="map"><tbody>' +
+      `<tr><td style="width:52%">発電出力（kW）PCS が入っている</td><td>${pcs.toLocaleString()} / ${PLANTS.length.toLocaleString()}件</td></tr>` +
+      `<tr><td>太陽電池の合計出力（kW）パネル が入っている</td><td>${panel.toLocaleString()} / ${PLANTS.length.toLocaleString()}件</td></tr>` +
+      '</tbody></table>' +
+      (ng ? `<div class="warn" style="margin-top:10px">PCSが空の発電所が${ng.toLocaleString()}件あります。この発電所は「算出不可」と表示されます。取込時の列選択を見直してください。</div>` : '');
+  })();
+  DB.getMeta('srcCols').then(v=>{
+    const el = document.getElementById('srcCols');
+    if(!el) return;
+    el.innerHTML = v && v.length
+      ? '<b>取り込み時の列対応</b><table class="map"><tbody>' +
+        v.map(([a,b])=>`<tr><td style="width:44%">${esc(a)}</td><td>${esc(b)}</td></tr>`).join('') +
+        '</tbody></table>'
+      : '';
+  });
 }
 function renderLegend(){
   const c = CFG;
@@ -983,8 +1015,8 @@ function currentPanel(p,r){
   return `<div class="panel">
     <h3>現状データ</h3>
     <table class="calc">
-      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力${r.panelKw?'':'（データなし）'}</em></td></tr>
-      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力${r.pcsEst?'（推定値）':''}</em></td></tr>
+      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力（kW）パネル${r.panelKw?'':'（データなし）'}</em></td></tr>
+      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力（kW）PCS</em></td></tr>
       <tr><td class="k">過積載率</td><td class="v num">${r.overload!=null?f2(r.overload):'—'}<em>${r.overload!=null?'太陽電池の合計出力 ÷ 発電出力':'両方のデータが揃うと算出します'}</em></td></tr>
       <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載${f2(r.overload)}で調整`:`${p.pref||'全国'}の基準値（過積載の調整なし）`}</em></td></tr>
       <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年<em>発電出力（PCS）${f1(r.pcsKw)}kW × 8,760h × ${f1(r.util)}%</em></td></tr>
@@ -994,6 +1026,16 @@ function currentPanel(p,r){
       <tr><td class="k">運転開始日</td><td class="v">${p.startDate?fmtDate(p.startDate):'—'}</td></tr>
       <tr><td class="k">現状の年間売電収入</td><td class="v num">${r.fit?yen(r.genKwh*r.fit)+' 円/年':'—'}</td></tr>
     </table>
+    <details style="margin-top:12px">
+      <summary style="font-size:13px;color:var(--muted);cursor:pointer">元データを確認する</summary>
+      <table class="calc" style="margin-top:8px">
+        <tr><td class="k">保存されているPCS出力</td><td class="v num">${p.pcsKw!=null&&p.pcsKw!==''?p.pcsKw:'（空）'}</td></tr>
+        <tr><td class="k">保存されているパネル出力</td><td class="v num">${p.panelKw!=null&&p.panelKw!==''?p.panelKw:'（空）'}</td></tr>
+        <tr><td class="k">取込時のPCS列</td><td class="v">${esc(srcName('交流出力(kW)'))}</td></tr>
+        <tr><td class="k">取込時のパネル列</td><td class="v">${esc(srcName('パネル出力(kW)'))}</td></tr>
+        <tr><td class="k">アプリのバージョン</td><td class="v">${APP_VERSION}</td></tr>
+      </table>
+    </details>
     <div class="formula">
       FIT単価は認定日の年度（4月始まり）で決まります。たとえば2013年3月認定は<b>2012年度＝40円</b>です。<br>
       表示が実際と違う場合は、ここで単価を直して試算をやり直してください。
@@ -1064,8 +1106,8 @@ const FIELDS = [
   ['plantName','発電所名',['発電所名','設備名','案件名','物件名','設備の名称']],
   ['pref','都道府県',['都道府県','県名']],
   ['city','市区町村・所在地',['市区町村','所在地','住所','設備所在地']],
-  ['panelKw','パネル出力(kW)　＝ 太陽電池の合計出力',['太陽電池の合計出力','太陽電池合計出力','太陽電池','パネル出力','モジュール出力','太陽光パネル出力']],
-  ['pcsKw','交流出力(kW)　＝ 発電出力（PCS）',['発電出力','交流出力','pcs出力','パワーコンディショナ出力','パワコン出力','pcs']],
+  ['panelKw','パネル出力(kW)　＝ 太陽電池の合計出力（kW）パネル',['太陽電池の合計出力（kW）パネル','太陽電池の合計出力(kw)パネル','太陽電池の合計出力パネル','パネル出力','太陽電池の合計出力','太陽電池合計出力','太陽電池','モジュール出力']],
+  ['pcsKw','交流出力(kW)　＝ 発電出力（kW）PCS',['発電出力（kW）PCS','発電出力(kw)pcs','発電出力pcs','pcs出力','交流出力','パワーコンディショナ出力','パワコン出力','発電出力','pcs']],
   ['certDate','認定日（FIT単価の判定に使用）',['認定日','設備認定日','認定取得日','認定年月日','新規認定日']],
   ['certYear','認定年度（認定日が無い場合）',['認定年度']],
   ['startDate','運転開始日（残FIT年数に使用）',['運転開始','供給開始','連系日']],
@@ -1080,13 +1122,28 @@ const drop = document.getElementById('drop');
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot')}));
 drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
 
+// 先頭に表題行や空行があるシートに備え、見出しらしい行を自動で選ぶ
+function detectHeaderRow(rows){
+  let best = 0, bestScore = -1;
+  for(let i=0; i<Math.min(6, rows.length); i++){
+    const cells = rows[i].map(c=>String(c==null?'':c).trim());
+    const filled = cells.filter(c=>c!=='').length;
+    const uniq = new Set(cells.filter(c=>c!=='')).size;
+    // 数値だらけの行は見出しではない
+    const numeric = cells.filter(c=>c!=='' && /^[\d.,\-]+$/.test(c)).length;
+    const score = uniq + filled - numeric*3;
+    if(score > bestScore){ bestScore = score; best = i; }
+  }
+  return best;
+}
 async function readFile(file){
   try{
     let rows;
     if(/\.xlsx?$/i.test(file.name)) rows = await readExcel(file);
     else rows = parseCSV(await file.text());
     if(!rows || rows.length < 2){ toast('データが読み取れませんでした'); return; }
-    IMP = { name:file.name, header:rows[0].map(h=>String(h||'').trim()), rows:rows.slice(1) };
+    const hr = detectHeaderRow(rows);
+    IMP = { name:file.name, headerRow:hr, header:rows[hr].map(h=>String(h||'').trim()), rows:rows.slice(hr+1) };
     buildMapUI();
   }catch(err){ toast('読み込みに失敗しました：'+err.message); }
 }
@@ -1131,21 +1188,35 @@ function parseCSV(text){
   if(cell||row.length){ row.push(cell); rows.push(row); }
   return rows.filter(r=>r.some(c=>String(c).trim()!==''));
 }
-// 完全一致を最優先し、次に部分一致。すでに他の項目が取った列は選ばない
+// 列の推定：①完全一致 ②末尾一致 ③部分一致。同じキーに複数該当したら、
+// より具体的な（見出しが長すぎない＝余計な語が少ない）列を選ぶ。使用済みの列は選ばない。
 function guessCol(header, keys, taken){
   taken = taken || [];
   const H = header.map(h=>norm(h));
-  for(const k of keys){
-    const nk = norm(k);
-    const i = H.findIndex((h,idx)=> h===nk && !taken.includes(idx));
-    if(i>=0) return i;
+  const pick = (test)=>{
+    let best = -1, bestLen = Infinity;
+    for(const k of keys){
+      const nk = norm(k);
+      H.forEach((h,idx)=>{
+        if(taken.includes(idx) || !h) return;
+        if(!test(h,nk)) return;
+        if(h.length < bestLen){ best = idx; bestLen = h.length; }
+      });
+      if(best >= 0) return best;   // 優先順位の高いキーで見つかった時点で確定
+    }
+    return -1;
+  };
+  let i = pick((h,k)=> h===k);            if(i>=0) return i;
+  i = pick((h,k)=> h.endsWith(k));        if(i>=0) return i;
+  i = pick((h,k)=> h.includes(k));        return i;
+}
+function sampleOf(idx){
+  if(idx<0) return '';
+  for(const r of IMP.rows.slice(0,50)){
+    const v = r[idx];
+    if(v!=null && String(v).trim()!=='') return String(v).trim().slice(0,24);
   }
-  for(const k of keys){
-    const nk = norm(k);
-    const i = H.findIndex((h,idx)=> h.includes(nk) && !taken.includes(idx));
-    if(i>=0) return i;
-  }
-  return -1;
+  return '（この列は空です）';
 }
 function buildMapUI(){
   document.getElementById('mapFileName').textContent = IMP.name;
@@ -1156,7 +1227,7 @@ function buildMapUI(){
     return `<tr><td>${label}</td><td><select data-f="${key}">
       <option value="-1">（使わない）</option>
       ${IMP.header.map((h,i)=>`<option value="${i}" ${i===g?'selected':''}>${esc(h||('列'+(i+1)))}</option>`).join('')}
-    </select></td></tr>`;
+    </select><div class="samp" data-samp="${key}"></div></td></tr>`;
   }).join('');
   document.getElementById('mapRows').querySelectorAll('select').forEach(s=> s.onchange = checkMap);
   document.getElementById('mapPreview').textContent = `${IMP.rows.length.toLocaleString()}行を読み込みました。`;
@@ -1168,7 +1239,10 @@ function selOf(f){ return document.querySelector(`#mapRows select[data-f="${f}"]
 function checkMap(){
   const used = {}, dup = [];
   document.querySelectorAll('#mapRows select').forEach(s=>{
-    const v = s.value; if(v==='-1') return;
+    const v = s.value;
+    const samp = document.querySelector(`[data-samp="${s.dataset.f}"]`);
+    if(samp) samp.textContent = v==='-1' ? '' : `例：${sampleOf(+v)}`;
+    if(v==='-1') return;
     if(used[v]) dup.push(IMP.header[+v]||('列'+(+v+1)));
     used[v] = true;
   });
@@ -1218,6 +1292,21 @@ document.getElementById('doImport').onclick = async ()=>{
     if(p.panelKw && p.pcsKw){ both++; if(p.panelKw < p.pcsKw) reversed++; }
   });
   if(!out.length){ toast('取り込める行がありませんでした'); return; }
+
+  // 発電出力（PCS）が実際に取得できているかを取込前に検証する
+  const pcsFilled = out.filter(p=>p.pcsKw > 0).length;
+  const panelFilled = out.filter(p=>p.panelKw > 0).length;
+  if(m.pcsKw < 0){
+    alert('「発電出力（kW）PCS」の列が選ばれていません。\n\nこの列が無いと発電量・売電収入を計算できません。列の対応で選び直してください。');
+    return;
+  }
+  if(pcsFilled === 0){
+    alert(`選択した「発電出力（kW）PCS」の列は、全${out.length.toLocaleString()}件すべてが空でした。\n\n選んだ列：${IMP.header[m.pcsKw]}\n\n別の列を選び直してください。似た名前の列が複数ある場合は、列名の右に出る「例：」のサンプル値で中身を確認できます。`);
+    return;
+  }
+  if(pcsFilled / out.length < 0.5){
+    if(!confirm(`「発電出力（kW）PCS」の値が入っているのは ${pcsFilled.toLocaleString()}/${out.length.toLocaleString()}件です。\n\n選んだ列：${IMP.header[m.pcsKw]}\n\n列の選択が誤っている可能性があります。このまま取り込みますか。`)) return;
+  }
   if(both >= 5 && reversed / both > 0.5){
     const ok = confirm(
       `パネル出力より交流出力のほうが大きい行が ${reversed.toLocaleString()}/${both.toLocaleString()}件あります。\n\n`+
@@ -1228,9 +1317,12 @@ document.getElementById('doImport').onclick = async ()=>{
   }
   await DB.putMany(out);
   await DB.setMeta('lastImport', new Date().toLocaleString('ja-JP'));
+  await DB.setMeta('srcCols', FIELDS.map(([k,label])=>
+    [label.split('　')[0], m[k]>=0 ? (IMP.header[m[k]]||('列'+(m[k]+1))) : '（未取込）']));
   PLANTS = await DB.all();
   IMP = null; document.getElementById('mapWrap').hidden = true;
   refreshCounts(); boot();
+  await DB.setMeta('fillRate', {pcs:pcsFilled, panel:panelFilled, total:out.length});
   if(badFit){
     alert(`${out.length.toLocaleString()}件を取り込みました。\n\nうち${badFit.toLocaleString()}件は、調達価格の列にFIT単価として使えない値（年など）が入っていたため無視し、認定日から単価表を引いて計算します。\n列の対応が正しいか確認してください。`);
   }
@@ -1298,8 +1390,7 @@ function buildConfigUI(){
     field('baseUtil','全国平均 設備利用率','％','0.1') +
     field('overloadStart','調整を始める過積載率','倍','0.05') +
     field('overloadCoef','逓減係数','','0.05') +
-    field('utilCap','設備利用率の上限','％','0.1') +
-    field('assumedOverload','発電出力が無い場合のみ使う想定過積載率','倍','0.05');
+    field('utilCap','設備利用率の上限','％','0.1');
   document.getElementById('cfgJudge').innerHTML =
     field('judgeHigh','「高」の下限','年','0.5') +
     field('judgeMid','「中」の下限','年','0.5') +
