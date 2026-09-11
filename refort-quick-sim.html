@@ -464,8 +464,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.11b";
+const APP_VERSION = "ver.2026.09.11c";
 const CHANGELOG = [
+  ["ver.2026.09.11c","過積載率が1.30固定になる不具合を修正。欠けている出力を1.3倍で補完していたのをやめ、太陽電池の合計出力と発電出力の実データが揃っている場合のみ過積載率を算出するよう変更。発電量は発電出力（PCS）基準、工事費用は太陽電池の合計出力基準（無い場合はPCS）に明確化。"],
   ["ver.2026.09.11b","ヘッダーとフッターにアースコムのロゴを追加。earthcom-logo.png を同じ場所に置いてください。"],
   ["ver.2026.09.11","試算タブのトップ画面をヒーローレイアウトに刷新。判定バッジを絞り込みフィルターとして機能するように変更。背景画像 refort-hero.jpg を同じ場所に置いてください。"],
   ["v2026.09.10","パネル出力と交流出力の参照元を修正。パネル出力＝太陽電池の合計出力、交流出力＝発電出力。列の自動推定を完全一致優先にし、同じ列が両方に割り当たらないようにした。逆に取り込まれている場合の検知と一括入れ替えを追加。"],
@@ -497,7 +498,7 @@ const DEFAULT_CFG = {
   overloadStart: 1.2,     // 調整開始の過積載率
   overloadCoef: 0.5,      // 逓減係数
   utilCap: 18,            // 適用設備利用率の上限 %
-  assumedOverload: 1.3,   // 交流出力不明時の想定過積載率
+  assumedOverload: 1.3,   // 発電出力が未登録のときだけ使う（過積載率の表示には使わない）
   judgeHigh: 7,           // 余剰年数 これ以上で「高」
   judgeMid: 4,
   judgeLow: 1,
@@ -629,18 +630,27 @@ function fitFromTable(year, kw, certDate){
 function calc(p){
   const c = CFG, out = { notes:[] };
 
-  // 出力
-  out.panelKw = p.panelKw ?? null;
-  out.pcsKw = p.pcsKw ?? null;
-  if(!out.pcsKw && out.panelKw){
-    out.pcsKw = out.panelKw / c.assumedOverload;
-    out.notes.push(`交流出力が未登録のため、パネル出力 ÷ ${c.assumedOverload} で仮置き`);
+  // 出力（実データを優先。欠けている場合だけ推定し、推定であることを持ち回る）
+  const realPanel = p.panelKw || null;   // 太陽電池の合計出力
+  const realPcs   = p.pcsKw   || null;   // 発電出力（PCS）
+  out.panelKw = realPanel;
+  out.pcsKw   = realPcs;
+  out.panelEst = false; out.pcsEst = false;
+
+  if(!realPcs && realPanel){
+    out.pcsKw = realPanel / c.assumedOverload; out.pcsEst = true;
+    out.notes.push(`発電出力（PCS）が未登録のため、太陽電池の合計出力 ÷ ${c.assumedOverload} で仮置きしています。発電量は目安です。`);
   }
-  if(!out.panelKw && out.pcsKw){
-    out.panelKw = out.pcsKw * c.assumedOverload;
-    out.notes.push(`パネル出力が未登録のため、交流出力 × ${c.assumedOverload} で仮置き`);
+  if(!realPanel && realPcs){
+    out.notes.push('太陽電池の合計出力が未登録のため、過積載率は算出できません。工事費用は発電出力（PCS）を基準に概算しています。');
   }
-  if(!out.pcsKw){ out.error = "出力が登録されていないため試算できません"; return out; }
+  if(!out.pcsKw){ out.error = "発電出力（PCS）も太陽電池の合計出力も登録されていないため試算できません"; return out; }
+
+  // 過積載率は、実データが両方そろっているときだけ算出する
+  out.overload = (realPanel && realPcs) ? (realPanel / realPcs) : null;
+  if(out.overload != null && out.overload < 1){
+    out.notes.push('太陽電池の合計出力が発電出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
+  }
 
   // 設備利用率
   const base = (c.prefUtil[p.pref] ?? c.baseUtil);
@@ -650,7 +660,7 @@ function calc(p){
     out.notes.push('パネル出力が交流出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
   }
   let util = base;
-  if(out.overload > c.overloadStart){
+  if(out.overload != null && out.overload > c.overloadStart){
     util = base * (1 + (out.overload - c.overloadStart) * c.overloadCoef);
     util = Math.min(util, c.utilCap);
     out.adjusted = true;
@@ -700,7 +710,9 @@ function calc(p){
   // 効果
   out.addKwh = out.genKwh * (c.improveRate/100);
   out.addIncome = out.addKwh * out.fit;
-  out.cost = Math.max(out.panelKw * c.costPerKw, c.costMin);
+  out.costBase = out.panelKw || out.pcsKw;
+  out.costBaseName = out.panelKw ? '太陽電池の合計出力' : '発電出力（PCS）';
+  out.cost = Math.max(out.costBase * c.costPerKw, c.costMin);
   out.payback = out.addIncome > 0 ? out.cost / out.addIncome : null;
   out.surplus = (out.remain!=null && out.payback!=null) ? out.remain - out.payback : null;
   if(out.remain!=null){
@@ -927,7 +939,7 @@ function openDetail(id){
       <tr><td class="k">発電量改善率</td><td class="v num">${CFG.improveRate} %</td></tr>
       <tr><td class="k">増加発電量</td><td class="v num">${yen(r.addKwh)} kWh/年</td></tr>
       <tr><td class="k">増加売電収入</td><td class="v num gold">+${yen(r.addIncome)} 円/年<em>${man(r.addIncome)}万円/年</em></td></tr>
-      <tr><td class="k">工事費用</td><td class="v num">${yen(r.cost)} 円<em>${f1(r.panelKw)}kW × ${yen(CFG.costPerKw)}円/kW（最低${man(CFG.costMin)}万円）</em></td></tr>
+      <tr><td class="k">工事費用</td><td class="v num">${yen(r.cost)} 円<em>${esc(r.costBaseName)} ${f1(r.costBase)}kW × ${yen(CFG.costPerKw)}円/kW（最低${man(CFG.costMin)}万円）</em></td></tr>
       <tr><td class="k">費用回収年数</td><td class="v num">${f1(r.payback)} 年</td></tr>
       <tr><td class="k">残FIT年数</td><td class="v num">${r.remain!=null?r.remain+' 年':'—'}<em>${r.remainRaw!=null?'実残 '+f2(r.remainRaw)+'年を'+(CFG.roundRemain==='floor'?'切り捨て':'四捨五入'):''}</em></td></tr>
       <tr class="total"><td class="k">回収余剰年数</td><td class="v num">${r.surplus!=null?f1(r.surplus)+' 年':'—'}<em>回収後にまるごと利益になる期間</em></td></tr>
@@ -971,11 +983,11 @@ function currentPanel(p,r){
   return `<div class="panel">
     <h3>現状データ</h3>
     <table class="calc">
-      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力</em></td></tr>
-      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力</em></td></tr>
-      <tr><td class="k">過積載率</td><td class="v num">${r.overload?f2(r.overload):'—'}<em>パネル出力 ÷ 交流出力</em></td></tr>
-      <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載で調整`:`${p.pref||'全国'}の基準値`}</em></td></tr>
-      <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年</td></tr>
+      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力${r.panelKw?'':'（データなし）'}</em></td></tr>
+      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力${r.pcsEst?'（推定値）':''}</em></td></tr>
+      <tr><td class="k">過積載率</td><td class="v num">${r.overload!=null?f2(r.overload):'—'}<em>${r.overload!=null?'太陽電池の合計出力 ÷ 発電出力':'両方のデータが揃うと算出します'}</em></td></tr>
+      <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載${f2(r.overload)}で調整`:`${p.pref||'全国'}の基準値（過積載の調整なし）`}</em></td></tr>
+      <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年<em>発電出力（PCS）${f1(r.pcsKw)}kW × 8,760h × ${f1(r.util)}%</em></td></tr>
       <tr><td class="k">認定日</td><td class="v">${r.certDate?fmtDate(r.certDate):'—'}</td></tr>
       <tr><td class="k">認定年度</td><td class="v num">${r.certYear!=null?r.certYear+' 年度':'—'}<em>${esc(r.certYearSrc||'')}</em></td></tr>
       <tr><td class="k">FIT単価</td><td class="v num">${r.fit?r.fit+' 円/kWh':'—'}<em>${esc(r.fitSrc||'')}</em></td></tr>
@@ -1287,7 +1299,7 @@ function buildConfigUI(){
     field('overloadStart','調整を始める過積載率','倍','0.05') +
     field('overloadCoef','逓減係数','','0.05') +
     field('utilCap','設備利用率の上限','％','0.1') +
-    field('assumedOverload','交流出力不明時の想定過積載率','倍','0.05');
+    field('assumedOverload','発電出力が無い場合のみ使う想定過積載率','倍','0.05');
   document.getElementById('cfgJudge').innerHTML =
     field('judgeHigh','「高」の下限','年','0.5') +
     field('judgeMid','「中」の下限','年','0.5') +
@@ -1362,7 +1374,8 @@ function buildManual(){
     ['パネル出力と交流出力の違い',
      `<b>パネル出力＝太陽電池の合計出力（kW）</b>。パネルの合計です。工事費用の計算に使います。<br>
       <b>交流出力＝発電出力（kW）</b>。PCSの出力です。発電量の計算に使います。<br>
-      過積載率 ＝ パネル出力 ÷ 交流出力 なので、通常は1以上になります。<br>
+過積載率 ＝ 太陽電池の合計出力 ÷ 発電出力。両方のデータが揃っている発電所だけ表示され、揃っていない場合は「—」になります。<br>
+      発電量は発電出力（PCS）を基準に計算します。<br>
       詳細画面で過積載率が1を下回っている場合は、取り込んだ列が逆になっています。「データ」タブの【登録済み全件のパネルと交流を入れ替える】で直せます。`],
     ['データの入れ方',
      `「データ」タブから、都道府県ごとの計算書リスト（CSVまたはExcel）を取り込みます。<br>
