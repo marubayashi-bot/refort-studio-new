@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EARTH CONNECT ｜ 名刺を次の商談へ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12202E; --ink2:#22384C; --paper:#F3F5F2; --card:#FFFFFF;
+  --line:#D9DFD8; --muted:#5F6F7A;
+  --sun:#E8A33D; --alert:#C8412F; --go:#2E7D5B; --sky:#2C6E9B;
+  --r:10px; --sh:0 1px 2px rgba(18,32,46,.07), 0 6px 18px rgba(18,32,46,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Zen Kaku Gothic New",-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  background:var(--paper); color:var(--ink); font-size:15px; line-height:1.7;
+  -webkit-text-size-adjust:100%;
+}
+.num{font-family:"Roboto Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+button,input,select,textarea{font-family:inherit; font-size:15px; color:inherit}
+button{cursor:pointer}
+a{color:var(--sky)}
+:focus-visible{outline:2px solid var(--sky); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+
+/* ---------- shell ---------- */
+.shell{display:flex; min-height:100vh}
+.rail{
+  width:212px; flex:0 0 212px; background:var(--ink); color:#fff;
+  display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+}
+.brand{padding:18px 18px 14px; border-bottom:1px solid rgba(255,255,255,.12)}
+.brand b{display:block; font-size:17px; font-weight:900; letter-spacing:.04em}
+.brand span{display:block; font-size:11.5px; color:#9FB3C3; margin-top:2px; line-height:1.5}
+.nav{flex:1; overflow:auto; padding:8px 0}
+.nav button{
+  display:flex; align-items:center; gap:9px; width:100%; background:none; border:0;
+  color:#C7D5E0; text-align:left; padding:9px 18px; font-size:14px; font-weight:500;
+  border-left:3px solid transparent;
+}
+.nav button:hover{background:rgba(255,255,255,.06); color:#fff}
+.nav button.on{background:rgba(232,163,61,.14); color:#fff; border-left-color:var(--sun); font-weight:700}
+.nav .ico{width:18px; text-align:center; font-size:15px}
+.nav .cnt{margin-left:auto; font-size:11px; background:var(--alert); color:#fff; border-radius:9px; padding:0 6px; font-weight:700}
+.me{padding:11px 18px; border-top:1px solid rgba(255,255,255,.12); font-size:12px; color:#9FB3C3}
+.me b{color:#fff; font-weight:700; display:block; font-size:13px}
+.sync{display:inline-flex; align-items:center; gap:5px; margin-top:6px; font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;background:#6b7c89}
+.dot.ok{background:#4BBF87} .dot.ng{background:var(--alert)} .dot.wait{background:var(--sun)}
+
+.main{flex:1; min-width:0; display:flex; flex-direction:column}
+.top{
+  display:flex; align-items:center; gap:12px; padding:14px 22px;
+  background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+}
+.top h1{margin:0; font-size:18px; font-weight:900; letter-spacing:.02em}
+.top .sub{font-size:12.5px; color:var(--muted)}
+.top .sp{flex:1}
+.wrap{padding:20px 22px 90px; max-width:1180px; width:100%}
+@media(max-width:860px){
+  .rail{display:none}
+  .wrap{padding:14px 13px 96px}
+  .top{padding:11px 14px}
+  .top h1{font-size:16px}
+}
+
+/* ---------- bottom tabs (mobile) ---------- */
+.tabs{display:none}
+@media(max-width:860px){
+  .tabs{
+    display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:var(--ink); padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tabs button{background:none;border:0;color:#9FB3C3;padding:8px 2px 9px;font-size:10.5px;font-weight:700;position:relative}
+  .tabs button i{display:block;font-style:normal;font-size:17px;margin-bottom:1px}
+  .tabs button.on{color:var(--sun)}
+  .tabs .cnt{position:absolute;top:3px;right:50%;transform:translateX(17px);background:var(--alert);color:#fff;border-radius:8px;font-size:9.5px;padding:0 4px}
+}
+
+/* ---------- primitives ---------- */
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
+.pad{padding:15px 16px}
+.h{font-size:14px; font-weight:900; margin:0 0 10px; display:flex; align-items:center; gap:8px}
+.h .note{font-weight:500; font-size:12px; color:var(--muted)}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.sec{margin-bottom:18px}
+.btn{
+  border:1px solid var(--ink); background:var(--ink); color:#fff; border-radius:8px;
+  padding:9px 15px; font-weight:700; font-size:14px;
+}
+.btn:hover{background:var(--ink2)}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line)}
+.btn.ghost:hover{background:#EDF0EC}
+.btn.sun{background:var(--sun); border-color:var(--sun); color:#12202E}
+.btn.sm{padding:6px 11px; font-size:12.5px; border-radius:7px}
+.btn.wide{width:100%; justify-content:center}
+.btn[disabled]{opacity:.45; cursor:not-allowed}
+label.f{display:block; margin-bottom:11px}
+label.f > span{display:block; font-size:12px; color:var(--muted); font-weight:700; margin-bottom:3px}
+input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],select,textarea{
+  width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff;
+}
+textarea{min-height:74px; resize:vertical}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 12px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:0 12px}
+@media(max-width:640px){.grid3{grid-template-columns:1fr 1fr}}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{
+  border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px;
+  font-size:13px; font-weight:500;
+}
+.chip.on{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:700}
+.chip.sun.on{background:var(--sun); border-color:var(--sun); color:#12202E}
+.tag{display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; border:1px solid var(--line); background:#fff}
+.rank{display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:22px; border-radius:6px; font-weight:900; font-size:12.5px; color:#fff; padding:0 6px}
+.rank.S{background:var(--alert)} .rank.A{background:var(--sun); color:#12202E}
+.rank.B{background:var(--sky)} .rank.C{background:#7C8B96} .rank.保留{background:#B9C2C8; color:#31424E}
+.kpi{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
+@media(max-width:860px){.kpi{grid-template-columns:repeat(2,1fr)}}
+.kpi .k{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:11px 13px}
+.kpi .k span{display:block; font-size:11.5px; color:var(--muted); font-weight:700}
+.kpi .k b{display:block; font-size:23px; font-weight:900; line-height:1.25}
+.kpi .k.bad b{color:var(--alert)}
+.kpi .k small{font-size:11px; color:var(--muted)}
+.empty{padding:26px 16px; text-align:center; color:var(--muted); font-size:13.5px}
+.empty b{display:block; color:var(--ink); font-size:15px; margin-bottom:4px}
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th{text-align:left; font-size:11.5px; color:var(--muted); font-weight:700; padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap}
+td{padding:9px 8px; border-bottom:1px solid #EDF0EC; vertical-align:middle}
+tr.clickable:hover{background:#F7F9F6; cursor:pointer}
+.scroll{overflow-x:auto}
+
+/* ---------- 追客リスト ---------- */
+.due{border-left:4px solid var(--line); background:var(--card); border:1px solid var(--line); border-left-width:4px; border-radius:var(--r); padding:12px 14px; margin-bottom:9px; display:flex; gap:12px; align-items:flex-start}
+.due.over{border-left-color:var(--alert)}
+.due.today{border-left-color:var(--sun)}
+.due.soon{border-left-color:var(--sky)}
+.due .body{flex:1; min-width:0}
+.due .co{font-weight:900; font-size:15px}
+.due .pn{font-size:12.5px; color:var(--muted)}
+.due .act{margin-top:5px; font-size:13.5px}
+.due .when{font-size:12px; font-weight:700; margin-top:3px}
+.due .when.over{color:var(--alert)}
+.due .side{display:flex; flex-direction:column; gap:6px; align-items:flex-end}
+
+/* ---------- pipeline ---------- */
+.pipe{display:grid; grid-template-columns:repeat(6,minmax(190px,1fr)); gap:10px; overflow-x:auto; padding-bottom:8px}
+.col{background:#E9EDE8; border-radius:var(--r); padding:9px; min-height:170px}
+.col.dragover{background:#DCE6DB; outline:2px dashed var(--go)}
+.col h4{margin:0 0 8px; font-size:12.5px; font-weight:900; display:flex; justify-content:space-between}
+.col h4 em{font-style:normal; color:var(--muted); font-weight:700}
+.col .sum{font-size:11px; color:var(--muted); margin:-4px 0 8px}
+.pc{background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 10px; margin-bottom:7px; cursor:grab}
+.pc:active{cursor:grabbing}
+.pc b{display:block; font-size:13.5px; line-height:1.4}
+.pc .m{font-size:11.5px; color:var(--muted); display:flex; gap:6px; align-items:center; margin-top:3px; flex-wrap:wrap}
+
+/* ---------- modal ---------- */
+.mask{position:fixed; inset:0; background:rgba(18,32,46,.45); z-index:60; display:flex; align-items:flex-end; justify-content:center}
+@media(min-width:861px){.mask{align-items:center}}
+.sheet{background:var(--paper); width:100%; max-width:760px; max-height:92vh; overflow:auto; border-radius:14px 14px 0 0}
+@media(min-width:861px){.sheet{border-radius:12px}}
+.sheet .sh{position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); padding:13px 16px; display:flex; align-items:center; gap:10px; z-index:2}
+.sheet .sh b{font-size:16px; font-weight:900; flex:1; min-width:0}
+.sheet .sb{padding:16px}
+.x{border:0; background:#EDF0EC; width:30px; height:30px; border-radius:50%; font-size:16px; font-weight:700; line-height:1}
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:78px; background:var(--ink); color:#fff; padding:10px 18px; border-radius:999px; z-index:80; font-size:13.5px; font-weight:700; box-shadow:var(--sh)}
+.warnbox{background:#FDF3EA; border:1px solid #F0D3AE; border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:12px}
+.warnbox.red{background:#FBEDEB; border-color:#EFC4BD}
+.log{border-left:2px solid var(--line); padding:0 0 0 11px; margin:0}
+.log li{list-style:none; margin-bottom:10px; font-size:13.5px}
+.log .t{font-size:11.5px; color:var(--muted); font-weight:700}
+.manual h3{font-size:15px; margin:20px 0 6px}
+.manual h3:first-child{margin-top:0}
+.manual ol,.manual ul{padding-left:20px; margin:6px 0}
+.manual li{margin-bottom:4px; font-size:14px}
+code{background:#EDF0EC; padding:1px 5px; border-radius:4px; font-family:"Roboto Mono",monospace; font-size:12.5px}
+pre{background:var(--ink); color:#DCE6E9; padding:12px; border-radius:8px; overflow:auto; font-size:11.5px; line-height:1.6}
+.hide{display:none!important}
+.mobonly{display:none}
+@media(max-width:860px){.mobonly{display:inline-block}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">
+      <b>EARTH CONNECT</b>
+      <span>名刺を集めるだけで終わらせない</span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="me">
+      <b id="meName">読み込み中</b>
+      <span id="meRole"></span>
+      <div class="sync"><i class="dot" id="syncDot"></i><span id="syncTxt">接続確認中</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div>
+        <h1 id="ttl">ホーム</h1>
+        <div class="sub" id="tsub"></div>
+      </div>
+      <div class="sp"></div>
+      <button class="btn sun" onclick="openScan()">＋ 名刺を登録</button>
+    </header>
+    <div class="wrap" id="view"></div>
+  </div>
+</div>
+
+<nav class="tabs" id="tabs"></nav>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
+<script>
+/* ===================================================================
+   EARTH CONNECT — 名刺を商談・受注につなげる営業アプリ
+   単一HTML / Supabase共有 / ec-auth.js 共通認証
+   =================================================================== */
+const SUPA_URL = 'https://aakofrzurgwrkctunthw.supabase.co';
+const SUPA_KEY = 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const TABLE    = 'earthconnect_records';
+const AI_URL   = SUPA_URL + '/functions/v1/ai';
+
+const PHASES = [
+  {id:'PH01', name:'見極め'},
+  {id:'PH03', name:'ヒアリング'},
+  {id:'PH04', name:'提案'},
+  {id:'PH06', name:'条件調整'},
+  {id:'PH08', name:'受注'},
+  {id:'LOST', name:'見送り'}
+];
+const SERVICES = ['ReFort','ReFort CARE','高圧セカンダリー','発電所買取','低圧蓄電池','系統用蓄電池','営農型太陽光','現地視察・無料診断'];
+const INTERESTS = ['発電量の改善','売却','買い増し','蓄電池','節税','O&M・保守','その他'];
+const RANKS = ['S','A','B','C','保留'];
+const RANK_RULE = {
+  'S':{days:0,  text:'当日中に連絡＋役員共有'},
+  'A':{days:1,  text:'24時間以内に連絡'},
+  'B':{days:3,  text:'3日以内に連絡'},
+  'C':{days:14, text:'定期フォロー'},
+  '保留':{days:60,text:'メール配信で育成'}
+};
+const PLACES = ['PV EXPO','展示会（その他）','紹介','訪問','セミナー','来社','電話・問合せ'];
+
+/* ---------- 汎用 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const today = () => new Date().toISOString().slice(0,10);
+const addDays = (n,base) => { const d = base? new Date(base): new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const dayDiff = d => d ? Math.round((new Date(d+'T00:00:00') - new Date(today()+'T00:00:00'))/86400000) : null;
+const man = n => (Number(n)||0).toLocaleString('ja-JP');
+const oku = n => { const v=Number(n)||0; return v>=10000 ? (v/10000).toFixed(v%10000?1:0)+'億円' : man(v)+'万円'; };
+function toast(msg){
+  $('#toast').innerHTML = '<div class="toast">'+esc(msg)+'</div>';
+  clearTimeout(window._tt); window._tt = setTimeout(()=>$('#toast').innerHTML='', 2400);
+}
+function jdate(d){ if(!d) return '—'; const t=new Date(d+'T00:00:00'); return (t.getMonth()+1)+'/'+t.getDate()+'（'+'日月火水木金土'[t.getDay()]+'）'; }
+function jtime(iso){ if(!iso) return ''; const t=new Date(iso); return (t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'); }
+
+/* ===================== データ層 ===================== */
+const DB = {
+  cards: [],
+  sb: null,
+  me: {name:'', email:'', role:'sales'},
+  queue: JSON.parse(localStorage.getItem('ec_queue')||'[]'),
+  online: false
+};
+
+function cacheSave(){ try{ localStorage.setItem('ec_cards', JSON.stringify(DB.cards)); }catch(e){} }
+function cacheLoad(){ try{ DB.cards = JSON.parse(localStorage.getItem('ec_cards')||'[]'); }catch(e){ DB.cards=[]; } }
+function qSave(){ localStorage.setItem('ec_queue', JSON.stringify(DB.queue)); }
+
+function setSync(state, txt){
+  const d=$('#syncDot'); if(!d) return;
+  d.className = 'dot ' + state;
+  $('#syncTxt').textContent = txt;
+}
+
+async function initSupabase(){
+  try{
+    DB.sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    const {data, error} = await DB.sb.from(TABLE).select('id,data,updated_at').eq('kind','card');
+    if(error) throw error;
+    const remote = (data||[]).map(r => Object.assign({}, r.data, {id:r.id, updatedAt:r.updated_at}));
+    // ローカル未送信を優先してマージ
+    const map = {}; remote.forEach(r => map[r.id]=r);
+    DB.cards.forEach(l => { if(!map[l.id] || (l.updatedAt||'') > (map[l.id].updatedAt||'')) map[l.id]=l; });
+    DB.cards = Object.values(map);
+    cacheSave();
+    DB.online = true;
+    setSync('ok','共有中・最新');
+    flushQueue();
+    DB.sb.channel('ec').on('postgres_changes',{event:'*',schema:'public',table:TABLE}, p=>{
+      if(!p.new || p.new.kind!=='card') return;
+      const rec = Object.assign({}, p.new.data, {id:p.new.id, updatedAt:p.new.updated_at});
+      const i = DB.cards.findIndex(c=>c.id===rec.id);
+      if(i<0) DB.cards.push(rec); else DB.cards[i]=rec;
+      cacheSave(); if(!$('#modal').innerHTML) render();
+    }).subscribe();
+  }catch(e){
+    DB.online = false;
+    setSync('ng','この端末のみ（未接続）');
+    console.warn('Supabase接続なし:', e.message||e);
+  }
+}
+
+async function push(card){
+  if(!DB.online || !DB.sb){ DB.queue.push(card.id); qSave(); setSync('wait','未送信 '+DB.queue.length+'件'); return; }
+  try{
+    const {error} = await DB.sb.from(TABLE).upsert({
+      id: card.id, kind:'card', data: card, updated_at: new Date().toISOString(), updated_by: DB.me.email||DB.me.name
+    });
+    if(error) throw error;
+    setSync('ok','共有中・最新');
+  }catch(e){
+    DB.queue.push(card.id); qSave(); setSync('wait','未送信 '+DB.queue.length+'件');
+  }
+}
+async function flushQueue(){
+  if(!DB.online || !DB.queue.length) return;
+  const ids = [...new Set(DB.queue)]; DB.queue=[]; qSave();
+  for(const id of ids){ const c = DB.cards.find(x=>x.id===id); if(c) await push(c); }
+}
+
+function save(card, logText){
+  card.updatedAt = new Date().toISOString();
+  card.updatedBy = DB.me.name;
+  if(logText){ card.logs = card.logs||[]; card.logs.unshift({at:card.updatedAt, by:DB.me.name, text:logText}); }
+  const i = DB.cards.findIndex(c=>c.id===card.id);
+  if(i<0) DB.cards.push(card); else DB.cards[i]=card;
+  cacheSave(); push(card);
+}
+
+/* ===================== 見込みランク判定 ===================== */
+function scoreCard(c){
+  const h = c.hearing||{}; let s = 0; const why = [];
+  if(h.authority==='あり'){ s+=15; why.push('決裁権あり +15'); }
+  if(h.owns==='あり'){ s+=15; why.push('発電所を所有 +15'); }
+  if(Number(h.plants)>=3){ s+=5; why.push('3基以上を所有 +5'); }
+  if((h.voltage||[]).some(v=>v!=='低圧')){ s+=10; why.push('高圧・特別高圧 +10'); }
+  if(h.sellIntent==='あり'){ s+=15; why.push('売却意向 +15'); }
+  if(h.buyIntent==='あり'){ s+=15; why.push('購入意向 +15'); }
+  if(h.battery==='あり'){ s+=10; why.push('蓄電池に関心 +10'); }
+  if(h.tax==='あり'){ s+=10; why.push('節税ニーズ +10'); }
+  if(h.decline==='あり'){ s+=10; why.push('発電量の低下 +10'); }
+  if(h.pcs==='あり'){ s+=8;  why.push('パワコン交換予定 +8'); }
+  const b = Number(h.budget)||0;
+  if(b>=10000){ s+=20; why.push('投資可能額1億円以上 +20'); }
+  else if(b>=3000){ s+=10; why.push('投資可能額3000万円以上 +10'); }
+  if(h.timing==='3か月以内'){ s+=15; why.push('時期が3か月以内 +15'); }
+  else if(h.timing==='半年以内'){ s+=8; why.push('時期が半年以内 +8'); }
+  let rank;
+  if(b>=10000 && h.authority==='あり' && h.timing==='3か月以内') rank='S';
+  else if(s>=72) rank='S';
+  else if(s>=48) rank='A';
+  else if(s>=26) rank='B';
+  else if(s>0)   rank='C';
+  else rank='保留';
+  return {score:s, rank, why};
+}
+function suggestServices(c){
+  const h=c.hearing||{}; const out=[];
+  if(h.decline==='あり'||h.pcs==='あり') out.push('ReFort');
+  if(h.owns==='あり') out.push('ReFort CARE');
+  if(h.sellIntent==='あり') out.push('発電所買取');
+  if(h.buyIntent==='あり'){ out.push('高圧セカンダリー'); }
+  if(h.battery==='あり'){ out.push('低圧蓄電池','系統用蓄電池'); }
+  if(h.tax==='あり' && !out.includes('低圧蓄電池')) out.push('低圧蓄電池');
+  if(h.owns==='あり' && !out.includes('現地視察・無料診断')) out.push('現地視察・無料診断');
+  return [...new Set(out)];
+}
+
+/* ===================== 集計 ===================== */
+const alive = () => DB.cards.filter(c=>c.phase!=='LOST');
+function dueList(){
+  return alive().filter(c=>c.nextDate).sort((a,b)=> (a.nextDate>b.nextDate?1:-1));
+}
+function overdue(){ return dueList().filter(c=> dayDiff(c.nextDate) < 0); }
+function todayDue(){ return dueList().filter(c=> dayDiff(c.nextDate) === 0); }
+function stalled(){
+  return alive().filter(c=>{
+    const last = (c.logs&&c.logs[0]&&c.logs[0].at) || c.updatedAt || c.createdAt;
+    if(!last) return false;
+    return (Date.now() - new Date(last).getTime())/86400000 >= 3 && ['S','A'].includes(c.rank);
+  });
+}
+function grossOf(list){ return list.reduce((s,c)=> s + (Number(c.gross)||0), 0); }
+
+/* ===================== 画面切替 ===================== */
+const NAVS = [
+  {id:'home',  ico:'🏠', label:'ホーム',      title:'ホーム',           sub:'今日やることから始める'},
+  {id:'list',  ico:'📇', label:'顧客一覧',    title:'顧客一覧',         sub:'名刺から生まれた見込み客'},
+  {id:'pipe',  ico:'📊', label:'商談パイプライン', title:'商談パイプライン', sub:'PH01 見極め → PH08 受注'},
+  {id:'dash',  ico:'📈', label:'ダッシュボード', title:'ダッシュボード',  sub:'社長・部門長が見る数字'},
+  {id:'manual',ico:'📖', label:'使い方',      title:'使い方',           sub:'運用ルール・取込・設定'}
+];
+let TAB = 'home';
+
+function drawNav(){
+  const ov = overdue().length;
+  $('#nav').innerHTML = NAVS.map(n=>
+    `<button class="${n.id===TAB?'on':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span>${n.label}`+
+    (n.id==='home'&&ov?`<span class="cnt num">${ov}</span>`:'')+`</button>`).join('');
+  $('#tabs').innerHTML = NAVS.map(n=>
+    `<button class="${n.id===TAB?'on':''}" onclick="go('${n.id}')"><i>${n.ico}</i>${n.label}`+
+    (n.id==='home'&&ov?`<span class="cnt num">${ov}</span>`:'')+`</button>`).join('');
+}
+function go(id){ TAB=id; render(); window.scrollTo(0,0); }
+function render(){
+  const n = NAVS.find(x=>x.id===TAB);
+  $('#ttl').textContent = n.title; $('#tsub').textContent = n.sub;
+  drawNav();
+  $('#view').innerHTML = ({home:vHome, list:vList, pipe:vPipe, dash:vDash, manual:vManual})[TAB]();
+  if(TAB==='pipe') bindDrag();
+}
+
+/* ===================== ホーム ===================== */
+function dueCard(c){
+  const d = dayDiff(c.nextDate);
+  const cls = d<0?'over': d===0?'today': d<=3?'soon':'';
+  const when = d===null?'期限なし': d<0?`${-d}日 超過`: d===0?'今日':`あと${d}日`;
+  return `<div class="due ${cls}">
+    <span class="rank ${c.rank}">${c.rank}</span>
+    <div class="body" onclick="openCard('${c.id}')" style="cursor:pointer">
+      <div class="co">${esc(c.company||'（会社名なし）')}</div>
+      <div class="pn">${esc(c.name||'')}${c.title?' ／ '+esc(c.title):''}　担当：${esc(c.owner||'未定')}</div>
+      <div class="act">${esc(c.nextAction||'次の行動が未設定')}</div>
+      <div class="when ${d<0?'over':''}"><span class="num">${jdate(c.nextDate)}</span>・${when}</div>
+    </div>
+    <div class="side">
+      <button class="btn sm" onclick="doneAction('${c.id}')">連絡した</button>
+      <button class="btn sm ghost" onclick="openCard('${c.id}')">開く</button>
+    </div>
+  </div>`;
+}
+function vHome(){
+  const ov = overdue(), td = todayDue(), st = stalled();
+  const soon = dueList().filter(c=>{const d=dayDiff(c.nextDate); return d>0 && d<=3;});
+  const mine = c => !DB.me.name || c.owner===DB.me.name;
+  const list = [...ov, ...td];
+  const newToday = DB.cards.filter(c=>(c.createdAt||'').slice(0,10)===today()).length;
+  const sa = alive().filter(c=>['S','A'].includes(c.rank));
+  const noAction = alive().filter(c=>!c.nextDate).length;
+
+  return `
+  <div class="sec">
+    <h3 class="h">今日の追客 <span class="note">期限を過ぎた案件と、今日が期限の案件</span></h3>
+    ${ list.length ? list.map(dueCard).join('')
+      : `<div class="card empty"><b>今日の追客はゼロ件です</b>期限切れも当日期限もありません。名刺を登録して、次の商談をつくりましょう。</div>` }
+  </div>
+
+  ${ soon.length ? `<div class="sec"><h3 class="h">3日以内 <span class="note">${soon.length}件</span></h3>${soon.map(dueCard).join('')}</div>`:''}
+
+  <div class="sec kpi">
+    <div class="k ${ov.length?'bad':''}"><span>期限超過</span><b class="num">${ov.length}</b><small>すぐ連絡</small></div>
+    <div class="k"><span>本日の新規名刺</span><b class="num">${newToday}</b><small>累計 ${DB.cards.length}件</small></div>
+    <div class="k"><span>S・Aランク</span><b class="num">${sa.length}</b><small>想定粗利 ${oku(grossOf(sa))}</small></div>
+    <div class="k ${noAction?'bad':''}"><span>次の行動が未設定</span><b class="num">${noAction}</b><small>放置すると失注</small></div>
+  </div>
+
+  ${ st.length ? `<div class="sec card pad">
+    <h3 class="h">3日以上動きのないS・A案件 <span class="note">${st.length}件</span></h3>
+    ${st.slice(0,6).map(c=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid #EDF0EC;padding:7px 0">
+      <div><b>${esc(c.company)}</b> <span class="tag">${esc(c.owner||'担当未定')}</span></div>
+      <button class="btn sm ghost" onclick="openCard('${c.id}')">確認する</button></div>`).join('')}
+  </div>`:''}
+
+  ${ noAction ? `<div class="sec card pad">
+    <h3 class="h">次の行動を決める <span class="note">未設定 ${noAction}件</span></h3>
+    ${alive().filter(c=>!c.nextDate).slice(0,8).map(c=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid #EDF0EC;padding:7px 0">
+      <div><span class="rank ${c.rank}">${c.rank}</span> <b>${esc(c.company)}</b> <span class="pn">${esc(c.name||'')}</span></div>
+      <button class="btn sm" onclick="openCard('${c.id}')">行動を決める</button></div>`).join('')}
+  </div>`:''}
+  `;
+}
+
+/* ===================== 顧客一覧 ===================== */
+let FIL = {q:'', rank:'', owner:'', phase:''};
+function vList(){
+  let rows = DB.cards.slice();
+  if(FIL.q){ const q=FIL.q.toLowerCase();
+    rows = rows.filter(c=>[c.company,c.name,c.kana,c.email,c.tel,c.address,c.metPlace].join(' ').toLowerCase().includes(q)); }
+  if(FIL.rank) rows = rows.filter(c=>c.rank===FIL.rank);
+  if(FIL.owner) rows = rows.filter(c=>c.owner===FIL.owner);
+  if(FIL.phase) rows = rows.filter(c=>c.phase===FIL.phase);
+  rows.sort((a,b)=> (RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank)) || ((b.createdAt||'')>(a.createdAt||'')?1:-1));
+  const owners = [...new Set(DB.cards.map(c=>c.owner).filter(Boolean))];
+
+  return `
+  <div class="sec card pad">
+    <div class="row">
+      <input type="text" placeholder="会社名・氏名・電話・場所で検索" value="${esc(FIL.q)}" style="flex:1;min-width:190px"
+        oninput="FIL.q=this.value; document.getElementById('tbl').innerHTML=listTable()">
+      <select onchange="FIL.rank=this.value; render()" style="width:auto"><option value="">ランク：すべて</option>${RANKS.map(r=>`<option ${FIL.rank===r?'selected':''}>${r}</option>`).join('')}</select>
+      <select onchange="FIL.phase=this.value; render()" style="width:auto"><option value="">フェーズ：すべて</option>${PHASES.map(p=>`<option value="${p.id}" ${FIL.phase===p.id?'selected':''}>${p.id} ${p.name}</option>`).join('')}</select>
+      <select onchange="FIL.owner=this.value; render()" style="width:auto"><option value="">担当：すべて</option>${owners.map(o=>`<option ${FIL.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
+      <button class="btn ghost sm" onclick="exportCSV()">CSV出力</button>
+    </div>
+  </div>
+  <div class="sec card"><div id="tbl">${listTable(rows)}</div></div>`;
+}
+function listTable(rows){
+  if(!rows){ return vListRows(); }
+  if(!rows.length) return `<div class="empty"><b>該当する顧客がいません</b>条件を変えるか、名刺を登録してください。</div>`;
+  return `<div class="scroll"><table>
+    <tr><th>ランク</th><th>会社・氏名</th><th>提案</th><th>フェーズ</th><th>次の行動</th><th>期限</th><th>想定粗利</th><th>担当</th></tr>
+    ${rows.map(c=>{
+      const d = dayDiff(c.nextDate);
+      return `<tr class="clickable" onclick="openCard('${c.id}')">
+        <td><span class="rank ${c.rank}">${c.rank}</span></td>
+        <td><b>${esc(c.company||'—')}</b><br><span class="pn" style="font-size:12px;color:var(--muted)">${esc(c.name||'')}</span></td>
+        <td style="font-size:12px">${(c.services||[]).slice(0,2).map(s=>`<span class="tag">${esc(s)}</span>`).join(' ')||'—'}</td>
+        <td style="font-size:12px">${c.phase||'PH01'}</td>
+        <td style="max-width:210px">${esc(c.nextAction||'未設定')}</td>
+        <td class="num" style="color:${d<0?'var(--alert)':'inherit'};white-space:nowrap">${c.nextDate? jdate(c.nextDate):'—'}</td>
+        <td class="num" style="text-align:right;white-space:nowrap">${c.gross?oku(c.gross):'—'}</td>
+        <td style="font-size:12px;white-space:nowrap">${esc(c.owner||'未定')}</td>
+      </tr>`;}).join('')}
+  </table></div>`;
+}
+function vListRows(){
+  let rows = DB.cards.slice();
+  if(FIL.q){ const q=FIL.q.toLowerCase();
+    rows = rows.filter(c=>[c.company,c.name,c.kana,c.email,c.tel,c.address,c.metPlace].join(' ').toLowerCase().includes(q)); }
+  if(FIL.rank) rows = rows.filter(c=>c.rank===FIL.rank);
+  if(FIL.owner) rows = rows.filter(c=>c.owner===FIL.owner);
+  if(FIL.phase) rows = rows.filter(c=>c.phase===FIL.phase);
+  return listTable(rows);
+}
+
+/* ===================== パイプライン ===================== */
+function vPipe(){
+  const byOwner = {};
+  alive().forEach(c=>{ byOwner[c.owner||'担当未定'] = (byOwner[c.owner||'担当未定']||0)+(Number(c.gross)||0); });
+  return `
+  <div class="sec kpi">
+    ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
+      const l = DB.cards.filter(c=>(c.phase||'PH01')===p.id);
+      return `<div class="k"><span>${p.id} ${p.name}</span><b class="num">${l.length}</b><small>${oku(grossOf(l))}</small></div>`;
+    }).join('')}
+  </div>
+  <div class="sec pipe">
+    ${PHASES.map(p=>{
+      const l = DB.cards.filter(c=>(c.phase||'PH01')===p.id)
+        .sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
+      return `<div class="col" data-ph="${p.id}" ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')" ondrop="dropCard(event,'${p.id}')">
+        <h4>${p.id} ${p.name}<em class="num">${l.length}</em></h4>
+        <div class="sum num">${oku(grossOf(l))}</div>
+        ${l.map(c=>`<div class="pc" draggable="true" data-id="${c.id}" ondragstart="event.dataTransfer.setData('text',this.dataset.id)" onclick="openCard('${c.id}')">
+          <b>${esc(c.company||'—')}</b>
+          <div class="m"><span class="rank ${c.rank}">${c.rank}</span>${esc(c.owner||'担当未定')}${c.gross?' ・<span class="num">'+oku(c.gross)+'</span>':''}</div>
+          ${c.nextDate?`<div class="m" style="color:${dayDiff(c.nextDate)<0?'var(--alert)':'var(--muted)'}">▸ ${jdate(c.nextDate)} ${esc((c.nextAction||'').slice(0,14))}</div>`:'<div class="m" style="color:var(--alert)">▸ 次の行動が未設定</div>'}
+        </div>`).join('') || '<div style="font-size:12px;color:var(--muted);padding:6px 2px">案件なし</div>'}
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="sec card pad">
+    <h3 class="h">担当者別の想定粗利</h3>
+    ${Object.entries(byOwner).sort((a,b)=>b[1]-a[1]).map(([o,v])=>
+      `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EDF0EC;padding:6px 0"><span>${esc(o)}</span><b class="num">${oku(v)}</b></div>`).join('')||'<div class="empty">案件がありません</div>'}
+  </div>`;
+}
+function bindDrag(){}
+function dropCard(ev, ph){
+  ev.preventDefault();
+  document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
+  const id = ev.dataTransfer.getData('text'); const c = DB.cards.find(x=>x.id===id);
+  if(!c || c.phase===ph) return;
+  const old = c.phase||'PH01'; c.phase = ph;
+  save(c, `フェーズを ${old} → ${ph} に変更`);
+  toast(`${c.company} を ${ph} へ移動しました`);
+  render();
+}
+
+/* ===================== ダッシュボード ===================== */
+function vDash(){
+  const all = DB.cards, a = alive();
+  const sa = a.filter(c=>['S','A'].includes(c.rank));
+  const ph4 = a.filter(c=>['PH04','PH06','PH08'].includes(c.phase||''));
+  const won = all.filter(c=>c.phase==='PH08');
+  const lost = all.filter(c=>c.phase==='LOST');
+  const contacted = all.filter(c=>(c.logs||[]).length>0);
+  const rate = all.length? Math.round(contacted.length/all.length*100):0;
+  const byOwner = {};
+  a.forEach(c=>{ const o=c.owner||'担当未定'; byOwner[o]=byOwner[o]||{n:0,g:0,over:0,sa:0};
+    byOwner[o].n++; byOwner[o].g+=Number(c.gross)||0;
+    if(dayDiff(c.nextDate)<0) byOwner[o].over++;
+    if(['S','A'].includes(c.rank)) byOwner[o].sa++; });
+  const byPlace = {};
+  all.forEach(c=>{ const p=c.metPlace||'その他'; byPlace[p]=(byPlace[p]||0)+1; });
+
+  return `
+  <div class="sec kpi">
+    <div class="k"><span>名刺の総数</span><b class="num">${all.length}</b><small>今月 ${all.filter(c=>(c.createdAt||'').slice(0,7)===today().slice(0,7)).length}枚</small></div>
+    <div class="k"><span>初回連絡の完了率</span><b class="num">${rate}%</b><small>${contacted.length}/${all.length}件</small></div>
+    <div class="k"><span>S・Aランク</span><b class="num">${sa.length}</b><small>${oku(grossOf(sa))}</small></div>
+    <div class="k"><span>無料診断の獲得</span><b class="num">${all.filter(c=>c.diag).length}</b></div>
+    <div class="k"><span>現地視察の獲得</span><b class="num">${all.filter(c=>c.visit).length}</b></div>
+    <div class="k"><span>PH04以降</span><b class="num">${ph4.length}</b><small>${oku(grossOf(ph4))}</small></div>
+    <div class="k"><span>受注（PH08）</span><b class="num">${won.length}</b><small>粗利 ${oku(grossOf(won))}</small></div>
+    <div class="k ${overdue().length?'bad':''}"><span>期限超過</span><b class="num">${overdue().length}</b><small>全社の滞留</small></div>
+  </div>
+
+  <div class="sec card pad">
+    <h3 class="h">パイプライン <span class="note">フェーズ別の想定粗利</span></h3>
+    ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
+      const l=a.filter(c=>(c.phase||'PH01')===p.id); const g=grossOf(l);
+      const max=Math.max(1,...PHASES.map(x=>grossOf(a.filter(c=>(c.phase||'PH01')===x.id))));
+      return `<div style="margin-bottom:9px">
+        <div class="row" style="justify-content:space-between;font-size:13px"><span><b>${p.id}</b> ${p.name}<span style="color:var(--muted)"> ${l.length}件</span></span><b class="num">${oku(g)}</b></div>
+        <div style="height:7px;background:#EDF0EC;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(g/max*100)}%;background:var(--sun)"></div></div>
+      </div>`;}).join('')}
+  </div>
+
+  <div class="sec card pad">
+    <h3 class="h">担当者別 <span class="note">滞留が赤字</span></h3>
+    <div class="scroll"><table>
+      <tr><th>担当</th><th style="text-align:right">案件</th><th style="text-align:right">S・A</th><th style="text-align:right">想定粗利</th><th style="text-align:right">期限超過</th></tr>
+      ${Object.entries(byOwner).sort((a,b)=>b[1].g-a[1].g).map(([o,v])=>`<tr>
+        <td>${esc(o)}</td><td class="num" style="text-align:right">${v.n}</td><td class="num" style="text-align:right">${v.sa}</td>
+        <td class="num" style="text-align:right">${oku(v.g)}</td>
+        <td class="num" style="text-align:right;color:${v.over?'var(--alert)':'inherit'};font-weight:${v.over?700:400}">${v.over}</td></tr>`).join('')
+        ||'<tr><td colspan="5" class="empty">データがありません</td></tr>'}
+    </table></div>
+  </div>
+
+  <div class="sec card pad">
+    <h3 class="h">獲得経路</h3>
+    ${Object.entries(byPlace).sort((a,b)=>b[1]-a[1]).map(([p,v])=>
+      `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EDF0EC;padding:6px 0"><span>${esc(p)}</span><b class="num">${v}枚</b></div>`).join('')||'<div class="empty">データがありません</div>'}
+    ${lost.length?`<div style="margin-top:12px;font-size:13px;color:var(--muted)">見送り ${lost.length}件（理由は各顧客の履歴に記録）</div>`:''}
+  </div>
+
+  <div class="sec row">
+    <button class="btn ghost" onclick="exportCSV()">全件CSV出力</button>
+    <button class="btn ghost" onclick="exportJSON()">バックアップ（JSON）</button>
+  </div>`;
+}
+
+/* ===================== 名刺登録 ===================== */
+let DRAFT = null, IMGS = [];
+function closeModal(){ $('#modal').innerHTML=''; DRAFT=null; IMGS=[]; render(); }
+function sheet(title, body, foot){
+  $('#modal').innerHTML = `<div class="mask" onclick="if(event.target===this)closeModal()"><div class="sheet">
+    <div class="sh"><b>${esc(title)}</b><button class="x" onclick="closeModal()">✕</button></div>
+    <div class="sb">${body}</div>${foot||''}</div></div>`;
+}
+
+function openScan(quick){
+  IMGS = [];
+  DRAFT = {
+    id:uid(), createdAt:new Date().toISOString(),
+    company:'', name:'', kana:'', title:'', dept:'', tel:'', mobile:'', email:'', address:'', website:'', industry:'',
+    metAt:today(), metPlace: PLACES[0], owner: DB.me.name,
+    hearing:{owns:'', plants:'', voltage:[], fit:'', years:'', decline:'', pcs:'', sellIntent:'', buyIntent:'', battery:'', tax:'', budget:'', authority:'', timing:'', interests:[]},
+    services:[], rank:'', rankManual:false, svcManual:false, dateManual:false,
+    phase:'PH01', gross:'', amount:'', nextAction:'', nextDate:'', diag:false, visit:false, memo:'', logs:[]
+  };
+  drawScan();
+}
+function drawScan(){
+  sheet('名刺を登録',
+  `<div class="card pad sec">
+     <h3 class="h">1. 名刺を撮る <span class="note">表・裏の2枚まで</span></h3>
+     <div class="row">
+       <label class="btn ghost" style="display:inline-block">写真を撮る
+         <input type="file" accept="image/*" capture="environment" class="hide" onchange="pickImg(this)"></label>
+       <label class="btn ghost" style="display:inline-block">画像を選ぶ
+         <input type="file" accept="image/*" multiple class="hide" onchange="pickImg(this)"></label>
+       <button class="btn" id="ocrBtn" onclick="runOCR()" ${IMGS.length?'':'disabled'}>AIで読み取る</button>
+     </div>
+     <div class="row" style="margin-top:10px" id="thumbs">${IMGS.map((im,i)=>`<img src="data:${im.media_type};base64,${im.data}" style="height:72px;border-radius:6px;border:1px solid var(--line)">`).join('')}</div>
+     <div id="ocrMsg" style="font-size:12.5px;color:var(--muted);margin-top:8px">読み取れない場合はそのまま手入力できます。</div>
+   </div>
+   <div id="dupBox"></div>
+   <div class="card pad sec">
+     <h3 class="h">2. 名刺の情報</h3>
+     <div class="grid2">
+       ${fld('会社名','company')}${fld('氏名','name')}
+       ${fld('部署','dept')}${fld('役職','title')}
+       ${fld('電話','tel')}${fld('携帯','mobile')}
+       ${fld('メール','email')}${fld('Webサイト','website')}
+     </div>
+     ${fld('住所','address')}
+     <div class="grid3">
+       ${fld('業種','industry')}
+       <label class="f"><span>交換日</span><input type="date" value="${DRAFT.metAt}" onchange="DRAFT.metAt=this.value"></label>
+       <label class="f"><span>担当者</span><input type="text" value="${esc(DRAFT.owner)}" oninput="DRAFT.owner=this.value"></label>
+     </div>
+     <label class="f"><span>交換した場所</span><select onchange="DRAFT.metPlace=this.value">${PLACES.map(p=>`<option ${DRAFT.metPlace===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+   </div>
+   <div class="card pad sec">
+     <h3 class="h">3. ヒアリング <span class="note">わかる範囲で。入れるほど判定が正確になります</span></h3>
+     ${yn('発電所を所有','owns')}
+     <div class="grid3">
+       <label class="f"><span>所有基数</span><input type="number" min="0" value="${esc(DRAFT.hearing.plants)}" oninput="DRAFT.hearing.plants=this.value"></label>
+       <label class="f"><span>FIT単価（円）</span><input type="number" value="${esc(DRAFT.hearing.fit)}" oninput="DRAFT.hearing.fit=this.value"></label>
+       <label class="f"><span>稼働年数</span><input type="number" value="${esc(DRAFT.hearing.years)}" oninput="DRAFT.hearing.years=this.value"></label>
+     </div>
+     <label class="f"><span>区分</span><div class="chips">${['低圧','高圧','特別高圧'].map(v=>
+       `<button class="chip ${(DRAFT.hearing.voltage||[]).includes(v)?'on':''}" onclick="tgl(DRAFT.hearing.voltage,'${v}');drawScan()">${v}</button>`).join('')}</div></label>
+     ${yn('発電量の低下','decline')}${yn('パワコン交換予定','pcs')}
+     ${yn('売却意向','sellIntent')}${yn('購入意向','buyIntent')}
+     ${yn('蓄電池への関心','battery')}${yn('節税ニーズ','tax')}${yn('決裁権','authority')}
+     <div class="grid2">
+       <label class="f"><span>投資可能額（万円）</span><input type="number" value="${esc(DRAFT.hearing.budget)}" oninput="DRAFT.hearing.budget=this.value" placeholder="10000＝1億円"></label>
+       <label class="f"><span>検討時期</span><select onchange="DRAFT.hearing.timing=this.value">${['','3か月以内','半年以内','1年以内','未定'].map(v=>`<option ${DRAFT.hearing.timing===v?'selected':''}>${v}</option>`).join('')}</select></label>
+     </div>
+     <label class="f"><span>興味分野</span><div class="chips">${INTERESTS.map(v=>
+       `<button class="chip ${(DRAFT.hearing.interests||[]).includes(v)?'on':''}" onclick="tgl(DRAFT.hearing.interests,'${v}');drawScan()">${v}</button>`).join('')}</div></label>
+     <div class="row">
+       <button class="chip sun ${DRAFT.diag?'on':''}" onclick="DRAFT.diag=!DRAFT.diag;drawScan()">無料診断を獲得</button>
+       <button class="chip sun ${DRAFT.visit?'on':''}" onclick="DRAFT.visit=!DRAFT.visit;drawScan()">現地視察を獲得</button>
+     </div>
+   </div>
+   ${judgeBox()}
+   <div class="card pad sec">
+     <h3 class="h">5. 次の行動 <span class="note">ここが空欄だと登録できません</span></h3>
+     <label class="f"><span>次にやること</span><input type="text" value="${esc(DRAFT.nextAction)}" oninput="DRAFT.nextAction=this.value" placeholder="例：お礼の電話＋現地視察の日程提案"></label>
+     <div class="grid2">
+       <label class="f"><span>実行期限</span><input type="date" value="${DRAFT.nextDate}" onchange="DRAFT.nextDate=this.value; DRAFT.dateManual=true"></label>
+       <label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(DRAFT.gross)}" oninput="DRAFT.gross=this.value"></label>
+     </div>
+     <label class="f"><span>メモ</span><textarea oninput="DRAFT.memo=this.value" placeholder="会話の内容・相手の温度感">${esc(DRAFT.memo)}</textarea></label>
+   </div>
+   <button class="btn wide" style="padding:14px" onclick="saveDraft()">この内容で登録する</button>
+   <div style="height:20px"></div>`);
+  checkDup();
+}
+function fld(label, key){
+  return `<label class="f"><span>${label}</span><input type="text" value="${esc(DRAFT[key]||'')}" oninput="DRAFT.${key}=this.value${key==='company'||key==='name'?'; checkDup()':''}"></label>`;
+}
+function yn(label, key){
+  return `<label class="f"><span>${label}</span><div class="chips">${['あり','なし'].map(v=>
+    `<button class="chip ${DRAFT.hearing[key]===v?'on':''}" onclick="DRAFT.hearing['${key}']=DRAFT.hearing['${key}']==='${v}'?'':'${v}';drawScan()">${v}</button>`).join('')}</div></label>`;
+}
+function tgl(arr, v){ const i=arr.indexOf(v); if(i<0) arr.push(v); else arr.splice(i,1); }
+
+function judgeBox(){
+  const j = scoreCard(DRAFT);
+  const sug = suggestServices(DRAFT);
+  if(!DRAFT.rankManual){
+    DRAFT.rank = j.rank;
+    if(!DRAFT.dateManual) DRAFT.nextDate = addDays(RANK_RULE[j.rank].days);
+  }
+  if(!DRAFT.svcManual) DRAFT.services = sug.slice();
+  const rank = DRAFT.rank;
+  return `<div class="card pad sec">
+    <h3 class="h">4. 見込みランクと提案 <span class="note">入力内容から自動判定</span></h3>
+    <div class="row" style="margin-bottom:8px"><span class="rank ${rank}" style="height:30px;min-width:34px;font-size:15px">${rank}</span>
+      <b>${RANK_RULE[rank].text}</b><span class="num" style="color:var(--muted);font-size:12px">判定スコア ${j.score}</span></div>
+    <label class="f"><span>ランクを変える</span><div class="chips">${RANKS.map(r=>
+      `<button class="chip ${rank===r?'on':''}" onclick="DRAFT.rankManual=true; DRAFT.rank='${r}'; if(!DRAFT.dateManual) DRAFT.nextDate=addDays(RANK_RULE['${r}'].days); drawScan()">${r}</button>`).join('')}</div></label>
+    <label class="f"><span>提案できるサービス</span><div class="chips">${SERVICES.map(s=>
+      `<button class="chip ${DRAFT.services.includes(s)?'on':''}" onclick="DRAFT.svcManual=true; tgl(DRAFT.services,'${s}');drawScan()">${s}</button>`).join('')}</div></label>
+    ${j.why.length?`<div style="font-size:12px;color:var(--muted)">根拠：${j.why.join(' ／ ')}</div>`:''}
+  </div>`;
+}
+
+function checkDup(){
+  const box = $('#dupBox'); if(!box||!DRAFT) return;
+  const co = (DRAFT.company||'').trim(), nm = (DRAFT.name||'').trim();
+  if(!co && !nm){ box.innerHTML=''; return; }
+  const hits = DB.cards.filter(c=>c.id!==DRAFT.id && ((nm && c.name===nm && c.company===co) || (co && c.company===co)));
+  if(!hits.length){ box.innerHTML=''; return; }
+  const same = hits.filter(c=>nm && c.name===nm);
+  box.innerHTML = `<div class="warnbox ${same.length?'red':''}">
+    <b>${same.length? '同じ方がすでに登録されています':'同じ会社がすでに登録されています'}</b>（${hits.length}件）<br>
+    ${hits.slice(0,3).map(c=>`<span class="tag">${esc(c.company)} ${esc(c.name||'')} ／ 担当 ${esc(c.owner||'未定')}</span>`).join(' ')}<br>
+    <button class="btn sm ghost" style="margin-top:6px" onclick="closeModal();openCard('${hits[0].id}')">既存の顧客を開く</button>
+  </div>`;
+}
+
+/* ---------- AI読み取り ---------- */
+function pickImg(input){
+  const files = [...input.files].slice(0,2);
+  files.forEach(f=>{
+    const r = new FileReader();
+    r.onload = () => {
+      IMGS.push({media_type:f.type||'image/jpeg', data:String(r.result).split(',')[1]});
+      if(IMGS.length>2) IMGS = IMGS.slice(-2);
+      drawScan();
+    };
+    r.readAsDataURL(f);
+  });
+}
+async function runOCR(){
+  if(!IMGS.length) return;
+  $('#ocrBtn').disabled = true;
+  $('#ocrMsg').textContent = '読み取っています…';
+  const sys = '名刺画像から情報を抽出する。JSONのみを返し、前置き・コードフェンスは書かない。';
+  const prompt = 'この名刺画像から次のキーのJSONを作る。値が読み取れないキーは空文字にする。'+
+    '{"company":"","name":"","kana":"","dept":"","title":"","tel":"","mobile":"","email":"","address":"","website":"","industry":""}';
+  try{
+    const res = await fetch(AI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY},
+      body: JSON.stringify({system:sys, prompt, max_tokens:800, images:IMGS})
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    const txt = j.text || (Array.isArray(j.content)? j.content.filter(x=>x.type==='text').map(x=>x.text).join('') : '') || '';
+    const m = txt.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('読み取り結果を解析できません');
+    const o = JSON.parse(m[0]);
+    ['company','name','kana','dept','title','tel','mobile','email','address','website','industry'].forEach(k=>{ if(o[k]) DRAFT[k]=o[k]; });
+    drawScan();
+    $('#ocrMsg').textContent = '読み取りました。間違いがあれば直してください。';
+    toast('名刺を読み取りました');
+  }catch(e){
+    $('#ocrBtn').disabled = false;
+    $('#ocrMsg').innerHTML = '<span style="color:var(--alert)">自動読み取りに失敗しました（'+esc(e.message)+'）。下の欄に手入力してください。</span>';
+  }
+}
+
+function saveDraft(){
+  if(!DRAFT.company && !DRAFT.name){ toast('会社名か氏名を入れてください'); return; }
+  if(!DRAFT.nextAction || !DRAFT.nextDate){ toast('次にやることと期限を決めてください'); return; }
+  delete DRAFT.rankManual; delete DRAFT.svcManual; delete DRAFT.dateManual;
+  save(DRAFT, `名刺を登録（${DRAFT.metPlace}）／ランク ${DRAFT.rank}`);
+  toast(`${DRAFT.company||DRAFT.name} を登録しました`);
+  closeModal();
+}
+
+/* ===================== 顧客詳細 ===================== */
+let CUR = null;
+function openCard(id){
+  CUR = DB.cards.find(c=>c.id===id); if(!CUR) return;
+  drawCard();
+}
+function drawCard(){
+  const c = CUR, h = c.hearing||{}, d = dayDiff(c.nextDate);
+  const j = scoreCard(c);
+  sheet(c.company || c.name || '顧客', `
+  <div class="card pad sec">
+    <div class="row" style="margin-bottom:6px">
+      <span class="rank ${c.rank}" style="height:28px;min-width:32px;font-size:14px">${c.rank}</span>
+      <b style="font-size:17px">${esc(c.company||'—')}</b>
+    </div>
+    <div style="font-size:13.5px">${esc(c.name||'')}${c.title?' ／ '+esc(c.title):''}${c.dept?'（'+esc(c.dept)+'）':''}</div>
+    <div class="row" style="margin-top:10px">
+      ${c.tel?`<a class="btn sm ghost" href="tel:${esc(c.tel)}">電話 ${esc(c.tel)}</a>`:''}
+      ${c.mobile?`<a class="btn sm ghost" href="tel:${esc(c.mobile)}">携帯</a>`:''}
+      ${c.email?`<a class="btn sm ghost" href="mailto:${esc(c.email)}">メール</a>`:''}
+      ${c.address?`<a class="btn sm ghost" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}">地図</a>`:''}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:9px">
+      ${esc(c.address||'')}${c.website?'<br>'+esc(c.website):''}<br>
+      ${esc(c.metPlace||'')}で${jdate(c.metAt)}に交換　担当：${esc(c.owner||'未定')}
+    </div>
+  </div>
+
+  <div class="card pad sec" style="border-left:4px solid ${d<0?'var(--alert)':'var(--sun)'}">
+    <h3 class="h">次の行動</h3>
+    <label class="f"><span>やること</span><input type="text" value="${esc(c.nextAction||'')}" oninput="CUR.nextAction=this.value"></label>
+    <div class="grid2">
+      <label class="f"><span>期限</span><input type="date" value="${c.nextDate||''}" onchange="CUR.nextDate=this.value"></label>
+      <label class="f"><span>担当者</span><input type="text" value="${esc(c.owner||'')}" oninput="CUR.owner=this.value"></label>
+    </div>
+    ${c.nextDate?`<div style="font-size:12.5px;font-weight:700;color:${d<0?'var(--alert)':'var(--muted)'}">${jdate(c.nextDate)}・${d<0?(-d)+'日 超過':d===0?'今日が期限':'あと'+d+'日'}</div>`:''}
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="saveCur()">保存する</button>
+      <button class="btn ghost" onclick="doneAction('${c.id}',true)">連絡した（履歴に残す）</button>
+    </div>
+  </div>
+
+  <div class="card pad sec">
+    <h3 class="h">商談フェーズと金額</h3>
+    <div class="chips" style="margin-bottom:12px">${PHASES.map(p=>
+      `<button class="chip ${(c.phase||'PH01')===p.id?'on':''}" onclick="setPhase('${p.id}')">${p.id} ${p.name}</button>`).join('')}</div>
+    <div class="grid2">
+      <label class="f"><span>想定売上（万円）</span><input type="number" value="${esc(c.amount||'')}" oninput="CUR.amount=this.value"></label>
+      <label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(c.gross||'')}" oninput="CUR.gross=this.value"></label>
+    </div>
+    <label class="f"><span>提案サービス</span><div class="chips">${SERVICES.map(s=>
+      `<button class="chip ${(c.services||[]).includes(s)?'on':''}" onclick="tgl(CUR.services,'${s}');drawCard()">${s}</button>`).join('')}</div></label>
+    <div class="row"><button class="chip sun ${c.diag?'on':''}" onclick="CUR.diag=!CUR.diag;drawCard()">無料診断</button>
+      <button class="chip sun ${c.visit?'on':''}" onclick="CUR.visit=!CUR.visit;drawCard()">現地視察</button></div>
+  </div>
+
+  <div class="card pad sec">
+    <h3 class="h">見込みランク <span class="note">自動判定 ${j.rank}／スコア ${j.score}</span></h3>
+    <div class="chips">${RANKS.map(r=>`<button class="chip ${c.rank===r?'on':''}" onclick="CUR.rank='${r}';saveCur(true);drawCard()">${r}</button>`).join('')}</div>
+    ${j.why.length?`<div style="font-size:12px;color:var(--muted);margin-top:8px">${j.why.join(' ／ ')}</div>`:''}
+  </div>
+
+  <div class="card pad sec">
+    <h3 class="h">保有発電所・ニーズ</h3>
+    <div class="scroll"><table>
+      ${[['発電所の所有',h.owns],['所有基数',h.plants],['区分',(h.voltage||[]).join('・')],['FIT単価',h.fit?h.fit+'円':''],['稼働年数',h.years?h.years+'年':''],
+        ['発電量の低下',h.decline],['パワコン交換予定',h.pcs],['売却意向',h.sellIntent],['購入意向',h.buyIntent],
+        ['蓄電池への関心',h.battery],['節税ニーズ',h.tax],['決裁権',h.authority],['投資可能額',h.budget?oku(h.budget):''],['検討時期',h.timing],['興味分野',(h.interests||[]).join('・')]]
+        .map(([k,v])=>`<tr><th style="width:130px">${k}</th><td>${esc(v||'—')}</td></tr>`).join('')}
+    </table></div>
+    <button class="btn sm ghost" style="margin-top:10px" onclick="editHearing()">ヒアリングを編集する</button>
+  </div>
+
+  <div class="card pad sec">
+    <h3 class="h">活動履歴</h3>
+    <div class="row" style="margin-bottom:12px">
+      <input type="text" id="logTxt" placeholder="電話・訪問・メールの内容" style="flex:1;min-width:170px">
+      <button class="btn sm" onclick="addLog()">履歴を追加</button>
+    </div>
+    <ul class="log">${(c.logs||[]).map(l=>`<li><div class="t">${jtime(l.at)}　${esc(l.by||'')}</div>${esc(l.text)}</li>`).join('')||'<li style="color:var(--muted)">まだ履歴がありません。</li>'}</ul>
+    ${c.memo?`<div style="margin-top:10px;font-size:13px;background:#F7F9F6;padding:9px;border-radius:8px">${esc(c.memo)}</div>`:''}
+  </div>
+
+  <div class="row" style="margin-bottom:20px">
+    <button class="btn ghost sm" onclick="setPhase('LOST')">見送りにする</button>
+    <button class="btn ghost sm" onclick="delCard()" style="color:var(--alert)">削除</button>
+  </div>`);
+}
+function saveCur(silent){ save(CUR); if(!silent) toast('保存しました'); }
+function setPhase(ph){
+  const old = CUR.phase||'PH01'; if(old===ph) return;
+  CUR.phase = ph;
+  if(ph==='PH08'){ CUR.nextAction = CUR.nextAction||'受注後の手続き'; }
+  save(CUR, `フェーズを ${old} → ${ph} に変更`);
+  toast(`${ph} に更新しました`); drawCard();
+}
+function addLog(){
+  const t = $('#logTxt').value.trim(); if(!t) return;
+  save(CUR, t); drawCard(); toast('履歴に追加しました');
+}
+function delCard(){
+  if(!confirm('この顧客を削除します。元に戻せません。')) return;
+  const id = CUR.id;
+  DB.cards = DB.cards.filter(c=>c.id!==id); cacheSave();
+  if(DB.online && DB.sb) DB.sb.from(TABLE).delete().eq('id',id).then(()=>{});
+  closeModal(); toast('削除しました');
+}
+function doneAction(id, fromDetail){
+  const c = DB.cards.find(x=>x.id===id); if(!c) return;
+  const next = prompt('次にやることを入力してください（空欄なら「次の行動なし」になります）', '');
+  if(next===null) return;
+  const done = c.nextAction||'連絡';
+  c.nextAction = next.trim();
+  c.nextDate = next.trim()? addDays(RANK_RULE[c.rank||'C'].days) : '';
+  save(c, `実施：${done}`);
+  toast('履歴に記録しました');
+  if(fromDetail){ CUR=c; drawCard(); } else render();
+}
+function editHearing(){
+  DRAFT = CUR; IMGS = [];
+  sheet('ヒアリングを編集', `<div class="card pad sec">
+    ${yn('発電所を所有','owns')}
+    <div class="grid3">
+      <label class="f"><span>所有基数</span><input type="number" value="${esc(DRAFT.hearing.plants||'')}" oninput="DRAFT.hearing.plants=this.value"></label>
+      <label class="f"><span>FIT単価（円）</span><input type="number" value="${esc(DRAFT.hearing.fit||'')}" oninput="DRAFT.hearing.fit=this.value"></label>
+      <label class="f"><span>稼働年数</span><input type="number" value="${esc(DRAFT.hearing.years||'')}" oninput="DRAFT.hearing.years=this.value"></label>
+    </div>
+    <label class="f"><span>区分</span><div class="chips">${['低圧','高圧','特別高圧'].map(v=>
+      `<button class="chip ${(DRAFT.hearing.voltage||[]).includes(v)?'on':''}" onclick="DRAFT.hearing.voltage=DRAFT.hearing.voltage||[];tgl(DRAFT.hearing.voltage,'${v}');editHearing()">${v}</button>`).join('')}</div></label>
+    ${yn('発電量の低下','decline')}${yn('パワコン交換予定','pcs')}${yn('売却意向','sellIntent')}${yn('購入意向','buyIntent')}
+    ${yn('蓄電池への関心','battery')}${yn('節税ニーズ','tax')}${yn('決裁権','authority')}
+    <div class="grid2">
+      <label class="f"><span>投資可能額（万円）</span><input type="number" value="${esc(DRAFT.hearing.budget||'')}" oninput="DRAFT.hearing.budget=this.value"></label>
+      <label class="f"><span>検討時期</span><select onchange="DRAFT.hearing.timing=this.value">${['','3か月以内','半年以内','1年以内','未定'].map(v=>`<option ${DRAFT.hearing.timing===v?'selected':''}>${v}</option>`).join('')}</select></label>
+    </div>
+    <label class="f"><span>興味分野</span><div class="chips">${INTERESTS.map(v=>
+      `<button class="chip ${(DRAFT.hearing.interests||[]).includes(v)?'on':''}" onclick="DRAFT.hearing.interests=DRAFT.hearing.interests||[];tgl(DRAFT.hearing.interests,'${v}');editHearing()">${v}</button>`).join('')}</div></label>
+  </div>
+  <button class="btn wide" onclick="saveHearing()">ヒアリングを保存する</button><div style="height:20px"></div>`);
+}
+function saveHearing(){
+  const j = scoreCard(CUR);
+  save(CUR, `ヒアリングを更新（自動判定 ${j.rank}）`);
+  toast('保存しました'); drawCard();
+}
+
+/* ===================== 出力 ===================== */
+function exportCSV(){
+  const head = ['会社名','氏名','部署','役職','電話','携帯','メール','住所','業種','交換日','場所','担当','ランク','フェーズ','提案サービス','想定売上(万円)','想定粗利(万円)','次の行動','期限','無料診断','現地視察','発電所所有','基数','区分','売却意向','購入意向','蓄電池','節税','決裁権','投資可能額','検討時期','登録日時'];
+  const rows = DB.cards.map(c=>{ const h=c.hearing||{}; return [
+    c.company,c.name,c.dept,c.title,c.tel,c.mobile,c.email,c.address,c.industry,c.metAt,c.metPlace,c.owner,
+    c.rank,c.phase,(c.services||[]).join('/'),c.amount,c.gross,c.nextAction,c.nextDate,c.diag?'○':'',c.visit?'○':'',
+    h.owns,h.plants,(h.voltage||[]).join('/'),h.sellIntent,h.buyIntent,h.battery,h.tax,h.authority,h.budget,h.timing,c.createdAt];});
+  const csv = [head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  dl(new Blob(['\uFEFF'+csv],{type:'text/csv'}), 'earth-connect_'+today()+'.csv');
+}
+function exportJSON(){ dl(new Blob([JSON.stringify(DB.cards,null,1)],{type:'application/json'}), 'earth-connect-backup_'+today()+'.json'); }
+function dl(blob, name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500); toast(name+' を出力しました');
+}
+
+/* ===================== 使い方・設定 ===================== */
+function vManual(){
+  return `<div class="card pad manual">
+  <h3>このアプリの役割</h3>
+  <p style="font-size:14px">名刺を保存するアプリではありません。<b>名刺交換を、次の商談と受注に変えるためのアプリ</b>です。登録して終わりにせず、必ず「次にやること」と「期限」を持たせます。</p>
+
+  <h3>守るルール</h3>
+  <ol>
+    <li>次の行動と期限がない名刺は、登録を完了させない</li>
+    <li>Sランクは当日中に連絡し、役員へ共有する</li>
+    <li>Aランクは24時間以内に連絡する</li>
+    <li>展示会では、その場で次回連絡日まで決める</li>
+    <li>期限を過ぎた案件（赤）は、朝いちばんに片づける</li>
+    <li>S・Aで3日動きがない案件は、上長が本人に確認する</li>
+    <li>連絡したら必ず履歴に残す。残っていない活動は無かったものとして扱う</li>
+  </ol>
+
+  <h3>1日の使い方</h3>
+  <ol>
+    <li><b>朝</b>：ホームを開き、期限超過と本日期限をゼロにする計画を立てる</li>
+    <li><b>日中</b>：連絡したら「連絡した」を押し、次の行動を入れ直す</li>
+    <li><b>商談が進んだら</b>：パイプラインでカードを次のフェーズへ動かす</li>
+    <li><b>夕方</b>：次の行動が未設定の顧客をゼロにする</li>
+  </ol>
+
+  <h3>見込みランクの判定</h3>
+  <p style="font-size:14px">ヒアリング内容から自動でスコアを出し、ランクを提案します。担当者が変更することもできます。</p>
+  <div class="scroll"><table>
+    <tr><th>ランク</th><th>目安</th><th>対応</th></tr>
+    <tr><td><span class="rank S">S</span></td><td>1億円以上・決裁権あり・時期が明確／スコア72以上</td><td>当日中に連絡＋役員共有</td></tr>
+    <tr><td><span class="rank A">A</span></td><td>スコア48以上。設備・課題・投資意向が具体的</td><td>24時間以内に連絡</td></tr>
+    <tr><td><span class="rank B">B</span></td><td>スコア26以上。興味あり・情報収集段階</td><td>3日以内に連絡</td></tr>
+    <tr><td><span class="rank C">C</span></td><td>将来見込み・協業候補</td><td>2週間ごとにフォロー</td></tr>
+    <tr><td><span class="rank 保留">保留</span></td><td>現時点で対象外</td><td>メール配信で育成</td></tr>
+  </table></div>
+  <p style="font-size:13px;color:var(--muted)">加点：決裁権+15／発電所所有+15／高圧・特高+10／売却意向+15／購入意向+15／蓄電池+10／節税+10／発電量低下+10／パワコン交換+8／1億円以上+20／3か月以内+15</p>
+
+  <h3>EXPO GROWTH 360 との使い分け</h3>
+  <p style="font-size:14px">エキスポの当日は <b>EXPO GROWTH 360</b> を使います。QR受付・来場管理・その場の高速入力は、あちらが専用です。EARTH CONNECT には入力しません。</p>
+  <div class="scroll"><table>
+    <tr><th>場面</th><th>使うアプリ</th></tr>
+    <tr><td>エキスポの事前集客・当日受付・会場でのヒアリング</td><td>EXPO GROWTH 360</td></tr>
+    <tr><td>紹介・訪問・セミナー・来社・問合せでもらった名刺</td><td>EARTH CONNECT</td></tr>
+    <tr><td>エキスポ終了後、追客を続けるリード</td><td>EXPO GROWTH 360 からCSVで移す</td></tr>
+  </table></div>
+  <p style="font-size:14px">エキスポが終わったら、EXPO GROWTH 360 でCSVを出し、下の「EXPOリードを取り込む」から読み込みます。会社名と氏名が同じ相手は取り込まないので、二重登録になりません。以後の追客はEARTH CONNECT側で続けます。</p>
+
+  <h3>データの置き場所</h3>
+  <p style="font-size:14px">入力したデータはSupabaseで全端末に共有されます。通信できないときはこの端末に保存し、つながったときに自動で送信します。左下の表示が「共有中」なら同期できています。</p>
+
+  <h3>導入時に一度だけ必要な設定</h3>
+  <p style="font-size:14px">Supabaseで下のSQLを実行してテーブルを作ります。</p>
+  <pre>create table if not exists earthconnect_records (
+  id text primary key,
+  kind text not null default 'card',
+  data jsonb not null,
+  updated_at timestamptz default now(),
+  updated_by text
+);
+alter table earthconnect_records enable row level security;
+create policy "ec_all" on earthconnect_records
+  for all using (true) with check (true);
+-- 画面に即時反映させる
+alter publication supabase_realtime add table earthconnect_records;</pre>
+
+  <h3>名刺のAI読み取りについて</h3>
+  <p style="font-size:14px">読み取りは共通のAI中継（Edge Function <code>ai</code>）を使います。現在の <code>ai</code> は文字だけを受け取る作りのため、画像を渡せるように次の1か所を追加してください。追加するまでは手入力で運用できます。</p>
+  <pre>// supabase/functions/ai/index.ts
+const { prompt, system, max_tokens, images } = await req.json();
+const content = [
+  ...(images ?? []).map((im) =&gt; ({
+    type: "image",
+    source: { type: "base64", media_type: im.media_type, data: im.data }
+  })),
+  { type: "text", text: prompt }
+];
+// messages: [{ role: "user", content }] として Anthropic API へ渡す</pre>
+
+  <h3>これから足せること</h3>
+  <ul>
+    <li>HubSpot連携（ポータルID 244232160）で顧客情報を二重入力しない</li>
+    <li>Googleカレンダーへ次回行動を自動登録</li>
+    <li>Chatworkへ期限超過の自動通知</li>
+    <li>お礼メール・トークスクリプトの自動作成</li>
+    <li>失注理由の分析と受注確度の予測</li>
+  </ul>
+  </div>
+
+  <div class="sec card pad" style="margin-top:18px">
+    <h3 class="h">EXPOリードを取り込む <span class="note">EXPO GROWTH 360 のCSV</span></h3>
+    <label class="btn" style="display:inline-block">CSVファイルを選ぶ<input type="file" accept=".csv,.txt" class="hide" onchange="openMap(this)"></label>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">読み込む前に、どの列を使うかを確認できます。</div>
+  </div>
+
+  <div class="sec card pad">
+    <h3 class="h">データ</h3>
+    <div class="row">
+      <button class="btn ghost sm" onclick="exportCSV()">CSV出力</button>
+      <button class="btn ghost sm" onclick="exportJSON()">バックアップ</button>
+      <label class="btn ghost sm" style="display:inline-block">復元・取込<input type="file" accept=".json" class="hide" onchange="importJSON(this)"></label>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">登録件数 ${DB.cards.length}件</div>
+  </div>`;
+}
+function importJSON(input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw new Error('形式が違います');
+      let n=0;
+      arr.forEach(c=>{ if(!c.id) c.id=uid(); if(!DB.cards.find(x=>x.id===c.id)){ DB.cards.push(c); push(c); n++; } });
+      cacheSave(); render(); toast(n+'件を取り込みました');
+    }catch(e){ toast('取り込めませんでした：'+e.message); }
+  };
+  r.readAsText(f);
+}
+
+
+/* ===================== EXPO GROWTH 360 からの取込 ===================== */
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,'');
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cell); cell=''; }
+      else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(ch!=='\r') cell+=ch;
+    }
+  }
+  if(cell!==''||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+const MAPFIELDS = [
+  {k:'company', label:'会社名', cand:['会社','社名','企業','法人']},
+  {k:'name',    label:'氏名',   cand:['氏名','名前','担当者名','来場者']},
+  {k:'tel',     label:'電話',   cand:['電話','TEL','tel']},
+  {k:'email',   label:'メール', cand:['メール','mail','Mail','E-']},
+  {k:'address', label:'住所',   cand:['住所','所在']},
+  {k:'owner',   label:'自社担当',cand:['担当','営業担当','アサイン']},
+  {k:'rank',    label:'ランク', cand:['ランク','rank','見込み']},
+  {k:'nextAction',label:'次の行動',cand:['次回行動','次のアクション','次回アクション','アクション']},
+  {k:'nextDate',label:'次回期限',cand:['次回予定','予定日','期限','商談日','次回連絡日']},
+  {k:'gross',   label:'想定粗利',cand:['粗利','利益']},
+  {k:'memo',    label:'メモ',   cand:['メモ','備考','ヒアリング','内容']}
+];
+let IMP = null;
+function openMap(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const rows=parseCSV(String(r.result));
+    if(rows.length<2){ toast('データのある行が見つかりません'); return; }
+    const head=rows[0].map(h=>String(h).trim());
+    const map={}, used=new Set();
+    MAPFIELDS.forEach(f2=>{
+      const hit=head.findIndex((h,n)=>!used.has(n) && f2.cand.some(c=>h.includes(c)));
+      map[f2.k]= hit>=0? hit : -1;
+      if(hit>=0) used.add(hit);
+    });
+    IMP={head, body:rows.slice(1), map};
+    drawMap();
+  };
+  r.readAsText(f,'UTF-8');
+}
+function drawMap(){
+  const opts = i => IMP.head.map((h,n)=>`<option value="${n}" ${IMP.map[i]===n?'selected':''}>${esc(h||('列'+(n+1)))}</option>`).join('');
+  sheet('EXPOリードの取り込み', `
+  <div class="warnbox">読み込む行数：<b class="num">${IMP.body.length}</b>件。会社名と氏名が同じ相手は取り込みません。</div>
+  <div class="card pad sec">
+    <h3 class="h">どの列を使うか</h3>
+    ${MAPFIELDS.map(f=>`<label class="f"><span>${f.label}</span>
+      <select onchange="IMP.map['${f.k}']=Number(this.value)">
+        <option value="-1" ${IMP.map[f.k]===-1?'selected':''}>使わない</option>${opts(f.k)}
+      </select></label>`).join('')}
+  </div>
+  <div class="card pad sec">
+    <h3 class="h">取り込むときの設定</h3>
+    <label class="f"><span>取得経路として記録する</span>
+      <select id="impPlace">${PLACES.map(p=>`<option ${p==='PV EXPO'?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+    <label class="f"><span>次回期限が空欄のとき</span>
+      <select id="impDue"><option value="rank">ランクの基準日を入れる</option><option value="">空欄のままにする</option></select></label>
+  </div>
+  <div class="card pad sec">
+    <h3 class="h">先頭3件の確認</h3>
+    <div class="scroll"><table><tr><th>会社名</th><th>氏名</th><th>ランク</th><th>担当</th></tr>
+    ${IMP.body.slice(0,3).map(r=>`<tr>
+      <td>${esc(pick(r,'company'))}</td><td>${esc(pick(r,'name'))}</td>
+      <td>${esc(pick(r,'rank'))}</td><td>${esc(pick(r,'owner'))}</td></tr>`).join('')}
+    </table></div>
+  </div>
+  <button class="btn wide" style="padding:14px" onclick="runImport()">この設定で取り込む</button>
+  <div style="height:20px"></div>`);
+}
+function pick(row,k){ const i=IMP.map[k]; return i>=0? String(row[i]??'').trim() : ''; }
+function runImport(){
+  const place=$('#impPlace').value, dueMode=$('#impDue').value;
+  let added=0, skipped=0;
+  IMP.body.forEach(r=>{
+    const company=pick(r,'company'), name=pick(r,'name');
+    if(!company && !name){ skipped++; return; }
+    if(DB.cards.some(c=>(c.company||'')===company && (c.name||'')===name)){ skipped++; return; }
+    let rank=pick(r,'rank').toUpperCase().replace(/ランク/g,'').trim();
+    if(!RANKS.includes(rank)) rank = rank==='保留'?'保留':'C';
+    let nd=pick(r,'nextDate').replace(/\//g,'-');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(nd)) nd = dueMode==='rank'? addDays(RANK_RULE[rank].days) : '';
+    const c={
+      id:uid(), createdAt:new Date().toISOString(),
+      company, name, kana:'', title:'', dept:'',
+      tel:pick(r,'tel'), mobile:'', email:pick(r,'email'), address:pick(r,'address'), website:'', industry:'',
+      metAt:today(), metPlace:place, owner:pick(r,'owner')||'',
+      hearing:{owns:'',plants:'',voltage:[],fit:'',years:'',decline:'',pcs:'',sellIntent:'',buyIntent:'',battery:'',tax:'',budget:'',authority:'',timing:'',interests:[]},
+      services:[], rank, phase:'PH01',
+      gross:(pick(r,'gross').replace(/[^0-9.]/g,'')||''), amount:'',
+      nextAction:pick(r,'nextAction')||'EXPO後の初回フォロー', nextDate:nd,
+      diag:false, visit:false, memo:pick(r,'memo'), logs:[]
+    };
+    c.services = suggestServices(c);
+    save(c, 'EXPO GROWTH 360 から取り込み');
+    added++;
+  });
+  closeModal();
+  toast(`${added}件を取り込みました（重複などで ${skipped}件は除外）`);
+}
+
+/* ===================== 起動 ===================== */
+(async function boot(){
+  cacheLoad();
+  render();
+  try{
+    if(window.EC && EC.guard){
+      await EC.guard({allow:['admin','manager','sales','field','staff']});
+      const me = (EC.me && EC.me()) || {};
+      DB.me = {name: me.full_name || me.name || me.email || '社員', email: me.email||'', role: me.role||'sales'};
+    }
+  }catch(e){ console.warn('共通認証なしで起動', e); }
+  $('#meName').textContent = DB.me.name || 'ログインなし';
+  $('#meRole').textContent = ({admin:'管理者',manager:'マネージャー',sales:'営業',field:'現場',staff:'管理部',viewer:'閲覧のみ'})[DB.me.role] || DB.me.role;
+  await initSupabase();
+  render();
+  window.addEventListener('online', ()=>{ initSupabase(); });
+})();
+</script>
+</body>
+</html>
