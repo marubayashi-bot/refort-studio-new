@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ReFort クイック試算</title>
+<link rel="icon" href="refort-icon.png">
+<link rel="apple-touch-icon" href="refort-icon.png">
+<meta name="apple-mobile-web-app-title" content="ReFort試算">
+<meta name="theme-color" content="#06192C">
 <style>
 :root{
   --ink:#0A2540;
@@ -50,7 +54,7 @@ header.topbar{
 .topbar .inner{max-width:1240px;margin:0 auto}
 .topbar .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .logo{display:flex;align-items:baseline;gap:12px}
-.logo svg{width:26px;height:26px;align-self:center}
+.logo .mark{height:36px;width:auto;align-self:center;display:block}
 .brand{font-size:23px;font-weight:800;letter-spacing:.01em}
 .brand em{font-style:normal;font-size:16px;font-weight:700;margin-left:10px;letter-spacing:.06em}
 .ver{font-size:12px;color:var(--sun-2);font-weight:700;margin-left:8px}
@@ -252,6 +256,7 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
   .tagline{display:none}
   .corp{padding:5px 9px}
   .corp img{height:20px}
+  .logo .mark{height:28px}
   .brand{font-size:19px}
   .brand em{font-size:14px;margin-left:7px}
   .hero-bg{background-position:72% center}
@@ -275,7 +280,7 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
   <div class="inner">
     <div class="row">
       <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 3.5c0 9-5.4 14-11 14-1.6 0-3-.4-4.2-1.1" stroke="#2FC17A" stroke-width="2.1" stroke-linecap="round"/><path d="M4 20.5c0-6.5 4.2-11.6 10.6-13.4" stroke="#54DE9B" stroke-width="2.1" stroke-linecap="round"/></svg>
+        <img class="mark" src="refort-mark.png" alt="" onerror="this.style.display='none'">
         <div class="brand">ReFort<em>クイック試算</em><span class="ver" id="verTag"></span></div>
       </div>
       <div class="spacer"></div>
@@ -467,8 +472,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.12";
+const APP_VERSION = "ver.2026.09.12b";
 const CHANGELOG = [
+  ["ver.2026.09.12b","アプリマークを新ロゴに変更。ホーム画面に追加したときのアイコンも設定。"],
   ["ver.2026.09.12","見出し行の自動判定を追加（表題行があるシートに対応）。PCS列が未選択・空のまま取り込めないよう検証を追加。データタブに取り込み状態の診断、詳細画面に元データ確認を追加。"],
   ["ver.2026.09.11d","似た列名が併存する統合シートで、パネル出力とPCS出力が別の列から取得されていた不具合を修正。列推定を最も具体的な見出しを選ぶ方式に変更し、÷1.3の推定処理を全廃。取込画面にサンプル値表示、データタブに取り込み時の列対応の確認欄を追加。"],
   ["ver.2026.09.11c","過積載率が1.30固定になる不具合を修正。欠けている出力を1.3倍で補完していたのをやめ、太陽電池の合計出力と発電出力の実データが揃っている場合のみ過積載率を算出するよう変更。発電量は発電出力（PCS）基準、工事費用は太陽電池の合計出力基準（無い場合はPCS）に明確化。"],
