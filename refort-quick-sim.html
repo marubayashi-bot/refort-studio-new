@@ -6,21 +6,26 @@
 <title>ReFort クイック試算</title>
 <style>
 :root{
-  --ink:#0E2430;
-  --ink-2:#1B3A49;
-  --line:#D6DEDC;
-  --paper:#EFF3F2;
+  --ink:#0A2540;
+  --ink-2:#123css;
+  --navy-1:#06192C;
+  --navy-2:#0E3355;
+  --line:#D9E0E6;
+  --paper:#F1F4F7;
   --white:#fff;
-  --text:#12262F;
-  --muted:#5C7079;
-  --sun:#E39400;
-  --sun-soft:#FDF3DE;
-  --hi:#0E7A57;
-  --mid:#B57A00;
-  --lo:#6B7C85;
+  --text:#122A3A;
+  --muted:#5B7383;
+  --sun:#EE8213;
+  --sun-2:#F5A623;
+  --green:#2FC17A;
+  --green-2:#54DE9B;
+  --sun-soft:#FDF1DF;
+  --hi:#1CA46A;
+  --mid:#C08A10;
+  --lo:#3B7BB5;
   --ng:#A32E24;
   --radius:14px;
-  --shadow:0 1px 0 rgba(14,36,48,.06), 0 8px 24px rgba(14,36,48,.07);
+  --shadow:0 1px 0 rgba(10,37,64,.06), 0 8px 24px rgba(10,37,64,.08);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -29,6 +34,7 @@ body{
   background:var(--paper); color:var(--text);
   -webkit-text-size-adjust:100%;
   font-feature-settings:"palt" 1;
+  overflow-x:hidden;
 }
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -37,48 +43,114 @@ button{cursor:pointer}
 /* ---------- shell ---------- */
 header.topbar{
   position:sticky;top:0;z-index:40;
-  background:var(--ink); color:#EAF1EF;
-  padding:calc(env(safe-area-inset-top) + 10px) 18px 0;
+  background:linear-gradient(180deg,#06192C 0%,#0B2A47 100%);
+  color:#EAF1F6;
+  padding:calc(env(safe-area-inset-top) + 12px) 22px 0;
 }
-.topbar .row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.brand{font-size:17px;font-weight:700;letter-spacing:.02em}
-.brand span{color:var(--sun)}
-.ver{font-size:11px;color:#8FA7AE;margin-left:2px}
+.topbar .inner{max-width:1240px;margin:0 auto}
+.topbar .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:baseline;gap:12px}
+.logo svg{width:26px;height:26px;align-self:center}
+.brand{font-size:23px;font-weight:800;letter-spacing:.01em}
+.brand em{font-style:normal;font-size:16px;font-weight:700;margin-left:10px;letter-spacing:.06em}
+.ver{font-size:12px;color:var(--sun-2);font-weight:700;margin-left:8px}
 .spacer{flex:1}
-.status{font-size:12px;color:#9DB4BB}
-nav.tabs{display:flex;gap:2px;margin-top:10px;overflow-x:auto}
+.status{font-size:13px;color:#8FB0C6;font-variant-numeric:tabular-nums}
+nav.tabs{display:flex;gap:4px;margin-top:12px;overflow-x:auto;align-items:center}
 nav.tabs button{
-  background:transparent;border:0;color:#9DB4BB;
-  padding:11px 16px;font-size:14px;font-weight:600;border-radius:10px 10px 0 0;white-space:nowrap;
+  background:transparent;border:0;color:#9FBBCE;
+  padding:12px 22px;font-size:15px;font-weight:700;border-radius:10px 10px 0 0;white-space:nowrap;
 }
-nav.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink)}
-main{padding:22px 18px 80px;max-width:1120px;margin:0 auto}
+nav.tabs button[aria-selected="true"]{background:#fff;color:var(--navy-1)}
+.tagline{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#BBD3E2;padding-bottom:10px;white-space:nowrap}
+.tagline s{display:block;width:38px;height:2px;background:var(--green);text-decoration:none}
+main{padding:22px 18px 0;max-width:1160px;margin:0 auto}
 .view{display:none}
 .view.on{display:block}
+footer.foot{
+  max-width:1160px;margin:40px auto 0;padding:16px 18px calc(env(safe-area-inset-bottom) + 24px);
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+  border-top:1px solid var(--line);
+}
+footer.foot s{display:block;width:34px;height:2px;background:var(--green);text-decoration:none}
 
-/* ---------- search ---------- */
-.searchwrap{margin:8vh 0 0}
-.searchwrap h1{
-  font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:.01em;
+/* ---------- hero (試算タブ) ---------- */
+#v-search.on{
+  display:block;width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);margin-top:-22px;
 }
-.searchwrap p.lead{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.7;max-width:56ch}
-.searchbox{display:flex;gap:10px;align-items:stretch}
+.hero-bg{
+  position:relative;
+  background:#08203A url('refort-hero.jpg') center right/cover no-repeat;
+  min-height:560px;
+}
+.hero-bg::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,#06192C 0%,rgba(7,28,49,.96) 34%,rgba(8,32,56,.72) 52%,rgba(8,32,56,.12) 74%,rgba(8,32,56,0) 100%);
+}
+.heroInner{position:relative;max-width:1160px;margin:0 auto;padding:46px 18px 34px;color:#EAF3F8}
+.eyebrow{color:var(--green-2);font-size:16px;font-weight:700;margin:0 0 14px;letter-spacing:.02em}
+.heroInner h1{
+  font-size:clamp(28px,4.2vw,52px);line-height:1.28;font-weight:800;margin:0 0 18px;letter-spacing:.01em;
+  text-shadow:0 2px 18px rgba(0,0,0,.35);
+}
+.heroInner h1 span{color:var(--green-2)}
+.heroInner p.lead{margin:0 0 26px;font-size:15px;line-height:1.9;color:#CBDDE9;max-width:62ch}
+.searchbox{display:flex;gap:14px;align-items:stretch;max-width:900px}
+.searchfield{
+  flex:1;display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;
+  padding:0 18px;min-width:0;box-shadow:0 10px 30px rgba(0,0,0,.28);
+}
+.searchfield svg{width:22px;height:22px;flex:none;color:var(--muted)}
 .searchbox input{
-  flex:1;border:2px solid var(--ink);border-radius:var(--radius);background:var(--white);
-  padding:18px 18px;font-size:20px;min-width:0;
+  flex:1;border:0;background:transparent;padding:20px 0;font-size:19px;min-width:0;outline:none;color:var(--text);
 }
-.searchbox input:focus{outline:3px solid var(--sun);outline-offset:1px}
-.searchbox button{
-  border:0;background:var(--ink);color:#fff;border-radius:var(--radius);padding:0 26px;font-size:17px;font-weight:700;
+.searchbox input::placeholder{color:#9AAEBC}
+.searchbtn{
+  border:0;border-radius:14px;padding:0 34px;font-size:19px;font-weight:800;color:#fff;
+  background:linear-gradient(180deg,var(--sun-2),var(--sun));
+  box-shadow:0 10px 26px rgba(238,130,19,.42);display:flex;align-items:center;gap:10px;
 }
-.hint{margin-top:10px;font-size:13px;color:var(--muted)}
-.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:26px}
-.recent{margin-top:30px}
-.recent h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
+.searchfield:focus-within{outline:3px solid var(--sun-2);outline-offset:2px}
+.hint{margin-top:14px;font-size:14px;color:#BBD3E2}
+.filterbar{margin-top:22px}
+.filterbar .cap{font-size:13px;color:#9FBBCE;margin-bottom:9px}
+.chipsrow{display:flex;gap:11px;flex-wrap:wrap}
+.jchip{
+  display:flex;align-items:center;gap:11px;border-radius:999px;padding:9px 22px 9px 9px;
+  border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#E6F0F6;
+  font-size:14px;font-weight:700;backdrop-filter:blur(4px);
+}
+.jchip b{
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#fff;
+}
+.jchip[aria-pressed="true"]{background:rgba(255,255,255,.97);color:var(--navy-1);border-color:#fff}
+.recent{margin-top:22px}
+.recent .cap{font-size:13px;color:#9FBBCE;margin-bottom:9px}
+.chips{display:flex;gap:10px;flex-wrap:wrap}
 .chips button{
-  background:var(--white);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:14px;
+  display:flex;align-items:center;gap:9px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:#E6F0F6;
+  border-radius:999px;padding:10px 20px;font-size:14px;font-weight:600;backdrop-filter:blur(4px);
 }
+.chips button svg{width:15px;height:15px;opacity:.7}
+.features{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:30px;
+}
+.fcard{
+  display:flex;gap:14px;align-items:flex-start;
+  background:rgba(9,32,56,.62);border:1px solid rgba(255,255,255,.16);border-radius:13px;
+  padding:16px 18px;backdrop-filter:blur(8px);
+}
+.fcard .ic{
+  width:42px;height:42px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  background:rgba(47,193,122,.16);color:var(--green-2);
+}
+.fcard .ic svg{width:21px;height:21px}
+.fcard.accent .ic{background:rgba(238,130,19,.18);color:var(--sun-2)}
+.fcard h3{margin:0 0 5px;font-size:15px;font-weight:800;color:var(--green-2);line-height:1.45}
+.fcard.accent h3{color:var(--sun-2)}
+.fcard p{margin:0;font-size:12.5px;line-height:1.65;color:#BBD3E2}
 
 /* ---------- lists ---------- */
 .crumb{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
@@ -168,6 +240,14 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 }
 .toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:820px){
+  .tagline{display:none}
+  .hero-bg{background-position:72% center}
+  .hero-bg::before{background:linear-gradient(180deg,rgba(6,25,44,.94) 0%,rgba(8,32,56,.88) 62%,rgba(8,32,56,.92) 100%)}
+  .heroInner{padding:30px 18px 26px}
+  .searchbox{flex-direction:column}
+  .searchbtn{padding:16px;justify-content:center}
+}
 @media (max-width:640px){
   .pcard{grid-template-columns:52px 1fr;grid-template-areas:"b n" "f f"}
   .pcard .badge{grid-area:b;width:52px;height:52px}
@@ -180,34 +260,70 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 <body>
 
 <header class="topbar">
-  <div class="row">
-    <div class="brand">ReFort<span>／</span>クイック試算<span class="ver" id="verTag"></span></div>
-    <div class="spacer"></div>
-    <div class="status" id="dbStatus">データ読込中…</div>
+  <div class="inner">
+    <div class="row">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 3.5c0 9-5.4 14-11 14-1.6 0-3-.4-4.2-1.1" stroke="#2FC17A" stroke-width="2.1" stroke-linecap="round"/><path d="M4 20.5c0-6.5 4.2-11.6 10.6-13.4" stroke="#54DE9B" stroke-width="2.1" stroke-linecap="round"/></svg>
+        <div class="brand">ReFort<em>クイック試算</em><span class="ver" id="verTag"></span></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="status" id="dbStatus">データ読込中…</div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="search" aria-selected="true">試算</button>
+      <button role="tab" data-tab="data" aria-selected="false">データ</button>
+      <button role="tab" data-tab="config" aria-selected="false">計算設定</button>
+      <button role="tab" data-tab="manual" aria-selected="false">使い方</button>
+      <div class="tagline"><s></s>再エネの、これからをもっと良く。</div>
+    </nav>
   </div>
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="search" aria-selected="true">試算</button>
-    <button role="tab" data-tab="data" aria-selected="false">データ</button>
-    <button role="tab" data-tab="config" aria-selected="false">計算設定</button>
-    <button role="tab" data-tab="manual" aria-selected="false">使い方</button>
-  </nav>
 </header>
 
 <main>
   <!-- ============ 検索 ============ -->
   <section class="view on" id="v-search">
-    <div class="searchwrap">
-      <h1>お客様の発電所を、その場で試算する。</h1>
-      <p class="lead">企業名か代表者名を入れて検索します。保有発電所を特定し、ReFort実施時の増加売電収入と回収余剰年数を自動で計算します。</p>
-      <div class="searchbox">
-        <input id="q" type="search" placeholder="例）アースコム、丸林" autocomplete="off" enterkeyhint="search">
-        <button id="goSearch">検索</button>
-      </div>
-      <div class="hint" id="searchHint"></div>
-      <div class="legend" id="legend"></div>
-      <div class="recent" id="recentWrap" hidden>
-        <h2>最近見た企業</h2>
-        <div class="chips" id="recentChips"></div>
+    <div class="hero-bg">
+      <div class="heroInner">
+        <p class="eyebrow">眠っている発電ポテンシャルを、見える化する。</p>
+        <h1>発電所名を入れるだけ。<br>その場で、<span>発電量アップの可能性</span>をクイック試算。</h1>
+        <p class="lead">企業名・代表者名・発電所名を入れるだけで、保有発電所を特定。<br>ReFort実施時の売電収入の増加目安・改善率・回収年数の目安をすばやく確認できます。</p>
+        <div class="searchbox">
+          <div class="searchfield">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="q" type="search" placeholder="例）株式会社アースコム ／ 発電所名 ／ オーナー名" autocomplete="off" enterkeyhint="search">
+          </div>
+          <button class="searchbtn" id="goSearch">検索</button>
+        </div>
+        <div class="hint" id="searchHint"></div>
+
+        <div class="filterbar">
+          <div class="cap">判定で絞り込み（回収余剰年数）</div>
+          <div class="chipsrow" id="legend"></div>
+        </div>
+
+        <div class="recent" id="recentWrap" hidden>
+          <div class="cap">最近見た企業</div>
+          <div class="chips" id="recentChips"></div>
+        </div>
+
+        <div class="features">
+          <div class="fcard">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M7 8h10M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div><h3>その場で概算</h3><p>検索から1分以内に金額を提示できます</p></div>
+          </div>
+          <div class="fcard">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div><h3>発電量改善率を確認</h3><p>ReFortによる増加見込みをすぐに表示</p></div>
+          </div>
+          <div class="fcard">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div><h3>回収年数の目安を自動表示</h3><p>提案の優先順位をその場で判断</p></div>
+          </div>
+          <div class="fcard accent">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="2"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5M16.5 7.2a3 3 0 010 5.6M18.5 19c0-2-.8-3.4-2-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div><h3>展示会・商談で使う</h3><p>iPadを開いてそのまま提示できます</p></div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -323,19 +439,27 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
   </section>
 </main>
 
+<footer class="foot">
+  <span>ReFort クイック試算　<span id="verFoot"></span></span>
+  <span class="spacer" style="flex:1"></span>
+  <s></s><span>再エネの力で、持続可能な未来をつくる。</span>
+</footer>
+
 <div class="toast" id="toast"></div>
 
 <script>
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "v2026.09.10";
+const APP_VERSION = "ver.2026.09.11";
 const CHANGELOG = [
+  ["ver.2026.09.11","試算タブのトップ画面をヒーローレイアウトに刷新。判定バッジを絞り込みフィルターとして機能するように変更。背景画像 refort-hero.jpg を同じ場所に置いてください。"],
   ["v2026.09.10","パネル出力と交流出力の参照元を修正。パネル出力＝太陽電池の合計出力、交流出力＝発電出力。列の自動推定を完全一致優先にし、同じ列が両方に割り当たらないようにした。逆に取り込まれている場合の検知と一括入れ替えを追加。"],
   ["v2026.09.09","FIT単価の判定を修正。認定日から年度（4月始まり）を判定して単価表を引く方式に変更。年をそのまま単価として扱ってしまう不具合を修正。単価表を10〜50kW／50kW以上の2区分＋2015年度前期に対応。詳細画面で単価の手入力上書きを追加。"],
   ["v2026.09.08","初版。検索・一覧・詳細の3画面、CSV/Excel取込、計算パラメータ編集、Chatwork貼り付け用コピーを実装。"]
 ];
 document.getElementById('verTag').textContent = APP_VERSION;
+document.getElementById('verFoot').textContent = APP_VERSION;
 
 /* ---- 共通認証（ec-auth.js が同じ場所にあるときだけ有効） ---- */
 (function(){
@@ -594,6 +718,7 @@ function toast(msg){
 /* ---------- 状態 ---------- */
 let PLANTS = [];
 let CUR = { companyKey:null, list:[], sort:'surplus', plant:null };
+const FILTER = new Set();
 
 async function boot(){
   PLANTS = await DB.all();
@@ -603,26 +728,33 @@ async function boot(){
   buildConfigUI();
   buildManual();
   document.getElementById('searchHint').textContent =
-    PLANTS.length ? `${PLANTS.length.toLocaleString()}件の発電所から探します。` : 'まだデータがありません。「データ」タブから計算書リストを取り込むか、サンプルを入れてください。';
+    PLANTS.length ? `${PLANTS.length.toLocaleString()}件の発電所データから検索できます。` : 'まだデータがありません。「データ」タブから計算書リストを取り込むか、サンプルを入れてください。';
 }
 function refreshCounts(){
   const comps = new Set(PLANTS.map(p=>p.companyKey));
   document.getElementById('cntPlants').textContent = PLANTS.length.toLocaleString();
   document.getElementById('cntCompanies').textContent = comps.size.toLocaleString();
   document.getElementById('dbStatus').textContent =
-    PLANTS.length ? `${PLANTS.length.toLocaleString()}件 / ${comps.size.toLocaleString()}社` : 'データ未登録';
-  DB.getMeta('lastImport').then(v=>{ document.getElementById('lastImport').textContent = v || '—'; });
+    PLANTS.length ? `${PLANTS.length.toLocaleString()}件 / ${comps.size.toLocaleString()}社` : 'データ未登録';  DB.getMeta('lastImport').then(v=>{ document.getElementById('lastImport').textContent = v || '—'; });
 }
 function renderLegend(){
   const c = CFG;
   const items = [
-    ['b-hi','高', `余剰 ${c.judgeHigh}年以上`],
+    ['b-hi','高', `余剰${c.judgeHigh}年以上`],
     ['b-mid','中', `${c.judgeMid}〜${c.judgeHigh}年`],
     ['b-lo','低', `${c.judgeLow}〜${c.judgeMid}年`],
     ['b-ng','不', `${c.judgeLow}年未満`]
   ];
   document.getElementById('legend').innerHTML = items.map(([cls,k,t])=>
-    `<span class="tag ${cls}">${k}　${t}</span>`).join('');
+    `<button class="jchip" data-judge="${k}" aria-pressed="${FILTER.has(k)}"><b class="${cls}">${k}</b>${t}</button>`).join('');
+  document.getElementById('legend').querySelectorAll('[data-judge]').forEach(b=>{
+    b.onclick = ()=>{
+      const k = b.dataset.judge;
+      FILTER.has(k) ? FILTER.delete(k) : FILTER.add(k);
+      renderLegend();
+      if(CUR.list.length) renderList();
+    };
+  });
 }
 
 /* ---------- タブ ---------- */
@@ -701,7 +833,15 @@ document.getElementById('sorter').querySelectorAll('button').forEach(b=>{
 });
 
 function renderList(){
-  const rows = CUR.list.map(p=>({p, r:calc(p)}));
+  let rows = CUR.list.map(p=>({p, r:calc(p)}));
+  const all = rows.length;
+  if(FILTER.size) rows = rows.filter(o=> FILTER.has(o.r.judge && o.r.judge.k));
+  if(!rows.length){
+    document.getElementById('listBody').innerHTML =
+      `<div class="empty"><strong>絞り込み条件に合う発電所がありません</strong>
+       試算タブの判定フィルターを外すと、${all}件すべてが表示されます。</div>`;
+    return;
+  }
   const key = CUR.sort;
   rows.sort((a,b)=>{
     const g = o => key==='surplus' ? (o.r.surplus ?? -999)
@@ -712,7 +852,8 @@ function renderList(){
   const c0 = rows[0].p;
   document.getElementById('listTitle').textContent = c0.company || '（企業名なし）';
   document.getElementById('listSub').textContent =
-    `${c0.rep ? '代表者 '+c0.rep+' / ' : ''}発電所 ${rows.length}件`;
+    `${c0.rep ? '代表者 '+c0.rep+' / ' : ''}発電所 ${rows.length}件` +
+    (FILTER.size ? `（全${all}件中 判定 ${[...FILTER].join('・')} で絞り込み）` : '');
   document.getElementById('listBody').innerHTML = rows.map(({p,r})=>{
     const j = r.judge || {k:'?',label:'',cls:'b-lo'};
     return `<button class="pcard" data-id="${esc(p.id)}">
@@ -883,7 +1024,8 @@ function renderRecent(){
   const r = JSON.parse(localStorage.getItem('rfqs.recent')||'[]').filter(x=>PLANTS.some(p=>p.companyKey===x.key));
   const w = document.getElementById('recentWrap');
   w.hidden = !r.length;
-  document.getElementById('recentChips').innerHTML = r.map(x=>`<button data-key="${esc(x.key)}">${esc(x.name)}</button>`).join('');
+  document.getElementById('recentChips').innerHTML = r.map(x=>
+    `<button data-key="${esc(x.key)}"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${esc(x.name)}</button>`).join('');
   document.getElementById('recentChips').querySelectorAll('button').forEach(b=>{
     b.onclick = ()=> openCompany(b.dataset.key);
   });
