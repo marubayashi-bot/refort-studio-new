@@ -1472,6 +1472,7 @@ function drawCard(){
       ${isPartner(c)?'<span class="tag" style="background:#EDE7F7;color:#5C42A0">パートナー</span>':''}
     </div>
     <div style="font-size:13.5px">${esc(c.name||'')}${c.title?' ／ '+esc(c.title):''}${c.dept?'（'+esc(c.dept)+'）':''}</div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="editCard()">${SVGI(ICONS.note,15)} 名刺情報を編集</button>
     <div class="row" style="margin-top:12px">
       ${c.tel?`<a class="btn sm" href="tel:${esc(String(c.tel).replace(/[^0-9+]/g,''))}" onclick="logCall('${c.id}','${esc(c.tel)}')">${SVGI(ICONS.phone,15)} ${esc(c.tel)}</a>`:''}
       ${c.mobile?`<a class="btn sm" href="tel:${esc(String(c.mobile).replace(/[^0-9+]/g,''))}" onclick="logCall('${c.id}','${esc(c.mobile)}')">${SVGI(ICONS.phone,15)} 携帯</a>`:''}
@@ -1633,6 +1634,52 @@ function saveHearing(){
 }
 
 
+
+/* ===================== 名刺情報の編集 ===================== */
+function editCard(){
+  const c = CUR;
+  const f = (label,key,type)=>`<label class="f"><span>${label}</span>
+    <input type="${type||'text'}" id="ef_${key}" value="${esc(c[key]||'')}"></label>`;
+  sheet('名刺情報を編集', `
+  <div class="card pad sec">
+    <div class="grid2">
+      ${f('会社名','company')}${f('氏名','name')}
+      ${f('ふりがな','kana')}${f('業種','industry')}
+      ${f('部署','dept')}${f('役職','title')}
+      ${f('電話','tel','tel')}${f('携帯','mobile','tel')}
+      ${f('メール','email','email')}${f('Webサイト','website')}
+    </div>
+    ${f('住所','address')}
+    <div class="grid3">
+      ${f('交換日','metAt','date')}
+      <label class="f"><span>交換した場所</span><select id="ef_metPlace">${PLACES.map(p=>`<option ${c.metPlace===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+      ${f('担当者','owner')}
+    </div>
+    <label class="f"><span>区分</span><div class="chips">${KINDS.map(k=>
+      `<button class="chip ${((c.kind||'customer')===k.id)?'on':''}" onclick="changeKind('${k.id}')">${k.label}</button>`).join('')}</div></label>
+    <label class="f"><span>メモ</span><textarea id="ef_memo">${esc(c.memo||'')}</textarea></label>
+  </div>
+  <button class="btn wide" style="padding:13px" onclick="saveEdit()">保存する</button>
+  <button class="btn ghost wide sm" style="margin-top:10px" onclick="drawCard()">やめる</button>
+  <div style="height:20px"></div>`);
+}
+function changeKind(k){
+  CUR.kind = k;
+  if(k==='partner') CUR.partner = CUR.partner || {ptype:'', status:'P1', refs:[], refCount:'', note:''};
+  save(CUR, `区分を${k==='partner'?'パートナー':'お客様'}に変更`);
+  editCard(); toast('区分を変えました');
+}
+function saveEdit(){
+  const keys = ['company','name','kana','industry','dept','title','tel','mobile','email','website','address','metAt','owner','memo'];
+  const before = CUR.company + '／' + (CUR.name||'');
+  keys.forEach(k=>{ const el = $('#ef_'+k); if(el) CUR[k] = el.value.trim(); });
+  const pl = $('#ef_metPlace'); if(pl) CUR.metPlace = pl.value;
+  if(!CUR.company && !CUR.name){ toast('会社名か氏名は残してください'); return; }
+  const after = CUR.company + '／' + (CUR.name||'');
+  save(CUR, before===after ? '名刺情報を修正' : `名刺情報を修正（${before} → ${after}）`);
+  toast('保存しました'); drawCard();
+}
+
 /* ===================== 連絡（電話・メール） ===================== */
 function copyText(t){
   const done = ()=>toast('コピーしました：'+t);
@@ -1651,7 +1698,7 @@ function logCall(id, num){
   save(c, `電話をかけた（${num}）`);
 }
 function gmailUrl(to, su, body){
-  return 'https://mail.google.com/mail/?view=cm&fs=1'
+  return 'https://mail.google.com/mail/?view=cm&fs=1&tf=1'
     + '&to=' + encodeURIComponent(to||'')
     + '&su=' + encodeURIComponent(su||'')
     + '&body=' + encodeURIComponent(body||'');
@@ -1705,9 +1752,14 @@ function drawMail(su, body){
     </div>
     <div id="mMsg" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
   </div>
-  <div class="row">
-    <button class="btn" style="flex:1;justify-content:center;padding:13px" onclick="sendVia('gmail')">${SVGI(ICONS.mail,17)} Gmailで開く</button>
-    <button class="btn ghost" style="flex:1;justify-content:center;padding:13px" onclick="sendVia('app')">メールアプリで開く</button>
+  <div class="card pad sec">
+    <h3 class="h">送り方を選ぶ</h3>
+    <button class="btn wide" style="padding:14px;margin-bottom:9px" onclick="sendVia('gmailapp')">${SVGI(ICONS.mail,17)} Gmailアプリで開く（スマホ）</button>
+    <button class="btn ghost wide" style="padding:12px;margin-bottom:9px" onclick="sendVia('gmailweb')">Gmailをブラウザで開く（パソコン向け）</button>
+    <button class="btn ghost wide" style="padding:12px" onclick="sendVia('app')">iPhoneのメールアプリで開く</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px">
+      押すと本文を自動でコピーします。万一Gmailが受信トレイを開いて本文が入らなかったときは、新規作成を開いて長押し→ペーストしてください。
+    </div>
   </div>
   <button class="btn ghost wide sm" style="margin-top:10px" onclick="copyText(document.getElementById('mBody').value)">本文をコピー</button>
   <div style="height:20px"></div>`);
@@ -1715,11 +1767,29 @@ function drawMail(su, body){
 function resetMail(){ const t=mailTemplate(MAILC); drawMail(t.su, t.body); }
 function sendVia(how){
   const to=$('#mTo').value.trim(), su=$('#mSu').value, body=$('#mBody').value;
-  const url = how==='gmail' ? gmailUrl(to,su,body)
-                            : 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(su)+'&body='+encodeURIComponent(body);
-  window.open(url, '_blank', 'noopener');
+  // どの方法でも本文をコピーしておく（貼り付けで確実に復旧できるように）
+  try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(body); else fallbackCopy(body, ()=>{}); }catch(e){}
+  let url;
+  if(how==='gmailapp'){
+    url = 'googlegmail:///co?to='+encodeURIComponent(to)+'&subject='+encodeURIComponent(su)+'&body='+encodeURIComponent(body);
+  }else if(how==='gmailweb'){
+    url = gmailUrl(to,su,body);
+  }else{
+    url = 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(su)+'&body='+encodeURIComponent(body);
+  }
   save(MAILC, `メールを作成（件名：${su.slice(0,40)}）`);
-  closeModal(); toast('メールを開きました');
+  if(how==='gmailapp' || how==='app'){
+    // アプリを開く。開けなければ同じ画面のまま残るので、案内を出す
+    window.location.href = url;
+    setTimeout(()=>{
+      const m = $('#mMsg');
+      if(m) m.innerHTML = '<span style="color:var(--alert)">アプリが開かない場合は、上の別のボタンを試してください。本文はコピー済みです。</span>';
+    }, 1500);
+    toast('本文をコピーしました');
+  }else{
+    window.open(url, '_blank', 'noopener');
+    closeModal(); toast('本文をコピーしました');
+  }
 }
 async function aiMail(){
   const msg=$('#mMsg'); msg.textContent='文面を作っています…';
@@ -1916,9 +1986,20 @@ Deno.serve(async (req) =&gt; {
 });</pre>
   <p style="font-size:13px;color:var(--muted)">APIキーは Edge Function Secrets の <code>ANTHROPIC_API_KEY</code> をそのまま使います。HTMLには書きません。差し替え後に、もう一度上のボタンで確認してください。</p>
 
+  <h3>登録した内容を直す</h3>
+  <p style="font-size:14px">顧客の画面を開き、名前の下にある<b>「名刺情報を編集」</b>から、会社名・氏名・部署・役職・電話・携帯・メール・住所・Webサイト・業種・交換日・交換した場所・担当者・区分・メモを直せます。AIの読み取りが少し違っていたときや、担当者が未定のままになっているときは、ここで直してください。直した内容は活動履歴に「名刺情報を修正」として残ります。</p>
+  <p style="font-size:14px">ヒアリングの内容は、その下の「ヒアリングを編集する」から直します。お客様とパートナーの区分も、編集画面から後で変えられます。</p>
+
   <h3>電話とメール</h3>
   <p style="font-size:14px">顧客の画面にある電話番号を押すと、そのまま電話がかかります。スマホ・iPadでの操作です。パソコンでは番号をコピーして使ってください。かけた記録は自動で活動履歴に残ります。</p>
-  <p style="font-size:14px">「メールを送る」を押すと、相手の会社名・名前・出会った場面・提案サービスを入れたお礼メールのひな形が出ます。中身を直してから、<b>Gmailで開く</b>（会社のGmailが新しいタブで開き、宛先・件名・本文が入った状態になります）か、<b>メールアプリで開く</b>を選びます。送信ボタンはGmail側で押してください。作成した記録は活動履歴に残ります。</p>
+  <p style="font-size:14px">「メールを送る」を押すと、相手の会社名・名前・出会った場面・提案サービスを入れたお礼メールのひな形が出ます。中身を直してから、送り方を3つから選びます。</p>
+  <div class="scroll"><table>
+    <tr><th>ボタン</th><th>使う場面</th></tr>
+    <tr><td><b>Gmailアプリで開く</b></td><td>スマホ・iPad。Gmailアプリの新規作成が開き、宛先・件名・本文が入ります。<b>スマホはこれを使ってください</b></td></tr>
+    <tr><td><b>Gmailをブラウザで開く</b></td><td>パソコン。新しいタブでGmailの作成画面が開きます</td></tr>
+    <tr><td><b>メールアプリで開く</b></td><td>iPhone標準のメールなど、Gmail以外を使っている場合</td></tr>
+  </table></div>
+  <p style="font-size:14px">スマホのブラウザ版Gmail（mail.google.comの画面）は、本文を渡しても受信トレイを開いてしまう仕様です。そのため、スマホでは「Gmailアプリで開く」を選んでください。どのボタンを押しても本文は自動でコピーされるので、万一入らなかったときは新規作成の本文欄を長押しして貼り付ければ元に戻せます。送信ボタンはGmail側で押してください。作成した記録は活動履歴に残ります。</p>
   <p style="font-size:14px">「AIで文面を作り直す」を押すと、ヒアリング内容とメモをふまえた文面をAIが書きます。そのまま送らず、必ず目を通してから送ってください。ホームの今日のアクション欄からも、電話とメールのボタンを直接押せます。</p>
   <p style="font-size:13px;color:var(--muted)">Gmailで別のアカウントが開いてしまう場合は、ブラウザで会社のアカウントに切り替えてから使ってください。</p>
 
