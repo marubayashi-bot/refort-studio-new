@@ -319,6 +319,18 @@ const RANK_RULE = {
   '保留':{days:60,text:'メール配信で育成'}
 };
 const PLACES = ['PV EXPO','展示会（その他）','紹介','訪問','セミナー','来社','電話・問合せ'];
+const KINDS = [
+  {id:'customer', label:'お客様',    note:'発電所オーナー・投資家など、提案の相手'},
+  {id:'partner',  label:'パートナー', note:'紹介・提携の相手。金融機関・士業・同業など'}
+];
+const PTYPES = ['金融機関','税理士・会計事務所','不動産・地主','工務店・建設','同業・EPC','士業・コンサル','その他'];
+const PSTATUS = [
+  {id:'P1', name:'接触済み',    c:'#E6F0F7', t:'#2C6E9B'},
+  {id:'P2', name:'面談済み',    c:'#E4F2EB', t:'#2E7D5B'},
+  {id:'P3', name:'提携合意',    c:'#FDF1DE', t:'#B57619'},
+  {id:'P4', name:'紹介実績あり', c:'#FBE9E6', t:'#C8412F'}
+];
+const PREFS = ['発電所オーナー','投資家・資産家','地主・土地情報','法人の節税ニーズ','売却検討先','金融・融資','その他'];
 const WEEK_TARGET = 10;
 
 /* ---------- アイコン ---------- */
@@ -335,7 +347,9 @@ const ICONS = {
   note:'<path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19"/><path d="M9.5 12h6M9.5 16h4"/>',
   check:'<circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-4.9"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
-  arrow:'<path d="m9 5 7 7-7 7"/>'
+  arrow:'<path d="m9 5 7 7-7 7"/>',
+  phone:'<path d="M6.3 3.5h3l1.5 3.8-1.9 1.1a11 11 0 0 0 4.7 4.7l1.1-1.9 3.8 1.5v3a1.8 1.8 0 0 1-2 1.8A15.5 15.5 0 0 1 4.5 5.5a1.8 1.8 0 0 1 1.8-2z"/>',
+  mail:'<rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="m3.4 6.6 8.6 6 8.6-6"/>'
 };
 
 /* ---------- 汎用 ---------- */
@@ -469,8 +483,30 @@ function suggestServices(c){
   return [...new Set(out)];
 }
 
+/* ===================== パートナーの判定 ===================== */
+function scorePartner(c){
+  const p = c.partner||{}; let s=0; const why=[];
+  if(p.status==='P4'){ s+=35; why.push('紹介実績あり +35'); }
+  else if(p.status==='P3'){ s+=25; why.push('提携合意 +25'); }
+  else if(p.status==='P2'){ s+=10; why.push('面談済み +10'); }
+  if(['金融機関','税理士・会計事務所'].includes(p.ptype)){ s+=15; why.push('顧客基盤が大きい業種 +15'); }
+  const r=(p.refs||[]).length;
+  if(r>=2){ s+=15; why.push('紹介できる相手が'+r+'種類 +15'); }
+  else if(r===1){ s+=8; why.push('紹介できる相手あり +8'); }
+  const n=Number(p.refCount)||0;
+  if(n>=5){ s+=20; why.push('年間5件以上の紹介見込み +20'); }
+  else if(n>=1){ s+=10; why.push('紹介見込みあり +10'); }
+  let rank;
+  if(s>=70) rank='S'; else if(s>=45) rank='A'; else if(s>=25) rank='B'; else if(s>0) rank='C'; else rank='保留';
+  return {score:s, rank, why};
+}
+const isPartner = c => c.kind==='partner';
+function judge(c){ return isPartner(c)? scorePartner(c) : scoreCard(c); }
+
 /* ===================== 集計 ===================== */
 const alive = () => DB.cards.filter(c=>c.phase!=='LOST');
+const deals = () => alive().filter(c=>!isPartner(c));
+const partners = () => DB.cards.filter(isPartner);
 function dueList(){
   return alive().filter(c=>c.nextDate).sort((a,b)=> (a.nextDate>b.nextDate?1:-1));
 }
@@ -584,6 +620,10 @@ function dueCard(c){
       <div class="when ${d<0?'over':''}"><span class="num">${jdate(c.nextDate)}</span>・${when}</div>
     </div>
     <div class="side">
+      <div class="row" style="gap:6px;flex-wrap:nowrap">
+        ${(c.tel||c.mobile)?`<a class="btn sm ghost" title="電話する" href="tel:${esc(String(c.mobile||c.tel).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();logCall('${c.id}','${esc(c.mobile||c.tel)}')">${SVGI(ICONS.phone,15)}</a>`:''}
+        ${c.email?`<button class="btn sm ghost" title="メールを送る" onclick="event.stopPropagation();openMail('${c.id}')">${SVGI(ICONS.mail,15)}</button>`:''}
+      </div>
       <button class="btn sm" onclick="doneAction('${c.id}')">連絡した</button>
       <button class="btn sm ghost" onclick="openCard('${c.id}')">開く</button>
     </div>
@@ -594,7 +634,8 @@ function vHome(){
   const soon = dueList().filter(c=>{const d=dayDiff(c.nextDate); return d>0 && d<=3;});
   const list = [...ov, ...td];
   const newToday = DB.cards.filter(c=>(c.createdAt||'').slice(0,10)===today()).length;
-  const sa = alive().filter(c=>['S','A'].includes(c.rank));
+  const sa = deals().filter(c=>['S','A'].includes(c.rank));
+  const pt = partners();
   const noAction = alive().filter(c=>!c.nextDate);
 
   return `
@@ -603,7 +644,7 @@ function vHome(){
   <div class="sec kpi">
     ${kpiCard('clock','var(--alertl)','var(--alert)','期限超過', ov.length, 'すぐ連絡', ov.length>0)}
     ${kpiCard('newcard','var(--skyl)','var(--sky)','本日の新規名刺', newToday, '累計 '+DB.cards.length+'件')}
-    ${kpiCard('star','var(--gol)','var(--go)','S・Aランク', sa.length, '想定粗利 '+oku(grossOf(sa)))}
+    ${kpiCard('star','var(--gol)','var(--go)','S・Aランク（お客様）', sa.length, '想定粗利 '+oku(grossOf(sa)))}
     ${kpiCard('note','var(--sunl)','#B57619','次の行動が未設定', noAction.length, '放置すると失注', noAction.length>0)}
   </div>
 
@@ -624,13 +665,21 @@ function vHome(){
         <h3 class="h">${SVGI(ICONS.pipe,19)} 商談パイプライン
           <button class="lnk" onclick="go('pipe')">すべて見る ›</button></h3>
         ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
-          const l = alive().filter(c=>(c.phase||'PH01')===p.id);
+          const l = deals().filter(c=>(c.phase||'PH01')===p.id);
           return `<div class="phrow">
             <span class="pill" style="background:${p.c};color:${p.t}">${p.id}</span>
             <span class="nm">${p.name}</span>
             <span class="gr num">${l.length?oku(grossOf(l)):''}</span>
             <span class="ct num">${l.length}<em>件</em></span></div>`;}).join('')}
       </div>
+
+      ${ pt.length ? `<div class="card pad sec">
+        <h3 class="h">${SVGI(ICONS.star,19)} パートナー
+          <button class="lnk" onclick="PIPEVIEW='partner'; go('pipe')">すべて見る ›</button></h3>
+        ${PSTATUS.map(p=>{ const l=pt.filter(c=>(c.partner||{}).status===p.id);
+          return `<div class="phrow"><span class="pill" style="background:${p.c};color:${p.t}">${p.name}</span>
+            <span class="nm"></span><span class="ct num">${l.length}<em>件</em></span></div>`;}).join('')}
+      </div>`:''}
 
       ${ st.length ? `<div class="card pad sec">
         <h3 class="h">${SVGI(ICONS.clock,19)} 3日以上動きのないS・A案件 <span class="note">${st.length}件</span></h3>
@@ -650,7 +699,7 @@ function vHome(){
 }
 
 /* ===================== 顧客一覧 ===================== */
-let FIL = {q:'', rank:'', owner:'', phase:''};
+let FIL = {q:'', rank:'', owner:'', phase:'', kind:''};
 function filtered(){
   let rows = DB.cards.slice();
   if(FIL.q){ const q=FIL.q.toLowerCase();
@@ -658,12 +707,18 @@ function filtered(){
   if(FIL.rank) rows = rows.filter(c=>c.rank===FIL.rank);
   if(FIL.owner) rows = rows.filter(c=>c.owner===FIL.owner);
   if(FIL.phase) rows = rows.filter(c=>c.phase===FIL.phase);
+  if(FIL.kind) rows = rows.filter(c=> FIL.kind==='partner'? isPartner(c) : !isPartner(c));
   return rows.sort((a,b)=> (RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank)) || ((b.createdAt||'')>(a.createdAt||'')?1:-1));
 }
 function vList(){
   const owners = [...new Set(DB.cards.map(c=>c.owner).filter(Boolean))];
   return `
   <div class="sec card pad">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip ${FIL.kind===''?'on':''}" onclick="FIL.kind='';render()">すべて <span class="num">${DB.cards.length}</span></button>
+      <button class="chip ${FIL.kind==='customer'?'on':''}" onclick="FIL.kind='customer';render()">お客様 <span class="num">${DB.cards.filter(c=>!isPartner(c)).length}</span></button>
+      <button class="chip ${FIL.kind==='partner'?'on':''}" onclick="FIL.kind='partner';render()">パートナー <span class="num">${partners().length}</span></button>
+    </div>
     <div class="row">
       <input type="text" placeholder="会社名・氏名・電話・場所で検索" value="${esc(FIL.q)}" style="flex:1;min-width:200px"
         oninput="FIL.q=this.value; document.getElementById('tbl').innerHTML=listTable(filtered())">
@@ -678,14 +733,18 @@ function vList(){
 function listTable(rows){
   if(!rows.length) return `<div class="empty"><b>該当する顧客がいません</b>条件を変えるか、名刺を登録してください。</div>`;
   return `<div class="scroll"><table>
-    <tr><th>ランク</th><th>会社・氏名</th><th>提案</th><th>フェーズ</th><th>次の行動</th><th>期限</th><th style="text-align:right">想定粗利</th><th>担当</th></tr>
+    <tr><th>ランク</th><th>会社・氏名</th><th>区分・提案</th><th>状況</th><th>次の行動</th><th>期限</th><th style="text-align:right">想定粗利</th><th>担当</th></tr>
     ${rows.map(c=>{
-      const d = dayDiff(c.nextDate); const p = PHASES.find(x=>x.id===(c.phase||'PH01'))||PHASES[0];
+      const d = dayDiff(c.nextDate);
+      const pa = isPartner(c);
+      const p = pa ? (PSTATUS.find(x=>x.id===((c.partner||{}).status||'P1'))||PSTATUS[0])
+                   : (PHASES.find(x=>x.id===(c.phase||'PH01'))||PHASES[0]);
       return `<tr class="clickable" onclick="openCard('${c.id}')">
         <td><span class="rank ${c.rank}">${c.rank}</span></td>
         <td><b>${esc(c.company||'—')}</b><br><span style="font-size:12px;color:var(--muted)">${esc(c.name||'')}</span></td>
-        <td style="font-size:12px">${(c.services||[]).slice(0,2).map(s=>`<span class="tag">${esc(s)}</span>`).join(' ')||'—'}</td>
-        <td><span class="pill" style="font-size:11px;font-weight:900;padding:3px 9px;border-radius:7px;background:${p.c};color:${p.t}">${p.id}</span></td>
+        <td style="font-size:12px">${pa? `<span class="tag" style="background:#EDE7F7;color:#5C42A0">パートナー</span> ${esc((c.partner||{}).ptype||'')}`
+            : ((c.services||[]).slice(0,2).map(s=>`<span class="tag">${esc(s)}</span>`).join(' ')||'—')}</td>
+        <td><span class="pill" style="font-size:11px;font-weight:900;padding:3px 9px;border-radius:7px;background:${p.c};color:${p.t}">${pa?p.name:p.id}</span></td>
         <td style="max-width:220px">${esc(c.nextAction||'未設定')}</td>
         <td class="num" style="color:${d<0?'var(--alert)':'inherit'};white-space:nowrap">${c.nextDate? jdate(c.nextDate):'—'}</td>
         <td class="num" style="text-align:right;white-space:nowrap">${c.gross?oku(c.gross):'—'}</td>
@@ -695,29 +754,32 @@ function listTable(rows){
 }
 
 /* ===================== パイプライン ===================== */
+let PIPEVIEW = 'deal';
 function vPipe(){
+  return `<div class="sec chips">
+      <button class="chip ${PIPEVIEW==='deal'?'on':''}" onclick="PIPEVIEW='deal';render()">お客様の商談 <span class="num">${deals().length}</span></button>
+      <button class="chip ${PIPEVIEW==='partner'?'on':''}" onclick="PIPEVIEW='partner';render()">パートナー <span class="num">${partners().length}</span></button>
+    </div>` + (PIPEVIEW==='partner'? vPartnerBoard() : vDealBoard());
+}
+function vDealBoard(){
   const byOwner = {};
-  alive().forEach(c=>{ byOwner[c.owner||'担当未定'] = (byOwner[c.owner||'担当未定']||0)+(Number(c.gross)||0); });
+  deals().forEach(c=>{ byOwner[c.owner||'担当未定'] = (byOwner[c.owner||'担当未定']||0)+(Number(c.gross)||0); });
   return `
   <div class="sec kpi">
     ${PHASES.filter(p=>p.id!=='LOST').slice(0,4).map(p=>{
-      const l = DB.cards.filter(c=>(c.phase||'PH01')===p.id);
+      const l = deals().filter(c=>(c.phase||'PH01')===p.id);
       return `<div class="k"><div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
         <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>${oku(grossOf(l))}</small></div></div>`;
     }).join('')}
   </div>
   <div class="sec pipe">
     ${PHASES.map(p=>{
-      const l = DB.cards.filter(c=>(c.phase||'PH01')===p.id).sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
-      return `<div class="col" data-ph="${p.id}" ondragover="event.preventDefault();this.classList.add('dragover')"
+      const l = DB.cards.filter(c=>!isPartner(c) && (c.phase||'PH01')===p.id).sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
+      return `<div class="col" ondragover="event.preventDefault();this.classList.add('dragover')"
         ondragleave="this.classList.remove('dragover')" ondrop="dropCard(event,'${p.id}')">
         <h4><span class="pill" style="background:${p.c};color:${p.t};padding:3px 9px;border-radius:7px">${p.id}</span> ${p.name}<em class="num">${l.length}</em></h4>
         <div class="sum num">${oku(grossOf(l))}</div>
-        ${l.map(c=>`<div class="pc" draggable="true" data-id="${c.id}" ondragstart="event.dataTransfer.setData('text',this.dataset.id)" onclick="openCard('${c.id}')">
-          <b>${esc(c.company||'—')}</b>
-          <div class="m"><span class="rank ${c.rank}">${c.rank}</span>${esc(c.owner||'担当未定')}${c.gross?' ・<span class="num">'+oku(c.gross)+'</span>':''}</div>
-          ${c.nextDate?`<div class="m" style="color:${dayDiff(c.nextDate)<0?'var(--alert)':'var(--muted)'}">${jdate(c.nextDate)} ${esc((c.nextAction||'').slice(0,14))}</div>`:'<div class="m" style="color:var(--alert)">次の行動が未設定</div>'}
-        </div>`).join('') || '<div style="font-size:12px;color:var(--muted);padding:6px 2px">案件なし</div>'}
+        ${l.map(c=>pipeCard(c)).join('') || '<div style="font-size:12px;color:var(--muted);padding:6px 2px">案件なし</div>'}
       </div>`;
     }).join('')}
   </div>
@@ -726,6 +788,57 @@ function vPipe(){
     ${Object.entries(byOwner).sort((a,b)=>b[1]-a[1]).map(([o,v])=>
       `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EEF2F5;padding:8px 0"><span>${esc(o)}</span><b class="num">${oku(v)}</b></div>`).join('')||'<div class="empty">案件がありません</div>'}
   </div>`;
+}
+function vPartnerBoard(){
+  const pt = partners();
+  const byType = {};
+  pt.forEach(c=>{ const t=(c.partner||{}).ptype||'未設定'; byType[t]=(byType[t]||0)+1; });
+  const refTotal = pt.reduce((n,c)=>n+(Number((c.partner||{}).refCount)||0),0);
+  return `
+  <div class="sec kpi">
+    ${PSTATUS.map(p=>{ const l=pt.filter(c=>(c.partner||{}).status===p.id);
+      return `<div class="k"><div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
+        <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>&nbsp;</small></div></div>`;}).join('')}
+  </div>
+  <div class="sec pipe" style="grid-template-columns:repeat(4,minmax(200px,1fr))">
+    ${PSTATUS.map(p=>{
+      const l = pt.filter(c=>((c.partner||{}).status||'P1')===p.id).sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
+      return `<div class="col" ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')" ondrop="dropPartner(event,'${p.id}')">
+        <h4><span class="pill" style="background:${p.c};color:${p.t};padding:3px 9px;border-radius:7px">${p.name}</span><em class="num">${l.length}</em></h4>
+        <div class="sum">紹介見込 <span class="num">${l.reduce((n,c)=>n+(Number((c.partner||{}).refCount)||0),0)}</span>件／年</div>
+        ${l.map(c=>pipeCard(c,true)).join('') || '<div style="font-size:12px;color:var(--muted);padding:6px 2px">該当なし</div>'}
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="sec card pad">
+    <h3 class="h">${SVGI(ICONS.star,19)} 業種別 <span class="note">年間の紹介見込み 合計 ${refTotal}件</span></h3>
+    ${Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([t,v])=>
+      `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EEF2F5;padding:8px 0"><span>${esc(t)}</span><b class="num">${v}社</b></div>`).join('')
+      ||'<div class="empty"><b>パートナーがまだいません</b>名刺を登録するとき、区分で「パートナー」を選んでください。</div>'}
+  </div>`;
+}
+function pipeCard(c, pa){
+  const p = c.partner||{};
+  return `<div class="pc" draggable="true" data-id="${c.id}" ondragstart="event.dataTransfer.setData('text',this.dataset.id)" onclick="openCard('${c.id}')">
+    <b>${esc(c.company||'—')}</b>
+    <div class="m"><span class="rank ${c.rank}">${c.rank}</span>${esc(c.owner||'担当未定')}${
+      pa ? (p.refCount? ' ・紹介見込 <span class="num">'+esc(p.refCount)+'</span>件':'')
+         : (c.gross? ' ・<span class="num">'+oku(c.gross)+'</span>':'')}</div>
+    ${c.nextDate?`<div class="m" style="color:${dayDiff(c.nextDate)<0?'var(--alert)':'var(--muted)'}">${jdate(c.nextDate)} ${esc((c.nextAction||'').slice(0,14))}</div>`:'<div class="m" style="color:var(--alert)">次の行動が未設定</div>'}
+  </div>`;
+}
+function dropPartner(ev, st){
+  ev.preventDefault();
+  document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
+  const id = ev.dataTransfer.getData('text'); const c = DB.cards.find(x=>x.id===id);
+  if(!c || !isPartner(c)) return;
+  c.partner = c.partner||{};
+  const old = PSTATUS.find(p=>p.id===(c.partner.status||'P1')).name;
+  if(c.partner.status===st) return;
+  c.partner.status = st;
+  save(c, `パートナーの状況を ${old} → ${PSTATUS.find(p=>p.id===st).name} に変更`);
+  toast('更新しました'); render();
 }
 function dropCard(ev, ph){
   ev.preventDefault();
@@ -740,11 +853,12 @@ function dropCard(ev, ph){
 
 /* ===================== ダッシュボード ===================== */
 function vDash(){
-  const all = DB.cards, a = alive();
+  const all = DB.cards, a = deals();
+  const cust = all.filter(c=>!isPartner(c)), pt = partners();
   const sa = a.filter(c=>['S','A'].includes(c.rank));
   const ph4 = a.filter(c=>['PH04','PH06','PH08'].includes(c.phase||''));
-  const won = all.filter(c=>c.phase==='PH08');
-  const lost = all.filter(c=>c.phase==='LOST');
+  const won = cust.filter(c=>c.phase==='PH08');
+  const lost = cust.filter(c=>c.phase==='LOST');
   const contacted = all.filter(c=>(c.logs||[]).length>0);
   const rate = all.length? Math.round(contacted.length/all.length*100):0;
   const byOwner = {};
@@ -757,9 +871,9 @@ function vDash(){
 
   return `
   <div class="sec kpi">
-    <div class="k"><span>名刺の総数</span><b class="num">${all.length}</b><small>今月 ${all.filter(c=>(c.createdAt||'').slice(0,7)===today().slice(0,7)).length}枚</small></div>
+    <div class="k"><span>名刺の総数</span><b class="num">${all.length}</b><small>お客様 ${cust.length}／パートナー ${pt.length}</small></div>
     <div class="k"><span>初回連絡の完了率</span><b class="num">${rate}%</b><small>${contacted.length}/${all.length}件</small></div>
-    <div class="k"><span>S・Aランク</span><b class="num">${sa.length}</b><small>${oku(grossOf(sa))}</small></div>
+    <div class="k"><span>S・Aランク（お客様）</span><b class="num">${sa.length}</b><small>${oku(grossOf(sa))}</small></div>
     <div class="k"><span>無料診断の獲得</span><b class="num">${all.filter(c=>c.diag).length}</b></div>
     <div class="k"><span>現地視察の獲得</span><b class="num">${all.filter(c=>c.visit).length}</b></div>
     <div class="k"><span>PH04以降</span><b class="num">${ph4.length}</b><small>${oku(grossOf(ph4))}</small></div>
@@ -776,6 +890,17 @@ function vDash(){
         <div class="row" style="justify-content:space-between;font-size:13px"><span><b>${p.id}</b> ${p.name}<span style="color:var(--muted)"> ${l.length}件</span></span><b class="num">${oku(g)}</b></div>
         <div style="height:7px;background:#EDF0EC;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(g/max*100)}%;background:var(--sun)"></div></div>
       </div>`;}).join('')}
+  </div>
+
+  <div class="sec card pad">
+    <h3 class="h">パートナー <span class="note">年間の紹介見込み 合計 ${pt.reduce((n,c)=>n+(Number((c.partner||{}).refCount)||0),0)}件</span></h3>
+    ${PSTATUS.map(p=>{ const l=pt.filter(c=>((c.partner||{}).status||'P1')===p.id);
+      const max=Math.max(1,...PSTATUS.map(x=>pt.filter(c=>((c.partner||{}).status||'P1')===x.id).length));
+      return `<div style="margin-bottom:9px">
+        <div class="row" style="justify-content:space-between;font-size:13px"><span>${p.name}</span><b class="num">${l.length}社</b></div>
+        <div style="height:7px;background:#EEF2F5;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(l.length/max*100)}%;background:${p.t}"></div></div>
+      </div>`;}).join('')}
+    ${pt.length? '' : '<div class="empty" style="padding:12px">パートナーがまだ登録されていません。</div>'}
   </div>
 
   <div class="sec card pad">
@@ -817,7 +942,8 @@ function openScan(quick){
   DRAFT = {
     id:uid(), createdAt:new Date().toISOString(),
     company:'', name:'', kana:'', title:'', dept:'', tel:'', mobile:'', email:'', address:'', website:'', industry:'',
-    metAt:today(), metPlace: PLACES[0], owner: DB.me.name,
+    metAt:today(), metPlace: PLACES[0], owner: DB.me.name, kind:'customer',
+    partner:{ptype:'', status:'P1', refs:[], refCount:'', note:''},
     hearing:{owns:'', plants:'', voltage:[], fit:'', years:'', decline:'', pcs:'', sellIntent:'', buyIntent:'', battery:'', tax:'', budget:'', authority:'', timing:'', interests:[]},
     services:[], rank:'', rankManual:false, svcManual:false, dateManual:false,
     phase:'PH01', gross:'', amount:'', nextAction:'', nextDate:'', diag:false, visit:false, memo:'', logs:[]
@@ -840,7 +966,13 @@ function drawScan(){
    </div>
    <div id="dupBox"></div>
    <div class="card pad sec">
-     <h3 class="h">2. 名刺の情報</h3>
+     <h3 class="h">2. この方の区分</h3>
+     <div class="chips">${KINDS.map(k=>
+       `<button class="chip ${DRAFT.kind===k.id?'on':''}" onclick="DRAFT.kind='${k.id}'; DRAFT.rankManual=false; DRAFT.svcManual=false; drawScan()">${k.label}</button>`).join('')}</div>
+     <div style="font-size:12px;color:var(--muted);margin-top:7px">${esc((KINDS.find(k=>k.id===DRAFT.kind)||KINDS[0]).note)}</div>
+   </div>
+   <div class="card pad sec">
+     <h3 class="h">3. 名刺の情報</h3>
      <div class="grid2">
        ${fld('会社名','company')}${fld('氏名','name')}
        ${fld('部署','dept')}${fld('役職','title')}
@@ -855,8 +987,34 @@ function drawScan(){
      </div>
      <label class="f"><span>交換した場所</span><select onchange="DRAFT.metPlace=this.value">${PLACES.map(p=>`<option ${DRAFT.metPlace===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
    </div>
+   ${isPartner(DRAFT)? partnerBlock() : customerBlock()}
+   ${judgeBox()}
    <div class="card pad sec">
-     <h3 class="h">3. ヒアリング <span class="note">わかる範囲で。入れるほど判定が正確になります</span></h3>
+     <h3 class="h">6. 次の行動 <span class="note">ここが空欄だと登録できません</span></h3>
+     <label class="f"><span>次にやること</span><input type="text" value="${esc(DRAFT.nextAction)}" oninput="DRAFT.nextAction=this.value" placeholder="例：お礼の電話＋現地視察の日程提案"></label>
+     <div class="grid2">
+       <label class="f"><span>実行期限</span><input type="date" value="${DRAFT.nextDate}" onchange="DRAFT.nextDate=this.value; DRAFT.dateManual=true"></label>
+       ${isPartner(DRAFT)? '' : `<label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(DRAFT.gross)}" oninput="DRAFT.gross=this.value"></label>`}
+     </div>
+     <label class="f"><span>メモ</span><textarea oninput="DRAFT.memo=this.value" placeholder="会話の内容・相手の温度感">${esc(DRAFT.memo)}</textarea></label>
+   </div>
+   <button class="btn wide" style="padding:14px" onclick="saveDraft()">この内容で登録する</button>
+   <div style="height:20px"></div>`);
+  checkDup();
+}
+function fld(label, key){
+  return `<label class="f"><span>${label}</span><input type="text" value="${esc(DRAFT[key]||'')}" oninput="DRAFT.${key}=this.value${key==='company'||key==='name'?'; checkDup()':''}"></label>`;
+}
+function yn(label, key){
+  return `<label class="f"><span>${label}</span><div class="chips">${['あり','なし'].map(v=>
+    `<button class="chip ${DRAFT.hearing[key]===v?'on':''}" onclick="DRAFT.hearing['${key}']=DRAFT.hearing['${key}']==='${v}'?'':'${v}';drawScan()">${v}</button>`).join('')}</div></label>`;
+}
+function tgl(arr, v){ const i=arr.indexOf(v); if(i<0) arr.push(v); else arr.splice(i,1); }
+
+
+function customerBlock(){
+  return `   <div class="card pad sec">
+     <h3 class="h">4. ヒアリング <span class="note">わかる範囲で。入れるほど判定が正確になります</span></h3>
      ${yn('発電所を所有','owns')}
      <div class="grid3">
        <label class="f"><span>所有基数</span><input type="number" min="0" value="${esc(DRAFT.hearing.plants)}" oninput="DRAFT.hearing.plants=this.value"></label>
@@ -879,46 +1037,44 @@ function drawScan(){
        <button class="chip sun ${DRAFT.visit?'on':''}" onclick="DRAFT.visit=!DRAFT.visit;drawScan()">現地視察を獲得</button>
      </div>
    </div>
-   ${judgeBox()}
-   <div class="card pad sec">
-     <h3 class="h">5. 次の行動 <span class="note">ここが空欄だと登録できません</span></h3>
-     <label class="f"><span>次にやること</span><input type="text" value="${esc(DRAFT.nextAction)}" oninput="DRAFT.nextAction=this.value" placeholder="例：お礼の電話＋現地視察の日程提案"></label>
+`;
+}
+function partnerBlock(){
+  const p = DRAFT.partner = DRAFT.partner || {ptype:'', status:'P1', refs:[], refCount:'', note:''};
+  return `<div class="card pad sec">
+     <h3 class="h">4. パートナーのヒアリング <span class="note">紹介・提携の可能性を見ます</span></h3>
+     <label class="f"><span>業種</span><div class="chips">${PTYPES.map(v=>
+       `<button class="chip ${p.ptype===v?'on':''}" onclick="DRAFT.partner.ptype='${v}';DRAFT.rankManual=false;drawScan()">${v}</button>`).join('')}</div></label>
+     <label class="f"><span>いまの関係</span><div class="chips">${PSTATUS.map(v=>
+       `<button class="chip ${p.status===v.id?'on':''}" onclick="DRAFT.partner.status='${v.id}';DRAFT.rankManual=false;drawScan()">${v.name}</button>`).join('')}</div></label>
+     <label class="f"><span>紹介してもらえそうな相手</span><div class="chips">${PREFS.map(v=>
+       `<button class="chip ${(p.refs||[]).includes(v)?'on':''}" onclick="DRAFT.partner.refs=DRAFT.partner.refs||[];tgl(DRAFT.partner.refs,'${v}');DRAFT.rankManual=false;drawScan()">${v}</button>`).join('')}</div></label>
      <div class="grid2">
-       <label class="f"><span>実行期限</span><input type="date" value="${DRAFT.nextDate}" onchange="DRAFT.nextDate=this.value; DRAFT.dateManual=true"></label>
-       <label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(DRAFT.gross)}" oninput="DRAFT.gross=this.value"></label>
+       <label class="f"><span>年間の紹介見込み（件）</span><input type="number" min="0" value="${esc(p.refCount)}" oninput="DRAFT.partner.refCount=this.value;DRAFT.rankManual=false"></label>
+       <label class="f"><span>こちらから渡せるもの</span><input type="text" value="${esc(p.note)}" oninput="DRAFT.partner.note=this.value" placeholder="例：発電所情報・セミナー共催"></label>
      </div>
-     <label class="f"><span>メモ</span><textarea oninput="DRAFT.memo=this.value" placeholder="会話の内容・相手の温度感">${esc(DRAFT.memo)}</textarea></label>
-   </div>
-   <button class="btn wide" style="padding:14px" onclick="saveDraft()">この内容で登録する</button>
-   <div style="height:20px"></div>`);
-  checkDup();
+   </div>`;
 }
-function fld(label, key){
-  return `<label class="f"><span>${label}</span><input type="text" value="${esc(DRAFT[key]||'')}" oninput="DRAFT.${key}=this.value${key==='company'||key==='name'?'; checkDup()':''}"></label>`;
-}
-function yn(label, key){
-  return `<label class="f"><span>${label}</span><div class="chips">${['あり','なし'].map(v=>
-    `<button class="chip ${DRAFT.hearing[key]===v?'on':''}" onclick="DRAFT.hearing['${key}']=DRAFT.hearing['${key}']==='${v}'?'':'${v}';drawScan()">${v}</button>`).join('')}</div></label>`;
-}
-function tgl(arr, v){ const i=arr.indexOf(v); if(i<0) arr.push(v); else arr.splice(i,1); }
 
 function judgeBox(){
-  const j = scoreCard(DRAFT);
-  const sug = suggestServices(DRAFT);
+  const pa = isPartner(DRAFT);
+  const j = judge(DRAFT);
+  const sug = pa? [] : suggestServices(DRAFT);
   if(!DRAFT.rankManual){
     DRAFT.rank = j.rank;
     if(!DRAFT.dateManual) DRAFT.nextDate = addDays(RANK_RULE[j.rank].days);
   }
-  if(!DRAFT.svcManual) DRAFT.services = sug.slice();
+  if(!DRAFT.svcManual && !pa) DRAFT.services = sug.slice();
+  if(pa) DRAFT.services = [];
   const rank = DRAFT.rank;
   return `<div class="card pad sec">
-    <h3 class="h">4. 見込みランクと提案 <span class="note">入力内容から自動判定</span></h3>
+    <h3 class="h">5. ${isPartner(DRAFT)?'期待度':'見込みランクと提案'} <span class="note">入力内容から自動判定</span></h3>
     <div class="row" style="margin-bottom:8px"><span class="rank ${rank}" style="height:30px;min-width:34px;font-size:15px">${rank}</span>
-      <b>${RANK_RULE[rank].text}</b><span class="num" style="color:var(--muted);font-size:12px">判定スコア ${j.score}</span></div>
+      <b>${pa? 'この相手からの紹介が期待できる度合いです' : RANK_RULE[rank].text}</b><span class="num" style="color:var(--muted);font-size:12px">判定スコア ${j.score}</span></div>
     <label class="f"><span>ランクを変える</span><div class="chips">${RANKS.map(r=>
       `<button class="chip ${rank===r?'on':''}" onclick="DRAFT.rankManual=true; DRAFT.rank='${r}'; if(!DRAFT.dateManual) DRAFT.nextDate=addDays(RANK_RULE['${r}'].days); drawScan()">${r}</button>`).join('')}</div></label>
-    <label class="f"><span>提案できるサービス</span><div class="chips">${SERVICES.map(s=>
-      `<button class="chip ${DRAFT.services.includes(s)?'on':''}" onclick="DRAFT.svcManual=true; tgl(DRAFT.services,'${s}');drawScan()">${s}</button>`).join('')}</div></label>
+    ${pa? '' : `<label class="f"><span>提案できるサービス</span><div class="chips">${SERVICES.map(s=>
+      `<button class="chip ${DRAFT.services.includes(s)?'on':''}" onclick="DRAFT.svcManual=true; tgl(DRAFT.services,'${s}');drawScan()">${s}</button>`).join('')}</div></label>`}
     ${j.why.length?`<div style="font-size:12px;color:var(--muted)">根拠：${j.why.join(' ／ ')}</div>`:''}
   </div>`;
 }
@@ -940,42 +1096,122 @@ function checkDup(){
 /* ---------- AI読み取り ---------- */
 function pickImg(input){
   const files = [...input.files].slice(0,2);
+  const msg = $('#ocrMsg'); if(msg) msg.textContent = '写真を準備しています…';
   files.forEach(f=>{
-    const r = new FileReader();
-    r.onload = () => {
-      IMGS.push({media_type:f.type||'image/jpeg', data:String(r.result).split(',')[1]});
+    shrinkImage(f).then(im=>{
+      IMGS.push(im);
       if(IMGS.length>2) IMGS = IMGS.slice(-2);
       drawScan();
+      const m=$('#ocrMsg'); if(m) m.textContent = '「AIで読み取る」を押してください。';
+    }).catch(e=>{
+      const m=$('#ocrMsg'); if(m) m.innerHTML = '<span style="color:var(--alert)">写真を読み込めませんでした（'+esc(e.message)+'）。手入力で進めてください。</span>';
+    });
+  });
+}
+/* スマホの写真はそのままだと重すぎるので、縮小してJPEGに変換する（HEIC対策も兼ねる） */
+function shrinkImage(file, maxPx){
+  maxPx = maxPx || 1400;
+  return new Promise((ok, ng)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const sc = Math.min(1, maxPx/Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width*sc)), h = Math.max(1, Math.round(img.height*sc));
+        const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+        const cx = cv.getContext('2d');
+        cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);
+        cx.drawImage(img, 0, 0, w, h);
+        const durl = cv.toDataURL('image/jpeg', 0.8);
+        URL.revokeObjectURL(url);
+        ok({media_type:'image/jpeg', data:durl.split(',')[1], w, h});
+      }catch(e){ URL.revokeObjectURL(url); ng(e); }
     };
-    r.readAsDataURL(f);
+    img.onerror = () => { URL.revokeObjectURL(url); ng(new Error('この形式の画像は開けません')); };
+    img.src = url;
   });
 }
 async function runOCR(){
   if(!IMGS.length) return;
-  $('#ocrBtn').disabled = true;
-  $('#ocrMsg').textContent = '読み取っています…';
-  const sys = '名刺画像から情報を抽出する。JSONのみを返し、前置き・コードフェンスは書かない。';
-  const prompt = 'この名刺画像から次のキーのJSONを作る。値が読み取れないキーは空文字にする。'+
-    '{"company":"","name":"","kana":"","dept":"","title":"","tel":"","mobile":"","email":"","address":"","website":"","industry":""}';
+  const btn = $('#ocrBtn'), msg = $('#ocrMsg');
+  btn.disabled = true;
+  const kb = Math.round(IMGS.reduce((n,i)=>n+i.data.length,0)/1365);
+  msg.textContent = `読み取っています…（送信サイズ 約${kb}KB）`;
+  const FIELDS = ['company','name','kana','dept','title','tel','mobile','email','address','website','industry'];
+  const sys = 'あなたは名刺を読み取る専門家です。画像に写っている名刺の文字を正確に書き起こし、指定されたJSONだけを返します。前置き・説明・コードフェンスは一切書きません。';
+  const prompt = '添付した名刺の画像を読み取り、次のキーのJSONを返してください。\n'+
+    '{"company":"","name":"","kana":"","dept":"","title":"","tel":"","mobile":"","email":"","address":"","website":"","industry":""}\n'+
+    '・company は法人格（株式会社など）を含めてそのまま書く\n'+
+    '・name は姓と名の間に半角スペースを1つ入れる\n'+
+    '・kana は氏名のふりがな（ローマ字表記があればカタカナに直す）\n'+
+    '・tel は固定電話、mobile は携帯番号（070/080/090など）\n'+
+    '・industry は名刺の記載内容から推測した業種を短く（不明なら空欄）\n'+
+    '・読み取れない項目は空文字にする。推測で埋めない';
+  let raw = '';
   try{
     const res = await fetch(AI_URL, {
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY},
-      body: JSON.stringify({system:sys, prompt, max_tokens:800, images:IMGS})
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY, 'apikey':SUPA_KEY},
+      body: JSON.stringify({system:sys, prompt, max_tokens:1000, images:IMGS})
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const j = await res.json();
+    raw = await res.text();
+    if(!res.ok) throw new Error('サーバーが HTTP '+res.status+' を返しました。'+raw.slice(0,140));
+    let j; try{ j = JSON.parse(raw); }catch(e){ throw new Error('応答がJSONではありません。'+raw.slice(0,140)); }
+    if(j.error) throw new Error(typeof j.error==='string'? j.error : JSON.stringify(j.error).slice(0,200));
     const txt = j.text || (Array.isArray(j.content)? j.content.filter(x=>x.type==='text').map(x=>x.text).join('') : '') || '';
+    if(!txt) throw new Error('AIの応答が空でした。');
     const m = txt.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('読み取り結果を解析できません');
+    if(!m) throw new Error('読み取り結果を解析できません。AIの応答：'+txt.slice(0,140));
     const o = JSON.parse(m[0]);
-    ['company','name','kana','dept','title','tel','mobile','email','address','website','industry'].forEach(k=>{ if(o[k]) DRAFT[k]=o[k]; });
+    const got = FIELDS.filter(k=>String(o[k]||'').trim()!=='');
+    if(!got.length){
+      throw new Error('IMG_NOT_SENT');
+    }
+    FIELDS.forEach(k=>{ if(o[k]) DRAFT[k]=String(o[k]).trim(); });
     drawScan();
-    $('#ocrMsg').textContent = '読み取りました。間違いがあれば直してください。';
+    $('#ocrMsg').innerHTML = `読み取りました（${got.length}項目）。間違いがあれば直してください。`;
     toast('名刺を読み取りました');
   }catch(e){
-    $('#ocrBtn').disabled = false;
-    $('#ocrMsg').innerHTML = '<span style="color:var(--alert)">自動読み取りに失敗しました（'+esc(e.message)+'）。下の欄に手入力してください。</span>';
+    btn.disabled = false;
+    const m = $('#ocrMsg');
+    if(e.message==='IMG_NOT_SENT'){
+      m.innerHTML = '<span style="color:var(--alert)"><b>画像がAIに届いていません。</b>'+
+        'Supabaseの Edge Function「ai」が、まだ画像を受け取れない設定です。'+
+        '「使い方」タブの手順で ai を差し替えると読み取れるようになります。'+
+        'それまでは下の欄に手入力してください。</span>';
+    }else{
+      m.innerHTML = '<span style="color:var(--alert)">自動読み取りに失敗しました。'+esc(e.message)+'<br>下の欄に手入力してください。</span>';
+    }
+  }
+}
+
+/* 使い方タブからの接続テスト */
+async function aiSelfTest(){
+  const box = $('#aiTest'); if(!box) return;
+  box.innerHTML = '<div class="warnbox">確認しています…</div>';
+  const cv = document.createElement('canvas'); cv.width=380; cv.height=220;
+  const cx = cv.getContext('2d');
+  cx.fillStyle='#fff'; cx.fillRect(0,0,380,220);
+  cx.fillStyle='#111'; cx.font='bold 26px sans-serif'; cx.fillText('株式会社テスト商事', 26, 74);
+  cx.font='22px sans-serif'; cx.fillText('接続 太郎', 26, 116);
+  cx.font='17px sans-serif'; cx.fillText('TEL 03-1234-5678', 26, 158);
+  const data = cv.toDataURL('image/jpeg',0.85).split(',')[1];
+  try{
+    const res = await fetch(AI_URL,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY,'apikey':SUPA_KEY},
+      body: JSON.stringify({system:'画像に書かれている会社名だけを返す。説明は書かない。', prompt:'この画像の会社名は？', max_tokens:100, images:[{media_type:'image/jpeg', data}]})
+    });
+    const raw = await res.text();
+    if(!res.ok){ box.innerHTML = `<div class="warnbox red"><b>つながりません（HTTP ${res.status}）</b><br>${esc(raw.slice(0,200))}</div>`; return; }
+    const j = JSON.parse(raw);
+    const txt = j.text || (Array.isArray(j.content)? j.content.filter(x=>x.type==='text').map(x=>x.text).join('') : '') || '';
+    if(txt.includes('テスト商事')){
+      box.innerHTML = '<div class="warnbox" style="background:var(--gol);border-color:#B9DACB"><b>画像の読み取りに成功しました。</b>名刺のAI読み取りが使えます。</div>';
+    }else{
+      box.innerHTML = '<div class="warnbox red"><b>画像が届いていません。</b>文字だけは通っていますが、画像がAIに渡っていません。下のコードで Edge Function「ai」を差し替えてください。<br>AIの応答：'+esc(txt.slice(0,120))+'</div>';
+    }
+  }catch(e){
+    box.innerHTML = '<div class="warnbox red"><b>確認できませんでした。</b>'+esc(e.message)+'</div>';
   }
 }
 
@@ -983,7 +1219,7 @@ function saveDraft(){
   if(!DRAFT.company && !DRAFT.name){ toast('会社名か氏名を入れてください'); return; }
   if(!DRAFT.nextAction || !DRAFT.nextDate){ toast('次にやることと期限を決めてください'); return; }
   delete DRAFT.rankManual; delete DRAFT.svcManual; delete DRAFT.dateManual;
-  save(DRAFT, `名刺を登録（${DRAFT.metPlace}）／ランク ${DRAFT.rank}`);
+  save(DRAFT, `名刺を登録（${DRAFT.metPlace}）／${isPartner(DRAFT)?'パートナー':'お客様'}・ランク ${DRAFT.rank}`);
   toast(`${DRAFT.company||DRAFT.name} を登録しました`);
   closeModal();
 }
@@ -996,20 +1232,24 @@ function openCard(id){
 }
 function drawCard(){
   const c = CUR, h = c.hearing||{}, d = dayDiff(c.nextDate);
-  const j = scoreCard(c);
+  const j = judge(c);
   sheet(c.company || c.name || '顧客', `
   <div class="card pad sec">
     <div class="row" style="margin-bottom:6px">
       <span class="rank ${c.rank}" style="height:28px;min-width:32px;font-size:14px">${c.rank}</span>
       <b style="font-size:17px">${esc(c.company||'—')}</b>
+      ${isPartner(c)?'<span class="tag" style="background:#EDE7F7;color:#5C42A0">パートナー</span>':''}
     </div>
     <div style="font-size:13.5px">${esc(c.name||'')}${c.title?' ／ '+esc(c.title):''}${c.dept?'（'+esc(c.dept)+'）':''}</div>
-    <div class="row" style="margin-top:10px">
-      ${c.tel?`<a class="btn sm ghost" href="tel:${esc(c.tel)}">電話 ${esc(c.tel)}</a>`:''}
-      ${c.mobile?`<a class="btn sm ghost" href="tel:${esc(c.mobile)}">携帯</a>`:''}
-      ${c.email?`<a class="btn sm ghost" href="mailto:${esc(c.email)}">メール</a>`:''}
-      ${c.address?`<a class="btn sm ghost" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}">地図</a>`:''}
+    <div class="row" style="margin-top:12px">
+      ${c.tel?`<a class="btn sm" href="tel:${esc(String(c.tel).replace(/[^0-9+]/g,''))}" onclick="logCall('${c.id}','${esc(c.tel)}')">${SVGI(ICONS.phone,15)} ${esc(c.tel)}</a>`:''}
+      ${c.mobile?`<a class="btn sm" href="tel:${esc(String(c.mobile).replace(/[^0-9+]/g,''))}" onclick="logCall('${c.id}','${esc(c.mobile)}')">${SVGI(ICONS.phone,15)} 携帯</a>`:''}
+      ${c.email?`<button class="btn sm" onclick="openMail('${c.id}')">${SVGI(ICONS.mail,15)} メールを送る</button>`:''}
+      ${(c.tel||c.mobile)?`<button class="btn sm ghost" onclick="copyText('${esc(c.mobile||c.tel)}')">番号をコピー</button>`:''}
+      ${c.email?`<button class="btn sm ghost" onclick="copyText('${esc(c.email)}')">メールをコピー</button>`:''}
+      ${c.address?`<a class="btn sm ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}">地図</a>`:''}
     </div>
+    ${(!c.tel && !c.mobile && !c.email)?'<div style="font-size:12px;color:var(--muted);margin-top:8px">電話番号とメールが未入力です。名刺を見て入れておくと、ここから直接かけられます。</div>':''}
     <div style="font-size:12px;color:var(--muted);margin-top:9px">
       ${esc(c.address||'')}${c.website?'<br>'+esc(c.website):''}<br>
       ${esc(c.metPlace||'')}で${jdate(c.metAt)}に交換　担当：${esc(c.owner||'未定')}
@@ -1030,7 +1270,20 @@ function drawCard(){
     </div>
   </div>
 
-  <div class="card pad sec">
+  ${isPartner(c)? `<div class="card pad sec">
+    <h3 class="h">パートナーの状況</h3>
+    <div class="chips" style="margin-bottom:12px">${PSTATUS.map(p=>
+      `<button class="chip ${((c.partner||{}).status||'P1')===p.id?'on':''}" onclick="setPStatus('${p.id}')">${p.name}</button>`).join('')}</div>
+    <label class="f"><span>業種</span><div class="chips">${PTYPES.map(v=>
+      `<button class="chip ${(c.partner||{}).ptype===v?'on':''}" onclick="CUR.partner.ptype='${v}';saveCur(true);drawCard()">${v}</button>`).join('')}</div></label>
+    <label class="f"><span>紹介してもらえそうな相手</span><div class="chips">${PREFS.map(v=>
+      `<button class="chip ${((c.partner||{}).refs||[]).includes(v)?'on':''}" onclick="CUR.partner.refs=CUR.partner.refs||[];tgl(CUR.partner.refs,'${v}');saveCur(true);drawCard()">${v}</button>`).join('')}</div></label>
+    <div class="grid2">
+      <label class="f"><span>年間の紹介見込み（件）</span><input type="number" value="${esc((c.partner||{}).refCount||'')}" oninput="CUR.partner.refCount=this.value"></label>
+      <label class="f"><span>こちらから渡せるもの</span><input type="text" value="${esc((c.partner||{}).note||'')}" oninput="CUR.partner.note=this.value"></label>
+    </div>
+    <button class="btn sm" onclick="saveCur()">保存する</button>
+  </div>` : `<div class="card pad sec">
     <h3 class="h">商談フェーズと金額</h3>
     <div class="chips" style="margin-bottom:12px">${PHASES.map(p=>
       `<button class="chip ${(c.phase||'PH01')===p.id?'on':''}" onclick="setPhase('${p.id}')">${p.id} ${p.name}</button>`).join('')}</div>
@@ -1042,24 +1295,15 @@ function drawCard(){
       `<button class="chip ${(c.services||[]).includes(s)?'on':''}" onclick="tgl(CUR.services,'${s}');drawCard()">${s}</button>`).join('')}</div></label>
     <div class="row"><button class="chip sun ${c.diag?'on':''}" onclick="CUR.diag=!CUR.diag;drawCard()">無料診断</button>
       <button class="chip sun ${c.visit?'on':''}" onclick="CUR.visit=!CUR.visit;drawCard()">現地視察</button></div>
-  </div>
+  </div>`}
 
   <div class="card pad sec">
-    <h3 class="h">見込みランク <span class="note">自動判定 ${j.rank}／スコア ${j.score}</span></h3>
+    <h3 class="h">${isPartner(c)?'期待度':'見込みランク'} <span class="note">自動判定 ${j.rank}／スコア ${j.score}</span></h3>
     <div class="chips">${RANKS.map(r=>`<button class="chip ${c.rank===r?'on':''}" onclick="CUR.rank='${r}';saveCur(true);drawCard()">${r}</button>`).join('')}</div>
     ${j.why.length?`<div style="font-size:12px;color:var(--muted);margin-top:8px">${j.why.join(' ／ ')}</div>`:''}
   </div>
 
-  <div class="card pad sec">
-    <h3 class="h">保有発電所・ニーズ</h3>
-    <div class="scroll"><table>
-      ${[['発電所の所有',h.owns],['所有基数',h.plants],['区分',(h.voltage||[]).join('・')],['FIT単価',h.fit?h.fit+'円':''],['稼働年数',h.years?h.years+'年':''],
-        ['発電量の低下',h.decline],['パワコン交換予定',h.pcs],['売却意向',h.sellIntent],['購入意向',h.buyIntent],
-        ['蓄電池への関心',h.battery],['節税ニーズ',h.tax],['決裁権',h.authority],['投資可能額',h.budget?oku(h.budget):''],['検討時期',h.timing],['興味分野',(h.interests||[]).join('・')]]
-        .map(([k,v])=>`<tr><th style="width:130px">${k}</th><td>${esc(v||'—')}</td></tr>`).join('')}
-    </table></div>
-    <button class="btn sm ghost" style="margin-top:10px" onclick="editHearing()">ヒアリングを編集する</button>
-  </div>
+  ${isPartner(c)? '' : hearingBlock(c)}
 
   <div class="card pad sec">
     <h3 class="h">活動履歴</h3>
@@ -1072,10 +1316,33 @@ function drawCard(){
   </div>
 
   <div class="row" style="margin-bottom:20px">
-    <button class="btn ghost sm" onclick="setPhase('LOST')">見送りにする</button>
+    ${isPartner(c)? '' : `<button class="btn ghost sm" onclick="setPhase('LOST')">見送りにする</button>`}
     <button class="btn ghost sm" onclick="delCard()" style="color:var(--alert)">削除</button>
   </div>`);
 }
+
+function hearingBlock(c){
+  const h = c.hearing||{};
+  return `<div class="card pad sec">
+    <h3 class="h">保有発電所・ニーズ</h3>
+    <div class="scroll"><table>
+      ${[['発電所の所有',h.owns],['所有基数',h.plants],['区分',(h.voltage||[]).join('・')],['FIT単価',h.fit?h.fit+'円':''],['稼働年数',h.years?h.years+'年':''],
+        ['発電量の低下',h.decline],['パワコン交換予定',h.pcs],['売却意向',h.sellIntent],['購入意向',h.buyIntent],
+        ['蓄電池への関心',h.battery],['節税ニーズ',h.tax],['決裁権',h.authority],['投資可能額',h.budget?oku(h.budget):''],['検討時期',h.timing],['興味分野',(h.interests||[]).join('・')]]
+        .map(([k,v])=>`<tr><th style="width:130px">${k}</th><td>${esc(v||'—')}</td></tr>`).join('')}
+    </table></div>
+    <button class="btn sm ghost" style="margin-top:10px" onclick="editHearing()">ヒアリングを編集する</button>
+  </div>`;
+}
+function setPStatus(st){
+  CUR.partner = CUR.partner||{};
+  const old = (PSTATUS.find(p=>p.id===(CUR.partner.status||'P1'))||PSTATUS[0]).name;
+  if(CUR.partner.status===st) return;
+  CUR.partner.status = st;
+  save(CUR, `パートナーの状況を ${old} → ${PSTATUS.find(p=>p.id===st).name} に変更`);
+  toast('更新しました'); drawCard();
+}
+
 function saveCur(silent){ save(CUR); if(!silent) toast('保存しました'); }
 function setPhase(ph){
   const old = CUR.phase||'PH01'; if(old===ph) return;
@@ -1134,10 +1401,135 @@ function saveHearing(){
   toast('保存しました'); drawCard();
 }
 
+
+/* ===================== 連絡（電話・メール） ===================== */
+function copyText(t){
+  const done = ()=>toast('コピーしました：'+t);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done).catch(()=>fallbackCopy(t,done));
+  } else fallbackCopy(t, done);
+}
+function fallbackCopy(t, done){
+  const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ toast('コピーできませんでした'); }
+  document.body.removeChild(ta);
+}
+function logCall(id, num){
+  const c = DB.cards.find(x=>x.id===id); if(!c) return;
+  save(c, `電話をかけた（${num}）`);
+}
+function gmailUrl(to, su, body){
+  return 'https://mail.google.com/mail/?view=cm&fs=1'
+    + '&to=' + encodeURIComponent(to||'')
+    + '&su=' + encodeURIComponent(su||'')
+    + '&body=' + encodeURIComponent(body||'');
+}
+function mailTemplate(c){
+  const nm = (c.name||'ご担当者').replace(/\s+/g,'') + ' 様';
+  const co = c.company||'';
+  const me = DB.me.name || '';
+  const pa = isPartner(c);
+  const sig = me ? '株式会社アースコム '+me : '株式会社アースコム';
+  const su = pa ? `先日はありがとうございました（${sig}）`
+                : `ご挨拶のお礼（${sig}）`;
+  const svc = (c.services||[]).length? `\n今回お話しした内容をふまえ、${(c.services||[]).slice(0,3).join('・')}についてご案内できればと考えております。\n` : '\n';
+  const body =
+`${co}
+${nm}
+
+いつもお世話になっております。
+${me? '株式会社アースコムの'+me+'です。' : '株式会社アースコムです。'}
+
+${c.metPlace||''}では、お時間をいただきありがとうございました。
+${svc}
+つきましては、${c.nextAction||'あらためてご連絡'}の件でご相談させていただければ幸いです。
+ご都合のよい日時をお知らせいただけますでしょうか。
+
+引き続きよろしくお願いいたします。
+
+────────────────────
+株式会社アースコム${me? '　'+me : ''}
+${DB.me.email||''}
+https://www.earthcom-eco.jp
+────────────────────`;
+  return {su, body};
+}
+let MAILC = null;
+function openMail(id){
+  MAILC = DB.cards.find(x=>x.id===id); if(!MAILC) return;
+  const t = mailTemplate(MAILC);
+  drawMail(t.su, t.body);
+}
+function drawMail(su, body){
+  const c = MAILC;
+  sheet('メールを送る', `
+  <div class="card pad sec">
+    <label class="f"><span>宛先</span><input type="text" id="mTo" value="${esc(c.email||'')}"></label>
+    <label class="f"><span>件名</span><input type="text" id="mSu" value="${esc(su)}"></label>
+    <label class="f"><span>本文</span><textarea id="mBody" style="min-height:290px">${esc(body)}</textarea></label>
+    <div class="row">
+      <button class="btn ghost sm" onclick="aiMail()">${SVGI(ICONS.star,15)} AIで文面を作り直す</button>
+      <button class="btn ghost sm" onclick="resetMail()">ひな形に戻す</button>
+    </div>
+    <div id="mMsg" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+  </div>
+  <div class="row">
+    <button class="btn" style="flex:1;justify-content:center;padding:13px" onclick="sendVia('gmail')">${SVGI(ICONS.mail,17)} Gmailで開く</button>
+    <button class="btn ghost" style="flex:1;justify-content:center;padding:13px" onclick="sendVia('app')">メールアプリで開く</button>
+  </div>
+  <button class="btn ghost wide sm" style="margin-top:10px" onclick="copyText(document.getElementById('mBody').value)">本文をコピー</button>
+  <div style="height:20px"></div>`);
+}
+function resetMail(){ const t=mailTemplate(MAILC); drawMail(t.su, t.body); }
+function sendVia(how){
+  const to=$('#mTo').value.trim(), su=$('#mSu').value, body=$('#mBody').value;
+  const url = how==='gmail' ? gmailUrl(to,su,body)
+                            : 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(su)+'&body='+encodeURIComponent(body);
+  window.open(url, '_blank', 'noopener');
+  save(MAILC, `メールを作成（件名：${su.slice(0,40)}）`);
+  closeModal(); toast('メールを開きました');
+}
+async function aiMail(){
+  const msg=$('#mMsg'); msg.textContent='文面を作っています…';
+  const c=MAILC, h=c.hearing||{}, p=c.partner||{};
+  const info = [
+    '相手の会社：'+(c.company||''), '相手の氏名：'+(c.name||''), '相手の役職：'+(c.title||''),
+    '区分：'+(isPartner(c)?'パートナー（紹介・提携の相手）':'お客様（提案先）'),
+    '出会った場面：'+(c.metPlace||''), '自社の担当者：'+(DB.me.name||''),
+    isPartner(c)? ('パートナー業種：'+(p.ptype||'')+'／紹介してもらえそうな相手：'+((p.refs||[]).join('・')||'未確認'))
+                : ('提案できるサービス：'+((c.services||[]).join('・')||'未定')+'／所有発電所：'+(h.owns||'不明')+'／売却意向：'+(h.sellIntent||'不明')+'／購入意向：'+(h.buyIntent||'不明')+'／蓄電池：'+(h.battery||'不明')),
+    '次にやること：'+(c.nextAction||''),
+    '会話メモ：'+(c.memo||'なし')
+  ].join('\n');
+  try{
+    const res = await fetch(AI_URL,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY,'apikey':SUPA_KEY},
+      body: JSON.stringify({
+        system:'あなたは太陽光発電の会社の営業担当者です。名刺交換後に送る日本語のビジネスメールを書きます。件名と本文だけを返し、説明や前置きは書きません。誇張や過度な売り込みはせず、簡潔に書きます。',
+        prompt: info + '\n\n上の情報をもとに、名刺交換のお礼メールを書いてください。\n出力は次の形式だけにしてください。\n件名: ここに件名\n本文:\nここに本文\n\n本文は署名まで含めて書き、会社名は株式会社アースコムとします。',
+        max_tokens:1200})
+    });
+    const raw = await res.text();
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+raw.slice(0,120));
+    const j = JSON.parse(raw);
+    const txt = j.text || (Array.isArray(j.content)? j.content.filter(x=>x.type==='text').map(x=>x.text).join('') : '');
+    if(!txt) throw new Error('応答が空でした');
+    const m = txt.match(/件名[:：]\s*(.+)/);
+    const b = txt.split(/本文[:：]\s*/).slice(1).join('本文:').trim();
+    drawMail(m? m[1].trim() : $('#mSu').value, b || txt.trim());
+    $('#mMsg').textContent = 'AIが作った文面です。そのまま送らず、必ず目を通してください。';
+  }catch(e){
+    msg.innerHTML = '<span style="color:var(--alert)">文面を作れませんでした（'+esc(e.message)+'）。ひな形のまま編集してください。</span>';
+  }
+}
+
 /* ===================== 出力 ===================== */
 function exportCSV(){
-  const head = ['会社名','氏名','部署','役職','電話','携帯','メール','住所','業種','交換日','場所','担当','ランク','フェーズ','提案サービス','想定売上(万円)','想定粗利(万円)','次の行動','期限','無料診断','現地視察','発電所所有','基数','区分','売却意向','購入意向','蓄電池','節税','決裁権','投資可能額','検討時期','登録日時'];
-  const rows = DB.cards.map(c=>{ const h=c.hearing||{}; return [
+  const head = ['区分','パートナー業種','パートナー状況','紹介見込み(件/年)','紹介できる相手',
+    '会社名','氏名','部署','役職','電話','携帯','メール','住所','業種','交換日','場所','担当','ランク','フェーズ','提案サービス','想定売上(万円)','想定粗利(万円)','次の行動','期限','無料診断','現地視察','発電所所有','基数','区分','売却意向','購入意向','蓄電池','節税','決裁権','投資可能額','検討時期','登録日時'];
+  const rows = DB.cards.map(c=>{ const h=c.hearing||{}, p=c.partner||{}; return [
+    isPartner(c)?'パートナー':'お客様', p.ptype, (PSTATUS.find(x=>x.id===p.status)||{}).name, p.refCount, (p.refs||[]).join('/'),
     c.company,c.name,c.dept,c.title,c.tel,c.mobile,c.email,c.address,c.industry,c.metAt,c.metPlace,c.owner,
     c.rank,c.phase,(c.services||[]).join('/'),c.amount,c.gross,c.nextAction,c.nextDate,c.diag?'○':'',c.visit?'○':'',
     h.owns,h.plants,(h.voltage||[]).join('/'),h.sellIntent,h.buyIntent,h.battery,h.tax,h.authority,h.budget,h.timing,c.createdAt];});
@@ -1156,6 +1548,15 @@ function vManual(){
   <h3>このアプリの役割</h3>
   <p style="font-size:14px">名刺を保存するアプリではありません。<b>名刺交換を、次の商談と受注に変えるためのアプリ</b>です。登録して終わりにせず、必ず「次にやること」と「期限」を持たせます。</p>
 
+  <h3>お客様とパートナー</h3>
+  <p style="font-size:14px">名刺を登録するとき、必ず区分を選びます。</p>
+  <div class="scroll"><table>
+    <tr><th>区分</th><th>だれか</th><th>管理のしかた</th></tr>
+    <tr><td><b>お客様</b></td><td>発電所オーナー・投資家など、こちらが提案する相手</td><td>PH01〜PH08のフェーズと想定粗利で管理</td></tr>
+    <tr><td><b>パートナー</b></td><td>金融機関・税理士・不動産・工務店・同業など、紹介や提携の相手</td><td>接触済み→面談済み→提携合意→紹介実績ありの4段階と、年間の紹介見込み件数で管理</td></tr>
+  </table></div>
+  <p style="font-size:14px">パートナーは商談パイプラインには入りません。金額が立たないので混ぜると売上見込みが狂います。パイプライン画面の上にある切り替えで見てください。ランクの意味も変わり、お客様は受注の見込み、パートナーは紹介が期待できる度合いです。追客の期限と「次にやること」は、どちらも同じように必要です。</p>
+
   <h3>守るルール</h3>
   <ol>
     <li>次の行動と期限がない名刺は、登録を完了させない</li>
@@ -1165,6 +1566,7 @@ function vManual(){
     <li>期限を過ぎた案件（赤）は、朝いちばんに片づける</li>
     <li>S・Aで3日動きがない案件は、上長が本人に確認する</li>
     <li>連絡したら必ず履歴に残す。残っていない活動は無かったものとして扱う</li>
+    <li>パートナーは、紹介をもらったらその場で紹介実績ありに動かす</li>
   </ol>
 
   <h3>1日の使い方</h3>
@@ -1216,17 +1618,87 @@ create policy "ec_all" on earthconnect_records
 alter publication supabase_realtime add table earthconnect_records;</pre>
 
   <h3>名刺のAI読み取りについて</h3>
-  <p style="font-size:14px">読み取りは共通のAI中継（Edge Function <code>ai</code>）を使います。現在の <code>ai</code> は文字だけを受け取る作りのため、画像を渡せるように次の1か所を追加してください。追加するまでは手入力で運用できます。</p>
+  <p style="font-size:14px">読み取りは共通のAI中継（Supabaseの Edge Function <code>ai</code>）を通します。まず下のボタンで、画像が届いているかを確認してください。</p>
+  <button class="btn" onclick="aiSelfTest()">AI読み取りの接続を確認する</button>
+  <div id="aiTest" style="margin-top:12px"></div>
+
+  <p style="font-size:14px;margin-top:14px"><b>「画像が届いていません」と出た場合</b>は、<code>ai</code> が文字だけを受け取る作りになっています。Supabaseの Edge Functions → <code>ai</code> を開き、中身を下のコードにそのまま差し替えてデプロイしてください。文字だけの呼び出し（日報アプリなど）はこれまでどおり動きます。</p>
   <pre>// supabase/functions/ai/index.ts
-const { prompt, system, max_tokens, images } = await req.json();
-const content = [
-  ...(images ?? []).map((im) =&gt; ({
-    type: "image",
-    source: { type: "base64", media_type: im.media_type, data: im.data }
-  })),
-  { type: "text", text: prompt }
-];
-// messages: [{ role: "user", content }] として Anthropic API へ渡す</pre>
+Deno.serve(async (req) =&gt; {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+
+  try {
+    const { prompt, system, max_tokens, images, model } = await req.json();
+
+    // 画像があれば先に積む（無ければ今までどおり文字だけ）
+    const content: unknown[] = [];
+    for (const im of images ?? []) {
+      content.push({
+        type: "image",
+        source: { type: "base64", media_type: im.media_type, data: im.data },
+      });
+    }
+    content.push({ type: "text", text: prompt ?? "" });
+
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": Deno.env.get("ANTHROPIC_API_KEY") ?? "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: model ?? "claude-sonnet-5",
+        max_tokens: max_tokens ?? 1024,
+        ...(system ? { system } : {}),
+        messages: [{ role: "user", content }],
+      }),
+    });
+
+    const j = await r.json();
+    if (!r.ok) {
+      return new Response(JSON.stringify({ error: j }), {
+        status: r.status,
+        headers: { ...cors, "content-type": "application/json" },
+      });
+    }
+
+    const text = (j.content ?? [])
+      .filter((b: { type: string }) =&gt; b.type === "text")
+      .map((b: { text: string }) =&gt; b.text)
+      .join("");
+
+    return new Response(JSON.stringify({ text, content: j.content }), {
+      headers: { ...cors, "content-type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { ...cors, "content-type": "application/json" },
+    });
+  }
+});</pre>
+  <p style="font-size:13px;color:var(--muted)">APIキーは Edge Function Secrets の <code>ANTHROPIC_API_KEY</code> をそのまま使います。HTMLには書きません。差し替え後に、もう一度上のボタンで確認してください。</p>
+
+  <h3>電話とメール</h3>
+  <p style="font-size:14px">顧客の画面にある電話番号を押すと、そのまま電話がかかります。スマホ・iPadでの操作です。パソコンでは番号をコピーして使ってください。かけた記録は自動で活動履歴に残ります。</p>
+  <p style="font-size:14px">「メールを送る」を押すと、相手の会社名・名前・出会った場面・提案サービスを入れたお礼メールのひな形が出ます。中身を直してから、<b>Gmailで開く</b>（会社のGmailが新しいタブで開き、宛先・件名・本文が入った状態になります）か、<b>メールアプリで開く</b>を選びます。送信ボタンはGmail側で押してください。作成した記録は活動履歴に残ります。</p>
+  <p style="font-size:14px">「AIで文面を作り直す」を押すと、ヒアリング内容とメモをふまえた文面をAIが書きます。そのまま送らず、必ず目を通してから送ってください。ホームの今日のアクション欄からも、電話とメールのボタンを直接押せます。</p>
+  <p style="font-size:13px;color:var(--muted)">Gmailで別のアカウントが開いてしまう場合は、ブラウザで会社のアカウントに切り替えてから使ってください。</p>
+
+  <h3>写真を撮るときのコツ</h3>
+  <ul>
+    <li>名刺が画面いっぱいになるように寄って撮る</li>
+    <li>真上から撮る。斜めだと文字が歪んで読み取り精度が落ちます</li>
+    <li>影が入らないようにする。手やスマホの影が文字にかかると読めません</li>
+    <li>裏面に会社情報がある名刺は、表・裏の2枚を撮る</li>
+  </ul>
+  <p style="font-size:13px;color:var(--muted)">写真はアプリ側で自動的に縮小してから送ります。通信量は1枚あたり300KB前後です。</p>
 
   <h3>これから足せること</h3>
   <ul>
