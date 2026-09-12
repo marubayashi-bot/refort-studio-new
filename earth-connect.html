@@ -540,11 +540,43 @@ function scorePartner(c){
   return {score:s, rank, why};
 }
 const isPartner = c => c.kind==='partner';
+
+/* ---------- 同じ会社の関係者 ---------- */
+const CO_SUFFIX = /(株式会社|有限会社|合同会社|合資会社|合名会社|一般社団法人|公益社団法人|一般財団法人|公益財団法人|社会福祉法人|医療法人|\(株\)|（株）|\(有\)|（有）)/g;
+function coKey(c){
+  return String((c&&c.company)||'')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(CO_SUFFIX,'')
+    .replace(/[\s　・･,，.．'"’”\-ー―–—]/g,'')
+    .toLowerCase();
+}
+function sameCompany(c){
+  const k = coKey(c);
+  if(!k) return [c];
+  return DB.cards.filter(x=>coKey(x)===k);
+}
+/* 窓口かどうか。明示されていなければ、その会社で最初に登録された人を窓口とみなす */
+function isMain(c){
+  if(c.main===true) return true;
+  const grp = sameCompany(c);
+  if(grp.length<=1) return true;
+  if(grp.some(x=>x.main===true)) return false;
+  const first = grp.slice().sort((a,b)=> (a.createdAt||'') < (b.createdAt||'') ? -1 : 1)[0];
+  return first.id === c.id;
+}
+function setMain(c){
+  sameCompany(c).forEach(x=>{
+    const want = (x.id===c.id);
+    if(!!x.main !== want || x.main===undefined){ x.main = want; save(x, want? `${x.name||'この方'}を窓口に設定` : `窓口を ${c.name||'他の方'} に変更`); }
+  });
+}
 function judge(c){ return isPartner(c)? scorePartner(c) : scoreCard(c); }
 
 /* ===================== 集計 ===================== */
 const alive = () => DB.cards.filter(c=>c.phase!=='LOST');
 const deals = () => alive().filter(c=>!isPartner(c));
+/* 商談・金額の集計は会社の窓口だけを数える（同じ会社の二重計上を防ぐ） */
+const mainDeals = () => deals().filter(isMain);
 const partners = () => DB.cards.filter(isPartner);
 function dueList(){
   return alive().filter(c=>c.nextDate).sort((a,b)=> (a.nextDate>b.nextDate?1:-1));
@@ -675,7 +707,7 @@ function vHome(){
   const soon = dueList().filter(c=>{const d=dayDiff(c.nextDate); return d>0 && d<=3;});
   const list = [...ov, ...td];
   const newToday = DB.cards.filter(c=>(c.createdAt||'').slice(0,10)===today()).length;
-  const sa = deals().filter(c=>['S','A'].includes(c.rank));
+  const sa = mainDeals().filter(c=>['S','A'].includes(c.rank));
   const pt = partners();
   const noAction = alive().filter(c=>!c.nextDate);
 
@@ -706,7 +738,7 @@ function vHome(){
         <h3 class="h">${SVGI(ICONS.pipe,19)} 商談パイプライン
           <button class="lnk" onclick="go('pipe')">すべて見る ›</button></h3>
         ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
-          const l = deals().filter(c=>(c.phase||'PH01')===p.id);
+          const l = mainDeals().filter(c=>(c.phase||'PH01')===p.id);
           return `<div class="phrow tap" onclick="goList({phase:'${p.id}',kind:'customer'})">
             <span class="pill" style="background:${p.c};color:${p.t}">${p.id}</span>
             <span class="nm">${p.name}</span>
@@ -825,7 +857,7 @@ function listTable(rows){
                    : (PHASES.find(x=>x.id===(c.phase||'PH01'))||PHASES[0]);
       return `<tr class="clickable" onclick="openCard('${c.id}')">
         <td><span class="rank ${c.rank}">${c.rank}</span></td>
-        <td><b>${esc(c.company||'—')}</b><br><span style="font-size:12px;color:var(--muted)">${esc(c.name||'')}</span></td>
+        <td><b>${esc(c.company||'—')}</b>${(!pa && sameCompany(c).length>1)? (isMain(c)?' <span class="tag" style="background:#FDF1DE;color:#B57619">窓口</span>':' <span class="tag">関係者</span>'):''}<br><span style="font-size:12px;color:var(--muted)">${esc(c.name||'')}</span></td>
         <td style="font-size:12px">${pa? `<span class="tag" style="background:#EDE7F7;color:#5C42A0">パートナー</span> ${esc((c.partner||{}).ptype||'')}`
             : ((c.services||[]).slice(0,2).map(s=>`<span class="tag">${esc(s)}</span>`).join(' ')||'—')}</td>
         <td><span class="pill" style="font-size:11px;font-weight:900;padding:3px 9px;border-radius:7px;background:${p.c};color:${p.t}">${pa?p.name:p.id}</span></td>
@@ -841,17 +873,17 @@ function listTable(rows){
 let PIPEVIEW = 'deal';
 function vPipe(){
   return `<div class="sec chips">
-      <button class="chip ${PIPEVIEW==='deal'?'on':''}" onclick="PIPEVIEW='deal';render()">お客様の商談 <span class="num">${deals().length}</span></button>
+      <button class="chip ${PIPEVIEW==='deal'?'on':''}" onclick="PIPEVIEW='deal';render()">お客様の商談 <span class="num">${mainDeals().length}</span></button>
       <button class="chip ${PIPEVIEW==='partner'?'on':''}" onclick="PIPEVIEW='partner';render()">パートナー <span class="num">${partners().length}</span></button>
     </div>` + (PIPEVIEW==='partner'? vPartnerBoard() : vDealBoard());
 }
 function vDealBoard(){
   const byOwner = {};
-  deals().forEach(c=>{ byOwner[c.owner||'担当未定'] = (byOwner[c.owner||'担当未定']||0)+(Number(c.gross)||0); });
+  mainDeals().forEach(c=>{ byOwner[c.owner||'担当未定'] = (byOwner[c.owner||'担当未定']||0)+(Number(c.gross)||0); });
   return `
   <div class="sec kpi">
     ${PHASES.filter(p=>p.id!=='LOST').slice(0,4).map(p=>{
-      const l = deals().filter(c=>(c.phase||'PH01')===p.id);
+      const l = mainDeals().filter(c=>(c.phase||'PH01')===p.id);
       return `<div class="k tap" style="cursor:pointer" onclick="goList({phase:'${p.id}',kind:'customer'})">
         <div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
         <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>${oku(grossOf(l))}</small></div>
@@ -860,7 +892,7 @@ function vDealBoard(){
   </div>
   <div class="sec pipe">
     ${PHASES.map(p=>{
-      const l = DB.cards.filter(c=>!isPartner(c) && (c.phase||'PH01')===p.id).sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
+      const l = DB.cards.filter(c=>!isPartner(c) && isMain(c) && (c.phase||'PH01')===p.id).sort((a,b)=>RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank));
       return `<div class="col" ondragover="event.preventDefault();this.classList.add('dragover')"
         ondragleave="this.classList.remove('dragover')" ondrop="dropCard(event,'${p.id}')">
         <h4><span class="pill" style="background:${p.c};color:${p.t};padding:3px 9px;border-radius:7px">${p.id}</span> ${p.name}<em class="num">${l.length}</em></h4>
@@ -909,8 +941,10 @@ function vPartnerBoard(){
 }
 function pipeCard(c, pa){
   const p = c.partner||{};
+  const others = sameCompany(c).length - 1;
   return `<div class="pc" draggable="true" data-id="${c.id}" ondragstart="event.dataTransfer.setData('text',this.dataset.id)" onclick="openCard('${c.id}')">
     <b>${esc(c.company||'—')}</b>
+    <div class="m" style="margin-top:1px">${esc(c.name||'')}${others>0?` <span class="tag">他${others}名</span>`:''}</div>
     <div class="m"><span class="rank ${c.rank}">${c.rank}</span>${esc(c.owner||'担当未定')}${
       pa ? (p.refCount? ' ・紹介見込 <span class="num">'+esc(p.refCount)+'</span>件':'')
          : (c.gross? ' ・<span class="num">'+oku(c.gross)+'</span>':'')}</div>
@@ -942,7 +976,7 @@ function dropCard(ev, ph){
 
 /* ===================== ダッシュボード ===================== */
 function vDash(){
-  const all = DB.cards, a = deals();
+  const all = DB.cards, a = mainDeals();
   const cust = all.filter(c=>!isPartner(c)), pt = partners();
   const sa = a.filter(c=>['S','A'].includes(c.rank));
   const ph4 = a.filter(c=>['PH04','PH06','PH08'].includes(c.phase||''));
@@ -1099,7 +1133,7 @@ function drawScan(){
      <label class="f"><span>次にやること</span><input type="text" value="${esc(DRAFT.nextAction)}" oninput="DRAFT.nextAction=this.value" placeholder="例：お礼の電話＋現地視察の日程提案"></label>
      <div class="grid2">
        <label class="f"><span>実行期限</span><input type="date" value="${DRAFT.nextDate}" onchange="DRAFT.nextDate=this.value; DRAFT.dateManual=true"></label>
-       ${isPartner(DRAFT)? '' : `<label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(DRAFT.gross)}" oninput="DRAFT.gross=this.value"></label>`}
+       ${isPartner(DRAFT)? '' : `<label class="f"><span>想定粗利益（万円）${(DRAFT.dupCo && !DRAFT.main)?'<span style="color:var(--alert)"> ／ 窓口の方に入れてください</span>':''}</span><input type="number" value="${esc(DRAFT.gross)}" oninput="DRAFT.gross=this.value"></label>`}
      </div>
      <label class="f"><span>メモ</span><textarea oninput="DRAFT.memo=this.value" placeholder="会話の内容・相手の温度感">${esc(DRAFT.memo)}</textarea></label>
    </div>
@@ -1187,14 +1221,32 @@ function judgeBox(){
 function checkDup(){
   const box = $('#dupBox'); if(!box||!DRAFT) return;
   const co = (DRAFT.company||'').trim(), nm = (DRAFT.name||'').trim();
-  if(!co && !nm){ box.innerHTML=''; return; }
-  const hits = DB.cards.filter(c=>c.id!==DRAFT.id && ((nm && c.name===nm && c.company===co) || (co && c.company===co)));
+  if(!co && !nm){ box.innerHTML=''; DRAFT.dupCo = false; return; }
+  const k = coKey(DRAFT);
+  const hits = DB.cards.filter(c=>c.id!==DRAFT.id && k && coKey(c)===k);
+  const same = hits.filter(c=> nm && (c.name||'').replace(/\s/g,'')===nm.replace(/\s/g,''));
+  DRAFT.dupCo = hits.length>0;
   if(!hits.length){ box.innerHTML=''; return; }
-  const same = hits.filter(c=>nm && c.name===nm);
-  box.innerHTML = `<div class="warnbox ${same.length?'red':''}">
-    <b>${same.length? '同じ方がすでに登録されています':'同じ会社がすでに登録されています'}</b>（${hits.length}件）<br>
-    ${hits.slice(0,3).map(c=>`<span class="tag">${esc(c.company)} ${esc(c.name||'')} ／ 担当 ${esc(c.owner||'未定')}</span>`).join(' ')}<br>
-    <button class="btn sm ghost" style="margin-top:6px" onclick="closeModal();openCard('${hits[0].id}')">既存の顧客を開く</button>
+  if(same.length){
+    box.innerHTML = `<div class="warnbox red">
+      <b>同じ方がすでに登録されています</b><br>
+      ${same.slice(0,2).map(c=>`<span class="tag">${esc(c.company)} ${esc(c.name||'')} ／ 担当 ${esc(c.owner||'未定')}</span>`).join(' ')}<br>
+      二重登録になります。既存の顧客を開いて、内容を足してください。
+      <button class="btn sm ghost" style="margin-top:8px" onclick="closeModal();openCard('${same[0].id}')">既存の顧客を開く</button>
+    </div>`;
+    return;
+  }
+  const main = hits.find(isMain);
+  box.innerHTML = `<div class="warnbox">
+    <b>同じ会社で${hits.length}名すでに登録されています</b>（別の方なら、このまま登録してください）<br>
+    ${hits.slice(0,4).map(c=>`<span class="tag">${esc(c.name||'（氏名なし）')}${isMain(c)?'・窓口':''}</span>`).join(' ')}<br>
+    <div style="margin-top:8px">
+      <button class="chip ${DRAFT.main?'sun on':''}" onclick="DRAFT.main=!DRAFT.main;drawScan()">この方を窓口にする</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:7px">
+      ${DRAFT.main ? `窓口を${esc((main&&main.name)||'既存の方')}からこの方に変えます。想定粗利はこの方に入れてください。`
+                   : `窓口は${esc((main&&main.name)||'既存の方')}のままです。想定粗利は空欄にして、メモに関係（上長・決裁者など）を書いてください。`}
+    </div>
   </div>`;
 }
 
@@ -1450,7 +1502,11 @@ function saveDraft(){
   if(!DRAFT.company && !DRAFT.name){ toast('会社名か氏名を入れてください'); return; }
   if(!DRAFT.nextAction || !DRAFT.nextDate){ toast('次にやることと期限を決めてください'); return; }
   delete DRAFT.rankManual; delete DRAFT.svcManual; delete DRAFT.dateManual;
+  const wantMain = !DRAFT.dupCo || DRAFT.main===true;   // 同社が居なければ自動で窓口
+  delete DRAFT.dupCo;
+  DRAFT.main = wantMain;
   save(DRAFT, `名刺を登録（${DRAFT.metPlace}）／${isPartner(DRAFT)?'パートナー':'お客様'}・ランク ${DRAFT.rank}`);
+  if(DRAFT.main) sameCompany(DRAFT).forEach(x=>{ if(x.id!==DRAFT.id && x.main!==false){ x.main=false; save(x); } });
   toast(`${DRAFT.company||DRAFT.name} を登録しました`);
   closeModal();
 }
@@ -1519,6 +1575,7 @@ function drawCard(){
     <h3 class="h">商談フェーズと金額</h3>
     <div class="chips" style="margin-bottom:12px">${PHASES.map(p=>
       `<button class="chip ${(c.phase||'PH01')===p.id?'on':''}" onclick="setPhase('${p.id}')">${p.id} ${p.name}</button>`).join('')}</div>
+    ${(sameCompany(c).length>1 && !isMain(c))? '<div class="warnbox">この方は窓口ではありません。金額は窓口の方に入れてください。ここに入れた金額はパイプラインに反映されません。</div>':''}
     <div class="grid2">
       <label class="f"><span>想定売上（万円）</span><input type="number" value="${esc(c.amount||'')}" oninput="CUR.amount=this.value"></label>
       <label class="f"><span>想定粗利益（万円）</span><input type="number" value="${esc(c.gross||'')}" oninput="CUR.gross=this.value"></label>
@@ -1534,6 +1591,8 @@ function drawCard(){
     <div class="chips">${RANKS.map(r=>`<button class="chip ${c.rank===r?'on':''}" onclick="CUR.rank='${r}';saveCur(true);drawCard()">${r}</button>`).join('')}</div>
     ${j.why.length?`<div style="font-size:12px;color:var(--muted);margin-top:8px">${j.why.join(' ／ ')}</div>`:''}
   </div>
+
+  ${companyBlock(c)}
 
   ${isPartner(c)? '' : hearingBlock(c)}
 
@@ -1551,6 +1610,30 @@ function drawCard(){
     ${isPartner(c)? '' : `<button class="btn ghost sm" onclick="setPhase('LOST')">見送りにする</button>`}
     <button class="btn ghost sm" onclick="delCard()" style="color:var(--alert)">削除</button>
   </div>`);
+}
+
+
+function companyBlock(c){
+  const grp = sameCompany(c).sort((a,b)=> (isMain(b)?1:0)-(isMain(a)?1:0) || ((a.createdAt||'')<(b.createdAt||'')?-1:1));
+  if(grp.length<=1) return '';
+  const me = isMain(c);
+  return `<div class="card pad sec">
+    <h3 class="h">${SVGI(ICONS.list,19)} 同じ会社の登録者 <span class="note">${grp.length}名</span></h3>
+    ${grp.map(x=>`<div class="phrow ${x.id===c.id?'':'tap'}" ${x.id===c.id?'':`onclick="openCard('${x.id}')"`}>
+      <span class="rank ${x.rank}">${x.rank}</span>
+      <span class="nm">${esc(x.name||'（氏名なし）')}${x.title?' ／ '+esc(x.title):''}
+        ${isMain(x)?'<span class="tag" style="background:#FDF1DE;color:#B57619">窓口</span>':''}
+        ${x.id===c.id?'<span class="tag">表示中</span>':''}</span>
+      ${isMain(x)&&x.gross?`<b class="num">${oku(x.gross)}</b>`:''}
+      ${x.id===c.id?'':`<span class="go">${SVGI(ICONS.arrow,14)}</span>`}</div>`).join('')}
+    ${me
+      ? '<div style="font-size:12px;color:var(--muted);margin-top:10px">この方が窓口です。商談パイプラインにはこの方だけが並び、想定粗利もこの方の金額だけを数えます。</div>'
+      : `<div style="margin-top:10px"><button class="btn sm" onclick="setMainHere()">この方を窓口にする</button>
+         <div style="font-size:12px;color:var(--muted);margin-top:7px">窓口を切り替えると、パイプラインに並ぶ人と粗利の集計先が入れ替わります。</div></div>`}
+  </div>`;
+}
+function setMainHere(){
+  setMain(CUR); toast('窓口を変更しました'); drawCard();
 }
 
 function hearingBlock(c){
@@ -1868,6 +1951,7 @@ function vManual(){
     <li>S・Aで3日動きがない案件は、上長が本人に確認する</li>
     <li>連絡したら必ず履歴に残す。残っていない活動は無かったものとして扱う</li>
     <li>パートナーは、紹介をもらったらその場で紹介実績ありに動かす</li>
+    <li>同じ会社で複数人と会ったら、金額を入れるのは窓口の1人だけにする</li>
   </ol>
 
   <h3>1日の使い方</h3>
@@ -1985,6 +2069,16 @@ Deno.serve(async (req) =&gt; {
   }
 });</pre>
   <p style="font-size:13px;color:var(--muted)">APIキーは Edge Function Secrets の <code>ANTHROPIC_API_KEY</code> をそのまま使います。HTMLには書きません。差し替え後に、もう一度上のボタンで確認してください。</p>
+
+  <h3>同じ会社で複数人と名刺交換したとき</h3>
+  <p style="font-size:14px">名刺は<b>人ごとに1枚ずつ登録</b>してください。連絡先も決裁権も人によって違うので、まとめないほうが後で困りません。</p>
+  <p style="font-size:14px">ただし、<b>商談は会社に1つ</b>です。その会社の<b>窓口</b>を1人だけ決め、想定売上・想定粗利・フェーズはその人に入れます。ほかの方は金額を空欄のままにして、メモに関係（上長・決裁者など）を書いてください。パイプラインには窓口の方だけが並び、カードに「他◯名」と出ます。粗利が二重に数えられることはありません。</p>
+  <div class="scroll"><table>
+    <tr><th>登録するとき</th><th>出るもの</th><th>やること</th></tr>
+    <tr><td>同じ会社の別の方</td><td>黄色の注意「同じ会社で◯名すでに登録されています」</td><td>そのまま登録してよい。窓口を変えたいときだけ「この方を窓口にする」を押す</td></tr>
+    <tr><td>同じ方をもう一度</td><td>赤の注意「同じ方がすでに登録されています」</td><td>登録せず、既存の顧客を開いて内容を足す</td></tr>
+  </table></div>
+  <p style="font-size:14px">窓口は後からでも変えられます。顧客画面の「同じ会社の登録者」から、窓口にしたい方を開いて「この方を窓口にする」を押してください。株式会社や（株）の有無、スペースの違いは同じ会社として扱います。</p>
 
   <h3>登録した内容を直す</h3>
   <p style="font-size:14px">顧客の画面を開き、名前の下にある<b>「名刺情報を編集」</b>から、会社名・氏名・部署・役職・電話・携帯・メール・住所・Webサイト・業種・交換日・交換した場所・担当者・区分・メモを直せます。AIの読み取りが少し違っていたときや、担当者が未定のままになっているときは、ここで直してください。直した内容は活動履歴に「名刺情報を修正」として残ります。</p>
