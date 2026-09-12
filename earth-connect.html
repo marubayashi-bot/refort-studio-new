@@ -95,8 +95,8 @@ svg{flex:none}
 @media(max-width:900px){
   .tabs{display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:40;
     background:var(--navy); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 12px rgba(14,32,56,.2)}
-  .tabs button{background:none; border:0; color:#96AEC4; padding:9px 2px 10px; font-size:10.5px; font-weight:700; position:relative;
-    display:flex; flex-direction:column; align-items:center; gap:2px}
+  .tabs button{background:none; border:0; color:#96AEC4; padding:9px 2px 10px; font-size:11px; font-weight:700; position:relative;
+    display:flex; flex-direction:column; align-items:center; gap:2px; white-space:nowrap}
   .tabs button.on{color:var(--sun)}
   .tabs .cnt{position:absolute; top:4px; right:50%; transform:translateX(18px); background:var(--alert); color:#fff;
     border-radius:8px; font-size:9.5px; padding:0 4px; font-weight:700}
@@ -117,12 +117,12 @@ svg{flex:none}
 .hero .art .cap{position:absolute; top:26px; right:26px; text-align:right; z-index:2}
 .hero .art .cap b{display:block; font-size:17px; font-weight:900; color:#1B4A78; line-height:1.5}
 .hero .art .cap span{display:block; font-size:9.5px; letter-spacing:.18em; color:#7DA3C2; margin-top:7px; font-weight:700}
-.hero .art svg{position:absolute; inset:0; width:100%; height:100%}
+.hero .art svg{display:block; width:100%; height:100%}
 @media(max-width:900px){
   .hero{flex-direction:column}
   .hero h2{font-size:24px}
   .hero .txt{padding:18px 18px 16px}
-  .hero .art{width:100%; height:112px; order:-1}
+  .hero .art{width:100%; height:130px; min-height:130px; order:-1}
   .hero .art .cap{top:14px; right:16px}
   .hero .art .cap b{font-size:13.5px}
   .hero .art .cap span{font-size:8.5px}
@@ -176,6 +176,14 @@ textarea{min-height:76px; resize:vertical}
 .kpi .k b{display:block; font-size:26px; font-weight:900; line-height:1.2}
 .kpi .k small{font-size:11px; color:var(--muted)}
 .kpi .k.bad b{color:var(--alert)}
+.kpi .k.tap{position:relative; transition:box-shadow .15s, transform .15s}
+.kpi .k.tap:hover{box-shadow:0 2px 4px rgba(14,32,56,.08), 0 10px 26px rgba(14,32,56,.1)}
+.kpi .k.tap:active{transform:scale(.985)}
+.kpi .k .go{position:absolute; right:11px; top:13px; color:#B7C4CE}
+.phrow.tap{cursor:pointer; margin:0 -6px; padding-left:6px; padding-right:6px; border-radius:8px}
+.phrow.tap:hover{background:#F5F8FA}
+.phrow .go{color:#B7C4CE; flex:none; margin-left:2px}
+.tap{-webkit-tap-highlight-color:rgba(44,110,155,.12)}
 @media(max-width:900px){.kpi .k{padding:11px 12px; gap:9px} .kpi .k .ib{width:32px;height:32px;border-radius:9px} .kpi .k b{font-size:22px}}
 
 /* ---------- 追客リスト ---------- */
@@ -244,6 +252,37 @@ tr.clickable:hover{background:#F6F9FB; cursor:pointer}
 code{background:#EEF2F5; padding:1px 6px; border-radius:5px; font-family:"Roboto Mono",monospace; font-size:12.5px}
 pre{background:var(--navy); color:#D5E3EC; padding:13px; border-radius:10px; overflow:auto; font-size:11.5px; line-height:1.6}
 .hide{display:none!important}
+
+/* ---------- カメラ ---------- */
+.cam{position:fixed; inset:0; z-index:90; background:#000; display:flex; flex-direction:column}
+.cam video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.cam .shade{position:absolute; inset:0; background:rgba(0,0,0,.55)}
+.cam .frame{
+  position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+  width:88vw; max-width:560px; aspect-ratio:91/55; border-radius:12px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.55); border:2px solid rgba(255,255,255,.9);
+}
+.cam .frame::before,.cam .frame::after{content:''; position:absolute; width:30px; height:30px; border:4px solid var(--sun)}
+.cam .frame::before{left:-2px; top:-2px; border-right:0; border-bottom:0; border-radius:12px 0 0 0}
+.cam .frame::after{right:-2px; bottom:-2px; border-left:0; border-top:0; border-radius:0 0 12px 0}
+.cam .frame.lock{border-color:var(--sun); box-shadow:0 0 0 9999px rgba(0,0,0,.55), 0 0 26px rgba(232,163,61,.8)}
+.cam .bar{position:absolute; left:0; right:0; top:0; padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  display:flex; align-items:center; gap:12px; color:#fff; background:linear-gradient(#000A,#0000)}
+.cam .bar b{font-size:15px; font-weight:900; flex:1}
+.cam .msg{position:absolute; left:0; right:0; top:calc(46% + 28vw + 18px); text-align:center; color:#fff;
+  font-size:14.5px; font-weight:700; text-shadow:0 1px 6px rgba(0,0,0,.8); padding:0 20px}
+@media(min-width:700px){.cam .msg{top:calc(46% + 180px)}}
+.cam .msg .sub{display:block; font-size:12px; font-weight:500; color:#CBD9E4; margin-top:4px}
+.cam .ctl{position:absolute; left:0; right:0; bottom:0; padding:18px 18px calc(env(safe-area-inset-bottom) + 20px);
+  display:flex; align-items:center; justify-content:space-between; gap:14px; background:linear-gradient(#0000,#000B)}
+.cam .shutter{width:70px; height:70px; border-radius:50%; border:5px solid #fff; background:rgba(255,255,255,.28)}
+.cam .shutter:active{background:rgba(255,255,255,.6)}
+.cam .tgl{color:#fff; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.4);
+  border-radius:999px; padding:9px 14px; font-size:12.5px; font-weight:700; min-width:96px}
+.cam .tgl.on{background:var(--sun); border-color:var(--sun); color:#2A1B05}
+.cam .gauge{position:absolute; left:50%; transform:translateX(-50%); bottom:118px; width:180px; height:6px;
+  background:rgba(255,255,255,.25); border-radius:4px; overflow:hidden}
+.cam .gauge i{display:block; height:100%; width:0%; background:var(--sun); transition:width .12s linear}
 .steps{counter-reset:s; padding:0; margin:8px 0 0; list-style:none}
 .steps li{counter-increment:s; display:flex; gap:10px; align-items:center; font-size:13.5px; margin-bottom:7px}
 .steps li::before{content:counter(s); width:22px; height:22px; border-radius:50%; background:var(--skyl); color:var(--sky);
@@ -524,9 +563,9 @@ function grossOf(list){ return list.reduce((s,c)=> s + (Number(c.gross)||0), 0);
 /* ===================== 画面切替 ===================== */
 const NAVS = [
   {id:'home',  ico:'home',  label:'ホーム',          title:'ホーム',           sub:'今日やることから始める'},
-  {id:'list',  ico:'list',  label:'顧客一覧',        title:'顧客一覧',         sub:'名刺から生まれた見込み客'},
-  {id:'pipe',  ico:'pipe',  label:'商談パイプライン', title:'商談パイプライン', sub:'PH01 見極め → PH08 受注'},
-  {id:'dash',  ico:'dash',  label:'ダッシュボード',   title:'ダッシュボード',   sub:'社長・部門長が見る数字'},
+  {id:'list',  ico:'list',  label:'顧客一覧',        short:'顧客',   title:'顧客一覧',         sub:'名刺から生まれた見込み客'},
+  {id:'pipe',  ico:'pipe',  label:'商談パイプライン', short:'商談',   title:'商談パイプライン', sub:'PH01 見極め → PH08 受注'},
+  {id:'dash',  ico:'dash',  label:'ダッシュボード',   short:'集計',   title:'ダッシュボード',   sub:'社長・部門長が見る数字'},
   {id:'manual',ico:'manual',label:'使い方',          title:'使い方',           sub:'運用ルール・取込・設定'}
 ];
 let TAB = 'home';
@@ -541,7 +580,7 @@ function drawNav(){
     `<button class="${n.id===TAB?'on':''}" onclick="go('${n.id}')">${SVGI(ICONS[n.ico])}${n.label}`+
     (n.id==='home'&&ov?`<span class="cnt num">${ov}</span>`:'')+`</button>`).join('');
   $('#tabs').innerHTML = NAVS.map(n=>
-    `<button class="${n.id===TAB?'on':''}" onclick="go('${n.id}')">${SVGI(ICONS[n.ico],20)}${n.label}`+
+    `<button class="${n.id===TAB?'on':''}" onclick="go('${n.id}')">${SVGI(ICONS[n.ico],20)}${n.short||n.label}`+
     (n.id==='home'&&ov?`<span class="cnt num">${ov}</span>`:'')+`</button>`).join('');
   const w = weekCount(), pct = Math.min(100, Math.round(w/WEEK_TARGET*100));
   $('#greet').innerHTML = `
@@ -602,10 +641,12 @@ function vHero(){
     </div>
   </div>`;
 }
-function kpiCard(icon, bg, color, label, value, sub, bad){
-  return `<div class="k ${bad?'bad':''}">
+function kpiCard(icon, bg, color, label, value, sub, bad, act){
+  const on = act? ` onclick="${act}" role="button" tabindex="0" style="cursor:pointer"` : '';
+  return `<div class="k ${bad?'bad':''} ${act?'tap':''}"${on}>
     <div class="ib" style="background:${bg};color:${color}">${SVGI(ICONS[icon],20)}</div>
-    <div class="tx"><span>${label}</span><b class="num">${value}</b><small>${sub}</small></div></div>`;
+    <div class="tx"><span>${label}</span><b class="num">${value}</b><small>${sub}</small></div>
+    ${act?`<span class="go">${SVGI(ICONS.arrow,15)}</span>`:''}</div>`;
 }
 function dueCard(c){
   const d = dayDiff(c.nextDate);
@@ -642,10 +683,10 @@ function vHome(){
   ${vHero()}
 
   <div class="sec kpi">
-    ${kpiCard('clock','var(--alertl)','var(--alert)','期限超過', ov.length, 'すぐ連絡', ov.length>0)}
-    ${kpiCard('newcard','var(--skyl)','var(--sky)','本日の新規名刺', newToday, '累計 '+DB.cards.length+'件')}
-    ${kpiCard('star','var(--gol)','var(--go)','S・Aランク（お客様）', sa.length, '想定粗利 '+oku(grossOf(sa)))}
-    ${kpiCard('note','var(--sunl)','#B57619','次の行動が未設定', noAction.length, '放置すると失注', noAction.length>0)}
+    ${kpiCard('clock','var(--alertl)','var(--alert)','期限超過', ov.length, 'すぐ連絡', ov.length>0, "goList({sp:'overdue'})")}
+    ${kpiCard('newcard','var(--skyl)','var(--sky)','本日の新規名刺', newToday, '累計 '+DB.cards.length+'件', false, "goList({sp:'newtoday'})")}
+    ${kpiCard('star','var(--gol)','var(--go)','S・Aランク（お客様）', sa.length, '想定粗利 '+oku(grossOf(sa)), false, "goList({sp:'sa',kind:'customer'})")}
+    ${kpiCard('note','var(--sunl)','#B57619','次の行動が未設定', noAction.length, '放置すると失注', noAction.length>0, "goList({sp:'noaction'})")}
   </div>
 
   <div class="sec cols">
@@ -666,19 +707,22 @@ function vHome(){
           <button class="lnk" onclick="go('pipe')">すべて見る ›</button></h3>
         ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
           const l = deals().filter(c=>(c.phase||'PH01')===p.id);
-          return `<div class="phrow">
+          return `<div class="phrow tap" onclick="goList({phase:'${p.id}',kind:'customer'})">
             <span class="pill" style="background:${p.c};color:${p.t}">${p.id}</span>
             <span class="nm">${p.name}</span>
             <span class="gr num">${l.length?oku(grossOf(l)):''}</span>
-            <span class="ct num">${l.length}<em>件</em></span></div>`;}).join('')}
+            <span class="ct num">${l.length}<em>件</em></span>
+            <span class="go">${SVGI(ICONS.arrow,14)}</span></div>`;}).join('')}
       </div>
 
       ${ pt.length ? `<div class="card pad sec">
         <h3 class="h">${SVGI(ICONS.star,19)} パートナー
           <button class="lnk" onclick="PIPEVIEW='partner'; go('pipe')">すべて見る ›</button></h3>
-        ${PSTATUS.map(p=>{ const l=pt.filter(c=>(c.partner||{}).status===p.id);
-          return `<div class="phrow"><span class="pill" style="background:${p.c};color:${p.t}">${p.name}</span>
-            <span class="nm"></span><span class="ct num">${l.length}<em>件</em></span></div>`;}).join('')}
+        ${PSTATUS.map(p=>{ const l=pt.filter(c=>((c.partner||{}).status||'P1')===p.id);
+          return `<div class="phrow tap" onclick="goList({kind:'partner',pstatus:'${p.id}'})">
+            <span class="pill" style="background:${p.c};color:${p.t}">${p.name}</span>
+            <span class="nm"></span><span class="ct num">${l.length}<em>件</em></span>
+            <span class="go">${SVGI(ICONS.arrow,14)}</span></div>`;}).join('')}
       </div>`:''}
 
       ${ st.length ? `<div class="card pad sec">
@@ -699,7 +743,38 @@ function vHome(){
 }
 
 /* ===================== 顧客一覧 ===================== */
-let FIL = {q:'', rank:'', owner:'', phase:'', kind:''};
+let FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:''};
+const SPECIALS = {
+  overdue:  {label:'期限を過ぎた案件',       fn:c=> c.phase!=='LOST' && dayDiff(c.nextDate)<0},
+  todaydue: {label:'今日が期限の案件',       fn:c=> c.phase!=='LOST' && dayDiff(c.nextDate)===0},
+  newtoday: {label:'本日登録した名刺',       fn:c=> (c.createdAt||'').slice(0,10)===today()},
+  newweek:  {label:'今週登録した名刺',       fn:c=> { const t=new Date(), m=new Date(t); m.setDate(t.getDate()-((t.getDay()+6)%7)); m.setHours(0,0,0,0); return c.createdAt && new Date(c.createdAt)>=m; }},
+  sa:       {label:'S・Aランク',             fn:c=> ['S','A'].includes(c.rank)},
+  noaction: {label:'次の行動が未設定',       fn:c=> c.phase!=='LOST' && !c.nextDate},
+  stalled:  {label:'3日以上動きのないS・A',  fn:c=> { if(!['S','A'].includes(c.rank)||c.phase==='LOST') return false;
+              const l=(c.logs&&c.logs[0]&&c.logs[0].at)||c.updatedAt||c.createdAt; return l && (Date.now()-new Date(l).getTime())/86400000>=3; }},
+  diag:     {label:'無料診断を獲得',         fn:c=> !!c.diag},
+  visit:    {label:'現地視察を獲得',         fn:c=> !!c.visit},
+  ph4:      {label:'PH04以降の案件',         fn:c=> ['PH04','PH06','PH08'].includes(c.phase||'')},
+  won:      {label:'受注（PH08）',           fn:c=> c.phase==='PH08'},
+  lost:     {label:'見送り',                 fn:c=> c.phase==='LOST'},
+  contacted:{label:'初回連絡が済んだ案件',   fn:c=> (c.logs||[]).length>0}
+};
+function goList(patch){
+  FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:''};
+  Object.assign(FIL, patch||{});
+  TAB = 'list'; render(); window.scrollTo(0,0);
+}
+function filterLabel(){
+  const parts = [];
+  if(FIL.sp && SPECIALS[FIL.sp]) parts.push(SPECIALS[FIL.sp].label);
+  if(FIL.phase){ const p=PHASES.find(x=>x.id===FIL.phase); if(p) parts.push(p.id+' '+p.name); }
+  if(FIL.pstatus){ const p=PSTATUS.find(x=>x.id===FIL.pstatus); if(p) parts.push('パートナー：'+p.name); }
+  if(FIL.rank) parts.push('ランク '+FIL.rank);
+  if(FIL.owner) parts.push('担当 '+FIL.owner);
+  if(FIL.kind && !FIL.pstatus) parts.push(FIL.kind==='partner'?'パートナー':'お客様');
+  return parts.join('　／　');
+}
 function filtered(){
   let rows = DB.cards.slice();
   if(FIL.q){ const q=FIL.q.toLowerCase();
@@ -708,14 +783,23 @@ function filtered(){
   if(FIL.owner) rows = rows.filter(c=>c.owner===FIL.owner);
   if(FIL.phase) rows = rows.filter(c=>c.phase===FIL.phase);
   if(FIL.kind) rows = rows.filter(c=> FIL.kind==='partner'? isPartner(c) : !isPartner(c));
+  if(FIL.pstatus) rows = rows.filter(c=> isPartner(c) && ((c.partner||{}).status||'P1')===FIL.pstatus);
+  if(FIL.sp && SPECIALS[FIL.sp]) rows = rows.filter(SPECIALS[FIL.sp].fn);
   return rows.sort((a,b)=> (RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank)) || ((b.createdAt||'')>(a.createdAt||'')?1:-1));
 }
 function vList(){
   const owners = [...new Set(DB.cards.map(c=>c.owner).filter(Boolean))];
+  const lb = filterLabel();
+  const n = filtered().length;
   return `
+  ${lb? `<div class="sec card pad" style="border-left:4px solid var(--sun);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:0"><div style="font-size:11.5px;color:var(--muted);font-weight:700">絞り込み中</div>
+      <b style="font-size:15px">${esc(lb)}</b> <span class="num" style="color:var(--muted)">${n}件</span></div>
+    <button class="btn ghost sm" onclick="goList()">絞り込みを解除</button>
+  </div>`:''}
   <div class="sec card pad">
     <div class="chips" style="margin-bottom:12px">
-      <button class="chip ${FIL.kind===''?'on':''}" onclick="FIL.kind='';render()">すべて <span class="num">${DB.cards.length}</span></button>
+      <button class="chip ${FIL.kind===''?'on':''}" onclick="FIL.kind='';FIL.pstatus='';render()">すべて <span class="num">${DB.cards.length}</span></button>
       <button class="chip ${FIL.kind==='customer'?'on':''}" onclick="FIL.kind='customer';render()">お客様 <span class="num">${DB.cards.filter(c=>!isPartner(c)).length}</span></button>
       <button class="chip ${FIL.kind==='partner'?'on':''}" onclick="FIL.kind='partner';render()">パートナー <span class="num">${partners().length}</span></button>
     </div>
@@ -768,8 +852,10 @@ function vDealBoard(){
   <div class="sec kpi">
     ${PHASES.filter(p=>p.id!=='LOST').slice(0,4).map(p=>{
       const l = deals().filter(c=>(c.phase||'PH01')===p.id);
-      return `<div class="k"><div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
-        <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>${oku(grossOf(l))}</small></div></div>`;
+      return `<div class="k tap" style="cursor:pointer" onclick="goList({phase:'${p.id}',kind:'customer'})">
+        <div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
+        <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>${oku(grossOf(l))}</small></div>
+        <span class="go">${SVGI(ICONS.arrow,15)}</span></div>`;
     }).join('')}
   </div>
   <div class="sec pipe">
@@ -786,7 +872,8 @@ function vDealBoard(){
   <div class="sec card pad">
     <h3 class="h">${SVGI(ICONS.dash,19)} 担当者別の想定粗利</h3>
     ${Object.entries(byOwner).sort((a,b)=>b[1]-a[1]).map(([o,v])=>
-      `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EEF2F5;padding:8px 0"><span>${esc(o)}</span><b class="num">${oku(v)}</b></div>`).join('')||'<div class="empty">案件がありません</div>'}
+      `<div class="phrow tap" onclick="goList({owner:'${esc(o)}',kind:'customer'})"><span class="nm">${esc(o)}</span><b class="num">${oku(v)}</b>
+       <span class="go">${SVGI(ICONS.arrow,14)}</span></div>`).join('')||'<div class="empty">案件がありません</div>'}
   </div>`;
 }
 function vPartnerBoard(){
@@ -796,9 +883,11 @@ function vPartnerBoard(){
   const refTotal = pt.reduce((n,c)=>n+(Number((c.partner||{}).refCount)||0),0);
   return `
   <div class="sec kpi">
-    ${PSTATUS.map(p=>{ const l=pt.filter(c=>(c.partner||{}).status===p.id);
-      return `<div class="k"><div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
-        <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>&nbsp;</small></div></div>`;}).join('')}
+    ${PSTATUS.map(p=>{ const l=pt.filter(c=>((c.partner||{}).status||'P1')===p.id);
+      return `<div class="k tap" style="cursor:pointer" onclick="goList({kind:'partner',pstatus:'${p.id}'})">
+        <div class="ib" style="background:${p.c};color:${p.t};font-size:11.5px;font-weight:900">${p.id}</div>
+        <div class="tx"><span>${p.name}</span><b class="num">${l.length}</b><small>&nbsp;</small></div>
+        <span class="go">${SVGI(ICONS.arrow,15)}</span></div>`;}).join('')}
   </div>
   <div class="sec pipe" style="grid-template-columns:repeat(4,minmax(200px,1fr))">
     ${PSTATUS.map(p=>{
@@ -871,14 +960,14 @@ function vDash(){
 
   return `
   <div class="sec kpi">
-    <div class="k"><span>名刺の総数</span><b class="num">${all.length}</b><small>お客様 ${cust.length}／パートナー ${pt.length}</small></div>
-    <div class="k"><span>初回連絡の完了率</span><b class="num">${rate}%</b><small>${contacted.length}/${all.length}件</small></div>
-    <div class="k"><span>S・Aランク（お客様）</span><b class="num">${sa.length}</b><small>${oku(grossOf(sa))}</small></div>
-    <div class="k"><span>無料診断の獲得</span><b class="num">${all.filter(c=>c.diag).length}</b></div>
-    <div class="k"><span>現地視察の獲得</span><b class="num">${all.filter(c=>c.visit).length}</b></div>
-    <div class="k"><span>PH04以降</span><b class="num">${ph4.length}</b><small>${oku(grossOf(ph4))}</small></div>
-    <div class="k"><span>受注（PH08）</span><b class="num">${won.length}</b><small>粗利 ${oku(grossOf(won))}</small></div>
-    <div class="k ${overdue().length?'bad':''}"><span>期限超過</span><b class="num">${overdue().length}</b><small>全社の滞留</small></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({})"><span>名刺の総数</span><b class="num">${all.length}</b><small>お客様 ${cust.length}／パートナー ${pt.length}</small></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'contacted'})"><span>初回連絡の完了率</span><b class="num">${rate}%</b><small>${contacted.length}/${all.length}件</small></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'sa',kind:'customer'})"><span>S・Aランク（お客様）</span><b class="num">${sa.length}</b><small>${oku(grossOf(sa))}</small></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'diag'})"><span>無料診断の獲得</span><b class="num">${all.filter(c=>c.diag).length}</b></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'visit'})"><span>現地視察の獲得</span><b class="num">${all.filter(c=>c.visit).length}</b></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'ph4',kind:'customer'})"><span>PH04以降</span><b class="num">${ph4.length}</b><small>${oku(grossOf(ph4))}</small></div>
+    <div class="k tap" style="cursor:pointer" onclick="goList({sp:'won'})"><span>受注（PH08）</span><b class="num">${won.length}</b><small>粗利 ${oku(grossOf(won))}</small></div>
+    <div class="k tap ${overdue().length?'bad':''}" style="cursor:pointer" onclick="goList({sp:'overdue'})"><span>期限超過</span><b class="num">${overdue().length}</b><small>全社の滞留</small></div>
   </div>
 
   <div class="sec card pad">
@@ -886,7 +975,7 @@ function vDash(){
     ${PHASES.filter(p=>p.id!=='LOST').map(p=>{
       const l=a.filter(c=>(c.phase||'PH01')===p.id); const g=grossOf(l);
       const max=Math.max(1,...PHASES.map(x=>grossOf(a.filter(c=>(c.phase||'PH01')===x.id))));
-      return `<div style="margin-bottom:9px">
+      return `<div style="margin-bottom:9px;cursor:pointer" class="tap" onclick="goList({phase:'${p.id}',kind:'customer'})">
         <div class="row" style="justify-content:space-between;font-size:13px"><span><b>${p.id}</b> ${p.name}<span style="color:var(--muted)"> ${l.length}件</span></span><b class="num">${oku(g)}</b></div>
         <div style="height:7px;background:#EDF0EC;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(g/max*100)}%;background:var(--sun)"></div></div>
       </div>`;}).join('')}
@@ -896,7 +985,7 @@ function vDash(){
     <h3 class="h">パートナー <span class="note">年間の紹介見込み 合計 ${pt.reduce((n,c)=>n+(Number((c.partner||{}).refCount)||0),0)}件</span></h3>
     ${PSTATUS.map(p=>{ const l=pt.filter(c=>((c.partner||{}).status||'P1')===p.id);
       const max=Math.max(1,...PSTATUS.map(x=>pt.filter(c=>((c.partner||{}).status||'P1')===x.id).length));
-      return `<div style="margin-bottom:9px">
+      return `<div style="margin-bottom:9px;cursor:pointer" class="tap" onclick="goList({kind:'partner',pstatus:'${p.id}'})">
         <div class="row" style="justify-content:space-between;font-size:13px"><span>${p.name}</span><b class="num">${l.length}社</b></div>
         <div style="height:7px;background:#EEF2F5;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(l.length/max*100)}%;background:${p.t}"></div></div>
       </div>`;}).join('')}
@@ -907,7 +996,7 @@ function vDash(){
     <h3 class="h">担当者別 <span class="note">滞留が赤字</span></h3>
     <div class="scroll"><table>
       <tr><th>担当</th><th style="text-align:right">案件</th><th style="text-align:right">S・A</th><th style="text-align:right">想定粗利</th><th style="text-align:right">期限超過</th></tr>
-      ${Object.entries(byOwner).sort((a,b)=>b[1].g-a[1].g).map(([o,v])=>`<tr>
+      ${Object.entries(byOwner).sort((a,b)=>b[1].g-a[1].g).map(([o,v])=>`<tr class="clickable" onclick="goList({owner:'${esc(o)}'})">
         <td>${esc(o)}</td><td class="num" style="text-align:right">${v.n}</td><td class="num" style="text-align:right">${v.sa}</td>
         <td class="num" style="text-align:right">${oku(v.g)}</td>
         <td class="num" style="text-align:right;color:${v.over?'var(--alert)':'inherit'};font-weight:${v.over?700:400}">${v.over}</td></tr>`).join('')
@@ -919,7 +1008,7 @@ function vDash(){
     <h3 class="h">獲得経路</h3>
     ${Object.entries(byPlace).sort((a,b)=>b[1]-a[1]).map(([p,v])=>
       `<div class="row" style="justify-content:space-between;border-bottom:1px solid #EDF0EC;padding:6px 0"><span>${esc(p)}</span><b class="num">${v}枚</b></div>`).join('')||'<div class="empty">データがありません</div>'}
-    ${lost.length?`<div style="margin-top:12px;font-size:13px;color:var(--muted)">見送り ${lost.length}件（理由は各顧客の履歴に記録）</div>`:''}
+    ${lost.length?`<button class="btn ghost sm" style="margin-top:12px" onclick="goList({sp:'lost'})">見送り ${lost.length}件を見る</button>`:''}
   </div>
 
   <div class="sec row">
@@ -932,9 +1021,24 @@ function vDash(){
 let DRAFT = null, IMGS = [];
 function closeModal(){ $('#modal').innerHTML=''; DRAFT=null; IMGS=[]; render(); }
 function sheet(title, body, foot){
-  $('#modal').innerHTML = `<div class="mask" onclick="if(event.target===this)closeModal()"><div class="sheet">
+  const prev = document.querySelector('.sheet');
+  // 同じ画面を描き直すときは、スクロール位置と入力中の場所を保つ
+  if(prev && prev.dataset.title === title){
+    const top = prev.scrollTop;
+    const act = document.activeElement;
+    const mark = act && act.id ? act.id : null;
+    const selS = mark && act.selectionStart!=null ? act.selectionStart : null;
+    prev.querySelector('.sb').innerHTML = body + (foot||'');
+    prev.scrollTop = top;
+    if(mark){
+      const el = document.getElementById(mark);
+      if(el){ el.focus(); if(selS!=null && el.setSelectionRange) try{ el.setSelectionRange(selS,selS); }catch(e){} }
+    }
+    return;
+  }
+  $('#modal').innerHTML = `<div class="mask" onclick="if(event.target===this)closeModal()"><div class="sheet" data-title="${esc(title)}">
     <div class="sh"><b>${esc(title)}</b><button class="x" onclick="closeModal()">✕</button></div>
-    <div class="sb">${body}</div>${foot||''}</div></div>`;
+    <div class="sb">${body}${foot||''}</div></div>`;
 }
 
 function openScan(quick){
@@ -954,6 +1058,7 @@ function drawScan(){
   sheet('名刺を登録',
   `<div class="card pad sec">
      <h3 class="h">1. 名刺を撮る <span class="note">表・裏の2枚まで</span></h3>
+     <button class="btn sun wide" style="padding:14px;margin-bottom:10px" onclick="openCamera()">枠に合わせて自動で読み取る</button>
      <div class="row">
        <label class="btn ghost" style="display:inline-block">写真を撮る
          <input type="file" accept="image/*" capture="environment" class="hide" onchange="pickImg(this)"></label>
@@ -1091,6 +1196,132 @@ function checkDup(){
     ${hits.slice(0,3).map(c=>`<span class="tag">${esc(c.company)} ${esc(c.name||'')} ／ 担当 ${esc(c.owner||'未定')}</span>`).join(' ')}<br>
     <button class="btn sm ghost" style="margin-top:6px" onclick="closeModal();openCard('${hits[0].id}')">既存の顧客を開く</button>
   </div>`;
+}
+
+
+/* ===================== カメラで自動読み取り ===================== */
+const CAM = {stream:null, timer:null, prev:null, hits:0, auto:true, busy:false, ticks:0};
+const CAM_NEED = 5;        // 連続で条件を満たす回数（約1秒）
+const CAM_SHARP = 7.0;     // ピントの目安
+const CAM_MOVE = 4.0;      // 手ブレの目安
+
+async function openCamera(){
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="cam" id="cam">
+      <video id="camV" playsinline muted autoplay></video>
+      <div class="frame" id="camF"></div>
+      <div class="bar"><b>名刺を枠に合わせてください</b>
+        <button class="x" style="background:rgba(255,255,255,.2);color:#fff" onclick="closeCamera()">✕</button></div>
+      <div class="msg" id="camMsg">カメラを準備しています…<span class="sub">枠いっぱいに、真上から写してください</span></div>
+      <div class="gauge"><i id="camG"></i></div>
+      <div class="ctl">
+        <button class="tgl on" id="camAuto" onclick="toggleAuto()">自動：オン</button>
+        <button class="shutter" onclick="shoot(true)" aria-label="撮影"></button>
+        <button class="tgl" onclick="closeCamera()">閉じる</button>
+      </div>
+    </div>`);
+  CAM.auto = true; CAM.hits = 0; CAM.prev = null; CAM.busy = false; CAM.ticks = 0;
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('このブラウザではカメラを使えません');
+    CAM.stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false });
+    const v = $('#camV'); v.srcObject = CAM.stream; await v.play();
+    $('#camMsg').innerHTML = '枠いっぱいに合わせてください<span class="sub">ぴったり合うと自動で読み取ります</span>';
+    CAM.timer = setInterval(watch, 200);
+  }catch(e){
+    closeCamera();
+    const m = $('#ocrMsg');
+    if(m) m.innerHTML = '<span style="color:var(--alert)">カメラを開けませんでした（'+esc(e.message||e.name)+'）。'+
+      'ブラウザのカメラ許可を確認するか、「写真を撮る」から進めてください。</span>';
+    toast('カメラを開けませんでした');
+  }
+}
+function toggleAuto(){
+  CAM.auto = !CAM.auto; CAM.hits = 0;
+  const b = $('#camAuto'); b.className = 'tgl' + (CAM.auto?' on':''); b.textContent = '自動：' + (CAM.auto?'オン':'オフ');
+  $('#camG').style.width = '0%';
+  $('#camMsg').innerHTML = CAM.auto ? '枠いっぱいに合わせてください<span class="sub">ぴったり合うと自動で読み取ります</span>'
+                                    : '丸いボタンを押して撮影してください<span class="sub">自動読み取りはオフです</span>';
+}
+function closeCamera(){
+  if(CAM.timer){ clearInterval(CAM.timer); CAM.timer=null; }
+  if(CAM.stream){ CAM.stream.getTracks().forEach(t=>t.stop()); CAM.stream=null; }
+  const el = $('#cam'); if(el) el.remove();
+}
+/* 枠の中だけを切り出す座標を計算する */
+function frameRect(){
+  const v = $('#camV'), f = $('#camF');
+  if(!v || !f) return null;
+  const vw = v.videoWidth, vh = v.videoHeight;
+  if(!vw || !vh) return null;
+  const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
+  const scale = Math.max(vr.width/vw, vr.height/vh);               // object-fit: cover
+  const offX = (vw*scale - vr.width)/2, offY = (vh*scale - vr.height)/2;
+  return {
+    sx: Math.max(0, (fr.left - vr.left + offX)/scale),
+    sy: Math.max(0, (fr.top  - vr.top  + offY)/scale),
+    sw: Math.min(vw, fr.width/scale),
+    sh: Math.min(vh, fr.height/scale),
+    vw, vh
+  };
+}
+/* 200msごとに、ピントと手ブレを見る */
+function watch(){
+  if(!CAM.auto || CAM.busy) return;
+  CAM.ticks++;
+  const r = frameRect(); if(!r) return;
+  const W=160, H=Math.round(W*r.sh/r.sw);
+  const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
+  const cx = cv.getContext('2d', {willReadFrequently:true});
+  cx.drawImage($('#camV'), r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+  const d = cx.getImageData(0,0,W,H).data;
+  const g = new Uint8Array(W*H);
+  for(let i=0,p=0;i<d.length;i+=4,p++) g[p] = (d[i]*299 + d[i+1]*587 + d[i+2]*114)/1000;
+  // ピント：隣どうしの明るさの差
+  let sharp=0, n=0;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    const i=y*W+x; sharp += Math.abs(g[i]-g[i+1]) + Math.abs(g[i]-g[i+W]); n+=2;
+  }
+  sharp = sharp/n;
+  // 手ブレ：前の画像との差
+  let move = 99;
+  if(CAM.prev && CAM.prev.length===g.length){
+    let s=0; for(let i=0;i<g.length;i++) s += Math.abs(g[i]-CAM.prev[i]);
+    move = s/g.length;
+  }
+  CAM.prev = g;
+  const ok = sharp >= CAM_SHARP && move <= CAM_MOVE;
+  CAM.hits = ok ? CAM.hits+1 : 0;
+  $('#camG').style.width = Math.min(100, Math.round(CAM.hits/CAM_NEED*100)) + '%';
+  $('#camF').classList.toggle('lock', CAM.hits>0);
+  const msg = $('#camMsg');
+  if(CAM.hits>=CAM_NEED){ msg.innerHTML = '読み取ります…'; shoot(false); }
+  else if(move > CAM_MOVE) msg.innerHTML = '動かさずに止めてください<span class="sub">枠いっぱいに、真上から</span>';
+  else if(sharp < CAM_SHARP) msg.innerHTML = 'ピントが合っていません<span class="sub">少し離すか、明るい場所で</span>';
+  else msg.innerHTML = 'そのまま止めてください<span class="sub">あと少しです</span>';
+  if(CAM.ticks>60 && CAM.hits<CAM_NEED && CAM.ticks%15===0)
+    msg.innerHTML += '<span class="sub">うまくいかないときは、下の丸いボタンで撮ってください</span>';
+}
+async function shoot(manual){
+  if(CAM.busy) return; CAM.busy = true;
+  if(CAM.timer){ clearInterval(CAM.timer); CAM.timer=null; }
+  const r = frameRect();
+  if(!r){ CAM.busy=false; return; }
+  const maxPx = 1400;
+  const sc = Math.min(1, maxPx/Math.max(r.sw, r.sh));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(r.sw*sc); cv.height = Math.round(r.sh*sc);
+  const cx = cv.getContext('2d');
+  cx.fillStyle='#fff'; cx.fillRect(0,0,cv.width,cv.height);
+  cx.drawImage($('#camV'), r.sx, r.sy, r.sw, r.sh, 0, 0, cv.width, cv.height);
+  const data = cv.toDataURL('image/jpeg', 0.85).split(',')[1];
+  closeCamera();
+  IMGS.push({media_type:'image/jpeg', data});
+  if(IMGS.length>2) IMGS = IMGS.slice(-2);
+  drawScan();
+  const m = $('#ocrMsg'); if(m) m.textContent = manual? '撮影しました。読み取っています…' : '枠に合いました。読み取っています…';
+  CAM.busy = false;
+  await runOCR();
 }
 
 /* ---------- AI読み取り ---------- */
@@ -1691,13 +1922,16 @@ Deno.serve(async (req) =&gt; {
   <p style="font-size:14px">「AIで文面を作り直す」を押すと、ヒアリング内容とメモをふまえた文面をAIが書きます。そのまま送らず、必ず目を通してから送ってください。ホームの今日のアクション欄からも、電話とメールのボタンを直接押せます。</p>
   <p style="font-size:13px;color:var(--muted)">Gmailで別のアカウントが開いてしまう場合は、ブラウザで会社のアカウントに切り替えてから使ってください。</p>
 
-  <h3>写真を撮るときのコツ</h3>
+  <h3>名刺の撮り方</h3>
+  <p style="font-size:14px"><b>枠に合わせて自動で読み取る</b>を押すとカメラが開きます。名刺サイズの枠が出るので、そこに名刺を合わせて数秒止めてください。ピントが合って手ブレが止まると、自動で撮影して読み取りに進みます。枠の外は切り落とすので、机や手が写り込んでも影響しません。</p>
   <ul>
-    <li>名刺が画面いっぱいになるように寄って撮る</li>
-    <li>真上から撮る。斜めだと文字が歪んで読み取り精度が落ちます</li>
+    <li>枠いっぱいに、真上から合わせる。斜めだと文字が歪んで読み取れません</li>
+    <li>止めてから1秒ほど待つ。動かしている間は撮影されません</li>
     <li>影が入らないようにする。手やスマホの影が文字にかかると読めません</li>
-    <li>裏面に会社情報がある名刺は、表・裏の2枚を撮る</li>
+    <li>自動で撮れないときは、下の丸いボタンを押せばその場で撮影できます</li>
+    <li>裏面にも会社情報がある名刺は、続けてもう1枚撮る（2枚まで）</li>
   </ul>
+  <p style="font-size:14px">カメラが開かない場合は、「写真を撮る」からカメラアプリで撮っても同じように読み取れます。ChatworkなどのアプリからURLを開いているとカメラが使えないことがあるので、その場合はSafariやChromeで開き直してください。</p>
   <p style="font-size:13px;color:var(--muted)">写真はアプリ側で自動的に縮小してから送ります。通信量は1枚あたり300KB前後です。</p>
 
   <h3>これから足せること</h3>
