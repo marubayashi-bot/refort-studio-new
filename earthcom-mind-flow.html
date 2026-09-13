@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.4.2">
+<meta name="app-version" content="4.5.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -923,7 +923,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.4.2</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.5.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2236,7 +2236,8 @@ function viewSettings() {
         '<button class="btn sm" onclick="Integrations.resyncAll()">保留分を再同期</button>' +
         '<button class="btn sm" onclick="Integrations.pullTasks()">ToDoの完了を取り込む</button>' +
         '<button class="btn sm pri" onclick="syncNow()">⟳ いますぐ全体を同期</button>' +
-        '<button class="btn sm" onclick="calPicker()">取り込むカレンダーを選ぶ</button></div>' +
+        '<button class="btn sm" onclick="calPicker()">取り込むカレンダーを選ぶ</button>' +
+        '<button class="btn sm" onclick="diagDialog()">同期の診断</button></div>' +
         '<div class="small muted" style="margin-top:8px">同期期間: ' + fmtDate(syncRange().from) + '〜' + fmtDate(syncRange().to) +
         (DB.capacity && DB.capacity.lastSync ? ' ／ 最終同期 ' + DB.capacity.lastSync.slice(5, 16).replace('T', ' ') : '') +
         ' <button class="btn sm" onclick="calRangeDialog()">期間を変える</button></div></div>' +
@@ -2260,7 +2261,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.4.2</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.5.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2628,6 +2629,7 @@ function calFilters() {
     '<select onchange="calFilter(\'type\',this.value)"><option value="">すべての種別</option>' +
       Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (fl.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select>' +
     '<button class="btn sm" onclick="calPicker()">カレンダー選択</button>' +
+    '<button class="btn sm" onclick="diagDialog()">同期の診断</button>' +
     '<button class="btn sm" onclick="calRangeDialog()">期間・時間帯の設定</button>' +
     '<button class="btn sm" onclick="importDialog()">Googleの予定を取り込む</button>' +
     '</div>';
@@ -3298,6 +3300,67 @@ async function syncEvent(e) {
     Integrations.log('google_calendar', 'error', err.message, e.title);
     Store.save(true); toast('同期に失敗: ' + err.message, 'err'); render();
   }
+}
+async function diagDialog() {
+  calInit();
+  openModal('同期の診断',
+    '<div class="small muted" style="margin-bottom:10px">指定した日にGoogleから実際に何が返ってくるかを確認します。アプリに入っていない予定があれば、その場で取り込めます。</div>' +
+    '<div class="field"><label>確認する日</label><input id="dgD" type="date" value="' + (DB.settings.calCur || today()) + '"></div>' +
+    '<div id="dgOut"></div>',
+    [{ label: 'この日を確認する', cls: 'pri', fn: () => syncDiag($('#dgD').value) }]);
+}
+async function syncDiag(d) {
+  if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); return; }
+  const host = $('#dgOut'); if (host) host.innerHTML = '<div class="load">Googleに問い合わせています…</div>';
+  try {
+    const cals = DB.capacity.calendars || [];
+    const r = await Gas.call('listEvents', { date: d, calendarIds: cals });
+    const evs = r.events || [];
+    const mine = evOfDay(d);
+    const rows = evs.map(g => {
+      const hit = DB.calendar_events.find(x => x.google_event_id === g.id && dOf(x.start) === dOf(g.start));
+      return { g: g, ok: !!hit };
+    });
+    const miss = rows.filter(x => !x.ok);
+    const extra = mine.filter(m => m.source === 'google' && !evs.some(g => g.id === m.google_event_id && dOf(g.start) === dOf(m.start)));
+    host.innerHTML =
+      '<div class="' + (miss.length ? 'err' : 'ok') + '">Googleの取得件数 ' + evs.length + '件 ／ 対象カレンダー ' + (r.calendars || '—') + '件 ／ ' +
+        'アプリ未取込 <b>' + miss.length + '件</b>' + (extra.length ? ' ／ Google側に無い予定 ' + extra.length + '件' : '') + '</div>' +
+      (cals.length ? '<div class="small muted" style="margin-bottom:8px">取り込み対象: ' + esc((DB.capacity.calendarNames || []).join(' / ')) + '</div>'
+        : '<div class="small muted" style="margin-bottom:8px">取り込み対象: Google側で表示中のカレンダーすべて</div>') +
+      '<div style="max-height:40vh;overflow:auto">' +
+      (evs.length ? rows.map(x => '<div class="small" style="padding:4px 0;border-bottom:1px solid var(--line)">' +
+        (x.ok ? '<span class="chip green">取込済</span>' : '<span class="chip red">未取込</span>') + ' ' +
+        esc(hm(x.g.start) + '〜' + hm(x.g.end)) + ' ' + esc(x.g.title) +
+        '<span class="muted"> ／ ' + esc(x.g.calendar || '—') + (x.g.allDay ? ' ／ 終日' : '') + '</span></div>').join('')
+        : '<div class="small muted">この日はGoogle側に予定がありません。カレンダー選択で対象を絞りすぎていないか確認してください。</div>') + '</div>' +
+      (extra.length ? '<div class="small muted" style="margin-top:8px">Google側に無いのにアプリにある予定: ' + extra.map(e => esc(e.title)).slice(0, 5).join(' / ') + '</div>' : '') +
+      '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
+        (miss.length ? '<button class="btn sm pri" onclick="diagTake(\'' + d + '\')">未取込の' + miss.length + '件を取り込む</button>' : '') +
+        '<button class="btn sm" onclick="diagRaw()">生データを見る</button></div>';
+    window._diag = { d: d, rows: rows, raw: r };
+  } catch (e) {
+    if (host) host.innerHTML = '<div class="err">取得に失敗しました: ' + esc(e.message) + '</div>' +
+      '<div class="small muted" style="margin-top:6px">GASのデプロイが古い、URLが違う、アクセス設定が「全員」でない、のいずれかが多いです。</div>';
+  }
+}
+function diagTake(d) {
+  const dg = window._diag; if (!dg) return;
+  let n = 0;
+  dg.rows.filter(x => !x.ok).forEach(x => {
+    const g = x.g;
+    DB.calendar_events.unshift(evNorm({ id: uid(), title: g.title, start: g.start, end: g.end, location: g.location || '',
+      type: 'google', source: 'google', google_event_id: g.id, sync_status: 'synced', sync: 'synced', owner: '',
+      purpose: '', allDay: !!g.allDay, gcal_name: g.calendar || '', last_synced_at: new Date().toISOString() }));
+    n++;
+  });
+  Store.save(true); render(); toast(n + '件を取り込みました');
+  syncDiag(d);
+}
+function diagRaw() {
+  const dg = window._diag; if (!dg) return;
+  openModal('生データ', '<textarea style="width:100%;min-height:50vh;font-size:11px">' + esc(JSON.stringify(dg.raw, null, 1)) + '</textarea>',
+    [{ label: '閉じる', fn: () => syncDiag(dg.d) }]);
 }
 async function calPicker() {
   calInit();
