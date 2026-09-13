@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.5.0">
+<meta name="app-version" content="4.6.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -281,6 +281,10 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249
 .chain i{color:var(--gold)}
 
 .btn.spin{opacity:.6;pointer-events:none}
+.tyrow{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.tyrow input[type=color]{width:40px;height:30px;padding:2px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.tyrow .tyl{flex:1;padding:5px 8px;border:1px solid var(--line);border-radius:8px}
+.tyrow .tyl[readonly]{background:#F4F6FA;color:var(--ink2)}
 .callist{display:flex;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
 .callist input{width:18px;height:18px}
 .callist span{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -923,7 +927,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.5.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.6.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1048,7 +1052,7 @@ function todayStrip() {
     (evs.length ? evs.slice(0, 8).map(e => {
       const past = minOf(e.end) <= nowMin, live = minOf(e.start) <= nowMin && minOf(e.end) > nowMin;
       return '<div class="list-item" style="padding-left:0;padding-right:0' + (past ? ';opacity:.55' : '') + '"><div class="t">' +
-      '<b><span class="dotc" style="background:' + ETYPE[e.type].c + '"></span>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' +
+      '<b><span class="dotc" style="background:' + etColor(e.type, e) + '"></span>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' +
       '<div class="meta">' + (live ? '<span class="chip green">進行中</span>' : past ? '<span class="chip grey">終了</span>' : '') +
       esc(ETYPE[e.type].l) + (e.purpose ? ' ／ ' + esc(e.purpose.slice(0, 24)) : ' ／ <span style="color:var(--orange)">目的未設定</span>') +
       ' ／ ' + syncLabel(e) + '</div></div><button class="btn sm" onclick="openEvent(\'' + e.id + '\')">開く</button></div>';
@@ -2261,7 +2265,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.5.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.6.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2432,6 +2436,8 @@ function durMin(ev) { return Math.max(0, (new Date(ev.end.replace(' ', 'T')) - n
 
 /* ---- 戦略データの初期化 ---- */
 function calInit() {
+  if (!DB.settings.typeColors) DB.settings.typeColors = {};
+  mergeTypes();
   if (!DB.strategy) DB.strategy = { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] };
   const s = DB.strategy;
   ['years', 'quarters', 'months', 'weeks', 'days', 'roadmap'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
@@ -2629,6 +2635,7 @@ function calFilters() {
     '<select onchange="calFilter(\'type\',this.value)"><option value="">すべての種別</option>' +
       Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (fl.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select>' +
     '<button class="btn sm" onclick="calPicker()">カレンダー選択</button>' +
+    '<button class="btn sm" onclick="typeDialog()">カテゴリーと色</button>' +
     '<button class="btn sm" onclick="diagDialog()">同期の診断</button>' +
     '<button class="btn sm" onclick="calRangeDialog()">期間・時間帯の設定</button>' +
     '<button class="btn sm" onclick="importDialog()">Googleの予定を取り込む</button>' +
@@ -2843,7 +2850,7 @@ function monthGrid(ym, compact) {
       '<div class="mc-d">' + (+d.slice(8)) + (dl.length ? '<span class="chip red" style="margin-left:4px">締切</span>' : '') + '</div>' +
       evs.slice(0, lim).map(e => {
         const done = isPastEv(e);
-        return '<div class="mc-e' + (done ? ' past' : '') + '" style="background:' + (done ? '#E7EBF2' : ETYPE[e.type].c) +
+        return '<div class="mc-e' + (done ? ' past' : '') + '" style="background:' + (done ? '#E7EBF2' : etColor(e.type, e)) +
           (e.type === 'google' && !done ? ';color:var(--ink);border:1px solid var(--blue)' : '') + (done ? ';color:var(--ink3)' : '') + '">' +
           hm(e.start) + ' ' + esc(e.title.slice(0, compact ? 8 : 12)) + '</div>';
       }).join('') +
@@ -2860,8 +2867,8 @@ function capBar(cap) {
   const order = ['strategy', 'sales', 'meeting', 'focus', 'move', 'study', 'private', 'buffer', 'task', 'decision'];
   const tot = Math.max(cap.avail, cap.total) || 1;
   return '<div class="capbar">' + order.filter(k => cap.by[k]).map(k =>
-    '<i style="width:' + (cap.by[k] / tot * 100) + '%;background:' + ETYPE[k].c + '" title="' + ETYPE[k].l + '"></i>').join('') + '</div>' +
-    '<div class="small muted" style="margin-top:4px">' + order.filter(k => cap.by[k]).map(k => '<span class="chip" style="background:' + ETYPE[k].c + '22;color:var(--ink2)">' + ETYPE[k].l + ' ' + Math.round(cap.by[k] / 60) + 'h</span>').join(' ') +
+    '<i style="width:' + (cap.by[k] / tot * 100) + '%;background:' + etColor(k) + '" title="' + ETYPE[k].l + '"></i>').join('') + '</div>' +
+    '<div class="small muted" style="margin-top:4px">' + order.filter(k => cap.by[k]).map(k => '<span class="chip" style="background:' + etColor(k) + '22;color:var(--ink2)">' + ETYPE[k].l + ' ' + Math.round(cap.by[k] / 60) + 'h</span>').join(' ') +
     ' <span class="chip ' + (cap.rate > 85 ? 'red' : 'green') + '">空き ' + Math.round(cap.free / 60) + 'h</span></div>';
 }
 function editMonth() {
@@ -2927,7 +2934,7 @@ function calWeek(cur) {
         const t = ETYPE[e.type] || ETYPE.meeting;
         const g = e.type === 'google', done = isPastEv(e);
         return '<div class="wk-ev' + (g ? ' gg' : '') + (done ? ' past' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' +
-          (done ? '#EDF0F5' : (g ? '#fff' : t.c)) + ';' +
+          (done ? '#EDF0F5' : (g ? '#fff' : etColor(e.type, e))) + ';' +
           (done ? 'color:var(--ink3);border:1px solid #DDE3EC' : (g ? 'border:1px solid var(--blue);color:var(--ink)' : '')) + '" onclick="openEvent(\'' + e.id + '\')">' +
           '<b>' + hm(e.start) + ' ' + esc(e.title) + '</b>' +
           (hgt > 40 ? '<span>' + esc(t.l) + (e.location ? ' / ' + esc(e.location) : '') + '</span>' : '') + '</div>';
@@ -2968,7 +2975,7 @@ function calWeek(cur) {
           '<div class="wk-body">' + days.map(col).join('') + '</div></div>' +
       '</div>' +
     '</div>' +
-    '<div class="small muted" style="margin-top:8px">' + Object.keys(ETYPE).map(k => '<span class="chip" style="background:' + ETYPE[k].c + (k === 'google' ? ';border:1px solid var(--blue)' : '') + ';color:' + (['buffer', 'google', 'private', 'tentative'].includes(k) ? 'var(--ink)' : '#fff') + '">' + ETYPE[k].l + '</span>').join(' ') + '</div>';
+    '<div class="small muted" style="margin-top:8px">' + Object.keys(ETYPE).map(k => '<span class="chip" style="background:' + etColor(k) + (k === 'google' ? ';border:1px solid var(--blue)' : '') + ';color:' + (['buffer', 'google', 'private', 'tentative'].includes(k) ? 'var(--ink)' : '#fff') + '">' + ETYPE[k].l + '</span>').join(' ') + '</div>';
 }
 function pickTask(id) { DB.settings.pickTask = DB.settings.pickTask === id ? '' : id; Store.save(); render(); }
 function bindWeek() {
@@ -3034,7 +3041,7 @@ function calDay(cur) {
             const hgt = Math.max(20, durMin(e) / 60 * SLOT_H - 2);
             const t = ETYPE[e.type] || ETYPE.meeting, g = e.type === 'google', done = isPastEv(e);
             return '<div class="day-ev' + (g ? ' gg' : '') + (done ? ' past' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' +
-              (done ? '#EDF0F5' : (g ? '#fff' : t.c)) + (done ? ';color:var(--ink3);border:1px solid #DDE3EC' : (g ? ';border:1px solid var(--blue);color:var(--ink)' : '')) + '" onclick="openEvent(\'' + e.id + '\')">' +
+              (done ? '#EDF0F5' : (g ? '#fff' : etColor(e.type, e))) + (done ? ';color:var(--ink3);border:1px solid #DDE3EC' : (g ? ';border:1px solid var(--blue);color:var(--ink)' : '')) + '" onclick="openEvent(\'' + e.id + '\')">' +
               '<b>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' + (hgt > 40 ? '<span>' + esc(t.l) + (e.purpose ? ' / ' + esc(e.purpose.slice(0, 24)) : '') + '</span>' : '') + '</div>';
           }).join('') +
           (nowMin >= DAY_START * 60 ? '<div class="day-now" style="top:' + ((nowMin - DAY_START * 60) / 60 * SLOT_H) + 'px"></div>' : '') +
@@ -3176,10 +3183,14 @@ function evForm(isEdit) {
       '<div class="row"><div class="field"><label>通知（分前）</label><input id="evR" type="number" value="' + (e.reminder || 0) + '"></div>' +
         '<div class="field"><label>移動時間（分）</label><input id="evM" type="number" value="' + (e.move || 0) + '"></div>' +
         '<div class="field"><label>準備時間（分）</label><input id="evPp" type="number" value="' + (e.prep || 0) + '"></div></div>' +
+      '<div class="row"><div class="field"><label>この予定の色（任意）</label><input id="evColor" type="color" value="' + esc(e.color || etColor(e.type)) + '">' +
+        (e.color ? '<button class="btn sm" style="margin-top:6px" onclick="_evDraft.color=\'\';evForm(true)">種別の色に戻す</button>' : '') + '</div>' +
+      '<div class="field"><label>カテゴリーの色設定</label><button class="btn sm" onclick="closeModal();typeDialog()">カテゴリーと色を編集</button></div></div>' +
       '<div class="field"><label>確定／仮</label><select id="evTen"><option value="0"' + (!e.tentative ? ' selected' : '') + '>確定予定</option><option value="1"' + (e.tentative ? ' selected' : '') + '>仮予定</option></select></div>' +
       '<div class="field"><label>メモ</label><textarea id="evN">' + esc(e.notes) + '</textarea></div>' : '') +
     (isEdit ? '<div class="small muted">同期状態: ' + syncLabel(e) + (e.gcal_name ? ' ／ カレンダー: ' + esc(e.gcal_name) : '') + (e.google_event_id ? ' ／ Google ID: ' + esc(String(e.google_event_id).slice(0, 12)) + '…' : '') + '</div>' : ''),
-    [{ label: isEdit ? '保存する' : '確認して登録', cls: 'pri', fn: () => submitEvent(isEdit) }]
+    [{ label: isEdit ? '保存する' : '確認して登録', cls: 'pri', fn: () => submitEvent(isEdit) },
+      { label: '🤖 AIに目的を考えてもらう', fn: () => { collectEvent(); aiEventPurpose(); } }]
       .concat(isEdit ? [{ label: '削除', cls: 'danger', fn: () => delEvent(e.id) }] : []));
 }
 function syncLabel(e) {
@@ -3197,6 +3208,7 @@ function collectEvent() {
     e.owner = g('evOw'); e.lane = g('evL'); e.location = g('evLoc'); e.url_online = g('evU');
     e.guests = g('evGu'); e.reminder = +g('evR') || 0; e.move = +g('evM') || 0; e.prep = +g('evPp') || 0;
     e.tentative = g('evTen') === '1'; e.notes = g('evN');
+    const cv = g('evColor'); if (cv && cv.toLowerCase() !== etColor(e.type).toLowerCase()) e.color = cv;
   }
   if (e.tentative) e.type = e.type === 'tentative' ? e.type : e.type;
   e.last_modified_at = new Date().toISOString();
@@ -3408,6 +3420,113 @@ function cleanForeign() {
         Store.save(true); closeModal(); render(); toast('削除しました。「⟳ Google同期」で入れ直せます');
       } },
      { label: '中止', fn: closeModal }]);
+}
+/* 種別の色はユーザー設定で上書きでき、予定ごとの個別色も持てる */
+function etColor(type, ev) {
+  if (ev && ev.color) return ev.color;
+  const ov = (DB.settings.typeColors || {})[type];
+  return ov || ((ETYPE[type] || ETYPE.meeting).c);
+}
+function mergeTypes() {
+  (DB.settings.customTypes || []).forEach(t => {
+    if (!t.k) return;
+    ETYPE[t.k] = { l: t.l || t.k, c: t.c || '#8A93A6', sync: t.sync !== false, custom: true };
+  });
+  Object.keys(DB.settings.typeColors || {}).forEach(k => { if (ETYPE[k]) ETYPE[k].c = DB.settings.typeColors[k]; });
+}
+function typeDialog() {
+  calInit(); mergeTypes();
+  const keys = Object.keys(ETYPE);
+  openModal('予定カテゴリーと色',
+    '<div class="small muted" style="margin-bottom:10px">カテゴリーごとの色を変えられます。個別の予定にだけ色を付けたい場合は、その予定を開いて「この予定の色」を設定してください。</div>' +
+    '<div id="tyList">' + keys.map(k => '<div class="tyrow"><input type="color" class="tyc" data-k="' + k + '" value="' + etColor(k) + '">' +
+      '<input class="tyl" data-k="' + k + '" value="' + esc(ETYPE[k].l) + '"' + (ETYPE[k].custom ? '' : ' readonly') + '>' +
+      '<label class="small muted"><input type="checkbox" class="tys" data-k="' + k + '"' + (ETYPE[k].sync ? ' checked' : '') + '> Google同期</label>' +
+      (ETYPE[k].custom ? '<button class="btn sm danger" onclick="typeDel(\'' + k + '\')">削除</button>' : '') + '</div>').join('') + '</div>' +
+    '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn sm" onclick="typeAdd()">＋ カテゴリーを追加</button>' +
+      '<button class="btn sm" onclick="typeReset()">色を初期値に戻す</button></div>',
+    [{ label: '保存する', cls: 'pri', fn: () => {
+      const col = {};
+      $$('.tyc').forEach(x => col[x.dataset.k] = x.value);
+      DB.settings.typeColors = col;
+      DB.settings.customTypes = (DB.settings.customTypes || []).map(t => {
+        const l = $$('.tyl').find(x => x.dataset.k === t.k), sy = $$('.tys').find(x => x.dataset.k === t.k);
+        return Object.assign({}, t, { l: l ? l.value : t.l, c: col[t.k] || t.c, sync: sy ? sy.checked : t.sync });
+      });
+      $$('.tys').forEach(x => { if (ETYPE[x.dataset.k]) ETYPE[x.dataset.k].sync = x.checked; });
+      mergeTypes(); Store.save(true); closeModal(); render(); toast('カテゴリーの色を保存しました');
+    } }]);
+}
+function typeAdd() {
+  const k = 'c' + uid().slice(1, 6);
+  DB.settings.customTypes = (DB.settings.customTypes || []).concat([{ k: k, l: '新しいカテゴリー', c: '#7B5EA7', sync: true }]);
+  mergeTypes(); Store.save(true); closeModal(); typeDialog();
+}
+function typeDel(k) {
+  const used = DB.calendar_events.filter(e => e.type === k).length;
+  if (used && !confirm('このカテゴリーの予定が' + used + '件あります。削除すると「会議」に変わります。よろしいですか？')) return;
+  DB.calendar_events.forEach(e => { if (e.type === k) e.type = 'meeting'; });
+  DB.settings.customTypes = (DB.settings.customTypes || []).filter(t => t.k !== k);
+  delete ETYPE[k]; Store.save(true); closeModal(); typeDialog();
+}
+function typeReset() { DB.settings.typeColors = {}; Store.save(true); closeModal(); render(); toast('色を初期値に戻しました'); }
+
+/* ---- AI：この予定の目的を考える ---- */
+async function aiEventPurpose() {
+  const e = _evDraft; if (!e) return;
+  const ctx = { タイトル: e.title, 日時: e.start + '〜' + hm(e.end), 場所: e.location, 参加者: e.guests, 種別: (ETYPE[e.type] || {}).l,
+    今期テーマ: (qOf(fiscalOf(dOf(e.start)).fy, fiscalOf(dOf(e.start)).q) || {}).theme || '',
+    今月ゴール: (mOf(dOf(e.start).slice(0, 7)) || {}).goal || '', 今週ゴール: (wOf(mondayOf(dOf(e.start))) || {}).goal || '' };
+  openModal('AIが目的を考えています', '<div class="load">「' + esc(e.title) + '」の目的と成果を整理中…</div>', []);
+  try {
+    const d = await AI.json('次の予定について、目的・期待する成果・事前準備・適切な種別を提案してください。\n' + JSON.stringify(ctx) +
+      '\n形式: {"purpose":"何のための予定か（1行）","outcome":"この予定が終わったときに得られている状態","prep":"事前に用意すること（1〜3個を1行で）","type":"strategy|decision|meeting|sales|focus|task|move|study|private|buffer","why":"この種別にした理由"}' +
+      '\n目的は「打合せする」ではなく、達成したい状態で書くこと。',
+      'あなたは経営者の予定を精査する参謀です。目的のない予定を許しません。');
+    closeModal();
+    openModal('AIの提案',
+      '<table class="tbl"><thead><tr><th>項目</th><th>現在</th><th>AIの案</th><th>採用</th></tr></thead><tbody>' +
+      [['purpose', '目的', e.purpose], ['outcome', '期待する成果', e.outcome], ['prep', '準備事項', e.notes], ['type', '種別', (ETYPE[e.type] || {}).l]]
+        .map(([k, l, cur]) => '<tr><td>' + l + '</td><td class="small">' + esc(cur || '（空）') + '</td>' +
+          '<td class="small"><b>' + esc(k === 'type' ? ((ETYPE[d.type] || {}).l || d.type || '') : (d[k] || '')) + '</b></td>' +
+          '<td><input type="checkbox" class="apx" data-k="' + k + '" checked></td></tr>').join('') + '</tbody></table>' +
+      (d.why ? '<div class="small muted" style="margin-top:8px">' + esc(d.why) + '</div>' : '') +
+      '<div class="small muted" style="margin-top:6px">承認するまで保存されません。</div>',
+      [{ label: 'チェックした内容を反映', cls: 'pri', fn: () => {
+        $$('.apx').filter(x => x.checked).forEach(x => {
+          const k = x.dataset.k;
+          if (k === 'type') { if (ETYPE[d.type]) _evDraft.type = d.type; }
+          else if (k === 'prep') _evDraft.notes = (d.prep || '');
+          else _evDraft[k] = d[k] || '';
+        });
+        closeModal(); DB.settings.evDetail = true; evForm(DB.calendar_events.some(x => x.id === _evDraft.id));
+        toast('反映しました。内容を確認して保存してください');
+      } }, { label: '使わない', fn: () => evForm(DB.calendar_events.some(x => x.id === _evDraft.id)) }]);
+  } catch (err) { closeModal(); toast('AIに接続できませんでした（' + err.message + '）', 'err'); evForm(DB.calendar_events.some(x => x.id === _evDraft.id)); }
+}
+/* 目的未設定の予定をまとめてAIで補完 */
+async function aiPurposeBulk() {
+  const list = DB.calendar_events.filter(e => !e.purpose && !['google', 'private', 'buffer', 'move'].includes(e.type) && dOf(e.start) >= today()).slice(0, 10);
+  if (!list.length) return toast('目的未設定の今後の予定はありません');
+  openModal('AIが目的を考えています', '<div class="load">' + list.length + '件の予定を整理中…</div>', []);
+  try {
+    const d = await AI.json('次の予定それぞれに、目的（達成したい状態）を1行でつけてください。\n' +
+      JSON.stringify(list.map((e, i) => ({ i: i, title: e.title, when: e.start }))) +
+      '\n形式: {"items":[{"i":0,"purpose":"…"}]}', 'あなたは経営者の予定を精査する参謀です。');
+    closeModal();
+    const items = (d.items || []).filter(x => list[x.i]);
+    openModal('AIの提案（' + items.length + '件）',
+      items.map(x => '<div class="sugg"><div class="s-t">' + esc(list[x.i].title) + '</div>' +
+        '<div class="small">目的: <b>' + esc(x.purpose) + '</b></div>' +
+        '<div class="s-a"><label class="small"><input type="checkbox" class="apb" data-i="' + x.i + '" checked> 採用する</label></div></div>').join(''),
+      [{ label: 'チェックした内容を反映', cls: 'pri', fn: () => {
+        let n = 0;
+        $$('.apb').filter(x => x.checked).forEach(x => { const e = list[+x.dataset.i], hit = items.find(y => y.i === +x.dataset.i);
+          if (e && hit) { e.purpose = hit.purpose; e.last_modified_at = new Date().toISOString(); n++; } });
+        Store.save(true); closeModal(); render(); toast(n + '件に目的を設定しました');
+      } }, { label: '使わない', fn: closeModal }]);
+  } catch (e) { closeModal(); toast('AIに接続できませんでした（' + e.message + '）', 'err'); }
 }
 function calRangeDialog() {
   calInit();
@@ -3720,7 +3839,8 @@ function calTidy() {
 }
 function bulkBtn(kind) {
   const lbl = { reminder: '一括で10分前通知', owner: '自分を担当にする', local: 'まとめてGoogleへ同期', old: '仮予定を一括削除', gchanged: 'Google側を採用' }[kind];
-  return lbl ? '<button class="btn sm" onclick="bulkFix(\'' + kind + '\')">' + lbl + '</button>' : '';
+  return (kind === 'purpose' ? '<button class="btn sm" onclick="aiPurposeBulk()">🤖 AIで目的を補完</button>' : '') +
+    (lbl ? '<button class="btn sm" onclick="bulkFix(\'' + kind + '\')">' + lbl + '</button>' : '');
 }
 async function bulkFix(kind) {
   const E = DB.calendar_events;
