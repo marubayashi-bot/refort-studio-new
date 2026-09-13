@@ -4,28 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>営業ツール棚｜EARTHCOM</title>
+<meta name="theme-color" content="#014440">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="営業ツール棚">
+<link rel="icon" href="tools-icon-32.png" sizes="32x32">
+<link rel="icon" href="tools-icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="tools-icon-180.png">
+<link rel="manifest" href="tools.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="ec-auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --ink:#10322F;         /* 深い森のような濃緑 */
-  --ink-2:#2C514D;
-  --paper:#F1F4F4;
-  --card:#FFFFFF;
-  --line:#D8E0E0;
-  --line-2:#EAEFEF;
-  --muted:#68807D;
-  --accent:#0E7C7B;      /* シアン寄りのティール */
-  --amber:#B9782F;
+  --ink:#014440;         /* 深い森のような濃緑 */
+  --ink-2:#1E605A;
+  --paper:#EEF6F5;
+  --card:rgba(255,255,255,.94);
+  --line:#D3E5E2;
+  --line-2:#E6F1EF;
+  --muted:#5F7E7A;
+  --accent:#00A6A0;      /* シアン寄りのティール */
+  --amber:#E7A02F;
   --green:#2E7D4F;
   --slate:#5B6B78;
   --red:#B3392F;
   --r:10px;
-  --shadow:0 1px 2px rgba(16,50,47,.06),0 6px 20px rgba(16,50,47,.05);
+  --shadow:0 1px 2px rgba(1,68,64,.07),0 6px 20px rgba(1,68,64,.07);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;
+  background:url("tools-bg.jpg") center/cover no-repeat, var(--paper);
+}
+@media(max-width:860px){ body::before{background-position:76% center} }
 body{
   background:var(--paper);color:var(--ink);
   font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,system-ui,sans-serif;
@@ -36,11 +49,13 @@ a{color:inherit}
 
 /* ---------- ヘッダー ---------- */
 header{
-  position:sticky;top:0;z-index:40;background:var(--ink);color:#EAF2F1;
-  border-bottom:1px solid #0A2422;
+  position:sticky;top:0;z-index:40;color:#EAF2F1;
+  background:linear-gradient(180deg,#014440 0%,#016059 100%);
+  border-bottom:1px solid #013B37;box-shadow:0 1px 14px rgba(1,68,64,.2);
 }
 .hwrap{max-width:1400px;margin:0 auto;padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.brand{display:flex;align-items:baseline;gap:10px;margin-right:4px}
+.brand{display:flex;align-items:center;gap:9px;margin-right:4px}
+.brand img{border-radius:7px;box-shadow:0 1px 5px rgba(0,0,0,.25);flex:none}
 .brand b{font-size:16px;letter-spacing:.12em;font-weight:800}
 .brand span{font-size:10px;letter-spacing:.22em;color:#7FA9A5;text-transform:uppercase}
 .search{flex:1;min-width:220px;position:relative}
@@ -61,7 +76,7 @@ header{
 .who{font-size:11px;color:#7FA9A5;white-space:nowrap}
 
 /* ---------- フィルタ帯 ---------- */
-.filters{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:53px;z-index:30}
+.filters{background:rgba(255,255,255,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);position:sticky;top:53px;z-index:30}
 .fwrap{max-width:1400px;margin:0 auto;padding:9px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .fwrap select{
   padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;
@@ -100,7 +115,7 @@ header{
 
 /* ---------- カード ---------- */
 .card{
-  background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px 12px;
+  background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px 12px;
   box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;position:relative;
   transition:transform .12s ease,box-shadow .12s ease;
 }
@@ -225,6 +240,23 @@ pre{
 }
 .toast.on{opacity:1}
 @media(max-width:860px){
+  body{font-size:15px}
+  .hwrap{padding:8px 12px;gap:8px}
+  .brand b{font-size:15px}
+  .brand span{display:none}
+  .search{order:10;flex:1 0 100%;min-width:0}
+  .hbtn{padding:8px 11px;font-size:13px;flex:none}
+  .who{display:none}
+  .fwrap{padding:8px 12px;gap:6px;overflow-x:auto;flex-wrap:nowrap}
+  .fwrap select,.toggle{flex:none;font-size:13px;white-space:nowrap}
+  .count{display:none}
+  .main{padding:14px 12px 60px}
+  .grid{grid-template-columns:1fr}
+  .stage{margin-bottom:26px}
+  .drawer{width:100vw}
+  .mask{padding:0}
+  .modal{border-radius:0;min-height:100vh}
+  .mbody{max-height:none}
   .main{grid-template-columns:1fr;gap:12px}
   .rail{position:static;display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
   .rail .railhead{display:none}
@@ -240,7 +272,7 @@ pre{
 
 <header>
   <div class="hwrap">
-    <div class="brand"><b>営業ツール棚</b><span>EARTHCOM</span></div>
+    <div class="brand"><img src="tools-icon-192.png" alt="" width="26" height="26"><b>営業ツール棚</b><span>EARTHCOM</span></div>
     <div class="search"><i>🔍</i><input id="q" placeholder="ツール名・用途・タグで検索"></div>
     <a class="hbtn" id="btnSheet" target="_blank" rel="noopener" title="棚卸しシートを開いて直接編集する">元シート</a>
     <button class="hbtn" id="btnSync" title="スプレッドシートから今すぐ読み込む">↻ 更新</button>
