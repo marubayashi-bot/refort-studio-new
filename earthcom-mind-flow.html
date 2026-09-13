@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.6.0">
+<meta name="app-version" content="4.7.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -927,7 +927,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.6.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.7.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2265,7 +2265,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.6.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.7.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2668,12 +2668,25 @@ function calMove(n) {
 function jumpTo(tab, d) { DB.settings.calTab = tab; DB.settings.calCur = (tab === 'week' ? mondayOf(d) : d); Store.save(); render(); }
 
 /* ---- 年間 ---- */
+function wonInRange(from, to) {
+  return DB.opportunities.filter(o => o.status === 'won' &&
+    ((o.contract_date || o.payment_date || (o.updated_at || '').slice(0, 10)) >= from) &&
+    ((o.contract_date || o.payment_date || (o.updated_at || '').slice(0, 10)) <= to))
+    .reduce((a, o) => a + (+o.amount || 0), 0);
+}
+function qActual(fy, q) {
+  const rec = qOf(fy, q);
+  const ms = quarterMonths(fy, q);
+  const auto = wonInRange(ms[0] + '-01', monthDays(ms[2]).slice(-1)[0]);
+  const manual = +rec.done_revenue || 0;
+  return Math.round((auto + manual) * 100) / 100;
+}
 function calYear(cur) {
   const f = fiscalOf(cur), y = yearOf(f.fy), months = fyMonths(f.fy);
   const start = months[0] + '-01', end = monthDays(months[11]).slice(-1)[0];
   const left = daysLeft(end);
   const qs = [1, 2, 3, 4].map(q => qOf(f.fy, q));
-  const doneRev = qs.reduce((a, x) => a + (+x.done_revenue || 0), 0);
+  const doneRev = [1, 2, 3, 4].reduce((a, q) => a + qActual(f.fy, q), 0);
   const rate = y.revenue ? Math.round(doneRev / y.revenue * 100) : 0;
   const rows = LANES.map(lane => {
     const cells = months.map(ym => {
@@ -2689,7 +2702,8 @@ function calYear(cur) {
       '<div class="card kpi"><div class="lab">年間売上目標</div><div class="num">' + (y.revenue || '—') + '<span style="font-size:13px">億</span></div><div class="sub">達成 ' + doneRev + '億（' + rate + '%）</div></div>' +
       '<div class="card kpi"><div class="lab">年間粗利目標</div><div class="num">' + (y.gross || '—') + '<span style="font-size:13px">億</span></div><div class="sub">' + f.term + '期</div></div>' +
       '<div class="card kpi"><div class="lab">残り日数</div><div class="num ' + (left < 60 ? 'orange' : '') + '">' + (left > 0 ? left : 0) + '</div><div class="sub">' + fmtDate(end) + 'まで</div></div>' +
-      '<div class="card kpi"><div class="lab">進捗予測</div><div class="num ' + (rate >= 75 ? 'green' : rate >= 50 ? 'orange' : 'red') + '">' + rate + '%</div><div class="sub">' + (rate >= 75 ? '計画どおり' : '上積みが必要') + '</div></div>' +
+      '<div class="card kpi tapcard" onclick="actualHelp()"><div class="lab">進捗予測<span class="go">›</span></div><div class="num ' + (rate >= 75 ? 'green' : rate >= 50 ? 'orange' : 'red') + '">' + rate + '%</div>' +
+        '<div class="sub">' + (y.revenue ? (rate >= 75 ? '計画どおり' : '上積みが必要') : '年間目標が未入力です') + '</div></div>' +
     '</div>' +
     '<div class="card pad" style="margin-bottom:14px"><div class="sec-h"><h3>年間最重要テーマ</h3><div class="sp"></div><button class="btn sm" onclick="editYear()">編集</button></div>' +
       '<div style="font-size:16px;font-weight:700">' + (y.theme ? esc(y.theme) : '<span class="muted" style="font-weight:400">未設定 — この1年で何を成し遂げるかを1行で</span>') + '</div></div>' +
@@ -2697,7 +2711,8 @@ function calYear(cur) {
       '<div class="card pad" style="cursor:pointer;' + (q.q === f.q ? 'border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,160,70,.25)' : '') + '" onclick="jumpTo(\'quarter\',\'' + quarterMonths(f.fy, q.q)[0] + '-01\')">' +
       '<div class="small muted">第' + q.q + '四半期（' + quarterMonths(f.fy, q.q).map(m => +m.slice(5)).join('・') + '月）</div>' +
       '<b>' + (q.theme ? esc(q.theme) : '未設定') + '</b>' +
-      '<div class="small muted" style="margin-top:4px">売上 ' + (q.revenue || '—') + '億 ／ 粗利 ' + (q.gross || '—') + '億</div></div>').join('') + '</div>' +
+      '<div class="small muted" style="margin-top:4px">目標 ' + (q.revenue || '—') + '億 ／ 実績 <b>' + qActual(f.fy, q.q) + '億</b>' +
+        (q.revenue ? '（' + pct(qActual(f.fy, q.q), q.revenue) + '%）' : '') + '</div></div>').join('') + '</div>' +
     '<div class="card pad"><div class="sec-h"><h3>年間ロードマップ</h3><div class="sp"></div>' +
       '<span class="small muted">右のプロジェクトを月のマスへドラッグ、またはマスをクリックで追加</span></div>' +
       '<div style="display:flex;gap:12px;align-items:flex-start">' +
@@ -2735,6 +2750,28 @@ function editRoadmap(id) {
     '<div class="field"><label>進捗率 <span id="rmPv">' + (r.progress || 0) + '%</span></label><input id="rmG" type="range" min="0" max="100" step="5" value="' + (r.progress || 0) + '" oninput="$(\'#rmPv\').textContent=this.value+\'%\'"></div>',
     [{ label: '保存', cls: 'pri', fn: () => { r.title = $('#rmT').value; r.progress = +$('#rmG').value; Store.save(true); closeModal(); render(); } },
      { label: '削除', cls: 'danger', fn: () => { DB.strategy.roadmap = DB.strategy.roadmap.filter(x => x.id !== id); Store.save(true); closeModal(); render(); } }]);
+}
+function actualHelp() {
+  const f = fiscalOf(DB.settings.calCur || today()), y = yearOf(f.fy);
+  const rows = [1, 2, 3, 4].map(q => ({ q: q, t: qOf(f.fy, q).revenue || 0, a: qActual(f.fy, q) }));
+  const won = DB.opportunities.filter(o => o.status === 'won');
+  openModal('進捗予測の内訳',
+    '<div class="small muted" style="margin-bottom:10px">達成率は「受注実績 ÷ 年間売上目標」で自動計算しています。増やすには実績を登録してください。</div>' +
+    '<table class="tbl"><thead><tr><th>四半期</th><th>目標</th><th>実績</th><th>達成率</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td>' + r.q + 'Q</td><td>' + (r.t || '—') + '億</td><td><b>' + r.a + '億</b></td><td>' + (r.t ? pct(r.a, r.t) + '%' : '—') + '</td></tr>').join('') +
+    '<tr><td>年間</td><td>' + (y.revenue || '—') + '億</td><td><b>' + Math.round(rows.reduce((a, r) => a + r.a, 0) * 100) / 100 + '億</b></td>' +
+    '<td>' + (y.revenue ? pct(rows.reduce((a, r) => a + r.a, 0), y.revenue) + '%' : '—') + '</td></tr></tbody></table>' +
+    '<div class="sec-h" style="margin-top:14px"><h3>実績を増やす方法</h3></div>' +
+    '<div class="small" style="line-height:2">' +
+      '① <b>案件を「受注」にする</b> … 達成見込み画面で案件を開き、結果を「受注」にすると金額が自動で加算されます（契約予定日の四半期に計上）。現在の受注済み案件: ' + won.length + '件<br>' +
+      '② <b>四半期の補正値を入れる</b> … 案件として登録していない売上は、四半期編集の「受注実績の補正」に入れます。<br>' +
+      '③ <b>年間売上目標を入れる</b> … 目標が未入力だと分母がないため0%のままです。' +
+    '</div>' +
+    '<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn sm pri" onclick="closeModal();go(\'pipeline\')">案件一覧を開く</button>' +
+      '<button class="btn sm" onclick="closeModal();editQuarter()">四半期の実績を入力</button>' +
+      '<button class="btn sm" onclick="closeModal();editYear()">年間目標を入力</button></div>',
+    [{ label: '閉じる', fn: closeModal }]);
 }
 function editYear() {
   const f = fiscalOf(DB.settings.calCur), y = yearOf(f.fy);
@@ -2788,6 +2825,9 @@ function editQuarter() {
     '<div class="field"><label>四半期テーマ</label><input id="qT" value="' + esc(q.theme) + '"></div>' +
     '<div class="row"><div class="field"><label>売上目標（億）</label><input id="qR" type="number" value="' + (q.revenue || '') + '"></div>' +
     '<div class="field"><label>粗利目標（億）</label><input id="qG" type="number" value="' + (q.gross || '') + '"></div></div>' +
+    '<div class="field"><label>受注実績の補正（億）<span class="autocalc">案件の「受注」分は自動集計</span></label>' +
+      '<input id="qD" type="number" step="0.1" value="' + (q.done_revenue || '') + '">' +
+      '<div class="small muted" style="margin-top:4px">現在の自動集計: ' + qActual(f.fy, f.q) + '億（案件を「受注」にすると増えます）</div></div>' +
     '<div class="row"><div class="field"><label>責任者</label><input id="qO" value="' + esc(q.owner) + '"></div>' +
     '<div class="field"><label>達成見込み（%）</label><input id="qF" type="number" value="' + (q.forecast || '') + '"></div></div>' +
     '<div class="field"><label>先行KPI</label><input id="qL" value="' + esc(q.lead_kpi) + '" placeholder="例）新規商談 週12件"></div>' +
@@ -2797,6 +2837,7 @@ function editQuarter() {
     [{ label: '保存', cls: 'pri', fn: () => {
       q.theme = $('#qT').value; q.revenue = +$('#qR').value || 0; q.gross = +$('#qG').value || 0;
       q.owner = $('#qO').value; q.forecast = +$('#qF').value || 0; q.lead_kpi = $('#qL').value;
+      q.done_revenue = +$('#qD').value || 0;
       q.lag_kpi = $('#qG2').value; q.not_doing = $('#qN').value; q.risk = $('#qK').value;
       Store.save(true); closeModal(); render(); toast('四半期目標を保存しました');
     } }]);
