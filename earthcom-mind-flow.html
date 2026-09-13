@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="3.3.2">
+<meta name="app-version" content="3.4.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -351,6 +351,14 @@ table.mcal th{font-size:11.5px;color:var(--ink2);padding:6px;border-bottom:1px s
 .wk-col.today{background:#FFFDF7}
 .wk-col.over{background:var(--blue-l)}
 .wk-slot{height:34px;border-bottom:1px dashed #EEF1F6}
+.wk-corner2{height:26px;border-bottom:1px solid var(--line);font-size:9.5px;color:var(--ink3);display:flex;align-items:center;padding-left:4px}
+.wk-allrow{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);position:sticky;top:34px;background:var(--surface);z-index:2}
+.wk-all{border-left:1px solid var(--line);min-height:26px;padding:2px;overflow:hidden}
+.wk-allchip{font-size:9.5px;line-height:1.35;padding:2px 5px;border-radius:5px;margin-bottom:2px;background:#EEF1F6;color:var(--ink2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.wk-allchip.gg{background:#fff;border:1px solid var(--blue);color:var(--ink)}
+.day-allrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.day-allrow .wk-allchip{font-size:11px;padding:4px 8px}
 .wk-ev{position:absolute;left:2px;right:2px;border-radius:5px;color:#fff;padding:2px 4px;font-size:10px;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(16,27,51,.18)}
 .wk-ev b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk-ev span{display:block;opacity:.85}
@@ -861,7 +869,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.3.2</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.4.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2187,7 +2195,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.3.2</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.4.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2408,6 +2416,7 @@ function dayOf(date) {
 }
 
 /* ---- 予定の取得 ---- */
+function isAllDayLike(e) { return !!e.allDay || durMin(e) >= 12 * 60; }
 function evOfDay(d) { return DB.calendar_events.filter(e => dOf(e.start) === d).sort((a, b) => minOf(a.start) - minOf(b.start)); }
 function evOfRange(from, to) { return DB.calendar_events.filter(e => dOf(e.start) >= from && dOf(e.start) <= to); }
 function evOfMonth(ym) { return DB.calendar_events.filter(e => (e.start || '').slice(0, 7) === ym); }
@@ -2774,7 +2783,7 @@ function calWeek(cur) {
   for (let h = DAY_START; h <= DAY_END; h++) hours.push(h);
 
   const col = d => {
-    const list = evs.filter(e => dOf(e.start) === d);
+    const list = evs.filter(e => dOf(e.start) === d && !isAllDayLike(e));
     return '<div class="wk-col' + (d === today() ? ' today' : '') + '" data-day="' + d + '" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropWeek(event,this)">' +
       hours.map(h => '<div class="wk-slot" data-h="' + h + '"></div>').join('') +
       list.map(e => {
@@ -2794,7 +2803,10 @@ function calWeek(cur) {
         '<b style="font-size:16px">' + (w.goal ? esc(w.goal) : '未設定') + '</b>' +
         '<div class="small muted" style="margin-top:8px">今週完了させる3つの成果</div>' +
         '<div style="white-space:pre-wrap" class="small">' + (w.three ? esc(w.three) : '未設定') + '</div>' +
-        '<button class="btn sm" style="margin-top:8px" onclick="editWeek()">編集</button></div>' +
+        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button class="btn sm" onclick="editWeek()">今週を編集</button>' +
+        '<button class="btn sm pri" onclick="planNextWeek()">来週を設定する</button>' +
+        '<button class="btn sm" onclick="jumpTo(\'week\',\'' + addDays(mon, 7) + '\')">来週を見る ›</button></div></div>' +
       '<div class="card kpi"><div class="lab">稼働率</div><div class="num ' + (cap.rate > 85 ? 'red' : cap.rate > 60 ? 'orange' : 'green') + '">' + (cap.avail ? cap.rate + '%' : '—') + '</div>' +
         '<div class="sub">' + (cap.avail ? '空き ' + Math.round(cap.free / 60) + 'h ／ 推奨バッファ ' + DB.capacity.bufferPct + '%' : 'この週に稼働日がありません（期間設定で変更）') + '</div></div>' +
       '<div class="card kpi"><div class="lab">要注意</div><div class="num ' + (od.length ? 'red' : '') + '">' + od.length + '</div>' +
@@ -2810,9 +2822,11 @@ function calWeek(cur) {
       '<div class="small muted" style="margin-top:10px">' + (isMobile() ? 'タップして選び、置きたい時間をタップ' : 'ドラッグして時間枠へ置く') + '</div>' +
       '</div>' +
       '<div class="wk-grid">' +
-        '<div class="wk-hours"><div class="wk-corner"></div>' + hours.map(h => '<div class="wk-h">' + h + ':00</div>').join('') + '</div>' +
+        '<div class="wk-hours"><div class="wk-corner"></div><div class="wk-corner2">終日</div>' + hours.map(h => '<div class="wk-h">' + h + ':00</div>').join('') + '</div>' +
         '<div class="wk-cols"><div class="wk-heads">' + days.map(d => '<div class="wk-head' + (d === today() ? ' today' : '') + '" onclick="jumpTo(\'day\',\'' + d + '\')">' +
           wdName(d) + ' <span>' + (+d.slice(8)) + '</span></div>').join('') + '</div>' +
+          '<div class="wk-allrow">' + days.map(d => '<div class="wk-all">' +
+            evs.filter(e => dOf(e.start) === d && isAllDayLike(e)).map(e => '<div class="wk-allchip' + (e.type === 'google' ? ' gg' : '') + '" onclick="openEvent(\'' + e.id + '\')" title="' + esc(e.title) + '">' + esc(e.title) + '</div>').join('') + '</div>').join('') + '</div>' +
           '<div class="wk-body">' + days.map(col).join('') + '</div></div>' +
       '</div>' +
     '</div>' +
@@ -2848,7 +2862,8 @@ function placeTask(tid, day, hour) {
 
 /* ---- 日間 ---- */
 function calDay(cur) {
-  const d = cur, day = dayOf(d), evs = evOfDay(d).filter(evVisible), cap = capacityOf([d]);
+  const d = cur, dayAll = evOfDay(d).filter(evVisible), evs = dayAll.filter(e => !isAllDayLike(e)),
+    allday = dayAll.filter(isAllDayLike), day = dayOf(d), cap = capacityOf([d]);
   const mon = mondayOf(d), w = wOf(mon), m = mOf(d.slice(0, 7)), f = fiscalOf(d), q = qOf(f.fy, f.q), y = yearOf(f.fy);
   const td = tasksIn('today'), od = overdue(), wait = tasksIn('waiting');
   const now = new Date(), nowMin = (dOf(new Date().toISOString()) === d) ? now.getHours() * 60 + now.getMinutes() : -1;
@@ -2873,6 +2888,7 @@ function calDay(cur) {
     '</div>' +
     '<div class="grid g2">' +
       '<div class="card pad"><div class="sec-h"><h3>今日のタイムライン</h3><div class="sp"></div><button class="btn sm" onclick="openEvent(\'\',\'' + d + '\',9)">＋ 予定</button></div>' +
+        (allday.length ? '<div class="day-allrow">' + allday.map(e => '<div class="wk-allchip' + (e.type === 'google' ? ' gg' : '') + '" onclick="openEvent(\'' + e.id + '\')">終日・長時間: ' + esc(e.title) + '</div>').join('') + '</div>' : '') +
         '<div class="day-tl" id="dayTl">' + hours.map(h => '<div class="day-row" data-h="' + h + '"><span>' + h + ':00</span><div class="day-slot" data-h="' + h + '"></div></div>').join('') +
           evs.map(e => {
             const top = (minOf(e.start) - DAY_START * 60) / 60 * SLOT_H;
@@ -2952,9 +2968,15 @@ function carry(id, how) {
   else if (how === 'project') { setGtd(t, 'project'); toast('プロジェクトとして見直してください'); }
   Store.save(true); nightReview();
 }
+function planNextWeek() {
+  const mon = addDays(mondayOf(DB.settings.calCur || today()), 7);
+  DB.settings.calCur = mon; DB.settings.calTab = 'week'; Store.save(); render();
+  setTimeout(editWeek, 60);
+}
 function editWeek() {
   const mon = mondayOf(DB.settings.calCur), w = wOf(mon);
-  openModal(fmtDate(mon) + '週のコミットメント',
+  openModal((mon === mondayOf(today()) ? '今週' : mon > today() ? '来週以降' : '過去週') + 'のコミットメント（' + fmtDate(mon) + '〜）',
+    '<div class="small muted" style="margin-bottom:10px">対象週: ' + fmtDate(mon) + '（' + wdName(mon) + '）〜 ' + fmtDate(addDays(mon, 6)) + '</div>' +
     '<div class="field"><label>今週の最重要ゴール</label><input id="wG" value="' + esc(w.goal) + '"></div>' +
     '<div class="field"><label>今週完了させる3つの成果</label><textarea id="w3">' + esc(w.three) + '</textarea></div>' +
     '<div class="row"><div class="field"><label>重要商談</label><input id="wD" value="' + esc(w.deals) + '"></div>' +
@@ -3015,7 +3037,7 @@ function evForm(isEdit) {
         '<div class="field"><label>準備時間（分）</label><input id="evPp" type="number" value="' + (e.prep || 0) + '"></div></div>' +
       '<div class="field"><label>確定／仮</label><select id="evTen"><option value="0"' + (!e.tentative ? ' selected' : '') + '>確定予定</option><option value="1"' + (e.tentative ? ' selected' : '') + '>仮予定</option></select></div>' +
       '<div class="field"><label>メモ</label><textarea id="evN">' + esc(e.notes) + '</textarea></div>' : '') +
-    (isEdit ? '<div class="small muted">同期状態: ' + syncLabel(e) + (e.google_event_id ? ' ／ Google ID: ' + esc(String(e.google_event_id).slice(0, 12)) + '…' : '') + '</div>' : ''),
+    (isEdit ? '<div class="small muted">同期状態: ' + syncLabel(e) + (e.gcal_name ? ' ／ カレンダー: ' + esc(e.gcal_name) : '') + (e.google_event_id ? ' ／ Google ID: ' + esc(String(e.google_event_id).slice(0, 12)) + '…' : '') + '</div>' : ''),
     [{ label: isEdit ? '保存する' : '確認して登録', cls: 'pri', fn: () => submitEvent(isEdit) }]
       .concat(isEdit ? [{ label: '削除', cls: 'danger', fn: () => delEvent(e.id) }] : []));
 }
@@ -3220,7 +3242,7 @@ async function pullRange(from, to, silent) {
         }
         DB.calendar_events.unshift(evNorm({ id: uid(), title: g.title, start: g.start, end: g.end, location: g.location || '',
           type: 'google', source: 'google', google_event_id: g.id, sync_status: 'synced', sync: 'synced', owner: '',
-          purpose: '', allDay: !!g.allDay, last_synced_at: new Date().toISOString() }));
+          purpose: '', allDay: !!g.allDay, gcal_name: g.calendar || '', last_synced_at: new Date().toISOString() }));
         added++;
       });
     } catch (e) { err++; }
@@ -3311,7 +3333,7 @@ async function pullGoogleRange() {
         }
         DB.calendar_events.unshift(evNorm({ id: uid(), title: g.title, start: g.start, end: g.end, location: g.location || '',
           type: 'google', source: 'google', google_event_id: g.id, sync_status: 'synced', sync: 'synced', owner: '',
-          purpose: '', allDay: !!g.allDay, last_synced_at: new Date().toISOString() }));
+          purpose: '', allDay: !!g.allDay, gcal_name: g.calendar || '', last_synced_at: new Date().toISOString() }));
         added++;
       });
     }
