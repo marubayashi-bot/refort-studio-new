@@ -415,11 +415,16 @@ const DB = {
   sb: null,
   me: {name:'', email:'', role:'sales'},
   queue: JSON.parse(localStorage.getItem('ec_queue')||'[]'),
+  groups: [],
   online: false
 };
 
 function cacheSave(){ try{ localStorage.setItem('ec_cards', JSON.stringify(DB.cards)); }catch(e){} }
-function cacheLoad(){ try{ DB.cards = JSON.parse(localStorage.getItem('ec_cards')||'[]'); }catch(e){ DB.cards=[]; } }
+function cacheLoad(){
+  try{ DB.cards = JSON.parse(localStorage.getItem('ec_cards')||'[]'); }catch(e){ DB.cards=[]; }
+  try{ DB.groups = JSON.parse(localStorage.getItem('ec_groups')||'[]'); }catch(e){ DB.groups=[]; }
+}
+function groupsSave(){ try{ localStorage.setItem('ec_groups', JSON.stringify(DB.groups)); }catch(e){} }
 function qSave(){ localStorage.setItem('ec_queue', JSON.stringify(DB.queue)); }
 
 function setSync(state, txt){
@@ -431,9 +436,14 @@ function setSync(state, txt){
 async function initSupabase(){
   try{
     DB.sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    const {data, error} = await DB.sb.from(TABLE).select('id,data,updated_at').eq('kind','card');
+    const {data, error} = await DB.sb.from(TABLE).select('id,kind,data,updated_at').in('kind',['card','meta']);
     if(error) throw error;
-    const remote = (data||[]).map(r => Object.assign({}, r.data, {id:r.id, updatedAt:r.updated_at}));
+    const meta = (data||[]).find(r=>r.kind==='meta' && r.id==='groups');
+    if(meta && meta.data && Array.isArray(meta.data.list)){
+      DB.groups = [...new Set([...(meta.data.list||[]), ...DB.groups])];
+      groupsSave();
+    }
+    const remote = (data||[]).filter(r=>r.kind==='card').map(r => Object.assign({}, r.data, {id:r.id, updatedAt:r.updated_at}));
     // ローカル未送信を優先してマージ
     const map = {}; remote.forEach(r => map[r.id]=r);
     DB.cards.forEach(l => { if(!map[l.id] || (l.updatedAt||'') > (map[l.id].updatedAt||'')) map[l.id]=l; });
@@ -443,7 +453,12 @@ async function initSupabase(){
     setSync('ok','共有中・最新');
     flushQueue();
     DB.sb.channel('ec').on('postgres_changes',{event:'*',schema:'public',table:TABLE}, p=>{
-      if(!p.new || p.new.kind!=='card') return;
+      if(!p.new) return;
+      if(p.new.kind==='meta' && p.new.id==='groups'){
+        if(p.new.data && Array.isArray(p.new.data.list)){ DB.groups = p.new.data.list.slice(); groupsSave(); if(!$('#modal').innerHTML) render(); }
+        return;
+      }
+      if(p.new.kind!=='card') return;
       const rec = Object.assign({}, p.new.data, {id:p.new.id, updatedAt:p.new.updated_at});
       const i = DB.cards.findIndex(c=>c.id===rec.id);
       if(i<0) DB.cards.push(rec); else DB.cards[i]=rec;
@@ -520,6 +535,46 @@ function suggestServices(c){
   if(h.tax==='あり' && !out.includes('低圧蓄電池')) out.push('低圧蓄電池');
   if(h.owns==='あり' && !out.includes('現地視察・無料診断')) out.push('現地視察・無料診断');
   return [...new Set(out)];
+}
+
+/* ---------- グループ ---------- */
+async function pushGroups(){
+  groupsSave();
+  if(!DB.online || !DB.sb) return;
+  try{
+    await DB.sb.from(TABLE).upsert({ id:'groups', kind:'meta', data:{list:DB.groups},
+      updated_at:new Date().toISOString(), updated_by: DB.me.email||DB.me.name });
+  }catch(e){}
+}
+function addGroup(name){
+  name = String(name||'').trim();
+  if(!name) return false;
+  if(DB.groups.includes(name)) return true;
+  DB.groups.push(name); pushGroups(); return true;
+}
+function renameGroup(oldName, newName){
+  newName = String(newName||'').trim(); if(!newName) return;
+  DB.groups = DB.groups.map(g=> g===oldName? newName : g);
+  DB.cards.forEach(c=>{
+    if((c.groups||[]).includes(oldName)){
+      c.groups = [...new Set(c.groups.map(g=> g===oldName? newName : g))];
+      save(c);
+    }
+  });
+  pushGroups();
+}
+function deleteGroup(name){
+  DB.groups = DB.groups.filter(g=>g!==name);
+  DB.cards.forEach(c=>{
+    if((c.groups||[]).includes(name)){ c.groups = c.groups.filter(g=>g!==name); save(c); }
+  });
+  pushGroups();
+}
+function groupCount(name){ return DB.cards.filter(c=>(c.groups||[]).includes(name)).length; }
+function allGroups(){
+  const used = new Set();
+  DB.cards.forEach(c=>(c.groups||[]).forEach(g=>used.add(g)));
+  return [...new Set([...DB.groups, ...used])];
 }
 
 /* ===================== パートナーの判定 ===================== */
@@ -775,7 +830,7 @@ function vHome(){
 }
 
 /* ===================== 顧客一覧 ===================== */
-let FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:''};
+let FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:'', group:''};
 const SPECIALS = {
   overdue:  {label:'期限を過ぎた案件',       fn:c=> c.phase!=='LOST' && dayDiff(c.nextDate)<0},
   todaydue: {label:'今日が期限の案件',       fn:c=> c.phase!=='LOST' && dayDiff(c.nextDate)===0},
@@ -793,7 +848,7 @@ const SPECIALS = {
   contacted:{label:'初回連絡が済んだ案件',   fn:c=> (c.logs||[]).length>0}
 };
 function goList(patch){
-  FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:''};
+  FIL = {q:'', rank:'', owner:'', phase:'', kind:'', sp:'', pstatus:'', group:''};
   Object.assign(FIL, patch||{});
   TAB = 'list'; render(); window.scrollTo(0,0);
 }
@@ -804,6 +859,7 @@ function filterLabel(){
   if(FIL.pstatus){ const p=PSTATUS.find(x=>x.id===FIL.pstatus); if(p) parts.push('パートナー：'+p.name); }
   if(FIL.rank) parts.push('ランク '+FIL.rank);
   if(FIL.owner) parts.push('担当 '+FIL.owner);
+  if(FIL.group) parts.push('グループ：'+FIL.group);
   if(FIL.kind && !FIL.pstatus) parts.push(FIL.kind==='partner'?'パートナー':'お客様');
   return parts.join('　／　');
 }
@@ -816,6 +872,7 @@ function filtered(){
   if(FIL.phase) rows = rows.filter(c=>c.phase===FIL.phase);
   if(FIL.kind) rows = rows.filter(c=> FIL.kind==='partner'? isPartner(c) : !isPartner(c));
   if(FIL.pstatus) rows = rows.filter(c=> isPartner(c) && ((c.partner||{}).status||'P1')===FIL.pstatus);
+  if(FIL.group) rows = rows.filter(c=>(c.groups||[]).includes(FIL.group));
   if(FIL.sp && SPECIALS[FIL.sp]) rows = rows.filter(SPECIALS[FIL.sp].fn);
   return rows.sort((a,b)=> (RANKS.indexOf(a.rank)-RANKS.indexOf(b.rank)) || ((b.createdAt||'')>(a.createdAt||'')?1:-1));
 }
@@ -835,6 +892,14 @@ function vList(){
       <button class="chip ${FIL.kind==='customer'?'on':''}" onclick="FIL.kind='customer';render()">お客様 <span class="num">${DB.cards.filter(c=>!isPartner(c)).length}</span></button>
       <button class="chip ${FIL.kind==='partner'?'on':''}" onclick="FIL.kind='partner';render()">パートナー <span class="num">${partners().length}</span></button>
     </div>
+    ${allGroups().length? `<div class="chips" style="margin-bottom:12px;padding-top:11px;border-top:1px solid #EEF2F5">
+      <span style="font-size:11.5px;color:var(--muted);font-weight:700;align-self:center">グループ</span>
+      <button class="chip ${FIL.group===''?'on':''}" onclick="FIL.group='';render()">指定なし</button>
+      ${allGroups().map(g=>`<button class="chip ${FIL.group===g?'on':''}" onclick="FIL.group='${esc(g)}';render()">${esc(g)} <span class="num">${groupCount(g)}</span></button>`).join('')}
+      <button class="chip" onclick="manageGroups()">グループを管理</button>
+    </div>` : `<div style="margin-bottom:12px;padding-top:11px;border-top:1px solid #EEF2F5">
+      <button class="chip" onclick="manageGroups()">＋ グループを作る</button>
+      <span style="font-size:12px;color:var(--muted);margin-left:8px">展示会ごと・エリアごとに分けられます</span></div>`}
     <div class="row">
       <input type="text" placeholder="会社名・氏名・電話・場所で検索" value="${esc(FIL.q)}" style="flex:1;min-width:200px"
         oninput="FIL.q=this.value; document.getElementById('tbl').innerHTML=listTable(filtered())">
@@ -867,6 +932,45 @@ function listTable(rows){
         <td style="font-size:12px;white-space:nowrap">${esc(c.owner||'未定')}</td>
       </tr>`;}).join('')}
   </table></div>`;
+}
+
+/* ---------- グループの管理 ---------- */
+function manageGroups(){
+  const gs = allGroups();
+  sheet('グループの管理', `
+  <div class="card pad sec">
+    <button class="btn wide" onclick="createGroup()">＋ 新しいグループを作る</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:9px">展示会ごと、エリアごと、紹介ルートごとなど、あとで絞り込みたい単位で作ってください。1件の名刺を複数のグループに入れられます。</div>
+  </div>
+  <div class="card pad">
+    <h3 class="h">いまあるグループ <span class="note">${gs.length}件</span></h3>
+    ${gs.length? gs.map(g=>`<div class="phrow">
+      <span class="nm">${esc(g)}</span>
+      <b class="num">${groupCount(g)}件</b>
+      <button class="btn sm ghost" onclick="editGroup('${esc(g)}')">名前を変える</button>
+      <button class="btn sm ghost" style="color:var(--alert)" onclick="removeGroup('${esc(g)}')">削除</button>
+    </div>`).join('') : '<div class="empty">まだグループがありません。</div>'}
+  </div>
+  <div style="height:20px"></div>`);
+}
+function createGroup(){
+  const n = prompt('新しいグループの名前を入れてください\n例：PV EXPO 2026／千葉エリア／金融機関ルート');
+  if(n===null) return;
+  if(addGroup(n)){ toast('グループを作りました'); manageGroups(); }
+}
+function editGroup(g){
+  const n = prompt('新しい名前を入れてください', g);
+  if(n===null || !n.trim() || n.trim()===g) return;
+  renameGroup(g, n.trim());
+  if(FIL.group===g) FIL.group = n.trim();
+  toast('名前を変えました'); manageGroups();
+}
+function removeGroup(g){
+  const n = groupCount(g);
+  if(!confirm(`グループ「${g}」を削除します。${n}件の名刺からこのグループが外れます。名刺そのものは消えません。`)) return;
+  deleteGroup(g);
+  if(FIL.group===g) FIL.group = '';
+  toast('削除しました'); manageGroups();
 }
 
 /* ===================== パイプライン ===================== */
@@ -1038,6 +1142,17 @@ function vDash(){
     </table></div>
   </div>
 
+  ${allGroups().length? `<div class="sec card pad">
+    <h3 class="h">${SVGI(ICONS.list,19)} グループ別</h3>
+    ${allGroups().map(g=>{
+      const l = all.filter(c=>(c.groups||[]).includes(g));
+      const gr = grossOf(l.filter(c=>!isPartner(c) && isMain(c)));
+      return `<div class="phrow tap" onclick="goList({group:'${esc(g)}'})">
+        <span class="nm">${esc(g)}</span>
+        <span class="gr num">${gr?oku(gr):''}</span>
+        <b class="num">${l.length}件</b><span class="go">${SVGI(ICONS.arrow,14)}</span></div>`;}).join('')}
+  </div>`:''}
+
   <div class="sec card pad">
     <h3 class="h">獲得経路</h3>
     ${Object.entries(byPlace).sort((a,b)=>b[1]-a[1]).map(([p,v])=>
@@ -1080,7 +1195,7 @@ function openScan(quick){
   DRAFT = {
     id:uid(), createdAt:new Date().toISOString(),
     company:'', name:'', kana:'', title:'', dept:'', tel:'', mobile:'', email:'', address:'', website:'', industry:'',
-    metAt:today(), metPlace: PLACES[0], owner: DB.me.name, kind:'customer',
+    metAt:today(), metPlace: PLACES[0], owner: DB.me.name, kind:'customer', groups:[],
     partner:{ptype:'', status:'P1', refs:[], refCount:'', note:''},
     hearing:{owns:'', plants:'', voltage:[], fit:'', years:'', decline:'', pcs:'', sellIntent:'', buyIntent:'', battery:'', tax:'', budget:'', authority:'', timing:'', interests:[]},
     services:[], rank:'', rankManual:false, svcManual:false, dateManual:false,
@@ -1125,11 +1240,15 @@ function drawScan(){
        <label class="f"><span>担当者</span><input type="text" value="${esc(DRAFT.owner)}" oninput="DRAFT.owner=this.value"></label>
      </div>
      <label class="f"><span>交換した場所</span><select onchange="DRAFT.metPlace=this.value">${PLACES.map(p=>`<option ${DRAFT.metPlace===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+     <label class="f"><span>グループ <span style="font-weight:500">（任意・いくつでも）</span></span>
+       <div class="chips">${allGroups().map(g=>
+         `<button class="chip ${(DRAFT.groups||[]).includes(g)?'on':''}" onclick="DRAFT.groups=DRAFT.groups||[];tgl(DRAFT.groups,'${esc(g)}');drawScan()">${esc(g)}</button>`).join('')}
+         <button class="chip" onclick="newGroupFor('draft')">＋ 新しいグループ</button></div></label>
    </div>
    ${isPartner(DRAFT)? partnerBlock() : customerBlock()}
    ${judgeBox()}
    <div class="card pad sec">
-     <h3 class="h">6. 次の行動 <span class="note">ここが空欄だと登録できません</span></h3>
+     <h3 class="h">6. 次の行動 <span class="note">${isPartner(DRAFT)?'パートナーは空欄のままでも登録できます':'ここが空欄だと登録できません'}</span></h3>
      <label class="f"><span>次にやること</span><input type="text" value="${esc(DRAFT.nextAction)}" oninput="DRAFT.nextAction=this.value" placeholder="例：お礼の電話＋現地視察の日程提案"></label>
      <div class="grid2">
        <label class="f"><span>実行期限</span><input type="date" value="${DRAFT.nextDate}" onchange="DRAFT.nextDate=this.value; DRAFT.dateManual=true"></label>
@@ -1149,6 +1268,15 @@ function yn(label, key){
     `<button class="chip ${DRAFT.hearing[key]===v?'on':''}" onclick="DRAFT.hearing['${key}']=DRAFT.hearing['${key}']==='${v}'?'':'${v}';drawScan()">${v}</button>`).join('')}</div></label>`;
 }
 function tgl(arr, v){ const i=arr.indexOf(v); if(i<0) arr.push(v); else arr.splice(i,1); }
+function newGroupFor(where){
+  const name = prompt('新しいグループの名前を入れてください\n例：PV EXPO 2026／千葉エリア／金融機関ルート');
+  if(name===null) return;
+  const t = name.trim(); if(!t) return;
+  addGroup(t);
+  if(where==='draft'){ DRAFT.groups = DRAFT.groups||[]; if(!DRAFT.groups.includes(t)) DRAFT.groups.push(t); drawScan(); }
+  else if(where==='card'){ CUR.groups = CUR.groups||[]; if(!CUR.groups.includes(t)) CUR.groups.push(t); save(CUR, `グループ「${t}」に追加`); drawCard(); }
+  toast('グループ「'+t+'」を作りました');
+}
 
 
 function customerBlock(){
@@ -1253,15 +1381,15 @@ function checkDup(){
 
 /* ===================== カメラで自動読み取り ===================== */
 const CAM = {stream:null, timer:null, prev:null, hits:0, auto:true, busy:false, ticks:0};
-const CAM_NEED = 5;        // 連続で条件を満たす回数（約1秒）
-const CAM_SHARP = 7.0;     // ピントの目安
-const CAM_MOVE = 4.0;      // 手ブレの目安
+const CAM_NEED = 3;        // 連続で条件を満たす回数（約0.6秒）
+const CAM_SHARP = 4.2;     // ピントの目安（低いほど撮りやすい）
+const CAM_MOVE = 9.0;      // 手ブレの目安（高いほど撮りやすい）
 
 async function openCamera(){
   document.body.insertAdjacentHTML('beforeend', `
     <div class="cam" id="cam">
       <video id="camV" playsinline muted autoplay></video>
-      <div class="frame" id="camF"></div>
+      <div class="frame" id="camF" onclick="refocus()"></div>
       <div class="bar"><b>名刺を枠に合わせてください</b>
         <button class="x" style="background:rgba(255,255,255,.2);color:#fff" onclick="closeCamera()">✕</button></div>
       <div class="msg" id="camMsg">カメラを準備しています…<span class="sub">枠いっぱいに、真上から写してください</span></div>
@@ -1287,6 +1415,12 @@ async function openCamera(){
       'ブラウザのカメラ許可を確認するか、「写真を撮る」から進めてください。</span>';
     toast('カメラを開けませんでした');
   }
+}
+/* 枠を押したら判定をやり直す（ピントを取り直したいとき用） */
+function refocus(){
+  CAM.hits = 0; CAM.prev = null; CAM.ticks = 0;
+  const g = $('#camG'); if(g) g.style.width = '0%';
+  const m = $('#camMsg'); if(m) m.innerHTML = '合わせ直しています<span class="sub">枠いっぱいに、真上から</span>';
 }
 function toggleAuto(){
   CAM.auto = !CAM.auto; CAM.hits = 0;
@@ -1342,16 +1476,20 @@ function watch(){
     move = s/g.length;
   }
   CAM.prev = g;
-  const ok = sharp >= CAM_SHARP && move <= CAM_MOVE;
-  CAM.hits = ok ? CAM.hits+1 : 0;
+  // しばらく撮れないときは、だんだん条件をゆるめる（暗い場所・手持ちでも撮れるように）
+  const relax = Math.floor(Math.max(0, CAM.ticks-10)/8);
+  const needSharp = Math.max(2.2, CAM_SHARP - relax*0.5);
+  const needMove  = Math.min(22, CAM_MOVE + relax*2.5);
+  const ok = sharp >= needSharp && move <= needMove;
+  CAM.hits = ok ? CAM.hits+1 : Math.max(0, CAM.hits-1);
   $('#camG').style.width = Math.min(100, Math.round(CAM.hits/CAM_NEED*100)) + '%';
   $('#camF').classList.toggle('lock', CAM.hits>0);
   const msg = $('#camMsg');
-  if(CAM.hits>=CAM_NEED){ msg.innerHTML = '読み取ります…'; shoot(false); }
-  else if(move > CAM_MOVE) msg.innerHTML = '動かさずに止めてください<span class="sub">枠いっぱいに、真上から</span>';
-  else if(sharp < CAM_SHARP) msg.innerHTML = 'ピントが合っていません<span class="sub">少し離すか、明るい場所で</span>';
+  if(CAM.hits>=CAM_NEED){ msg.innerHTML = '読み取ります…'; shoot(false); return; }
+  if(move > needMove) msg.innerHTML = '動かさずに止めてください<span class="sub">枠いっぱいに、真上から</span>';
+  else if(sharp < needSharp) msg.innerHTML = 'ピントが合っていません<span class="sub">少し離すか、明るい場所で</span>';
   else msg.innerHTML = 'そのまま止めてください<span class="sub">あと少しです</span>';
-  if(CAM.ticks>60 && CAM.hits<CAM_NEED && CAM.ticks%15===0)
+  if(CAM.ticks>35 && CAM.ticks%10===0)
     msg.innerHTML += '<span class="sub">うまくいかないときは、下の丸いボタンで撮ってください</span>';
 }
 async function shoot(manual){
@@ -1500,7 +1638,8 @@ async function aiSelfTest(){
 
 function saveDraft(){
   if(!DRAFT.company && !DRAFT.name){ toast('会社名か氏名を入れてください'); return; }
-  if(!DRAFT.nextAction || !DRAFT.nextDate){ toast('次にやることと期限を決めてください'); return; }
+  if(!isPartner(DRAFT) && (!DRAFT.nextAction || !DRAFT.nextDate)){ toast('次にやることと期限を決めてください'); return; }
+  if(isPartner(DRAFT) && !DRAFT.nextAction) DRAFT.nextDate = '';
   delete DRAFT.rankManual; delete DRAFT.svcManual; delete DRAFT.dateManual;
   const wantMain = !DRAFT.dupCo || DRAFT.main===true;   // 同社が居なければ自動で窓口
   delete DRAFT.dupCo;
@@ -1592,6 +1731,14 @@ function drawCard(){
     ${j.why.length?`<div style="font-size:12px;color:var(--muted);margin-top:8px">${j.why.join(' ／ ')}</div>`:''}
   </div>
 
+  <div class="card pad sec">
+    <h3 class="h">${SVGI(ICONS.list,19)} グループ</h3>
+    <div class="chips">${allGroups().map(g=>
+      `<button class="chip ${(c.groups||[]).includes(g)?'on':''}" onclick="toggleGroup('${esc(g)}')">${esc(g)}</button>`).join('')}
+      <button class="chip" onclick="newGroupFor('card')">＋ 新しいグループ</button></div>
+    ${allGroups().length? '' : '<div style="font-size:12px;color:var(--muted);margin-top:8px">まだグループがありません。展示会ごと、エリアごとなど、あとで絞り込みたい単位で作ってください。</div>'}
+  </div>
+
   ${companyBlock(c)}
 
   ${isPartner(c)? '' : hearingBlock(c)}
@@ -1631,6 +1778,13 @@ function companyBlock(c){
       : `<div style="margin-top:10px"><button class="btn sm" onclick="setMainHere()">この方を窓口にする</button>
          <div style="font-size:12px;color:var(--muted);margin-top:7px">窓口を切り替えると、パイプラインに並ぶ人と粗利の集計先が入れ替わります。</div></div>`}
   </div>`;
+}
+function toggleGroup(g){
+  CUR.groups = CUR.groups || [];
+  const on = CUR.groups.includes(g);
+  tgl(CUR.groups, g);
+  save(CUR, on? `グループ「${g}」から外す` : `グループ「${g}」に追加`);
+  drawCard();
 }
 function setMainHere(){
   setMain(CUR); toast('窓口を変更しました'); drawCard();
@@ -1910,10 +2064,10 @@ async function aiMail(){
 
 /* ===================== 出力 ===================== */
 function exportCSV(){
-  const head = ['区分','パートナー業種','パートナー状況','紹介見込み(件/年)','紹介できる相手',
+  const head = ['区分','グループ','パートナー業種','パートナー状況','紹介見込み(件/年)','紹介できる相手',
     '会社名','氏名','部署','役職','電話','携帯','メール','住所','業種','交換日','場所','担当','ランク','フェーズ','提案サービス','想定売上(万円)','想定粗利(万円)','次の行動','期限','無料診断','現地視察','発電所所有','基数','区分','売却意向','購入意向','蓄電池','節税','決裁権','投資可能額','検討時期','登録日時'];
   const rows = DB.cards.map(c=>{ const h=c.hearing||{}, p=c.partner||{}; return [
-    isPartner(c)?'パートナー':'お客様', p.ptype, (PSTATUS.find(x=>x.id===p.status)||{}).name, p.refCount, (p.refs||[]).join('/'),
+    isPartner(c)?'パートナー':'お客様', (c.groups||[]).join('/'), p.ptype, (PSTATUS.find(x=>x.id===p.status)||{}).name, p.refCount, (p.refs||[]).join('/'),
     c.company,c.name,c.dept,c.title,c.tel,c.mobile,c.email,c.address,c.industry,c.metAt,c.metPlace,c.owner,
     c.rank,c.phase,(c.services||[]).join('/'),c.amount,c.gross,c.nextAction,c.nextDate,c.diag?'○':'',c.visit?'○':'',
     h.owns,h.plants,(h.voltage||[]).join('/'),h.sellIntent,h.buyIntent,h.battery,h.tax,h.authority,h.budget,h.timing,c.createdAt];});
@@ -1937,13 +2091,13 @@ function vManual(){
   <div class="scroll"><table>
     <tr><th>区分</th><th>だれか</th><th>管理のしかた</th></tr>
     <tr><td><b>お客様</b></td><td>発電所オーナー・投資家など、こちらが提案する相手</td><td>PH01〜PH08のフェーズと想定粗利で管理</td></tr>
-    <tr><td><b>パートナー</b></td><td>金融機関・税理士・不動産・工務店・同業など、紹介や提携の相手</td><td>接触済み→面談済み→提携合意→紹介実績ありの4段階と、年間の紹介見込み件数で管理</td></tr>
+    <tr><td><b>パートナー</b></td><td>金融機関・税理士・不動産・工務店・同業など、紹介や提携の相手</td><td>接触済み→面談済み→提携合意→紹介実績ありの4段階と、年間の紹介見込み件数で管理。次の行動は空欄のままでも登録できます</td></tr>
   </table></div>
   <p style="font-size:14px">パートナーは商談パイプラインには入りません。金額が立たないので混ぜると売上見込みが狂います。パイプライン画面の上にある切り替えで見てください。ランクの意味も変わり、お客様は受注の見込み、パートナーは紹介が期待できる度合いです。追客の期限と「次にやること」は、どちらも同じように必要です。</p>
 
   <h3>守るルール</h3>
   <ol>
-    <li>次の行動と期限がない名刺は、登録を完了させない</li>
+    <li>お客様は、次の行動と期限がない名刺の登録を完了させない（パートナーは空欄でも登録できます）</li>
     <li>Sランクは当日中に連絡し、役員へ共有する</li>
     <li>Aランクは24時間以内に連絡する</li>
     <li>展示会では、その場で次回連絡日まで決める</li>
@@ -2070,6 +2224,15 @@ Deno.serve(async (req) =&gt; {
 });</pre>
   <p style="font-size:13px;color:var(--muted)">APIキーは Edge Function Secrets の <code>ANTHROPIC_API_KEY</code> をそのまま使います。HTMLには書きません。差し替え後に、もう一度上のボタンで確認してください。</p>
 
+  <h3>グループで分ける</h3>
+  <p style="font-size:14px">展示会ごと、エリアごと、紹介ルートごとなど、あとで絞り込みたい単位でグループを作れます。1件の名刺を複数のグループに入れられます。</p>
+  <ol>
+    <li>顧客一覧の「グループを管理」から新しいグループを作る（例：PV EXPO 2026、千葉エリア、金融機関ルート）</li>
+    <li>名刺を登録するとき、または顧客画面のグループ欄で、グループを選ぶ</li>
+    <li>顧客一覧のグループのボタンを押すと、そのグループだけが並ぶ</li>
+  </ol>
+  <p style="font-size:14px">名前の変更と削除も管理画面からできます。グループを削除しても名刺そのものは消えません。ダッシュボードにはグループ別の件数と想定粗利が出ます。CSVにもグループの列が入ります。</p>
+
   <h3>同じ会社で複数人と名刺交換したとき</h3>
   <p style="font-size:14px">名刺は<b>人ごとに1枚ずつ登録</b>してください。連絡先も決裁権も人によって違うので、まとめないほうが後で困りません。</p>
   <p style="font-size:14px">ただし、<b>商談は会社に1つ</b>です。その会社の<b>窓口</b>を1人だけ決め、想定売上・想定粗利・フェーズはその人に入れます。ほかの方は金額を空欄のままにして、メモに関係（上長・決裁者など）を書いてください。パイプラインには窓口の方だけが並び、カードに「他◯名」と出ます。粗利が二重に数えられることはありません。</p>
@@ -2104,6 +2267,7 @@ Deno.serve(async (req) =&gt; {
     <li>止めてから1秒ほど待つ。動かしている間は撮影されません</li>
     <li>影が入らないようにする。手やスマホの影が文字にかかると読めません</li>
     <li>自動で撮れないときは、下の丸いボタンを押せばその場で撮影できます</li>
+    <li>なかなか撮れないときは、条件が自動でゆるくなります。枠を一度タップすると判定をやり直します</li>
     <li>裏面にも会社情報がある名刺は、続けてもう1枚撮る（2枚まで）</li>
   </ul>
   <p style="font-size:14px">カメラが開かない場合は、「写真を撮る」からカメラアプリで撮っても同じように読み取れます。ChatworkなどのアプリからURLを開いているとカメラが使えないことがあるので、その場合はSafariやChromeで開き直してください。</p>
