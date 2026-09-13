@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="1.1.1">
+<meta name="app-version" content="1.2.0">
 <meta name="theme-color" content="#101B33">
 <style>
 :root{
@@ -614,7 +614,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.1.1</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.2.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1806,7 +1806,9 @@ function viewSettings() {
         '<div class="field" style="margin-top:10px"><label>取り込み先</label><select id="imG">' +
           ['inbox', 'someday', 'project', 'next', 'waiting'].map(g => '<option value="' + g + '">' + GTD[g].label + '</option>').join('') + '</select></div>' +
         '<div class="field"><label>ノート一覧（1行＝1件。「タイトル | ノートURL」でも可）</label><textarea id="imT" style="min-height:120px" placeholder="岩槻の見学会を企画する | https://www.evernote.com/shard/..."></textarea></div>' +
-        '<button class="btn pri sm" onclick="importEvernote()">取り込む</button></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn pri sm" onclick="importEvernote()">貼り付けた分を取り込む</button>' +
+        '<button class="btn sm" onclick="importEnex()">ENEXファイルから取り込む</button></div>' +
+        '<div class="small muted" style="margin-top:8px">Evernoteでノートブックを右クリック →「ノートブックをエクスポート」→ ENEX形式で保存したファイルを選ぶと、ノートのタイトルと本文の冒頭をまとめて取り込みます。</div></div>' +
       '<div class="sec-h"><h3>権限とアカウント</h3></div>' +
       '<div class="card pad"><div class="field"><label>自分の権限（表示確認用）</label><select id="stRole" onchange="DB.settings.role=this.value;Store.save(true);render();toast(\'権限を切り替えました\')">' +
         Object.keys(ROLES).map(k => '<option value="' + k + '"' + (DB.settings.role === k ? ' selected' : '') + '>' + ROLES[k] + '</option>').join('') + '</select>' +
@@ -1835,6 +1837,57 @@ function importEvernote() {
     mkTask({ title: title || l, gtd: g, evernote_url: url || '', source: 'evernote' });
   });
   Store.save(true); toast(lines.length + '件を' + GTD[g].label + 'に取り込みました'); render();
+}
+function importEnex() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.enex,.xml,.txt';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    openModal('Evernoteの取り込み', '<div class="load">' + esc(f.name) + ' を読み込んでいます…</div>', []);
+    const r = new FileReader();
+    r.onload = () => { try { parseEnex(String(r.result), f.name); } catch (e) { closeModal(); toast('読み込めませんでした: ' + e.message, 'err'); } };
+    r.onerror = () => { closeModal(); toast('ファイルを読み取れませんでした', 'err'); };
+    r.readAsText(f, 'utf-8');
+  };
+  inp.click();
+}
+function decEnt(t) {
+  return String(t).replace(/<!\[CDATA\[|\]\]>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+}
+let _enex = [];
+function parseEnex(txt, fname) {
+  _enex = [];
+  const re = /<note>([\s\S]*?)<\/note>/g; let m;
+  while ((m = re.exec(txt)) && _enex.length < 2000) {
+    const blk = m[1];
+    const t = (blk.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '（無題）';
+    const c = (blk.match(/<content>([\s\S]*?)<\/content>/) || [])[1] || '';
+    const u = (blk.match(/<source-url>([\s\S]*?)<\/source-url>/) || [])[1] || '';
+    const d = (blk.match(/<created>([\s\S]*?)<\/created>/) || [])[1] || '';
+    _enex.push({
+      title: decEnt(t).trim() || '（無題）',
+      body: decEnt(c.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 300),
+      url: decEnt(u).trim(),
+      created: d ? d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) : ''
+    });
+  }
+  closeModal();
+  if (!_enex.length) { toast('ノートが見つかりませんでした。ENEX形式で書き出されているか確認してください', 'err'); return; }
+  openModal('取り込みの確認',
+    '<div class="ok">' + esc(fname) + ' から ' + _enex.length + '件のノートを読み取りました。</div>' +
+    '<div class="field"><label>取り込み先のGTDリスト</label><select id="enG">' +
+      ['inbox', 'someday', 'project', 'next', 'waiting', 'reference'].map(g => '<option value="' + g + '">' + GTD[g].label + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label>本文の冒頭もメモとして取り込む</label><select id="enB"><option value="1">取り込む</option><option value="0">タイトルだけにする</option></select></div>' +
+    '<div class="small muted" style="margin-bottom:6px">先頭10件のプレビュー</div>' +
+    '<div style="max-height:34vh;overflow:auto">' + _enex.slice(0, 10).map(n =>
+      '<div class="sugg"><div class="s-t">' + esc(n.title) + '</div><div class="small muted">' + esc(n.body.slice(0, 70)) + '</div></div>').join('') + '</div>',
+    [{ label: 'この内容で取り込む', cls: 'pri', fn: () => {
+      const g = $('#enG').value, withBody = $('#enB').value === '1';
+      _enex.forEach(n => mkTask({ title: n.title, gtd: g, notes: withBody ? n.body : '',
+        evernote_url: n.url, source: 'evernote' }));
+      Store.save(true); closeModal(); render(); toast(_enex.length + '件を' + GTD[g].label + 'に取り込みました'); _enex = [];
+    } }, { label: 'やめる', fn: () => { _enex = []; closeModal(); } }]);
 }
 function exportJSON() {
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
