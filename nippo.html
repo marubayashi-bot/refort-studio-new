@@ -2617,10 +2617,28 @@ function weeklyRowsFor(uid, weekStart, goals, targets){
     const wTarget = t ? Number(t.target)
       : (g ? Math.round(Number(g.target) / (g.weeks || 13) * 10) / 10
            : Number(m.target) || 0);
-    const week = actualSum(m.id, weekStart, weekEnd, uid);
-    return { m, g, name: m.name, unit: m.unit, wTarget: wTarget, week: week,
+    // 手入力があればそれを、無ければ日報の自動集計を使う
+    const ov = (targets || []).find(x => x.metric_id === m.id
+      && x.actual_override !== null && x.actual_override !== undefined);
+    const auto = actualSum(m.id, weekStart, weekEnd, uid);
+    const week = ov ? Number(ov.actual_override) : auto;
+    return { m, g, name: m.name, unit: m.unit, wTarget: wTarget,
+             week: week, auto: auto, manual: !!ov, uid: uid, weekStart: weekStart,
              wRate: goalRate(week, wTarget) };
   });
+}
+
+/* 週次の実績を手入力する。空にすると日報の自動集計に戻る */
+async function setWeekActual(uid, weekStart, metricId, v){
+  const val = String(v).trim() === '' ? null : Number(v);
+  if (val !== null && Number.isNaN(val)){ toast('数字を入れてください'); return; }
+  const { error } = await EC.supabase.from('weekly_targets').upsert(
+    { user_id: uid, week_start: weekStart, metric_id: metricId,
+      actual_override: val, target: 0, is_manual: true },
+    { onConflict: 'user_id,week_start,metric_id' });
+  if (error){ toast('保存できませんでした: ' + error.message); return; }
+  toast(val === null ? '日報の自動集計に戻しました' : '今週の実績を更新しました');
+  loadWeekly();
 }
 
 function goalRate(total, target){
@@ -2715,12 +2733,16 @@ async function loadWeeklySelf(){
     </div>
 
     ${(() => {
-      const wr = weeklyRowsFor(ME.id, WEEK_START, [], []);
+      const wr = weeklyRowsFor(ME.id, WEEK_START, [], WTARGETS);
       return wr.length ? `<div class="card"><h3>今週の目標と結果</h3>
         <table><tr><th>項目</th><th>今週目標</th><th>実績</th><th>達成率</th></tr>
         ${wr.map(r => `<tr><td>${esc(r.name)}</td>
           <td class="num">${r.wTarget}${esc(r.unit)}</td>
-          <td class="num">${Math.round(r.week*10)/10}</td>
+          <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
+               value="${Math.round(r.week*10)/10}"
+               onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">
+            <div class="note" style="font-size:10.5px">${r.manual
+              ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
           <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
         </table>
         <p class="note" style="margin-top:8px">日報に入力された数値の合計です。
@@ -2804,12 +2826,17 @@ async function loadWeeklySelf(){
       <td>${esc(r.name)}</td>
       <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
       <td class="num">${r.wTarget}${esc(r.unit)}</td>
-      <td class="num">${Math.round(r.week*10)/10}</td>
+      <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
+           value="${Math.round(r.week*10)/10}"
+           onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">
+        <div class="note" style="font-size:10.5px">${r.manual
+          ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
       <td class="num" style="color:${r.week >= r.wTarget ? 'var(--accent)' : 'var(--warn)'}">
         ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(Math.round((r.week - r.wTarget)*10)/10)}</td>
       <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
     </table>
-    <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力は不要です。<br>
+    <p class="note" style="margin-top:8px">実績は日報の数値から自動集計しています。
+      率や外部システムの数字など、足し算では出せない項目は直接入力してください。空にすると自動集計に戻ります。<br>
       ここに出す項目は、管理タブの「数値項目の設定」で<b>週報</b>にチェックを入れたものです。</p>
   </div>` : ''}
 
@@ -3043,10 +3070,15 @@ function wkMemberDetail(uid){
           <td>${esc(r.name)}</td>
           <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
           <td class="num">${r.wTarget}${esc(r.unit)}</td>
-          <td class="num">${Math.round(r.week*10)/10}${esc(r.unit)}</td>
+          <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
+               value="${Math.round(r.week*10)/10}"
+               onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">${esc(r.unit)}
+            <div class="note" style="font-size:10.5px">${r.manual
+              ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
           <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
       </table>
-      <p class="note" style="margin-top:8px">日報に入力された数値の合計です。手入力はできません。<br>
+      <p class="note" style="margin-top:8px">実績は日報の数値から自動集計しています。
+        足し算では出せない項目は、この欄に直接入力できます。空にすると自動集計に戻ります。<br>
         ここに出る項目は、管理タブの「数値項目の設定」で<b>週報</b>をオンにしたものです。</p>
     </div>` : '';
   })()}
