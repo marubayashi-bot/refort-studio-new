@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="3.1.0">
+<meta name="app-version" content="3.2.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -275,6 +275,15 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249
 .chain{color:#C5D0E3}
 .chain b{color:#fff}
 .chain i{color:var(--gold)}
+
+.btn.spin{opacity:.6;pointer-events:none}
+.daypick{display:flex;gap:6px;flex-wrap:wrap}
+.daypick label{position:relative;display:block}
+.daypick input{position:absolute;inset:0;opacity:0;margin:0;width:100%;height:100%;cursor:pointer}
+.daypick span{display:grid;place-items:center;width:42px;height:38px;border:1px solid var(--line);border-radius:10px;
+  font-size:13px;font-weight:600;color:var(--ink2);background:#fff;user-select:none}
+.daypick input:checked+span{background:var(--midnight);border-color:var(--midnight);color:#fff}
+.daypick input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
 
 /* ---------- AI GOAL TO ACTION ---------- */
 .stepbar{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto}
@@ -848,7 +857,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.1.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.2.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2081,7 +2090,11 @@ function viewSettings() {
         '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         '<button class="btn pri sm" onclick="saveGas()">保存して接続テスト</button>' +
         '<button class="btn sm" onclick="Integrations.resyncAll()">保留分を再同期</button>' +
-        '<button class="btn sm" onclick="Integrations.pullTasks()">ToDoの完了を取り込む</button></div></div>' +
+        '<button class="btn sm" onclick="Integrations.pullTasks()">ToDoの完了を取り込む</button>' +
+        '<button class="btn sm pri" onclick="syncNow()">⟳ いますぐ全体を同期</button></div>' +
+        '<div class="small muted" style="margin-top:8px">同期期間: ' + fmtDate(syncRange().from) + '〜' + fmtDate(syncRange().to) +
+        (DB.capacity && DB.capacity.lastSync ? ' ／ 最終同期 ' + DB.capacity.lastSync.slice(5, 16).replace('T', ' ') : '') +
+        ' <button class="btn sm" onclick="calRangeDialog()">期間を変える</button></div></div>' +
       '<div class="sec-h"><h3>外部サービス連携</h3></div>' + ic('google_calendar') + ic('google_tasks') + ic('evernote') +
       '<div class="card pad"><div class="sec-h"><h3>同期ログ</h3></div>' +
         (logs.length ? logs.map(l => '<div class="small" style="padding:4px 0;border-bottom:1px solid var(--line)">' +
@@ -2102,7 +2115,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.1.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.2.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2374,7 +2387,9 @@ function checkEvent(ev) {
 
 /* ---- キャパシティ ---- */
 function capacityOf(days) {
-  const evs = DB.calendar_events.filter(e => days.includes(dOf(e.start)) && !['deadline', 'reminder'].includes(e.type));
+  const cut = 12 * 60;   /* 終日・12時間超の予定は「枠」ではないので時間に数えない */
+  const evs = DB.calendar_events.filter(e => days.includes(dOf(e.start)) && !['deadline', 'reminder'].includes(e.type) &&
+    !e.allDay && durMin(e) > 0 && durMin(e) <= cut);
   const by = {}; let total = 0;
   evs.forEach(e => { const m = durMin(e); by[e.type] = (by[e.type] || 0) + m; total += m; });
   const cap = DB.capacity;
@@ -2382,7 +2397,9 @@ function capacityOf(days) {
   const wd = cap.workDays || [1, 2, 3, 4, 5];
   const avail = perDay * days.filter(d => wd.includes(new Date(d + 'T00:00:00').getDay())).length;
   const need = unplacedTasks().filter(t => days.includes(t.due)).length * 60;
-  return { by: by, total: total, avail: avail, rate: avail ? Math.round(total / avail * 100) : 0, free: Math.max(0, avail - total), need: need };
+  const allday = DB.calendar_events.filter(e => days.includes(dOf(e.start)) && (e.allDay || durMin(e) > cut)).length;
+  return { by: by, total: total, avail: avail, rate: avail ? Math.round(total / avail * 100) : 0,
+    free: Math.max(0, avail - total), need: need, allday: allday };
 }
 /* 期限はあるが、実行する時間が確保されていないタスク */
 function unplacedTasks() {
@@ -2400,7 +2417,9 @@ function viewCal() {
     '<button class="btn sm" onclick="calToday()">今日へ戻る</button>' +
     '<button class="btn sm" onclick="calMove(-1)">‹ 前</button>' +
     '<button class="btn sm" onclick="calMove(1)">次 ›</button>' +
+    '<button class="btn sm" id="syncBtn" onclick="syncNow()">⟳ Google同期</button>' +
     '<button class="btn pri sm" onclick="openEvent()">＋ 予定</button>');
+  setTimeout(autoSync, 600);
   const body = { year: calYear, quarter: calQuarter, month: calMonth, week: calWeek, day: calDay,
     unplaced: calUnplaced, conflicts: calConflicts, tidy: calTidy, creview: calReview }[tab] || calWeek;
   $('#view').innerHTML = calHero() +
@@ -2709,7 +2728,8 @@ function calWeek(cur) {
       '<div class="card kpi"><div class="lab">要注意</div><div class="num ' + (od.length ? 'red' : '') + '">' + od.length + '</div>' +
         '<div class="sub">期限超過 ／ 連絡待ち' + wait.length + ' ／ 未配置' + un.length + '</div></div>' +
     '</div>' +
-    (cap.rate > 85 ? '<div class="err">今週の稼働率が' + cap.rate + '%です。予定を詰めすぎると、突発対応で計画が崩れます。15〜20%は空けてください。</div>' : '') +
+    (cap.avail && cap.rate > 85 ? '<div class="err">今週の稼働率が' + cap.rate + '%です。予定を詰めすぎると、突発対応で計画が崩れます。' + DB.capacity.bufferPct + '%は空けてください。' +
+      (cap.allday ? '（終日・長時間の予定' + cap.allday + '件は時間に数えていません）' : '') + '</div>' : '') +
     '<div class="wk-wrap"><div class="wk-side">' +
       '<div class="small muted" style="margin-bottom:6px">未配置タスク（実行時間が未確保）</div>' +
       (un.length ? un.slice(0, 20).map(t => '<div class="wk-chip' + (DB.settings.pickTask === t.id ? ' pick' : '') + '" draggable="true" data-tid="' + t.id + '" onclick="pickTask(\'' + t.id + '\')">' +
@@ -3036,9 +3056,26 @@ function calRangeDialog() {
     '<div class="row"><div class="field"><label>始業</label><input id="cgWS" type="time" value="' + esc(c.start) + '"></div>' +
       '<div class="field"><label>終業</label><input id="cgWE" type="time" value="' + esc(c.end) + '"></div>' +
       '<div class="field"><label>バッファ（%）</label><input id="cgB" type="number" min="0" max="50" value="' + (c.bufferPct || 20) + '"></div></div>' +
-    '<div class="field"><label>稼働日</label><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+    '<div class="sec-h" style="margin-top:14px"><h3>Googleと同期する期間</h3></div>' +
+    '<div class="small muted" style="margin-bottom:8px">「⟳ Google同期」を押したときに、この範囲の予定を双方向で合わせます。</div>' +
+    '<div class="field"><label>指定のしかた</label><select id="cgMode" onchange="$(\'#cgFixed\').style.display=this.value===\'fixed\'?\'block\':\'none\';$(\'#cgRoll\').style.display=this.value===\'fixed\'?\'none\':\'block\'">' +
+      '<option value="rolling"' + (c.syncMode !== 'fixed' ? ' selected' : '') + '>今日を基準にする（おすすめ）</option>' +
+      '<option value="fixed"' + (c.syncMode === 'fixed' ? ' selected' : '') + '>日付で指定する（例：9月1日〜10月31日）</option></select></div>' +
+    '<div id="cgRoll" style="display:' + (c.syncMode === 'fixed' ? 'none' : 'block') + '"><div class="row">' +
+      '<div class="field"><label>過去（日）</label><input id="cgBack" type="number" min="0" max="90" value="' + (c.syncBack == null ? 14 : c.syncBack) + '"></div>' +
+      '<div class="field"><label>未来（日）</label><input id="cgAhead" type="number" min="1" max="150" value="' + (c.syncAhead == null ? 60 : c.syncAhead) + '"></div></div></div>' +
+    '<div id="cgFixed" style="display:' + (c.syncMode === 'fixed' ? 'block' : 'none') + '"><div class="row">' +
+      '<div class="field"><label>開始日</label><input id="cgFrom" type="date" value="' + esc(c.syncFrom || today()) + '"></div>' +
+      '<div class="field"><label>終了日</label><input id="cgTo" type="date" value="' + esc(c.syncTo || addDays(today(), 60)) + '"></div></div></div>' +
+    '<div class="field"><label>自動同期</label><select id="cgAuto">' +
+      '<option value="1"' + (c.autoSync ? ' selected' : '') + '>カレンダーを開いたとき（30分に1回まで）</option>' +
+      '<option value="0"' + (!c.autoSync ? ' selected' : '') + '>ボタンを押したときだけ</option></select></div>' +
+    (c.lastSync ? '<div class="small muted" style="margin-bottom:10px">最終同期: ' + c.lastSync.slice(0, 16).replace('T', ' ') + '</div>' : '') +
+    '<div class="sec-h" style="margin-top:14px"><h3>稼働日</h3></div>' +
+    '<div class="field"><div class="daypick">' +
       [['1', '月'], ['2', '火'], ['3', '水'], ['4', '木'], ['5', '金'], ['6', '土'], ['0', '日']].map(d =>
-        '<label class="chip" style="cursor:pointer"><input type="checkbox" class="cgW" value="' + d[0] + '"' + (wd.includes(+d[0]) ? ' checked' : '') + '> ' + d[1] + '</label>').join('') + '</div></div>',
+        '<label><input type="checkbox" class="cgW" value="' + d[0] + '"' + (wd.includes(+d[0]) ? ' checked' : '') + '><span>' + d[1] + '</span></label>').join('') +
+      '</div><div class="small muted" style="margin-top:6px">チェックした曜日だけを、稼働率と空き時間の計算対象にします。</div></div>',
     [{ label: '保存する', cls: 'pri', fn: () => {
       const st = +$('#cgS').value, en = +$('#cgE').value;
       if (en <= st + 3) return toast('終了は開始より4時間以上あとにしてください', 'err');
@@ -3046,7 +3083,13 @@ function calRangeDialog() {
       DB.capacity.start = $('#cgWS').value || '08:00'; DB.capacity.end = $('#cgWE').value || '19:00';
       DB.capacity.bufferPct = +$('#cgB').value || 20;
       DB.capacity.workDays = $$('.cgW').filter(x => x.checked).map(x => +x.value);
-      calInit(); Store.save(true); closeModal(); render(); toast('カレンダーの設定を保存しました');
+      DB.capacity.syncMode = $('#cgMode').value;
+      DB.capacity.syncBack = +$('#cgBack').value || 0; DB.capacity.syncAhead = +$('#cgAhead').value || 60;
+      DB.capacity.syncFrom = $('#cgFrom').value; DB.capacity.syncTo = $('#cgTo').value;
+      DB.capacity.autoSync = $('#cgAuto').value === '1';
+      const r = syncRange();
+      calInit(); Store.save(true); closeModal(); render();
+      toast('保存しました（同期期間 ' + fmtDate(r.from) + '〜' + fmtDate(r.to) + '）');
     } }]);
 }
 function importDialog() {
@@ -3080,14 +3123,14 @@ function imPreset(k) {
   if (k === 'quarter') { const fi = fiscalOf(t), ms = quarterMonths(fi.fy, fi.q); f = ms[0] + '-01'; to = monthDays(ms[2]).slice(-1)[0]; }
   $('#imF').value = f; $('#imT').value = to;
 }
-async function pullRange(from, to) {
-  if (!Gas.ready()) { closeModal(); toast('GASのURLが未設定です', 'err'); go('settings'); return; }
-  if (!from || !to || to < from) return toast('期間を正しく指定してください', 'err');
+async function pullRange(from, to, silent) {
+  if (!Gas.ready()) { closeModal(); toast('GASのURLが未設定です', 'err'); go('settings'); return { added: 0, updated: 0, err: 1 }; }
+  if (!from || !to || to < from) { toast('期間を正しく指定してください', 'err'); return { added: 0, updated: 0, err: 1 }; }
   const days = [];
-  for (let d = from; d <= to && days.length < 93; d = addDays(d, 1)) days.push(d);
+  for (let d = from; d <= to && days.length < 186; d = addDays(d, 1)) days.push(d);
   DB.capacity.importFrom = from; DB.capacity.importTo = to; Store.save();
   let added = 0, updated = 0, err = 0, i = 0;
-  const prog = () => { const el = $('#imProg'); if (el) el.innerHTML = '<div class="load">' + i + ' / ' + days.length + ' 日を確認中… 追加' + added + '件</div>'; };
+  const prog = () => { const el = $('#imProg'); if (el) el.innerHTML = '<div class="load">' + i + ' / ' + days.length + ' 日を確認中… 追加' + added + '件</div>'; if (silent && i % 20 === 0) toast('同期中… ' + i + '/' + days.length + '日'); };
   prog();
   for (const d of days) {
     i++;
@@ -3113,8 +3156,65 @@ async function pullRange(from, to) {
   }
   Integrations.mark('google_calendar');
   Integrations.log('google_calendar', err ? 'error' : 'sent', fmtDate(from) + '〜' + fmtDate(to) + ' を取り込み（追加' + added + '・更新' + updated + '・失敗' + err + '）', '');
-  Store.save(true); closeModal(); render();
-  toast(fmtDate(from) + '〜' + fmtDate(to) + '：追加' + added + '件・更新' + updated + '件' + (err ? '・失敗' + err + '日' : ''));
+  DB.capacity.lastSync = new Date().toISOString();
+  Store.save(true);
+  if (!silent) { closeModal(); render(); toast(fmtDate(from) + '〜' + fmtDate(to) + '：追加' + added + '件・更新' + updated + '件' + (err ? '・失敗' + err + '日' : '')); }
+  return { added: added, updated: updated, err: err };
+}
+
+/* ---- ワンボタン同期：取り込み・送信・ToDo完了反映をまとめて実行 ---- */
+function syncRange() {
+  const c = DB.capacity || {};
+  if (c.syncMode === 'fixed' && c.syncFrom && c.syncTo) return { from: c.syncFrom, to: c.syncTo };
+  const back = c.syncBack == null ? 14 : +c.syncBack, ahead = c.syncAhead == null ? 60 : +c.syncAhead;
+  return { from: addDays(today(), -back), to: addDays(today(), ahead) };
+}
+let _syncing = false;
+async function syncNow(silent) {
+  calInit();
+  if (_syncing) return;
+  if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); go('settings'); return; }
+  if (!Integrations.connected('google_calendar')) Integrations.mark('google_calendar');
+  _syncing = true;
+  const btn = $('#syncBtn'); if (btn) { btn.classList.add('spin'); btn.textContent = '同期中…'; }
+  const r = syncRange();
+  if (!silent) toast(fmtDate(r.from) + '〜' + fmtDate(r.to) + ' を同期しています…');
+  let pushed = 0, failed = 0;
+  try {
+    /* ① MIND FLOW → Google（未同期・保留・失敗分） */
+    const outbox = DB.calendar_events.filter(e => e.source !== 'google' && e.sync_to_google !== false &&
+      ETYPE[e.type] && ETYPE[e.type].sync && ['local', 'pending', 'error'].includes(e.sync_status) &&
+      dOf(e.start) >= r.from && dOf(e.start) <= r.to);
+    for (const e of outbox) { await syncEvent(e); (e.sync_status === 'synced' ? pushed++ : failed++); }
+    /* ② Google → MIND FLOW */
+    const pull = await pullRange(r.from, r.to, true);
+    /* ③ Google ToDo の完了を取り込む */
+    let doneN = 0;
+    if (Integrations.connected('google_tasks')) {
+      try {
+        const d = await Gas.call('listTasks', {});
+        (d.tasks || []).forEach(g => {
+          const t = DB.tasks.find(x => x.gtask_id === g.id);
+          if (t && g.status === 'completed' && t.gtd !== 'done') { setGtd(t, 'done'); doneN++; }
+        });
+      } catch (e) { failed++; }
+    }
+    DB.capacity.lastSync = new Date().toISOString();
+    Integrations.mark('google_calendar');
+    Integrations.log('google_calendar', failed ? 'error' : 'sent',
+      '同期 ' + fmtDate(r.from) + '〜' + fmtDate(r.to) + '（送信' + pushed + '・取込' + pull.added + '・更新' + pull.updated + '・ToDo完了' + doneN + (failed ? '・失敗' + failed : '') + '）', '');
+    Store.save(true); render();
+    toast('同期しました：送信' + pushed + '件／取込' + pull.added + '件／更新' + pull.updated + '件' + (doneN ? '／ToDo完了' + doneN + '件' : ''));
+  } catch (e) {
+    toast('同期に失敗: ' + e.message, 'err');
+  }
+  _syncing = false;
+}
+function autoSync() {
+  if (!DB.capacity || !DB.capacity.autoSync || !Gas.ready()) return;
+  const last = DB.capacity.lastSync ? new Date(DB.capacity.lastSync) : null;
+  if (last && (Date.now() - last.getTime()) < 30 * 60 * 1000) return;
+  syncNow(true);
 }
 async function pullGoogleRange() {
   if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); go('settings'); return; }
