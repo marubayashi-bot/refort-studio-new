@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="2.1.0">
+<meta name="app-version" content="3.1.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -276,6 +276,15 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249
 .chain b{color:#fff}
 .chain i{color:var(--gold)}
 
+/* ---------- AI GOAL TO ACTION ---------- */
+.stepbar{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto}
+.stepbar .st{flex:1;min-width:150px;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.9);border:1px solid var(--line);font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.stepbar .st b{width:22px;height:22px;border-radius:50%;background:#E7EBF2;color:var(--ink2);display:grid;place-items:center;font-size:11.5px;font-family:var(--font-en)}
+.stepbar .st.on{border-color:var(--gold);color:var(--ink);font-weight:700;box-shadow:0 0 0 2px rgba(201,168,76,.2)}
+.stepbar .st.on b{background:var(--gold);color:#12213C}
+.stepbar .st.done b{background:var(--green);color:#fff}
+@media (max-width:900px){.stepbar .st{min-width:44%;font-size:11.5px}}
+
 /* ---------- 戦略カレンダー ---------- */
 .cal-hero{padding:16px 18px}
 .ch-row{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-top:10px}
@@ -529,6 +538,8 @@ const Store = {
       calendar_events: [], external_links: [], integrations: [], sync_logs: [],
       activity_logs: [], notifications: [], reviews: [],
       strategy: { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] },
+      ai_inputs: [], ai_plans: [], goals: [], goal_metrics: [], opportunities: [],
+      pipeline_snapshots: [], ai_recommendations: [], plan_approvals: [], daily_reviews: [],
       capacity: { start: '08:00', end: '19:00', bufferPct: 20 },
       settings: { theme: 'light', role: 'admin' }
     };
@@ -793,18 +804,22 @@ const ICON = {
   board:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="4" width="4.5" height="12" rx="1.2"/><rect x="8.2" y="4" width="4.5" height="8" rx="1.2"/><rect x="13.9" y="4" width="3.6" height="10" rx="1.2"/></svg>',
   projects:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5a1.5 1.5 0 0 1 1.5-1.5H8l1.6 2h6A1.4 1.4 0 0 1 17 7.4V15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15z"/></svg>',
   review:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M16.2 10a6.2 6.2 0 1 1-1.9-4.4"/><path d="M16.6 3.4v3.2h-3.2"/></svg>',
+  ai:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2.6l1.7 4.2 4.2 1.7-4.2 1.7L10 14.4 8.3 10.2 4.1 8.5l4.2-1.7z"/><path d="M15.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg>',
+  pipe:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 16.5V9M8 16.5V5M13 16.5v-4M3 16.5h14"/><path d="M16.5 4.5v4h-4" stroke-linejoin="round"/><path d="M16.5 4.5 12 9"/></svg>',
   settings:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6h9M15 6h1.5M3.5 14h1.5M7.5 14h9"/><circle cx="13.6" cy="6" r="1.9"/><circle cx="6.4" cy="14" r="1.9"/></svg>'
 };
 const NAV = [
   { id: 'home', label: 'ホーム', icon: ICON.home },
+  { id: 'ai', label: 'AI GOAL TO ACTION', icon: ICON.ai },
   { id: 'cal', label: '戦略カレンダー', icon: ICON.cal },
+  { id: 'pipeline', label: '達成見込み', icon: ICON.pipe },
   { id: 'maps', label: 'マインドマップ', icon: ICON.maps },
   { id: 'board', label: 'GTDボード', icon: ICON.board },
   { id: 'projects', label: 'プロジェクト', icon: ICON.projects },
   { id: 'review', label: 'レビュー', icon: ICON.review },
   { id: 'settings', label: '連携・設定', icon: ICON.settings }
 ];
-const TABS = ['home', 'cal', 'maps', 'board'];
+const TABS = ['home', 'ai', 'cal', 'board'];
 let route = { name: 'home', arg: '' };
 
 function go(name, arg) { location.hash = '#/' + name + (arg ? '/' + arg : ''); }
@@ -815,8 +830,8 @@ function parseHash() {
 function render() {
   route = parseHash();
   renderNav(); renderTabs();
-  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (route.name === 'cal' ? ' wide' : '');
-  const map = { home: viewHome, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
+  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (['cal','pipeline','ai'].includes(route.name) ? ' wide' : '');
+  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
   (map[route.name] || viewHome)();
   if (route.name !== 'map') { window.scrollTo(0, 0); }
 }
@@ -833,7 +848,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v2.1.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.1.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -867,7 +882,7 @@ function viewHome() {
   const listCard = (title, arr, emptyMsg, more) => '<div class="card"><div class="pad" style="padding-bottom:6px"><div class="sec-h"><h3>' + title + '</h3><div class="sp"></div>' + (more || '') + '</div></div>' +
     (arr.length ? arr.slice(0, 5).map(li).join('') : '<div class="empty small">' + emptyMsg + '</div>') + '</div>';
 
-  $('#view').innerHTML = homeHero() +
+  $('#view').innerHTML = homeHero() + reviewBanner() +
     '<div class="grid g4 keep2" style="margin-bottom:14px">' +
       kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green') +
       kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green') +
@@ -1035,6 +1050,7 @@ function ruleSuggestions() {
   if (stall.length) out.push({ t: '14日以上動いていない案件が' + stall.length + '件', d: stall.slice(0, 3).map(p => p.title).join(' / '), a: 'プロジェクト一覧へ', fn: () => go('projects') });
   const wt = tasksIn('waiting').filter(t => (t.updated_at || '').slice(0, 10) < addDays(today(), -5));
   if (wt.length) out.push({ t: '5日以上返事が来ていない連絡待ちが' + wt.length + '件', d: '催促の一手を今日の行動に入れます。', a: '今日やるへ移す', fn: () => { wt.forEach(t => setGtd(t, 'today')); toast('今日やるへ移しました'); render(); } });
+  oppAlerts().forEach(x => out.push(x));
   if (!out.length) out.push({ t: '整理は行き届いています', d: '今日の最重要ゴールに集中してください。', a: '', fn: null });
   return out;
 }
@@ -2086,7 +2102,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v2.1.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.1.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2222,7 +2238,7 @@ const CAL_TABS = [
   { id: 'unplaced', l: '未配置' }, { id: 'conflicts', l: '重複・競合' },
   { id: 'tidy', l: '整理' }, { id: 'creview', l: 'レビュー' }
 ];
-const DAY_START = 4, DAY_END = 23, SLOT_H = 34;   // 4:00〜23:00
+let DAY_START = 4, DAY_END = 23; const SLOT_H = 34;   // 表示時間帯（設定で変更可）
 
 /* ---- 期・期間の計算 ---- */
 function fiscalOf(d) {                       // 'YYYY-MM-DD' → {fy, q, term}
@@ -2260,7 +2276,11 @@ function calInit() {
   if (!DB.strategy) DB.strategy = { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] };
   const s = DB.strategy;
   ['years', 'quarters', 'months', 'weeks', 'days', 'roadmap'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
-  if (!DB.capacity) DB.capacity = { start: '08:00', end: '19:00', bufferPct: 20 };
+  if (!DB.capacity) DB.capacity = {};
+  DB.capacity = Object.assign({ start: '08:00', end: '19:00', bufferPct: 20, dayStart: 4, dayEnd: 23,
+    workDays: [1, 2, 3, 4, 5], importFrom: '', importTo: '' }, DB.capacity);
+  DAY_START = Math.max(0, Math.min(12, +DB.capacity.dayStart || 4));
+  DAY_END = Math.max(DAY_START + 4, Math.min(24, +DB.capacity.dayEnd || 23));
   DB.calendar_events.forEach(evNorm);
 }
 function evNorm(e) {
@@ -2359,7 +2379,8 @@ function capacityOf(days) {
   evs.forEach(e => { const m = durMin(e); by[e.type] = (by[e.type] || 0) + m; total += m; });
   const cap = DB.capacity;
   const perDay = (+cap.end.slice(0, 2) * 60 + +cap.end.slice(3)) - (+cap.start.slice(0, 2) * 60 + +cap.start.slice(3));
-  const avail = perDay * days.filter(d => ![0, 6].includes(new Date(d + 'T00:00:00').getDay())).length;
+  const wd = cap.workDays || [1, 2, 3, 4, 5];
+  const avail = perDay * days.filter(d => wd.includes(new Date(d + 'T00:00:00').getDay())).length;
   const need = unplacedTasks().filter(t => days.includes(t.due)).length * 60;
   return { by: by, total: total, avail: avail, rate: avail ? Math.round(total / avail * 100) : 0, free: Math.max(0, avail - total), need: need };
 }
@@ -2434,7 +2455,8 @@ function calFilters() {
       LANES.map(l => '<option value="' + l + '"' + (fl.lane === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
     '<select onchange="calFilter(\'type\',this.value)"><option value="">すべての種別</option>' +
       Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (fl.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select>' +
-    '<button class="btn sm" onclick="pullGoogleRange()">Googleの予定を取り込む</button>' +
+    '<button class="btn sm" onclick="calRangeDialog()">期間・時間帯の設定</button>' +
+    '<button class="btn sm" onclick="importDialog()">Googleの予定を取り込む</button>' +
     '</div>';
 }
 function calFilter(k, v) { DB.settings.calFilter = Object.assign({}, DB.settings.calFilter, { [k]: v }); Store.save(); render(); }
@@ -2682,8 +2704,8 @@ function calWeek(cur) {
         '<div class="small muted" style="margin-top:8px">今週完了させる3つの成果</div>' +
         '<div style="white-space:pre-wrap" class="small">' + (w.three ? esc(w.three) : '未設定') + '</div>' +
         '<button class="btn sm" style="margin-top:8px" onclick="editWeek()">編集</button></div>' +
-      '<div class="card kpi"><div class="lab">稼働率</div><div class="num ' + (cap.rate > 85 ? 'red' : cap.rate > 60 ? 'orange' : 'green') + '">' + cap.rate + '%</div>' +
-        '<div class="sub">空き ' + Math.round(cap.free / 60) + 'h ／ 推奨バッファ ' + DB.capacity.bufferPct + '%</div></div>' +
+      '<div class="card kpi"><div class="lab">稼働率</div><div class="num ' + (cap.rate > 85 ? 'red' : cap.rate > 60 ? 'orange' : 'green') + '">' + (cap.avail ? cap.rate + '%' : '—') + '</div>' +
+        '<div class="sub">' + (cap.avail ? '空き ' + Math.round(cap.free / 60) + 'h ／ 推奨バッファ ' + DB.capacity.bufferPct + '%' : 'この週に稼働日がありません（期間設定で変更）') + '</div></div>' +
       '<div class="card kpi"><div class="lab">要注意</div><div class="num ' + (od.length ? 'red' : '') + '">' + od.length + '</div>' +
         '<div class="sub">期限超過 ／ 連絡待ち' + wait.length + ' ／ 未配置' + un.length + '</div></div>' +
     '</div>' +
@@ -2754,7 +2776,8 @@ function calDay(cur) {
         '<div class="sub">' + (next ? esc(next.title.slice(0, 18)) + '（あと' + Math.max(0, minOf(next.start) - (now.getHours() * 60 + now.getMinutes())) + '分）' : '予定なし') + '</div></div>' +
       '<div class="card kpi"><div class="lab">今日やる</div><div class="num">' + undone.length + '</div><div class="sub">完了 ' + td.filter(t => t.gtd === 'done').length + '件</div></div>' +
       '<div class="card kpi"><div class="lab">期限超過</div><div class="num ' + (od.length ? 'red' : 'green') + '">' + od.length + '</div><div class="sub">連絡待ち ' + wait.length + '</div></div>' +
-      '<div class="card kpi"><div class="lab">空き時間</div><div class="num ' + (cap.rate > 85 ? 'red' : 'green') + '">' + Math.round(cap.free / 60) + '<span style="font-size:13px">h</span></div><div class="sub">稼働率 ' + cap.rate + '%</div></div>' +
+      '<div class="card kpi"><div class="lab">空き時間</div><div class="num ' + (cap.rate > 85 ? 'red' : 'green') + '">' + (cap.avail ? Math.round(cap.free / 60) : '—') + '<span style="font-size:13px">h</span></div>' +
+        '<div class="sub">' + (cap.avail ? '稼働率 ' + cap.rate + '%' : '稼働日外（期間設定で変更）') + '</div></div>' +
     '</div>' +
     '<div class="grid g2">' +
       '<div class="card pad"><div class="sec-h"><h3>今日のタイムライン</h3><div class="sp"></div><button class="btn sm" onclick="openEvent(\'\',\'' + d + '\',9)">＋ 予定</button></div>' +
@@ -2999,6 +3022,100 @@ async function syncEvent(e) {
     Store.save(true); toast('同期に失敗: ' + err.message, 'err'); render();
   }
 }
+function calRangeDialog() {
+  calInit();
+  const c = DB.capacity;
+  const wd = c.workDays || [1, 2, 3, 4, 5];
+  const hours = n => { let o = ''; for (let h = 0; h <= 24; h++) o += '<option value="' + h + '"' + (h === n ? ' selected' : '') + '>' + h + ':00</option>'; return o; };
+  openModal('カレンダーの期間・時間帯',
+    '<div class="sec-h"><h3>タイムラインの表示時間帯</h3></div>' +
+    '<div class="small muted" style="margin-bottom:8px">週間・日間画面で表示する時間の範囲です。早朝や深夜の予定が切れる場合は広げてください。</div>' +
+    '<div class="row"><div class="field"><label>開始</label><select id="cgS">' + hours(+c.dayStart) + '</select></div>' +
+      '<div class="field"><label>終了</label><select id="cgE">' + hours(+c.dayEnd) + '</select></div></div>' +
+    '<div class="sec-h" style="margin-top:14px"><h3>稼働時間（稼働率・空き時間の計算に使用）</h3></div>' +
+    '<div class="row"><div class="field"><label>始業</label><input id="cgWS" type="time" value="' + esc(c.start) + '"></div>' +
+      '<div class="field"><label>終業</label><input id="cgWE" type="time" value="' + esc(c.end) + '"></div>' +
+      '<div class="field"><label>バッファ（%）</label><input id="cgB" type="number" min="0" max="50" value="' + (c.bufferPct || 20) + '"></div></div>' +
+    '<div class="field"><label>稼働日</label><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+      [['1', '月'], ['2', '火'], ['3', '水'], ['4', '木'], ['5', '金'], ['6', '土'], ['0', '日']].map(d =>
+        '<label class="chip" style="cursor:pointer"><input type="checkbox" class="cgW" value="' + d[0] + '"' + (wd.includes(+d[0]) ? ' checked' : '') + '> ' + d[1] + '</label>').join('') + '</div></div>',
+    [{ label: '保存する', cls: 'pri', fn: () => {
+      const st = +$('#cgS').value, en = +$('#cgE').value;
+      if (en <= st + 3) return toast('終了は開始より4時間以上あとにしてください', 'err');
+      DB.capacity.dayStart = st; DB.capacity.dayEnd = en;
+      DB.capacity.start = $('#cgWS').value || '08:00'; DB.capacity.end = $('#cgWE').value || '19:00';
+      DB.capacity.bufferPct = +$('#cgB').value || 20;
+      DB.capacity.workDays = $$('.cgW').filter(x => x.checked).map(x => +x.value);
+      calInit(); Store.save(true); closeModal(); render(); toast('カレンダーの設定を保存しました');
+    } }]);
+}
+function importDialog() {
+  calInit();
+  const tab = DB.settings.calTab || 'week', c = DB.settings.calCur || today();
+  let from = c, to = c;
+  if (tab === 'week') { from = mondayOf(c); to = addDays(from, 6); }
+  else if (tab === 'month') { const d = monthDays(c.slice(0, 7)); from = d[0]; to = d[d.length - 1]; }
+  else if (tab === 'quarter') { const f = fiscalOf(c), ms = quarterMonths(f.fy, f.q); from = ms[0] + '-01'; to = monthDays(ms[2]).slice(-1)[0]; }
+  else if (tab === 'year') { const f = fiscalOf(c), ms = fyMonths(f.fy); from = ms[0] + '-01'; to = monthDays(ms[11]).slice(-1)[0]; }
+  from = DB.capacity.importFrom || from; to = DB.capacity.importTo || to;
+  openModal('Googleの予定を取り込む',
+    '<div class="small muted" style="margin-bottom:10px">いつからいつまでの予定を取り込むか指定します。1回に取り込めるのは最大93日です。</div>' +
+    '<div class="row"><div class="field"><label>開始日</label><input id="imF" type="date" value="' + from + '"></div>' +
+      '<div class="field"><label>終了日</label><input id="imT" type="date" value="' + to + '"></div></div>' +
+    '<div class="field"><label>よく使う範囲</label><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn sm" onclick="imPreset(\'week\')">今週</button>' +
+      '<button class="btn sm" onclick="imPreset(\'month\')">今月</button>' +
+      '<button class="btn sm" onclick="imPreset(\'next30\')">今日から30日</button>' +
+      '<button class="btn sm" onclick="imPreset(\'around\')">前後1か月</button>' +
+      '<button class="btn sm" onclick="imPreset(\'quarter\')">今四半期</button></div></div>' +
+    '<div id="imProg"></div>',
+    [{ label: 'この期間を取り込む', cls: 'pri', fn: () => pullRange($('#imF').value, $('#imT').value) }]);
+}
+function imPreset(k) {
+  const t = today(); let f = t, to = t;
+  if (k === 'week') { f = mondayOf(t); to = addDays(f, 6); }
+  if (k === 'month') { const d = monthDays(t.slice(0, 7)); f = d[0]; to = d[d.length - 1]; }
+  if (k === 'next30') { f = t; to = addDays(t, 30); }
+  if (k === 'around') { f = addDays(t, -30); to = addDays(t, 30); }
+  if (k === 'quarter') { const fi = fiscalOf(t), ms = quarterMonths(fi.fy, fi.q); f = ms[0] + '-01'; to = monthDays(ms[2]).slice(-1)[0]; }
+  $('#imF').value = f; $('#imT').value = to;
+}
+async function pullRange(from, to) {
+  if (!Gas.ready()) { closeModal(); toast('GASのURLが未設定です', 'err'); go('settings'); return; }
+  if (!from || !to || to < from) return toast('期間を正しく指定してください', 'err');
+  const days = [];
+  for (let d = from; d <= to && days.length < 93; d = addDays(d, 1)) days.push(d);
+  DB.capacity.importFrom = from; DB.capacity.importTo = to; Store.save();
+  let added = 0, updated = 0, err = 0, i = 0;
+  const prog = () => { const el = $('#imProg'); if (el) el.innerHTML = '<div class="load">' + i + ' / ' + days.length + ' 日を確認中… 追加' + added + '件</div>'; };
+  prog();
+  for (const d of days) {
+    i++;
+    try {
+      const r = await Gas.call('listEvents', { date: d });
+      (r.events || []).forEach(g => {
+        const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
+        if (ex) {
+          if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title) {
+            if (ex.source === 'google') { ex.title = g.title; ex.start = g.start; ex.end = g.end; ex.location = g.location || ''; }
+            else { ex.sync_status = 'gchanged'; ex.google_snapshot = g; }
+            updated++;
+          }
+          return;
+        }
+        DB.calendar_events.unshift(evNorm({ id: uid(), title: g.title, start: g.start, end: g.end, location: g.location || '',
+          type: 'google', source: 'google', google_event_id: g.id, sync_status: 'synced', sync: 'synced', owner: '',
+          purpose: '', allDay: !!g.allDay, last_synced_at: new Date().toISOString() }));
+        added++;
+      });
+    } catch (e) { err++; }
+    if (i % 5 === 0) { prog(); Store.save(); }
+  }
+  Integrations.mark('google_calendar');
+  Integrations.log('google_calendar', err ? 'error' : 'sent', fmtDate(from) + '〜' + fmtDate(to) + ' を取り込み（追加' + added + '・更新' + updated + '・失敗' + err + '）', '');
+  Store.save(true); closeModal(); render();
+  toast(fmtDate(from) + '〜' + fmtDate(to) + '：追加' + added + '件・更新' + updated + '件' + (err ? '・失敗' + err + '日' : ''));
+}
 async function pullGoogleRange() {
   if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); go('settings'); return; }
   const tab = DB.settings.calTab || 'week', c = DB.settings.calCur;
@@ -3148,6 +3265,743 @@ function calReview() {
     '<div class="sec-h" style="margin-top:14px"><h3>来週へ</h3></div>' +
     '<div class="small muted">週間画面で来週のゴールと3つの成果を先に決めてから、タスクを時間枠へ置いてください。</div>' +
     '<button class="btn pri sm" style="margin-top:10px" onclick="jumpTo(\'week\',\'' + addDays(mon, 7) + '\')">来週の計画に進む</button></div></div>';
+}
+
+/* =========================================================================
+   AI GOAL TO ACTION — 目標を、実行可能なスケジュールへ。
+   投入 → 解析 → 編集 → 承認。承認するまで一切登録しない。
+   ========================================================================= */
+const AI_SAMPLE = '今週、蓄電池4億円を受注する。丸林信宏2億円、丸林綾子2億円。各自6億円以上の有効案件、決裁者商談5件以上、最終提案2件以上を設定する。月曜日に案件を抽出し、A・B・Cへ分類。火曜日に決裁者商談、水曜日に最終条件と収支シミュレーションを提示、木曜日に契約意思を確認して申込書・契約書を回収、金曜日に契約・入金を確定する。成果判定は申込書受領、契約書締結、契約金入金のいずれかとする。';
+const RANK = { A: { l: 'A：今週契約できる', p: 80 }, B: { l: 'B：条件を解決すれば今週', p: 45 }, C: { l: 'C：来週以降の見込み', p: 15 } };
+const PHASES = ['棚卸し', '決裁者商談', '最終提案', '意思確認', '契約', '入金'];
+
+function aiInit() {
+  ['ai_inputs', 'ai_plans', 'goals', 'goal_metrics', 'opportunities', 'pipeline_snapshots', 'ai_recommendations'].forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
+}
+function wdDate(w) {                       // 「月曜日」→ 直近の未来のその曜日（過去日にしない）
+  const i = ['月', '火', '水', '木', '金', '土', '日'].indexOf(w);
+  if (i < 0) return today();
+  let d = addDays(mondayOf(today()), i);
+  if (d < today()) d = addDays(d, 7);
+  return d;
+}
+function relDate(t) {                      // 相対表現 → 具体日付
+  if (/今日|本日/.test(t)) return today();
+  if (/明日/.test(t)) return addDays(today(), 1);
+  if (/明後日/.test(t)) return addDays(today(), 2);
+  if (/今週末|週末/.test(t)) { const d = addDays(mondayOf(today()), 5); return d < today() ? addDays(d, 7) : d; }
+  if (/今週/.test(t)) { const d = addDays(mondayOf(today()), 4); return d < today() ? addDays(d, 7) : d; }
+  if (/来週/.test(t)) return addDays(mondayOf(today()), 11);
+  if (/今月末|月末/.test(t)) return monthDays(today().slice(0, 7)).slice(-1)[0];
+  const m = t.match(/(\d{1,2})月(\d{1,2})日/);
+  if (m) return today().slice(0, 4) + '-' + String(+m[1]).padStart(2, '0') + '-' + String(+m[2]).padStart(2, '0');
+  const w = t.match(/([月火水木金土日])曜/);
+  if (w) return wdDate(w[1]);
+  return '';
+}
+
+/* ---- ルールベース解析（AI未接続でも必ず動く） ---- */
+function rulePlan(text) {
+  const t = text.replace(/\s+/g, ' ');
+  const goalAmt = (t.match(/([\d.]+)\s*億円?を?\s*(?:受注|売上|達成)/) || [])[1];
+  const due = relDate(t) || addDays(today(), 7);
+  const owners = [];
+  const NG = /蓄電池|太陽光|セカンダリ|リフォート|ReFort|開発|各自|合計|目標|売上|粗利|受注|利益|案件|有効|以上|今週|来週|今月|今期|全社|会社/;
+  const re = /([一-龥]{2,5}|[ァ-ヶ]{2,6})\s*(?:が|は)?\s*([\d.]+)\s*億/g; let m;
+  while ((m = re.exec(t))) {
+    const nm = m[1];
+    if (NG.test(nm)) continue;
+    if (owners.some(o => o.name === nm)) continue;
+    owners.push({ name: nm, amount: +m[2] });
+  }
+  const needPipe = +(t.match(/各自\s*([\d.]+)\s*億円?以上の有効案件/) || [])[1] || 0;
+  const meet = +(t.match(/決裁者商談\s*([\d.]+)\s*件/) || [])[1] || 0;
+  const prop = +(t.match(/最終提案\s*([\d.]+)\s*件/) || [])[1] || 0;
+  const judge = [];
+  ['申込書受領', '契約書締結', '契約金入金', '納品完了', '決裁者合意', '資料提出'].forEach(j => { if (t.includes(j.slice(0, 3))) judge.push(j); });
+  const theme = (t.match(/(蓄電池|ReFort|セカンダリー|太陽光|開発|採用)/) || ['案件'])[0];
+
+  const plan = blankPlan(text);
+  plan.goal = { title: theme + (goalAmt ? goalAmt + '億円受注' : '目標達成'), amount: +goalAmt || 0, unit: '億円',
+    due: due, owner: owners.length ? owners[0].name : '', judge: judge.length ? judge : ['申込書受領', '契約書締結', '契約金入金'],
+    constraints: [], assumed: goalAmt ? [] : ['amount'] };
+  plan.owners = owners.length ? owners : [{ name: (DB.user || {}).name || '自分', amount: +goalAmt || 0 }];
+
+  plan.kpis = [];
+  plan.owners.forEach(o => {
+    plan.kpis.push({ name: o.name + '：受注目標', target: o.amount + '億円', basis: '目標' + (plan.goal.amount || '—') + '億円を担当者数で配分', owner: o.name });
+    if (needPipe) plan.kpis.push({ name: o.name + '：有効案件（必要パイプライン）', target: needPipe + '億円以上', basis: '受注' + o.amount + '億 ÷ 想定成約率約33% ＝ ' + needPipe + '億', owner: o.name });
+    if (meet) plan.kpis.push({ name: o.name + '：決裁者商談', target: meet + '件', basis: '最終提案' + (prop || 2) + '件に必要な母数', owner: o.name });
+    if (prop) plan.kpis.push({ name: o.name + '：最終提案', target: prop + '件', basis: '受注' + o.amount + '億 ÷ 平均単価想定', owner: o.name });
+  });
+  plan.pipeline = plan.owners.map(o => ({ owner: o.name, need: needPipe || Math.round(o.amount * 3 * 10) / 10, have: 0, note: '現在の有効案件金額を入力してください' }));
+
+  plan.projects = plan.owners.map((o, i) => ({ tmp: 'p' + i, title: o.name + ' ' + theme + o.amount + '億円受注', owner: o.name,
+    amount: o.amount, done_condition: (judge[0] || '申込書受領') + '・' + (judge[1] || '契約書締結') + 'のいずれかを' + fmtDate(due) + 'までに満たす',
+    start: today(), due: due, risks: '有効案件の不足／決裁者に会えない', backup: 'バックアップ案件を' + Math.max(1, Math.round(o.amount)) + '件確保する' }));
+
+  const weekPlan = [
+    ['月', '案件一覧を抽出し、A・B・Cへ分類する', 120, 1, '分類済みリストと商談日程が確定している'],
+    ['月', '今週の商談日程を確定する', 60, 1, '全A案件の日程が入っている'],
+    ['火', '決裁者商談を実施し、障害を特定する', 180, 1, '決裁者の合意条件が明確になっている'],
+    ['水', '最終条件と収支シミュレーションを提示する', 120, 1, '提案書と収支表を送付済み'],
+    ['水', '契約書案を送付する', 60, 2, '契約書案の送付が完了している'],
+    ['木', '契約意思を確認し、申込書・契約書を回収する', 180, 1, '申込書または契約書を受領している'],
+    ['金', '契約・入金を確定する', 120, 1, '入金予定日が確定している']
+  ];
+  plan.todos = [];
+  plan.owners.forEach((o, oi) => weekPlan.forEach((r, i) => {
+    const d = wdDate(r[0]);
+    plan.todos.push({ tmp: 't' + oi + '_' + i, title: r[1], owner: o.name, due: d, minutes: r[2], priority: r[3],
+      project: 'p' + oi, opp: '', done_condition: r[4], depends: i ? 't' + oi + '_' + (i - 1) : '',
+      to_gtasks: true, to_cal: r[2] >= 60, assumed: ['minutes'] });
+  }));
+  plan.events = [];
+  plan.todos.filter(t => t.to_cal).forEach((t, i) => {
+    plan.events.push({ tmp: 'e' + i, title: t.title, date: t.due, start: '', minutes: t.minutes,
+      type: /商談|決裁者/.test(t.title) ? 'sales' : 'focus', todo: t.tmp, owner: t.owner, assumed: ['start'] });
+  });
+  plan.events.push({ tmp: 'dl', title: plan.goal.title + 'の期限', date: due, start: '17:00', minutes: 15, type: 'deadline', todo: '', owner: plan.goal.owner, assumed: [] });
+  plan.reviews = ['毎朝9:00 デイリーレビュー（残額・本日の決裁者商談・獲得する合意）', '毎夕18:00 実績入力（申込・契約・入金／止まっている案件）'];
+  plan.opps = [];
+  plan.owners.forEach((o, oi) => {
+    for (let i = 1; i <= 2; i++) plan.opps.push({ tmp: 'o' + oi + '_' + i, name: '（要入力）' + o.name + ' ' + theme + '案件' + i, owner: o.name,
+      amount: Math.round(o.amount / 2 * 10) / 10, rank: i === 1 ? 'A' : 'B', prob: i === 1 ? 80 : 45, phase: '棚卸し',
+      decider: '', next_action: '決裁者との商談日を確定する', next_meeting: wdDate('火'), contract_date: wdDate('金'), payment_date: '',
+      count_to: o.name, joint: false, assumed: ['name', 'amount', 'decider'] });
+  });
+  plan.missing = ['案件名と金額（案件は仮で作成しています）', '決裁者名', '入金予定日', '各担当者の稼働可能時間', '既存商談の日時'];
+  plan.assumptions = ['所要時間は標準値で仮設定', '実行時刻は空き時間から自動配置', '有効案件の必要額は成約率33%で逆算', '相対表現「今週」は' + fmtDate(due) + 'として解釈'];
+  return plan;
+}
+function blankPlan(text) {
+  return { id: uid(), created_at: new Date().toISOString(), input_text: text, source: 'text', status: 'draft',
+    version: 1, parent_id: '', engine: 'rule',
+    goal: {}, owners: [], kpis: [], pipeline: [], projects: [], opps: [], todos: [], events: [],
+    missing: [], assumptions: [], reviews: [], selected: {}, approved_at: '', result: null };
+}
+/* ---- AI解析（失敗時はルールベースへフォールバック） ---- */
+async function aiAnalyze(text) {
+  const base = rulePlan(text);
+  try {
+    const d = await AI.json(
+      '次の指示文を読み、実行計画をJSONで作ってください。\n' +
+      '【指示文】' + text.slice(0, 4000) + '\n' +
+      '【今日】' + today() + '（' + wdName(today()) + '曜）。相対表現は具体的な日付に直すこと。\n' +
+      '【形式】{"goal":{"title":"","amount":0,"unit":"億円","due":"YYYY-MM-DD","owner":"","judge":["申込書受領"]},' +
+      '"owners":[{"name":"","amount":0}],' +
+      '"kpis":[{"name":"","target":"","basis":"計算根拠","owner":""}],' +
+      '"pipeline":[{"owner":"","need":0,"note":""}],' +
+      '"projects":[{"tmp":"p0","title":"","owner":"","amount":0,"done_condition":"","start":"","due":"","risks":"","backup":""}],' +
+      '"todos":[{"tmp":"t0","title":"動詞で終わる具体的行動","owner":"","due":"YYYY-MM-DD","minutes":60,"priority":1,"project":"p0","done_condition":"","depends":"","to_gtasks":true,"to_cal":true}],' +
+      '"missing":["不足している情報"],"assumptions":["仮設定した内容"]}\n' +
+      '「頑張る」「進める」は成果にしないこと。成果は申込書受領・契約書締結・入金など確認できる状態にすること。',
+      'あなたは再生可能エネルギー企業アースコムの経営参謀です。実行できる粒度まで具体化し、数値の根拠を必ず書きます。');
+    if (d && d.goal && Array.isArray(d.todos) && d.todos.length) {
+      const p = blankPlan(text); p.engine = 'ai';
+      p.goal = Object.assign({ judge: [], constraints: [] }, d.goal);
+      p.owners = d.owners || base.owners; p.kpis = d.kpis || []; p.pipeline = d.pipeline || base.pipeline;
+      p.projects = (d.projects || base.projects).map((x, i) => Object.assign({ tmp: 'p' + i }, x));
+      p.todos = d.todos.map((x, i) => Object.assign({ tmp: 't' + i, minutes: 60, priority: 2, to_gtasks: true, to_cal: true, assumed: [] }, x));
+      p.opps = base.opps; p.reviews = base.reviews;
+      p.events = p.todos.filter(t => t.to_cal).map((t, i) => ({ tmp: 'e' + i, title: t.title, date: t.due || today(), start: '',
+        minutes: t.minutes || 60, type: /商談|決裁者|面談/.test(t.title) ? 'sales' : 'focus', todo: t.tmp, owner: t.owner, assumed: ['start'] }));
+      if (p.goal.due) p.events.push({ tmp: 'dl', title: p.goal.title + 'の期限', date: p.goal.due, start: '17:00', minutes: 15, type: 'deadline', todo: '', owner: p.goal.owner, assumed: [] });
+      p.missing = d.missing || base.missing; p.assumptions = (d.assumptions || []).concat(base.assumptions.slice(-1));
+      return p;
+    }
+  } catch (e) { base.engine = 'rule'; base.ai_error = e.message; }
+  return base;
+}
+/* ---- 空き時間へ配置 ---- */
+function placeEvents(plan) {
+  plan.events.forEach(ev => {
+    if (ev.type === 'deadline') return;
+    if (ev.start) return;
+    const d = ev.date || today();
+    const dur = ev.minutes || 60;
+    let put = '';
+    for (let h = 9; h <= 17 && !put; h++) {
+      for (const mm of [0, 30]) {
+        const s = h * 60 + mm, e = s + dur;
+        if (e > 18 * 60) continue;
+        const busy = evOfDay(d).some(o => !['deadline', 'reminder'].includes(o.type) && s < minOf(o.end) && e > minOf(o.start));
+        const taken = plan.events.some(o => o !== ev && o.date === d && o.start && (s < minOf(d + 'T' + o.start) + (o.minutes || 60) && e > minOf(d + 'T' + o.start)));
+        if (!busy && !taken) { put = String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); break; }
+      }
+    }
+    ev.start = put || '09:00';
+    if (!put) ev.warn = 'その日に空きがありません（要調整）';
+  });
+  return plan;
+}
+/* ---- 承認前チェック ---- */
+function planCheck(plan) {
+  const dups = [], confs = [];
+  plan.todos.forEach(t => {
+    const hit = DB.tasks.find(x => x.gtd !== 'done' && normTitle(x.title) === normTitle(t.title) && (x.owner || '') === (t.owner || ''));
+    if (hit) dups.push({ kind: 'ToDo', title: t.title, why: '同じ行動が既に登録されています' });
+  });
+  plan.events.forEach(ev => {
+    const start = ev.date + 'T' + (ev.start || '09:00');
+    const cand = { id: 'tmp', title: ev.title, start: start, end: addMin(start, ev.minutes || 60), type: ev.type, location: '', guests: '' };
+    const r = checkEvent(cand);
+    r.dups.forEach(x => dups.push({ kind: '予定', title: ev.title, why: x.why + '（' + x.ev.title + '）' }));
+    r.conf.forEach(x => confs.push({ kind: '予定', title: ev.title, why: x.why + '：' + x.ev.title }));
+  });
+  const owners = {};
+  plan.opps.forEach(o => { const k = normTitle(o.name); owners[k] = (owners[k] || 0) + 1; });
+  Object.keys(owners).forEach(k => { if (owners[k] > 1) dups.push({ kind: '案件', title: k, why: '同じ案件名が複数あり、二重計上のおそれがあります' }); });
+  const days = Array.from(new Set(plan.events.map(e => e.date)));
+  const need = plan.todos.reduce((a, t) => a + (t.minutes || 0), 0);
+  const cap = capacityOf(days.length ? days : [today()]);
+  return { dups: dups, confs: confs, needH: Math.round(need / 6) / 10, freeH: Math.round(cap.free / 6) / 10, rate: cap.rate };
+}
+
+/* ---- 画面：AI GOAL TO ACTION ---- */
+let PLAN = null;
+function viewAI() {
+  aiInit(); calInit();
+  const step = DB.settings.aiStep || 1;
+  setTop('AI GOAL TO ACTION',
+    '<button class="btn sm" onclick="aiList()">計画一覧</button>' +
+    (PLAN ? '<button class="btn sm" onclick="aiReset()">新しく作る</button>' : ''));
+  const steps = ['資料を投入', 'AI解析結果を確認', 'アクション・予定を編集', '承認して登録'];
+  $('#view').innerHTML =
+    '<div class="glass hero" style="padding:18px 20px;margin-bottom:14px"><div class="tag">AI GOAL TO ACTION</div>' +
+      '<h2 style="font-size:19px">目標を、実行可能なスケジュールへ。</h2>' +
+      '<div class="lead">目標・KPI・案件・ToDo・実行時間まで、AIが計画を作ります。承認するまで登録はしません。</div></div>' +
+    '<div class="stepbar">' + steps.map((s, i) => '<div class="st' + (i + 1 === step ? ' on' : '') + (i + 1 < step ? ' done' : '') + '"><b>' + (i + 1) + '</b>' + s + '</div>').join('') + '</div>' +
+    '<div id="aiBody"></div>';
+  $('#aiBody').innerHTML = [aiStep1, aiStep2, aiStep3, aiStep4][step - 1]();
+}
+function aiReset() { PLAN = null; DB.settings.aiStep = 1; Store.save(); render(); }
+function aiSetStep(n) { DB.settings.aiStep = n; Store.save(); render(); }
+function aiStep1() {
+  return '<div class="card pad">' +
+    '<div class="sec-h"><h3>目標や指示を投入する</h3><div class="sp"></div>' +
+      '<button class="btn sm" onclick="aiSample()">サンプルを入れる</button></div>' +
+    '<div class="field"><label>文章（貼り付け・入力）</label>' +
+      '<textarea id="aiIn" style="min-height:170px" placeholder="例）今週、蓄電池4億円を受注する。丸林信宏2億円、丸林綾子2億円。…">' + esc(DB.settings.aiText || '') + '</textarea></div>' +
+    '<div class="grid g3" style="margin-bottom:12px">' +
+      '<button class="btn" onclick="aiFile()">📄 ファイルを読み込む</button>' +
+      '<button class="btn" onclick="aiVoice()">🎙 音声で入力</button>' +
+      '<button class="btn" onclick="aiRef()">🔗 参考URL・既存データ</button>' +
+    '</div>' +
+    (DB.settings.aiRefs ? '<div class="small muted" style="margin-bottom:10px">参照: ' + esc(DB.settings.aiRefs) + '</div>' : '') +
+    '<button class="btn pri" style="width:100%;padding:14px;font-size:15px" onclick="aiRun()">アクションプランを作成</button>' +
+    '<div class="small muted" style="margin-top:10px">テキスト・Markdown・CSV・字幕（vtt/srt）はそのまま読み込めます。PDF・画像・音声は、文字起こしかテキスト化した内容を貼り付けてください。</div></div>' +
+    (DB.ai_plans.length ? '<div class="card pad" style="margin-top:14px"><div class="sec-h"><h3>最近の計画</h3></div>' +
+      DB.ai_plans.slice(0, 5).map(p => '<div class="list-item"><div class="t"><b>' + esc((p.goal || {}).title || '無題') + '</b>' +
+        '<div class="meta">' + p.created_at.slice(5, 16).replace('T', ' ') + ' ／ ' + (p.status === 'approved' ? '<span class="chip green">承認済み</span>' : '<span class="chip orange">承認待ち</span>') +
+        ' ／ ToDo' + (p.todos || []).length + '件</div></div><button class="btn sm" onclick="aiOpen(\'' + p.id + '\')">開く</button></div>').join('') + '</div>' : '');
+}
+function aiSample() { DB.settings.aiText = AI_SAMPLE; Store.save(); render(); }
+function aiFile() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.txt,.md,.csv,.vtt,.srt,.json,.log';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { DB.settings.aiText = ((DB.settings.aiText || '') + '\n' + String(r.result)).trim().slice(0, 20000); Store.save(true); render(); toast(f.name + 'を読み込みました'); };
+    r.readAsText(f, 'utf-8');
+  };
+  inp.click();
+}
+function aiVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('この端末は音声入力に未対応です', 'err');
+  openModal('音声で入力', '<div class="load" id="vS">🎙 話してください…</div><div class="field"><textarea id="vT" style="min-height:120px"></textarea></div>',
+    [{ label: '本文に追加', cls: 'pri', fn: () => { DB.settings.aiText = ((DB.settings.aiText || '') + '\n' + $('#vT').value).trim(); Store.save(true); closeModal(); render(); } }]);
+  try { const r = new SR(); r.lang = 'ja-JP'; r.interimResults = true; r.continuous = true;
+    r.onresult = e => { let s = ''; for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript; const el = $('#vT'); if (el) el.value = s; };
+    r.start(); window._sr = r;
+  } catch (e) { toast('開始できませんでした', 'err'); }
+}
+function aiRef() {
+  openModal('参考データ', '<div class="field"><label>EvernoteノートURL / Google DriveのURL</label><input id="rfU" placeholder="https://"></div>' +
+    '<div class="field"><label>関連する既存マップ</label><select id="rfM"><option value="">なし</option>' + DB.maps.map(m => '<option>' + esc(m.title) + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label>関連する既存プロジェクト</label><select id="rfP"><option value="">なし</option>' + DB.projects.map(p => '<option>' + esc(p.title) + '</option>').join('') + '</select></div>',
+    [{ label: '参照に追加', cls: 'pri', fn: () => {
+      DB.settings.aiRefs = [$('#rfU').value, $('#rfM').value, $('#rfP').value].filter(Boolean).join(' / ');
+      Store.save(true); closeModal(); render();
+    } }]);
+}
+async function aiRun() {
+  const text = ($('#aiIn') ? $('#aiIn').value : DB.settings.aiText || '').trim();
+  if (text.length < 10) return toast('目標や指示の内容を入力してください', 'err');
+  DB.settings.aiText = text; Store.save();
+  openModal('AIが計画を作成しています', '<div class="load">目標・KPI・案件・行動・実行時間に分解中…<br>（AI未接続のときは内蔵の解析で作成します）</div>', []);
+  PLAN = placeEvents(await aiAnalyze(text));
+  PLAN.todos.forEach(t => PLAN.selected[t.tmp] = true);
+  PLAN.events.forEach(e => PLAN.selected[e.tmp] = true);
+  PLAN.projects.forEach(p => PLAN.selected[p.tmp] = true);
+  PLAN.opps.forEach(o => PLAN.selected[o.tmp] = false);
+  DB.ai_inputs.unshift({ id: uid(), at: new Date().toISOString(), text: text.slice(0, 4000), refs: DB.settings.aiRefs || '' });
+  DB.ai_plans.unshift(PLAN); Store.save(true);
+  closeModal(); aiSetStep(2);
+}
+function aiOpen(id) { PLAN = DB.ai_plans.find(p => p.id === id) || null; DB.settings.aiStep = PLAN ? (PLAN.status === 'approved' ? 4 : 2) : 1; Store.save(); go('ai'); render(); }
+function aiList() {
+  openModal('AI計画一覧', DB.ai_plans.length ? DB.ai_plans.map(p => '<div class="sugg"><div class="s-t">' + esc((p.goal || {}).title || '無題') + '</div>' +
+    '<div class="small muted">' + p.created_at.slice(0, 16).replace('T', ' ') + ' ／ v' + p.version + ' ／ ' + (p.status === 'approved' ? '承認済み' : '承認待ち') +
+    ' ／ ToDo' + (p.todos || []).length + '・予定' + (p.events || []).length + '</div>' +
+    '<div class="s-a"><button class="btn sm pri" onclick="closeModal();aiOpen(\'' + p.id + '\')">開く</button>' +
+    '<button class="btn sm danger" onclick="aiDrop(\'' + p.id + '\')">削除</button></div></div>').join('') : '<div class="empty small">まだありません</div>', [{ label: '閉じる', fn: closeModal }]);
+}
+function aiDrop(id) { DB.ai_plans = DB.ai_plans.filter(p => p.id !== id); if (PLAN && PLAN.id === id) PLAN = null; Store.save(true); closeModal(); render(); }
+
+/* ---- STEP2：解析結果 ---- */
+function aiStep2() {
+  if (!PLAN) return '<div class="card empty">計画がありません。<div><button class="btn pri" onclick="aiSetStep(1)">投入に戻る</button></div></div>';
+  const g = PLAN.goal, c = planCheck(PLAN);
+  const cnt = (l, n, w) => '<div class="card kpi"><div class="lab">' + l + '</div><div class="num ' + (w && n ? 'orange' : '') + '">' + n + '</div></div>';
+  return '<div class="card pad" style="margin-bottom:12px">' +
+      '<div class="sec-h"><h3>抽出した最終目標</h3><div class="sp"></div><span class="chip ' + (PLAN.engine === 'ai' ? 'blue' : 'grey') + '">' + (PLAN.engine === 'ai' ? 'AI解析' : '内蔵解析') + '</span></div>' +
+      '<div style="font-size:19px;font-weight:700">' + esc(g.title || '—') + '</div>' +
+      '<div class="small muted" style="margin-top:4px">期限 ' + (g.due ? fmtDate(g.due) + '（' + wdName(g.due) + '）' : '未設定') + ' ／ 責任者 ' + esc(g.owner || '未設定') + '</div>' +
+      '<div class="small" style="margin-top:8px"><b>成果判定条件：</b>' + esc((g.judge || []).join(' ／ ') || '未設定') + '</div>' +
+      (PLAN.ai_error ? '<div class="small muted" style="margin-top:6px">AI接続不可のため内蔵解析を使用（' + esc(PLAN.ai_error) + '）</div>' : '') + '</div>' +
+    '<div class="grid g4 keep2" style="margin-bottom:12px">' +
+      cnt('KPI', PLAN.kpis.length) + cnt('プロジェクト', PLAN.projects.length) + cnt('案件', PLAN.opps.length) + cnt('ToDo', PLAN.todos.length) +
+    '</div>' +
+    '<div class="grid g4 keep2" style="margin-bottom:12px">' +
+      cnt('カレンダー予定', PLAN.events.filter(e => e.type !== 'deadline').length) + cnt('未確定項目', PLAN.missing.length, 1) +
+      cnt('重複候補', c.dups.length, 1) + cnt('時間競合', c.confs.length, 1) +
+    '</div>' +
+    '<div class="grid g2" style="margin-bottom:12px">' +
+      '<div class="card pad"><div class="sec-h"><h3>担当者別目標と必要パイプライン</h3></div>' +
+        '<table class="tbl"><thead><tr><th>担当</th><th>受注目標</th><th>必要有効案件</th></tr></thead><tbody>' +
+        PLAN.owners.map(o => { const p = PLAN.pipeline.find(x => x.owner === o.name) || {};
+          return '<tr><td>' + esc(o.name) + '</td><td><b>' + o.amount + '億円</b></td><td>' + (p.need || '—') + '億円以上</td></tr>'; }).join('') +
+        '<tr><td>合計</td><td><b>' + PLAN.owners.reduce((a, o) => a + (+o.amount || 0), 0) + '億円</b></td><td>' +
+          PLAN.pipeline.reduce((a, p) => a + (+p.need || 0), 0) + '億円以上</td></tr></tbody></table></div>' +
+      '<div class="card pad"><div class="sec-h"><h3>KPIと計算根拠</h3></div>' +
+        (PLAN.kpis.length ? PLAN.kpis.map(k => '<div style="margin-bottom:8px"><b>' + esc(k.name) + '：' + esc(String(k.target)) + '</b>' +
+          '<div class="small muted">' + esc(k.basis || '') + '</div></div>').join('') : '<div class="small muted">なし</div>') + '</div>' +
+    '</div>' +
+    '<div class="grid g2" style="margin-bottom:12px">' +
+      '<div class="card pad"><div class="sec-h"><h3>不足している情報</h3></div>' +
+        (PLAN.missing.length ? PLAN.missing.map(m => '<div class="small">・' + esc(m) + '</div>').join('') + 
+          '<button class="btn sm" style="margin-top:10px" onclick="aiFillMissing()">いま埋める</button>' : '<div class="small muted">なし</div>') + '</div>' +
+      '<div class="card pad"><div class="sec-h"><h3>AIが仮設定した項目</h3></div>' +
+        PLAN.assumptions.map(a => '<div class="small">・' + esc(a) + ' <span class="chip orange">仮設定・確認が必要</span></div>').join('') + '</div>' +
+    '</div>' +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>実行可能性</h3></div>' +
+      '<div class="small">必要作業時間 <b>' + c.needH + 'h</b> ／ 対象期間の空き <b>' + c.freeH + 'h</b> ／ 稼働率 ' + c.rate + '%</div>' +
+      (c.needH > c.freeH ? '<div class="err" style="margin-top:8px">必要時間が空き時間を超えています。担当者を分散するか、期限を見直してください。</div>' :
+        '<div class="ok" style="margin-top:8px">現在の予定と両立できる見込みです。</div>') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="aiSetStep(3)">アクションを編集する</button>' +
+    '<button class="btn" onclick="aiRun()">AIに再作成させる</button>' +
+    '<button class="btn ghost" onclick="aiSetStep(1)">投入に戻る</button></div>';
+}
+function aiFillMissing() {
+  openModal('不足情報を埋める',
+    '<div class="small muted" style="margin-bottom:10px">空欄のままでも計画は作成できます。埋めた項目は仮設定から外れます。</div>' +
+    '<div class="row"><div class="field"><label>目標金額（億円）</label><input id="mfA" type="number" value="' + (PLAN.goal.amount || '') + '"></div>' +
+    '<div class="field"><label>期限</label><input id="mfD" type="date" value="' + esc(PLAN.goal.due || '') + '"></div></div>' +
+    '<div class="field"><label>責任者</label><input id="mfO" value="' + esc(PLAN.goal.owner || '') + '"></div>' +
+    '<div class="field"><label>決裁者（分かる範囲で）</label><input id="mfDec" placeholder="例）大河原様（代表）"></div>' +
+    '<div class="row"><div class="field"><label>1日の稼働可能時間</label><input id="mfH" type="number" value="' + (DB.capacity ? 8 : 8) + '"></div>' +
+    '<div class="field"><label>移動の有無</label><select id="mfM"><option value="0">なし</option><option value="1">あり（移動時間を確保）</option></select></div></div>',
+    [{ label: '反映する', cls: 'pri', fn: () => {
+      PLAN.goal.amount = +$('#mfA').value || PLAN.goal.amount;
+      PLAN.goal.due = $('#mfD').value || PLAN.goal.due;
+      PLAN.goal.owner = $('#mfO').value || PLAN.goal.owner;
+      const dec = $('#mfDec').value; if (dec) PLAN.opps.forEach(o => { if (!o.decider) o.decider = dec; });
+      if ($('#mfM').value === '1') PLAN.events.filter(e => e.type === 'sales').forEach(e => e.move = 30);
+      PLAN.missing = PLAN.missing.filter(m => !/期限|決裁者名|稼働可能時間/.test(m));
+      Store.save(true); closeModal(); render(); toast('反映しました');
+    } }]);
+}
+
+/* ---- STEP3：編集 ---- */
+function aiStep3() {
+  if (!PLAN) return aiStep2();
+  const chk = (tmp, on) => '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="planSel(\'' + tmp + '\',this.checked)">';
+  const inp = (tmp, f, v, type) => '<input ' + (type ? 'type="' + type + '"' : '') + ' value="' + esc(v == null ? '' : v) + '" onchange="planEdit(\'' + tmp + '\',\'' + f + '\',this.value)" style="width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:6px">';
+  return '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>プロジェクト</h3></div>' +
+      '<table class="tbl"><thead><tr><th style="width:34px">登録</th><th>プロジェクト</th><th>責任者</th><th>金額</th><th>完了条件</th><th>期限</th></tr></thead><tbody>' +
+      PLAN.projects.map(p => '<tr><td>' + chk(p.tmp, PLAN.selected[p.tmp]) + '</td><td>' + inp(p.tmp, 'title', p.title) + '</td>' +
+        '<td>' + inp(p.tmp, 'owner', p.owner) + '</td><td>' + inp(p.tmp, 'amount', p.amount, 'number') + '</td>' +
+        '<td class="small">' + esc(p.done_condition || '') + '</td><td>' + inp(p.tmp, 'due', p.due, 'date') + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>案件（金額計上先は1つだけ）</h3><div class="sp"></div>' +
+      '<button class="btn sm" onclick="planAddOpp()">＋ 案件</button></div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:34px">登録</th><th>案件名</th><th>責任者</th><th>金額(億)</th><th>ランク</th><th>確度%</th><th>決裁者</th><th>次のアクション</th><th>契約予定</th><th>計上先</th></tr></thead><tbody>' +
+      (PLAN.opps.length ? PLAN.opps.map(o => '<tr><td>' + chk(o.tmp, PLAN.selected[o.tmp]) + '</td><td>' + inp(o.tmp, 'name', o.name) + '</td>' +
+        '<td>' + inp(o.tmp, 'owner', o.owner) + '</td><td>' + inp(o.tmp, 'amount', o.amount, 'number') + '</td>' +
+        '<td><select onchange="planEdit(\'' + o.tmp + '\',\'rank\',this.value)">' + Object.keys(RANK).map(k => '<option value="' + k + '"' + (o.rank === k ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></td>' +
+        '<td>' + inp(o.tmp, 'prob', o.prob, 'number') + '</td><td>' + inp(o.tmp, 'decider', o.decider) + '</td>' +
+        '<td>' + inp(o.tmp, 'next_action', o.next_action) + '</td><td>' + inp(o.tmp, 'contract_date', o.contract_date, 'date') + '</td>' +
+        '<td>' + inp(o.tmp, 'count_to', o.count_to) + '</td></tr>').join('') : '<tr><td colspan="10" class="small muted">案件は自動生成されていません</td></tr>') +
+      '</tbody></table></div></div>' +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>ToDo</h3><div class="sp"></div>' +
+      '<span class="small muted">チェックしたものだけ登録されます</span></div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:34px">登録</th><th>行動</th><th>担当</th><th>期限</th><th>所要(分)</th><th>優先</th><th>完了条件</th><th>ToDo同期</th><th>時間確保</th></tr></thead><tbody>' +
+      PLAN.todos.map(t => '<tr><td>' + chk(t.tmp, PLAN.selected[t.tmp]) + '</td><td style="min-width:220px">' + inp(t.tmp, 'title', t.title) + '</td>' +
+        '<td>' + inp(t.tmp, 'owner', t.owner) + '</td><td>' + inp(t.tmp, 'due', t.due, 'date') + '</td>' +
+        '<td>' + inp(t.tmp, 'minutes', t.minutes, 'number') + '</td>' +
+        '<td><select onchange="planEdit(\'' + t.tmp + '\',\'priority\',this.value)">' + Object.keys(PRIO).map(k => '<option value="' + k + '"' + (String(t.priority) === k ? ' selected' : '') + '>' + PRIO[k].l + '</option>').join('') + '</select></td>' +
+        '<td class="small">' + esc(t.done_condition || '') + '</td>' +
+        '<td><input type="checkbox"' + (t.to_gtasks ? ' checked' : '') + ' onchange="planEdit(\'' + t.tmp + '\',\'to_gtasks\',this.checked)"></td>' +
+        '<td><input type="checkbox"' + (t.to_cal ? ' checked' : '') + ' onchange="planEdit(\'' + t.tmp + '\',\'to_cal\',this.checked)"></td></tr>').join('') +
+      '</tbody></table></div></div>' +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>カレンダー配置案</h3><div class="sp"></div>' +
+      '<button class="btn sm" onclick="planRePlace()">空き時間へ再配置</button></div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:34px">登録</th><th>予定</th><th>種別</th><th>日付</th><th>開始</th><th>所要(分)</th><th>担当</th><th></th></tr></thead><tbody>' +
+      PLAN.events.map(e => '<tr><td>' + chk(e.tmp, PLAN.selected[e.tmp]) + '</td><td>' + inp(e.tmp, 'title', e.title) + '</td>' +
+        '<td><select onchange="planEdit(\'' + e.tmp + '\',\'type\',this.value)">' + Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (e.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select></td>' +
+        '<td>' + inp(e.tmp, 'date', e.date, 'date') + '</td><td>' + inp(e.tmp, 'start', e.start, 'time') + '</td>' +
+        '<td>' + inp(e.tmp, 'minutes', e.minutes, 'number') + '</td><td>' + inp(e.tmp, 'owner', e.owner) + '</td>' +
+        '<td class="small" style="color:var(--orange)">' + esc(e.warn || '') + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+      '<div class="small muted" style="margin-top:8px">締切はカレンダーに時間を確保しません。作業時間は別の行として配置しています。</div></div>' +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>定例レビュー</h3></div>' +
+      PLAN.reviews.map(r => '<div class="small">・' + esc(r) + '</div>').join('') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="aiSetStep(4)">承認画面へ進む</button>' +
+    '<button class="btn" onclick="aiSetStep(2)">解析結果へ戻る</button>' +
+    '<button class="btn ghost" onclick="planDraft()">下書き保存</button></div>';
+}
+function planItem(tmp) {
+  return PLAN.todos.find(x => x.tmp === tmp) || PLAN.events.find(x => x.tmp === tmp) ||
+    PLAN.projects.find(x => x.tmp === tmp) || PLAN.opps.find(x => x.tmp === tmp);
+}
+function planSel(tmp, on) { PLAN.selected[tmp] = on; Store.save(); }
+function planEdit(tmp, f, v) {
+  const it = planItem(tmp); if (!it) return;
+  it[f] = (['minutes', 'priority', 'amount', 'prob'].includes(f)) ? (+v || 0) : v;
+  if (it.assumed) it.assumed = it.assumed.filter(a => a !== f);
+  if (f === 'rank' && RANK[v]) it.prob = RANK[v].p;
+  const ev = PLAN.events.find(e => e.todo === tmp);
+  if (ev) { if (f === 'due') ev.date = v; if (f === 'minutes') ev.minutes = +v; if (f === 'title') ev.title = v; }
+  Store.save();
+}
+function planRePlace() { PLAN.events.forEach(e => { if (e.type !== 'deadline') e.start = ''; }); placeEvents(PLAN); Store.save(true); render(); toast('空き時間へ再配置しました'); }
+function planAddOpp() {
+  const tmp = 'o' + uid();
+  PLAN.opps.push({ tmp: tmp, name: '', owner: PLAN.owners[0] ? PLAN.owners[0].name : '', amount: 0, rank: 'B', prob: 45,
+    phase: '棚卸し', decider: '', next_action: '', next_meeting: '', contract_date: '', payment_date: '', count_to: PLAN.owners[0] ? PLAN.owners[0].name : '', joint: false, assumed: [] });
+  PLAN.selected[tmp] = true; Store.save(true); render();
+}
+function planDraft() { PLAN.status = 'draft'; Store.save(true); toast('下書きとして保存しました'); }
+
+/* ---- STEP4：承認 ---- */
+function aiStep4() {
+  if (!PLAN) return aiStep2();
+  const c = planCheck(PLAN);
+  const n = k => PLAN[k].filter(x => PLAN.selected[x.tmp]).length;
+  const evs = PLAN.events.filter(x => PLAN.selected[x.tmp]);
+  const sum = [['ゴール', PLAN.goal.title ? 1 : 0], ['KPI', PLAN.kpis.length], ['プロジェクト', n('projects')], ['案件', n('opps')],
+    ['ToDo', n('todos')], ['カレンダー予定', evs.filter(e => e.type !== 'deadline').length], ['締切', evs.filter(e => e.type === 'deadline').length],
+    ['未確定項目', PLAN.missing.length], ['重複候補', c.dups.length], ['時間競合', c.confs.length]];
+  return (PLAN.status === 'approved' ? '<div class="ok">この計画は' + (PLAN.approved_at || '').slice(0, 16).replace('T', ' ') + 'に承認済みです。再承認すると差分だけが追加されます。</div>' : '') +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>登録される内容</h3></div>' +
+      '<div class="grid g4 keep2">' + sum.map(x => '<div><div class="small muted">' + x[0] + '</div><div style="font-size:22px;font-weight:700;font-family:var(--font-en)">' + x[1] + '</div></div>').join('') + '</div></div>' +
+    (c.dups.length ? '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>重複候補</h3></div>' +
+      c.dups.map(d => '<div class="small">・[' + d.kind + '] ' + esc(d.title) + ' — ' + esc(d.why) + '</div>').join('') +
+      '<div class="small muted" style="margin-top:6px">登録時は重複する項目を自動で除外します。</div></div>' : '') +
+    (c.confs.length ? '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>時間競合</h3></div>' +
+      c.confs.map(d => '<div class="small" style="color:var(--red)">・' + esc(d.title) + ' — ' + esc(d.why) + '</div>').join('') +
+      '<div style="margin-top:8px"><button class="btn sm" onclick="planRePlace()">空き時間へ再配置する</button></div></div>' : '') +
+    '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>Google同期</h3></div>' +
+      '<div class="field"><label>承認後の同期</label><select id="apSync">' +
+      '<option value="1">Googleカレンダー・ToDoへ同期する</option><option value="0">MIND FLOWにだけ登録する</option></select></div>' +
+      '<div class="small muted">' + (Integrations.connected('google_calendar') ? 'Google連携は有効です。' : 'Google未連携のため、同期は保留として記録され、連携後に再同期できます。') + '</div></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn pri" style="padding:12px 18px" onclick="planApprove()">すべて承認して登録する</button>' +
+      '<button class="btn" onclick="aiSetStep(3)">項目ごとに確認・修正</button>' +
+      '<button class="btn" onclick="planDraft()">下書き保存</button>' +
+      '<button class="btn ghost" onclick="aiReset()">キャンセル</button></div>';
+}
+function planApprove() {
+  if (!requireEdit()) return;
+  const sync = $('#apSync') ? $('#apSync').value === '1' : true;
+  const idmap = {}, res = { projects: 0, opps: 0, todos: 0, events: 0, skipped: 0 };
+  /* ゴールとKPI */
+  const goal = { id: uid(), plan_id: PLAN.id, title: PLAN.goal.title, amount: PLAN.goal.amount, due: PLAN.goal.due,
+    owner: PLAN.goal.owner, judge: PLAN.goal.judge || [], created_at: new Date().toISOString() };
+  DB.goals.unshift(goal);
+  PLAN.kpis.forEach(k => DB.goal_metrics.unshift({ id: uid(), goal_id: goal.id, name: k.name, target: k.target, basis: k.basis, owner: k.owner, actual: 0 }));
+  /* プロジェクト */
+  PLAN.projects.filter(p => PLAN.selected[p.tmp]).forEach(p => {
+    let ex = DB.projects.find(x => normTitle(x.title) === normTitle(p.title));
+    if (!ex) {
+      ex = { id: uid(), title: p.title, node_id: '', map_id: '', purpose: PLAN.goal.title, done_condition: p.done_condition,
+        owner: p.owner, due: p.due, progress: 0, status: 'active', goal_id: goal.id, amount: p.amount,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      DB.projects.unshift(ex); res.projects++;
+    } else res.skipped++;
+    idmap[p.tmp] = ex.id;
+  });
+  /* 案件 */
+  PLAN.opps.filter(o => PLAN.selected[o.tmp]).forEach(o => {
+    if (DB.opportunities.some(x => normTitle(x.name) === normTitle(o.name))) { res.skipped++; return; }
+    const rec = Object.assign({ id: uid(), goal_id: goal.id, project_id: idmap[PLAN.projects.find(p => p.owner === o.owner) ? PLAN.projects.find(p => p.owner === o.owner).tmp : ''] || '',
+      status: 'open', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, o);
+    delete rec.tmp; DB.opportunities.unshift(rec); res.opps++;
+  });
+  /* ToDo */
+  PLAN.todos.filter(t => PLAN.selected[t.tmp]).forEach(t => {
+    if (DB.tasks.some(x => x.gtd !== 'done' && normTitle(x.title) === normTitle(t.title) && (x.owner || '') === (t.owner || ''))) { res.skipped++; return; }
+    const task = mkTask({ title: t.title, gtd: t.due === today() ? 'today' : 'next', owner: t.owner, due: t.due,
+      priority: +t.priority || 2, notes: (t.done_condition ? '完了条件: ' + t.done_condition : '') + (t.depends ? '\n前提: ' + t.depends : ''),
+      project_id: idmap[t.project] || '', source: 'ai_plan', plan_id: PLAN.id, minutes: t.minutes });
+    idmap[t.tmp] = task.id; res.todos++;
+    if (sync && t.to_gtasks) Integrations.sendToTasks(task);
+  });
+  /* カレンダー */
+  PLAN.events.filter(e => PLAN.selected[e.tmp]).forEach(e => {
+    const start = (e.date || today()) + 'T' + (e.start || '09:00');
+    const cand = evNorm({ id: uid(), title: e.title, type: e.type, start: start, end: addMin(start, e.minutes || 60),
+      owner: e.owner || PLAN.goal.owner, purpose: PLAN.goal.title, outcome: '', goal_ref: 'g:' + goal.id,
+      project_id: idmap[PLAN.todos.find(t => t.tmp === e.todo) ? (PLAN.todos.find(t => t.tmp === e.todo).project) : ''] || '',
+      task_id: idmap[e.todo] || '', reminder: 10, location: '', guests: '', url_online: '', notes: '',
+      sync_to_google: sync && ETYPE[e.type].sync, sync_status: 'local', source: 'ai_plan', plan_id: PLAN.id });
+    const chk = checkEvent(cand);
+    if (chk.dups.length) { res.skipped++; return; }
+    DB.calendar_events.unshift(cand); res.events++;
+    if (cand.sync_to_google) syncEvent(cand);
+  });
+  PLAN.status = 'approved'; PLAN.approved_at = new Date().toISOString(); PLAN.result = res;
+  DB.plan_approvals = DB.plan_approvals || [];
+  DB.plan_approvals.unshift({ id: uid(), plan_id: PLAN.id, at: PLAN.approved_at, by: (DB.user || {}).name || '', result: res });
+  Store.log('AI計画を承認', PLAN.goal.title); Store.save(true);
+  openModal('登録が完了しました',
+    '<div class="ok">プロジェクト' + res.projects + '件／案件' + res.opps + '件／ToDo' + res.todos + '件／予定' + res.events + '件を登録しました。' +
+    (res.skipped ? '重複のため' + res.skipped + '件はスキップしました。' : '') + '</div>' +
+    '<div class="small muted">この計画はAI計画一覧から再確認できます。未達のときは「計画を立て直す」で作り直せます。</div>',
+    [{ label: 'GTDボードを見る', cls: 'pri', fn: () => { closeModal(); go('board'); } },
+     { label: '週間カレンダーを見る', fn: () => { closeModal(); jumpToCal('week'); } },
+     { label: '閉じる', fn: closeModal }]);
+  render();
+}
+/* ---- 再計画 ---- */
+async function planRebuild() {
+  aiInit();
+  const base = DB.ai_plans.find(p => p.status === 'approved') || DB.ai_plans[0];
+  if (!base) { toast('もとになる計画がありません', 'err'); go('ai'); return; }
+  const goal = DB.goals[0] || {};
+  const opps = DB.opportunities.filter(o => o.status !== 'won');
+  const won = DB.opportunities.filter(o => o.status === 'won').reduce((a, o) => a + (+o.amount || 0), 0);
+  const left = Math.max(0, (+goal.amount || 0) - won);
+  const openT = DB.tasks.filter(t => t.gtd !== 'done' && t.plan_id === base.id);
+  const days = Math.max(1, daysLeft(goal.due || addDays(today(), 7)) + 1);
+  openModal('計画を立て直しています', '<div class="load">残り' + left + '億円 ／ 残り' + days + '日 ／ 未完了' + openT.length + '件 を反映中…</div>', []);
+  const text = '【再計画】元の目標: ' + (goal.title || base.goal.title) + '。現在の受注額 ' + won + '億円、残り目標 ' + left + '億円、残り日数 ' + days + '日。' +
+    '未完了タスク: ' + openT.slice(0, 15).map(t => t.title).join('、') + '。' +
+    '案件: ' + opps.slice(0, 15).map(o => o.name + '(' + o.rank + '・' + o.amount + '億・障害:' + (o.blocker || '不明') + ')').join('、') + '。' +
+    '残り期間で達成するための行動計画を作り直してください。';
+  const np = placeEvents(await aiAnalyze(text));
+  np.parent_id = base.id; np.version = (base.version || 1) + 1;
+  np.todos.forEach(t => np.selected[t.tmp] = true);
+  np.events.forEach(e => np.selected[e.tmp] = true);
+  np.projects.forEach(p => np.selected[p.tmp] = false);
+  DB.ai_plans.unshift(np); PLAN = np; Store.save(true);
+  closeModal();
+  openModal('再計画（変更前と変更後）',
+    '<div class="grid g2"><div><div class="small muted">変更前 v' + (base.version || 1) + '</div>' +
+      '<div class="small">ToDo ' + (base.todos || []).length + '件／予定 ' + (base.events || []).length + '件</div>' +
+      (base.todos || []).slice(0, 8).map(t => '<div class="small">・' + esc(t.title) + '（' + fmtDate(t.due) + '）</div>').join('') + '</div>' +
+      '<div><div class="small muted">変更後 v' + np.version + '</div>' +
+      '<div class="small">ToDo ' + np.todos.length + '件／予定 ' + np.events.length + '件</div>' +
+      np.todos.slice(0, 8).map(t => '<div class="small">・' + esc(t.title) + '（' + fmtDate(t.due) + '）</div>').join('') + '</div></div>' +
+    '<div class="small muted" style="margin-top:10px">承認するまで登録されません。</div>',
+    [{ label: '編集して承認へ', cls: 'pri', fn: () => { closeModal(); DB.settings.aiStep = 3; Store.save(); go('ai'); render(); } },
+     { label: '破棄', fn: () => { DB.ai_plans = DB.ai_plans.filter(p => p.id !== np.id); PLAN = base; Store.save(true); closeModal(); render(); } }]);
+}
+
+/* ---- 案件と達成見込み ---- */
+function oppWeighted(o) { return (+o.amount || 0) * ((+o.prob || RANK[o.rank].p) / 100); }
+function pipelineStats() {
+  aiInit();
+  const goal = DB.goals[0] || {};
+  const open = DB.opportunities.filter(o => o.status !== 'lost');
+  const won = open.filter(o => o.status === 'won').reduce((a, o) => a + (+o.amount || 0), 0);
+  const gross = open.reduce((a, o) => a + (+o.amount || 0), 0);
+  const weighted = open.reduce((a, o) => a + oppWeighted(o), 0);
+  const byRank = r => open.filter(o => o.rank === r).reduce((a, o) => a + (+o.amount || 0), 0);
+  const best = byRank('A') * 0.9 + byRank('B') * 0.6 + byRank('C') * 0.2;
+  const worst = byRank('A') * 0.7;
+  const target = +goal.amount || 0;
+  const owners = {};
+  open.forEach(o => { const k = o.count_to || o.owner || '未設定'; owners[k] = owners[k] || { gross: 0, w: 0, target: 0 };
+    owners[k].gross += (+o.amount || 0); owners[k].w += oppWeighted(o); });
+  (DB.goal_metrics || []).filter(m => /受注目標/.test(m.name)).forEach(m => {
+    const k = m.owner || ''; if (owners[k]) owners[k].target = parseFloat(m.target) || 0;
+  });
+  return { goal: goal, target: target, won: won, gross: gross, weighted: Math.round(weighted * 100) / 100,
+    best: Math.round(best * 100) / 100, worst: Math.round(worst * 100) / 100,
+    gap: Math.round((target - weighted) * 100) / 100, owners: owners, open: open };
+}
+function viewPipeline() {
+  const p = pipelineStats();
+  setTop('達成見込み', '<button class="btn sm" onclick="oppAdd()">＋ 案件</button><button class="btn pri sm" onclick="planRebuild()">計画を立て直す</button>');
+  const kpi = (l, v, s, c) => '<div class="card kpi"><div class="lab">' + l + '</div><div class="num ' + (c || '') + '">' + v + '<span style="font-size:13px">億</span></div><div class="sub">' + (s || '') + '</div></div>';
+  $('#view').innerHTML =
+    '<div class="grid g4 keep2" style="margin-bottom:14px">' +
+      kpi('受注目標', p.target || '—', esc((p.goal.title || 'ゴール未設定')), '') +
+      kpi('確度加重パイプライン', p.weighted, '表面上の案件総額 ' + p.gross + '億', p.weighted >= p.target ? 'green' : 'orange') +
+      kpi('目標との差額', p.gap > 0 ? p.gap : 0, p.gap > 0 ? 'この分の積み増しが必要' : '目標を上回っています', p.gap > 0 ? 'red' : 'green') +
+      kpi('受注済み', p.won, '成果判定済みの合計', 'green') +
+    '</div>' +
+    '<div class="grid g3" style="margin-bottom:14px">' +
+      '<div class="card pad"><div class="small muted">標準ケース（確度加重）</div><div style="font-size:26px;font-weight:700;font-family:var(--font-en)">' + p.weighted + '億</div></div>' +
+      '<div class="card pad"><div class="small muted">達成ケース</div><div style="font-size:26px;font-weight:700;font-family:var(--font-en);color:var(--green)">' + p.best + '億</div></div>' +
+      '<div class="card pad"><div class="small muted">最悪ケース（A案件のみ）</div><div style="font-size:26px;font-weight:700;font-family:var(--font-en);color:var(--red)">' + p.worst + '億</div></div>' +
+    '</div>' +
+    (p.gap > 0 ? '<div class="card pad" style="margin-bottom:14px;border-left:4px solid var(--red)"><b>有効案件が' + p.gap + '億円不足しています。</b>' +
+      '<div class="small" style="margin-top:6px">今日中に次を実行してください：' +
+      '紹介依頼 ' + Math.max(3, Math.ceil(p.gap * 2)) + '件 ／ 休眠顧客への再接触 ' + Math.max(5, Math.ceil(p.gap * 4)) + '件 ／ B案件の条件解決の打診 ' +
+      Math.max(2, p.open.filter(o => o.rank === 'B').length) + '件</div>' +
+      '<button class="btn sm pri" style="margin-top:8px" onclick="makeBackupTasks(' + p.gap + ')">この行動をToDoに入れる</button></div>' : '') +
+    '<div class="card pad" style="margin-bottom:14px"><div class="sec-h"><h3>担当者別の見込み</h3></div>' +
+      '<table class="tbl"><thead><tr><th>担当（金額計上先）</th><th>目標</th><th>案件総額</th><th>確度加重</th><th>達成見込み</th></tr></thead><tbody>' +
+      (Object.keys(p.owners).length ? Object.keys(p.owners).map(k => { const o = p.owners[k];
+        const rate = o.target ? Math.round(o.w / o.target * 100) : 0;
+        return '<tr><td>' + esc(k) + '</td><td>' + (o.target || '—') + '億</td><td>' + Math.round(o.gross * 10) / 10 + '億</td><td><b>' + Math.round(o.w * 10) / 10 + '億</b></td>' +
+          '<td><span class="chip ' + (rate >= 100 ? 'green' : rate >= 70 ? 'orange' : 'red') + '">' + (o.target ? rate + '%' : '—') + '</span></td></tr>'; }).join('')
+        : '<tr><td colspan="5" class="small muted">案件が登録されていません</td></tr>') + '</tbody></table></div>' +
+    '<div class="card pad"><div class="sec-h"><h3>案件一覧</h3><div class="sp"></div><span class="small muted">確度はクリックで変更できます</span></div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>案件</th><th>責任者</th><th>金額</th><th>ランク</th><th>確度</th><th>決裁者</th><th>フェーズ</th><th>次のアクション</th><th>契約/入金</th><th></th></tr></thead><tbody>' +
+      (p.open.length ? p.open.map(o => '<tr><td><b>' + esc(o.name) + '</b>' + (o.joint ? '<span class="chip">共同</span>' : '') + '</td>' +
+        '<td>' + esc(o.owner || '<span style="color:var(--red)">未設定</span>') + '</td><td>' + (o.amount || 0) + '億</td>' +
+        '<td><span class="chip ' + (o.rank === 'A' ? 'green' : o.rank === 'B' ? 'orange' : 'grey') + '">' + o.rank + '</span></td>' +
+        '<td>' + (o.prob || RANK[o.rank].p) + '%</td><td>' + esc(o.decider || '—') + '</td><td>' + esc(o.phase || '—') + '</td>' +
+        '<td class="small">' + esc(o.next_action || '—') + '</td>' +
+        '<td class="small">' + (o.contract_date ? fmtDate(o.contract_date) : '—') + ' / ' + (o.payment_date ? fmtDate(o.payment_date) : '—') + '</td>' +
+        '<td><button class="btn sm" onclick="oppEdit(\'' + o.id + '\')">編集</button></td></tr>').join('')
+        : '<tr><td colspan="10" class="small muted">案件がありません。AI GOAL TO ACTIONで生成するか、＋案件から追加してください。</td></tr>') +
+      '</tbody></table></div></div>';
+}
+function makeBackupTasks(gap) {
+  const me = (DB.user || {}).name || '';
+  mkTask({ title: '紹介依頼を' + Math.max(3, Math.ceil(gap * 2)) + '件出す', gtd: 'today', owner: me, due: today(), priority: 1, source: 'ai_reco' });
+  mkTask({ title: '休眠顧客' + Math.max(5, Math.ceil(gap * 4)) + '件へ再接触する', gtd: 'today', owner: me, due: today(), priority: 1, source: 'ai_reco' });
+  mkTask({ title: 'B案件の条件解決を打診する', gtd: 'today', owner: me, due: today(), priority: 1, source: 'ai_reco' });
+  Store.save(true); render(); toast('今日やるに3件追加しました');
+}
+function oppAdd() { oppEdit(''); }
+function oppEdit(id) {
+  aiInit();
+  const o = DB.opportunities.find(x => x.id === id) || { id: '', name: '', owner: '', amount: 0, rank: 'B', prob: 45, phase: '棚卸し',
+    decider: '', blocker: '', next_action: '', next_meeting: '', last_proposal: '', contract_date: '', payment_date: '',
+    count_to: '', joint: false, backup: false, status: 'open' };
+  openModal(id ? '案件の編集' : '案件を追加',
+    '<div class="field"><label>案件名</label><input id="opN" value="' + esc(o.name) + '"></div>' +
+    '<div class="row"><div class="field"><label>案件責任者</label><input id="opO" value="' + esc(o.owner) + '"></div>' +
+    '<div class="field"><label>受注予定金額（億）</label><input id="opA" type="number" step="0.1" value="' + (o.amount || '') + '"></div></div>' +
+    '<div class="row"><div class="field"><label>ランク</label><select id="opR">' + Object.keys(RANK).map(k => '<option value="' + k + '"' + (o.rank === k ? ' selected' : '') + '>' + RANK[k].l + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label>受注確度（%）</label><input id="opP" type="number" value="' + (o.prob || RANK[o.rank].p) + '"></div></div>' +
+    '<div class="row"><div class="field"><label>決裁者</label><input id="opD" value="' + esc(o.decider) + '"></div>' +
+    '<div class="field"><label>現在のフェーズ</label><select id="opF">' + PHASES.map(f => '<option' + (o.phase === f ? ' selected' : '') + '>' + f + '</option>').join('') + '</select></div></div>' +
+    '<div class="field"><label>現在の障害</label><input id="opB" value="' + esc(o.blocker || '') + '"></div>' +
+    '<div class="row"><div class="field"><label>次のアクション</label><input id="opNA" value="' + esc(o.next_action) + '"></div>' +
+    '<div class="field"><label>実行期限</label><input id="opNAD" type="date" value="' + esc(o.next_action_due || '') + '"></div></div>' +
+    '<div class="row"><div class="field"><label>次回商談日</label><input id="opNM" type="date" value="' + esc(o.next_meeting || '') + '"></div>' +
+    '<div class="field"><label>最終提案日</label><input id="opLP" type="date" value="' + esc(o.last_proposal || '') + '"></div></div>' +
+    '<div class="row"><div class="field"><label>契約予定日</label><input id="opC" type="date" value="' + esc(o.contract_date || '') + '"></div>' +
+    '<div class="field"><label>入金予定日</label><input id="opPay" type="date" value="' + esc(o.payment_date || '') + '"></div></div>' +
+    '<div class="row"><div class="field"><label>金額計上先（1つだけ）</label><input id="opCT" value="' + esc(o.count_to || o.owner) + '"></div>' +
+    '<div class="field"><label>共同案件</label><select id="opJ"><option value="0"' + (!o.joint ? ' selected' : '') + '>いいえ</option><option value="1"' + (o.joint ? ' selected' : '') + '>はい</option></select></div></div>' +
+    '<div class="row"><div class="field"><label>成果判定</label><select id="opS">' +
+      [['open', '進行中'], ['won', '受注（申込・契約・入金）'], ['lost', '失注']].map(x => '<option value="' + x[0] + '"' + (o.status === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label>バックアップ案件</label><select id="opBk"><option value="0"' + (!o.backup ? ' selected' : '') + '>いいえ</option><option value="1"' + (o.backup ? ' selected' : '') + '>はい</option></select></div></div>',
+    [{ label: '保存', cls: 'pri', fn: () => {
+      const v = id2 => ($('#' + id2) || {}).value;
+      const rec = Object.assign({}, o, { name: v('opN'), owner: v('opO'), amount: +v('opA') || 0, rank: v('opR'), prob: +v('opP') || 0,
+        decider: v('opD'), phase: v('opF'), blocker: v('opB'), next_action: v('opNA'), next_action_due: v('opNAD'),
+        next_meeting: v('opNM'), last_proposal: v('opLP'), contract_date: v('opC'), payment_date: v('opPay'),
+        count_to: v('opCT') || v('opO'), joint: v('opJ') === '1', status: v('opS'), backup: v('opBk') === '1',
+        updated_at: new Date().toISOString() });
+      if (!rec.name) return toast('案件名を入力してください', 'err');
+      const dup = DB.opportunities.find(x => x.id !== id && normTitle(x.name) === normTitle(rec.name) && (x.count_to || '') === (rec.count_to || ''));
+      if (dup) return toast('同じ案件・同じ計上先がすでにあります（二重計上を防止）', 'err');
+      if (id) DB.opportunities = DB.opportunities.map(x => x.id === id ? rec : x);
+      else { rec.id = uid(); rec.created_at = new Date().toISOString(); DB.opportunities.unshift(rec); }
+      Store.save(true); closeModal(); render(); toast('保存しました');
+    } }].concat(id ? [{ label: '削除', cls: 'danger', fn: () => { DB.opportunities = DB.opportunities.filter(x => x.id !== id); Store.save(true); closeModal(); render(); } }] : []));
+}
+/* ---- 朝夕レビュー ---- */
+function reviewBanner() {
+  aiInit();
+  const h = new Date().getHours();
+  const done = (DB.daily_reviews || []).some(r => r.date === today() && r.kind === (h >= 17 ? 'evening' : 'morning'));
+  if (done) return '';
+  if (h >= 17) return '<div class="card pad" style="margin-bottom:14px;border-left:4px solid var(--gold);display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+    '<div style="flex:1;min-width:200px"><b>夜の実績入力（18:00）</b><div class="small muted">申込・契約・入金と、止まっている案件を記録します。</div></div>' +
+    '<button class="btn pri" onclick="eveningReview()">入力する</button></div>';
+  if (h >= 7) return '<div class="card pad" style="margin-bottom:14px;border-left:4px solid var(--gold);display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+    '<div style="flex:1;min-width:200px"><b>朝のレビュー（9:00）</b><div class="small muted">残額・本日の決裁者商談・獲得する合意を確認します。</div></div>' +
+    '<button class="btn pri" onclick="morningReview()">確認する</button></div>';
+  return '';
+}
+function morningReview() {
+  const p = pipelineStats(), d = dayOf(today());
+  const meets = evOfDay(today()).filter(e => e.type === 'sales');
+  const od = overdue(), un = unplacedTasks().filter(t => t.due === today());
+  DB.daily_reviews = DB.daily_reviews || [];
+  openModal('朝のレビュー ' + fmtDate(today()),
+    '<div class="grid g2" style="margin-bottom:12px">' +
+      '<div class="card pad"><div class="small muted">受注目標までの残額</div><div style="font-size:26px;font-weight:700">' + (p.gap > 0 ? p.gap : 0) + '億</div></div>' +
+      '<div class="card pad"><div class="small muted">本日の決裁者商談</div><div style="font-size:26px;font-weight:700">' + meets.length + '件</div></div></div>' +
+    (meets.length ? meets.map(e => '<div class="small">・' + hm(e.start) + ' ' + esc(e.title) + '</div>').join('') : '<div class="small muted">本日の商談はありません</div>') +
+    '<div class="field" style="margin-top:12px"><label>今日の最重要ゴール</label><input id="mrG" value="' + esc(d.goal || '') + '"></div>' +
+    '<div class="field"><label>今日の最重要案件</label><input id="mrO" placeholder="案件名"></div>' +
+    '<div class="field"><label>今日獲得する合意</label><input id="mrA" placeholder="例）金曜契約の口頭合意をとる"></div>' +
+    '<div class="field"><label>支援してほしいこと</label><input id="mrS"></div>' +
+    (od.length ? '<div class="err">期限超過が' + od.length + '件あります</div>' : '') +
+    (un.length ? '<div class="err">今日が期限なのに実行時間のないタスクが' + un.length + '件あります</div>' : ''),
+    [{ label: '記録して始める', cls: 'pri', fn: () => {
+      d.goal = $('#mrG').value; DB.settings.top_goal = d.goal;
+      DB.daily_reviews.unshift({ id: uid(), date: today(), kind: 'morning', goal: d.goal, key_opp: $('#mrO').value,
+        agreement: $('#mrA').value, support: $('#mrS').value, gap: p.gap });
+      Store.save(true); closeModal(); render(); toast('朝のレビューを記録しました');
+    } }]);
+}
+function eveningReview() {
+  const left = tasksIn('today').filter(t => t.gtd !== 'done');
+  DB.daily_reviews = DB.daily_reviews || [];
+  openModal('夜の実績入力 ' + fmtDate(today()),
+    '<div class="row"><div class="field"><label>本日の申込額（億）</label><input id="erA" type="number" step="0.1"></div>' +
+    '<div class="field"><label>本日の契約額（億）</label><input id="erC" type="number" step="0.1"></div>' +
+    '<div class="field"><label>本日の入金額（億）</label><input id="erP" type="number" step="0.1"></div></div>' +
+    '<div class="field"><label>前進した案件</label><input id="erF"></div>' +
+    '<div class="field"><label>止まっている案件</label><input id="erS"></div>' +
+    '<div class="field"><label>止まっている理由</label><input id="erR"></div>' +
+    '<div class="field"><label>明日の具体的なクロージング行動</label><input id="erN" placeholder="動詞で終える"></div>' +
+    (left.length ? '<div class="sec-h"><h3>今日完了できなかった' + left.length + '件</h3></div>' +
+      '<div class="small muted" style="margin-bottom:8px">自動では翌日に動かしません。</div>' +
+      left.map(t => '<div class="sugg"><div class="s-t">' + esc(t.title) + '</div><div class="s-a" style="flex-wrap:wrap">' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'tomorrow\')">明日へ</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'week\')">今週中</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'waiting\')">依頼・連絡待ち</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'someday\')">いつかやる</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'project\')">見直す</button>' +
+        '<button class="btn sm danger" onclick="carry(\'' + t.id + '\',\'delete\')">不要</button></div></div>').join('') : ''),
+    [{ label: '記録する', cls: 'pri', fn: () => {
+      const rec = { id: uid(), date: today(), kind: 'evening', apply: +$('#erA').value || 0, contract: +$('#erC').value || 0,
+        payment: +$('#erP').value || 0, forward: $('#erF').value, stuck: $('#erS').value, reason: $('#erR').value, next: $('#erN').value };
+      DB.daily_reviews.unshift(rec);
+      DB.pipeline_snapshots.unshift({ id: uid(), at: new Date().toISOString(), stats: pipelineStats().weighted, apply: rec.apply, contract: rec.contract, payment: rec.payment });
+      if (rec.next) mkTask({ title: rec.next, gtd: 'next', due: addDays(today(), 1), priority: 1, owner: (DB.user || {}).name || '', source: 'evening' });
+      Store.save(true); closeModal(); render(); toast('実績を記録しました');
+    } }]);
+}
+/* ---- AI異常検出（案件） ---- */
+function oppAlerts() {
+  aiInit();
+  const out = [], o = DB.opportunities.filter(x => x.status === 'open');
+  const no = (f, l) => { const n = o.filter(x => !x[f]); if (n.length) out.push({ t: l + 'が未設定の案件が' + n.length + '件', d: n.slice(0, 3).map(x => x.name).join(' / '), a: '案件一覧を開く', fn: () => go('pipeline') }); };
+  no('owner', '担当者'); no('decider', '決裁者'); no('next_action', '次のアクション'); no('contract_date', '契約予定日'); no('payment_date', '入金予定日');
+  const stale = o.filter(x => (x.updated_at || '').slice(0, 10) < addDays(today(), -10));
+  if (stale.length) out.push({ t: '10日以上動いていない案件が' + stale.length + '件', d: stale.slice(0, 3).map(x => x.name).join(' / '), a: '案件一覧を開く', fn: () => go('pipeline') });
+  const p = pipelineStats();
+  if (p.target && p.gap > 0) out.push({ t: '有効案件が' + p.gap + '億円不足しています', d: '紹介依頼' + Math.max(3, Math.ceil(p.gap * 2)) + '件と休眠顧客' + Math.max(5, Math.ceil(p.gap * 4)) + '件への再接触が必要です。', a: 'この行動をToDoに入れる', fn: () => makeBackupTasks(p.gap) });
+  const keys = {};
+  o.forEach(x => { const k = normTitle(x.name); keys[k] = (keys[k] || 0) + 1; });
+  const dup = Object.keys(keys).filter(k => keys[k] > 1);
+  if (dup.length) out.push({ t: '同一案件の二重計上のおそれ', d: dup.length + '件の重複した案件名があります', a: '案件一覧を開く', fn: () => go('pipeline') });
+  return out;
 }
 
 /* =========================================================================
