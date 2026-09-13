@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="3.4.0">
+<meta name="app-version" content="4.0.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -289,6 +289,37 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249
 .daypick input:checked+span{background:var(--midnight);border-color:var(--midnight);color:#fff}
 .daypick input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
 
+/* ---------- データ編集 ---------- */
+.edwrap{display:flex;gap:12px;align-items:flex-start}
+.edmain{flex:1;min-width:0}
+.recpanel{width:330px;flex:0 0 330px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);max-height:76vh;overflow:auto;box-shadow:var(--shadow)}
+.recpanel .dh{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:10px 12px;display:flex;gap:6px;align-items:center;z-index:2}
+.recpanel .db{padding:12px}
+.recpanel.inmodal{width:auto;flex:none;border:none;box-shadow:none;max-height:none}
+table.edtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.edtbl th{position:sticky;top:0;background:#F2F4F8;border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;font-size:11.5px;color:var(--ink2);white-space:nowrap;z-index:1}
+table.edtbl td{border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+table.edtbl tr.arch{opacity:.5}
+table.edtbl tr.selrow{background:#FFFBF0}
+table.edtbl td.ed{cursor:text;position:relative}
+table.edtbl td.ed:hover{box-shadow:inset 0 0 0 1px var(--gold);border-radius:6px;background:#FFFDF6}
+table.edtbl td.ed:hover .pen{opacity:.6}
+table.edtbl td.ed .pen{position:absolute;right:4px;top:6px;font-size:10px;opacity:0;font-style:normal}
+table.edtbl td.editing{box-shadow:inset 0 0 0 2px var(--gold);background:#fff}
+table.edtbl td.err{box-shadow:inset 0 0 0 2px var(--red)}
+table.edtbl td.calc{background:#F7F9FC;color:var(--ink2)}
+table.edtbl td .ph{color:var(--ink3)}
+.cellin{width:100%;border:none;outline:none;font-size:12.5px;padding:2px;background:transparent}
+.autocalc{font-size:9px;background:#E7EBF2;color:var(--ink2);border-radius:8px;padding:1px 5px;margin-left:4px}
+.field.errf input,.field.errf select,.field.errf textarea{border-color:var(--red);background:#FEF6F5}
+.field.warnf input,.field.warnf select{border-color:var(--orange)}
+.fmsg{font-size:11.5px;color:var(--red);margin-top:4px}
+.fmsg.warn{color:#A8641A}
+.reccard.arch{opacity:.55}
+.cal-tab .n{background:rgba(0,0,0,.08);border-radius:10px;padding:0 5px;margin-left:5px;font-size:10px}
+.cal-tab.on .n{background:rgba(255,255,255,.25)}
+@media (max-width:900px){.edwrap{display:block}.recpanel{width:auto;flex:none;max-height:none}}
+
 /* ---------- AI GOAL TO ACTION ---------- */
 .stepbar{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto}
 .stepbar .st{flex:1;min-width:150px;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.9);border:1px solid var(--line);font-size:12.5px;color:var(--ink2);white-space:nowrap}
@@ -559,6 +590,8 @@ const Store = {
       calendar_events: [], external_links: [], integrations: [], sync_logs: [],
       activity_logs: [], notifications: [], reviews: [],
       strategy: { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] },
+      owner_goals: [], sales_steps: [], period_goals: [], commitments: [], referrers: [], blockers: [],
+      audit_logs: [], trash: [],
       ai_inputs: [], ai_plans: [], goals: [], goal_metrics: [], opportunities: [],
       pipeline_snapshots: [], ai_recommendations: [], plan_approvals: [], daily_reviews: [],
       capacity: { start: '08:00', end: '19:00', bufferPct: 20 },
@@ -826,6 +859,7 @@ const ICON = {
   projects:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5a1.5 1.5 0 0 1 1.5-1.5H8l1.6 2h6A1.4 1.4 0 0 1 17 7.4V15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15z"/></svg>',
   review:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M16.2 10a6.2 6.2 0 1 1-1.9-4.4"/><path d="M16.6 3.4v3.2h-3.2"/></svg>',
   ai:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2.6l1.7 4.2 4.2 1.7-4.2 1.7L10 14.4 8.3 10.2 4.1 8.5l4.2-1.7z"/><path d="M15.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg>',
+  edit:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12.6 3.9l3.5 3.5L7.5 16H4v-3.5z"/><path d="M11 5.5l3.5 3.5"/></svg>',
   pipe:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 16.5V9M8 16.5V5M13 16.5v-4M3 16.5h14"/><path d="M16.5 4.5v4h-4" stroke-linejoin="round"/><path d="M16.5 4.5 12 9"/></svg>',
   settings:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6h9M15 6h1.5M3.5 14h1.5M7.5 14h9"/><circle cx="13.6" cy="6" r="1.9"/><circle cx="6.4" cy="14" r="1.9"/></svg>'
 };
@@ -834,6 +868,7 @@ const NAV = [
   { id: 'ai', label: 'AI GOAL TO ACTION', icon: ICON.ai },
   { id: 'cal', label: '戦略カレンダー', icon: ICON.cal },
   { id: 'pipeline', label: '達成見込み', icon: ICON.pipe },
+  { id: 'data', label: 'データ編集', icon: ICON.edit },
   { id: 'maps', label: 'マインドマップ', icon: ICON.maps },
   { id: 'board', label: 'GTDボード', icon: ICON.board },
   { id: 'projects', label: 'プロジェクト', icon: ICON.projects },
@@ -851,8 +886,8 @@ function parseHash() {
 function render() {
   route = parseHash();
   renderNav(); renderTabs();
-  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (['cal','pipeline','ai'].includes(route.name) ? ' wide' : '');
-  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
+  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (['cal','pipeline','ai','data'].includes(route.name) ? ' wide' : '');
+  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, data: viewData, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
   (map[route.name] || viewHome)();
   if (route.name !== 'map') { window.scrollTo(0, 0); }
 }
@@ -869,7 +904,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.4.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.0.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1687,6 +1722,15 @@ const Integrations = {
       toast('ToDo送信に失敗: ' + e.message, 'err');
     }
   },
+  async updateTask(t) {
+    if (!t.gtask_id || String(t.gtask_id).startsWith('pending-')) return;
+    if (!this.connected('google_tasks') || !Gas.ready()) return;
+    try {
+      await Gas.call('updateTask', { taskId: t.gtask_id, title: t.title, due: t.due, notes: t.notes,
+        map_url: location.origin + location.pathname + (t.map_id ? '#/map/' + t.map_id : '#/board') });
+      this.mark('google_tasks'); this.log('google_tasks', 'sent', 'Google ToDoを更新しました（新規作成なし）', t.title); Store.save();
+    } catch (e) { this.log('google_tasks', 'error', e.message, t.title); Store.save(); }
+  },
   async syncDone(t, done) {
     if (!t.gtask_id || String(t.gtask_id).startsWith('pending-')) return;
     if (!this.connected('google_tasks') || !Gas.ready()) return;
@@ -1884,6 +1928,7 @@ function openTask(id) {
       t.priority = +$('#tP').value; t.project_id = $('#tPr').value; t.notes = $('#tN').value;
       t.updated_at = new Date().toISOString();
       const nn = nodeById(t.node_id); if (nn) { nn.title = t.title; nn.owner = t.owner; nn.due = t.due; nn.priority = t.priority; }
+      if (t.gtask_id && !String(t.gtask_id).startsWith('pending-')) Integrations.updateTask(t);
       Store.save(true); closeModal(); render(); toast('保存しました');
     } }]);
 }
@@ -2195,7 +2240,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.4.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.0.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -3100,13 +3145,37 @@ function mergeInto(id, isEdit) {
   ['purpose', 'outcome', 'goal_ref', 'project_id', 'task_id', 'location', 'url_online', 'guests', 'owner', 'lane', 'notes'].forEach(k => { if (!o[k] && _evDraft[k]) o[k] = _evDraft[k]; });
   evNorm(o); Store.save(true); _evDraft = null; closeModal(); render(); toast('既存の予定に統合しました');
 }
-function commitEvent(isEdit) {
+function commitEvent(isEdit, choice) {
   const e = evNorm(collectEvent());
+  const prev = DB.calendar_events.find(x => x.id === e.id);
+  if (isEdit && prev && prev.google_event_id && !choice) {
+    if (prev.sync_status === 'gchanged' && prev.google_snapshot) {
+      const g = prev.google_snapshot;
+      openModal('Google側でも変更されています',
+        '<div class="grid g2"><div class="card pad"><div class="small muted">MIND FLOW側</div><b>' + esc(e.title) + '</b>' +
+          '<div class="small">' + esc(e.start.replace('T', ' ')) + '〜' + hm(e.end) + '</div></div>' +
+        '<div class="card pad"><div class="small muted">Google側</div><b>' + esc(g.title) + '</b>' +
+          '<div class="small">' + esc(String(g.start).replace('T', ' ')) + '〜' + hm(g.end) + '</div></div></div>' +
+        '<div class="small muted" style="margin-top:10px">どちらを採用しますか？勝手な上書きはしません。</div>',
+        [{ label: 'MIND FLOWを採用', cls: 'pri', fn: () => { prev.sync_status = 'synced'; delete prev.google_snapshot; commitEvent(true, 'both'); } },
+         { label: 'Googleを採用', fn: () => { Object.assign(prev, { title: g.title, start: g.start, end: g.end, location: g.location || '', sync_status: 'synced' });
+           delete prev.google_snapshot; Store.save(true); _evDraft = null; closeModal(); render(); toast('Google側の内容を採用しました'); } },
+         { label: '後で確認', fn: closeModal }]);
+      return;
+    }
+    openModal('この変更をGoogleカレンダーにも反映しますか？',
+      '<div class="small muted">この予定はGoogleへ同期済みです。反映先を選んでください。</div>',
+      [{ label: '両方を変更する', cls: 'pri', fn: () => commitEvent(true, 'both') },
+       { label: 'MIND FLOWだけ変更', fn: () => commitEvent(true, 'local') },
+       { label: 'キャンセル', fn: () => { _evDraft = null; closeModal(); } }]);
+    return;
+  }
   const i = DB.calendar_events.findIndex(x => x.id === e.id);
   if (i >= 0) DB.calendar_events[i] = e; else DB.calendar_events.unshift(e);
   if (e.task_id) { const t = taskById(e.task_id); if (t && t.gtd !== 'done') { t.due = dOf(e.start); setGtd(t, 'calendar'); } }
   Store.log(isEdit ? '予定を更新' : '予定を作成', e.title);
   Store.save(true); _evDraft = null; closeModal(); render();
+  if (choice === 'local') { toast('MIND FLOWだけ変更しました（Googleは変更していません）'); return; }
   if (e.sync_to_google && ETYPE[e.type].sync) syncEvent(e); else toast('MIND FLOWに登録しました（Google同期なし）');
 }
 function delEvent(id) {
@@ -4196,6 +4265,745 @@ function oppAlerts() {
   const dup = Object.keys(keys).filter(k => keys[k] > 1);
   if (dup.length) out.push({ t: '同一案件の二重計上のおそれ', d: dup.length + '件の重複した案件名があります', a: '案件一覧を開く', fn: () => go('pipeline') });
   return out;
+}
+
+/* =========================================================================
+   編集エンジン — 一覧のインライン編集／詳細パネル／一括編集／履歴／Undo
+   既存データは破壊せず、不足項目は読み込み時に初期値で補完する
+   ========================================================================= */
+const BIZ = ['太陽光', '蓄電池', 'ReFort', 'セカンダリー', '開発', 'CS', 'その他'];
+const STATUS_P = { active: '進行中', hold: '保留', done: '完了', archived: 'アーカイブ' };
+const STATUS_A = { open: '未着手', doing: '実行中', done: '完了', dropped: '取りやめ' };
+const REF_KIND = { ref: '紹介元', buyer: '購入者', both: '両方' };
+const SALES_STEPS_INIT = ['アポイント', '商談化', '取り次ぎ・案件化', '最終提案', '合意', '申込', '契約', '入金'];
+
+function num(v) { return v === '' || v == null ? 0 : (+v || 0); }
+function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
+
+/* ---- 項目定義 ---- */
+const ENT = {
+  projects: {
+    label: 'プロジェクト', icon: '■', arr: () => DB.projects, key: 'title',
+    fields: [
+      { k: 'title', l: 'プロジェクト名', t: 'text', req: 1, w: 200 },
+      { k: 'business', l: '対象事業', t: 'sel', opts: BIZ, w: 110 },
+      { k: 'amount', l: '目標金額(億)', t: 'num', w: 100 },
+      { k: 'due', l: '達成期限', t: 'date', w: 110 },
+      { k: 'owner', l: '責任者', t: 'text', w: 100 },
+      { k: 'members', l: '参加者', t: 'text', w: 120 },
+      { k: 'priority', l: '優先度', t: 'sel', opts: { 1: '最重要', 2: '重要', 3: '通常', 4: '低' }, w: 90 },
+      { k: 'status', l: 'ステータス', t: 'sel', opts: STATUS_P, w: 100 },
+      { k: 'progress2', l: '進捗', t: 'calc', calc: p => projectProgress(p) + '%', w: 70 },
+      { k: 'done_condition', l: '完了条件', t: 'text', w: 200 },
+      { k: 'judge', l: '成果判定条件', t: 'text', w: 180 },
+      { k: 'purpose', l: '説明', t: 'area' },
+      { k: 'docs', l: '関連資料URL', t: 'text' }
+    ]
+  },
+  owner_goals: {
+    label: '担当者別目標', icon: '◆', arr: () => DB.owner_goals, key: 'owner',
+    fields: [
+      { k: 'owner', l: '担当者', t: 'text', req: 1, w: 110 },
+      { k: 'period', l: '対象期間', t: 'text', w: 110, help: '例）18期4Q / 2026-09' },
+      { k: 'revenue', l: '受注目標(億)', t: 'num', w: 110 },
+      { k: 'pipeline', l: '有効案件目標(億)', t: 'num', w: 130 },
+      { k: 'appo', l: 'アポイント', t: 'num', w: 90 },
+      { k: 'meeting', l: '商談', t: 'num', w: 80 },
+      { k: 'handover', l: '取り次ぎ', t: 'num', w: 90 },
+      { k: 'proposal', l: '最終提案', t: 'num', w: 90 },
+      { k: 'contract', l: '契約', t: 'num', w: 80 },
+      { k: 'payment', l: '入金', t: 'num', w: 80 },
+      { k: 'due', l: '期限', t: 'date', w: 110 }
+    ],
+    foot: rows => {
+      const sum = rows.reduce((a, r) => a + num(r.revenue), 0);
+      const target = (DB.goals[0] || {}).amount || 0;
+      return '<div class="small" style="padding:10px 14px">個人目標の合計 <b style="font-size:16px">' + Math.round(sum * 100) / 100 + '億円</b>' +
+        (target ? ' ／ プロジェクト総目標 ' + target + '億円 ' +
+          (Math.abs(sum - target) < 0.01 ? '<span class="chip green">一致</span>'
+            : '<span class="chip red">' + (sum > target ? '超過' : '不足') + ' ' + Math.round(Math.abs(sum - target) * 100) / 100 + '億円</span>') : '') +
+        ' <span class="chip">自動計算</span></div>';
+    }
+  },
+  sales_steps: {
+    label: 'セールスステップ', icon: '→', arr: () => DB.sales_steps, key: 'name', sort: (a, b) => num(a.order) - num(b.order),
+    fields: [
+      { k: 'order', l: '順', t: 'num', w: 60 },
+      { k: 'name', l: 'ステップ名', t: 'text', req: 1, w: 160 },
+      { k: 'target', l: '目標件数', t: 'num', w: 100 },
+      { k: 'actual', l: '実績件数', t: 'num', w: 100 },
+      { k: 'rate', l: '達成率', t: 'calc', calc: r => pct(num(r.actual), num(r.target)) + '%', w: 80 },
+      { k: 'due', l: '期限', t: 'date', w: 110 },
+      { k: 'leadtime', l: 'リードタイム(日)', t: 'num', w: 120 },
+      { k: 'prob', l: '受注確度(%)', t: 'num', w: 100 },
+      { k: 'color', l: '色', t: 'text', w: 90 },
+      { k: 'done_condition', l: '完了条件', t: 'text', w: 200 }
+    ]
+  },
+  period_goals: {
+    label: '月間・週間ゴール', icon: '◷', arr: () => DB.period_goals, key: 'period',
+    fields: [
+      { k: 'kind', l: '区分', t: 'sel', opts: { month: '月間', week: '週間' }, w: 90 },
+      { k: 'period', l: '対象期間', t: 'text', req: 1, w: 120, help: '例）2026-09 / 9/14週' },
+      { k: 'owner', l: '担当者', t: 'text', w: 100 },
+      { k: 'rev_t', l: '売上目標', t: 'num', w: 100 }, { k: 'rev_a', l: '売上実績', t: 'num', w: 100 },
+      { k: 'rev_r', l: '達成率', t: 'calc', calc: r => pct(num(r.rev_a), num(r.rev_t)) + '%', w: 80 },
+      { k: 'gap', l: '差', t: 'calc', calc: r => Math.round((num(r.rev_a) - num(r.rev_t)) * 100) / 100, w: 70 },
+      { k: 'pipe_t', l: '有効案件目標', t: 'num', w: 120 }, { k: 'pipe_a', l: '有効案件実績', t: 'num', w: 120 },
+      { k: 'appo_t', l: 'アポ目標', t: 'num', w: 90 }, { k: 'appo_a', l: 'アポ実績', t: 'num', w: 90 },
+      { k: 'meet_t', l: '商談目標', t: 'num', w: 90 }, { k: 'meet_a', l: '商談実績', t: 'num', w: 90 },
+      { k: 'hand_t', l: '取次目標', t: 'num', w: 90 }, { k: 'hand_a', l: '取次実績', t: 'num', w: 90 },
+      { k: 'prop_t', l: '提案目標', t: 'num', w: 90 }, { k: 'prop_a', l: '提案実績', t: 'num', w: 90 },
+      { k: 'cont_t', l: '契約目標', t: 'num', w: 90 }, { k: 'cont_a', l: '契約実績', t: 'num', w: 90 },
+      { k: 'pay_t', l: '入金目標', t: 'num', w: 90 }, { k: 'pay_a', l: '入金実績', t: 'num', w: 90 },
+      { k: 'comment', l: 'コメント', t: 'area' },
+      { k: 'reason', l: '未達理由', t: 'area' },
+      { k: 'next', l: '次期間への対応', t: 'area' }
+    ]
+  },
+  commitments: {
+    label: 'コミットメント', icon: '▶', arr: () => DB.commitments, key: 'action',
+    fields: [
+      { k: 'owner', l: '担当者', t: 'text', w: 100 },
+      { k: 'action', l: 'アクション内容', t: 'text', req: 1, w: 240 },
+      { k: 'due', l: '行動期限', t: 'date', w: 110 },
+      { k: 'minutes', l: '所要(分)', t: 'num', w: 90 },
+      { k: 'priority', l: '優先度', t: 'sel', opts: { 1: '最重要', 2: '重要', 3: '通常', 4: '低' }, w: 90 },
+      { k: 'alignment', l: 'アライメント', t: 'text', w: 160, help: 'どの目標につながるか' },
+      { k: 'outcome', l: '得たい成果', t: 'text', w: 180 },
+      { k: 'outcome_due', l: '成果期限', t: 'date', w: 110 },
+      { k: 'result', l: '実行結果', t: 'text', w: 160 },
+      { k: 'outcome_result', l: '成果結果', t: 'text', w: 160 },
+      { k: 'status', l: 'ステータス', t: 'sel', opts: STATUS_A, w: 100 },
+      { k: 'opp_id', l: '関連案件', t: 'ref', ref: () => DB.opportunities, rk: 'name', w: 160 },
+      { k: 'project_id', l: '関連プロジェクト', t: 'ref', ref: () => DB.projects, rk: 'title', w: 160 },
+      { k: 'next_action', l: '次のアクション', t: 'text', w: 180 },
+      { k: 'to_gtasks', l: 'Google ToDo', t: 'bool', w: 100 },
+      { k: 'to_cal', l: 'カレンダー', t: 'bool', w: 100 }
+    ]
+  },
+  referrers: {
+    label: '紹介元・購入者', icon: '☎', arr: () => DB.referrers, key: 'name',
+    fields: [
+      { k: 'name', l: '氏名', t: 'text', req: 1, w: 120 },
+      { k: 'company', l: '会社名', t: 'text', w: 160 },
+      { k: 'kind', l: '区分', t: 'sel', opts: REF_KIND, w: 100 },
+      { k: 'expect', l: '見込紹介件数', t: 'num', w: 110 },
+      { k: 'actual', l: '実際の紹介件数', t: 'num', w: 120 },
+      { k: 'rate', l: '紹介達成率', t: 'calc', calc: r => pct(num(r.actual), num(r.expect)) + '%', w: 100 },
+      { k: 'contact', l: '連絡先', t: 'text', w: 140 },
+      { k: 'action', l: 'アクション', t: 'text', w: 180 },
+      { k: 'action_due', l: 'アクション期限', t: 'date', w: 120 },
+      { k: 'action_result', l: 'アクション結果', t: 'text', w: 160 },
+      { k: 'next_contact', l: '次回連絡日', t: 'date', w: 110 },
+      { k: 'ref_company', l: '紹介先企業', t: 'text', w: 160 },
+      { k: 'amount', l: '案件金額(億)', t: 'num', w: 110 },
+      { k: 'fee', l: '紹介フィー', t: 'num', w: 100 },
+      { k: 'status', l: 'ステータス', t: 'sel', opts: STATUS_A, w: 100 },
+      { k: 'memo', l: 'メモ', t: 'area' }
+    ]
+  },
+  opportunities: {
+    label: '案件', icon: '¥', arr: () => DB.opportunities, key: 'name',
+    fields: [
+      { k: 'name', l: '案件名', t: 'text', req: 1, w: 200 },
+      { k: 'customer', l: '顧客名', t: 'text', w: 140 },
+      { k: 'owner', l: '案件責任者', t: 'text', w: 110 },
+      { k: 'amount', l: '金額(億)', t: 'num', w: 90 },
+      { k: 'decider', l: '決裁者', t: 'text', w: 120 },
+      { k: 'rank', l: 'ランク', t: 'sel', opts: { A: 'A', B: 'B', C: 'C' }, w: 80 },
+      { k: 'prob', l: '確度(%)', t: 'num', w: 90 },
+      { k: 'weighted', l: '加重金額', t: 'calc', calc: o => Math.round(oppWeighted(o) * 100) / 100, w: 90 },
+      { k: 'phase', l: 'フェーズ', t: 'sel', opts: () => (DB.sales_steps || []).map(s => s.name), w: 130 },
+      { k: 'blocker', l: '現在の障害', t: 'text', w: 160 },
+      { k: 'next_action', l: '次のアクション', t: 'text', w: 180 },
+      { k: 'next_meeting', l: '次回商談日', t: 'date', w: 110 },
+      { k: 'last_proposal', l: '最終提案日', t: 'date', w: 110 },
+      { k: 'contract_date', l: '契約予定日', t: 'date', w: 110 },
+      { k: 'payment_date', l: '入金予定日', t: 'date', w: 110 },
+      { k: 'backup', l: 'バックアップ', t: 'bool', w: 100 },
+      { k: 'joint', l: '共同案件', t: 'bool', w: 90 },
+      { k: 'count_to', l: '金額計上先', t: 'text', w: 110 },
+      { k: 'status', l: '結果', t: 'sel', opts: { open: '進行中', won: '受注', lost: '失注' }, w: 100 },
+      { k: 'lost_reason', l: '失注理由', t: 'text', w: 160 }
+    ]
+  },
+  blockers: {
+    label: '障害・対策', icon: '⚠', arr: () => DB.blockers, key: 'name',
+    fields: [
+      { k: 'name', l: '障害名', t: 'text', req: 1, w: 180 },
+      { k: 'detail', l: '詳細', t: 'area' },
+      { k: 'cause', l: '原因', t: 'text', w: 180 },
+      { k: 'kpi', l: '影響するKPI', t: 'text', w: 140 },
+      { k: 'amount', l: '影響金額(億)', t: 'num', w: 110 },
+      { k: 'solution', l: '解決策', t: 'text', w: 200 },
+      { k: 'owner', l: '担当者', t: 'text', w: 100 },
+      { k: 'due', l: '解決期限', t: 'date', w: 110 },
+      { k: 'status', l: 'ステータス', t: 'sel', opts: STATUS_A, w: 100 },
+      { k: 'result', l: '結果', t: 'text', w: 160 },
+      { k: 'prevention', l: '再発防止策', t: 'area' }
+    ]
+  }
+};
+const ENT_KEYS = Object.keys(ENT);
+
+/* ---- 初期化（既存データを壊さずカラムを補完） ---- */
+function edInit() {
+  ['owner_goals', 'sales_steps', 'period_goals', 'commitments', 'referrers', 'blockers', 'audit_logs', 'trash'].forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
+  aiInit(); calInit();
+  if (!DB.sales_steps.length) {
+    SALES_STEPS_INIT.forEach((n, i) => DB.sales_steps.push({ id: uid(), name: n, order: i + 1, target: 0, actual: 0,
+      due: '', leadtime: 7, prob: [10, 20, 30, 50, 70, 85, 95, 100][i], color: '', done_condition: '', created_at: new Date().toISOString() }));
+  }
+  ENT_KEYS.forEach(e => ENT[e].arr().forEach(r => {
+    if (!r.id) r.id = uid();
+    if (!r.created_at) r.created_at = new Date().toISOString();
+    ENT[e].fields.forEach(f => { if (f.t !== 'calc' && r[f.k] === undefined) r[f.k] = f.t === 'num' ? 0 : (f.t === 'bool' ? false : ''); });
+  }));
+  /* AI計画の担当者別目標を取り込む（未登録のときだけ） */
+  if (!DB.owner_goals.length && (DB.goal_metrics || []).length) {
+    const seen = {};
+    DB.goal_metrics.filter(m => /受注目標/.test(m.name) && m.owner).forEach(m => {
+      if (seen[m.owner]) return; seen[m.owner] = 1;
+      const pipe = DB.goal_metrics.find(x => x.owner === m.owner && /有効案件/.test(x.name));
+      DB.owner_goals.push({ id: uid(), owner: m.owner, period: fiscalOf(today()).term + '期' + fiscalOf(today()).q + 'Q',
+        revenue: parseFloat(m.target) || 0, pipeline: pipe ? parseFloat(pipe.target) || 0 : 0,
+        appo: 0, meeting: 0, handover: 0, proposal: 0, contract: 0, payment: 0,
+        due: (DB.goals[0] || {}).due || '', created_at: new Date().toISOString() });
+    });
+  }
+}
+
+/* ---- 権限 ---- */
+function canEditEnt(ent, rec) {
+  const role = DB.settings.role || 'admin';
+  if (role === 'viewer') return false;
+  if (role === 'staff') {
+    const me = (DB.user || {}).name || '';
+    if (!rec) return true;
+    return !rec.owner || rec.owner === me;
+  }
+  return true;
+}
+function canDelete() { return (DB.settings.role || 'admin') === 'admin'; }
+
+/* ---- 保存状態の表示 ---- */
+let _edTimer = null, _edState = '';
+function setEdState(st) {
+  _edState = st;
+  const el = $('#saveState'); if (!el) return;
+  const map = { dirty: ['編集中', 'var(--gold)'], saving: ['保存中…', 'var(--blue)'], saved: ['保存済 ' + new Date().toTimeString().slice(0, 5), 'var(--green)'],
+    error: ['保存エラー', 'var(--red)'], offline: ['端末に一時保存', 'var(--orange)'] };
+  const m = map[st] || map.saved;
+  el.textContent = m[0]; el.style.color = m[1];
+}
+function edAutosave() {
+  setEdState('dirty');
+  clearTimeout(_edTimer);
+  _edTimer = setTimeout(() => {
+    setEdState('saving');
+    try { Store.save(true); setEdState(LS.ok ? 'saved' : 'offline'); }
+    catch (e) { setEdState('error'); toast('保存に失敗しました: ' + e.message, 'err'); }
+  }, 500);
+}
+
+/* ---- 変更履歴 ---- */
+function audit(ent, id, k, before, after, via, reason) {
+  DB.audit_logs.unshift({ id: uid(), at: new Date().toISOString(), by: (DB.user || {}).name || '-',
+    ent: ent, rec_id: id, field: k, before: before, after: after, via: via || '手動', reason: reason || '' });
+  DB.audit_logs = DB.audit_logs.slice(0, 1000);
+}
+function historyOf(ent, id) { return DB.audit_logs.filter(l => l.ent === ent && l.rec_id === id); }
+
+/* ---- Undo / Redo ---- */
+const UNDO = { s: [], r: [] };
+function pushUndo(label, undoFn, redoFn) {
+  UNDO.s.push({ label: label, undo: undoFn, redo: redoFn });
+  if (UNDO.s.length > 80) UNDO.s.shift();
+  UNDO.r = [];
+}
+function edUndo() {
+  const op = UNDO.s.pop();
+  if (!op) return toast('元に戻す操作がありません');
+  op.undo(); UNDO.r.push(op); Store.save(true); render(); toast('元に戻しました：' + op.label);
+}
+function edRedo() {
+  const op = UNDO.r.pop();
+  if (!op) return toast('やり直す操作がありません');
+  op.redo(); UNDO.s.push(op); Store.save(true); render(); toast('やり直しました：' + op.label);
+}
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (['input', 'textarea', 'select'].includes(tag)) return;
+  if (route.name === 'map') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); }
+});
+
+/* ---- 入力チェック ---- */
+function edValidate(ent, rec) {
+  const errs = [];
+  ENT[ent].fields.forEach(f => {
+    const v = rec[f.k];
+    if (f.req && (v === '' || v == null)) errs.push({ k: f.k, m: f.l + 'は必須です' });
+    if (f.t === 'num' && v !== '' && v != null) {
+      if (isNaN(+v)) errs.push({ k: f.k, m: f.l + 'には数字を入れてください' });
+      else if (+v < 0) errs.push({ k: f.k, m: f.l + 'をマイナスにはできません' });
+    }
+  });
+  const d = (k) => rec[k] || '';
+  if (ent === 'projects' && d('due') && rec.start && d('due') < rec.start) errs.push({ k: 'due', m: '達成期限が開始日より前になっています' });
+  if (ent === 'commitments') {
+    if (d('due') && d('outcome_due') && d('due') > d('outcome_due')) errs.push({ k: 'due', m: '行動期限が成果期限より後になっています' });
+    if (rec.status === 'done' && !d('result')) errs.push({ k: 'result', m: '完了にする場合は実行結果を入力してください' });
+    if (rec.owner && !isKnownOwner(rec.owner)) errs.push({ k: 'owner', m: 'この担当者は担当者別目標に登録がありません（登録すると集計されます）' });
+  }
+  if (ent === 'opportunities') {
+    if (rec.status === 'won' && !d('contract_date')) errs.push({ k: 'contract_date', m: '受注にする場合は契約予定日（実績日）を入れてください' });
+    if (rec.status === 'won' && !d('payment_date')) errs.push({ k: 'payment_date', m: '入金予定日が未入力です' });
+    if (rec.status === 'lost' && !d('lost_reason')) errs.push({ k: 'lost_reason', m: '失注理由を入力してください' });
+    const dup = DB.opportunities.find(o => o.id !== rec.id && normTitle(o.name) === normTitle(rec.name || ''));
+    if (dup) errs.push({ k: 'name', m: '同じ案件名が既にあります（二重計上の防止）' });
+    const same = DB.opportunities.find(o => o.id !== rec.id && normTitle(o.name) === normTitle(rec.name || '') && (o.count_to || '') === (rec.count_to || ''));
+    if (same) errs.push({ k: 'count_to', m: '同じ案件が同じ計上先で重複しています' });
+  }
+  if (ent === 'owner_goals') {
+    const sum = DB.owner_goals.reduce((a, r) => a + (r.id === rec.id ? num(rec.revenue) : num(r.revenue)), 0);
+    const target = (DB.goals[0] || {}).amount || 0;
+    if (target && Math.abs(sum - target) > 0.01) errs.push({ k: 'revenue', m: '個人目標の合計' + Math.round(sum * 100) / 100 + '億が総目標' + target + '億と一致していません', warn: 1 });
+  }
+  if (ent === 'sales_steps') {
+    const dup = DB.sales_steps.find(s => s.id !== rec.id && num(s.order) === num(rec.order));
+    if (dup) errs.push({ k: 'order', m: '同じ表示順のステップがあります', warn: 1 });
+  }
+  return errs;
+}
+function isKnownOwner(n) { return !DB.owner_goals.length || DB.owner_goals.some(g => g.owner === n) || n === ((DB.user || {}).name || ''); }
+
+/* ---- レコード操作 ---- */
+function recOf(ent, id) { return ENT[ent].arr().find(r => r.id === id); }
+function recSet(ent, id, k, v, via) {
+  const rec = recOf(ent, id); if (!rec) return;
+  if (!canEditEnt(ent, rec)) { toast('この項目を編集する権限がありません', 'err'); return; }
+  const f = ENT[ent].fields.find(x => x.k === k) || {};
+  const before = rec[k];
+  const val = f.t === 'num' ? (v === '' ? 0 : +v) : (f.t === 'bool' ? !!v : v);
+  if (before === val) return;
+  rec[k] = val; rec.updated_at = new Date().toISOString();
+  const errs = edValidate(ent, rec).filter(e => e.k === k && !e.warn);
+  if (errs.length) { rec[k] = before; toast(errs[0].m, 'err'); return errs[0].m; }
+  audit(ent, id, f.l || k, before, val, via);
+  pushUndo(ENT[ent].label + 'の' + (f.l || k) + 'を変更',
+    () => { const r = recOf(ent, id); if (r) r[k] = before; },
+    () => { const r = recOf(ent, id); if (r) r[k] = val; });
+  syncSideEffects(ent, rec, k);
+  edAutosave();
+}
+function syncSideEffects(ent, rec, k) {
+  if (ent === 'opportunities' && rec.rank && k === 'rank' && RANK[rec.rank]) rec.prob = RANK[rec.rank].p;
+  if (ent === 'commitments' && rec.task_id) {
+    const t = taskById(rec.task_id);
+    if (t) { if (k === 'action') t.title = rec.action; if (k === 'due') t.due = rec.due; if (k === 'owner') t.owner = rec.owner;
+      if (k === 'status' && rec.status === 'done' && t.gtd !== 'done') setGtd(t, 'done');
+      if (t.gtask_id && ['action', 'due'].includes(k)) Integrations.updateTask(t); }
+  }
+}
+function recAdd(ent, pre) {
+  if (!canEditEnt(ent)) return toast('追加する権限がありません', 'err');
+  const rec = { id: uid(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  ENT[ent].fields.forEach(f => { if (f.t !== 'calc') rec[f.k] = f.t === 'num' ? 0 : (f.t === 'bool' ? false : ''); });
+  if (ent === 'sales_steps') rec.order = (DB.sales_steps.length || 0) + 1;
+  if (ent === 'period_goals') { rec.kind = 'week'; rec.period = fmtDate(mondayOf(today())) + '週'; }
+  if (ent === 'opportunities') { rec.rank = 'B'; rec.prob = 45; rec.status = 'open'; }
+  if (ent === 'commitments') { rec.status = 'open'; rec.priority = 2; rec.minutes = 60; rec.due = addDays(today(), 3); }
+  Object.assign(rec, pre || {});
+  ENT[ent].arr().unshift(rec);
+  audit(ent, rec.id, '新規作成', '', ENT[ent].key ? rec[ENT[ent].key] : '', '手動');
+  pushUndo(ENT[ent].label + 'を追加',
+    () => { const a = ENT[ent].arr(); const i = a.findIndex(r => r.id === rec.id); if (i >= 0) a.splice(i, 1); },
+    () => { ENT[ent].arr().unshift(rec); });
+  edAutosave();
+  return rec;
+}
+function recDup(ent, id) {
+  const src = recOf(ent, id); if (!src) return;
+  const rec = JSON.parse(JSON.stringify(src));
+  rec.id = uid(); rec.created_at = new Date().toISOString(); rec.updated_at = rec.created_at;
+  const k = ENT[ent].key; if (k && rec[k]) rec[k] = rec[k] + '（複製）';
+  if (ent === 'period_goals') {
+    rec.period = rec.kind === 'week' ? fmtDate(addDays(mondayOf(today()), 7)) + '週' : addDays(today(), 30).slice(0, 7);
+    ['rev_a', 'pipe_a', 'appo_a', 'meet_a', 'hand_a', 'prop_a', 'cont_a', 'pay_a'].forEach(x => rec[x] = 0);
+  }
+  rec.google_event_id = ''; rec.gtask_id = '';
+  ENT[ent].arr().unshift(rec);
+  audit(ent, rec.id, '複製', src[k] || '', rec[k] || '', '手動');
+  pushUndo(ENT[ent].label + 'を複製',
+    () => { const a = ENT[ent].arr(); const i = a.findIndex(r => r.id === rec.id); if (i >= 0) a.splice(i, 1); },
+    () => { ENT[ent].arr().unshift(rec); });
+  edAutosave(); return rec;
+}
+function recArchive(ent, id, on) {
+  const rec = recOf(ent, id); if (!rec) return;
+  const before = !!rec.archived; rec.archived = on == null ? !before : on;
+  audit(ent, id, 'アーカイブ', before, rec.archived, '手動');
+  pushUndo(ENT[ent].label + 'をアーカイブ', () => { const r = recOf(ent, id); if (r) r.archived = before; }, () => { const r = recOf(ent, id); if (r) r.archived = !before; });
+  edAutosave();
+}
+function relatedOf(ent, rec) {
+  const out = [];
+  if (ent === 'projects') {
+    out.push(['タスク', DB.tasks.filter(t => t.project_id === rec.id).length]);
+    out.push(['案件', DB.opportunities.filter(o => o.project_id === rec.id).length]);
+    out.push(['カレンダー予定', DB.calendar_events.filter(e => e.project_id === rec.id).length]);
+  }
+  if (ent === 'opportunities') out.push(['コミットメント', DB.commitments.filter(c => c.opp_id === rec.id).length]);
+  if (ent === 'commitments' && rec.task_id) out.push(['GTDタスク', 1]);
+  return out;
+}
+function recTrash(ent, id) {
+  const rec = recOf(ent, id); if (!rec) return;
+  const rel = relatedOf(ent, rec);
+  const gsync = (ent === 'commitments' && rec.gtask_id) ? 'Google ToDoの該当タスクは残ります（手動で削除してください）' : '';
+  openModal('削除の確認',
+    '<div class="err">削除対象：' + esc(rec[ENT[ent].key] || '（無題）') + '</div>' +
+    (rel.length ? '<div class="small" style="margin-bottom:8px">関連データ：' + rel.map(r => r[0] + ' ' + r[1] + '件').join(' ／ ') + '（関連データは削除されません）</div>' : '') +
+    (gsync ? '<div class="small muted" style="margin-bottom:8px">' + gsync + '</div>' : '') +
+    '<div class="small muted">ゴミ箱に入れたものは30日間復元できます。完全削除は管理者のみです。</div>',
+    [{ label: 'アーカイブにする', fn: () => { recArchive(ent, id, true); closeModal(); render(); toast('アーカイブしました'); } },
+     { label: 'ゴミ箱へ移動', cls: 'pri', fn: () => {
+        const a = ENT[ent].arr(); const i = a.findIndex(r => r.id === id); if (i < 0) return;
+        const copy = a[i]; a.splice(i, 1);
+        DB.trash.unshift({ id: uid(), ent: ent, at: new Date().toISOString(), by: (DB.user || {}).name || '', rec: copy });
+        audit(ent, id, 'ゴミ箱へ移動', copy[ENT[ent].key] || '', '', '手動');
+        pushUndo(ENT[ent].label + 'をゴミ箱へ',
+          () => { DB.trash = DB.trash.filter(t => t.rec.id !== id); ENT[ent].arr().unshift(copy); },
+          () => { const b = ENT[ent].arr(); const j = b.findIndex(r => r.id === id); if (j >= 0) b.splice(j, 1); DB.trash.unshift({ id: uid(), ent: ent, at: new Date().toISOString(), rec: copy }); });
+        edAutosave(); closeModal(); render(); toast('ゴミ箱へ移動しました（30日間復元できます）');
+      } },
+     { label: '中止', fn: closeModal }]);
+}
+function trashRestore(tid) {
+  const t = DB.trash.find(x => x.id === tid); if (!t) return;
+  ENT[t.ent].arr().unshift(t.rec);
+  DB.trash = DB.trash.filter(x => x.id !== tid);
+  audit(t.ent, t.rec.id, 'ゴミ箱から復元', '', t.rec[ENT[t.ent].key] || '', '手動');
+  edAutosave(); render(); toast('復元しました');
+}
+function trashPurge(tid) {
+  if (!canDelete()) return toast('完全削除は管理者のみです', 'err');
+  const t = DB.trash.find(x => x.id === tid); if (!t) return;
+  if (!confirm('完全に削除します。元に戻せません。よろしいですか？')) return;
+  if (!confirm('本当に削除しますか？（最終確認）')) return;
+  DB.trash = DB.trash.filter(x => x.id !== tid);
+  edAutosave(); render(); toast('完全に削除しました');
+}
+
+/* ---- 一覧・編集UI ---- */
+let SEL = {};              /* 一括編集の選択 */
+let DETAIL = null;         /* 右パネルで開いているレコード */
+function viewData() {
+  edInit();
+  const ent = DB.settings.edEnt || 'projects';
+  const q = DB.settings.edQ || '';
+  setTop('データ編集',
+    '<button class="btn sm" onclick="edUndo()" title="元に戻す（Ctrl+Z）">↶</button>' +
+    '<button class="btn sm" onclick="edRedo()" title="やり直す">↷</button>' +
+    '<button class="btn sm" onclick="viewTrash()">ゴミ箱</button>' +
+    '<button class="btn pri sm" onclick="recNewOpen(\'' + ent + '\')">＋ 追加</button>');
+  const tabs = ENT_KEYS.map(k => '<button class="cal-tab' + (k === ent ? ' on' : '') + '" onclick="edTab(\'' + k + '\')">' +
+    ENT[k].icon + ' ' + ENT[k].label + '<span class="n">' + ENT[k].arr().filter(r => !r.archived).length + '</span></button>').join('');
+  $('#view').innerHTML =
+    '<div class="cal-head"><div class="cal-tabs">' + tabs + '</div>' +
+      '<div class="cal-meta">' +
+        '<input id="edQ" placeholder="🔍 検索" value="' + esc(q) + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;width:180px">' +
+        '<label class="small muted"><input type="checkbox" id="edArch"' + (DB.settings.edArch ? ' checked' : '') + '> アーカイブも表示</label>' +
+        (canEditEnt(ent) ? '' : '<span class="chip orange">閲覧専用（権限：' + ROLES[DB.settings.role] + '）</span>') +
+        '<span class="sp" style="flex:1"></span><span id="bulkBar"></span>' +
+      '</div></div>' +
+    '<div class="edwrap"><div class="edmain" id="edMain"></div>' +
+      (isMobile() ? '' : '<aside class="recpanel" id="recPanel"></aside>') + '</div>';
+  $('#edQ').addEventListener('input', e => { DB.settings.edQ = e.target.value; Store.save(); edRows(ent); });
+  $('#edArch').addEventListener('change', e => { DB.settings.edArch = e.target.checked; Store.save(); edRows(ent); });
+  edRows(ent); if (!isMobile()) renderPanel();
+}
+function edTab(k) { DB.settings.edEnt = k; SEL = {}; DETAIL = null; Store.save(); render(); }
+function edFiltered(ent) {
+  const q = (DB.settings.edQ || '').toLowerCase();
+  let rows = ENT[ent].arr().filter(r => (DB.settings.edArch || !r.archived));
+  if (q) rows = rows.filter(r => JSON.stringify(r).toLowerCase().includes(q));
+  if (ENT[ent].sort) rows = rows.slice().sort(ENT[ent].sort);
+  return rows;
+}
+function edRows(ent) {
+  const rows = edFiltered(ent), F = ENT[ent].fields.filter(f => f.t !== 'area');
+  const host = $('#edMain'); if (!host) return;
+  $('#bulkBar').innerHTML = Object.keys(SEL).filter(k => SEL[k]).length ?
+    '<button class="btn sm pri" onclick="bulkOpen(\'' + ent + '\')">選択した' + Object.keys(SEL).filter(k => SEL[k]).length + '件を一括編集</button>' +
+    '<button class="btn sm" onclick="SEL={};render()">選択解除</button>' : '';
+  if (!rows.length) {
+    host.innerHTML = '<div class="card empty">まだ' + ENT[ent].label + 'がありません。' +
+      '<div><button class="btn pri" onclick="recNewOpen(\'' + ent + '\')">＋ ' + ENT[ent].label + 'を追加</button></div></div>';
+    return;
+  }
+  if (isMobile()) {
+    host.innerHTML = rows.map(r => '<div class="card pad reccard' + (r.archived ? ' arch' : '') + '" onclick="openDetailRec(\'' + ent + '\',\'' + r.id + '\')">' +
+      '<b>' + esc(r[ENT[ent].key] || '（無題）') + '</b>' +
+      '<div class="small muted" style="margin-top:4px">' + F.slice(1, 5).map(f => f.l + ': ' + esc(fmtVal(f, f.t === 'calc' ? f.calc(r) : r[f.k]))).join(' ／ ') + '</div>' +
+      (r.archived ? '<span class="chip grey">アーカイブ</span>' : '') + '</div>').join('');
+    return;
+  }
+  host.innerHTML = '<div class="card" style="overflow:auto;max-height:72vh"><table class="edtbl"><thead><tr>' +
+    '<th style="width:30px"><input type="checkbox" onchange="bulkAll(this.checked)"></th>' +
+    F.map(f => '<th style="min-width:' + (f.w || 110) + 'px">' + f.l + (f.t === 'calc' ? '<span class="autocalc">自動</span>' : '') + '</th>').join('') +
+    '<th style="width:90px"></th></tr></thead><tbody>' +
+    rows.map(r => '<tr class="' + (r.archived ? 'arch' : '') + (DETAIL && DETAIL.id === r.id ? ' selrow' : '') + '">' +
+      '<td><input type="checkbox"' + (SEL[r.id] ? ' checked' : '') + ' onchange="SEL[\'' + r.id + '\']=this.checked;edRows(\'' + ent + '\')"></td>' +
+      F.map(f => edCell(ent, r, f)).join('') +
+      '<td><button class="btn sm" onclick="openDetailRec(\'' + ent + '\',\'' + r.id + '\')">詳細</button></td></tr>').join('') +
+    '</tbody></table></div>' + (ENT[ent].foot ? '<div class="card" style="margin-top:10px">' + ENT[ent].foot(rows) + '</div>' : '');
+}
+function fmtVal(f, v) {
+  if (v === '' || v == null) return '';
+  if (f.t === 'bool') return v ? 'する' : 'しない';
+  if (f.t === 'sel') { const o = typeof f.opts === 'function' ? f.opts() : f.opts; return Array.isArray(o) ? v : (o[v] || v); }
+  if (f.t === 'ref') { const r = f.ref().find(x => x.id === v); return r ? r[f.rk] : ''; }
+  if (f.t === 'date') return fmtDate(v);
+  return String(v);
+}
+function edCell(ent, r, f) {
+  const v = f.t === 'calc' ? f.calc(r) : r[f.k];
+  if (f.t === 'calc') return '<td class="calc" title="自動計算のため編集できません">' + esc(String(v)) + '</td>';
+  if (!canEditEnt(ent, r)) return '<td>' + esc(fmtVal(f, v)) + '</td>';
+  return '<td class="ed" data-e="' + ent + '" data-id="' + r.id + '" data-k="' + f.k + '" onclick="cellEdit(this)">' +
+    (v === '' || v == null || v === 0 && f.t === 'num' ? '<span class="ph">' + (f.t === 'num' ? '0' : '—') + '</span>' : esc(fmtVal(f, v))) +
+    '<i class="pen">✎</i></td>';
+}
+function cellEdit(td) {
+  if (td.querySelector('input,select')) return;
+  const ent = td.dataset.e, id = td.dataset.id, k = td.dataset.k;
+  const f = ENT[ent].fields.find(x => x.k === k), rec = recOf(ent, id);
+  if (!f || !rec) return;
+  const cur = rec[k];
+  let html;
+  if (f.t === 'sel') {
+    const o = typeof f.opts === 'function' ? f.opts() : f.opts;
+    const entries = Array.isArray(o) ? o.map(x => [x, x]) : Object.keys(o).map(x => [x, o[x]]);
+    html = '<select class="cellin"><option value=""></option>' + entries.map(e => '<option value="' + esc(e[0]) + '"' + (String(cur) === String(e[0]) ? ' selected' : '') + '>' + esc(e[1]) + '</option>').join('') + '</select>';
+  } else if (f.t === 'ref') {
+    html = '<select class="cellin"><option value="">なし</option>' + f.ref().map(x => '<option value="' + x.id + '"' + (cur === x.id ? ' selected' : '') + '>' + esc(x[f.rk]) + '</option>').join('') + '</select>';
+  } else if (f.t === 'bool') {
+    html = '<select class="cellin"><option value="0"' + (!cur ? ' selected' : '') + '>しない</option><option value="1"' + (cur ? ' selected' : '') + '>する</option></select>';
+  } else {
+    html = '<input class="cellin" type="' + (f.t === 'num' ? 'number' : f.t === 'date' ? 'date' : 'text') + '" value="' + esc(cur == null ? '' : cur) + '">';
+  }
+  td.classList.add('editing');
+  td.innerHTML = html;
+  const el = td.querySelector('.cellin'); el.focus(); if (el.select) el.select();
+  let done = false;
+  const commit = ok => {
+    if (done) return; done = true;
+    td.classList.remove('editing');
+    if (ok) {
+      const v = f.t === 'bool' ? el.value === '1' : el.value;
+      const err = recSet(ent, id, k, v);
+      if (err) { td.classList.add('err'); setTimeout(() => td.classList.remove('err'), 1500); }
+    }
+    edRows(ent); if (DETAIL && DETAIL.id === id) renderPanel();
+  };
+  el.addEventListener('blur', () => commit(true));
+  el.addEventListener('change', () => { if (f.t === 'sel' || f.t === 'ref' || f.t === 'bool' || f.t === 'date') commit(true); });
+  el.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(true); }
+    if (e.key === 'Escape') { e.preventDefault(); commit(false); }
+    if (e.key === 'Tab') {
+      e.preventDefault(); commit(true);
+      const cells = $$('#edMain td.ed'); const i = cells.indexOf(td);
+      const next = cells[i + (e.shiftKey ? -1 : 1)];
+      if (next) setTimeout(() => cellEdit(next), 30);
+    }
+  });
+}
+/* ---- 詳細パネル ---- */
+function openDetailRec(ent, id) {
+  DETAIL = { ent: ent, id: id };
+  if (isMobile()) { detailModal(); return; }
+  edRows(ent); renderPanel();
+}
+function panelHTML() {
+  if (!DETAIL) return '<div class="empty small"><div class="big">✎</div>行を選ぶと、ここで詳しく編集できます。</div>';
+  const { ent, id } = DETAIL, rec = recOf(ent, id);
+  if (!rec) { DETAIL = null; return panelHTML(); }
+  const errs = edValidate(ent, rec);
+  const F = ENT[ent].fields;
+  const field = f => {
+    if (f.t === 'calc') return '<div class="field"><label>' + f.l + ' <span class="autocalc">自動計算</span></label>' +
+      '<input value="' + esc(String(f.calc(rec))) + '" readonly style="background:#F4F6FA"></div>';
+    const e = errs.find(x => x.k === f.k);
+    const id2 = 'pf_' + f.k;
+    let inp;
+    if (f.t === 'sel') {
+      const o = typeof f.opts === 'function' ? f.opts() : f.opts;
+      const entries = Array.isArray(o) ? o.map(x => [x, x]) : Object.keys(o).map(x => [x, o[x]]);
+      inp = '<select id="' + id2 + '"><option value=""></option>' + entries.map(x => '<option value="' + esc(x[0]) + '"' + (String(rec[f.k]) === String(x[0]) ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('') + '</select>';
+    } else if (f.t === 'ref') {
+      inp = '<select id="' + id2 + '"><option value="">なし</option>' + f.ref().map(x => '<option value="' + x.id + '"' + (rec[f.k] === x.id ? ' selected' : '') + '>' + esc(x[f.rk]) + '</option>').join('') + '</select>';
+    } else if (f.t === 'bool') {
+      inp = '<select id="' + id2 + '"><option value="0"' + (!rec[f.k] ? ' selected' : '') + '>しない</option><option value="1"' + (rec[f.k] ? ' selected' : '') + '>する</option></select>';
+    } else if (f.t === 'area') {
+      inp = '<textarea id="' + id2 + '">' + esc(rec[f.k] || '') + '</textarea>';
+    } else {
+      inp = '<input id="' + id2 + '" type="' + (f.t === 'num' ? 'number' : f.t === 'date' ? 'date' : 'text') + '" value="' + esc(rec[f.k] == null ? '' : rec[f.k]) + '">';
+    }
+    return '<div class="field' + (e ? (e.warn ? ' warnf' : ' errf') : '') + '"><label>' + f.l + (f.req ? ' <span style="color:var(--red)">*</span>' : '') + '</label>' + inp +
+      (f.help ? '<div class="small muted" style="margin-top:3px">' + f.help + '</div>' : '') +
+      (e ? '<div class="fmsg' + (e.warn ? ' warn' : '') + '">' + esc(e.m) + '</div>' : '') + '</div>';
+  };
+  const hist = historyOf(ent, id);
+  return '<div class="dh"><b style="flex:1">' + ENT[ent].label + 'の編集</b>' +
+      '<button class="btn sm" onclick="recDupOpen()">複製</button>' +
+      '<button class="btn sm" onclick="recArchive(\'' + ent + '\',\'' + id + '\');render()">' + (rec.archived ? '戻す' : 'アーカイブ') + '</button>' +
+      '<button class="btn sm danger" onclick="recTrash(\'' + ent + '\',\'' + id + '\')">削除</button>' +
+      (isMobile() ? '<button class="btn sm ghost" onclick="closeModal()">閉じる</button>' : '') + '</div>' +
+    '<div class="db">' + F.map(field).join('') +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">' +
+        '<button class="btn pri" onclick="panelSave()">保存する</button>' +
+        '<button class="btn" onclick="panelCancel()">キャンセル</button>' +
+        '<button class="btn" onclick="aiImprove()">AIに改善を依頼</button>' +
+        '<button class="btn" onclick="showHistory(\'' + ent + '\',\'' + id + '\')">変更履歴 ' + (hist.length ? '(' + hist.length + ')' : '') + '</button>' +
+      '</div>' +
+      '<div class="small muted">最終更新: ' + (rec.updated_at || rec.created_at || '').slice(0, 16).replace('T', ' ') + '</div></div>';
+}
+function renderPanel() { const p = $('#recPanel'); if (p) p.innerHTML = panelHTML(); }
+function detailModal() { openModal(ENT[DETAIL.ent].label, '<div class="recpanel inmodal">' + panelHTML() + '</div>', []); }
+function panelCollect() {
+  const { ent, id } = DETAIL, rec = recOf(ent, id); if (!rec) return null;
+  const copy = JSON.parse(JSON.stringify(rec));
+  ENT[ent].fields.forEach(f => {
+    if (f.t === 'calc') return;
+    const el = $('#pf_' + f.k); if (!el) return;
+    copy[f.k] = f.t === 'num' ? (el.value === '' ? 0 : +el.value) : (f.t === 'bool' ? el.value === '1' : el.value);
+  });
+  return copy;
+}
+function panelSave() {
+  const { ent, id } = DETAIL, rec = recOf(ent, id), next = panelCollect();
+  if (!rec || !next) return;
+  if (!canEditEnt(ent, rec)) return toast('編集権限がありません', 'err');
+  const errs = edValidate(ent, next).filter(e => !e.warn);
+  if (errs.length) { DETAIL.errs = errs; renderPanelWith(next, errs); toast(errs[0].m, 'err'); return; }
+  const before = JSON.parse(JSON.stringify(rec));
+  ENT[ent].fields.forEach(f => {
+    if (f.t === 'calc') return;
+    if (String(before[f.k]) !== String(next[f.k])) audit(ent, id, f.l, before[f.k], next[f.k], '手動');
+  });
+  Object.assign(rec, next); rec.updated_at = new Date().toISOString();
+  pushUndo(ENT[ent].label + 'を保存', () => Object.assign(recOf(ent, id), before), () => Object.assign(recOf(ent, id), next));
+  Store.save(true); setEdState('saved');
+  if (isMobile()) closeModal();
+  render(); toast('保存しました');
+}
+function renderPanelWith(next, errs) {
+  const p = $('#recPanel') || $('.recpanel');
+  if (!p) return;
+  const rec = recOf(DETAIL.ent, DETAIL.id);
+  const keep = JSON.parse(JSON.stringify(rec));
+  Object.assign(rec, next);                 /* 入力内容を消さずにエラーだけ表示 */
+  p.innerHTML = panelHTML();
+  Object.assign(rec, keep);
+}
+function panelCancel() { if (isMobile()) closeModal(); DETAIL = null; render(); }
+function recNewOpen(ent) {
+  const rec = recAdd(ent); if (!rec) return;
+  DETAIL = { ent: ent, id: rec.id };
+  render(); if (isMobile()) detailModal();
+  toast(ENT[ent].label + 'を追加しました。内容を入力してください');
+}
+function recDupOpen() {
+  const rec = recDup(DETAIL.ent, DETAIL.id); if (!rec) return;
+  DETAIL = { ent: DETAIL.ent, id: rec.id }; render(); if (isMobile()) detailModal(); toast('複製しました');
+}
+/* ---- 一括編集 ---- */
+function bulkAll(on) { const ent = DB.settings.edEnt; edFiltered(ent).forEach(r => SEL[r.id] = on); edRows(ent); }
+function bulkOpen(ent) {
+  const ids = Object.keys(SEL).filter(k => SEL[k]);
+  const F = ENT[ent].fields.filter(f => ['text', 'num', 'date', 'sel', 'ref', 'bool'].includes(f.t));
+  openModal('一括編集（' + ids.length + '件）',
+    '<div class="field"><label>変更する項目</label><select id="bkF">' + F.map(f => '<option value="' + f.k + '">' + f.l + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label>新しい値</label><input id="bkV" placeholder="値を入力（日付はYYYY-MM-DD）"></div>' +
+    '<div class="small muted">対象: ' + ids.map(i => esc((recOf(ent, i) || {})[ENT[ent].key] || '')).slice(0, 6).join(' / ') + (ids.length > 6 ? ' ほか' + (ids.length - 6) + '件' : '') + '</div>',
+    [{ label: 'この内容で変更する', cls: 'pri', fn: () => {
+      const k = $('#bkF').value, v = $('#bkV').value;
+      const before = ids.map(i => ({ id: i, v: (recOf(ent, i) || {})[k] }));
+      ids.forEach(i => recSet(ent, i, k, v, '一括'));
+      pushUndo(ENT[ent].label + 'を一括変更', () => before.forEach(b => { const r = recOf(ent, b.id); if (r) r[k] = b.v; }),
+        () => ids.forEach(i => { const r = recOf(ent, i); if (r) r[k] = v; }));
+      SEL = {}; Store.save(true); closeModal(); render(); toast(ids.length + '件を変更しました');
+    } },
+     { label: 'まとめてアーカイブ', fn: () => { ids.forEach(i => recArchive(ent, i, true)); SEL = {}; closeModal(); render(); toast('アーカイブしました'); } }]);
+}
+/* ---- 変更履歴 ---- */
+function showHistory(ent, id) {
+  const h = historyOf(ent, id);
+  openModal('変更履歴',
+    h.length ? h.slice(0, 60).map(l => '<div class="sugg"><div class="s-t">' + esc(l.field) + '</div>' +
+      '<div class="small muted">' + l.at.slice(5, 16).replace('T', ' ') + ' ／ ' + esc(l.by) + ' ／ ' + esc(l.via) + '</div>' +
+      '<div class="small">変更前: ' + esc(String(l.before === '' ? '（空）' : l.before)) + ' → 変更後: ' + esc(String(l.after === '' ? '（空）' : l.after)) + '</div>' +
+      (l.before !== undefined ? '<div class="s-a"><button class="btn sm" onclick="revertTo(\'' + ent + '\',\'' + id + '\',\'' + l.id + '\')">この状態に戻す</button></div>' : '') +
+      '</div>').join('') : '<div class="empty small">まだ履歴はありません</div>',
+    [{ label: '閉じる', fn: closeModal }]);
+}
+function revertTo(ent, id, logId) {
+  const l = DB.audit_logs.find(x => x.id === logId); if (!l) return;
+  const f = ENT[ent].fields.find(x => x.l === l.field); if (!f) return toast('この項目は戻せません', 'err');
+  const rec = recOf(ent, id); const cur = rec[f.k];
+  rec[f.k] = l.before; rec.updated_at = new Date().toISOString();
+  audit(ent, id, f.l, cur, l.before, '履歴復元');
+  pushUndo('履歴から復元', () => { recOf(ent, id)[f.k] = cur; }, () => { recOf(ent, id)[f.k] = l.before; });
+  Store.save(true); closeModal(); render(); toast('復元しました');
+}
+/* ---- ゴミ箱 ---- */
+function viewTrash() {
+  edInit();
+  const live = DB.trash.filter(t => daysLeft(t.at.slice(0, 10)) > -30);
+  openModal('ゴミ箱（30日間復元できます）',
+    live.length ? live.map(t => '<div class="sugg"><div class="s-t">' + esc(t.rec[ENT[t.ent].key] || '（無題）') + '</div>' +
+      '<div class="small muted">' + ENT[t.ent].label + ' ／ ' + t.at.slice(5, 16).replace('T', ' ') + ' に削除 ／ 残り' + (30 + daysLeft(t.at.slice(0, 10))) + '日</div>' +
+      '<div class="s-a"><button class="btn sm pri" onclick="trashRestore(\'' + t.id + '\')">復元する</button>' +
+      '<button class="btn sm danger" onclick="trashPurge(\'' + t.id + '\')">完全に削除</button></div></div>').join('')
+      : '<div class="empty small">ゴミ箱は空です</div>',
+    [{ label: '閉じる', fn: closeModal }]);
+}
+/* ---- AIに改善を依頼 ---- */
+async function aiImprove() {
+  if (!DETAIL) return;
+  const { ent, id } = DETAIL, rec = recOf(ent, id);
+  const F = ENT[ent].fields.filter(f => f.t !== 'calc');
+  openModal('AIが改善案を作成しています', '<div class="load">' + esc(rec[ENT[ent].key] || '') + ' を確認中…</div>', []);
+  const cur = {}; F.forEach(f => cur[f.l] = rec[f.k]);
+  try {
+    const d = await AI.json('次の' + ENT[ent].label + 'を、実行できる形に改善してください。曖昧な表現は動詞で終わる具体的な行動に直し、' +
+      '空欄のうち推定できるものは埋め、期限は' + today() + 'を基準に具体的な日付にしてください。\n現在の内容: ' + JSON.stringify(cur) +
+      '\n形式: {"changes":[{"field":"項目名","before":"","after":"","why":"理由"}]} 変更が必要な項目だけ返すこと。',
+      'あなたは実行管理に厳しい経営参謀です。');
+    const ch = (d.changes || []).filter(c => F.some(f => f.l === c.field));
+    closeModal();
+    if (!ch.length) return toast('改善の提案はありませんでした');
+    openModal('AIの変更案',
+      '<table class="tbl"><thead><tr><th>項目</th><th>現在の内容</th><th>AIの変更案</th><th>採用</th></tr></thead><tbody>' +
+      ch.map((c, i) => '<tr><td>' + esc(c.field) + '</td><td class="small">' + esc(String(c.before || rec[(F.find(f => f.l === c.field) || {}).k] || '（空）')) + '</td>' +
+        '<td class="small"><b>' + esc(String(c.after)) + '</b><div class="muted">' + esc(c.why || '') + '</div></td>' +
+        '<td><input type="checkbox" class="aic" data-i="' + i + '" checked></td></tr>').join('') + '</tbody></table>' +
+      '<div class="small muted" style="margin-top:8px">承認するまで保存されません。</div>',
+      [{ label: 'チェックした内容を採用', cls: 'pri', fn: () => {
+        const pick = $$('.aic').filter(x => x.checked).map(x => ch[+x.dataset.i]);
+        const before = JSON.parse(JSON.stringify(rec));
+        pick.forEach(c => { const f = F.find(x => x.l === c.field); if (!f) return;
+          rec[f.k] = f.t === 'num' ? (+c.after || 0) : c.after; audit(ent, id, f.l, before[f.k], rec[f.k], 'AI'); });
+        rec.updated_at = new Date().toISOString();
+        pushUndo('AI案を反映', () => Object.assign(recOf(ent, id), before), () => {});
+        Store.save(true); closeModal(); render(); toast(pick.length + '件を反映しました');
+      } }, { label: '採用しない', fn: closeModal }]);
+  } catch (e) { closeModal(); toast('AIに接続できませんでした（' + e.message + '）', 'err'); }
 }
 
 /* =========================================================================
