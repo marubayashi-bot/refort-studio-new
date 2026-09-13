@@ -4,25 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="1.2.0">
-<meta name="theme-color" content="#101B33">
+<meta name="app-version" content="2.1.0">
+<meta name="theme-color" content="#07152D">
+<meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
+<link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="nm-icon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="nm-icon-180.png">
+<link rel="manifest" href="mindflow.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MIND FLOW">
+<link rel="preload" as="image" href="nm-bg-1280.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <style>
 :root{
-  --navy:#101B33; --navy2:#1B2A4A; --navy3:#26365A;
-  --gold:#C8A046; --gold-l:#E3C77C;
-  --blue:#2F6FED; --blue-l:#EAF0FE;
-  --bg:#F6F7F9; --surface:#FFFFFF; --line:#E3E6EC;
-  --ink:#16202F; --ink2:#5B6B85; --ink3:#8A93A6;
-  --green:#1F9D6B; --orange:#E08A25; --red:#D6453C;
-  --r:12px; --r-s:8px;
-  --shadow:0 1px 2px rgba(16,27,51,.06), 0 6px 18px rgba(16,27,51,.06);
-  --side:248px;
+  /* ブランドトークン（色はここでのみ定義する） */
+  --midnight:#07152D; --deep-navy:#10264B; --gold:#C9A84C; --pale-gold:#F2D785;
+  --accent-blue:#3978F6; --bg-white:#F7F9FC; --green:#28B487; --orange:#F2A93B; --red:#E65757;
+  /* 既存コンポーネント用のエイリアス */
+  --navy:var(--midnight); --navy2:var(--deep-navy); --navy3:#1B3663;
+  --gold-l:var(--pale-gold); --blue:var(--accent-blue); --blue-l:#EAF0FE;
+  --bg:var(--bg-white); --surface:#FFFFFF; --line:#E2E7EF;
+  --ink:#14213A; --ink2:#57647E; --ink3:#8B96AA;
+  --r:14px; --r-s:9px; --r-l:18px;
+  --shadow:0 1px 2px rgba(7,21,45,.05), 0 8px 24px rgba(7,21,45,.07);
+  --side:250px;
+  --bg-img:url('nm-bg-1280.webp');
+  --font-ja:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,system-ui,sans-serif;
+  --font-en:"Inter","Noto Sans JP",system-ui,sans-serif;
+  color-scheme:light;
 }
+@media (min-width:1200px){ :root{ --bg-img:url('nm-bg-1920.webp'); } }
+@media (max-width:900px){ :root{ --bg-img:url('nm-bg-mobile.webp'); } }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{margin:0;padding:0;height:100%}
 body{
-  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP",Meiryo,system-ui,sans-serif;
+  font-family:var(--font-ja);
   background:var(--bg); color:var(--ink); font-size:14px; line-height:1.6;
   overscroll-behavior:none;
 }
@@ -68,6 +88,7 @@ h1,h2,h3,h4{margin:0;font-weight:700;line-height:1.35}
 .topbar h1{font-size:16px}
 .topbar .sp{flex:1}
 .view{padding:20px;max-width:1180px;width:100%}
+.view.wide{max-width:1500px}
 .view.full{padding:0;max-width:none;flex:1;min-height:0}
 
 /* ---------- generic ---------- */
@@ -99,6 +120,10 @@ h1,h2,h3,h4{margin:0;font-weight:700;line-height:1.35}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600;background:#EEF1F6;color:var(--ink2);white-space:nowrap}
 .chip.red{background:#FBE9E8;color:var(--red)} .chip.orange{background:#FDF0E0;color:#A8641A}
 .chip.green{background:#E4F5EE;color:#146B49} .chip.blue{background:var(--blue-l);color:#1A4FB5}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11.5px;color:var(--ink2)}
+.chain b{color:var(--ink);font-size:13px}
+.chain i{color:var(--ink3);font-style:normal}
+.dotc{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:5px}
 .chip.gold{background:#F8F0DC;color:#8A6A17} .chip.grey{background:#EEF1F6;color:var(--ink2)}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:11.5px;color:var(--ink2);margin-bottom:4px}
@@ -190,6 +215,138 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .sugg .s-t{font-size:13px;font-weight:600}
 .sugg .s-a{display:flex;gap:6px;margin-top:8px}
 
+/* ---------- ブランド背景 ---------- */
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:var(--midnight) var(--bg-img) center/cover no-repeat}
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249,252,.88)}
+.shell{background:transparent}
+.main{background:transparent}
+.topbar{background:rgba(255,255,255,.78);backdrop-filter:blur(12px);border-bottom:1px solid rgba(16,38,75,.10)}
+.card{border-color:rgba(16,38,75,.09);border-radius:var(--r-l);background:rgba(255,255,255,.96)}
+.card.sel,.card.on{border-color:var(--gold)}
+.glass{position:relative;border-radius:20px;overflow:hidden;color:#fff;border:1px solid rgba(201,168,76,.35);
+  background:linear-gradient(105deg,rgba(7,21,45,.93) 0%,rgba(16,38,75,.72) 48%,rgba(16,38,75,.42) 100%), var(--bg-img);
+  background-size:cover;background-position:right center;box-shadow:0 10px 34px rgba(7,21,45,.28)}
+.glass .sub{color:#C5D0E3}
+.glass .gold{color:var(--pale-gold)}
+.hero{padding:22px 24px;margin-bottom:16px}
+.hero .tag{font-family:var(--font-en);font-weight:400;letter-spacing:.18em;font-size:11px;color:var(--pale-gold)}
+.hero h2{font-size:22px;font-weight:700;margin:8px 0 2px;letter-spacing:.01em}
+.hero .lead{font-weight:300;letter-spacing:.14em;font-size:13px;color:#C5D0E3}
+.hero-stats{display:flex;gap:26px;flex-wrap:wrap;margin-top:16px}
+.hero-stats .s .k{font-size:10.5px;letter-spacing:.1em;color:#9FB0CA}
+.hero-stats .s .v{font-family:var(--font-en);font-size:24px;font-weight:700;line-height:1.25}
+.hero-stats .s .v small{font-size:12px;font-weight:400;color:#C5D0E3;margin-left:3px}
+.gold-line{height:1px;background:linear-gradient(90deg,rgba(201,168,76,0),var(--gold) 35%,var(--pale-gold) 65%,rgba(201,168,76,0));margin:14px 0}
+/* ---------- サイドバー ---------- */
+.side{background:linear-gradient(180deg,#07152D 0%,#0B1D3A 100%);border-right:1px solid rgba(201,168,76,.18)}
+.brandbox{display:flex;gap:11px;align-items:center;padding:6px 8px 18px}
+.brandbox img{width:38px;height:38px;border-radius:11px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.brandbox .bn{font-family:var(--font-en);font-weight:700;font-size:15px;letter-spacing:.10em;color:#fff;line-height:1.2}
+.brandbox .bs{font-family:var(--font-en);font-size:8.5px;letter-spacing:.16em;color:var(--gold);margin-top:3px}
+.nav a .ic{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;opacity:.75}
+.nav a.on .ic{opacity:1;color:var(--pale-gold)}
+.nav a.on{background:rgba(201,168,76,.12);box-shadow:inset 3px 0 0 var(--gold)}
+.side .me{border-top:1px solid rgba(255,255,255,.10)}
+.side .owner{font-family:var(--font-en);font-size:9.5px;letter-spacing:.16em;color:var(--gold);margin-top:12px;padding:0 10px}
+/* ---------- ログイン・起動画面 ---------- */
+#login{background:var(--midnight) var(--bg-img) center/cover no-repeat}
+#login::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(7,21,45,.92),rgba(7,21,45,.55))}
+.login-card{position:relative;background:rgba(9,24,48,.62);border:1px solid rgba(201,168,76,.28);border-radius:20px;backdrop-filter:blur(10px)}
+.login-card .lg-ic{width:64px;height:64px;border-radius:18px;display:block;margin:0 auto 14px;box-shadow:0 8px 26px rgba(0,0,0,.5)}
+.login-card .lg-n{font-family:var(--font-en);font-weight:700;font-size:22px;letter-spacing:.16em;text-align:center;color:#fff}
+.login-card .lg-s{font-family:var(--font-en);font-size:9.5px;letter-spacing:.24em;text-align:center;color:var(--gold);margin-top:6px}
+.login-card p.tag{text-align:center;font-weight:300;letter-spacing:.1em;color:#C5D0E3;margin:18px 0 24px}
+.btn-g{background:linear-gradient(120deg,var(--gold),#A8863A);color:#0B1B36}
+#splash{position:fixed;inset:0;z-index:120;background:var(--midnight);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:opacity .45s}
+#splash.out{opacity:0;pointer-events:none}
+#splash img{width:92px;height:92px;border-radius:24px;box-shadow:0 10px 40px rgba(0,0,0,.55);animation:sp-in .7s ease-out both}
+#splash .sn{font-family:var(--font-en);font-weight:700;font-size:20px;letter-spacing:.2em;color:#fff;margin-top:18px;animation:sp-in .7s .15s ease-out both}
+#splash .ss{font-family:var(--font-en);font-size:9.5px;letter-spacing:.26em;color:var(--gold);margin-top:8px;animation:sp-in .7s .3s ease-out both}
+#splash .sc{font-weight:300;letter-spacing:.12em;font-size:12.5px;color:#8FA0BC;position:absolute;bottom:46px;animation:sp-in .8s .45s ease-out both}
+#splash svg{position:absolute;width:min(760px,92vw);height:auto;opacity:.9;pointer-events:none}
+#splash svg path{stroke-dasharray:640;stroke-dashoffset:640;animation:draw 1.2s .1s ease-out forwards}
+#splash svg circle{opacity:0;animation:sp-in .5s 1s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes sp-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#splash svg path{animation:none;stroke-dashoffset:0}}
+/* ---------- 数字・見出し ---------- */
+.kpi .num,.hero-stats .v,.chain b{font-family:var(--font-en)}
+.cal-tab.on{background:var(--midnight);border-color:var(--midnight)}
+.chain{color:#C5D0E3}
+.chain b{color:#fff}
+.chain i{color:var(--gold)}
+
+/* ---------- 戦略カレンダー ---------- */
+.cal-hero{padding:16px 18px}
+.ch-row{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-top:10px}
+.ch-step{flex:1;min-width:120px;text-align:left;padding:8px 12px 8px 0;position:relative;background:none;color:#fff}
+.ch-step+.ch-step{padding-left:16px}
+.ch-step+.ch-step::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:1px;background:linear-gradient(180deg,rgba(201,168,76,0),var(--gold),rgba(201,168,76,0))}
+.ch-step span{display:block;font-family:var(--font-en);font-size:9.5px;letter-spacing:.12em;color:var(--pale-gold)}
+.ch-step b{display:block;font-size:12.5px;font-weight:500;margin-top:3px;color:#EAF0FA;line-height:1.5}
+@media (max-width:900px){.ch-step{min-width:45%}.ch-step+.ch-step::before{display:none}}
+.cal-head{margin-bottom:14px}
+.cal-tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px}
+.cal-tab{padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:600;white-space:nowrap;color:var(--ink2)}
+.cal-tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.cal-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.cal-filters{display:flex;gap:6px;flex-wrap:wrap}
+.cal-filters select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px;max-width:180px}
+table.rm{border-collapse:collapse;font-size:11.5px;min-width:900px;width:100%}
+table.rm th{background:#F2F4F8;border:1px solid var(--line);padding:5px;font-weight:600;color:var(--ink2);white-space:nowrap}
+table.rm th.now{background:var(--gold);color:#16202F}
+table.rm tbody th{text-align:left;position:sticky;left:0;z-index:1;min-width:110px}
+.rm-cell{border:1px solid var(--line);vertical-align:top;min-width:66px;height:52px;padding:2px;cursor:pointer}
+.rm-cell.over{background:var(--blue-l);outline:2px dashed var(--blue)}
+.rm-item{background:#fff;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:5px;padding:2px 4px;margin-bottom:2px;font-size:10.5px;line-height:1.3;position:relative;overflow:hidden}
+.rm-item i{position:absolute;left:0;bottom:0;height:2px;background:var(--green)}
+.rm-side{width:170px;flex:0 0 170px}
+.rm-chip{background:#fff;border:1px solid var(--line);border-left:3px solid #7B5EA7;border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:12px;cursor:grab}
+table.mcal{width:100%;border-collapse:collapse;table-layout:fixed}
+table.mcal th{font-size:11.5px;color:var(--ink2);padding:6px;border-bottom:1px solid var(--line)}
+.mc{border:1px solid var(--line);height:96px;vertical-align:top;padding:3px;cursor:pointer;overflow:hidden}
+.mc.today{background:#FFFBF0;box-shadow:inset 0 0 0 2px var(--gold)}
+.mc.empty{background:#FAFBFC}
+.mc-d{font-size:11.5px;font-weight:700;color:var(--ink2);margin-bottom:2px}
+.mc-e{font-size:10px;color:#fff;border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.capbar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:#EDF0F5;margin-top:6px}
+.capbar i{display:block;height:100%}
+.wk-wrap{display:flex;gap:12px;align-items:flex-start}
+.wk-side{width:200px;flex:0 0 200px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;max-height:70vh;overflow:auto}
+.wk-chip{border:1px solid var(--line);border-left:3px solid var(--orange);border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:12px;cursor:grab;background:#fff}
+.wk-chip span{display:block}
+.wk-chip.pick{border-color:var(--blue);box-shadow:0 0 0 2px rgba(47,111,237,.25)}
+.wk-grid{flex:1;min-width:0;display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:auto;max-height:74vh}
+.wk-hours{flex:0 0 46px;border-right:1px solid var(--line)}
+.wk-corner{height:34px;border-bottom:1px solid var(--line)}
+.wk-h{height:34px;font-size:10px;color:var(--ink3);padding:1px 4px;border-bottom:1px dashed #EEF1F6}
+.wk-cols{flex:1;min-width:640px}
+.wk-heads{display:grid;grid-template-columns:repeat(7,1fr);position:sticky;top:0;background:var(--surface);z-index:3}
+.wk-head{height:34px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);border-left:1px solid var(--line);cursor:pointer}
+.wk-head.today{background:#FFFBF0;color:var(--ink)}
+.wk-body{display:grid;grid-template-columns:repeat(7,1fr)}
+.wk-col{position:relative;border-left:1px solid var(--line)}
+.wk-col.today{background:#FFFDF7}
+.wk-col.over{background:var(--blue-l)}
+.wk-slot{height:34px;border-bottom:1px dashed #EEF1F6}
+.wk-ev{position:absolute;left:2px;right:2px;border-radius:5px;color:#fff;padding:2px 4px;font-size:10px;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(16,27,51,.18)}
+.wk-ev b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-ev span{display:block;opacity:.85}
+.day-tl{position:relative}
+.day-row{display:flex;height:34px;align-items:flex-start}
+.day-row span{width:44px;font-size:10.5px;color:var(--ink3)}
+.day-slot{flex:1;border-top:1px dashed #EEF1F6;height:34px;cursor:pointer}
+.day-ev{position:absolute;left:48px;right:4px;border-radius:6px;color:#fff;padding:3px 7px;font-size:11px;overflow:hidden;cursor:pointer}
+.day-ev b{display:block;font-weight:600}
+.day-ev span{display:block;opacity:.85;font-size:10px}
+.day-now{position:absolute;left:44px;right:0;height:2px;background:var(--red)}
+@media (max-width:900px){
+  .wk-wrap{display:block}
+  .wk-side{width:auto;flex:none;margin-bottom:10px;max-height:150px}
+  .wk-cols{min-width:540px}
+  .rm-side{display:none}
+}
+
 /* ---------- 仕分けナビ ---------- */
 .flow-step{font-size:11.5px;color:var(--ink3);letter-spacing:.02em}
 .flow-q{font-size:17px;font-weight:700;margin:4px 0 2px;line-height:1.4}
@@ -246,26 +403,41 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 </style>
 </head>
 <body>
+<div id="splash" hidden>
+  <svg viewBox="0 0 800 300" aria-hidden="true"><defs><linearGradient id="gl" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0%" stop-color="#C9A84C" stop-opacity="0"/><stop offset="45%" stop-color="#C9A84C"/><stop offset="100%" stop-color="#F2D785"/></linearGradient></defs>
+    <path d="M20,268 C260,262 520,210 760,40" fill="none" stroke="url(#gl)" stroke-width="1.6"/>
+    <circle cx="760" cy="40" r="5" fill="#F2D785"/></svg>
+  <img src="nm-icon-192.png" alt="MIND FLOW">
+  <div class="sn">MIND FLOW</div>
+  <div class="ss">PERSONAL STRATEGIC CALENDAR</div>
+  <div class="sc">時間を管理するのではなく、未来を設計する。</div>
+</div>
+
 <div id="login">
   <div class="login-card">
-    <div class="brand"><span class="mark">M</span><div><b>EARTHCOM MIND FLOW</b><br><span>MIND · GTD · ACTION</span></div></div>
-    <p class="tag">考えを整理し、行動に変え、成果までつなぐ。</p>
+    <img class="lg-ic" src="nm-icon-192.png" alt="MIND FLOW">
+    <div class="lg-n">MIND FLOW</div>
+    <div class="lg-s">PERSONAL STRATEGIC CALENDAR</div>
+    <p class="tag">時間を管理するのではなく、未来を設計する。</p>
     <div id="loginErr"></div>
-    <button class="btn-w" id="btnGoogle"><span>G</span> 会社のGoogleアカウントで続ける</button>
+    <button class="btn-w" id="btnGoogle"><span>G</span> Googleアカウントで続ける</button>
     <label for="liMail">メールアドレス</label>
-    <input id="liMail" type="email" placeholder="name@earthcom-eco.jp" autocomplete="username">
+    <input id="liMail" type="email" placeholder="marubayashi@earthcom-eco.jp" autocomplete="username">
     <label for="liName">表示名</label>
     <input id="liName" type="text" placeholder="丸林 信宏">
     <button class="btn-g" id="btnMail">この端末で始める</button>
-    <p class="login-note">初回ログイン時はサンプルの経営マップが自動で入ります。社内共通認証（ec-auth.js）に差し替える場合は、ファイル冒頭の Auth サービスを置き換えてください。</p>
+    <p class="login-note">NOBUHIRO MARUBAYASHI 専用の戦略カレンダーです。初回は18期4Qのサンプル計画が入ります。</p>
   </div>
 </div>
 
 <div class="shell" id="shell" hidden>
   <aside class="side">
-    <div class="brand"><span class="mark">M</span><div><b>MIND FLOW</b><br><span style="font-size:10px">EARTHCOM</span></div></div>
+    <div class="brandbox"><img src="nm-icon-192.png" alt="" width="38" height="38">
+      <div><div class="bn">MIND FLOW</div><div class="bs">PERSONAL STRATEGIC CALENDAR</div></div></div>
     <nav class="nav" id="navMain"></nav>
     <div class="me" id="sideMe"></div>
+    <div class="owner">NOBUHIRO MARUBAYASHI</div>
   </aside>
   <div class="main">
     <header class="topbar" id="topbar"></header>
@@ -356,6 +528,8 @@ const Store = {
       maps: [], nodes: [], projects: [], tasks: [], comments: [], attachments: [],
       calendar_events: [], external_links: [], integrations: [], sync_logs: [],
       activity_logs: [], notifications: [], reviews: [],
+      strategy: { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] },
+      capacity: { start: '08:00', end: '19:00', bufferPct: 20 },
       settings: { theme: 'light', role: 'admin' }
     };
   },
@@ -557,6 +731,41 @@ function seed() {
   mkTask({ title: 'セカンダリー物件の査定資料テンプレを見直す', gtd: 'someday', source: 'quick' });
   mkTask({ title: '4Q方針の全社共有スライドを作る', gtd: 'today', priority: 1, due: today(), source: 'quick' });
 
+  /* 戦略カレンダーのサンプル（18期4Q） */
+  calInit();
+  const f0 = fiscalOf(today()), yy = yearOf(f0.fy), qq = qOf(f0.fy, f0.q);
+  yy.theme = 'ReFortを主力に据え、再資産化で市場を取りにいく'; yy.revenue = 58; yy.gross = 11;
+  qq.theme = '売上40億・粗利8億達成'; qq.revenue = 40; qq.gross = 8; qq.owner = '丸林';
+  qq.lead_kpi = '新規商談 週12件 ／ 現地見学 月8件'; qq.lag_kpi = 'ReFort受注 月8件';
+  qq.not_doing = '新規事業の立ち上げ検討／小口案件の個別対応';
+  qq.risk = '現調の人員不足で提案が遅れる';
+  const ym0 = today().slice(0, 7), mm = mOf(ym0);
+  mm.goal = 'ReFort再提案で受注3件'; mm.revenue = 14; mm.gross = 2.8;
+  mm.outcomes = '・対象100社の提案完了\n・岩槻見学会を2回開催\n・失注20社の再接触';
+  mm.not_doing = '展示会の企画準備（来月から）';
+  const ww = wOf(mondayOf(today()));
+  ww.goal = '再提案リストを確定し、見学会の日程を押さえる';
+  ww.three = '・対象100社の確定\n・見学会2日程の確保\n・4Q方針スライドの完成';
+  ww.deals = '大河原様／岩槻案件';
+  const dd = dayOf(today());
+  dd.goal = '4Q方針スライドを完成させる'; dd.three = '・スライド完成\n・100社リスト着手\n・見学会の会場打診';
+  dd.who = '営業部メンバー'; dd.change = '4Qで何を追うかを迷わない状態にする';
+  DB.strategy.roadmap = [
+    { id: uid(), lane: '全社戦略', ym: ym0, title: '4Q方針の全社共有', progress: 40, color: '#C8A046' },
+    { id: uid(), lane: '営業', ym: ym0, title: 'ReFort再提案キャンペーン', progress: 20, color: '#2F6FED' },
+    { id: uid(), lane: '営業', ym: addDays(today(), 32).slice(0, 7), title: '岩槻見学会（月2回）', progress: 0, color: '#2F6FED' },
+    { id: uid(), lane: '採用・組織', ym: addDays(today(), 32).slice(0, 7), title: '現調担当の採用', progress: 10, color: '#1F9D6B' },
+    { id: uid(), lane: '財務', ym: addDays(today(), 64).slice(0, 7), title: '期末の資金計画', progress: 0, color: '#8A6A17' }
+  ];
+  const ev1 = evNorm({ id: uid(), title: '部門長会議', type: 'meeting', start: today() + 'T10:00', end: today() + 'T11:30',
+    location: '本社会議室', purpose: '4Q実行計画の進捗確認', outcome: '遅れている施策の対策決定', owner: '丸林',
+    goal_ref: 'q:' + f0.fy + ':' + f0.q, reminder: 10, sync_to_google: true, sync_status: 'local', source: 'mindflow' });
+  const ev2 = evNorm({ id: uid(), title: '4Q方針スライド作成', type: 'focus', start: today() + 'T14:00', end: today() + 'T16:00',
+    purpose: '全社共有用の資料を完成させる', owner: '丸林', reminder: 10, sync_to_google: true, sync_status: 'local', source: 'mindflow' });
+  const ev3 = evNorm({ id: uid(), title: '提案書の提出期限', type: 'deadline', start: addDays(today(), 3) + 'T17:00', end: addDays(today(), 3) + 'T17:15',
+    purpose: '大河原様への提案提出', owner: '営業部', reminder: 30, sync_to_google: false, sync_status: 'local', source: 'mindflow' });
+  DB.calendar_events.push(ev1, ev2, ev3);
+
   DB.integrations = [
     { id: uid(), kind: 'google_calendar', name: 'Googleカレンダー', status: 'disconnected', last_sync: '' },
     { id: uid(), kind: 'google_tasks', name: 'Google ToDo', status: 'disconnected', last_sync: '' },
@@ -577,15 +786,25 @@ const Auth = {
 };
 
 /* ---------- ルーティング ---------- */
+const ICON = {
+  home: '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 8.6 10 3l7 5.6V16a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z"/></svg>',
+  cal:  '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 3v3M13 3v3"/><circle cx="13.4" cy="12.4" r="1.5" fill="currentColor" stroke="none"/></svg>',
+  maps: '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4.5" cy="10" r="2"/><circle cx="15.5" cy="5.5" r="2"/><circle cx="15.5" cy="14.5" r="2"/><path d="M6.4 9.2 13.6 6M6.4 10.8l7.2 3.2"/></svg>',
+  board:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="4" width="4.5" height="12" rx="1.2"/><rect x="8.2" y="4" width="4.5" height="8" rx="1.2"/><rect x="13.9" y="4" width="3.6" height="10" rx="1.2"/></svg>',
+  projects:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5a1.5 1.5 0 0 1 1.5-1.5H8l1.6 2h6A1.4 1.4 0 0 1 17 7.4V15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15z"/></svg>',
+  review:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M16.2 10a6.2 6.2 0 1 1-1.9-4.4"/><path d="M16.6 3.4v3.2h-3.2"/></svg>',
+  settings:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6h9M15 6h1.5M3.5 14h1.5M7.5 14h9"/><circle cx="13.6" cy="6" r="1.9"/><circle cx="6.4" cy="14" r="1.9"/></svg>'
+};
 const NAV = [
-  { id: 'home', label: 'ホーム', icon: '🏠' },
-  { id: 'maps', label: 'マインドマップ', icon: '🧠' },
-  { id: 'board', label: 'GTDボード', icon: '🗂' },
-  { id: 'projects', label: 'プロジェクト', icon: '■' },
-  { id: 'review', label: 'レビュー', icon: '🔁' },
-  { id: 'settings', label: '連携・設定', icon: '⚙' }
+  { id: 'home', label: 'ホーム', icon: ICON.home },
+  { id: 'cal', label: '戦略カレンダー', icon: ICON.cal },
+  { id: 'maps', label: 'マインドマップ', icon: ICON.maps },
+  { id: 'board', label: 'GTDボード', icon: ICON.board },
+  { id: 'projects', label: 'プロジェクト', icon: ICON.projects },
+  { id: 'review', label: 'レビュー', icon: ICON.review },
+  { id: 'settings', label: '連携・設定', icon: ICON.settings }
 ];
-const TABS = ['home', 'maps', 'board', 'review'];
+const TABS = ['home', 'cal', 'maps', 'board'];
 let route = { name: 'home', arg: '' };
 
 function go(name, arg) { location.hash = '#/' + name + (arg ? '/' + arg : ''); }
@@ -596,8 +815,8 @@ function parseHash() {
 function render() {
   route = parseHash();
   renderNav(); renderTabs();
-  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '');
-  const map = { home: viewHome, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
+  const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (route.name === 'cal' ? ' wide' : '');
+  const map = { home: viewHome, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
   (map[route.name] || viewHome)();
   if (route.name !== 'map') { window.scrollTo(0, 0); }
 }
@@ -614,7 +833,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.2.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v2.1.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -623,7 +842,7 @@ function renderTabs() {
     const on = (route.name === id || (id === 'maps' && route.name === 'map')) ? ' on' : '';
     const b = (id === 'board' && inbox) ? '<span class="n">' + inbox + '</span>' : '';
     return '<a href="#/' + id + '" class="' + on.trim() + '" style="position:relative"><span class="ic">' + n.icon + '</span>' + n.label + b + '</a>';
-  }).join('') + '<a href="#/settings" class="' + (route.name === 'settings' ? 'on' : '') + '"><span class="ic">⚙</span>設定</a>';
+  }).join('') + '<a href="#/settings" class="' + (route.name === 'settings' ? 'on' : '') + '"><span class="ic">' + ICON.settings + '</span>設定</a>';
 }
 function setTop(title, right) {
   $('#topbar').innerHTML = '<h1>' + esc(title) + '</h1><div class="sp"></div>' +
@@ -648,12 +867,7 @@ function viewHome() {
   const listCard = (title, arr, emptyMsg, more) => '<div class="card"><div class="pad" style="padding-bottom:6px"><div class="sec-h"><h3>' + title + '</h3><div class="sp"></div>' + (more || '') + '</div></div>' +
     (arr.length ? arr.slice(0, 5).map(li).join('') : '<div class="empty small">' + emptyMsg + '</div>') + '</div>';
 
-  $('#view').innerHTML =
-    '<div class="card pad" style="background:linear-gradient(120deg,#101B33,#22355C);color:#fff;border:none;margin-bottom:14px">' +
-      '<div class="small" style="color:#C8A046">今日の最重要ゴール</div>' +
-      '<div style="font-size:20px;font-weight:700;margin:6px 0 10px">' + (goal ? esc(goal) : '未設定：今日いちばん動かすものを決める') + '</div>' +
-      '<button class="btn sm" onclick="setTopGoal()">ゴールを設定する</button></div>' +
-
+  $('#view').innerHTML = homeHero() +
     '<div class="grid g4 keep2" style="margin-bottom:14px">' +
       kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green') +
       kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green') +
@@ -664,8 +878,8 @@ function viewHome() {
     '<div class="grid g2" style="margin-bottom:14px">' +
       '<div class="card"><div class="pad" style="padding-bottom:4px"><div class="sec-h"><h3>🤖 AIマネージャーからの提案</h3></div></div>' +
         '<div class="pad" style="padding-top:0" id="aiSug"></div></div>' +
-      '<div class="card"><div class="pad" style="padding-bottom:4px"><div class="sec-h"><h3>📅 今日のGoogleカレンダー</h3></div></div>' +
-        '<div class="pad" style="padding-top:0">' + calendarPanel() + '</div></div>' +
+      '<div class="card"><div class="pad" style="padding-bottom:4px"><div class="sec-h"><h3>📆 本日の戦略スケジュール</h3><div class="sp"></div><a class="small" href="#/cal">カレンダーへ</a></div></div>' +
+        '<div class="pad" style="padding-top:0">' + todayStrip() + '</div></div>' +
     '</div>' +
 
     '<div class="grid g2" style="margin-bottom:14px">' +
@@ -690,6 +904,64 @@ function viewHome() {
 
   renderAISuggestions();
 }
+function homeHero() {
+  calInit();
+  const d = today(), f = fiscalOf(d), y = yearOf(f.fy), q = qOf(f.fy, f.q), dy = dayOf(d);
+  const goal = dy.goal || DB.settings.top_goal || '';
+  const evs = evOfDay(d);
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  const next = evs.find(e => minOf(e.start) > nowMin);
+  const strat = Math.round(evs.filter(e => ['strategy', 'decision', 'focus'].includes(e.type)).reduce((a, e) => a + durMin(e), 0) / 6) / 10;
+  const endOfFy = monthDays(fyMonths(f.fy)[11]).slice(-1)[0];
+  return '<div class="glass hero">' +
+    '<div class="tag">PERSONAL STRATEGIC CALENDAR</div>' +
+    '<h2>今日という時間を、何の成果に変えるか。</h2>' +
+    '<div class="lead">' + (goal ? esc(goal) : '今日の最重要ゴールが未設定です') + '</div>' +
+    '<div class="gold-line"></div>' +
+    '<div class="hero-stats">' +
+      '<div class="s"><div class="k">年間目標への現在地</div><div class="v">' + (y.revenue || '—') + '<small>億／' + f.term + '期 残り' + Math.max(0, daysLeft(endOfFy)) + '日</small></div></div>' +
+      '<div class="s"><div class="k">今期（' + f.q + 'Q）</div><div class="v">' + (q.revenue || '—') + '<small>億</small></div></div>' +
+      '<div class="s"><div class="k">今日の戦略時間</div><div class="v">' + strat + '<small>h</small></div></div>' +
+      '<div class="s"><div class="k">次の重要予定</div><div class="v" style="font-size:16px">' + (next ? hm(next.start) + ' ' + esc(next.title.slice(0, 14)) : '—') + '</div></div>' +
+      '<div class="s"><div class="k">次の予定まで</div><div class="v">' + (next ? Math.max(0, minOf(next.start) - nowMin) : '—') + '<small>分</small></div></div>' +
+    '</div>' +
+    '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn sm gold" onclick="setTopGoal()">今日のゴールを決める</button>' +
+      '<button class="btn sm" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)" onclick="jumpToCal(\'day\')">今日の戦略カレンダー</button>' +
+    '</div></div>';
+}
+function todayStrip() {
+  calInit();
+  const d = today(), f = fiscalOf(d), y = yearOf(f.fy), q = qOf(f.fy, f.q), m = mOf(d.slice(0, 7)), w = wOf(mondayOf(d)), dy = dayOf(d);
+  const evs = evOfDay(d), cap = capacityOf([d]);
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  const next = evs.find(e => minOf(e.start) > nowMin);
+  const un = unplacedTasks().filter(t => t.due === d);
+  const conf = [];
+  evs.forEach((e, i) => evs.slice(i + 1).forEach(o => {
+    if (['deadline', 'reminder'].includes(e.type) || ['deadline', 'reminder'].includes(o.type)) return;
+    if (minOf(e.start) < minOf(o.end) && minOf(e.end) > minOf(o.start)) conf.push(e.title + ' と ' + o.title);
+  }));
+  return '<div class="chain">' +
+      '<span>' + esc(y.theme || (f.term + '期')) + (y.revenue ? '（' + y.revenue + '億）' : '') + '</span><i>›</i>' +
+      '<span>' + f.q + 'Q ' + esc(q.theme || '未設定') + (q.revenue ? '（' + q.revenue + '億）' : '') + '</span><i>›</i>' +
+      '<span>' + (+d.slice(5, 7)) + '月 ' + esc(m.goal || '未設定') + '</span><i>›</i>' +
+      '<span>今週 ' + esc(w.goal || '未設定') + '</span><i>›</i>' +
+      '<b>今日 ' + esc(dy.goal || DB.settings.top_goal || '未設定') + '</b>' +
+    '</div>' +
+    (conf.length ? '<div class="err" style="margin:10px 0">時間が重なっています: ' + esc(conf[0]) + '</div>' : '') +
+    '<div class="small muted" style="margin:10px 0 6px">次の予定: ' +
+      (next ? '<b>' + hm(next.start) + ' ' + esc(next.title) + '</b>（あと' + Math.max(0, minOf(next.start) - nowMin) + '分）' : 'なし') +
+      ' ／ 空き ' + Math.round(cap.free / 60) + 'h ／ 稼働率 ' + cap.rate + '%</div>' +
+    (evs.length ? evs.slice(0, 6).map(e => '<div class="list-item" style="padding-left:0;padding-right:0"><div class="t">' +
+      '<b><span class="dotc" style="background:' + ETYPE[e.type].c + '"></span>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' +
+      '<div class="meta">' + esc(ETYPE[e.type].l) + (e.purpose ? ' ／ ' + esc(e.purpose.slice(0, 24)) : ' ／ <span style="color:var(--orange)">目的未設定</span>') +
+      ' ／ ' + syncLabel(e) + '</div></div><button class="btn sm" onclick="openEvent(\'' + e.id + '\')">開く</button></div>').join('')
+      : '<div class="empty small">今日の予定はありません。週間カレンダーで実行時間を置いてください。</div>') +
+    (un.length ? '<div class="err" style="margin-top:10px">今日が期限なのに実行時間がないタスクが' + un.length + '件あります。' +
+      '<button class="btn sm" style="margin-left:6px" onclick="jumpToCal(\'unplaced\')">確認する</button></div>' : '');
+}
+function jumpToCal(tab) { DB.settings.calTab = tab; DB.settings.calCur = today(); Store.save(); go('cal'); }
 function calendarPanel() {
   const g = Integrations.get('google_calendar');
   const local = DB.calendar_events.filter(e => (e.start || '').slice(0, 10) === today());
@@ -1809,6 +2081,16 @@ function viewSettings() {
         '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn pri sm" onclick="importEvernote()">貼り付けた分を取り込む</button>' +
         '<button class="btn sm" onclick="importEnex()">ENEXファイルから取り込む</button></div>' +
         '<div class="small muted" style="margin-top:8px">Evernoteでノートブックを右クリック →「ノートブックをエクスポート」→ ENEX形式で保存したファイルを選ぶと、ノートのタイトルと本文の冒頭をまとめて取り込みます。</div></div>' +
+      '<div class="sec-h"><h3>アプリ情報</h3></div>' +
+      '<div class="card pad" style="margin-bottom:12px;display:flex;gap:14px;align-items:center">' +
+        '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
+        '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
+        '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v2.1.0</div>' +
+        '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
+      '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
+        '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
+        '<option value="0">起動時に表示する</option><option value="1"' + (DB.settings.skipSplash ? ' selected' : '') + '>省略する</option></select></div></div>' +
       '<div class="sec-h"><h3>権限とアカウント</h3></div>' +
       '<div class="card pad"><div class="field"><label>自分の権限（表示確認用）</label><select id="stRole" onchange="DB.settings.role=this.value;Store.save(true);render();toast(\'権限を切り替えました\')">' +
         Object.keys(ROLES).map(k => '<option value="' + k + '"' + (DB.settings.role === k ? ' selected' : '') + '>' + ROLES[k] + '</option>').join('') + '</select>' +
@@ -1911,6 +2193,961 @@ function importJSON() {
 function resetAll() {
   if (!confirm('すべてのデータを削除し、サンプルデータに戻します。よろしいですか？')) return;
   const u = DB.user; Store.db = Store.empty(); DB = Store.db; DB.user = u; seed(); render(); toast('サンプルデータに戻しました');
+}
+
+/* =========================================================================
+   戦略カレンダー — 年間→四半期→月間→週間→日間を一気通貫で管理
+   期首は12月1日（1Q=12-2月 / 2Q=3-5月 / 3Q=6-8月 / 4Q=9-11月）
+   ========================================================================= */
+const LANES = ['全社戦略', '営業', 'エネルギーアセット関東', 'エネルギーアセット東北', '開発', 'CS', '生産管理', '採用・組織', '財務', '社長戦略'];
+const ETYPE = {
+  strategy:  { l: '戦略時間',       c: '#C8A046', sync: true },
+  decision:  { l: '経営判断',       c: '#9A7A25', sync: true },
+  meeting:   { l: '会議',           c: '#1B2A4A', sync: true },
+  sales:     { l: '商談',           c: '#2F6FED', sync: true },
+  focus:     { l: '集中作業',       c: '#7B5EA7', sync: true },
+  task:      { l: 'タスク実行',     c: '#4C8DF6', sync: true },
+  move:      { l: '移動',           c: '#8A93A6', sync: true },
+  study:     { l: '学習',           c: '#1F9D6B', sync: true },
+  private:   { l: '家族・私用',     c: '#7FC4E8', sync: true },
+  buffer:    { l: 'バッファ',       c: '#E8B877', sync: false },
+  tentative: { l: '仮予定',         c: '#AEB8C8', sync: false },
+  deadline:  { l: '締切',           c: '#D6453C', sync: false },
+  reminder:  { l: 'リマインダー',   c: '#9AA5B8', sync: false },
+  google:    { l: 'Google外部予定', c: '#FFFFFF', sync: false }
+};
+const CAL_TABS = [
+  { id: 'year', l: '年間' }, { id: 'quarter', l: '四半期' }, { id: 'month', l: '月間' },
+  { id: 'week', l: '週間' }, { id: 'day', l: '日間' },
+  { id: 'unplaced', l: '未配置' }, { id: 'conflicts', l: '重複・競合' },
+  { id: 'tidy', l: '整理' }, { id: 'creview', l: 'レビュー' }
+];
+const DAY_START = 4, DAY_END = 23, SLOT_H = 34;   // 4:00〜23:00
+
+/* ---- 期・期間の計算 ---- */
+function fiscalOf(d) {                       // 'YYYY-MM-DD' → {fy, q, term}
+  const y = +d.slice(0, 4), m = +d.slice(5, 7);
+  const fy = m >= 12 ? y + 1 : y;
+  const q = Math.floor(((m - 12 + 12) % 12) / 3) + 1;
+  return { fy: fy, q: q, term: fy - 2008 };
+}
+function fyMonths(fy) {                      // 期首12月からの12ヶ月 ['2025-12', ...]
+  const out = [];
+  for (let i = 0; i < 12; i++) { const m = (11 + i) % 12; const y = m >= 11 ? fy - 1 : fy; out.push(y + '-' + String(m + 1).padStart(2, '0')); }
+  return out;
+}
+function quarterMonths(fy, q) { return fyMonths(fy).slice((q - 1) * 3, (q - 1) * 3 + 3); }
+function monthDays(ym) {
+  const y = +ym.slice(0, 4), m = +ym.slice(5, 7), last = new Date(y, m, 0).getDate(), out = [];
+  for (let d = 1; d <= last; d++) out.push(ym + '-' + String(d).padStart(2, '0'));
+  return out;
+}
+function mondayOf(d) { const t = new Date(d + 'T00:00:00'); const w = (t.getDay() + 6) % 7; t.setDate(t.getDate() - w); return t.toISOString().slice(0, 10); }
+function weekDays(mon) { return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)); }
+function wdName(d) { return ['月', '火', '水', '木', '金', '土', '日'][(new Date(d + 'T00:00:00').getDay() + 6) % 7]; }
+function hm(t) { return (t || '').slice(11, 16); }
+function minOf(t) { const s = hm(t); return s ? +s.slice(0, 2) * 60 + +s.slice(3, 5) : 0; }
+function dOf(t) { return (t || '').slice(0, 10); }
+function addMin(t, n) {
+  const d = new Date(t.replace(' ', 'T')); d.setMinutes(d.getMinutes() + n);
+  const p = x => String(x).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function durMin(ev) { return Math.max(0, (new Date(ev.end.replace(' ', 'T')) - new Date(ev.start.replace(' ', 'T'))) / 60000); }
+
+/* ---- 戦略データの初期化 ---- */
+function calInit() {
+  if (!DB.strategy) DB.strategy = { years: [], quarters: [], months: [], weeks: [], days: [], roadmap: [] };
+  const s = DB.strategy;
+  ['years', 'quarters', 'months', 'weeks', 'days', 'roadmap'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+  if (!DB.capacity) DB.capacity = { start: '08:00', end: '19:00', bufferPct: 20 };
+  DB.calendar_events.forEach(evNorm);
+}
+function evNorm(e) {
+  if (!e.type) e.type = e.source === 'google' ? 'google' : 'meeting';
+  if (!e.internal_event_id) e.internal_event_id = e.id;
+  if (!e.google_calendar_id) e.google_calendar_id = 'primary';
+  if (!e.google_event_id) e.google_event_id = e.gcal_event_id || '';
+  if (!e.sync_status) e.sync_status = e.sync === 'synced' ? 'synced' : (e.sync === 'error' ? 'error' : 'local');
+  if (e.purpose === undefined) e.purpose = e.detail || '';
+  if (e.outcome === undefined) e.outcome = '';
+  if (!e.last_modified_at) e.last_modified_at = e.created_at || new Date().toISOString();
+  e.content_hash = evHash(e);
+  return e;
+}
+function evHash(e) { return [e.title, e.start, e.end, e.location || '', e.guests || ''].join('|'); }
+function yearOf(fy) {
+  let y = DB.strategy.years.find(x => x.fy === fy);
+  if (!y) { y = { id: uid(), fy: fy, revenue: 0, gross: 0, theme: '', note: '' }; DB.strategy.years.push(y); }
+  return y;
+}
+function qOf(fy, q) {
+  let x = DB.strategy.quarters.find(v => v.fy === fy && v.q === q);
+  if (!x) { x = { id: uid(), fy: fy, q: q, theme: '', revenue: 0, gross: 0, not_doing: '', owner: '', lead_kpi: '', lag_kpi: '', risk: '' }; DB.strategy.quarters.push(x); }
+  return x;
+}
+function mOf(ym) {
+  let x = DB.strategy.months.find(v => v.ym === ym);
+  if (!x) { x = { id: uid(), ym: ym, goal: '', revenue: 0, gross: 0, not_doing: '', carry: '', outcomes: '' }; DB.strategy.months.push(x); }
+  return x;
+}
+function wOf(mon) {
+  let x = DB.strategy.weeks.find(v => v.wk === mon);
+  if (!x) { x = { id: uid(), wk: mon, goal: '', three: '', deals: '', decisions: '' }; DB.strategy.weeks.push(x); }
+  return x;
+}
+function dayOf(date) {
+  let x = DB.strategy.days.find(v => v.date === date);
+  if (!x) { x = { id: uid(), date: date, goal: '', three: '', who: '', change: '', declaration: '', result: '', learned: '', highlight: '', next_step: '', score: 0 }; DB.strategy.days.push(x); }
+  return x;
+}
+
+/* ---- 予定の取得 ---- */
+function evOfDay(d) { return DB.calendar_events.filter(e => dOf(e.start) === d).sort((a, b) => minOf(a.start) - minOf(b.start)); }
+function evOfRange(from, to) { return DB.calendar_events.filter(e => dOf(e.start) >= from && dOf(e.start) <= to); }
+function evOfMonth(ym) { return DB.calendar_events.filter(e => (e.start || '').slice(0, 7) === ym); }
+
+/* ---- 重複・競合・入力ミスの検査 ---- */
+function normTitle(t) { return String(t || '').replace(/[\s　・（）()【】]/g, '').toLowerCase(); }
+function checkEvent(ev) {
+  const dups = [], conf = [], warns = [];
+  const others = DB.calendar_events.filter(e => e.id !== ev.id);
+  const s = minOf(ev.start), e2 = minOf(ev.end), d = dOf(ev.start);
+
+  others.forEach(o => {
+    if (ev.google_event_id && o.google_event_id && ev.google_event_id === o.google_event_id) dups.push({ ev: o, why: '同じGoogleイベントIDです' });
+    else if (o.content_hash === evHash(ev)) dups.push({ ev: o, why: 'タイトル・日時・参加者が同一です' });
+    else if (dOf(o.start) === d && normTitle(o.title) === normTitle(ev.title)) dups.push({ ev: o, why: '同じ日に同じ内容の予定があります' });
+    else if (dOf(o.start) === d && normTitle(o.title).length > 3 &&
+      (normTitle(o.title).includes(normTitle(ev.title)) || normTitle(ev.title).includes(normTitle(o.title)))) dups.push({ ev: o, why: 'タイトルが似ています' });
+  });
+
+  evOfDay(d).filter(o => o.id !== ev.id && o.type !== 'deadline' && o.type !== 'reminder').forEach(o => {
+    const os = minOf(o.start), oe = minOf(o.end);
+    if (s < oe && e2 > os) conf.push({ ev: o, why: (s === os && e2 === oe) ? '完全に重なっています' : '時間が一部重なっています' });
+    else if (ev.type !== 'move' && o.type !== 'move') {
+      const gap = s >= oe ? s - oe : os - e2;
+      if (gap >= 0 && gap < 15 && (o.location || ev.location) && (o.location || '') !== (ev.location || '')) conf.push({ ev: o, why: '場所が違うのに移動時間が' + gap + '分しかありません' });
+      else if (gap >= 0 && gap < 5) conf.push({ ev: o, why: '前後に余白がありません（連続' + gap + '分）' });
+    }
+    if (o.url_online && ev.url_online) {
+      const gap = s >= oe ? s - oe : os - e2;
+      if (gap >= 0 && gap < 10) conf.push({ ev: o, why: 'オンライン会議が連続しています' });
+    }
+  });
+
+  if (e2 <= s) warns.push('終了時間が開始時間より前、または同じです');
+  if (d < today()) warns.push('過去の日付に登録しようとしています');
+  if (e2 - s > 480) warns.push('所要時間が8時間を超えています');
+  const wd = wdName(d);
+  const m = String(ev.title).match(/([月火水木金土日])曜/);
+  if (m && m[1] !== wd) warns.push('タイトルに「' + m[1] + '曜」とありますが、選んだ日は' + wd + '曜です');
+  if (!ev.purpose) warns.push('目的が未設定です（何のための予定か分からなくなります）');
+  if (!ev.goal_ref && !ev.project_id) warns.push('関連する目標・プロジェクトが未設定です');
+  if (!ev.owner) warns.push('担当者が未設定です');
+  if (['meeting', 'sales'].includes(ev.type) && !ev.location && !ev.url_online) warns.push('場所またはオンラインURLが未設定です');
+  if (!ev.reminder) warns.push('通知が未設定です');
+  const cap = DB.capacity;
+  if (hm(ev.start) < cap.start || hm(ev.end) > cap.end) warns.push('稼働時間（' + cap.start + '〜' + cap.end + '）の外です');
+  return { dups: dups, conf: conf, warns: warns };
+}
+
+/* ---- キャパシティ ---- */
+function capacityOf(days) {
+  const evs = DB.calendar_events.filter(e => days.includes(dOf(e.start)) && !['deadline', 'reminder'].includes(e.type));
+  const by = {}; let total = 0;
+  evs.forEach(e => { const m = durMin(e); by[e.type] = (by[e.type] || 0) + m; total += m; });
+  const cap = DB.capacity;
+  const perDay = (+cap.end.slice(0, 2) * 60 + +cap.end.slice(3)) - (+cap.start.slice(0, 2) * 60 + +cap.start.slice(3));
+  const avail = perDay * days.filter(d => ![0, 6].includes(new Date(d + 'T00:00:00').getDay())).length;
+  const need = unplacedTasks().filter(t => days.includes(t.due)).length * 60;
+  return { by: by, total: total, avail: avail, rate: avail ? Math.round(total / avail * 100) : 0, free: Math.max(0, avail - total), need: need };
+}
+/* 期限はあるが、実行する時間が確保されていないタスク */
+function unplacedTasks() {
+  return DB.tasks.filter(t => t.gtd !== 'done' && ['next', 'today', 'calendar', 'project'].includes(t.gtd) &&
+    !DB.calendar_events.some(e => e.task_id === t.id));
+}
+
+/* ---- 画面の骨格 ---- */
+function viewCal() {
+  calInit();
+  const tab = DB.settings.calTab || 'week';
+  if (!DB.settings.calCur) DB.settings.calCur = today();
+  const cur = DB.settings.calCur, f = fiscalOf(cur);
+  setTop('戦略カレンダー',
+    '<button class="btn sm" onclick="calToday()">今日へ戻る</button>' +
+    '<button class="btn sm" onclick="calMove(-1)">‹ 前</button>' +
+    '<button class="btn sm" onclick="calMove(1)">次 ›</button>' +
+    '<button class="btn pri sm" onclick="openEvent()">＋ 予定</button>');
+  const body = { year: calYear, quarter: calQuarter, month: calMonth, week: calWeek, day: calDay,
+    unplaced: calUnplaced, conflicts: calConflicts, tidy: calTidy, creview: calReview }[tab] || calWeek;
+  $('#view').innerHTML = calHero() +
+    '<div class="cal-head">' +
+      '<div class="cal-tabs">' + CAL_TABS.map(t => '<button class="cal-tab' + (t.id === tab ? ' on' : '') + '" onclick="calSetTab(\'' + t.id + '\')">' + t.l + '</button>').join('') + '</div>' +
+      '<div class="cal-meta">' + calLabel(tab, cur) + '<span class="chip">' + f.term + '期 ' + f.q + 'Q</span>' + syncChip() + '</div>' +
+      calFilters() +
+    '</div>' +
+    '<div id="calBody"></div>';
+  $('#calBody').innerHTML = body(cur);
+  if (tab === 'week') bindWeek();
+  if (tab === 'day') bindDay();
+  if (tab === 'year') bindYear();
+}
+function calHero() {
+  const d = today(), f = fiscalOf(d), y = yearOf(f.fy), q = qOf(f.fy, f.q), m = mOf(d.slice(0, 7)), w = wOf(mondayOf(d)), dy = dayOf(d);
+  const step = (k, v, tab, cur) => '<button class="ch-step" onclick="jumpTo(\'' + tab + '\',\'' + cur + '\')"><span>' + k + '</span><b>' + esc(v || '未設定') + '</b></button>';
+  return '<div class="glass hero cal-hero">' +
+    '<div class="tag">STRATEGIC CALENDAR</div>' +
+    '<div class="ch-row">' +
+      step(f.term + '期', y.theme || (y.revenue ? y.revenue + '億' : ''), 'year', d) +
+      step('第' + f.q + '四半期', q.theme || (q.revenue ? q.revenue + '億' : ''), 'quarter', d) +
+      step((+d.slice(5, 7)) + '月', m.goal, 'month', d) +
+      step('今週', w.goal, 'week', d) +
+      step('今日', dy.goal || DB.settings.top_goal, 'day', d) +
+    '</div></div>';
+}
+function calLabel(tab, d) {
+  const f = fiscalOf(d);
+  if (tab === 'year') return '<b>' + f.term + '期（' + (f.fy - 1) + '年12月〜' + f.fy + '年11月）</b>';
+  if (tab === 'quarter') return '<b>' + f.term + '期 第' + f.q + '四半期</b>';
+  if (tab === 'month') return '<b>' + d.slice(0, 4) + '年' + (+d.slice(5, 7)) + '月</b>';
+  if (tab === 'week') { const m = mondayOf(d); return '<b>' + fmtDate(m) + '（' + wdName(m) + '）〜 ' + fmtDate(addDays(m, 6)) + '</b>'; }
+  if (tab === 'day') return '<b>' + fmtDate(d) + '（' + wdName(d) + '）</b>';
+  return '';
+}
+function syncChip() {
+  const g = Integrations.get('google_calendar');
+  const bad = DB.calendar_events.filter(e => e.sync_status === 'error').length;
+  const wait = DB.calendar_events.filter(e => e.sync_status === 'pending').length;
+  if (g.status !== 'connected') return '<span class="chip grey">Google未連携</span>';
+  if (bad) return '<span class="chip red">同期エラー ' + bad + '件</span>';
+  if (wait) return '<span class="chip orange">同期待ち ' + wait + '件</span>';
+  return '<span class="chip green">Google同期済み</span>';
+}
+function calFilters() {
+  const ps = DB.projects, fl = DB.settings.calFilter || {};
+  return '<div class="cal-filters">' +
+    '<select onchange="calFilter(\'project\',this.value)"><option value="">すべてのプロジェクト</option>' +
+      ps.map(p => '<option value="' + p.id + '"' + (fl.project === p.id ? ' selected' : '') + '>' + esc(p.title) + '</option>').join('') + '</select>' +
+    '<select onchange="calFilter(\'lane\',this.value)"><option value="">すべての部門</option>' +
+      LANES.map(l => '<option value="' + l + '"' + (fl.lane === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+    '<select onchange="calFilter(\'type\',this.value)"><option value="">すべての種別</option>' +
+      Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (fl.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select>' +
+    '<button class="btn sm" onclick="pullGoogleRange()">Googleの予定を取り込む</button>' +
+    '</div>';
+}
+function calFilter(k, v) { DB.settings.calFilter = Object.assign({}, DB.settings.calFilter, { [k]: v }); Store.save(); render(); }
+function evVisible(e) {
+  const f = DB.settings.calFilter || {};
+  if (f.project && e.project_id !== f.project) return false;
+  if (f.type && e.type !== f.type) return false;
+  if (f.lane && e.lane !== f.lane) return false;
+  return true;
+}
+function calSetTab(t) { DB.settings.calTab = t; Store.save(); render(); }
+function calToday() { DB.settings.calCur = today(); Store.save(); render(); }
+function calMove(n) {
+  const tab = DB.settings.calTab || 'week', c = DB.settings.calCur;
+  if (tab === 'day') DB.settings.calCur = addDays(c, n);
+  else if (tab === 'week') DB.settings.calCur = addDays(mondayOf(c), n * 7);
+  else if (tab === 'month') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n, 1); DB.settings.calCur = d.toISOString().slice(0, 10); }
+  else if (tab === 'quarter') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n * 3, 1); DB.settings.calCur = d.toISOString().slice(0, 10); }
+  else { const d = new Date(c + 'T00:00:00'); d.setFullYear(d.getFullYear() + n); DB.settings.calCur = d.toISOString().slice(0, 10); }
+  Store.save(); render();
+}
+function jumpTo(tab, d) { DB.settings.calTab = tab; DB.settings.calCur = d; Store.save(); render(); }
+
+/* ---- 年間 ---- */
+function calYear(cur) {
+  const f = fiscalOf(cur), y = yearOf(f.fy), months = fyMonths(f.fy);
+  const start = months[0] + '-01', end = monthDays(months[11]).slice(-1)[0];
+  const left = daysLeft(end);
+  const qs = [1, 2, 3, 4].map(q => qOf(f.fy, q));
+  const doneRev = qs.reduce((a, x) => a + (+x.done_revenue || 0), 0);
+  const rate = y.revenue ? Math.round(doneRev / y.revenue * 100) : 0;
+  const rows = LANES.map(lane => {
+    const cells = months.map(ym => {
+      const items = DB.strategy.roadmap.filter(r => r.lane === lane && r.ym === ym);
+      return '<td class="rm-cell" data-lane="' + esc(lane) + '" data-ym="' + ym + '" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropRoadmap(event,this)" onclick="addRoadmap(\'' + esc(lane) + '\',\'' + ym + '\')">' +
+        items.map(r => '<div class="rm-item" style="border-left-color:' + (r.color || 'var(--blue)') + '" onclick="event.stopPropagation();editRoadmap(\'' + r.id + '\')">' + esc(r.title) +
+          (r.progress ? '<i style="width:' + r.progress + '%"></i>' : '') + '</div>').join('') + '</td>';
+    }).join('');
+    return '<tr><th>' + lane + '</th>' + cells + '</tr>';
+  }).join('');
+
+  return '<div class="grid g4 keep2" style="margin-bottom:14px">' +
+      '<div class="card kpi"><div class="lab">年間売上目標</div><div class="num">' + (y.revenue || '—') + '<span style="font-size:13px">億</span></div><div class="sub">達成 ' + doneRev + '億（' + rate + '%）</div></div>' +
+      '<div class="card kpi"><div class="lab">年間粗利目標</div><div class="num">' + (y.gross || '—') + '<span style="font-size:13px">億</span></div><div class="sub">' + f.term + '期</div></div>' +
+      '<div class="card kpi"><div class="lab">残り日数</div><div class="num ' + (left < 60 ? 'orange' : '') + '">' + (left > 0 ? left : 0) + '</div><div class="sub">' + fmtDate(end) + 'まで</div></div>' +
+      '<div class="card kpi"><div class="lab">進捗予測</div><div class="num ' + (rate >= 75 ? 'green' : rate >= 50 ? 'orange' : 'red') + '">' + rate + '%</div><div class="sub">' + (rate >= 75 ? '計画どおり' : '上積みが必要') + '</div></div>' +
+    '</div>' +
+    '<div class="card pad" style="margin-bottom:14px"><div class="sec-h"><h3>年間最重要テーマ</h3><div class="sp"></div><button class="btn sm" onclick="editYear()">編集</button></div>' +
+      '<div style="font-size:16px;font-weight:700">' + (y.theme ? esc(y.theme) : '<span class="muted" style="font-weight:400">未設定 — この1年で何を成し遂げるかを1行で</span>') + '</div></div>' +
+    '<div class="grid g4 keep2" style="margin-bottom:14px">' + qs.map(q =>
+      '<div class="card pad" style="cursor:pointer;' + (q.q === f.q ? 'border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,160,70,.25)' : '') + '" onclick="jumpTo(\'quarter\',\'' + quarterMonths(f.fy, q.q)[0] + '-01\')">' +
+      '<div class="small muted">第' + q.q + '四半期（' + quarterMonths(f.fy, q.q).map(m => +m.slice(5)).join('・') + '月）</div>' +
+      '<b>' + (q.theme ? esc(q.theme) : '未設定') + '</b>' +
+      '<div class="small muted" style="margin-top:4px">売上 ' + (q.revenue || '—') + '億 ／ 粗利 ' + (q.gross || '—') + '億</div></div>').join('') + '</div>' +
+    '<div class="card pad"><div class="sec-h"><h3>年間ロードマップ</h3><div class="sp"></div>' +
+      '<span class="small muted">右のプロジェクトを月のマスへドラッグ、またはマスをクリックで追加</span></div>' +
+      '<div style="display:flex;gap:12px;align-items:flex-start">' +
+        '<div style="flex:1;overflow-x:auto"><table class="rm"><thead><tr><th></th>' +
+          months.map(m => '<th' + (m === today().slice(0, 7) ? ' class="now"' : '') + '>' + (+m.slice(5)) + '月</th>').join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<div class="rm-side"><div class="small muted" style="margin-bottom:6px">プロジェクト</div>' +
+          (DB.projects.length ? DB.projects.map(p => '<div class="rm-chip" draggable="true" data-pid="' + p.id + '">' + esc(p.title) + '</div>').join('')
+            : '<div class="small muted">プロジェクトがありません</div>') + '</div>' +
+      '</div></div>';
+}
+function bindYear() {
+  $$('.rm-chip').forEach(el => el.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', 'p:' + el.dataset.pid)));
+}
+function dropRoadmap(e, td) {
+  e.preventDefault(); td.classList.remove('over');
+  const data = e.dataTransfer.getData('text/plain') || '';
+  if (!data.startsWith('p:')) return;
+  const p = projectById(data.slice(2)); if (!p) return;
+  DB.strategy.roadmap.push({ id: uid(), lane: td.dataset.lane, ym: td.dataset.ym, title: p.title, project_id: p.id, progress: projectProgress(p), color: '#7B5EA7' });
+  Store.save(true); render(); toast(p.title + 'を' + (+td.dataset.ym.slice(5)) + '月に置きました');
+}
+function addRoadmap(lane, ym) {
+  openModal((+ym.slice(5)) + '月の施策を追加', '<div class="field"><label>' + esc(lane) + '</label><input id="rmT" placeholder="例）岩槻モデル発電所の見学会"></div>' +
+    '<div class="field"><label>関連プロジェクト（任意）</label><select id="rmP"><option value="">なし</option>' +
+      DB.projects.map(p => '<option value="' + p.id + '">' + esc(p.title) + '</option>').join('') + '</select></div>',
+    [{ label: '追加する', cls: 'pri', fn: () => {
+      const t = $('#rmT').value.trim(); if (!t) return toast('内容を入力してください', 'err');
+      DB.strategy.roadmap.push({ id: uid(), lane: lane, ym: ym, title: t, project_id: $('#rmP').value, progress: 0, color: '#2F6FED' });
+      Store.save(true); closeModal(); render();
+    } }]);
+}
+function editRoadmap(id) {
+  const r = DB.strategy.roadmap.find(x => x.id === id); if (!r) return;
+  openModal('施策の編集', '<div class="field"><label>内容</label><input id="rmT" value="' + esc(r.title) + '"></div>' +
+    '<div class="field"><label>進捗率 <span id="rmPv">' + (r.progress || 0) + '%</span></label><input id="rmG" type="range" min="0" max="100" step="5" value="' + (r.progress || 0) + '" oninput="$(\'#rmPv\').textContent=this.value+\'%\'"></div>',
+    [{ label: '保存', cls: 'pri', fn: () => { r.title = $('#rmT').value; r.progress = +$('#rmG').value; Store.save(true); closeModal(); render(); } },
+     { label: '削除', cls: 'danger', fn: () => { DB.strategy.roadmap = DB.strategy.roadmap.filter(x => x.id !== id); Store.save(true); closeModal(); render(); } }]);
+}
+function editYear() {
+  const f = fiscalOf(DB.settings.calCur), y = yearOf(f.fy);
+  openModal(f.term + '期の年間目標', '<div class="field"><label>年間最重要テーマ</label><input id="yT" value="' + esc(y.theme) + '"></div>' +
+    '<div class="row"><div class="field"><label>売上目標（億）</label><input id="yR" type="number" value="' + (y.revenue || '') + '"></div>' +
+    '<div class="field"><label>粗利目標（億）</label><input id="yG" type="number" value="' + (y.gross || '') + '"></div></div>',
+    [{ label: '保存', cls: 'pri', fn: () => { y.theme = $('#yT').value; y.revenue = +$('#yR').value || 0; y.gross = +$('#yG').value || 0; Store.save(true); closeModal(); render(); } }]);
+}
+
+/* ---- 四半期 ---- */
+function calQuarter(cur) {
+  const f = fiscalOf(cur), q = qOf(f.fy, f.q), ms = quarterMonths(f.fy, f.q);
+  const evs = evOfRange(ms[0] + '-01', monthDays(ms[2]).slice(-1)[0]).filter(e => !['deadline', 'reminder', 'private'].includes(e.type));
+  const unlinked = evs.filter(e => !e.project_id && !e.goal_ref);
+  const projs = DB.projects.filter(p => DB.strategy.roadmap.some(r => r.project_id === p.id && ms.includes(r.ym)) || (p.due || '').slice(0, 7) >= ms[0] && (p.due || '').slice(0, 7) <= ms[2]);
+  return (unlinked.length > evs.length * 0.4 && evs.length > 3 ?
+    '<div class="err">四半期目標とつながっていない予定が' + unlinked.length + '件（全体の' + Math.round(unlinked.length / evs.length * 100) + '%）あります。「重複・競合」から目的の設定を確認してください。</div>' : '') +
+    '<div class="card pad" style="margin-bottom:14px;background:linear-gradient(120deg,#101B33,#22355C);color:#fff;border:none">' +
+      '<div class="small" style="color:var(--gold-l)">' + f.term + '期 第' + f.q + '四半期テーマ</div>' +
+      '<div style="font-size:20px;font-weight:700;margin:6px 0">' + (q.theme ? esc(q.theme) : '未設定') + '</div>' +
+      '<div style="display:flex;gap:18px;flex-wrap:wrap"><div><div class="small" style="color:#9FAEC6">売上目標</div><b style="font-size:22px">' + (q.revenue || '—') + '億</b></div>' +
+      '<div><div class="small" style="color:#9FAEC6">粗利目標</div><b style="font-size:22px">' + (q.gross || '—') + '億</b></div>' +
+      '<div><div class="small" style="color:#9FAEC6">責任者</div><b style="font-size:16px">' + esc(q.owner || '—') + '</b></div></div>' +
+      '<button class="btn sm gold" style="margin-top:12px" onclick="editQuarter()">四半期目標を編集</button></div>' +
+    '<div class="grid g3" style="margin-bottom:14px">' +
+      qCard('先行KPI', q.lead_kpi, '結果より前に動く数字（商談数・提案数）') +
+      qCard('遅行KPI', q.lag_kpi, '結果として出る数字（受注・売上）') +
+      qCard('リスク', q.risk, '達成を妨げる要因') +
+    '</div>' +
+    '<div class="grid g2" style="margin-bottom:14px">' +
+      '<div class="card pad"><div class="sec-h"><h3>今期やらないこと</h3></div>' +
+        (q.not_doing ? '<div style="white-space:pre-wrap">' + esc(q.not_doing) + '</div>' : '<div class="small muted">未設定。やらないことを決めないと、時間は空きません。</div>') + '</div>' +
+      '<div class="card pad"><div class="sec-h"><h3>重点プロジェクト</h3></div>' +
+        (projs.length ? projs.map(p => '<div style="margin-bottom:10px"><a href="#/project/' + p.id + '" style="font-weight:600;color:var(--ink);text-decoration:none">' + esc(p.title) + '</a>' +
+          '<div class="bar" style="margin-top:4px"><i style="width:' + projectProgress(p) + '%"></i></div></div>').join('') : '<div class="small muted">年間ロードマップに置いたプロジェクトが表示されます</div>') + '</div>' +
+    '</div>' +
+    '<div class="card pad"><div class="sec-h"><h3>月別マイルストーン</h3></div><div class="grid g3">' +
+      ms.map(ym => '<div><div class="small muted" style="margin-bottom:6px">' + (+ym.slice(5)) + '月 ' +
+        '<a href="#" onclick="jumpTo(\'month\',\'' + ym + '-01\');return false" class="small">開く</a></div>' +
+        (mOf(ym).goal ? '<b>' + esc(mOf(ym).goal) + '</b>' : '<span class="small muted">未設定</span>') +
+        DB.strategy.roadmap.filter(r => r.ym === ym).slice(0, 6).map(r => '<div class="small" style="margin-top:4px">・' + esc(r.title) + '</div>').join('') +
+        '</div>').join('') + '</div></div>';
+}
+function qCard(t, v, hint) {
+  return '<div class="card pad"><div class="small muted">' + t + '</div>' +
+    (v ? '<div style="white-space:pre-wrap;margin-top:4px">' + esc(v) + '</div>' : '<div class="small muted" style="margin-top:4px">' + hint + '</div>') + '</div>';
+}
+function editQuarter() {
+  const f = fiscalOf(DB.settings.calCur), q = qOf(f.fy, f.q);
+  openModal('第' + f.q + '四半期の目標',
+    '<div class="field"><label>四半期テーマ</label><input id="qT" value="' + esc(q.theme) + '"></div>' +
+    '<div class="row"><div class="field"><label>売上目標（億）</label><input id="qR" type="number" value="' + (q.revenue || '') + '"></div>' +
+    '<div class="field"><label>粗利目標（億）</label><input id="qG" type="number" value="' + (q.gross || '') + '"></div></div>' +
+    '<div class="row"><div class="field"><label>責任者</label><input id="qO" value="' + esc(q.owner) + '"></div>' +
+    '<div class="field"><label>達成見込み（%）</label><input id="qF" type="number" value="' + (q.forecast || '') + '"></div></div>' +
+    '<div class="field"><label>先行KPI</label><input id="qL" value="' + esc(q.lead_kpi) + '" placeholder="例）新規商談 週12件"></div>' +
+    '<div class="field"><label>遅行KPI</label><input id="qG2" value="' + esc(q.lag_kpi) + '" placeholder="例）受注 月8件"></div>' +
+    '<div class="field"><label>今期やらないこと</label><textarea id="qN">' + esc(q.not_doing) + '</textarea></div>' +
+    '<div class="field"><label>リスク</label><textarea id="qK">' + esc(q.risk) + '</textarea></div>',
+    [{ label: '保存', cls: 'pri', fn: () => {
+      q.theme = $('#qT').value; q.revenue = +$('#qR').value || 0; q.gross = +$('#qG').value || 0;
+      q.owner = $('#qO').value; q.forecast = +$('#qF').value || 0; q.lead_kpi = $('#qL').value;
+      q.lag_kpi = $('#qG2').value; q.not_doing = $('#qN').value; q.risk = $('#qK').value;
+      Store.save(true); closeModal(); render(); toast('四半期目標を保存しました');
+    } }]);
+}
+
+/* ---- 月間 ---- */
+function calMonth(cur) {
+  const ym = cur.slice(0, 7), m = mOf(ym), days = monthDays(ym);
+  const f = fiscalOf(cur), q = qOf(f.fy, f.q);
+  const first = new Date(days[0] + 'T00:00:00'), pad = (first.getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < pad; i++) cells.push('<td class="mc empty"></td>');
+  days.forEach(d => {
+    const evs = evOfDay(d).filter(evVisible);
+    const dl = evs.filter(e => e.type === 'deadline');
+    cells.push('<td class="mc' + (d === today() ? ' today' : '') + '" onclick="jumpTo(\'day\',\'' + d + '\')">' +
+      '<div class="mc-d">' + (+d.slice(8)) + (dl.length ? '<span class="chip red" style="margin-left:4px">締切</span>' : '') + '</div>' +
+      evs.slice(0, 4).map(e => '<div class="mc-e" style="background:' + ETYPE[e.type].c + (e.type === 'google' ? ';color:var(--ink);border:1px solid var(--blue)' : '') + '">' +
+        hm(e.start) + ' ' + esc(e.title.slice(0, 12)) + '</div>').join('') +
+      (evs.length > 4 ? '<div class="small muted">他' + (evs.length - 4) + '件</div>' : '') + '</td>');
+  });
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push('<tr>' + cells.slice(i, i + 7).join('') + '</tr>');
+  const cap = capacityOf(days);
+
+  return '<div class="card pad" style="margin-bottom:14px">' +
+      '<div class="sec-h"><h3>月間成果ボード</h3><div class="sp"></div><button class="btn sm" onclick="editMonth()">編集</button></div>' +
+      '<div class="grid g3">' +
+        '<div><div class="small muted">今月の最重要ゴール</div><b style="font-size:15px">' + (m.goal ? esc(m.goal) : '未設定') + '</b>' +
+          '<div class="small muted" style="margin-top:8px">上位の四半期テーマ</div><div class="small">' + (q.theme ? esc(q.theme) : '未設定') + '</div></div>' +
+        '<div><div class="small muted">今月達成すべき成果</div><div style="white-space:pre-wrap">' + (m.outcomes ? esc(m.outcomes) : '<span class="small muted">未設定</span>') + '</div></div>' +
+        '<div><div class="small muted">売上／粗利目標</div><b style="font-size:20px">' + (m.revenue || '—') + '億</b><span class="small muted"> ／ 粗利 ' + (m.gross || '—') + '億</span>' +
+          '<div class="small muted" style="margin-top:8px">今月やらないこと</div><div class="small">' + (m.not_doing ? esc(m.not_doing) : '未設定') + '</div>' +
+          '<div class="small muted" style="margin-top:8px">先月からの持ち越し</div><div class="small">' + (m.carry ? esc(m.carry) : 'なし') + '</div></div>' +
+      '</div>' +
+      '<div style="margin-top:12px"><div class="small muted">今月の時間配分（' + Math.round(cap.total / 60) + 'h ／ 稼働可能 ' + Math.round(cap.avail / 60) + 'h・稼働率' + cap.rate + '%）</div>' +
+        capBar(cap) + '</div></div>' +
+    '<div class="card pad"><table class="mcal"><thead><tr>' + ['月', '火', '水', '木', '金', '土', '日'].map(w => '<th>' + w + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + rows.join('') + '</tbody></table></div>';
+}
+function capBar(cap) {
+  const order = ['strategy', 'sales', 'meeting', 'focus', 'move', 'study', 'private', 'buffer', 'task', 'decision'];
+  const tot = Math.max(cap.avail, cap.total) || 1;
+  return '<div class="capbar">' + order.filter(k => cap.by[k]).map(k =>
+    '<i style="width:' + (cap.by[k] / tot * 100) + '%;background:' + ETYPE[k].c + '" title="' + ETYPE[k].l + '"></i>').join('') + '</div>' +
+    '<div class="small muted" style="margin-top:4px">' + order.filter(k => cap.by[k]).map(k => '<span class="chip" style="background:' + ETYPE[k].c + '22;color:var(--ink2)">' + ETYPE[k].l + ' ' + Math.round(cap.by[k] / 60) + 'h</span>').join(' ') +
+    ' <span class="chip ' + (cap.rate > 85 ? 'red' : 'green') + '">空き ' + Math.round(cap.free / 60) + 'h</span></div>';
+}
+function editMonth() {
+  const ym = DB.settings.calCur.slice(0, 7), m = mOf(ym);
+  openModal((+ym.slice(5)) + '月の成果ボード',
+    '<div class="field"><label>今月の最重要ゴール</label><input id="mG" value="' + esc(m.goal) + '"></div>' +
+    '<div class="field"><label>今月達成すべき成果（改行で複数）</label><textarea id="mO">' + esc(m.outcomes) + '</textarea></div>' +
+    '<div class="row"><div class="field"><label>売上目標（億）</label><input id="mR" type="number" value="' + (m.revenue || '') + '"></div>' +
+    '<div class="field"><label>粗利目標（億）</label><input id="mGr" type="number" value="' + (m.gross || '') + '"></div></div>' +
+    '<div class="field"><label>今月やらないこと</label><input id="mN" value="' + esc(m.not_doing) + '"></div>' +
+    '<div class="field"><label>先月からの持ち越し</label><input id="mC" value="' + esc(m.carry) + '"></div>',
+    [{ label: '保存', cls: 'pri', fn: () => {
+      m.goal = $('#mG').value; m.outcomes = $('#mO').value; m.revenue = +$('#mR').value || 0;
+      m.gross = +$('#mGr').value || 0; m.not_doing = $('#mN').value; m.carry = $('#mC').value;
+      Store.save(true); closeModal(); render();
+    } }]);
+}
+
+/* ---- 週間（実行管理の中心） ---- */
+function calWeek(cur) {
+  const mon = mondayOf(cur), days = weekDays(mon), w = wOf(mon), cap = capacityOf(days);
+  const evs = evOfRange(mon, addDays(mon, 6)).filter(evVisible);
+  const od = overdue(), wait = tasksIn('waiting'), un = unplacedTasks();
+  const hours = [];
+  for (let h = DAY_START; h <= DAY_END; h++) hours.push(h);
+
+  const col = d => {
+    const list = evs.filter(e => dOf(e.start) === d);
+    return '<div class="wk-col' + (d === today() ? ' today' : '') + '" data-day="' + d + '" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropWeek(event,this)">' +
+      hours.map(h => '<div class="wk-slot" data-h="' + h + '"></div>').join('') +
+      list.map(e => {
+        const top = (minOf(e.start) - DAY_START * 60) / 60 * SLOT_H;
+        const hgt = Math.max(18, durMin(e) / 60 * SLOT_H - 2);
+        const t = ETYPE[e.type] || ETYPE.meeting;
+        const g = e.type === 'google';
+        return '<div class="wk-ev' + (g ? ' gg' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' + (g ? '#fff' : t.c) + ';' +
+          (g ? 'border:1px solid var(--blue);color:var(--ink)' : '') + '" onclick="openEvent(\'' + e.id + '\')">' +
+          '<b>' + hm(e.start) + ' ' + esc(e.title) + '</b>' +
+          (hgt > 40 ? '<span>' + esc(t.l) + (e.location ? ' / ' + esc(e.location) : '') + '</span>' : '') + '</div>';
+      }).join('') + '</div>';
+  };
+
+  return '<div class="grid g4 keep2" style="margin-bottom:12px">' +
+      '<div class="card pad" style="grid-column:span 2"><div class="small muted">今週の最重要ゴール</div>' +
+        '<b style="font-size:16px">' + (w.goal ? esc(w.goal) : '未設定') + '</b>' +
+        '<div class="small muted" style="margin-top:8px">今週完了させる3つの成果</div>' +
+        '<div style="white-space:pre-wrap" class="small">' + (w.three ? esc(w.three) : '未設定') + '</div>' +
+        '<button class="btn sm" style="margin-top:8px" onclick="editWeek()">編集</button></div>' +
+      '<div class="card kpi"><div class="lab">稼働率</div><div class="num ' + (cap.rate > 85 ? 'red' : cap.rate > 60 ? 'orange' : 'green') + '">' + cap.rate + '%</div>' +
+        '<div class="sub">空き ' + Math.round(cap.free / 60) + 'h ／ 推奨バッファ ' + DB.capacity.bufferPct + '%</div></div>' +
+      '<div class="card kpi"><div class="lab">要注意</div><div class="num ' + (od.length ? 'red' : '') + '">' + od.length + '</div>' +
+        '<div class="sub">期限超過 ／ 連絡待ち' + wait.length + ' ／ 未配置' + un.length + '</div></div>' +
+    '</div>' +
+    (cap.rate > 85 ? '<div class="err">今週の稼働率が' + cap.rate + '%です。予定を詰めすぎると、突発対応で計画が崩れます。15〜20%は空けてください。</div>' : '') +
+    '<div class="wk-wrap"><div class="wk-side">' +
+      '<div class="small muted" style="margin-bottom:6px">未配置タスク（実行時間が未確保）</div>' +
+      (un.length ? un.slice(0, 20).map(t => '<div class="wk-chip' + (DB.settings.pickTask === t.id ? ' pick' : '') + '" draggable="true" data-tid="' + t.id + '" onclick="pickTask(\'' + t.id + '\')">' +
+        esc(t.title) + '<span class="small muted">' + (t.due ? '期限 ' + fmtDate(t.due) : '期限なし') + '</span></div>').join('')
+        : '<div class="small muted">すべて時間が確保されています</div>') +
+      '<div class="small muted" style="margin-top:10px">' + (isMobile() ? 'タップして選び、置きたい時間をタップ' : 'ドラッグして時間枠へ置く') + '</div>' +
+      '</div>' +
+      '<div class="wk-grid">' +
+        '<div class="wk-hours"><div class="wk-corner"></div>' + hours.map(h => '<div class="wk-h">' + h + ':00</div>').join('') + '</div>' +
+        '<div class="wk-cols"><div class="wk-heads">' + days.map(d => '<div class="wk-head' + (d === today() ? ' today' : '') + '" onclick="jumpTo(\'day\',\'' + d + '\')">' +
+          wdName(d) + ' <span>' + (+d.slice(8)) + '</span></div>').join('') + '</div>' +
+          '<div class="wk-body">' + days.map(col).join('') + '</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="small muted" style="margin-top:8px">' + Object.keys(ETYPE).map(k => '<span class="chip" style="background:' + ETYPE[k].c + (k === 'google' ? ';border:1px solid var(--blue)' : '') + ';color:' + (['buffer', 'google', 'private', 'tentative'].includes(k) ? 'var(--ink)' : '#fff') + '">' + ETYPE[k].l + '</span>').join(' ') + '</div>';
+}
+function pickTask(id) { DB.settings.pickTask = DB.settings.pickTask === id ? '' : id; Store.save(); render(); }
+function bindWeek() {
+  $$('.wk-chip').forEach(el => el.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', 't:' + el.dataset.tid)));
+  $$('.wk-col').forEach(col => col.addEventListener('click', e => {
+    if (e.target.closest('.wk-ev')) return;
+    const r = col.getBoundingClientRect();
+    const h = Math.floor((e.clientY - r.top) / SLOT_H) + DAY_START;
+    const tid = DB.settings.pickTask;
+    if (tid) { placeTask(tid, col.dataset.day, h); DB.settings.pickTask = ''; }
+    else openEvent('', col.dataset.day, h);
+  }));
+}
+function dropWeek(e, col) {
+  e.preventDefault(); col.classList.remove('over');
+  const data = e.dataTransfer.getData('text/plain') || '';
+  const r = col.getBoundingClientRect();
+  const h = Math.floor((e.clientY - r.top) / SLOT_H) + DAY_START;
+  if (data.startsWith('t:')) placeTask(data.slice(2), col.dataset.day, h);
+}
+function placeTask(tid, day, hour) {
+  const t = taskById(tid); if (!t || !requireEdit()) return;
+  const start = day + 'T' + String(Math.max(DAY_START, Math.min(DAY_END - 1, hour))).padStart(2, '0') + ':00';
+  openEvent('', day, hour, {
+    title: t.title, type: 'focus', task_id: t.id, project_id: t.project_id, owner: t.owner || (DB.user || {}).name || '',
+    purpose: t.notes || '', start: start, end: addMin(start, 60)
+  });
+}
+
+/* ---- 日間 ---- */
+function calDay(cur) {
+  const d = cur, day = dayOf(d), evs = evOfDay(d).filter(evVisible), cap = capacityOf([d]);
+  const mon = mondayOf(d), w = wOf(mon), m = mOf(d.slice(0, 7)), f = fiscalOf(d), q = qOf(f.fy, f.q), y = yearOf(f.fy);
+  const td = tasksIn('today'), od = overdue(), wait = tasksIn('waiting');
+  const now = new Date(), nowMin = (dOf(new Date().toISOString()) === d) ? now.getHours() * 60 + now.getMinutes() : -1;
+  const next = evs.find(e => minOf(e.start) > (now.getHours() * 60 + now.getMinutes()));
+  const hours = []; for (let h = DAY_START; h <= DAY_END; h++) hours.push(h);
+  const undone = td.filter(t => t.gtd !== 'done');
+
+  return '<div class="card pad" style="margin-bottom:12px;background:linear-gradient(120deg,#101B33,#22355C);color:#fff;border:none">' +
+      '<div class="small" style="color:#9FAEC6">' + esc(y.theme || (f.term + '期')) + ' ＞ ' + esc(q.theme || (f.q + 'Q')) + ' ＞ ' + esc(m.goal || '今月') + ' ＞ ' + esc(w.goal || '今週') + '</div>' +
+      '<div class="small" style="color:var(--gold-l);margin-top:8px">今日の最重要ゴール</div>' +
+      '<div style="font-size:19px;font-weight:700">' + (day.goal ? esc(day.goal) : '未設定') + '</div>' +
+      '<div class="small" style="margin-top:8px;color:#C9D2E2;white-space:pre-wrap">' + (day.three ? esc(day.three) : '今日達成する3つの成果を決めてください') + '</div>' +
+      '<button class="btn sm gold" style="margin-top:10px" onclick="editDay()">朝の設定</button>' +
+      '<button class="btn sm" style="margin-top:10px" onclick="nightReview()">夜の振り返り</button></div>' +
+    '<div class="grid g4 keep2" style="margin-bottom:12px">' +
+      '<div class="card kpi"><div class="lab">次の予定</div><div class="num" style="font-size:20px">' + (next ? hm(next.start) : '—') + '</div>' +
+        '<div class="sub">' + (next ? esc(next.title.slice(0, 18)) + '（あと' + Math.max(0, minOf(next.start) - (now.getHours() * 60 + now.getMinutes())) + '分）' : '予定なし') + '</div></div>' +
+      '<div class="card kpi"><div class="lab">今日やる</div><div class="num">' + undone.length + '</div><div class="sub">完了 ' + td.filter(t => t.gtd === 'done').length + '件</div></div>' +
+      '<div class="card kpi"><div class="lab">期限超過</div><div class="num ' + (od.length ? 'red' : 'green') + '">' + od.length + '</div><div class="sub">連絡待ち ' + wait.length + '</div></div>' +
+      '<div class="card kpi"><div class="lab">空き時間</div><div class="num ' + (cap.rate > 85 ? 'red' : 'green') + '">' + Math.round(cap.free / 60) + '<span style="font-size:13px">h</span></div><div class="sub">稼働率 ' + cap.rate + '%</div></div>' +
+    '</div>' +
+    '<div class="grid g2">' +
+      '<div class="card pad"><div class="sec-h"><h3>今日のタイムライン</h3><div class="sp"></div><button class="btn sm" onclick="openEvent(\'\',\'' + d + '\',9)">＋ 予定</button></div>' +
+        '<div class="day-tl" id="dayTl">' + hours.map(h => '<div class="day-row" data-h="' + h + '"><span>' + h + ':00</span><div class="day-slot" data-h="' + h + '"></div></div>').join('') +
+          evs.map(e => {
+            const top = (minOf(e.start) - DAY_START * 60) / 60 * SLOT_H;
+            const hgt = Math.max(20, durMin(e) / 60 * SLOT_H - 2);
+            const t = ETYPE[e.type] || ETYPE.meeting, g = e.type === 'google';
+            return '<div class="day-ev' + (g ? ' gg' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' + (g ? '#fff' : t.c) + (g ? ';border:1px solid var(--blue);color:var(--ink)' : '') + '" onclick="openEvent(\'' + e.id + '\')">' +
+              '<b>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' + (hgt > 40 ? '<span>' + esc(t.l) + (e.purpose ? ' / ' + esc(e.purpose.slice(0, 24)) : '') + '</span>' : '') + '</div>';
+          }).join('') +
+          (nowMin >= DAY_START * 60 ? '<div class="day-now" style="top:' + ((nowMin - DAY_START * 60) / 60 * SLOT_H) + 'px"></div>' : '') +
+        '</div></div>' +
+      '<div>' +
+        '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>今日やるタスク</h3></div>' +
+          (undone.length ? undone.map(t => '<div class="list-item" style="padding-left:0;padding-right:0"><div class="t"><b>' + esc(t.title) + '</b>' +
+            '<div class="meta">' + (t.due ? '📅' + fmtDate(t.due) : '') + (DB.calendar_events.some(e => e.task_id === t.id) ? ' <span class="chip green">時間確保済み</span>' : ' <span class="chip orange">実行時間なし</span>') + '</div></div>' +
+            '<button class="btn sm" onclick="openTask(\'' + t.id + '\')">開く</button></div>').join('') : '<div class="small muted">ありません</div>') + '</div>' +
+        '<div class="card pad"><div class="sec-h"><h3>価値を届ける相手</h3></div>' +
+          '<div class="small muted">誰に</div><div>' + (day.who ? esc(day.who) : '未設定') + '</div>' +
+          '<div class="small muted" style="margin-top:8px">起こしたい変化</div><div>' + (day.change ? esc(day.change) : '未設定') + '</div>' +
+          '<div class="small muted" style="margin-top:8px">自己宣言</div><div>' + (day.declaration ? esc(day.declaration) : '未設定') + '</div></div>' +
+      '</div>' +
+    '</div>';
+}
+function bindDay() {
+  $$('#dayTl .day-slot').forEach(el => el.addEventListener('click', () => openEvent('', DB.settings.calCur, +el.dataset.h)));
+}
+function editDay() {
+  const d = DB.settings.calCur, x = dayOf(d);
+  openModal(fmtDate(d) + ' 朝の設定',
+    '<div class="field"><label>今日の最重要ゴール</label><input id="dG" value="' + esc(x.goal) + '"></div>' +
+    '<div class="field"><label>今日達成する3つの成果</label><textarea id="d3">' + esc(x.three) + '</textarea></div>' +
+    '<div class="row"><div class="field"><label>価値を届けたい相手</label><input id="dW" value="' + esc(x.who) + '"></div>' +
+    '<div class="field"><label>起こしたい変化</label><input id="dC" value="' + esc(x.change) + '"></div></div>' +
+    '<div class="field"><label>自己宣言</label><input id="dD" value="' + esc(x.declaration) + '" placeholder="例）午前は誰にも邪魔させず戦略に使う"></div>',
+    [{ label: '保存', cls: 'pri', fn: () => {
+      x.goal = $('#dG').value; x.three = $('#d3').value; x.who = $('#dW').value; x.change = $('#dC').value; x.declaration = $('#dD').value;
+      DB.settings.top_goal = x.goal || DB.settings.top_goal;
+      Store.save(true); closeModal(); render();
+    } }]);
+}
+function nightReview() {
+  const d = DB.settings.calCur, x = dayOf(d);
+  const doneT = DB.tasks.filter(t => t.gtd === 'done' && (t.done_at || '').slice(0, 10) === d);
+  const left = tasksIn('today').filter(t => t.gtd !== 'done');
+  const plan = capacityOf([d]);
+  openModal(fmtDate(d) + ' 夜の振り返り',
+    '<div class="card pad" style="margin-bottom:12px"><div class="small muted">今日の結果</div>' +
+      '<div><b>完了 ' + doneT.length + '件</b> ／ 未完了 ' + left.length + '件 ／ 予定 ' + Math.round(plan.total / 60) + 'h</div>' +
+      (doneT.length ? '<ul class="small" style="margin:6px 0 0;padding-left:18px">' + doneT.slice(0, 8).map(t => '<li>' + esc(t.title) + '</li>').join('') + '</ul>' : '') + '</div>' +
+    '<div class="field"><label>今日のハイライト</label><input id="nH" value="' + esc(x.highlight) + '"></div>' +
+    '<div class="field"><label>今日学んだこと</label><input id="nL" value="' + esc(x.learned) + '"></div>' +
+    '<div class="field"><label>未完了の理由</label><input id="nR" value="' + esc(x.result) + '"></div>' +
+    '<div class="field"><label>明日の一歩</label><input id="nN" value="' + esc(x.next_step) + '"></div>' +
+    '<div class="field"><label>今日の自己評価（10点満点）</label><input id="nS" type="number" min="0" max="10" value="' + (x.score || '') + '"></div>' +
+    (left.length ? '<div class="sec-h"><h3>未完了' + left.length + '件の扱いを決める</h3></div>' +
+      '<div class="small muted" style="margin-bottom:8px">自動では翌日に動かしません。1件ずつ決めてください。</div>' +
+      left.map(t => '<div class="sugg"><div class="s-t">' + esc(t.title) + '</div>' +
+        '<div class="s-a" style="flex-wrap:wrap"><button class="btn sm" onclick="carry(\'' + t.id + '\',\'tomorrow\')">明日へ</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'week\')">今週中</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'waiting\')">他者へ依頼</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'someday\')">いつかやる</button>' +
+        '<button class="btn sm" onclick="carry(\'' + t.id + '\',\'project\')">プロジェクト見直し</button>' +
+        '<button class="btn sm danger" onclick="carry(\'' + t.id + '\',\'delete\')">不要</button></div></div>').join('') : ''),
+    [{ label: '記録する', cls: 'pri', fn: () => {
+      x.highlight = $('#nH').value; x.learned = $('#nL').value; x.result = $('#nR').value;
+      x.next_step = $('#nN').value; x.score = +$('#nS').value || 0;
+      DB.reviews.unshift({ id: uid(), kind: 'daily', date: d, next_step: x.next_step, done: doneT.length });
+      Store.save(true); closeModal(); render(); toast('振り返りを記録しました');
+    } }]);
+}
+function carry(id, how) {
+  const t = taskById(id); if (!t) return;
+  if (how === 'delete') { if (!confirm('削除します。よろしいですか？')) return; DB.tasks = DB.tasks.filter(x => x.id !== id); }
+  else if (how === 'tomorrow') { t.due = addDays(today(), 1); t.carry = (t.carry || 0) + 1; setGtd(t, 'next'); }
+  else if (how === 'week') { t.due = addDays(mondayOf(today()), 4); t.carry = (t.carry || 0) + 1; setGtd(t, 'next'); }
+  else if (how === 'waiting') setGtd(t, 'waiting');
+  else if (how === 'someday') setGtd(t, 'someday');
+  else if (how === 'project') { setGtd(t, 'project'); toast('プロジェクトとして見直してください'); }
+  Store.save(true); nightReview();
+}
+function editWeek() {
+  const mon = mondayOf(DB.settings.calCur), w = wOf(mon);
+  openModal(fmtDate(mon) + '週のコミットメント',
+    '<div class="field"><label>今週の最重要ゴール</label><input id="wG" value="' + esc(w.goal) + '"></div>' +
+    '<div class="field"><label>今週完了させる3つの成果</label><textarea id="w3">' + esc(w.three) + '</textarea></div>' +
+    '<div class="row"><div class="field"><label>重要商談</label><input id="wD" value="' + esc(w.deals) + '"></div>' +
+    '<div class="field"><label>重要な意思決定</label><input id="wC" value="' + esc(w.decisions) + '"></div></div>',
+    [{ label: '保存', cls: 'pri', fn: () => {
+      w.goal = $('#wG').value; w.three = $('#w3').value; w.deals = $('#wD').value; w.decisions = $('#wC').value;
+      Store.save(true); closeModal(); render();
+    } }]);
+}
+
+/* ---- 予定の作成・編集 ---- */
+let _evDraft = null;
+function openEvent(id, day, hour, pre) {
+  if (!requireEdit()) return;
+  const ex = id ? DB.calendar_events.find(e => e.id === id) : null;
+  const d = day || DB.settings.calCur || today();
+  const st = (pre && pre.start) || (d + 'T' + String(hour == null ? 9 : hour).padStart(2, '0') + ':00');
+  _evDraft = ex ? Object.assign({}, ex) : Object.assign({
+    id: uid(), title: '', type: 'meeting', start: st, end: addMin(st, 60), location: '', url_online: '',
+    guests: '', purpose: '', outcome: '', goal_ref: '', project_id: '', task_id: '', node_id: '', map_id: '',
+    owner: (DB.user || {}).name || '', reminder: 10, tentative: false, prep: 0, move: 0, notes: '',
+    lane: '', sync_to_google: true, sync_status: 'local', google_event_id: '', source: 'mindflow'
+  }, pre || {});
+  evForm(!!ex);
+}
+function evForm(isEdit) {
+  const e = _evDraft, det = DB.settings.evDetail;
+  const sel = (id, obj, v, blank) => '<select id="' + id + '">' + (blank ? '<option value="">' + blank + '</option>' : '') +
+    Object.keys(obj).map(k => '<option value="' + k + '"' + (String(v) === k ? ' selected' : '') + '>' + (obj[k].l || obj[k].label || obj[k]) + '</option>').join('') + '</select>';
+  const goals = [];
+  const f = fiscalOf(dOf(e.start));
+  goals.push(['q:' + f.fy + ':' + f.q, f.term + '期 ' + f.q + 'Q：' + (qOf(f.fy, f.q).theme || '四半期目標')]);
+  goals.push(['m:' + dOf(e.start).slice(0, 7), (+dOf(e.start).slice(5, 7)) + '月：' + (mOf(dOf(e.start).slice(0, 7)).goal || '月間ゴール')]);
+  goals.push(['w:' + mondayOf(dOf(e.start)), '今週：' + (wOf(mondayOf(dOf(e.start))).goal || '週間ゴール')]);
+
+  openModal(isEdit ? '予定の編集' : '予定の追加',
+    '<div class="field"><label>タイトル</label><input id="evT" value="' + esc(e.title) + '" placeholder="例）大河原さんとReFort営業戦略会議"></div>' +
+    '<div class="row"><div class="field"><label>日付</label><input id="evD" type="date" value="' + dOf(e.start) + '"></div>' +
+      '<div class="field"><label>開始</label><input id="evS" type="time" value="' + hm(e.start) + '"></div>' +
+      '<div class="field"><label>終了</label><input id="evE" type="time" value="' + hm(e.end) + '"></div></div>' +
+    '<div class="row"><div class="field"><label>予定種別</label>' + sel('evK', ETYPE, e.type) + '</div>' +
+      '<div class="field"><label>Googleへ同期</label><select id="evG"><option value="1"' + (e.sync_to_google ? ' selected' : '') + '>する</option><option value="0"' + (!e.sync_to_google ? ' selected' : '') + '>しない</option></select></div></div>' +
+    '<div style="margin:6px 0 12px"><button class="btn sm" onclick="DB.settings.evDetail=!DB.settings.evDetail;evForm(' + isEdit + ')">' + (det ? '− 詳細を閉じる' : '＋ 詳細を入力（目的・関連目標・参加者）') + '</button></div>' +
+    (det ?
+      '<div class="field"><label>目的（何のための予定か）</label><input id="evP" value="' + esc(e.purpose) + '"></div>' +
+      '<div class="field"><label>期待する成果</label><input id="evO" value="' + esc(e.outcome) + '"></div>' +
+      '<div class="row"><div class="field"><label>関連する目標</label><select id="evGoal"><option value="">なし</option>' +
+        goals.map(g => '<option value="' + g[0] + '"' + (e.goal_ref === g[0] ? ' selected' : '') + '>' + esc(g[1]) + '</option>').join('') + '</select></div>' +
+        '<div class="field"><label>関連プロジェクト</label><select id="evPr"><option value="">なし</option>' +
+        DB.projects.map(p => '<option value="' + p.id + '"' + (e.project_id === p.id ? ' selected' : '') + '>' + esc(p.title) + '</option>').join('') + '</select></div></div>' +
+      '<div class="row"><div class="field"><label>担当者</label><input id="evOw" value="' + esc(e.owner) + '"></div>' +
+        '<div class="field"><label>部門</label><select id="evL"><option value="">なし</option>' + LANES.map(l => '<option value="' + l + '"' + (e.lane === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div></div>' +
+      '<div class="row"><div class="field"><label>場所</label><input id="evLoc" value="' + esc(e.location) + '"></div>' +
+        '<div class="field"><label>オンラインURL</label><input id="evU" value="' + esc(e.url_online) + '"></div></div>' +
+      '<div class="field"><label>参加者（カンマ区切り）</label><input id="evGu" value="' + esc(e.guests) + '"></div>' +
+      '<div class="row"><div class="field"><label>通知（分前）</label><input id="evR" type="number" value="' + (e.reminder || 0) + '"></div>' +
+        '<div class="field"><label>移動時間（分）</label><input id="evM" type="number" value="' + (e.move || 0) + '"></div>' +
+        '<div class="field"><label>準備時間（分）</label><input id="evPp" type="number" value="' + (e.prep || 0) + '"></div></div>' +
+      '<div class="field"><label>確定／仮</label><select id="evTen"><option value="0"' + (!e.tentative ? ' selected' : '') + '>確定予定</option><option value="1"' + (e.tentative ? ' selected' : '') + '>仮予定</option></select></div>' +
+      '<div class="field"><label>メモ</label><textarea id="evN">' + esc(e.notes) + '</textarea></div>' : '') +
+    (isEdit ? '<div class="small muted">同期状態: ' + syncLabel(e) + (e.google_event_id ? ' ／ Google ID: ' + esc(String(e.google_event_id).slice(0, 12)) + '…' : '') + '</div>' : ''),
+    [{ label: isEdit ? '保存する' : '確認して登録', cls: 'pri', fn: () => submitEvent(isEdit) }]
+      .concat(isEdit ? [{ label: '削除', cls: 'danger', fn: () => delEvent(e.id) }] : []));
+}
+function syncLabel(e) {
+  return { local: 'MIND FLOWのみ', synced: 'Googleへ同期済み', pending: '同期中', error: '同期エラー', gchanged: 'Google側で変更あり', conflict: '競合あり' }[e.sync_status] || 'MIND FLOWのみ';
+}
+function collectEvent() {
+  const e = _evDraft, g = id => { const el = $('#' + id); return el ? el.value : undefined; };
+  if (!$('#evT')) { e.last_modified_at = new Date().toISOString(); return e; }  /* 確認画面からの確定時は入力済みの内容をそのまま使う */
+  e.title = g('evT') || e.title || '（無題）';
+  const d = g('evD') || dOf(e.start);
+  e.start = d + 'T' + (g('evS') || hm(e.start) || '09:00'); e.end = d + 'T' + (g('evE') || hm(e.end) || '10:00');
+  e.type = g('evK') || e.type; e.sync_to_google = g('evG') === '1';
+  if ($('#evP')) {
+    e.purpose = g('evP'); e.outcome = g('evO'); e.goal_ref = g('evGoal'); e.project_id = g('evPr');
+    e.owner = g('evOw'); e.lane = g('evL'); e.location = g('evLoc'); e.url_online = g('evU');
+    e.guests = g('evGu'); e.reminder = +g('evR') || 0; e.move = +g('evM') || 0; e.prep = +g('evPp') || 0;
+    e.tentative = g('evTen') === '1'; e.notes = g('evN');
+  }
+  if (e.tentative) e.type = e.type === 'tentative' ? e.type : e.type;
+  e.last_modified_at = new Date().toISOString();
+  return e;
+}
+function submitEvent(isEdit) {
+  const e = collectEvent();
+  const r = checkEvent(e);
+  const blocking = r.dups.length || r.conf.length;
+  if (!blocking && !r.warns.length) return commitEvent(isEdit);
+  openModal('登録前の確認',
+    (r.dups.length ? '<div class="sec-h"><h3>重複の可能性</h3></div>' + r.dups.slice(0, 4).map(x =>
+      '<div class="sugg"><div class="s-t">' + esc(x.ev.title) + '</div><div class="small muted">' + fmtDate(dOf(x.ev.start)) + ' ' + hm(x.ev.start) + '〜' + hm(x.ev.end) + ' ／ ' + esc(x.why) + '</div>' +
+      '<div class="s-a"><button class="btn sm" onclick="useExisting(\'' + x.ev.id + '\')">既存予定を使う</button>' +
+      '<button class="btn sm" onclick="mergeInto(\'' + x.ev.id + '\',' + isEdit + ')">統合する</button></div></div>').join('') : '') +
+    (r.conf.length ? '<div class="sec-h"><h3>時間の競合</h3></div>' + r.conf.slice(0, 5).map(x =>
+      '<div class="err" style="margin-bottom:6px">' + esc(x.why) + '：' + esc(x.ev.title) + '（' + hm(x.ev.start) + '〜' + hm(x.ev.end) + '）</div>').join('') +
+      '<div class="small muted">候補時間: ' + suggestSlots(e).map(s => '<button class="btn sm" onclick="moveDraft(\'' + s + '\')">' + s + '</button>').join(' ') + '</div>' : '') +
+    (r.warns.length ? '<div class="sec-h" style="margin-top:12px"><h3>確認事項</h3></div>' +
+      '<ul class="small" style="margin:0;padding-left:18px">' + r.warns.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>' : ''),
+    [{ label: 'このまま登録する', cls: 'pri', fn: () => commitEvent(isEdit) },
+     { label: '入力に戻る', fn: () => evForm(isEdit) },
+     { label: '中止', fn: () => { _evDraft = null; closeModal(); } }]);
+}
+function suggestSlots(e) {
+  const d = dOf(e.start), dur = durMin(e), out = [];
+  for (let h = 8; h <= 18 && out.length < 4; h++) {
+    const s = h * 60, en = s + dur;
+    const busy = evOfDay(d).some(o => o.id !== e.id && !['deadline', 'reminder'].includes(o.type) && s < minOf(o.end) && en > minOf(o.start));
+    if (!busy) out.push(String(h).padStart(2, '0') + ':00');
+  }
+  return out;
+}
+function moveDraft(t) {
+  const d = dOf(_evDraft.start), dur = durMin(_evDraft);
+  _evDraft.start = d + 'T' + t; _evDraft.end = addMin(_evDraft.start, dur);
+  submitEvent(DB.calendar_events.some(x => x.id === _evDraft.id));
+}
+function useExisting(id) { _evDraft = null; closeModal(); openEvent(id); }
+function mergeInto(id, isEdit) {
+  const o = DB.calendar_events.find(x => x.id === id); if (!o) return;
+  ['purpose', 'outcome', 'goal_ref', 'project_id', 'task_id', 'location', 'url_online', 'guests', 'owner', 'lane', 'notes'].forEach(k => { if (!o[k] && _evDraft[k]) o[k] = _evDraft[k]; });
+  evNorm(o); Store.save(true); _evDraft = null; closeModal(); render(); toast('既存の予定に統合しました');
+}
+function commitEvent(isEdit) {
+  const e = evNorm(collectEvent());
+  const i = DB.calendar_events.findIndex(x => x.id === e.id);
+  if (i >= 0) DB.calendar_events[i] = e; else DB.calendar_events.unshift(e);
+  if (e.task_id) { const t = taskById(e.task_id); if (t && t.gtd !== 'done') { t.due = dOf(e.start); setGtd(t, 'calendar'); } }
+  Store.log(isEdit ? '予定を更新' : '予定を作成', e.title);
+  Store.save(true); _evDraft = null; closeModal(); render();
+  if (e.sync_to_google && ETYPE[e.type].sync) syncEvent(e); else toast('MIND FLOWに登録しました（Google同期なし）');
+}
+function delEvent(id) {
+  if (!confirm('この予定を削除します。関連するタスクやプロジェクトは残ります。')) return;
+  DB.calendar_events = DB.calendar_events.filter(x => x.id !== id);
+  Store.save(true); _evDraft = null; closeModal(); render(); toast('削除しました（Google側は手動で削除してください）');
+}
+async function syncEvent(e) {
+  if (!Integrations.connected('google_calendar') || !Gas.ready()) {
+    e.sync_status = 'pending'; Store.save(true); toast('未連携のため同期待ちにしました'); render(); return;
+  }
+  e.sync_status = 'pending'; Store.save();
+  try {
+    const payload = { title: e.title, start: e.start, end: e.end, location: e.location, guests: e.guests,
+      detail: [e.purpose, e.outcome].filter(Boolean).join(' / '), reminder: e.reminder,
+      map_url: location.origin + location.pathname + '#/cal' };
+    let d;
+    if (e.google_event_id) d = await Gas.call('updateEvent', Object.assign({ eventId: e.google_event_id }, payload));
+    else d = await Gas.call('createEvent', payload);
+    e.google_event_id = d.eventId || e.google_event_id; e.gcal_event_id = e.google_event_id;
+    e.sync_status = 'synced'; e.sync = 'synced'; e.last_synced_at = new Date().toISOString(); e.content_hash = evHash(e);
+    Integrations.mark('google_calendar'); Integrations.log('google_calendar', 'sent', e.google_event_id ? 'Googleカレンダーを更新しました' : '登録しました', e.title);
+    Store.save(true); toast('Googleカレンダーに同期しました'); render();
+  } catch (err) {
+    e.sync_status = 'error'; e.sync = 'error';
+    Integrations.log('google_calendar', 'error', err.message, e.title);
+    Store.save(true); toast('同期に失敗: ' + err.message, 'err'); render();
+  }
+}
+async function pullGoogleRange() {
+  if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); go('settings'); return; }
+  const tab = DB.settings.calTab || 'week', c = DB.settings.calCur;
+  let days = [c];
+  if (tab === 'week') days = weekDays(mondayOf(c));
+  else if (tab === 'month') days = monthDays(c.slice(0, 7));
+  if (days.length > 31) days = days.slice(0, 31);
+  toast('Googleの予定を取り込んでいます…');
+  let added = 0, updated = 0;
+  try {
+    for (const d of days) {
+      const r = await Gas.call('listEvents', { date: d });
+      (r.events || []).forEach(g => {
+        const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
+        if (ex) {
+          if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title) {
+            if (ex.source === 'google') { ex.title = g.title; ex.start = g.start; ex.end = g.end; ex.location = g.location || ''; updated++; }
+            else { ex.sync_status = 'gchanged'; ex.google_snapshot = g; updated++; }
+          }
+          return;
+        }
+        DB.calendar_events.unshift(evNorm({ id: uid(), title: g.title, start: g.start, end: g.end, location: g.location || '',
+          type: 'google', source: 'google', google_event_id: g.id, sync_status: 'synced', sync: 'synced', owner: '',
+          purpose: '', allDay: !!g.allDay, last_synced_at: new Date().toISOString() }));
+        added++;
+      });
+    }
+    Integrations.mark('google_calendar'); Store.save(true); render();
+    toast('Googleから ' + added + '件を取り込み、' + updated + '件を確認しました');
+  } catch (e) { toast('取り込みに失敗: ' + e.message, 'err'); }
+}
+
+/* ---- 未配置・重複競合・整理・レビュー ---- */
+function calUnplaced() {
+  const un = unplacedTasks();
+  const dl = DB.calendar_events.filter(e => e.type === 'deadline' && !DB.calendar_events.some(x => x.task_id && x.task_id === e.task_id && x.type !== 'deadline'));
+  return '<div class="card pad" style="margin-bottom:12px"><div class="sec-h"><h3>実行時間が確保されていないタスク</h3></div>' +
+    '<div class="small muted" style="margin-bottom:10px">期限だけが決まっていて、実際に作業する時間が週間カレンダーに置かれていないものです。ここが放置されると、締切前に必ず溢れます。</div>' +
+    (un.length ? un.map(t => '<div class="list-item"><div class="t"><b>' + esc(t.title) + '</b><div class="meta">' +
+      (t.due ? '📅 期限 ' + fmtDate(t.due) + (daysLeft(t.due) < 0 ? '（超過）' : '（あと' + daysLeft(t.due) + '日）') : '期限なし') +
+      (t.owner ? ' ／ 👤' + esc(t.owner) : '') + '</div></div>' +
+      '<button class="btn sm pri" onclick="planTask(\'' + t.id + '\')">時間を確保する</button></div>').join('')
+      : '<div class="empty small">すべてのタスクに実行時間が確保されています。</div>') + '</div>' +
+    (dl.length ? '<div class="card pad"><div class="sec-h"><h3>締切だけで作業時間がない予定</h3></div>' +
+      dl.map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">締切 ' + fmtDate(dOf(e.start)) + ' ' + hm(e.start) + '</div></div>' +
+      '<button class="btn sm" onclick="openEvent(\'\',\'' + addDays(dOf(e.start), -2) + '\',9,{title:\'' + esc(e.title) + 'の作業\',type:\'focus\'})">作業時間を入れる</button></div>').join('') + '</div>' : '');
+}
+function planTask(id) {
+  const t = taskById(id); if (!t) return;
+  const d = t.due && t.due >= today() ? addDays(t.due, -1) : today();
+  DB.settings.calTab = 'week'; DB.settings.calCur = d; Store.save();
+  openEvent('', d, 9, { title: t.title, type: 'focus', task_id: t.id, project_id: t.project_id, owner: t.owner, purpose: t.notes || '' });
+}
+function calConflicts() {
+  const evs = DB.calendar_events.slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  const dups = [], confs = [];
+  const seen = {};
+  evs.forEach(e => {
+    const k = e.google_event_id || evHash(e);
+    if (seen[k]) dups.push([seen[k], e]); else seen[k] = e;
+  });
+  evs.forEach((e, i) => {
+    for (let j = i + 1; j < evs.length; j++) {
+      const o = evs[j];
+      if (dOf(o.start) !== dOf(e.start)) break;
+      if (['deadline', 'reminder'].includes(e.type) || ['deadline', 'reminder'].includes(o.type)) continue;
+      if (minOf(e.start) < minOf(o.end) && minOf(e.end) > minOf(o.start)) confs.push([e, o]);
+    }
+  });
+  const row = (a, b, why) => '<div class="card pad" style="margin-bottom:8px"><div style="display:flex;gap:12px;flex-wrap:wrap">' +
+    '<div style="flex:1;min-width:180px"><b>' + esc(a.title) + '</b><div class="small muted">' + fmtDate(dOf(a.start)) + ' ' + hm(a.start) + '〜' + hm(a.end) + ' ／ ' + esc(ETYPE[a.type].l) + ' ／ ' + syncLabel(a) + '</div></div>' +
+    '<div style="flex:1;min-width:180px"><b>' + esc(b.title) + '</b><div class="small muted">' + fmtDate(dOf(b.start)) + ' ' + hm(b.start) + '〜' + hm(b.end) + ' ／ ' + esc(ETYPE[b.type].l) + ' ／ ' + syncLabel(b) + '</div></div></div>' +
+    '<div class="small" style="margin-top:6px;color:var(--red)">' + why + '</div>' +
+    '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="openEvent(\'' + a.id + '\')">左を開く</button>' +
+    '<button class="btn sm" onclick="openEvent(\'' + b.id + '\')">右を開く</button>' +
+    '<button class="btn sm" onclick="mergeEvents(\'' + a.id + '\',\'' + b.id + '\')">統合する</button>' +
+    '<button class="btn sm danger" onclick="dropEvent(\'' + b.id + '\')">右を削除</button></div></div>';
+  return '<div class="sec-h"><h3>重複の可能性（' + dups.length + '件）</h3></div>' +
+    (dups.length ? dups.map(p => row(p[0], p[1], '同じ内容・同じ日時の予定が二重に登録されています')).join('') : '<div class="card empty small">重複はありません。</div>') +
+    '<div class="sec-h" style="margin-top:16px"><h3>時間の競合（' + confs.length + '件）</h3></div>' +
+    (confs.length ? confs.slice(0, 30).map(p => row(p[0], p[1], '同じ時間帯に重なっています')).join('') : '<div class="card empty small">競合はありません。</div>');
+}
+function mergeEvents(aid, bid) {
+  const a = DB.calendar_events.find(x => x.id === aid), b = DB.calendar_events.find(x => x.id === bid);
+  if (!a || !b) return;
+  ['purpose', 'outcome', 'goal_ref', 'project_id', 'task_id', 'location', 'url_online', 'guests', 'owner', 'lane', 'notes'].forEach(k => { if (!a[k] && b[k]) a[k] = b[k]; });
+  if (!a.google_event_id && b.google_event_id) { a.google_event_id = b.google_event_id; a.sync_status = b.sync_status; }
+  DB.calendar_events = DB.calendar_events.filter(x => x.id !== bid);
+  evNorm(a); Store.save(true); render(); toast('統合しました');
+}
+function dropEvent(id) { if (!confirm('この予定を削除します。')) return; DB.calendar_events = DB.calendar_events.filter(x => x.id !== id); Store.save(true); render(); }
+function calTidy() {
+  const E = DB.calendar_events;
+  const groups = [
+    ['目的が未設定の予定', E.filter(e => !e.purpose && !['google', 'private', 'buffer', 'move'].includes(e.type)), 'purpose'],
+    ['関連プロジェクト・目標が未設定', E.filter(e => !e.project_id && !e.goal_ref && ['meeting', 'sales', 'strategy', 'decision', 'focus'].includes(e.type)), 'link'],
+    ['担当者が未設定', E.filter(e => !e.owner && e.type !== 'google'), 'owner'],
+    ['通知が未設定', E.filter(e => !e.reminder && ETYPE[e.type].sync), 'reminder'],
+    ['タイトルが曖昧（5文字以下）', E.filter(e => (e.title || '').length <= 5), 'title'],
+    ['終了した仮予定', E.filter(e => e.tentative && dOf(e.start) < today()), 'old'],
+    ['同期エラー', E.filter(e => e.sync_status === 'error'), 'sync'],
+    ['Google側で変更があった予定', E.filter(e => e.sync_status === 'gchanged'), 'gchanged'],
+    ['MIND FLOWのみ（未同期）', E.filter(e => e.sync_status === 'local' && ETYPE[e.type].sync && e.sync_to_google !== false), 'local']
+  ];
+  return '<div class="card pad" style="margin-bottom:12px"><b>カレンダーを整える</b>' +
+    '<div class="small muted" style="margin-top:4px">週に一度、ここを空にするのが目標です。削除は必ず確認してから実行します。</div></div>' +
+    groups.map(g => '<div class="card pad" style="margin-bottom:10px"><div class="sec-h"><h3>' + g[0] + '（' + g[1].length + '件）</h3><div class="sp"></div>' +
+      (g[1].length ? bulkBtn(g[2]) : '') + '</div>' +
+      (g[1].length ? g[1].slice(0, 8).map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">' +
+        fmtDate(dOf(e.start)) + ' ' + hm(e.start) + ' ／ ' + esc(ETYPE[e.type].l) + '</div></div>' +
+        '<button class="btn sm" onclick="openEvent(\'' + e.id + '\')">直す</button></div>').join('') +
+        (g[1].length > 8 ? '<div class="small muted" style="padding:8px 14px">ほか' + (g[1].length - 8) + '件</div>' : '')
+        : '<div class="small muted">なし</div>') + '</div>').join('');
+}
+function bulkBtn(kind) {
+  const lbl = { reminder: '一括で10分前通知', owner: '自分を担当にする', local: 'まとめてGoogleへ同期', old: '仮予定を一括削除', gchanged: 'Google側を採用' }[kind];
+  return lbl ? '<button class="btn sm" onclick="bulkFix(\'' + kind + '\')">' + lbl + '</button>' : '';
+}
+async function bulkFix(kind) {
+  const E = DB.calendar_events;
+  if (kind === 'reminder') { E.filter(e => !e.reminder).forEach(e => e.reminder = 10); toast('通知を設定しました'); }
+  if (kind === 'owner') { E.filter(e => !e.owner && e.type !== 'google').forEach(e => e.owner = (DB.user || {}).name || '自分'); toast('担当者を設定しました'); }
+  if (kind === 'old') { if (!confirm('終了した仮予定をまとめて削除します。')) return; DB.calendar_events = E.filter(e => !(e.tentative && dOf(e.start) < today())); toast('削除しました'); }
+  if (kind === 'gchanged') {
+    E.filter(e => e.sync_status === 'gchanged').forEach(e => { const g = e.google_snapshot; if (g) { e.title = g.title; e.start = g.start; e.end = g.end; } e.sync_status = 'synced'; delete e.google_snapshot; });
+    toast('Google側の内容を採用しました');
+  }
+  Store.save(true); render();
+  if (kind === 'local') { for (const e of E.filter(x => x.sync_status === 'local' && ETYPE[x.type].sync && x.sync_to_google !== false)) await syncEvent(e); }
+}
+function calReview() {
+  const mon = mondayOf(DB.settings.calCur), days = weekDays(mon), cap = capacityOf(days), w = wOf(mon);
+  const evs = evOfRange(mon, addDays(mon, 6));
+  const noPurpose = evs.filter(e => !e.purpose && e.type !== 'google').length;
+  const un = unplacedTasks().length;
+  const meet = Math.round((cap.by.meeting || 0) / 60), strat = Math.round((cap.by.strategy || 0) / 60), sales = Math.round((cap.by.sales || 0) / 60);
+  const chk = (l, ok, note) => '<div class="list-item"><div class="t"><b>' + l + '</b><div class="meta">' + note + '</div></div><span class="chip ' + (ok ? 'green' : 'orange') + '">' + (ok ? 'OK' : '要対応') + '</span></div>';
+  return '<div class="grid g2"><div class="card">' +
+    chk('今週のゴールを決めたか', !!w.goal, w.goal || '未設定') +
+    chk('目的のない予定をなくしたか', noPurpose === 0, noPurpose + '件が目的未設定') +
+    chk('実行時間が未確保のタスクはないか', un === 0, un + '件が未配置') +
+    chk('重複・競合はないか', true, '「重複・競合」画面で確認') +
+    chk('戦略時間を確保したか', strat >= 3, '今週の戦略時間 ' + strat + 'h') +
+    chk('会議が多すぎないか', meet <= 15, '会議 ' + meet + 'h ／ 商談 ' + sales + 'h') +
+    chk('バッファを残したか', cap.rate <= 85, '稼働率 ' + cap.rate + '%') +
+    '</div><div class="card pad"><div class="sec-h"><h3>今週の時間配分</h3></div>' + capBar(cap) +
+    '<div class="sec-h" style="margin-top:14px"><h3>来週へ</h3></div>' +
+    '<div class="small muted">週間画面で来週のゴールと3つの成果を先に決めてから、タスクを時間枠へ置いてください。</div>' +
+    '<button class="btn pri sm" style="margin-top:10px" onclick="jumpTo(\'week\',\'' + addDays(mon, 7) + '\')">来週の計画に進む</button></div></div>';
 }
 
 /* =========================================================================
@@ -2157,8 +3394,14 @@ function start() {
   if (!location.hash) location.hash = '#/home';
   render();
 }
+function splash(done) {
+  if (DB.settings.skipSplash) return done();
+  const el = $('#splash'); el.hidden = false;
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.hidden = true; done(); }, 420); }, 1150);
+}
 function boot() {
   DB = Store.load();
+  splash(() => {});
   if (DB.user) { start(); return; }
   $('#btnGoogle').addEventListener('click', () => {
     Auth.signIn({ name: '丸林 信宏', email: 'hankyo@earthcom-eco.jp', provider: 'google' });
