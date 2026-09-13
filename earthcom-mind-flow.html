@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="1.1.0">
+<meta name="app-version" content="1.1.1">
 <meta name="theme-color" content="#101B33">
 <style>
 :root{
@@ -129,7 +129,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .mm-stage{position:relative;flex:1;min-width:0;overflow:hidden;background:
   radial-gradient(circle at 1px 1px, #DCE1E9 1px, transparent 0) 0 0/22px 22px, var(--bg);touch-action:none}
 .mm-canvas{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
-.mm-edges{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+.mm-edges{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;transform-origin:0 0}
 .node{position:absolute;width:200px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink3);
   border-radius:10px;padding:8px 10px;box-shadow:var(--shadow);cursor:grab;user-select:none}
 .node.sel{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,160,70,.3),var(--shadow)}
@@ -614,7 +614,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.1.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.1.1</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -881,12 +881,13 @@ function mmLayout() {
   const root = rootOf(MM.mapId); if (!root) return;
   let cursor = 0;
   const place = (n, depth) => {
+    const h = n._h || NH;
     const kids = n.collapsed ? [] : childrenOf(n);
-    if (!kids.length) { n._x = depth * (NW + GX); n._y = cursor; cursor += NH + GY; return n._y; }
-    const ys = kids.map(k => place(k, depth + 1));
+    if (!kids.length) { n._x = depth * (NW + GX); n._y = cursor; cursor += h + GY; return n._y + h / 2; }
+    const cs = kids.map(k => place(k, depth + 1));
     n._x = depth * (NW + GX);
-    n._y = (ys[0] + ys[ys.length - 1]) / 2;
-    return n._y;
+    n._y = (cs[0] + cs[cs.length - 1]) / 2 - h / 2;
+    return n._y + h / 2;
   };
   place(root, 0);
   nodesOf(MM.mapId).forEach(n => { if (n.manual) { n._x = n.x; n._y = n.y; } });
@@ -896,7 +897,7 @@ function visibleNodes() {
   const walk = n => { out.push(n); if (!n.collapsed) childrenOf(n).forEach(walk); };
   walk(root); return out;
 }
-function mmRender() {
+function mmRender(skipMeasure) {
   const cv = $('#canvas'), sv = $('#edges'); if (!cv) return;
   const vis = visibleNodes();
   const q = MM.q.toLowerCase();
@@ -909,7 +910,8 @@ function mmRender() {
     if (n.collapsed) return;
     childrenOf(n).forEach(c => {
       if (!vis.includes(c)) return;
-      const x1 = n._x + NW, y1 = n._y + NH / 2, x2 = c._x, y2 = c._y + NH / 2, mx = (x1 + x2) / 2;
+      const x1 = n._x + (n._w || NW), y1 = n._y + (n._h || NH) / 2,
+            x2 = c._x, y2 = c._y + (c._h || NH) / 2, mx = (x1 + x2) / 2;
       paths += '<path d="M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2 + ' ' + x2 + ',' + y2 +
         '" fill="none" stroke="#C6CDDA" stroke-width="2"/>';
     });
@@ -937,6 +939,18 @@ function mmRender() {
       (kids ? '<button class="tog" data-tog="' + n.id + '">' + (n.collapsed ? kids : '−') + '</button>' : '') +
       '</div>';
   }).join('');
+  if (!skipMeasure) requestAnimationFrame(mmMeasure);
+}
+/* ノードは文字数で高さが変わるため、実寸を測ってから枝を組み直す */
+function mmMeasure() {
+  let changed = false;
+  $$('#canvas .node').forEach(el => {
+    const n = nodeById(el.dataset.id); if (!n) return;
+    const h = el.offsetHeight, w = el.offsetWidth;
+    if (!h) return;
+    if (Math.abs((n._h || NH) - h) > 1 || Math.abs((n._w || NW) - w) > 1) { n._h = h; n._w = w; changed = true; }
+  });
+  if (changed) { mmLayout(); mmRender(true); }
 }
 function mmSelect(id) { MM.sel = id; mmRender(); renderDetail(); }
 function selNode() { return nodeById(MM.sel); }
@@ -990,7 +1004,8 @@ function mmFit() {
   const st = $('#stage'); if (!st) return;
   const vis = visibleNodes(); if (!vis.length) return;
   const xs = vis.map(n => n._x), ys = vis.map(n => n._y);
-  const w = Math.max(...xs) + NW - Math.min(...xs), h = Math.max(...ys) + NH - Math.min(...ys);
+  const w = Math.max(...vis.map(n => n._x + (n._w || NW))) - Math.min(...xs);
+  const h = Math.max(...vis.map(n => n._y + (n._h || NH))) - Math.min(...ys);
   const r = st.getBoundingClientRect();
   const s = Math.min(1.1, Math.max(0.25, Math.min((r.width - 60) / w, (r.height - 90) / h)));
   MM.view.s = s;
