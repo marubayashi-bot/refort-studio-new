@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.2.0">
+<meta name="app-version" content="4.3.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -362,6 +362,18 @@ table.mcal{width:100%;border-collapse:collapse;table-layout:fixed}
 table.mcal th{font-size:11.5px;color:var(--ink2);padding:6px;border-bottom:1px solid var(--line)}
 .mc{border:1px solid var(--line);height:96px;vertical-align:top;padding:3px;cursor:pointer;overflow:hidden}
 .mc.today{background:#FFFBF0;box-shadow:inset 0 0 0 2px var(--gold)}
+.mc.past{background:#FAFBFC}
+.mc.past .mc-d{color:var(--ink3)}
+.mc-e.past{opacity:.85;font-weight:400}
+.mcal.mini .mc{height:64px}
+.mcal.mini .mc-e{font-size:9px}
+.mcal.mini th{font-size:10px;padding:3px}
+.m3card{margin:0}
+.grid.m3{gap:10px}
+.wk-col.pastcol{background:#FAFBFC}
+.wk-ev.past b{font-weight:500}
+.day-ev.past b{font-weight:500}
+@media (max-width:900px){.grid.m3{grid-template-columns:1fr}}
 .mc.empty{background:#FAFBFC}
 .mc-d{font-size:11.5px;font-weight:700;color:var(--ink2);margin-bottom:2px}
 .mc-e{font-size:10px;color:#fff;border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -531,8 +543,9 @@ const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
+const ymd = t => t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+const today = () => ymd(new Date());
+const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return ymd(t); };
 const daysLeft = d => d ? Math.round((new Date(d + 'T00:00:00') - new Date(today() + 'T00:00:00')) / 86400000) : null;
 const fmtDate = d => d ? d.slice(5).replace('-', '/') : '';
 const isMobile = () => window.innerWidth <= 900;
@@ -907,7 +920,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.2.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.3.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2244,7 +2257,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.2.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.3.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2400,7 +2413,7 @@ function monthDays(ym) {
   for (let d = 1; d <= last; d++) out.push(ym + '-' + String(d).padStart(2, '0'));
   return out;
 }
-function mondayOf(d) { const t = new Date(d + 'T00:00:00'); const w = (t.getDay() + 6) % 7; t.setDate(t.getDate() - w); return t.toISOString().slice(0, 10); }
+function mondayOf(d) { const t = new Date(d + 'T00:00:00'); const w = (t.getDay() + 6) % 7; t.setDate(t.getDate() - w); return ymd(t); }
 function weekDays(mon) { return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(mon, i)); }
 function wdName(d) { return ['月', '火', '水', '木', '金', '土', '日'][(new Date(d + 'T00:00:00').getDay() + 6) % 7]; }
 function hm(t) { return (t || '').slice(11, 16); }
@@ -2465,6 +2478,13 @@ function dayOf(date) {
 }
 
 /* ---- 予定の取得 ---- */
+function isPastEv(e) {
+  const n = new Date(), nd = today(), nm = n.getHours() * 60 + n.getMinutes();
+  const d = dOf(e.start);
+  if (d < nd) return true;
+  if (d > nd) return false;
+  return minOf(e.end) <= nm;
+}
 function isAllDayLike(e) { return !!e.allDay || durMin(e) >= 12 * 60; }
 function evOfDay(d) { return DB.calendar_events.filter(e => dOf(e.start) === d).sort((a, b) => minOf(a.start) - minOf(b.start)); }
 function evOfRange(from, to) { return DB.calendar_events.filter(e => dOf(e.start) >= from && dOf(e.start) <= to); }
@@ -2623,12 +2643,12 @@ function calMove(n) {
   const tab = DB.settings.calTab || 'week', c = DB.settings.calCur;
   if (tab === 'day') DB.settings.calCur = addDays(c, n);
   else if (tab === 'week') DB.settings.calCur = addDays(mondayOf(c), n * 7);
-  else if (tab === 'month') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n, 1); DB.settings.calCur = d.toISOString().slice(0, 10); }
-  else if (tab === 'quarter') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n * 3, 1); DB.settings.calCur = d.toISOString().slice(0, 10); }
-  else { const d = new Date(c + 'T00:00:00'); d.setFullYear(d.getFullYear() + n); DB.settings.calCur = d.toISOString().slice(0, 10); }
+  else if (tab === 'month') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n, 1); DB.settings.calCur = ymd(d); }
+  else if (tab === 'quarter') { const d = new Date(c + 'T00:00:00'); d.setMonth(d.getMonth() + n * 3, 1); DB.settings.calCur = ymd(d); }
+  else { const d = new Date(c + 'T00:00:00'); d.setFullYear(d.getFullYear() + n); DB.settings.calCur = ymd(d); }
   Store.save(); render();
 }
-function jumpTo(tab, d) { DB.settings.calTab = tab; DB.settings.calCur = d; Store.save(); render(); }
+function jumpTo(tab, d) { DB.settings.calTab = tab; DB.settings.calCur = (tab === 'week' ? mondayOf(d) : d); Store.save(); render(); }
 
 /* ---- 年間 ---- */
 function calYear(cur) {
@@ -2767,23 +2787,16 @@ function editQuarter() {
 
 /* ---- 月間 ---- */
 function calMonth(cur) {
-  const ym = cur.slice(0, 7), m = mOf(ym), days = monthDays(ym);
+  const ym = cur.slice(0, 7), m = mOf(ym);
   const f = fiscalOf(cur), q = qOf(f.fy, f.q);
-  const first = new Date(days[0] + 'T00:00:00'), pad = (first.getDay() + 6) % 7;
-  const cells = [];
-  for (let i = 0; i < pad; i++) cells.push('<td class="mc empty"></td>');
-  days.forEach(d => {
-    const evs = evOfDay(d).filter(evVisible);
-    const dl = evs.filter(e => e.type === 'deadline');
-    cells.push('<td class="mc' + (d === today() ? ' today' : '') + '" onclick="jumpTo(\'day\',\'' + d + '\')">' +
-      '<div class="mc-d">' + (+d.slice(8)) + (dl.length ? '<span class="chip red" style="margin-left:4px">締切</span>' : '') + '</div>' +
-      evs.slice(0, 4).map(e => '<div class="mc-e" style="background:' + ETYPE[e.type].c + (e.type === 'google' ? ';color:var(--ink);border:1px solid var(--blue)' : '') + '">' +
-        hm(e.start) + ' ' + esc(e.title.slice(0, 12)) + '</div>').join('') +
-      (evs.length > 4 ? '<div class="small muted">他' + (evs.length - 4) + '件</div>' : '') + '</td>');
-  });
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 7) rows.push('<tr>' + cells.slice(i, i + 7).join('') + '</tr>');
-  const cap = capacityOf(days);
+  const cap = capacityOf(monthDays(ym));
+  const three = !!DB.settings.cal3m;
+  const nav = [-1, 0, 1, 2].map(n => {
+    const d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + n, 1);
+    const k = ymd(d);
+    return '<button class="cal-tab' + (n === 0 && !three ? ' on' : '') + '" onclick="jumpTo(\'month\',\'' + k + '\')">' +
+      (+k.slice(5, 7)) + '月' + (k.slice(0, 7) === today().slice(0, 7) ? '（今月）' : '') + '</button>';
+  }).join('');
 
   return '<div class="card pad" style="margin-bottom:14px">' +
       '<div class="sec-h"><h3>月間成果ボード</h3><div class="sp"></div><button class="btn sm" onclick="editMonth()">編集</button></div>' +
@@ -2795,10 +2808,43 @@ function calMonth(cur) {
           '<div class="small muted" style="margin-top:8px">今月やらないこと</div><div class="small">' + (m.not_doing ? esc(m.not_doing) : '未設定') + '</div>' +
           '<div class="small muted" style="margin-top:8px">先月からの持ち越し</div><div class="small">' + (m.carry ? esc(m.carry) : 'なし') + '</div></div>' +
       '</div>' +
-      '<div style="margin-top:12px"><div class="small muted">今月の時間配分（' + Math.round(cap.total / 60) + 'h ／ 稼働可能 ' + Math.round(cap.avail / 60) + 'h・稼働率' + cap.rate + '%）</div>' +
+      '<div style="margin-top:12px"><div class="small muted">今月の時間配分（' + Math.round(cap.total / 60) + 'h ／ 稼働可能 ' + Math.round(cap.avail / 60) + 'h' + (cap.avail ? '・稼働率' + cap.rate + '%' : '') + '）</div>' +
         capBar(cap) + '</div></div>' +
-    '<div class="card pad"><table class="mcal"><thead><tr>' + ['月', '火', '水', '木', '金', '土', '日'].map(w => '<th>' + w + '</th>').join('') + '</tr></thead>' +
-      '<tbody>' + rows.join('') + '</tbody></table></div>';
+    '<div class="cal-meta" style="margin-bottom:10px">' + nav +
+      '<button class="cal-tab' + (three ? ' on' : '') + '" onclick="DB.settings.cal3m=!DB.settings.cal3m;Store.save();render()">' + (three ? '1か月表示に戻す' : '向こう3か月を見る') + '</button>' +
+      '<span class="small muted" style="margin-left:8px">終了した予定はグレーで表示します</span></div>' +
+    (three ? '<div class="grid g3 m3">' + [0, 1, 2].map(n => {
+        const d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + n, 1);
+        return monthGrid(ymd(d).slice(0, 7), true);
+      }).join('') + '</div>'
+      : '<div class="card pad">' + monthGrid(ym, false) + '</div>');
+}
+function monthGrid(ym, compact) {
+  const days = monthDays(ym);
+  const first = new Date(days[0] + 'T00:00:00'), pad = (first.getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < pad; i++) cells.push('<td class="mc empty"></td>');
+  const lim = compact ? 2 : 4;
+  days.forEach(d => {
+    const evs = evOfDay(d).filter(evVisible);
+    const dl = evs.filter(e => e.type === 'deadline');
+    const past = d < today();
+    cells.push('<td class="mc' + (d === today() ? ' today' : '') + (past ? ' past' : '') + '" onclick="jumpTo(\'day\',\'' + d + '\')">' +
+      '<div class="mc-d">' + (+d.slice(8)) + (dl.length ? '<span class="chip red" style="margin-left:4px">締切</span>' : '') + '</div>' +
+      evs.slice(0, lim).map(e => {
+        const done = isPastEv(e);
+        return '<div class="mc-e' + (done ? ' past' : '') + '" style="background:' + (done ? '#E7EBF2' : ETYPE[e.type].c) +
+          (e.type === 'google' && !done ? ';color:var(--ink);border:1px solid var(--blue)' : '') + (done ? ';color:var(--ink3)' : '') + '">' +
+          hm(e.start) + ' ' + esc(e.title.slice(0, compact ? 8 : 12)) + '</div>';
+      }).join('') +
+      (evs.length > lim ? '<div class="small muted">他' + (evs.length - lim) + '件</div>' : '') + '</td>');
+  });
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push('<tr>' + cells.slice(i, i + 7).join('') + '</tr>');
+  return (compact ? '<div class="card pad m3card"><div class="sec-h"><h3>' + (+ym.slice(5)) + '月</h3><div class="sp"></div>' +
+      '<button class="btn sm" onclick="jumpTo(\'month\',\'' + ym + '-01\')">開く</button></div>' : '') +
+    '<table class="mcal' + (compact ? ' mini' : '') + '"><thead><tr>' + ['月', '火', '水', '木', '金', '土', '日'].map(w => '<th>' + w + '</th>').join('') + '</tr></thead>' +
+    '<tbody>' + rows.join('') + '</tbody></table>' + (compact ? '</div>' : '');
 }
 function capBar(cap) {
   const order = ['strategy', 'sales', 'meeting', 'focus', 'move', 'study', 'private', 'buffer', 'task', 'decision'];
@@ -2834,15 +2880,16 @@ function calWeek(cur) {
 
   const col = d => {
     const list = evs.filter(e => dOf(e.start) === d && !isAllDayLike(e));
-    return '<div class="wk-col' + (d === today() ? ' today' : '') + '" data-day="' + d + '" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropWeek(event,this)">' +
+    return '<div class="wk-col' + (d === today() ? ' today' : '') + (d < today() ? ' pastcol' : '') + '" data-day="' + d + '" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropWeek(event,this)">' +
       hours.map(h => '<div class="wk-slot" data-h="' + h + '"></div>').join('') +
       list.map(e => {
         const top = (minOf(e.start) - DAY_START * 60) / 60 * SLOT_H;
         const hgt = Math.max(18, durMin(e) / 60 * SLOT_H - 2);
         const t = ETYPE[e.type] || ETYPE.meeting;
-        const g = e.type === 'google';
-        return '<div class="wk-ev' + (g ? ' gg' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' + (g ? '#fff' : t.c) + ';' +
-          (g ? 'border:1px solid var(--blue);color:var(--ink)' : '') + '" onclick="openEvent(\'' + e.id + '\')">' +
+        const g = e.type === 'google', done = isPastEv(e);
+        return '<div class="wk-ev' + (g ? ' gg' : '') + (done ? ' past' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' +
+          (done ? '#EDF0F5' : (g ? '#fff' : t.c)) + ';' +
+          (done ? 'color:var(--ink3);border:1px solid #DDE3EC' : (g ? 'border:1px solid var(--blue);color:var(--ink)' : '')) + '" onclick="openEvent(\'' + e.id + '\')">' +
           '<b>' + hm(e.start) + ' ' + esc(e.title) + '</b>' +
           (hgt > 40 ? '<span>' + esc(t.l) + (e.location ? ' / ' + esc(e.location) : '') + '</span>' : '') + '</div>';
       }).join('') + '</div>';
@@ -2943,8 +2990,9 @@ function calDay(cur) {
           evs.map(e => {
             const top = (minOf(e.start) - DAY_START * 60) / 60 * SLOT_H;
             const hgt = Math.max(20, durMin(e) / 60 * SLOT_H - 2);
-            const t = ETYPE[e.type] || ETYPE.meeting, g = e.type === 'google';
-            return '<div class="day-ev' + (g ? ' gg' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' + (g ? '#fff' : t.c) + (g ? ';border:1px solid var(--blue);color:var(--ink)' : '') + '" onclick="openEvent(\'' + e.id + '\')">' +
+            const t = ETYPE[e.type] || ETYPE.meeting, g = e.type === 'google', done = isPastEv(e);
+            return '<div class="day-ev' + (g ? ' gg' : '') + (done ? ' past' : '') + '" style="top:' + top + 'px;height:' + hgt + 'px;background:' +
+              (done ? '#EDF0F5' : (g ? '#fff' : t.c)) + (done ? ';color:var(--ink3);border:1px solid #DDE3EC' : (g ? ';border:1px solid var(--blue);color:var(--ink)' : '')) + '" onclick="openEvent(\'' + e.id + '\')">' +
               '<b>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' + (hgt > 40 ? '<span>' + esc(t.l) + (e.purpose ? ' / ' + esc(e.purpose.slice(0, 24)) : '') + '</span>' : '') + '</div>';
           }).join('') +
           (nowMin >= DAY_START * 60 ? '<div class="day-now" style="top:' + ((nowMin - DAY_START * 60) / 60 * SLOT_H) + 'px"></div>' : '') +
