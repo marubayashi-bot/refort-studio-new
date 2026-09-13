@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.3.0">
+<meta name="app-version" content="4.4.1">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -319,6 +319,9 @@ table.edtbl td .ph{color:var(--ink3)}
 .fmsg{font-size:11.5px;color:var(--red);margin-top:4px}
 .fmsg.warn{color:#A8641A}
 .reccard.arch{opacity:.55}
+.wkstrip{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+.wkstrip .cal-tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1.3;padding:6px 11px}
+.wkstrip .cal-tab .n{margin:0;font-size:9.5px;background:transparent;opacity:.7;padding:0}
 .cal-tab .n{background:rgba(0,0,0,.08);border-radius:10px;padding:0 5px;margin-left:5px;font-size:10px}
 .cal-tab.on .n{background:rgba(255,255,255,.25)}
 @media (max-width:900px){.edwrap{display:block}.recpanel{width:auto;flex:none;max-height:none}}
@@ -920,7 +923,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.3.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.4.1</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2257,7 +2260,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.3.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.4.1</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2389,7 +2392,7 @@ const ETYPE = {
 };
 const CAL_TABS = [
   { id: 'year', l: '年間' }, { id: 'quarter', l: '四半期' }, { id: 'month', l: '月間' },
-  { id: 'week', l: '週間' }, { id: 'day', l: '日間' },
+  { id: 'week', l: '週間' }, { id: 'day', l: '今日' },
   { id: 'unplaced', l: '未配置' }, { id: 'conflicts', l: '重複・競合' },
   { id: 'tidy', l: '整理' }, { id: 'creview', l: 'レビュー' }
 ];
@@ -2637,7 +2640,12 @@ function evVisible(e) {
   if (f.lane && e.lane !== f.lane) return false;
   return true;
 }
-function calSetTab(t) { DB.settings.calTab = t; Store.save(); render(); }
+function calSetTab(t) {
+  DB.settings.calTab = t;
+  if (t === 'day') DB.settings.calCur = today();          /* 「今日」を押したら必ず今日に戻る */
+  if (t === 'week' && mondayOf(DB.settings.calCur || today()) !== mondayOf(DB.settings.calCur || today())) DB.settings.calCur = today();
+  Store.save(); render();
+}
 function calToday() { DB.settings.calCur = today(); Store.save(); render(); }
 function calMove(n) {
   const tab = DB.settings.calTab || 'week', c = DB.settings.calCur;
@@ -2871,6 +2879,35 @@ function editMonth() {
 }
 
 /* ---- 週間（実行管理の中心） ---- */
+function weekNo(mon) { return Math.floor((+mon.slice(8) - 1) / 7) + 1; }
+function weekLabel(mon) {
+  const base = mondayOf(today());
+  const diff = Math.round((new Date(mon + 'T00:00:00') - new Date(base + 'T00:00:00')) / (7 * 86400000));
+  const rel = diff === 0 ? '今週' : diff === 1 ? '来週' : diff === 2 ? '再来週' : diff === -1 ? '先週' : '';
+  return (+mon.slice(5, 7)) + '月第' + weekNo(mon) + '週' + (rel ? '（' + rel + '）' : '');
+}
+function weekStrip(mon) {
+  const base = mondayOf(today()), list = [];
+  for (let i = -2; i <= 6; i++) list.push(addDays(base, i * 7));
+  return '<div class="cal-meta wkstrip">' +
+    '<button class="cal-tab' + (mon === base ? ' on' : '') + '" onclick="jumpTo(\'week\',\'' + base + '\')">今週へ戻る</button>' +
+    list.map(m => '<button class="cal-tab' + (m === mon ? ' on' : '') + '" onclick="jumpTo(\'week\',\'' + m + '\')">' +
+      weekLabel(m) + '<span class="n">' + fmtDate(m) + '</span></button>').join('') + '</div>';
+}
+function dayStrip(d) {
+  const days = weekDays(mondayOf(d));
+  const rel = Math.round((new Date(d + 'T00:00:00') - new Date(today() + 'T00:00:00')) / 86400000);
+  const tag = rel === 0 ? '今日' : rel === 1 ? '明日' : rel === 2 ? '明後日' : rel === -1 ? '昨日' : (rel > 0 ? rel + '日後' : Math.abs(rel) + '日前');
+  return '<div class="cal-meta wkstrip">' +
+    '<button class="cal-tab" onclick="jumpTo(\'day\',\'' + addDays(d, -7) + '\')">‹ 先週の同曜日</button>' +
+    '<button class="cal-tab" onclick="jumpTo(\'day\',\'' + addDays(d, -1) + '\')">‹ 前日</button>' +
+    '<button class="cal-tab' + (d === today() ? ' on' : '') + '" onclick="jumpTo(\'day\',\'' + today() + '\')">今日へ戻る<span class="n">' + tag + 'を表示中</span></button>' +
+    '<button class="cal-tab" onclick="jumpTo(\'day\',\'' + addDays(d, 1) + '\')">翌日 ›</button>' +
+    '<button class="cal-tab" onclick="jumpTo(\'day\',\'' + addDays(d, 7) + '\')">翌週の同曜日 ›</button>' +
+    '<span style="width:10px"></span>' +
+    days.map(x => '<button class="cal-tab' + (x === d ? ' on' : '') + '" onclick="jumpTo(\'day\',\'' + x + '\')">' +
+      wdName(x) + '<span class="n">' + (+x.slice(5, 7)) + '/' + (+x.slice(8)) + '</span></button>').join('') + '</div>';
+}
 function calWeek(cur) {
   const mon = mondayOf(cur), days = weekDays(mon), w = wOf(mon), cap = capacityOf(days);
   const evs = evOfRange(mon, addDays(mon, 6)).filter(evVisible);
@@ -2895,15 +2932,17 @@ function calWeek(cur) {
       }).join('') + '</div>';
   };
 
-  return '<div class="grid g4 keep2" style="margin-bottom:12px">' +
-      '<div class="card pad" style="grid-column:span 2"><div class="small muted">今週の最重要ゴール</div>' +
+  return weekStrip(mon) +
+    '<div class="grid g4 keep2" style="margin-bottom:12px">' +
+      '<div class="card pad" style="grid-column:span 2"><div class="small muted">' + weekLabel(mon) + 'の最重要ゴール</div>' +
         '<b style="font-size:16px">' + (w.goal ? esc(w.goal) : '未設定') + '</b>' +
         '<div class="small muted" style="margin-top:8px">今週完了させる3つの成果</div>' +
         '<div style="white-space:pre-wrap" class="small">' + (w.three ? esc(w.three) : '未設定') + '</div>' +
         '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
         '<button class="btn sm" onclick="editWeek()">今週を編集</button>' +
         '<button class="btn sm pri" onclick="planNextWeek()">来週を設定する</button>' +
-        '<button class="btn sm" onclick="jumpTo(\'week\',\'' + addDays(mon, 7) + '\')">来週を見る ›</button></div></div>' +
+        '<button class="btn sm" onclick="jumpTo(\'week\',\'' + addDays(mon, 7) + '\')">次の週 ›</button>' +
+        (mon !== mondayOf(today()) ? '<button class="btn sm" onclick="jumpTo(\'week\',\'' + mondayOf(today()) + '\')">今週へ戻る</button>' : '') + '</div></div>' +
       '<div class="card kpi"><div class="lab">稼働率</div><div class="num ' + (cap.rate > 85 ? 'red' : cap.rate > 60 ? 'orange' : 'green') + '">' + (cap.avail ? cap.rate + '%' : '—') + '</div>' +
         '<div class="sub">' + (cap.avail ? '空き ' + Math.round(cap.free / 60) + 'h ／ 推奨バッファ ' + DB.capacity.bufferPct + '%' : 'この週に稼働日がありません（期間設定で変更）') + '</div></div>' +
       '<div class="card kpi"><div class="lab">要注意</div><div class="num ' + (od.length ? 'red' : '') + '">' + od.length + '</div>' +
@@ -2968,7 +3007,8 @@ function calDay(cur) {
   const hours = []; for (let h = DAY_START; h <= DAY_END; h++) hours.push(h);
   const undone = td.filter(t => t.gtd !== 'done');
 
-  return '<div class="card pad" style="margin-bottom:12px;background:linear-gradient(120deg,#101B33,#22355C);color:#fff;border:none">' +
+  return dayStrip(d) +
+    '<div class="card pad" style="margin-bottom:12px;background:linear-gradient(120deg,#101B33,#22355C);color:#fff;border:none">' +
       '<div class="small" style="color:#9FAEC6">' + esc(y.theme || (f.term + '期')) + ' ＞ ' + esc(q.theme || (f.q + 'Q')) + ' ＞ ' + esc(m.goal || '今月') + ' ＞ ' + esc(w.goal || '今週') + '</div>' +
       '<div class="small" style="color:var(--gold-l);margin-top:8px">今日の最重要ゴール</div>' +
       '<div style="font-size:19px;font-weight:700">' + (day.goal ? esc(day.goal) : '未設定') + '</div>' +
@@ -3067,7 +3107,8 @@ function carry(id, how) {
   Store.save(true); nightReview();
 }
 function planNextWeek() {
-  const mon = addDays(mondayOf(DB.settings.calCur || today()), 7);
+  const cur = mondayOf(DB.settings.calCur || today()), base = mondayOf(today());
+  const mon = cur < base ? addDays(base, 7) : addDays(cur, 7);
   DB.settings.calCur = mon; DB.settings.calTab = 'week'; Store.save(); render();
   setTimeout(editWeek, 60);
 }
