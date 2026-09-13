@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
+<meta name="app-version" content="1.0.2">
 <meta name="theme-color" content="#101B33">
 <style>
 :root{
@@ -610,7 +611,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + '</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.0.2</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1952,7 +1953,9 @@ function openMapFab() {
 }
 
 function start() {
-  $('#login').hidden = true; $('#shell').hidden = false;
+  const lg = $('#login'), sh = $('#shell');
+  lg.hidden = true; lg.style.display = 'none';
+  sh.hidden = false; sh.style.display = 'flex';
   if (!location.hash) location.hash = '#/home';
   render();
 }
