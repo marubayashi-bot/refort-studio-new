@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.4.1">
+<meta name="app-version" content="4.4.2">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -923,7 +923,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.4.1</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.4.2</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2260,7 +2260,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.4.1</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.4.2</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2501,7 +2501,7 @@ function checkEvent(ev) {
   const s = minOf(ev.start), e2 = minOf(ev.end), d = dOf(ev.start);
 
   others.forEach(o => {
-    if (ev.google_event_id && o.google_event_id && ev.google_event_id === o.google_event_id) dups.push({ ev: o, why: '同じGoogleイベントIDです' });
+    if (ev.google_event_id && o.google_event_id && ev.google_event_id === o.google_event_id && dOf(o.start) === dOf(ev.start)) dups.push({ ev: o, why: '同じGoogleイベントIDです' });
     else if (o.content_hash === evHash(ev)) dups.push({ ev: o, why: 'タイトル・日時・参加者が同一です' });
     else if (dOf(o.start) === d && normTitle(o.title) === normTitle(ev.title)) dups.push({ ev: o, why: '同じ日に同じ内容の予定があります' });
     else if (dOf(o.start) === d && normTitle(o.title).length > 3 &&
@@ -3443,7 +3443,8 @@ async function pullRange(from, to, silent) {
   let added = 0, updated = 0, err = 0;
   const prog = m => { const el = $('#imProg'); if (el) el.innerHTML = '<div class="load">' + m + '</div>'; };
   const take = g => {
-    const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
+    /* 繰り返し予定は全回が同じIDのため、日付も合わせて判定する */
+    const ex = DB.calendar_events.find(x => x.google_event_id === g.id && dOf(x.start) === dOf(g.start));
     if (ex) {
       if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title) {
         if (ex.source === 'google') { ex.title = g.title; ex.start = g.start; ex.end = g.end; ex.location = g.location || ''; }
@@ -3553,7 +3554,7 @@ async function pullGoogleRange() {
     for (const d of days) {
       const r = await Gas.call('listEvents', { date: d, calendarIds: (DB.capacity.calendars || []) });
       (r.events || []).forEach(g => {
-        const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
+        const ex = DB.calendar_events.find(x => x.google_event_id === g.id && dOf(x.start) === dOf(g.start));
         if (ex) {
           if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title) {
             if (ex.source === 'google') { ex.title = g.title; ex.start = g.start; ex.end = g.end; ex.location = g.location || ''; updated++; }
@@ -3598,7 +3599,7 @@ function calConflicts() {
   const dups = [], confs = [];
   const seen = {};
   evs.forEach(e => {
-    const k = e.google_event_id || evHash(e);
+    const k = e.google_event_id ? e.google_event_id + '@' + dOf(e.start) : evHash(e);
     if (seen[k]) dups.push([seen[k], e]); else seen[k] = e;
   });
   evs.forEach((e, i) => {
