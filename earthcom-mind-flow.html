@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="3.2.0">
+<meta name="app-version" content="3.3.2">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -105,6 +105,10 @@ h1,h2,h3,h4{margin:0;font-weight:700;line-height:1.35}
 .small{font-size:12px}
 .kpi{padding:14px 16px}
 .kpi .lab{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.kpi .lab .go{margin-left:auto;color:var(--ink3);font-size:16px;line-height:1}
+.tapcard{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.tapcard:hover{box-shadow:0 4px 16px rgba(7,21,45,.12)}
+.tapcard:active{transform:scale(.985)}
 .kpi .num{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.2;margin-top:2px}
 .kpi .num.red{color:var(--red)} .kpi .num.orange{color:var(--orange)} .kpi .num.green{color:var(--green)}
 .kpi .sub{font-size:11.5px;color:var(--ink3)}
@@ -857,7 +861,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.2.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v3.3.2</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -882,7 +886,9 @@ function viewHome() {
   const goal = DB.settings.top_goal || (td.sort((a, b) => a.priority - b.priority)[0] || {}).title || '';
   const doneToday = DB.tasks.filter(t => t.gtd === 'done' && (t.done_at || '').slice(0, 10) === today());
 
-  const kpi = (lab, num, sub, cls) => '<div class="card kpi"><div class="lab">' + lab + '</div><div class="num ' + (cls || '') + '">' + num + '</div><div class="sub">' + (sub || '') + '</div></div>';
+  const kpi = (lab, num, sub, cls, kind) => '<div class="card kpi' + (kind ? ' tapcard" onclick="openKpi(&quot;' + kind + '&quot;)"' : '"') + '>' +
+    '<div class="lab">' + lab + (kind ? '<span class="go">›</span>' : '') + '</div>' +
+    '<div class="num ' + (cls || '') + '">' + num + '</div><div class="sub">' + (sub || '') + '</div></div>';
   const li = t => '<div class="list-item"><div class="t"><b>' + esc(t.title) + '</b><div class="meta">' +
     (t.owner ? '<span>👤 ' + esc(t.owner) + '</span>' : '') +
     (t.due ? '<span class="' + (daysLeft(t.due) < 0 ? 'over' : '') + '" style="' + (daysLeft(t.due) < 0 ? 'color:var(--red);font-weight:700' : '') + '">📅 ' + fmtDate(t.due) + (daysLeft(t.due) < 0 ? '（' + Math.abs(daysLeft(t.due)) + '日超過）' : '') + '</span>' : '') +
@@ -893,10 +899,10 @@ function viewHome() {
 
   $('#view').innerHTML = homeHero() + reviewBanner() +
     '<div class="grid g4 keep2" style="margin-bottom:14px">' +
-      kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green') +
-      kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green') +
-      kpi('⭐ 今日やる', td.length, doneToday.length + '件 完了') +
-      kpi('⏳ 連絡待ち', wt.length, '催促の確認') +
+      kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green', 'inbox') +
+      kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green', 'overdue') +
+      kpi('⭐ 今日やる', td.length, doneToday.length + '件 完了', '', 'today') +
+      kpi('⏳ 連絡待ち', wt.length, '催促の確認', '', 'waiting') +
     '</div>' +
 
     '<div class="grid g2" style="margin-bottom:14px">' +
@@ -976,12 +982,18 @@ function todayStrip() {
     (conf.length ? '<div class="err" style="margin:10px 0">時間が重なっています: ' + esc(conf[0]) + '</div>' : '') +
     '<div class="small muted" style="margin:10px 0 6px">次の予定: ' +
       (next ? '<b>' + hm(next.start) + ' ' + esc(next.title) + '</b>（あと' + Math.max(0, minOf(next.start) - nowMin) + '分）' : 'なし') +
-      ' ／ 空き ' + Math.round(cap.free / 60) + 'h ／ 稼働率 ' + cap.rate + '%</div>' +
-    (evs.length ? evs.slice(0, 6).map(e => '<div class="list-item" style="padding-left:0;padding-right:0"><div class="t">' +
+      (cap.avail ? ' ／ 空き ' + Math.round(cap.free / 60) + 'h ／ 稼働率 ' + cap.rate + '%' : ' ／ 今日は稼働日に設定されていません') + '</div>' +
+    (evs.length ? evs.slice(0, 8).map(e => {
+      const past = minOf(e.end) <= nowMin, live = minOf(e.start) <= nowMin && minOf(e.end) > nowMin;
+      return '<div class="list-item" style="padding-left:0;padding-right:0' + (past ? ';opacity:.55' : '') + '"><div class="t">' +
       '<b><span class="dotc" style="background:' + ETYPE[e.type].c + '"></span>' + hm(e.start) + '〜' + hm(e.end) + ' ' + esc(e.title) + '</b>' +
-      '<div class="meta">' + esc(ETYPE[e.type].l) + (e.purpose ? ' ／ ' + esc(e.purpose.slice(0, 24)) : ' ／ <span style="color:var(--orange)">目的未設定</span>') +
-      ' ／ ' + syncLabel(e) + '</div></div><button class="btn sm" onclick="openEvent(\'' + e.id + '\')">開く</button></div>').join('')
-      : '<div class="empty small">今日の予定はありません。週間カレンダーで実行時間を置いてください。</div>') +
+      '<div class="meta">' + (live ? '<span class="chip green">進行中</span>' : past ? '<span class="chip grey">終了</span>' : '') +
+      esc(ETYPE[e.type].l) + (e.purpose ? ' ／ ' + esc(e.purpose.slice(0, 24)) : ' ／ <span style="color:var(--orange)">目的未設定</span>') +
+      ' ／ ' + syncLabel(e) + '</div></div><button class="btn sm" onclick="openEvent(\'' + e.id + '\')">開く</button></div>';
+    }).join('')
+      : '<div class="empty small">今日の予定はアプリに入っていません。<br>Googleの予定は「⟳ Google同期」で取り込めます。' +
+        '<div><button class="btn sm pri" style="margin-top:10px" onclick="syncNow()">⟳ Google同期</button> ' +
+        '<button class="btn sm" onclick="jumpToCal(\'week\')">週間カレンダーで置く</button></div></div>') +
     (un.length ? '<div class="err" style="margin-top:10px">今日が期限なのに実行時間がないタスクが' + un.length + '件あります。' +
       '<button class="btn sm" style="margin-left:6px" onclick="jumpToCal(\'unplaced\')">確認する</button></div>' : '');
 }
@@ -1011,6 +1023,66 @@ async function loadCalendar() {
     host.innerHTML = '<div class="err">カレンダーを取得できません: ' + esc(e.message) + '</div>' +
       '<div style="padding:0 14px 14px"><button class="btn sm" onclick="loadCalendar()">再試行</button> <a class="btn sm" href="#/settings">設定を開く</a></div>';
   }
+}
+function openKpi(kind) {
+  const conf = {
+    inbox:   { t: '📥 Inbox未整理', list: () => tasksIn('inbox'), empty: 'Inboxは空です。頭の中が出し切れている状態です。' },
+    overdue: { t: '⏰ 期限超過', list: () => overdue(), empty: '期限を過ぎているものはありません。' },
+    today:   { t: '⭐ 今日やる', list: () => tasksIn('today'), empty: '今日やるタスクがありません。GTDボードから引き上げてください。' },
+    waiting: { t: '⏳ 連絡待ち', list: () => tasksIn('waiting'), empty: '待っているものはありません。' }
+  }[kind];
+  if (!conf) return;
+  const list = conf.list();
+  const row = t => {
+    const dl = daysLeft(t.due), p = projectById(t.project_id);
+    const btns = {
+      inbox:   '<button class="btn sm pri" onclick="closeModal();openFlow(\'' + t.id + '\')">仕分ける</button>',
+      overdue: '<button class="btn sm pri" onclick="kpiAct(\'' + t.id + '\',\'today\')">今日に引き直す</button>' +
+               '<button class="btn sm" onclick="kpiAct(\'' + t.id + '\',\'plan\')">時間を確保</button>',
+      today:   '<button class="btn sm pri" onclick="kpiAct(\'' + t.id + '\',\'done\')">完了</button>' +
+               '<button class="btn sm" onclick="kpiAct(\'' + t.id + '\',\'plan\')">時間を確保</button>',
+      waiting: '<button class="btn sm pri" onclick="kpiAct(\'' + t.id + '\',\'push\')">催促を今日やるへ</button>'
+    }[kind];
+    return '<div class="sugg"><div class="s-t">' + esc(t.title) + '</div>' +
+      '<div class="small muted">' + (t.owner ? '👤' + esc(t.owner) + ' ／ ' : '') +
+      (t.due ? '📅' + fmtDate(t.due) + (dl < 0 ? '（' + Math.abs(dl) + '日超過）' : dl === 0 ? '（今日）' : '') + ' ／ ' : '期限なし ／ ') +
+      PRIO[t.priority].l + (p ? ' ／ ■' + esc(p.title) : '') +
+      (DB.calendar_events.some(e => e.task_id === t.id) ? ' ／ 時間確保済み' : '') + '</div>' +
+      (t.notes ? '<div class="small muted" style="margin-top:4px">' + esc(t.notes.slice(0, 80)) + '</div>' : '') +
+      '<div class="s-a" style="flex-wrap:wrap">' + btns +
+      '<button class="btn sm" onclick="closeModal();openTask(\'' + t.id + '\')">詳細</button></div></div>';
+  };
+  const bulk = {
+    inbox: '<button class="btn sm pri" onclick="closeModal();startInboxFlow()">まとめて仕分ける</button>',
+    overdue: '<button class="btn sm pri" onclick="kpiBulk(\'overdue\')">すべて今日に引き直す</button>',
+    today: '<button class="btn sm" onclick="closeModal();jumpToCal(\'day\')">今日のタイムラインで見る</button>',
+    waiting: '<button class="btn sm" onclick="kpiBulk(\'waiting\')">5日以上の待ちを今日やるへ</button>'
+  }[kind];
+  openModal(conf.t + '（' + list.length + '件）',
+    (list.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' + bulk +
+      '<button class="btn sm" onclick="closeModal();go(\'board\')">GTDボードで見る</button></div>' +
+      list.map(row).join('') : '<div class="empty small">' + conf.empty + '</div>'),
+    [{ label: '閉じる', fn: closeModal }]);
+}
+function kpiAct(id, how) {
+  const t = taskById(id); if (!t || !requireEdit()) return;
+  if (how === 'today') { t.due = today(); setGtd(t, 'today'); toast('今日に引き直しました'); }
+  if (how === 'done') { setGtd(t, 'done'); toast('完了にしました'); }
+  if (how === 'push') { t.due = today(); setGtd(t, 'today'); toast('今日やるへ移しました'); }
+  if (how === 'plan') { closeModal(); planTask(id); return; }
+  Store.save(true);
+  const kind = how === 'done' ? 'today' : how === 'push' ? 'waiting' : 'overdue';
+  render(); openKpi(kind);
+}
+function kpiBulk(kind) {
+  if (!requireEdit()) return;
+  if (kind === 'overdue') { overdue().forEach(t => { t.due = today(); t.updated_at = new Date().toISOString(); }); toast('期限を今日に更新しました'); }
+  if (kind === 'waiting') {
+    const old = tasksIn('waiting').filter(t => (t.updated_at || '').slice(0, 10) < addDays(today(), -5));
+    old.forEach(t => setGtd(t, 'today'));
+    toast(old.length ? old.length + '件を今日やるへ移しました' : '5日以上の待ちはありません');
+  }
+  Store.save(true); render(); openKpi(kind);
 }
 function setTopGoal() {
   openModal('今日の最重要ゴール', '<div class="field"><label>今日いちばん前に進めること</label><input id="tg" value="' + esc(DB.settings.top_goal || '') + '" placeholder="例）ReFort再提案リストを100社確定させる"></div>',
@@ -2115,7 +2187,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.2.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v3.3.2</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -4132,7 +4204,9 @@ function flowSaveInput() {
   t.updated_at = new Date().toISOString(); Store.save();
 }
 function opt(label, desc, cls, onclick) {
-  return '<button class="flow-opt ' + (cls || '') + '" onclick="' + onclick + '">' + esc(label) +
+  /* 属性内の " は &quot; に逃がす（そのままだと onclick が途中で切れて動かない） */
+  const js = String(onclick).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return '<button class="flow-opt ' + (cls || '') + '" onclick="' + js + '">' + esc(label) +
     (desc ? '<span class="d">' + esc(desc) + '</span>' : '') + '</button>';
 }
 function flowRender() {
