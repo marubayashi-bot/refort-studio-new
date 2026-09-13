@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="1.0.2">
+<meta name="app-version" content="1.1.0">
 <meta name="theme-color" content="#101B33">
 <style>
 :root{
@@ -458,8 +458,11 @@ function mkTask(o) {
   return t;
 }
 function setGtd(t, g) {
+  const was = t.gtd;
   t.gtd = g; t.updated_at = new Date().toISOString();
   t.done_at = g === 'done' ? new Date().toISOString() : '';
+  if (g === 'done' && was !== 'done') Integrations.syncDone(t, true);
+  if (was === 'done' && g !== 'done') Integrations.syncDone(t, false);
   if (t.node_id) { const n = nodeById(t.node_id); if (n) { n.kind = gtdToKind(g, n.kind); n.progress = g === 'done' ? 100 : n.progress; } }
   if (t.project_id) { const p = projectById(t.project_id); if (p) p.updated_at = new Date().toISOString(); }
   Store.save();
@@ -611,7 +614,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.0.2</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v1.1.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -688,14 +691,30 @@ function viewHome() {
   renderAISuggestions();
 }
 function calendarPanel() {
-  const g = DB.integrations.find(i => i.kind === 'google_calendar') || {};
-  const evs = DB.calendar_events.filter(e => (e.start || '').slice(0, 10) === today());
-  if (g.status !== 'connected') {
-    return '<div class="empty small" style="padding:18px"><div class="big">📅</div>Googleカレンダーは未連携です。<br>連携するまでは、アプリ内の「予定」だけを表示します。' +
-      '<div><a class="btn sm" href="#/settings" style="margin-top:10px">連携設定を開く</a></div></div>' +
-      (evs.length ? evs.map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">🕐 ' + esc((e.start || '').slice(11, 16)) + '〜' + esc((e.end || '').slice(11, 16)) + ' ／ 同期待ち</div></div></div>').join('') : '');
+  const g = Integrations.get('google_calendar');
+  const local = DB.calendar_events.filter(e => (e.start || '').slice(0, 10) === today());
+  const localHTML = local.map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">🕐 ' +
+    esc((e.start || '').slice(11, 16)) + '〜' + esc((e.end || '').slice(11, 16)) +
+    (e.sync === 'synced' ? '' : ' ／ ' + (e.sync === 'error' ? '同期エラー' : '同期待ち')) + '</div></div></div>').join('');
+  if (g.status !== 'connected' || !Gas.ready()) {
+    return '<div class="empty small" style="padding:18px"><div class="big">📅</div>Googleカレンダーは未連携です。' +
+      '<div><a class="btn sm" href="#/settings" style="margin-top:10px">連携設定を開く</a></div></div>' + localHTML;
   }
-  return evs.length ? evs.map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">🕐 ' + esc((e.start || '').slice(11, 16)) + '</div></div></div>').join('') : '<div class="empty small">今日の予定はありません。</div>';
+  setTimeout(loadCalendar, 0);
+  return '<div id="calList"><div class="load">Googleカレンダーを読み込んでいます…</div></div>';
+}
+async function loadCalendar() {
+  const host = $('#calList'); if (!host) return;
+  try {
+    const evs = await Integrations.todayEvents();
+    host.innerHTML = evs.length ? evs.map(e => '<div class="list-item"><div class="t"><b>' + esc(e.title) + '</b><div class="meta">🕐 ' +
+      (e.allDay ? '終日' : esc((e.start || '').slice(11, 16)) + '〜' + esc((e.end || '').slice(11, 16))) +
+      (e.location ? ' ／ 📍' + esc(e.location) : '') + '</div></div></div>').join('')
+      : '<div class="empty small">今日の予定はありません。</div>';
+  } catch (e) {
+    host.innerHTML = '<div class="err">カレンダーを取得できません: ' + esc(e.message) + '</div>' +
+      '<div style="padding:0 14px 14px"><button class="btn sm" onclick="loadCalendar()">再試行</button> <a class="btn sm" href="#/settings">設定を開く</a></div>';
+  }
 }
 function setTopGoal() {
   openModal('今日の最重要ゴール', '<div class="field"><label>今日いちばん前に進めること</label><input id="tg" value="' + esc(DB.settings.top_goal || '') + '" placeholder="例）ReFort再提案リストを100社確定させる"></div>',
@@ -1180,52 +1199,154 @@ function makeEvent() {
         location: $('#evL').value, guests: $('#evG').value, detail: $('#evD').value, reminder: 10,
         map_url: location.origin + location.pathname + '#/map/' + n.map_id, sync: 'pending', gcal_event_id: '' };
       DB.calendar_events.unshift(ev); n.kind = 'calendar'; n.gcal_event_id = '';
-      Integrations.push('google_calendar', ev);
       Store.save(true); closeModal(); mmRender(); renderDetail();
+      Integrations.sendEvent(ev);
     } }]);
 }
 
 /* =========================================================================
    外部連携サービス層（本連携はここだけ差し替える）
    ========================================================================= */
+const Gas = {
+  url() { return (DB.settings.gas_url || '').trim(); },
+  secret() { return (DB.settings.gas_secret || 'earthcom-mindflow').trim(); },
+  ready() { return !!this.url(); },
+  async call(mode, payload) {
+    if (!this.ready()) throw new Error('GASのURLが未設定です');
+    let res;
+    try {
+      res = await fetch(this.url(), {
+        method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ mode: mode, secret: this.secret() }, payload || {}))
+      });
+    } catch (e) { throw new Error('GASに接続できません。URLとデプロイ設定（アクセス＝全員）を確認してください'); }
+    if (!res.ok) throw new Error('通信エラー (' + res.status + ')');
+    const txt = await res.text();
+    let d;
+    try { d = JSON.parse(txt); }
+    catch (e) { throw new Error('応答を読み取れません。デプロイの「アクセスできるユーザー」が全員か確認してください'); }
+    if (!d.ok) throw new Error(d.error || '処理に失敗しました');
+    return d;
+  }
+};
+
 const Integrations = {
   get(kind) { return DB.integrations.find(i => i.kind === kind) || { kind, status: 'disconnected', last_sync: '' }; },
   connected(kind) { return this.get(kind).status === 'connected'; },
-  push(kind, payload) {
-    const i = this.get(kind);
-    DB.sync_logs.unshift({ id: uid(), kind, at: new Date().toISOString(),
-      status: i.status === 'connected' ? 'sent' : 'queued',
-      message: i.status === 'connected' ? '送信しました' : '未連携のためアプリ内に保留しました', payload_title: payload.title || '' });
-    DB.sync_logs = DB.sync_logs.slice(0, 100);
-    Store.save();
-    toast(i.status === 'connected' ? (i.name || kind) + 'へ送信しました' : '未連携のため、アプリ内に保存しました（連携後に送信されます）');
+  mark(kind) { const i = DB.integrations.find(x => x.kind === kind); if (i) { i.status = 'connected'; i.last_sync = new Date().toISOString(); } },
+  log(kind, status, message, title) {
+    DB.sync_logs.unshift({ id: uid(), kind, at: new Date().toISOString(), status, message, payload_title: title || '' });
+    DB.sync_logs = DB.sync_logs.slice(0, 100); Store.save();
   },
-  /* 本連携時の実装ポイント：
-     - google_calendar: OAuth 2.0 → calendar.events.insert / update / watch（双方向）
-     - google_tasks   : tasks.tasks.insert / patch（完了状態の双方向反映）
-     - トークンはブラウザに保存せず、サーバ（Supabase Edge Function）側で保持する */
-  connect(kind) {
-    openModal('連携の設定', '<div class="small">' +
-      '<p>この版では、外部サービスへ実際に送信する処理は無効にしています。本連携は次の手順で有効化します。</p>' +
-      '<ol style="padding-left:18px;line-height:1.9">' +
-      '<li>Google Cloud で OAuth クライアントを作成（承認済みリダイレクトURIにこのページのURLを登録）</li>' +
-      '<li>スコープ：calendar.events ／ tasks</li>' +
-      '<li>アクセストークンはサーバ側（Edge Function）で保持し、ブラウザには保存しない</li>' +
-      '<li>本アプリの Integrations.push を実APIコールに差し替える</li></ol>' +
-      '<p>下のボタンで「連携済み」として動作確認できます（送信はアプリ内ログのみ）。</p></div>',
-      [{ label: 'テスト連携にする', cls: 'pri', fn: () => {
-        const i = DB.integrations.find(x => x.kind === kind);
-        if (i) { i.status = i.status === 'connected' ? 'disconnected' : 'connected'; i.last_sync = new Date().toISOString(); }
-        Store.save(true); closeModal(); render();
-      } }]);
+  connect(kind) { this.toggle(kind); },
+  toggle(kind) {
+    const i = DB.integrations.find(x => x.kind === kind); if (!i) return;
+    if (i.status === 'connected') {
+      if (confirm(i.name + 'の連携を解除しますか？　登録済みのデータは消えません。')) { i.status = 'disconnected'; Store.save(true); render(); }
+      return;
+    }
+    if (kind === 'evernote') {
+      i.status = 'connected'; i.last_sync = new Date().toISOString(); Store.save(true); render();
+      toast('EvernoteのURL登録とインポートを有効にしました'); return;
+    }
+    if (!Gas.ready()) { toast('先に「GAS中継の設定」でURLを保存してください', 'err'); go('settings'); return; }
+    i.status = 'connected'; i.last_sync = new Date().toISOString(); Store.save(true); render();
+    toast(i.name + 'を連携しました');
   },
-  sendToTasks(t) {
-    if (t.gtask_id) { toast('このタスクは送信済みです（重複作成しません）'); return; }
-    t.gtask_id = 'pending-' + t.id;
-    this.push('google_tasks', { title: t.title, due: t.due, notes: t.notes, map_url: location.origin + location.pathname + '#/map/' + t.map_id });
-    Store.save(true);
-  }
+  /* --- カレンダー --- */
+  async sendEvent(ev) {
+    if (!this.connected('google_calendar') || !Gas.ready()) {
+      ev.sync = 'pending'; this.log('google_calendar', 'queued', '未連携のためアプリ内に保留しました', ev.title);
+      Store.save(true); toast('未連携のため、アプリ内に保存しました'); render(); return;
+    }
+    try {
+      const d = await Gas.call('createEvent', { title: ev.title, start: ev.start, end: ev.end,
+        location: ev.location, guests: ev.guests, detail: ev.detail, reminder: ev.reminder, map_url: ev.map_url });
+      ev.gcal_event_id = d.eventId; ev.sync = 'synced';
+      const n = nodeById(ev.node_id); if (n) n.gcal_event_id = d.eventId;
+      this.mark('google_calendar'); this.log('google_calendar', 'sent', 'Googleカレンダーに登録しました', ev.title);
+      Store.save(true); toast('Googleカレンダーに登録しました'); render();
+    } catch (e) {
+      ev.sync = 'error'; this.log('google_calendar', 'error', e.message, ev.title);
+      Store.save(true); toast('カレンダー登録に失敗: ' + e.message, 'err'); render();
+    }
+  },
+  async todayEvents() {
+    const d = await Gas.call('listEvents', { date: today() });
+    this.mark('google_calendar'); Store.save();
+    return d.events || [];
+  },
+  /* --- Google ToDo --- */
+  async sendToTasks(t) {
+    if (t.gtask_id && !String(t.gtask_id).startsWith('pending-')) { toast('このタスクは送信済みです（重複作成しません）'); return; }
+    if (!this.connected('google_tasks') || !Gas.ready()) {
+      t.gtask_id = 'pending-' + t.id; this.log('google_tasks', 'queued', '未連携のためアプリ内に保留しました', t.title);
+      Store.save(true); toast('未連携のため、アプリ内に保存しました'); return;
+    }
+    try {
+      const d = await Gas.call('createTask', { title: t.title, due: t.due, notes: t.notes,
+        map_url: location.origin + location.pathname + (t.map_id ? '#/map/' + t.map_id : '#/board') });
+      t.gtask_id = d.taskId;
+      this.mark('google_tasks'); this.log('google_tasks', 'sent', 'Google ToDoへ送信しました', t.title);
+      Store.save(true); toast('Google ToDoへ送信しました'); render();
+    } catch (e) {
+      this.log('google_tasks', 'error', e.message, t.title); Store.save(true);
+      toast('ToDo送信に失敗: ' + e.message, 'err');
+    }
+  },
+  async syncDone(t, done) {
+    if (!t.gtask_id || String(t.gtask_id).startsWith('pending-')) return;
+    if (!this.connected('google_tasks') || !Gas.ready()) return;
+    try {
+      await Gas.call('completeTask', { taskId: t.gtask_id, done: done });
+      this.mark('google_tasks'); this.log('google_tasks', 'sent', done ? 'ToDoを完了にしました' : 'ToDoを未完了に戻しました', t.title);
+      Store.save();
+    } catch (e) { this.log('google_tasks', 'error', e.message, t.title); Store.save(); }
+  },
+  /* Google ToDo側で完了したものをアプリへ取り込む */
+  async pullTasks() {
+    if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); return; }
+    try {
+      const d = await Gas.call('listTasks', {});
+      let n = 0;
+      (d.tasks || []).forEach(g => {
+        const t = DB.tasks.find(x => x.gtask_id === g.id);
+        if (!t) return;
+        if (g.status === 'completed' && t.gtd !== 'done') { setGtd(t, 'done'); n++; }
+      });
+      this.mark('google_tasks'); Store.save(true); render();
+      toast(n ? n + '件をToDo側の完了に合わせました' : '反映する変更はありませんでした');
+    } catch (e) { toast('取得に失敗: ' + e.message, 'err'); }
+  },
+  /* 保留・失敗分の再送 */
+  async resyncAll() {
+    if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); return; }
+    const evs = DB.calendar_events.filter(e => e.sync !== 'synced');
+    const ts = DB.tasks.filter(t => String(t.gtask_id || '').startsWith('pending-'));
+    if (!evs.length && !ts.length) { toast('再同期する保留はありません'); return; }
+    for (const e of evs) await this.sendEvent(e);
+    for (const t of ts) { t.gtask_id = ''; await this.sendToTasks(t); }
+    toast('再同期しました');
+  },
+  push(kind, payload) { this.log(kind, 'queued', 'アプリ内に保存しました', payload.title || ''); }
 };
+async function saveGas() {
+  DB.settings.gas_url = $('#gasU').value.trim();
+  DB.settings.gas_secret = $('#gasS').value.trim() || 'earthcom-mindflow';
+  Store.save(true);
+  if (!Gas.ready()) { toast('URLを入力してください', 'err'); return; }
+  toast('接続を確認しています…');
+  try {
+    const d = await Gas.call('ping', {});
+    Integrations.mark('google_calendar'); Integrations.mark('google_tasks');
+    Integrations.log('gas', 'sent', '接続テストに成功しました（' + (d.tz || '') + '）', '');
+    Store.save(true); render(); toast('接続できました。カレンダーとToDoを連携済みにしました');
+  } catch (e) {
+    Integrations.log('gas', 'error', e.message, ''); Store.save(true); render();
+    toast('接続できません: ' + e.message, 'err');
+  }
+}
 
 /* --- AI：分解・具体化 --- */
 async function aiBreakdown() {
@@ -1361,7 +1482,7 @@ function openTask(id) {
     (t.gtd === 'inbox' ? '<div class="card pad" style="margin-top:12px;background:#FBFCFE"><b class="small">行動が必要か？</b>' +
       '<div class="small muted" style="margin-top:4px;line-height:1.9">・2分以内でできる → 今すぐ実行して「完了」<br>・人に頼む → 連絡待ち<br>・複数の行動が必要 → プロジェクト<br>・一つの行動で終わる → 次にとるべき行動<br>・日時が決まっている → カレンダー<br>・行動不要 → 資料／いつかやる／削除</div></div>' : '') +
     '<div class="sec-h" style="margin-top:14px"><h3>連携</h3></div><div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="btn sm" onclick="Integrations.sendToTasks(taskById(\'' + t.id + '\'))">Google ToDoへ送る</button>' +
+      '<button class="btn sm" onclick="Integrations.sendToTasks(taskById(\'' + t.id + '\'))">' + (t.gtask_id && !String(t.gtask_id).startsWith('pending-') ? '✔ ToDo送信済み' : 'Google ToDoへ送る') + '</button>' +
       (n ? '<button class="btn sm" onclick="closeModal();go(\'map\',\'' + n.map_id + '\');setTimeout(()=>mmSelect(\'' + n.id + '\'),250)">マップで開く</button>' : '') +
       (p ? '<a class="btn sm" href="#/project/' + p.id + '" onclick="closeModal()">プロジェクトを開く</a>' : '') +
       '<button class="btn sm" onclick="openFlow(\'' + t.id + '\')">🧭 仕分けナビ</button>' +
@@ -1649,11 +1770,20 @@ function viewSettings() {
   const logs = DB.sync_logs.slice(0, 8);
   $('#view').innerHTML =
     '<div class="grid g2"><div>' +
+      '<div class="sec-h"><h3>GAS中継の設定</h3></div>' +
+      '<div class="card pad" style="margin-bottom:12px">' +
+        '<div class="small muted" style="margin-bottom:10px">Google Apps Scriptをウェブアプリとしてデプロイし、発行された /exec で終わるURLを貼ってください。合言葉はGAS内の SECRET と同じ文字列にします。</div>' +
+        '<div class="field"><label>GASウェブアプリURL</label><input id="gasU" value="' + esc(DB.settings.gas_url || '') + '" placeholder="https://script.google.com/macros/s/.../exec"></div>' +
+        '<div class="field"><label>合言葉（SECRET）</label><input id="gasS" value="' + esc(DB.settings.gas_secret || 'earthcom-mindflow') + '"></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button class="btn pri sm" onclick="saveGas()">保存して接続テスト</button>' +
+        '<button class="btn sm" onclick="Integrations.resyncAll()">保留分を再同期</button>' +
+        '<button class="btn sm" onclick="Integrations.pullTasks()">ToDoの完了を取り込む</button></div></div>' +
       '<div class="sec-h"><h3>外部サービス連携</h3></div>' + ic('google_calendar') + ic('google_tasks') + ic('evernote') +
       '<div class="card pad"><div class="sec-h"><h3>同期ログ</h3></div>' +
         (logs.length ? logs.map(l => '<div class="small" style="padding:4px 0;border-bottom:1px solid var(--line)">' +
           esc(l.at.slice(5, 16).replace('T', ' ')) + ' ／ ' + esc(l.kind) + ' ／ ' + esc(l.message) + ' ' + esc(l.payload_title || '') +
-          (l.status === 'queued' ? ' <button class="btn sm" onclick="toast(\'連携後に再同期されます\')">再同期</button>' : '') + '</div>').join('')
+          (l.status === 'queued' || l.status === 'error' ? ' <button class="btn sm" onclick="Integrations.resyncAll()">再同期</button>' : '') + '</div>').join('')
           : '<span class="small muted">まだログはありません</span>') + '</div>' +
     '</div><div>' +
       '<div class="sec-h"><h3>Evernoteからの移行</h3></div>' +
@@ -1911,7 +2041,7 @@ function flowFinish(kind) {
       reminder: 10, map_url: location.origin + location.pathname + (t.map_id ? '#/map/' + t.map_id : '#/board'), sync: 'pending', gcal_event_id: '' };
     DB.calendar_events.unshift(ev);
     t.due = (ev.start || '').slice(0, 10); setGtd(t, 'calendar');
-    Integrations.push('google_calendar', ev);
+    Integrations.sendEvent(ev);
     flowResult('カレンダーに入れました', (ev.start || '').replace('T', ' ') + ' に実行します。'); return;
   }
   if (kind === 'project') {
