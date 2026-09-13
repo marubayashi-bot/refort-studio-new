@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.0.0">
+<meta name="app-version" content="4.1.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -281,6 +281,9 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(247,249
 .chain i{color:var(--gold)}
 
 .btn.spin{opacity:.6;pointer-events:none}
+.callist{display:flex;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.callist input{width:18px;height:18px}
+.callist span{flex:1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .daypick{display:flex;gap:6px;flex-wrap:wrap}
 .daypick label{position:relative;display:block}
 .daypick input{position:absolute;inset:0;opacity:0;margin:0;width:100%;height:100%;cursor:pointer}
@@ -904,7 +907,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.0.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.1.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1700,7 +1703,7 @@ const Integrations = {
     }
   },
   async todayEvents() {
-    const d = await Gas.call('listEvents', { date: today() });
+    const d = await Gas.call('listEvents', { date: today(), calendarIds: (DB.capacity.calendars || []) });
     this.mark('google_calendar'); Store.save();
     return d.events || [];
   },
@@ -2216,7 +2219,8 @@ function viewSettings() {
         '<button class="btn pri sm" onclick="saveGas()">保存して接続テスト</button>' +
         '<button class="btn sm" onclick="Integrations.resyncAll()">保留分を再同期</button>' +
         '<button class="btn sm" onclick="Integrations.pullTasks()">ToDoの完了を取り込む</button>' +
-        '<button class="btn sm pri" onclick="syncNow()">⟳ いますぐ全体を同期</button></div>' +
+        '<button class="btn sm pri" onclick="syncNow()">⟳ いますぐ全体を同期</button>' +
+        '<button class="btn sm" onclick="calPicker()">取り込むカレンダーを選ぶ</button></div>' +
         '<div class="small muted" style="margin-top:8px">同期期間: ' + fmtDate(syncRange().from) + '〜' + fmtDate(syncRange().to) +
         (DB.capacity && DB.capacity.lastSync ? ' ／ 最終同期 ' + DB.capacity.lastSync.slice(5, 16).replace('T', ' ') : '') +
         ' <button class="btn sm" onclick="calRangeDialog()">期間を変える</button></div></div>' +
@@ -2240,7 +2244,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.0.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.1.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2600,6 +2604,7 @@ function calFilters() {
       LANES.map(l => '<option value="' + l + '"' + (fl.lane === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
     '<select onchange="calFilter(\'type\',this.value)"><option value="">すべての種別</option>' +
       Object.keys(ETYPE).map(k => '<option value="' + k + '"' + (fl.type === k ? ' selected' : '') + '>' + ETYPE[k].l + '</option>').join('') + '</select>' +
+    '<button class="btn sm" onclick="calPicker()">カレンダー選択</button>' +
     '<button class="btn sm" onclick="calRangeDialog()">期間・時間帯の設定</button>' +
     '<button class="btn sm" onclick="importDialog()">Googleの予定を取り込む</button>' +
     '</div>';
@@ -3205,6 +3210,53 @@ async function syncEvent(e) {
     Store.save(true); toast('同期に失敗: ' + err.message, 'err'); render();
   }
 }
+async function calPicker() {
+  calInit();
+  if (!Gas.ready()) { toast('GASのURLが未設定です', 'err'); go('settings'); return; }
+  openModal('取り込むカレンダーを選ぶ', '<div class="load">Googleからカレンダー一覧を取得しています…</div>', []);
+  try {
+    const d = await Gas.call('listCalendars', {});
+    const cur = DB.capacity.calendars || [];
+    const list = (d.calendars || []);
+    const on = c => cur.length ? cur.includes(c.id) : (c.isDefault || c.selected);
+    openModal('取り込むカレンダーを選ぶ（' + list.length + '件）',
+      '<div class="small muted" style="margin-bottom:10px">チェックしたカレンダーだけを取り込みます。社員のカレンダーを外せば、自分の予定だけになります。</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px"><button class="btn sm" onclick="$$(\'.calpk\').forEach(x=>x.checked=true)">すべて選ぶ</button>' +
+      '<button class="btn sm" onclick="$$(\'.calpk\').forEach(x=>x.checked=false)">すべて外す</button>' +
+      '<button class="btn sm" onclick="$$(\'.calpk\').forEach(x=>x.checked=x.dataset.own===\'1\')">自分のものだけ</button></div>' +
+      '<div style="max-height:46vh;overflow:auto">' + list.map(c =>
+        '<label class="callist"><input type="checkbox" class="calpk" value="' + esc(c.id) + '" data-own="' + (c.isDefault ? 1 : 0) + '" data-name="' + esc(c.name) + '"' + (on(c) ? ' checked' : '') + '>' +
+        '<span><b>' + esc(c.name) + '</b>' + (c.isDefault ? '<span class="chip gold">自分</span>' : c.owned ? '<span class="chip">所有</span>' : '<span class="chip grey">共有</span>') +
+        (c.selected ? '' : '<span class="chip grey">Google側で非表示</span>') + '</span></label>').join('') + '</div>',
+      [{ label: 'この選択で保存', cls: 'pri', fn: () => {
+        const sel = $$('.calpk').filter(x => x.checked);
+        DB.capacity.calendars = sel.map(x => x.value);
+        DB.capacity.calendarNames = sel.map(x => x.dataset.name);
+        Store.save(true); closeModal(); render();
+        toast(sel.length + '件のカレンダーを取り込み対象にしました');
+      } },
+       { label: '対象外の予定を消す', fn: () => cleanForeign() }]);
+  } catch (e) { closeModal(); toast('取得に失敗: ' + e.message, 'err'); }
+}
+function cleanForeign() {
+  const names = DB.capacity.calendarNames || [];
+  const drop = DB.calendar_events.filter(e => e.source === 'google' && e.gcal_name && names.length && !names.includes(e.gcal_name));
+  const unknown = DB.calendar_events.filter(e => e.source === 'google' && !e.gcal_name);
+  openModal('対象外の予定を消す',
+    '<div class="small">選んだカレンダー以外から取り込まれた予定：<b>' + drop.length + '件</b></div>' +
+    (unknown.length ? '<div class="small muted" style="margin-top:6px">どのカレンダー由来か不明な予定が' + unknown.length + '件あります（旧バージョンで取り込んだもの）。まとめて消して同期し直すのが確実です。</div>' : '') +
+    '<div class="small muted" style="margin-top:8px">MIND FLOWで作った予定とタスクは消えません。Googleカレンダー側も変更しません。</div>',
+    [{ label: '対象外の' + drop.length + '件を消す', cls: 'pri', fn: () => {
+        DB.calendar_events = DB.calendar_events.filter(e => !(e.source === 'google' && e.gcal_name && names.length && !names.includes(e.gcal_name)));
+        Store.save(true); closeModal(); render(); toast('削除しました。もう一度「⟳ Google同期」を押してください');
+      } },
+     { label: 'Google由来をすべて消して入れ直す', fn: () => {
+        if (!confirm('Googleから取り込んだ予定（' + DB.calendar_events.filter(e => e.source === 'google').length + '件）をすべて削除します。MIND FLOWで作った予定は残ります。')) return;
+        DB.calendar_events = DB.calendar_events.filter(e => e.source !== 'google');
+        Store.save(true); closeModal(); render(); toast('削除しました。「⟳ Google同期」で入れ直せます');
+      } },
+     { label: '中止', fn: closeModal }]);
+}
 function calRangeDialog() {
   calInit();
   const c = DB.capacity;
@@ -3219,6 +3271,10 @@ function calRangeDialog() {
     '<div class="row"><div class="field"><label>始業</label><input id="cgWS" type="time" value="' + esc(c.start) + '"></div>' +
       '<div class="field"><label>終業</label><input id="cgWE" type="time" value="' + esc(c.end) + '"></div>' +
       '<div class="field"><label>バッファ（%）</label><input id="cgB" type="number" min="0" max="50" value="' + (c.bufferPct || 20) + '"></div></div>' +
+    '<div class="sec-h" style="margin-top:14px"><h3>取り込むカレンダー</h3></div>' +
+    '<div class="small muted" style="margin-bottom:8px">' +
+      ((DB.capacity.calendarNames || []).length ? '現在: ' + esc((DB.capacity.calendarNames || []).join(' / ')) : 'Googleで表示にしているカレンダーすべて（社員のカレンダーも含まれます）') + '</div>' +
+    '<button class="btn sm" style="margin-bottom:6px" onclick="closeModal();calPicker()">取り込むカレンダーを選ぶ</button>' +
     '<div class="sec-h" style="margin-top:14px"><h3>Googleと同期する期間</h3></div>' +
     '<div class="small muted" style="margin-bottom:8px">「⟳ Google同期」を押したときに、この範囲の予定を双方向で合わせます。</div>' +
     '<div class="field"><label>指定のしかた</label><select id="cgMode" onchange="$(\'#cgFixed\').style.display=this.value===\'fixed\'?\'block\':\'none\';$(\'#cgRoll\').style.display=this.value===\'fixed\'?\'none\':\'block\'">' +
@@ -3298,7 +3354,7 @@ async function pullRange(from, to, silent) {
   for (const d of days) {
     i++;
     try {
-      const r = await Gas.call('listEvents', { date: d });
+      const r = await Gas.call('listEvents', { date: d, calendarIds: (DB.capacity.calendars || []) });
       (r.events || []).forEach(g => {
         const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
         if (ex) {
@@ -3390,7 +3446,7 @@ async function pullGoogleRange() {
   let added = 0, updated = 0;
   try {
     for (const d of days) {
-      const r = await Gas.call('listEvents', { date: d });
+      const r = await Gas.call('listEvents', { date: d, calendarIds: (DB.capacity.calendars || []) });
       (r.events || []).forEach(g => {
         const ex = DB.calendar_events.find(x => x.google_event_id === g.id);
         if (ex) {
