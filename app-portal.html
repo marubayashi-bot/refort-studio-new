@@ -645,7 +645,7 @@ pre.code{background:#081A33;color:#D6E2E9;padding:14px;border-radius:8px;font-fa
     <div class="panel">
       <div class="panel-hd"><h2>社員からの要望・不具合</h2>
         <div class="chips" style="margin-left:auto">
-          <button class="chip" id="rqOpen" aria-pressed="true" onclick="setReqFilter('open')">未対応・対応中</button>
+          <button class="chip" id="rqOpen" aria-pressed="true" onclick="setReqFilter('open')">未対応</button>
           <button class="chip" id="rqAll" aria-pressed="false" onclick="setReqFilter('all')">すべて</button>
         </div></div>
       <div class="panel-bd" id="reqList"></div>
@@ -792,7 +792,18 @@ const STATUS={'公開中':{cls:'on'},'準備中':{cls:'prep'},'停止中':{cls:'
 const PERIODS={'今月':'month','直近30日':'d30','全期間':'all'};
 const DEPTS=['営業部','工事部','商品企画部','管理部','社長室'];
 const REQ_TYPES=['改善してほしい','うまく動かない','使い方が分からない'];
-const REQ_STATES=['未対応','対応中','完了'];
+const REQ_STATES=['未対応','完了'];
+/* --- Chatwork中継（Supabase Edge Function） --- */
+const CW_FN = SB_URL.replace(/\/+$/,'')+'/functions/v1/clever-handler';
+async function cwNotify(payload){
+  try{
+    const r=await fetch(CW_FN,{method:'POST',
+      headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},
+      body:JSON.stringify(payload)});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
 const FRESH_DAYS=14;
 const BANNER_SCENE="<svg class=\"scene\" viewBox=\"0 0 1000 230\" preserveAspectRatio=\"xMaxYMid slice\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\"><defs><linearGradient id=\"bSky\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\".6\"><stop offset=\"0\" stop-color=\"#17365E\"/><stop offset=\".55\" stop-color=\"#5E8DB0\"/><stop offset=\"1\" stop-color=\"#F1DDA9\"/></linearGradient><radialGradient id=\"bSun\" cx=\"930\" cy=\"10\" r=\"380\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#FFF6D8\" stop-opacity=\".95\"/><stop offset=\".3\" stop-color=\"#FFE3A6\" stop-opacity=\".45\"/><stop offset=\"1\" stop-color=\"#FFE3A6\" stop-opacity=\"0\"/></radialGradient><linearGradient id=\"bPnl\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#1B3F6E\"/><stop offset=\".6\" stop-color=\"#244F83\"/><stop offset=\"1\" stop-color=\"#3C6CA0\"/></linearGradient><radialGradient id=\"bRef\" cx=\"880\" cy=\"90\" r=\"330\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#FFF1C8\" stop-opacity=\".6\"/><stop offset=\".45\" stop-color=\"#CFE3F2\" stop-opacity=\".18\"/><stop offset=\"1\" stop-color=\"#CFE3F2\" stop-opacity=\"0\"/></radialGradient></defs><rect width=\"1000\" height=\"230\" fill=\"url(#bSky)\"/><rect width=\"1000\" height=\"230\" fill=\"url(#bSun)\"/><path d=\"M0 462L0 45.5L20 45.6L40 46.3L60 46.8L80 49.3L100 50L120 56.3L140 56.1L160 55.7L180 58.3L200 55L220 57L240 53.3L260 52.7L280 49.6L300 48.1L320 49.8L340 47.9L360 47L380 43.5L400 44.2L420 47.5L440 44.9L460 49L480 47.8L500 51.6L520 53.8L540 51.1L560 56.3L580 58.3L600 56.5L620 56.2L640 57.1L660 51.8L680 52.1L700 49.8L720 50.6L740 45.7L760 45.9L780 43.8L800 43.7L820 46.5L840 46.3L860 47.7L880 48.5L900 49.9L920 50L940 49.9L960 54.6L980 53L1000 56.6L1020 58.8L1000 462Z\" fill=\"#6C8FA8\" opacity=\".6\"/><path d=\"M0 138L0 70.3Q3.8 53.4 7.6 70.3L6.1 70.3Q12.3 55.7 18.5 70.3L16 70.3Q20.1 52.3 24.2 70.3L22.5 70.3Q29.6 55.4 36.6 70.3L33.8 70.3Q39.3 58.4 44.8 70.3L42.6 70.3Q45.6 56.9 48.7 70.3L47.5 70.3Q53.4 60.2 59.3 70.3L56.9 70.3Q63.9 58.4 70.9 70.3L68.1 70.3Q72.3 60.5 76.4 70.3L74.8 70.3Q82.7 52.9 90.7 70.3L87.5 70.3Q94.9 54.2 102.3 70.3L99.3 70.3Q102.5 57.4 105.7 70.3L104.4 70.3Q109.9 59.7 115.4 70.3L113.2 70.3Q120.9 56.9 128.7 70.3L125.6 70.3Q129.4 52 133.1 70.3L131.6 70.3Q135.3 50.8 138.9 70.3L137.4 70.3Q142.7 54.9 148 70.3L145.9 70.3Q150.6 55.7 155.3 70.3L153.4 70.3Q157.3 60.6 161.3 70.3L159.7 70.3Q167 58.4 174.4 70.3L171.4 70.3Q178.3 58.7 185.2 70.3L182.5 70.3Q190.3 51.2 198.2 70.3L195 70.3Q201.8 52.6 208.6 70.3L205.9 70.3Q211.8 53 217.7 70.3L215.3 70.3Q218.9 55.8 222.5 70.3L221.1 70.3Q228.2 58.8 235.4 70.3L232.5 70.3Q240.1 51.2 247.7 70.3L244.7 70.3Q249.7 57 254.8 70.3L252.8 70.3Q258 56.8 263.3 70.3L261.2 70.3Q269.1 56.7 277.1 70.3L273.9 70.3Q277.1 60 280.2 70.3L278.9 70.3Q285.5 50.1 292.1 70.3L289.5 70.3Q295 55.6 300.5 70.3L298.3 70.3Q304 52.8 309.8 70.3L307.5 70.3Q311.6 54.3 315.7 70.3L314 70.3Q319.8 54.2 325.6 70.3L323.3 70.3Q327.2 59.1 331.1 70.3L329.5 70.3Q334.3 50.8 339 70.3L337.1 70.3Q341.9 54.4 346.6 70.3L344.7 70.3Q349.2 59.9 353.8 70.3L351.9 70.3Q355.3 52 358.6 70.3L357.3 70.3Q364.2 56.9 371 70.3L368.3 70.3Q374.7 53.6 381.1 70.3L378.6 70.3Q386.1 50.5 393.5 70.3L390.5 70.3Q395.6 50.1 400.6 70.3L398.6 70.3Q406.4 54.5 414.2 70.3L411.1 70.3Q418.5 55.6 425.9 70.3L423 70.3Q427.8 58.3 432.7 70.3L430.8 70.3Q438.1 59.2 445.5 70.3L442.6 70.3Q445.9 52.1 449.3 70.3L447.9 70.3Q454.8 55.7 461.7 70.3L458.9 70.3Q466.1 60.4 473.3 70.3L470.4 70.3Q474.7 57.8 479 70.3L477.3 70.3Q482.4 59.1 487.5 70.3L485.4 70.3Q488.8 57.3 492.1 70.3L490.8 70.3Q498.3 50.2 505.8 70.3L502.8 70.3Q509.5 55.7 516.2 70.3L513.6 70.3Q517.8 50.5 522.1 70.3L520.4 70.3Q526 53 531.6 70.3L529.4 70.3Q532.5 58.7 535.7 70.3L534.4 70.3Q541.6 52.3 548.8 70.3L545.9 70.3Q553.3 54.4 560.7 70.3L557.8 70.3Q562.9 54.6 568 70.3L566 70.3Q573.2 57.6 580.5 70.3L577.6 70.3Q583.2 58 588.9 70.3L586.6 70.3Q593.5 60.9 600.3 70.3L597.6 70.3Q604 50.5 610.4 70.3L607.9 70.3Q611 54.5 614.1 70.3L612.9 70.3Q619.1 51.6 625.3 70.3L622.8 70.3Q628.7 58.2 634.6 70.3L632.3 70.3Q637.3 50.5 642.3 70.3L640.3 70.3Q647.9 59.5 655.4 70.3L652.4 70.3Q655.8 60 659.3 70.3L657.9 70.3Q661.1 56.1 664.2 70.3L662.9 70.3Q666.6 51.5 670.3 70.3L668.9 70.3Q675.1 59.6 681.4 70.3L678.9 70.3Q684.6 57.4 690.3 70.3L688 70.3Q693.5 58.6 698.9 70.3L696.8 70.3Q700.6 59 704.4 70.3L702.9 70.3Q707.8 53.2 712.7 70.3L710.7 70.3Q716.5 60.5 722.2 70.3L719.9 70.3Q726.5 51.4 733 70.3L730.4 70.3Q737.3 52.3 744.1 70.3L741.4 70.3Q744.4 55.9 747.5 70.3L746.3 70.3Q749.6 52.6 752.9 70.3L751.6 70.3Q755.4 53.2 759.3 70.3L757.8 70.3Q762 53.3 766.3 70.3L764.6 70.3Q769.2 60.5 773.7 70.3L771.9 70.3Q776.8 57.6 781.8 70.3L779.8 70.3Q787.3 57.8 794.8 70.3L791.8 70.3Q797.3 55 802.8 70.3L800.6 70.3Q808.4 59.9 816.1 70.3L813 70.3Q819 55.4 825 70.3L822.6 70.3Q829.3 50.4 836 70.3L833.3 70.3Q837.9 53.3 842.4 70.3L840.6 70.3Q846.2 54.8 851.8 70.3L849.6 70.3Q852.9 52 856.2 70.3L854.9 70.3Q862.8 57.1 870.7 70.3L867.5 70.3Q872.1 50.1 876.7 70.3L874.9 70.3Q878.4 60.2 881.9 70.3L880.5 70.3Q883.9 52 887.3 70.3L885.9 70.3Q892.7 56.1 899.5 70.3L896.8 70.3Q902.9 60.8 909 70.3L906.6 70.3Q912.8 56.1 919 70.3L916.5 70.3Q922.1 56.7 927.7 70.3L925.5 70.3Q930.5 58.5 935.5 70.3L933.5 70.3Q936.7 56.2 940 70.3L938.7 70.3Q942.9 53.3 947.1 70.3L945.4 70.3Q952.5 53 959.6 70.3L956.8 70.3Q962.1 58.4 967.3 70.3L965.2 70.3Q970.2 55.6 975.1 70.3L973.1 70.3Q979.3 50.4 985.4 70.3L983 70.3Q986.4 55.7 989.8 70.3L988.4 70.3Q993.9 53.1 999.4 70.3L997.2 70.3Q1004.6 52.4 1012.1 70.3L1009.1 70.3Q1015.2 52.7 1021.4 70.3L1018.9 70.3Q1025.3 51.6 1031.6 70.3L1020 138Z\" fill=\"#1E3A2C\"/><rect y=\"76\" width=\"1000\" height=\"160\" fill=\"#20402F\"/><path d=\"M353.6 82L959.8 82L996.4 87.9L304.8 87.9Z\" fill=\"url(#bPnl)\"/><path d=\"M368.8 82L322.1 87.9M383.9 82L339.4 87.9M399.1 82L356.7 87.9M414.2 82L374 87.9M429.4 82L391.3 87.9M444.5 82L408.6 87.9M459.7 82L425.8 87.9M474.8 82L443.1 87.9M490 82L460.4 87.9M505.2 82L477.7 87.9M520.3 82L495 87.9M535.5 82L512.3 87.9M550.6 82L529.6 87.9M565.8 82L546.9 87.9M580.9 82L564.2 87.9M596.1 82L581.4 87.9M611.2 82L598.7 87.9M626.4 82L616 87.9M641.5 82L633.3 87.9M656.7 82L650.6 87.9M671.9 82L667.9 87.9M687 82L685.2 87.9M702.2 82L702.5 87.9M717.3 82L719.8 87.9M732.5 82L737 87.9M747.6 82L754.3 87.9M762.8 82L771.6 87.9M777.9 82L788.9 87.9M793.1 82L806.2 87.9M808.2 82L823.5 87.9M823.4 82L840.8 87.9M838.6 82L858.1 87.9M853.7 82L875.4 87.9M868.9 82L892.7 87.9M884 82L909.9 87.9M899.2 82L927.2 87.9M914.3 82L944.5 87.9M929.5 82L961.8 87.9M944.6 82L979.1 87.9M329.2 85L978.1 85\" stroke=\"#9CC0E3\" stroke-width=\"0.3\" opacity=\"0.5\"/><path d=\"M353.6 82L959.8 82\" stroke=\"#D9E8F5\" stroke-width=\"0.5\" opacity=\".75\"/><path d=\"M289.4 89.8L1007.9 89.8L1051.3 96.8L231.6 96.8Z\" fill=\"url(#bPnl)\"/><path d=\"M307.4 89.8L252.1 96.8M325.3 89.8L272.6 96.8M343.3 89.8L293.1 96.8M361.3 89.8L313.6 96.8M379.2 89.8L334 96.8M397.2 89.8L354.5 96.8M415.2 89.8L375 96.8M433.1 89.8L395.5 96.8M451.1 89.8L416 96.8M469 89.8L436.5 96.8M487 89.8L457 96.8M505 89.8L477.5 96.8M522.9 89.8L498 96.8M540.9 89.8L518.5 96.8M558.9 89.8L539 96.8M576.8 89.8L559.5 96.8M594.8 89.8L580 96.8M612.7 89.8L600.5 96.8M630.7 89.8L621 96.8M648.7 89.8L641.4 96.8M666.6 89.8L661.9 96.8M684.6 89.8L682.4 96.8M702.6 89.8L702.9 96.8M720.5 89.8L723.4 96.8M738.5 89.8L743.9 96.8M756.5 89.8L764.4 96.8M774.4 89.8L784.9 96.8M792.4 89.8L805.4 96.8M810.3 89.8L825.9 96.8M828.3 89.8L846.4 96.8M846.3 89.8L866.9 96.8M864.2 89.8L887.4 96.8M882.2 89.8L907.9 96.8M900.2 89.8L928.4 96.8M918.1 89.8L948.8 96.8M936.1 89.8L969.3 96.8M954.1 89.8L989.8 96.8M972 89.8L1010.3 96.8M990 89.8L1030.8 96.8M260.5 93.3L1029.6 93.3\" stroke=\"#9CC0E3\" stroke-width=\"0.4\" opacity=\"0.5\"/><path d=\"M289.4 89.8L1007.9 89.8\" stroke=\"#D9E8F5\" stroke-width=\"0.6\" opacity=\".75\"/><path d=\"M213.3 99L1065 99L1116.4 107.3L144.8 107.3Z\" fill=\"url(#bPnl)\"/><path d=\"M234.6 99L169.1 107.3M255.9 99L193.4 107.3M277.2 99L217.6 107.3M298.5 99L241.9 107.3M319.8 99L266.2 107.3M341.1 99L290.5 107.3M362.4 99L314.8 107.3M383.7 99L339.1 107.3M404.9 99L363.4 107.3M426.2 99L387.7 107.3M447.5 99L412 107.3M468.8 99L436.3 107.3M490.1 99L460.6 107.3M511.4 99L484.8 107.3M532.7 99L509.1 107.3M554 99L533.4 107.3M575.3 99L557.7 107.3M596.6 99L582 107.3M617.9 99L606.3 107.3M639.2 99L630.6 107.3M660.5 99L654.9 107.3M681.7 99L679.2 107.3M703 99L703.5 107.3M724.3 99L727.8 107.3M745.6 99L752.1 107.3M766.9 99L776.3 107.3M788.2 99L800.6 107.3M809.5 99L824.9 107.3M830.8 99L849.2 107.3M852.1 99L873.5 107.3M873.4 99L897.8 107.3M894.7 99L922.1 107.3M916 99L946.4 107.3M937.3 99L970.7 107.3M958.6 99L995 107.3M979.8 99L1019.3 107.3M1001.1 99L1043.5 107.3M1022.4 99L1067.8 107.3M1043.7 99L1092.1 107.3M179 103.2L1090.7 103.2\" stroke=\"#9CC0E3\" stroke-width=\"0.5\" opacity=\"0.5\"/><path d=\"M213.3 99L1065 99\" stroke=\"#D9E8F5\" stroke-width=\"0.7\" opacity=\".75\"/><path d=\"M123.1 109.9L1132.7 109.9L1193.6 119.8L41.9 119.8Z\" fill=\"url(#bPnl)\"/><path d=\"M148.4 109.9L70.7 119.8M173.6 109.9L99.5 119.8M198.8 109.9L128.2 119.8M224.1 109.9L157 119.8M249.3 109.9L185.8 119.8M274.6 109.9L214.6 119.8M299.8 109.9L243.4 119.8M325 109.9L272.2 119.8M350.3 109.9L301 119.8M375.5 109.9L329.8 119.8M400.7 109.9L358.6 119.8M426 109.9L387.4 119.8M451.2 109.9L416.2 119.8M476.5 109.9L445 119.8M501.7 109.9L473.8 119.8M526.9 109.9L502.6 119.8M552.2 109.9L531.4 119.8M577.4 109.9L560.1 119.8M602.7 109.9L588.9 119.8M627.9 109.9L617.7 119.8M653.1 109.9L646.5 119.8M678.4 109.9L675.3 119.8M703.6 109.9L704.1 119.8M728.8 109.9L732.9 119.8M754.1 109.9L761.7 119.8M779.3 109.9L790.5 119.8M804.6 109.9L819.3 119.8M829.8 109.9L848.1 119.8M855 109.9L876.9 119.8M880.3 109.9L905.7 119.8M905.5 109.9L934.5 119.8M930.8 109.9L963.3 119.8M956 109.9L992 119.8M981.2 109.9L1020.8 119.8M1006.5 109.9L1049.6 119.8M1031.7 109.9L1078.4 119.8M1056.9 109.9L1107.2 119.8M1082.2 109.9L1136 119.8M1107.4 109.9L1164.8 119.8M82.5 114.9L1163.1 114.9\" stroke=\"#9CC0E3\" stroke-width=\"0.5\" opacity=\"0.5\"/><path d=\"M123.1 109.9L1132.7 109.9\" stroke=\"#D9E8F5\" stroke-width=\"0.8\" opacity=\".75\"/><path d=\"M16.2 122.9L1212.8 122.9L1285.1 134.6L-80.1 134.6Z\" fill=\"url(#bPnl)\"/><path d=\"M46.1 122.9L-46 134.6M76 122.9L-11.8 134.6M106 122.9L22.3 134.6M135.9 122.9L56.4 134.6M165.8 122.9L90.5 134.6M195.7 122.9L124.7 134.6M225.6 122.9L158.8 134.6M255.5 122.9L192.9 134.6M285.5 122.9L227.1 134.6M315.4 122.9L261.2 134.6M345.3 122.9L295.3 134.6M375.2 122.9L329.5 134.6M405.1 122.9L363.6 134.6M435 122.9L397.7 134.6M464.9 122.9L431.8 134.6M494.9 122.9L466 134.6M524.8 122.9L500.1 134.6M554.7 122.9L534.2 134.6M584.6 122.9L568.4 134.6M614.5 122.9L602.5 134.6M644.4 122.9L636.6 134.6M674.4 122.9L670.7 134.6M704.3 122.9L704.9 134.6M734.2 122.9L739 134.6M764.1 122.9L773.1 134.6M794 122.9L807.3 134.6M823.9 122.9L841.4 134.6M853.9 122.9L875.5 134.6M883.8 122.9L909.7 134.6M913.7 122.9L943.8 134.6M943.6 122.9L977.9 134.6M973.5 122.9L1012 134.6M1003.4 122.9L1046.2 134.6M1033.3 122.9L1080.3 134.6M1063.3 122.9L1114.4 134.6M1093.2 122.9L1148.6 134.6M1123.1 122.9L1182.7 134.6M1153 122.9L1216.8 134.6M1182.9 122.9L1250.9 134.6M-31.9 128.7L1249 128.7\" stroke=\"#9CC0E3\" stroke-width=\"0.6\" opacity=\"0.5\"/><path d=\"M16.2 122.9L1212.8 122.9\" stroke=\"#D9E8F5\" stroke-width=\"1\" opacity=\".75\"/><path d=\"M-110.5 138.3L1307.9 138.3L1393.5 152.1L-224.7 152.1Z\" fill=\"url(#bPnl)\"/><path d=\"M-75.1 138.3L-184.2 152.1M-39.6 138.3L-143.8 152.1M-4.1 138.3L-103.3 152.1M31.3 138.3L-62.9 152.1M66.8 138.3L-22.4 152.1M102.2 138.3L18 152.1M137.7 138.3L58.5 152.1M173.2 138.3L99 152.1M208.6 138.3L139.4 152.1M244.1 138.3L179.9 152.1M279.5 138.3L220.3 152.1M315 138.3L260.8 152.1M350.5 138.3L301.2 152.1M385.9 138.3L341.7 152.1M421.4 138.3L382.1 152.1M456.8 138.3L422.6 152.1M492.3 138.3L463.1 152.1M527.8 138.3L503.5 152.1M563.2 138.3L544 152.1M598.7 138.3L584.4 152.1M634.1 138.3L624.9 152.1M669.6 138.3L665.3 152.1M705.1 138.3L705.8 152.1M740.5 138.3L746.2 152.1M776 138.3L786.7 152.1M811.4 138.3L827.1 152.1M846.9 138.3L867.6 152.1M882.4 138.3L908.1 152.1M917.8 138.3L948.5 152.1M953.3 138.3L989 152.1M988.7 138.3L1029.4 152.1M1024.2 138.3L1069.9 152.1M1059.7 138.3L1110.3 152.1M1095.1 138.3L1150.8 152.1M1130.6 138.3L1191.2 152.1M1166 138.3L1231.7 152.1M1201.5 138.3L1272.1 152.1M1237 138.3L1312.6 152.1M1272.4 138.3L1353.1 152.1M-167.6 145.2L1350.7 145.2\" stroke=\"#9CC0E3\" stroke-width=\"0.8\" opacity=\"0.5\"/><path d=\"M-110.5 138.3L1307.9 138.3\" stroke=\"#D9E8F5\" stroke-width=\"1.2\" opacity=\".75\"/><path d=\"M-260.7 156.5L1420.5 156.5L1522 172.9L-396.1 172.9Z\" fill=\"url(#bPnl)\"/><path d=\"M-218.7 156.5L-348.1 172.9M-176.7 156.5L-300.1 172.9M-134.6 156.5L-252.2 172.9M-92.6 156.5L-204.2 172.9M-50.6 156.5L-156.3 172.9M-8.5 156.5L-108.3 172.9M33.5 156.5L-60.4 172.9M75.5 156.5L-12.4 172.9M117.6 156.5L35.5 172.9M159.6 156.5L83.5 172.9M201.6 156.5L131.4 172.9M243.7 156.5L179.4 172.9M285.7 156.5L227.3 172.9M327.7 156.5L275.3 172.9M369.7 156.5L323.2 172.9M411.8 156.5L371.2 172.9M453.8 156.5L419.1 172.9M495.8 156.5L467.1 172.9M537.9 156.5L515 172.9M579.9 156.5L563 172.9M621.9 156.5L610.9 172.9M664 156.5L658.9 172.9M706 156.5L706.9 172.9M748 156.5L754.8 172.9M790.1 156.5L802.8 172.9M832.1 156.5L850.7 172.9M874.1 156.5L898.7 172.9M916.2 156.5L946.6 172.9M958.2 156.5L994.6 172.9M1000.2 156.5L1042.5 172.9M1042.3 156.5L1090.5 172.9M1084.3 156.5L1138.4 172.9M1126.3 156.5L1186.4 172.9M1168.4 156.5L1234.3 172.9M1210.4 156.5L1282.3 172.9M1252.4 156.5L1330.2 172.9M1294.5 156.5L1378.2 172.9M1336.5 156.5L1426.1 172.9M1378.5 156.5L1474.1 172.9M-328.4 164.7L1471.3 164.7\" stroke=\"#9CC0E3\" stroke-width=\"0.9\" opacity=\"0.5\"/><path d=\"M-260.7 156.5L1420.5 156.5\" stroke=\"#D9E8F5\" stroke-width=\"1.4\" opacity=\".75\"/><path d=\"M-438.8 178.1L1554.1 178.1L1674.4 197.5L-599.2 197.5Z\" fill=\"url(#bPnl)\"/><path d=\"M-389 178.1L-542.3 197.5M-339.1 178.1L-485.5 197.5M-289.3 178.1L-428.7 197.5M-239.5 178.1L-371.8 197.5M-189.7 178.1L-315 197.5M-139.9 178.1L-258.1 197.5M-90 178.1L-201.3 197.5M-40.2 178.1L-144.5 197.5M9.6 178.1L-87.6 197.5M59.4 178.1L-30.8 197.5M109.3 178.1L26 197.5M159.1 178.1L82.9 197.5M208.9 178.1L139.7 197.5M258.7 178.1L196.6 197.5M308.5 178.1L253.4 197.5M358.4 178.1L310.2 197.5M408.2 178.1L367.1 197.5M458 178.1L423.9 197.5M507.8 178.1L480.8 197.5M557.7 178.1L537.6 197.5M607.5 178.1L594.4 197.5M657.3 178.1L651.3 197.5M707.1 178.1L708.1 197.5M756.9 178.1L765 197.5M806.8 178.1L821.8 197.5M856.6 178.1L878.6 197.5M906.4 178.1L935.5 197.5M956.2 178.1L992.3 197.5M1006 178.1L1049.2 197.5M1055.9 178.1L1106 197.5M1105.7 178.1L1162.8 197.5M1155.5 178.1L1219.7 197.5M1205.3 178.1L1276.5 197.5M1255.2 178.1L1333.4 197.5M1305 178.1L1390.2 197.5M1354.8 178.1L1447 197.5M1404.6 178.1L1503.9 197.5M1454.4 178.1L1560.7 197.5M1504.3 178.1L1617.5 197.5M-519 187.8L1614.2 187.8\" stroke=\"#9CC0E3\" stroke-width=\"1.1\" opacity=\"0.5\"/><path d=\"M-438.8 178.1L1554.1 178.1\" stroke=\"#D9E8F5\" stroke-width=\"1.4\" opacity=\".75\"/><path d=\"M-649.8 203.7L1712.4 203.7L1855 226.7L-840 226.7Z\" fill=\"url(#bPnl)\"/><path d=\"M-590.8 203.7L-772.6 226.7M-531.7 203.7L-705.2 226.7M-472.7 203.7L-637.8 226.7M-413.6 203.7L-570.5 226.7M-354.6 203.7L-503.1 226.7M-295.5 203.7L-435.7 226.7M-236.4 203.7L-368.3 226.7M-177.4 203.7L-301 226.7M-118.3 203.7L-233.6 226.7M-59.3 203.7L-166.2 226.7M-0.2 203.7L-98.9 226.7M58.8 203.7L-31.5 226.7M117.9 203.7L35.9 226.7M176.9 203.7L103.3 226.7M236 203.7L170.6 226.7M295 203.7L238 226.7M354.1 203.7L305.4 226.7M413.2 203.7L372.8 226.7M472.2 203.7L440.1 226.7M531.3 203.7L507.5 226.7M590.3 203.7L574.9 226.7M649.4 203.7L642.3 226.7M708.4 203.7L709.6 226.7M767.5 203.7L777 226.7M826.5 203.7L844.4 226.7M885.6 203.7L911.7 226.7M944.7 203.7L979.1 226.7M1003.7 203.7L1046.5 226.7M1062.8 203.7L1113.9 226.7M1121.8 203.7L1181.2 226.7M1180.9 203.7L1248.6 226.7M1239.9 203.7L1316 226.7M1299 203.7L1383.4 226.7M1358 203.7L1450.7 226.7M1417.1 203.7L1518.1 226.7M1476.2 203.7L1585.5 226.7M1535.2 203.7L1652.9 226.7M1594.3 203.7L1720.2 226.7M1653.3 203.7L1787.6 226.7M-744.9 215.2L1783.7 215.2\" stroke=\"#9CC0E3\" stroke-width=\"1.1\" opacity=\"0.5\"/><path d=\"M-649.8 203.7L1712.4 203.7\" stroke=\"#D9E8F5\" stroke-width=\"1.4\" opacity=\".75\"/><rect width=\"1000\" height=\"230\" fill=\"url(#bRef)\" style=\"mix-blend-mode:screen\"/></svg>";
 
@@ -986,19 +997,22 @@ async function sbReqLoad(){
       {headers:{apikey:state.sb.key,Authorization:'Bearer '+state.sb.key}});
     if(!r.ok) throw new Error(r.status);
     reqs=(await r.json()).map(x=>({id:x.id,a:x.app_id,u:x.user_name,d:x.dept||'',
-      type:x.req_type,text:x.body,t:new Date(x.created_at).getTime(),st:x.state}))
+      type:x.req_type,text:x.body,t:new Date(x.created_at).getTime(),st:x.state,
+      task:x.chatwork_task_id||null,doneBy:x.done_by||'',
+      doneAt:x.done_at?new Date(x.done_at).getTime():null}))
       .sort((p,q)=>p.t-q.t);
     return true;
   }catch(e){ return false; }
 }
 async function sbReqInsert(r){
   try{await fetch(sbBase()+'app_requests',{method:'POST',headers:sbHeaders(),
-    body:JSON.stringify({id:r.id,app_id:r.a,user_name:r.u,dept:r.d,req_type:r.type,body:r.text,state:r.st})});
+    body:JSON.stringify({id:r.id,app_id:r.a,user_name:r.u,dept:r.d,req_type:r.type,body:r.text,
+      state:r.st,chatwork_task_id:r.task||null})});
     return true;}catch(e){return false;}
 }
-async function sbReqUpdate(id,st){
+async function sbReqUpdate(id,patch){
   try{await fetch(sbBase()+'app_requests?id=eq.'+encodeURIComponent(id),{method:'PATCH',
-    headers:sbHeaders(),body:JSON.stringify({state:st})}); return true;}catch(e){return false;}
+    headers:sbHeaders(),body:JSON.stringify(patch)}); return true;}catch(e){return false;}
 }
 async function sbReqDelete(id){
   try{await fetch(sbBase()+'app_requests?id=eq.'+encodeURIComponent(id),{method:'DELETE',
@@ -1052,8 +1066,15 @@ create table if not exists app_requests (
   req_type   text,
   body       text,
   state      text default '未対応',
+  chatwork_task_id bigint,
+  done_at    timestamptz,
+  done_by    text,
   created_at timestamptz not null default now()
 );
+-- 既存テーブルがある場合はこの3行だけ実行してください
+alter table app_requests add column if not exists chatwork_task_id bigint;
+alter table app_requests add column if not exists done_at timestamptz;
+alter table app_requests add column if not exists done_by text;
 
 alter table app_usage         enable row level security;
 alter table app_portal_config enable row level security;
@@ -1166,8 +1187,13 @@ function openRequest(id){
 async function sendRequest(id){
   const text=document.getElementById('rqText').value.trim();
   if(!text){toast('内容を入れてください');return;}
+  const a=appById(id);
   const rec={id:'r'+Date.now(),a:id,u:me.name,d:me.dept||'',
-             type:document.getElementById('rqType').value,text,t:Date.now(),st:'未対応'};
+             type:document.getElementById('rqType').value,text,t:Date.now(),st:'未対応',
+             task:null,doneBy:'',doneAt:null};
+  const cw=await cwNotify({action:'new',app:a?a.name:id,kind:rec.type,
+                           content:text,requester:rec.u,dept:rec.d});
+  if(cw&&cw.task_id) rec.task=cw.task_id;
   if(state.sb.on&&sbLive){ await sbReqInsert(rec); reqs.push(rec); }
   else{
     try{const r=await store.get(KEY_REQ,true);
@@ -1176,11 +1202,25 @@ async function sendRequest(id){
   }
   closeModal(); render(); toast('送りました。ありがとうございます');
 }
-function cycleReq(rid){
-  const r=reqs.find(x=>x.id===rid);
-  r.st=REQ_STATES[(REQ_STATES.indexOf(r.st)+1)%REQ_STATES.length];
-  if(state.sb.on&&sbLive) sbReqUpdate(rid,r.st); else saveReqs();
+async function doneReq(rid){
+  const r=reqs.find(x=>x.id===rid); if(!r) return;
+  if(!confirm('この要望を完了にします。Chatworkのタスクも完了になります。よろしいですか？')) return;
+  const a=appById(r.a);
+  r.st='完了'; r.doneAt=Date.now(); r.doneBy=me.name||'';
   render();
+  await cwNotify({action:'done',task_id:r.task||null,app:a?a.name:r.a,
+                  content:r.text,done_by:r.doneBy});
+  if(state.sb.on&&sbLive) await sbReqUpdate(rid,{state:'完了',
+      done_at:new Date(r.doneAt).toISOString(),done_by:r.doneBy});
+  else await saveReqs();
+  render(); toast('完了にしました');
+}
+async function reopenReq(rid){
+  const r=reqs.find(x=>x.id===rid); if(!r) return;
+  r.st='未対応'; r.doneAt=null; r.doneBy='';
+  if(state.sb.on&&sbLive) await sbReqUpdate(rid,{state:'未対応',done_at:null,done_by:null});
+  else await saveReqs();
+  render(); toast('未対応に戻しました');
 }
 function delReq(rid){
   if(!confirm('この要望を削除します。よろしいですか？')) return;
@@ -1685,9 +1725,13 @@ function renderAdmin(s,mo){
       <td style="max-width:380px">${esc(r.text)}</td>
       <td style="white-space:nowrap">${esc(r.u)}${r.d?'<br><span style="font-size:10.5px;color:var(--muted)">'+esc(r.d)+'</span>':''}
         <div style="font-size:10.5px;color:var(--muted)">${ago(r.t)}</div></td>
-      <td><button class="badge ${r.st==='未対応'?'req':(r.st==='対応中'?'doing':'done')}" onclick="cycleReq('${r.id}')"
-          title="押すと状態が変わります">${r.st}</button></td>
-      <td style="text-align:right"><button class="btn ghost sm" onclick="delReq('${r.id}')">削除</button></td>
+      <td><span class="badge ${r.st==='完了'?'done':'req'}">${r.st}</span>
+        ${r.st==='完了'&&r.doneBy?`<div style="font-size:10.5px;color:var(--muted);margin-top:3px">${esc(r.doneBy)}</div>`:''}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${r.st==='完了'
+          ?(unlocked?`<button class="btn ghost sm" onclick="reopenReq('${r.id}')">戻す</button>`:'')
+          :`<button class="btn sm" onclick="doneReq('${r.id}')">完了</button>`}
+        ${unlocked?`<button class="btn ghost sm" onclick="delReq('${r.id}')">削除</button>`:''}</td>
     </tr>`).join('')}</tbody></table></div>`
     :'<div class="empty"><b>要望はありません</b>社員がカードの「要望を出す」から送るとここに集まります。</div>';
 
