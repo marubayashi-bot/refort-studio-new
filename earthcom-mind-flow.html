@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="4.7.0">
+<meta name="app-version" content="5.0.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -542,7 +542,9 @@ table.mcal th{font-size:11.5px;color:var(--ink2);padding:6px;border-bottom:1px s
 const CONFIG = {
   AI_ENDPOINT: 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   AI_KEY: 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
-  KEY: 'ecmf.db.v1'
+  KEY: 'ecmf.db.v1',
+  SB_URL: 'https://aakofrzurgwrkctunthw.supabase.co',
+  SB_KEY: 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa'
 };
 
 /* ---------- 基本ユーティリティ ---------- */
@@ -630,7 +632,7 @@ const Store = {
   _t: null,
   save(now) {
     clearTimeout(this._t);
-    const run = () => { try { LS.set(CONFIG.KEY, JSON.stringify(this.db)); setSaved(); } catch (e) { toast('保存できませんでした: ' + e.message, 'err'); } };
+    const run = () => { try { LS.set(CONFIG.KEY, JSON.stringify(this.db)); setSaved(); if (typeof cloudSchedule === 'function') cloudSchedule(); } catch (e) { toast('保存できませんでした: ' + e.message, 'err'); } };
     now ? run() : (this._t = setTimeout(run, 400));
   },
   log(action, target) {
@@ -927,7 +929,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v4.7.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.0.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2230,6 +2232,16 @@ function viewSettings() {
   const logs = DB.sync_logs.slice(0, 8);
   $('#view').innerHTML =
     '<div class="grid g2"><div>' +
+      '<div class="sec-h"><h3>クラウド保存（複数端末で共有）</h3></div>' +
+      '<div class="card pad" style="margin-bottom:12px">' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<span id="cloudState" class="chip ' + (DB.settings.cloud ? 'green' : 'grey') + '">' +
+            (DB.settings.cloud ? (DB.settings.cloudAt ? 'クラウド同期済み ' + DB.settings.cloudAt.slice(11, 16) : '有効') : 'この端末だけに保存') + '</span>' +
+          '<span class="small muted">' + (DB.settings.cloud ? '端末名: ' + esc(deviceName()) + ' ／ 版' + (DB.settings.cloudRev || 0) : 'PC・スマホで同じデータを使うには有効にしてください') + '</span></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' +
+          '<button class="btn sm pri" onclick="cloudDialog()">クラウド設定</button>' +
+          '<button class="btn sm" onclick="cloudPush(false)">クラウドへ保存</button>' +
+          '<button class="btn sm" onclick="cloudPull()">クラウドから読み込む</button></div></div>' +
       '<div class="sec-h"><h3>GAS中継の設定</h3></div>' +
       '<div class="card pad" style="margin-bottom:12px">' +
         '<div class="small muted" style="margin-bottom:10px">Google Apps Scriptをウェブアプリとしてデプロイし、発行された /exec で終わるURLを貼ってください。合言葉はGAS内の SECRET と同じ文字列にします。</div>' +
@@ -2265,7 +2277,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v4.7.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v5.0.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -2280,7 +2292,7 @@ function viewSettings() {
         '<button class="btn sm" onclick="importJSON()">データを読み込む</button>' +
         '<button class="btn sm danger" onclick="resetAll()">サンプルに戻す</button>' +
         '<button class="btn sm" onclick="Auth.signOut()">ログアウト</button></div>' +
-        '<div class="small muted" style="margin-top:10px">保存先: ' + (LS.ok ? 'この端末のブラウザ内（自動保存）' : 'メモリ上のみ（このプレビューでは端末保存が使えません）') + '</div>' +
+        '<div class="small muted" style="margin-top:10px">保存先: ' + (DB.settings.cloud ? 'クラウド（Supabase）＋この端末' : (LS.ok ? 'この端末のブラウザ内（自動保存）' : 'メモリ上のみ')) + '</div>' +
       '</div>' +
     '</div></div>';
 }
@@ -5393,6 +5405,158 @@ async function aiImprove() {
 }
 
 /* =========================================================================
+   クラウド保存（Supabase） — 複数端末で同じデータを使う
+   1行のキーバリューに全体を保存し、rev（版番号）で上書き事故を防ぐ
+   ========================================================================= */
+const Cloud = {
+  url() { return (DB.settings.sb_url || CONFIG.SB_URL || '').replace(/\/+$/, ''); },
+  key() { return DB.settings.sb_key || CONFIG.SB_KEY || ''; },
+  table() { return DB.settings.sb_table || 'mindflow'; },
+  rowKey() { return 'db:' + (((DB.user || {}).email) || 'default'); },
+  ready() { return !!(this.url() && this.key()); },
+  enabled() { return !!DB.settings.cloud && this.ready(); },
+  headers(extra) {
+    return Object.assign({ apikey: this.key(), Authorization: 'Bearer ' + this.key(), 'Content-Type': 'application/json' }, extra || {});
+  },
+  async get() {
+    const r = await fetch(this.url() + '/rest/v1/' + this.table() + '?key=eq.' + encodeURIComponent(this.rowKey()) + '&select=key,value,updated_at',
+      { headers: this.headers() });
+    if (!r.ok) throw new Error('読み込みエラー (' + r.status + ')');
+    const rows = await r.json();
+    return rows && rows[0] ? rows[0].value : null;
+  },
+  async put(payload) {
+    const r = await fetch(this.url() + '/rest/v1/' + this.table(),
+      { method: 'POST', headers: this.headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify([{ key: this.rowKey(), value: payload, updated_at: new Date().toISOString() }]) });
+    if (!r.ok) { const t = await r.text(); throw new Error('保存エラー (' + r.status + ') ' + t.slice(0, 120)); }
+    return true;
+  }
+};
+function deviceId() {
+  if (!DB.settings.deviceId) { DB.settings.deviceId = uid(); Store.save(); }
+  return DB.settings.deviceId;
+}
+function deviceName() { return DB.settings.deviceName || (isMobile() ? 'スマホ' : 'PC'); }
+function cloudSnapshot() {
+  const d = JSON.parse(JSON.stringify(DB));
+  delete d.settings.sb_key;                    /* 鍵は端末ごとに持つ */
+  return d;
+}
+function setCloudState(t, cls) {
+  const el = $('#cloudState'); if (el) { el.textContent = t; el.className = 'chip ' + (cls || ''); }
+}
+let _cloudTimer = null, _cloudBusy = false;
+function cloudSchedule() {
+  if (!Cloud.enabled()) return;
+  clearTimeout(_cloudTimer);
+  _cloudTimer = setTimeout(() => cloudPush(), 4000);
+}
+async function cloudPush(force, silent) {
+  if (!Cloud.enabled() || _cloudBusy) return;
+  _cloudBusy = true; setCloudState('クラウドへ保存中…', 'blue');
+  try {
+    const remote = await Cloud.get();
+    const myRev = +DB.settings.cloudRev || 0;
+    if (remote && (+remote.rev || 0) > myRev && !force) {
+      _cloudBusy = false; setCloudState('要確認', 'orange');
+      cloudConflict(remote); return;
+    }
+    const rev = (remote ? (+remote.rev || 0) : 0) + 1;
+    await Cloud.put({ rev: rev, at: new Date().toISOString(), device: deviceId(), device_name: deviceName(), db: cloudSnapshot() });
+    DB.settings.cloudRev = rev; DB.settings.cloudAt = new Date().toISOString();
+    Store.save(true); setCloudState('クラウド同期済み ' + new Date().toTimeString().slice(0, 5), 'green');
+    if (!silent) toast('クラウドに保存しました');
+  } catch (e) {
+    setCloudState('同期エラー', 'red');
+    if (!silent) toast('クラウド保存に失敗: ' + e.message, 'err');
+  }
+  _cloudBusy = false;
+}
+async function cloudPull(silent) {
+  if (!Cloud.enabled()) return;
+  setCloudState('クラウドから取得中…', 'blue');
+  try {
+    const remote = await Cloud.get();
+    if (!remote || !remote.db) { setCloudState('クラウドは空です', 'grey'); if (!silent) toast('クラウドにデータがありません。先に「クラウドへ保存」してください'); return; }
+    const myRev = +DB.settings.cloudRev || 0;
+    if ((+remote.rev || 0) <= myRev) { setCloudState('最新です', 'green'); if (!silent) toast('すでに最新です'); return; }
+    cloudApply(remote, silent);
+  } catch (e) { setCloudState('同期エラー', 'red'); if (!silent) toast('取得に失敗: ' + e.message, 'err'); }
+}
+function cloudApply(remote, silent) {
+  /* クラウド接続情報と端末名だけはこの端末のものを残す。
+     GASのURLと合言葉は共有したいので、クラウド側にあればそれを使う。 */
+  const keep = { sb_url: DB.settings.sb_url, sb_key: DB.settings.sb_key, sb_table: DB.settings.sb_table,
+    cloud: DB.settings.cloud, deviceId: DB.settings.deviceId, deviceName: DB.settings.deviceName };
+  const next = remote.db;
+  next.settings = Object.assign({}, next.settings, keep);
+  if (!next.settings.gas_url && DB.settings.gas_url) { next.settings.gas_url = DB.settings.gas_url; next.settings.gas_secret = DB.settings.gas_secret; }
+  next.settings.cloudRev = +remote.rev || 0; next.settings.cloudAt = remote.at || new Date().toISOString();
+  Store.db = next; DB = next; Store.save(true);
+  setCloudState('クラウド同期済み ' + new Date().toTimeString().slice(0, 5), 'green');
+  render();
+  if (!silent) toast('クラウドの内容を読み込みました（' + (remote.device_name || '他の端末') + 'の更新）');
+}
+function cloudConflict(remote) {
+  const rAt = (remote.at || '').slice(5, 16).replace('T', ' ');
+  openModal('クラウド側が新しくなっています',
+    '<div class="small muted" style="margin-bottom:10px">他の端末で更新されています。どちらを残すか選んでください。勝手な上書きはしません。</div>' +
+    '<div class="grid g2">' +
+      '<div class="card pad"><div class="small muted">この端末（' + esc(deviceName()) + '）</div>' +
+        '<div class="small">予定 ' + DB.calendar_events.length + '件 ／ タスク ' + DB.tasks.length + '件 ／ 案件 ' + (DB.opportunities || []).length + '件</div>' +
+        '<div class="small muted">版 ' + (DB.settings.cloudRev || 0) + '</div></div>' +
+      '<div class="card pad"><div class="small muted">クラウド（' + esc(remote.device_name || '他の端末') + ' ' + rAt + '）</div>' +
+        '<div class="small">予定 ' + ((remote.db.calendar_events || []).length) + '件 ／ タスク ' + ((remote.db.tasks || []).length) + '件 ／ 案件 ' + ((remote.db.opportunities || []).length) + '件</div>' +
+        '<div class="small muted">版 ' + (remote.rev || 0) + '</div></div></div>',
+    [{ label: 'クラウドを使う（この端末を置き換え）', cls: 'pri', fn: () => { closeModal(); cloudApply(remote); } },
+     { label: 'この端末を優先して上書き', cls: 'danger', fn: () => { closeModal(); cloudPush(true); } },
+     { label: 'あとで', fn: closeModal }]);
+}
+function cloudDialog() {
+  const on = !!DB.settings.cloud;
+  openModal('クラウド保存（複数端末で共有）',
+    '<div class="small muted" style="margin-bottom:10px">同じURLと鍵を各端末に入れると、PC・スマホ・タブレットで同じデータを見られます。保存は自動で、内容が変わってから数秒後にクラウドへ送ります。</div>' +
+    '<div class="field"><label>クラウド保存</label><select id="clOn"><option value="1"' + (on ? ' selected' : '') + '>使う</option><option value="0"' + (!on ? ' selected' : '') + '>使わない（この端末だけ）</option></select></div>' +
+    '<div class="field"><label>Supabase URL</label><input id="clU" value="' + esc(DB.settings.sb_url || CONFIG.SB_URL) + '"></div>' +
+    '<div class="field"><label>公開キー（anon / publishable）</label><input id="clK" value="' + esc(DB.settings.sb_key || CONFIG.SB_KEY) + '"></div>' +
+    '<div class="row"><div class="field"><label>テーブル名</label><input id="clT" value="' + esc(DB.settings.sb_table || 'mindflow') + '"></div>' +
+      '<div class="field"><label>この端末の名前</label><input id="clN" value="' + esc(deviceName()) + '" placeholder="PC / iPad / スマホ"></div></div>' +
+    '<div class="small muted" style="margin-top:6px">GASのURLと合言葉、カレンダー選択、期間設定もクラウド経由で他の端末へ引き継がれます。</div>' +
+    '<div class="small muted">保存キー: ' + esc(Cloud.rowKey()) + '（ログイン中のメールアドレス単位）' +
+      (DB.settings.cloudAt ? ' ／ 最終同期 ' + DB.settings.cloudAt.slice(5, 16).replace('T', ' ') + '（版' + (DB.settings.cloudRev || 0) + '）' : '') + '</div>' +
+    '<div class="sec-h" style="margin-top:14px"><h3>初回だけ必要な準備</h3></div>' +
+    '<div class="small muted">SupabaseのSQL Editorで次を1回実行してください。</div>' +
+    '<textarea readonly style="width:100%;min-height:120px;font-size:11px;margin-top:6px">' + esc(CLOUD_SQL) + '</textarea>',
+    [{ label: '保存して接続テスト', cls: 'pri', fn: async () => {
+        DB.settings.cloud = $('#clOn').value === '1';
+        DB.settings.sb_url = $('#clU').value.trim(); DB.settings.sb_key = $('#clK').value.trim();
+        DB.settings.sb_table = $('#clT').value.trim() || 'mindflow'; DB.settings.deviceName = $('#clN').value.trim();
+        Store.save(true);
+        if (!DB.settings.cloud) { closeModal(); render(); toast('この端末だけで保存します'); return; }
+        if (!Cloud.ready()) return toast('URLと公開キーを入れてください', 'err');
+        toast('接続を確認しています…');
+        try {
+          const r = await Cloud.get();
+          closeModal(); render();
+          if (r && r.db) {
+            openModal('クラウドにデータがあります',
+              '<div class="small">' + esc(r.device_name || '他の端末') + ' が ' + (r.at || '').slice(5, 16).replace('T', ' ') + ' に保存した版' + (r.rev || 0) + 'があります。</div>' +
+              '<div class="small muted" style="margin-top:8px">この端末の内容と入れ替えますか？</div>',
+              [{ label: 'クラウドを取り込む', cls: 'pri', fn: () => { closeModal(); cloudApply(r); } },
+               { label: 'この端末の内容をクラウドへ', fn: () => { closeModal(); cloudPush(true); } },
+               { label: 'あとで', fn: closeModal }]);
+          } else { toast('接続できました。この端末の内容をクラウドへ保存します'); cloudPush(true); }
+        } catch (e) { toast('接続できません: ' + e.message, 'err'); }
+      } },
+     { label: '閉じる', fn: closeModal }]);
+}
+const CLOUD_SQL = 'create table if not exists public.mindflow (\n' +
+  '  key text primary key,\n  value jsonb not null,\n  updated_at timestamptz default now()\n);\n' +
+  'alter table public.mindflow enable row level security;\n' +
+  'create policy "mindflow rw" on public.mindflow for all using (true) with check (true);';
+
+/* =========================================================================
    仕分けナビ（GTDワークフロー・ナビゲーション）
    これは何か？→行動を起こすべきか？→次にとるべき行動は？…を順に案内する
    ========================================================================= */
@@ -5633,6 +5797,8 @@ function openMapFab() {
 
 function start() {
   const lg = $('#login'), sh = $('#shell');
+  setTimeout(() => { if (Cloud.enabled()) cloudPull(true); }, 400);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Cloud.enabled()) cloudPull(true); });
   lg.hidden = true; lg.style.display = 'none';
   sh.hidden = false; sh.style.display = 'flex';
   if (!location.hash) location.hash = '#/home';
