@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.0.1">
+<meta name="app-version" content="5.1.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -929,7 +929,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.0.1</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.1.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2278,7 +2278,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v5.0.1</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v5.1.0</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -3649,7 +3649,7 @@ function importDialog() {
   from = DB.capacity.importFrom || from; to = DB.capacity.importTo || to;
   if (to < today()) { from = today(); to = addDays(today(), 60); }
   openModal('Googleの予定を取り込む',
-    '<div class="small muted" style="margin-bottom:10px">いつからいつまでの予定を取り込むか指定します。新しいGASなら期間をまとめて1回で取得するので、長い期間でもすぐ終わります。</div>' +
+    '<div class="small muted" style="margin-bottom:10px">21日ごとに分割して取得します。2回目以降は「変更された予定だけ」を選ぶと数秒で終わります。</div>' +
     '<div class="row"><div class="field"><label>開始日</label><input id="imF" type="date" value="' + from + '"></div>' +
       '<div class="field"><label>終了日</label><input id="imT" type="date" value="' + to + '"></div></div>' +
     '<div class="field"><label>よく使う範囲</label><div style="display:flex;gap:6px;flex-wrap:wrap">' +
@@ -3659,8 +3659,15 @@ function importDialog() {
       '<button class="btn sm" onclick="imPreset(\'next90\')">今日から90日</button>' +
       '<button class="btn sm" onclick="imPreset(\'around\')">前後1か月</button>' +
       '<button class="btn sm" onclick="imPreset(\'quarter\')">今四半期</button></div></div>' +
+    '<div class="field"><label>取り込み方法</label><select id="imMode">' +
+      '<option value="diff"' + (DB.capacity.lastPullAt ? ' selected' : '') + '>前回以降に変更された予定だけ（速い）</option>' +
+      '<option value="full"' + (DB.capacity.lastPullAt ? '' : ' selected') + '>この期間をすべて取り込む（初回・入れ直し）</option></select>' +
+      (DB.capacity.lastPullAt ? '<div class="small muted" style="margin-top:4px">前回の取得: ' + DB.capacity.lastPullAt.slice(5, 16).replace('T', ' ') + '</div>' : '') + '</div>' +
     '<div id="imProg"></div>',
-    [{ label: 'この期間を取り込む', cls: 'pri', fn: () => pullRange($('#imF').value, $('#imT').value) }]);
+    [{ label: 'この期間を取り込む', cls: 'pri', fn: () => {
+        const full = $('#imMode').value === 'full';
+        pullRange($('#imF').value, $('#imT').value, false, { full: full, updatedMin: full ? '' : (DB.capacity.lastPullAt || '') });
+      } }]);
 }
 function imPreset(k) {
   const t = today(); let f = t, to = t;
@@ -3672,17 +3679,18 @@ function imPreset(k) {
   if (k === 'quarter') { const fi = fiscalOf(t), ms = quarterMonths(fi.fy, fi.q); f = ms[0] + '-01'; to = monthDays(ms[2]).slice(-1)[0]; }
   $('#imF').value = f; $('#imT').value = to;
 }
-async function pullRange(from, to, silent) {
+async function pullRange(from, to, silent, opts) {
   if (!Gas.ready()) { closeModal(); toast('GASのURLが未設定です', 'err'); go('settings'); return { added: 0, updated: 0, err: 1 }; }
   if (!from || !to || to < from) { toast('期間を正しく指定してください', 'err'); return { added: 0, updated: 0, err: 1 }; }
+  opts = opts || {};
   const cals = DB.capacity.calendars || [];
-  let added = 0, updated = 0, err = 0;
+  const updatedMin = opts.full ? '' : (opts.updatedMin || '');
+  let added = 0, updated = 0, err = 0, fallback = false;
   const prog = m => { const el = $('#imProg'); if (el) el.innerHTML = '<div class="load">' + m + '</div>'; };
   const take = g => {
-    /* 繰り返し予定は全回が同じIDのため、日付も合わせて判定する */
     const ex = DB.calendar_events.find(x => x.google_event_id === g.id && dOf(x.start) === dOf(g.start));
     if (ex) {
-      if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title) {
+      if (ex.start !== g.start || ex.end !== g.end || ex.title !== g.title || (g.location || '') !== (ex.location || '')) {
         if (ex.source === 'google') { ex.title = g.title; ex.start = g.start; ex.end = g.end; ex.location = g.location || ''; }
         else { ex.sync_status = 'gchanged'; ex.google_snapshot = g; }
         updated++;
@@ -3695,32 +3703,42 @@ async function pullRange(from, to, silent) {
       purpose: '', allDay: !!g.allDay, gcal_name: g.calendar || '', last_synced_at: new Date().toISOString() }));
     added++;
   };
-  prog(fmtDate(from) + '〜' + fmtDate(to) + ' を取得しています…');
-  try {
-    /* ① 期間まとめて1回で取得（新しいGAS） */
-    const r = await Gas.call('listEvents', { from: from, to: to, calendarIds: cals });
-    if (r.range) {
-      (r.events || []).forEach(take);
-    } else {
-      throw new Error('range-unsupported');
+  /* 21日ごとに分割して取得（1回の応答を小さく保つ） */
+  const chunks = [];
+  for (let s0 = from; s0 <= to;) {
+    const e0 = addDays(s0, 20) > to ? to : addDays(s0, 20);
+    chunks.push([s0, e0]); s0 = addDays(e0, 1);
+    if (chunks.length > 40) break;
+  }
+  const t0 = Date.now();
+  for (let i = 0; i < chunks.length; i++) {
+    const [cf, ct] = chunks[i];
+    prog((updatedMin ? '変更分のみ ' : '') + (i + 1) + ' / ' + chunks.length + ' 区間（' + fmtDate(cf) + '〜' + fmtDate(ct) + '）… 追加' + added + '件');
+    try {
+      const r = await Gas.call('listEvents', { from: cf, to: ct, calendarIds: cals, updatedMin: updatedMin });
+      if (r.range) { (r.events || []).forEach(take); }
+      else throw new Error('range-unsupported');
+    } catch (e1) {
+      fallback = true;
+      const days = [];
+      for (let d = cf; d <= ct; d = addDays(d, 1)) days.push(d);
+      for (const d of days) {
+        try { const r2 = await Gas.call('listEvents', { date: d, calendarIds: cals }); (r2.events || []).forEach(take); }
+        catch (e2) { err++; }
+      }
     }
-  } catch (e1) {
-    /* ② 旧GASの場合は日ごとに取得（時間がかかるので90日まで） */
-    const days = [];
-    for (let d = from; d <= to && days.length < 90; d = addDays(d, 1)) days.push(d);
-    prog('お使いのGASは期間取得に未対応です。1日ずつ取得しています（' + days.length + '日）…');
-    let i = 0;
-    for (const d of days) {
-      i++;
-      try { const r2 = await Gas.call('listEvents', { date: d, calendarIds: cals }); (r2.events || []).forEach(take); }
-      catch (e2) { err++; }
-      if (i % 5 === 0) { prog(i + ' / ' + days.length + '日を取得中… 追加' + added + '件'); Store.save(); }
-    }
+    if (i % 2 === 1) Store.save();
   }
   DB.capacity.lastSync = new Date().toISOString();
+  if (!err) DB.capacity.lastPullAt = new Date().toISOString();
   Store.save(true);
-  if (!silent) { closeModal(); render(); toast(fmtDate(from) + '〜' + fmtDate(to) + '：追加' + added + '件・更新' + updated + '件' + (err ? '・失敗' + err : '')); }
-  return { added: added, updated: updated, err: err };
+  const sec = Math.round((Date.now() - t0) / 100) / 10;
+  if (!silent) {
+    closeModal(); render();
+    toast(fmtDate(from) + '〜' + fmtDate(to) + '：追加' + added + '件・更新' + updated + '件（' + sec + '秒' +
+      (fallback ? '／GASが期間取得に未対応のため1日ずつ取得しました' : '') + '）');
+  }
+  return { added: added, updated: updated, err: err, fallback: fallback };
 }
 
 /* ---- ワンボタン同期：取り込み・送信・ToDo完了反映をまとめて実行 ---- */
@@ -3748,7 +3766,7 @@ async function syncNow(silent) {
       dOf(e.start) >= r.from && dOf(e.start) <= r.to);
     for (const e of outbox) { await syncEvent(e); (e.sync_status === 'synced' ? pushed++ : failed++); }
     /* ② Google → MIND FLOW */
-    const pull = await pullRange(r.from, r.to, true);
+    const pull = await pullRange(r.from, r.to, true, { updatedMin: DB.capacity.lastPullAt || '' });
     /* ③ Google ToDo の完了を取り込む */
     let doneN = 0;
     if (Integrations.connected('google_tasks')) {
@@ -3763,7 +3781,8 @@ async function syncNow(silent) {
     DB.capacity.lastSync = new Date().toISOString();
     Integrations.mark('google_calendar');
     Integrations.log('google_calendar', failed ? 'error' : 'sent',
-      '同期 ' + fmtDate(r.from) + '〜' + fmtDate(r.to) + '（送信' + pushed + '・取込' + pull.added + '・更新' + pull.updated + '・ToDo完了' + doneN + (failed ? '・失敗' + failed : '') + '）', '');
+      '同期 ' + fmtDate(r.from) + '〜' + fmtDate(r.to) + (DB.capacity.lastPullAt ? '（差分）' : '（全件）') +
+      '（送信' + pushed + '・取込' + pull.added + '・更新' + pull.updated + '・ToDo完了' + doneN + (failed ? '・失敗' + failed : '') + '）', '');
     Store.save(true); render();
     toast('同期しました：送信' + pushed + '件／取込' + pull.added + '件／更新' + pull.updated + '件' + (doneN ? '／ToDo完了' + doneN + '件' : ''));
   } catch (e) {
@@ -5447,11 +5466,24 @@ function cloudSnapshot() {
 function setCloudState(t, cls) {
   const el = $('#cloudState'); if (el) { el.textContent = t; el.className = 'chip ' + (cls || ''); }
 }
-let _cloudTimer = null, _cloudBusy = false;
+let _cloudTimer = null, _cloudBusy = false, _cloudSuppress = false, _cloudLast = '';
 function cloudSchedule() {
-  if (!Cloud.enabled()) return;
+  if (!Cloud.enabled() || _cloudSuppress) return;      /* 自分の保存で再スケジュールしない */
   clearTimeout(_cloudTimer);
-  _cloudTimer = setTimeout(() => cloudPush(), 4000);
+  _cloudTimer = setTimeout(() => cloudPush(false, true), 4000);   /* 自動送信は通知を出さない */
+}
+function cloudFingerprint() {
+  const d = DB;
+  return [d.maps, d.nodes, d.tasks, d.projects, d.calendar_events, d.opportunities, d.commitments,
+    d.owner_goals, d.period_goals, d.referrers, d.blockers, d.strategy, d.goals, d.ai_plans]
+    .map(x => (x ? JSON.stringify(x).length : 0)).join('-') + '|' +
+    [d.tasks, d.calendar_events].map(x => (x || []).map(y => y.updated_at || y.last_modified_at || '').sort().slice(-1)[0] || '').join('|') + '|' +
+    JSON.stringify(DB.settings.typeColors || {}).length;
+}
+function cloudSaveLocal() {                                /* クラウド送信の記録だけをローカルに書く */
+  _cloudSuppress = true;
+  Store.save(true);
+  setTimeout(() => { _cloudSuppress = false; }, 200);
 }
 function cloudGuard(silent) {
   if (Cloud.enabled()) return true;
@@ -5462,7 +5494,9 @@ function cloudGuard(silent) {
 }
 async function cloudPush(force, silent) {
   if (!cloudGuard(silent)) return;
-  if (_cloudBusy) { toast('同期中です。少し待ってからもう一度押してください'); return; }
+  if (_cloudBusy) { if (!silent) toast('同期中です。少し待ってからもう一度押してください'); return; }
+  const fp = cloudFingerprint();
+  if (silent && !force && fp === _cloudLast) return;      /* 変化がなければ送らない */
   _cloudBusy = true; setCloudState('クラウドへ保存中…', 'blue');
   try {
     const remote = await Cloud.get();
@@ -5474,7 +5508,8 @@ async function cloudPush(force, silent) {
     const rev = (remote ? (+remote.rev || 0) : 0) + 1;
     await Cloud.put({ rev: rev, at: new Date().toISOString(), device: deviceId(), device_name: deviceName(), db: cloudSnapshot() });
     DB.settings.cloudRev = rev; DB.settings.cloudAt = new Date().toISOString();
-    Store.save(true); setCloudState('クラウド同期済み ' + new Date().toTimeString().slice(0, 5), 'green');
+    _cloudLast = fp; cloudSaveLocal();
+    setCloudState('クラウド同期済み ' + new Date().toTimeString().slice(0, 5), 'green');
     if (!silent) toast('クラウドに保存しました');
   } catch (e) {
     setCloudState('同期エラー', 'red');
@@ -5502,7 +5537,7 @@ function cloudApply(remote, silent) {
   next.settings = Object.assign({}, next.settings, keep);
   if (!next.settings.gas_url && DB.settings.gas_url) { next.settings.gas_url = DB.settings.gas_url; next.settings.gas_secret = DB.settings.gas_secret; }
   next.settings.cloudRev = +remote.rev || 0; next.settings.cloudAt = remote.at || new Date().toISOString();
-  Store.db = next; DB = next; Store.save(true);
+  Store.db = next; DB = next; cloudSaveLocal(); _cloudLast = cloudFingerprint();
   setCloudState('クラウド同期済み ' + new Date().toTimeString().slice(0, 5), 'green');
   render();
   if (!silent) toast('クラウドの内容を読み込みました（' + (remote.device_name || '他の端末') + 'の更新）');
