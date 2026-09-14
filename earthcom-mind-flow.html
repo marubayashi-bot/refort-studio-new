@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.0.0">
+<meta name="app-version" content="5.0.1">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -929,7 +929,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.0.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.0.1</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -2238,10 +2238,11 @@ function viewSettings() {
           '<span id="cloudState" class="chip ' + (DB.settings.cloud ? 'green' : 'grey') + '">' +
             (DB.settings.cloud ? (DB.settings.cloudAt ? 'クラウド同期済み ' + DB.settings.cloudAt.slice(11, 16) : '有効') : 'この端末だけに保存') + '</span>' +
           '<span class="small muted">' + (DB.settings.cloud ? '端末名: ' + esc(deviceName()) + ' ／ 版' + (DB.settings.cloudRev || 0) : 'PC・スマホで同じデータを使うには有効にしてください') + '</span></div>' +
+        (DB.settings.cloud ? '' : '<div class="small muted" style="margin-top:8px">まず「クラウド設定」を開き、クラウド保存を「使う」にして接続テストしてください。そのあと下の2つが使えます。</div>') +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' +
           '<button class="btn sm pri" onclick="cloudDialog()">クラウド設定</button>' +
-          '<button class="btn sm" onclick="cloudPush(false)">クラウドへ保存</button>' +
-          '<button class="btn sm" onclick="cloudPull()">クラウドから読み込む</button></div></div>' +
+          '<button class="btn sm" onclick="cloudPush(false)"' + (DB.settings.cloud ? '' : ' style="opacity:.5"') + '>クラウドへ保存</button>' +
+          '<button class="btn sm" onclick="cloudPull()"' + (DB.settings.cloud ? '' : ' style="opacity:.5"') + '>クラウドから読み込む</button></div></div>' +
       '<div class="sec-h"><h3>GAS中継の設定</h3></div>' +
       '<div class="card pad" style="margin-bottom:12px">' +
         '<div class="small muted" style="margin-bottom:10px">Google Apps Scriptをウェブアプリとしてデプロイし、発行された /exec で終わるURLを貼ってください。合言葉はGAS内の SECRET と同じ文字列にします。</div>' +
@@ -2277,7 +2278,7 @@ function viewSettings() {
         '<img src="nm-icon-192.png" alt="" width="56" height="56" style="border-radius:16px;box-shadow:var(--shadow)">' +
         '<div style="flex:1"><div style="font-family:var(--font-en);font-weight:700;letter-spacing:.12em">MIND FLOW</div>' +
         '<div class="small" style="font-family:var(--font-en);letter-spacing:.14em;color:var(--gold)">PERSONAL STRATEGIC CALENDAR</div>' +
-        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v5.0.0</div>' +
+        '<div class="small muted" style="margin-top:4px">NOBUHIRO MARUBAYASHI ／ v5.0.1</div>' +
         '<div class="small muted">時間を管理するのではなく、未来を設計する。</div></div></div>' +
       '<div class="card pad" style="margin-bottom:12px"><div class="field" style="margin:0"><label>起動画面</label>' +
         '<select onchange="DB.settings.skipSplash=(this.value===\'1\');Store.save(true);toast(\'保存しました\')">' +
@@ -5452,8 +5453,16 @@ function cloudSchedule() {
   clearTimeout(_cloudTimer);
   _cloudTimer = setTimeout(() => cloudPush(), 4000);
 }
+function cloudGuard(silent) {
+  if (Cloud.enabled()) return true;
+  if (silent) return false;
+  if (!DB.settings.cloud) { toast('先に「クラウド設定」でクラウド保存を「使う」にしてください', 'err'); cloudDialog(); }
+  else if (!Cloud.ready()) { toast('SupabaseのURLと公開キーを入れてください', 'err'); cloudDialog(); }
+  return false;
+}
 async function cloudPush(force, silent) {
-  if (!Cloud.enabled() || _cloudBusy) return;
+  if (!cloudGuard(silent)) return;
+  if (_cloudBusy) { toast('同期中です。少し待ってからもう一度押してください'); return; }
   _cloudBusy = true; setCloudState('クラウドへ保存中…', 'blue');
   try {
     const remote = await Cloud.get();
@@ -5474,7 +5483,7 @@ async function cloudPush(force, silent) {
   _cloudBusy = false;
 }
 async function cloudPull(silent) {
-  if (!Cloud.enabled()) return;
+  if (!cloudGuard(silent)) return;
   setCloudState('クラウドから取得中…', 'blue');
   try {
     const remote = await Cloud.get();
