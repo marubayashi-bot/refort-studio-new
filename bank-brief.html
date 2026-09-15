@@ -393,7 +393,7 @@ async function extractDoc(d) {
   if (d.file.size > 25 * 1024 * 1024) throw new Error("PDFが大きすぎます（25MBまで）。必要なページだけにしてください");
   let text = "";
   try { text = await pdfText(d.file); } catch (e) { }
-  const raw = await callAI({ system: EXTRACT_SYSTEM, prompt: extractPrompt(d), pdfBase64: b64, pdfText: text, maxTokens: 2500 });
+  const raw = await callAI({ system: EXTRACT_SYSTEM, prompt: extractPrompt(d), pdfBase64: b64, pdfText: text, maxTokens: 8000 });
   const j = parseJSON(raw);
   if (!j || !j.pl) throw new Error("数値を読み取れませんでした。ページの向きや解像度を確認してください");
   d.pl = {}; d.bs = {};
@@ -433,18 +433,29 @@ async function callAI({ system, prompt, pdfBase64, pdfText, maxTokens }) {
 
   const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await getToken(), apikey: CONFIG.SB_KEY };
   // 1) PDFをそのまま渡す（Edge Functionを更新済みの場合）
-  let res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
-  let data = await res.json().catch(() => ({}));
+  const trail = [];
+  const post = async body => {
+    const r = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify(body) });
+    const raw = await r.text();
+    let j = {}; try { j = JSON.parse(raw); } catch (e) { }
+    const types = (j.content || []).map(b => b.type).join("+") || "なし";
+    const err = j.error ? (typeof j.error === "string" ? j.error : (j.error.error?.message || JSON.stringify(j.error))) : "";
+    trail.push(`状態${r.status}／中身:${types}${err ? "／" + err.slice(0, 160) : ""}${!j.text && !err && !j.content ? "／応答:" + raw.slice(0, 120) : ""}`);
+    console.log("[AI]", r.status, j);
+    return [r, j];
+  };
+  let [res, data] = await post({ system, max_tokens: maxTokens, messages: [{ role: "user", content }] });
   // 2) 旧版のEdge Functionなら、抽出テキストで再送
   if (!data.text && pdfBase64 && pdfText && pdfText.trim().length > 200) {
-    res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, prompt: prompt + "\n\n以下はPDFから抽出したテキストです。\n" + pdfText }) });
-    data = await res.json().catch(() => ({}));
+    [res, data] = await post({ system, max_tokens: maxTokens, prompt: prompt + "\n\n以下はPDFから抽出したテキストです。\n" + pdfText });
   }
   if (!pdfBase64 && !data.text) {
-    res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, prompt }) });
-    data = await res.json().catch(() => ({}));
+    [res, data] = await post({ system, max_tokens: maxTokens, prompt });
   }
-  if (!data.text) throw new Error("AI呼び出しに失敗しました：" + (data.error || res.status) + (pdfBase64 && !pdfText ? "（画像PDFはEdge Functionの更新が必要です）" : ""));
+  if (!data.text) {
+    const cut = trail.some(t => /thinking/.test(t) && !/text/.test(t));
+    throw new Error((cut ? "AIが答えを書き終える前に出力の上限に達しました。" : "AIから文章が返ってきませんでした。") + "【詳細】" + trail.join(" ｜ "));
+  }
   return data.text;
 }
 function parseJSON(t) {
@@ -723,15 +734,15 @@ async function runAnalysis() {
   try {
     const brief = dataBrief();
     const [a, b] = await Promise.all([
-      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n\n銀行への説明の骨子を作ってください。\n{"headline":"今期を一言で（35字以内）","summary":"銀行に伝える要旨（180字以内）","strengths":[{"title":"強み（20字以内）","evidence":"根拠の数値と科目（50字以内）","message":"銀行への伝え方（60字以内）"}]} strengthsは3件。` }),
-      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n\n銀行が懸念する点を挙げてください。\n{"concerns":[{"title":"課題（20字以内）","evidence":"根拠の数値と科目（50字以内）","bank_view":"銀行がどう見るか（50字以内）","cause":"考えられる原因（50字以内）"}]} concernsは3件。重要な順に。` })
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 6000, prompt: `${brief}\n\n銀行への説明の骨子を作ってください。\n{"headline":"今期を一言で（35字以内）","summary":"銀行に伝える要旨（180字以内）","strengths":[{"title":"強み（20字以内）","evidence":"根拠の数値と科目（50字以内）","message":"銀行への伝え方（60字以内）"}]} strengthsは3件。` }),
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 6000, prompt: `${brief}\n\n銀行が懸念する点を挙げてください。\n{"concerns":[{"title":"課題（20字以内）","evidence":"根拠の数値と科目（50字以内）","bank_view":"銀行がどう見るか（50字以内）","cause":"考えられる原因（50字以内）"}]} concernsは3件。重要な順に。` })
     ]);
     const A = parseJSON(a) || {}, B = parseJSON(b) || {};
     const concerns = B.concerns || [];
     const cText = concerns.map(x => x.title + "：" + x.evidence).join(" / ");
     const [c2, d2] = await Promise.all([
-      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n課題：${cText}\n\n課題に対する改善計画を作ってください。数値目標は実現可能な水準にします。\n{"actions":[{"title":"施策（20字以内）","detail":"具体的な内容（60字以内）","kpi":"測る指標と目標値（30字以内）","deadline":"期限（例：2027年2月末）","effect":"財務への効果（40字以内）"}]} actionsは4件。今日は${new Date().toLocaleDateString("ja-JP")}。` }),
-      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n課題：${cText}\n\n銀行担当者から聞かれそうな質問と、社長としての回答例を作ってください。回答は数字を根拠に誠実に。\n{"qa":[{"q":"質問（40字以内）","a":"回答（90字以内）"}],"closing":"結びの言葉と今後のお願い（90字以内）"} qaは5件。` })
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 6000, prompt: `${brief}\n課題：${cText}\n\n課題に対する改善計画を作ってください。数値目標は実現可能な水準にします。\n{"actions":[{"title":"施策（20字以内）","detail":"具体的な内容（60字以内）","kpi":"測る指標と目標値（30字以内）","deadline":"期限（例：2027年2月末）","effect":"財務への効果（40字以内）"}]} actionsは4件。今日は${new Date().toLocaleDateString("ja-JP")}。` }),
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 6000, prompt: `${brief}\n課題：${cText}\n\n銀行担当者から聞かれそうな質問と、社長としての回答例を作ってください。回答は数字を根拠に誠実に。\n{"qa":[{"q":"質問（40字以内）","a":"回答（90字以内）"}],"closing":"結びの言葉と今後のお願い（90字以内）"} qaは5件。` })
     ]);
     const C = parseJSON(c2) || {}, D = parseJSON(d2) || {};
     S.analysis = {
