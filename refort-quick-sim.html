@@ -472,8 +472,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.12b";
+const APP_VERSION = "ver.2026.09.13";
 const CHANGELOG = [
+  ["ver.2026.09.13","抽出案件ファイル（パネル容量kW／連系出力kW／FIT単価／残FIT年）の列名に対応。計算ロジックを確定版に更新（発電量＝パネル容量×1,000kWh/kW、改善率40%、工事費80,000円/kW）。残FIT年は列があればそれを使用。過積載率の二重計算を除去。"],
   ["ver.2026.09.12b","アプリマークを新ロゴに変更。ホーム画面に追加したときのアイコンも設定。"],
   ["ver.2026.09.12","見出し行の自動判定を追加（表題行があるシートに対応）。PCS列が未選択・空のまま取り込めないよう検証を追加。データタブに取り込み状態の診断、詳細画面に元データ確認を追加。"],
   ["ver.2026.09.11d","似た列名が併存する統合シートで、パネル出力とPCS出力が別の列から取得されていた不具合を修正。列推定を最も具体的な見出しを選ぶ方式に変更し、÷1.3の推定処理を全廃。取込画面にサンプル値表示、データタブに取り込み時の列対応の確認欄を追加。"],
@@ -500,9 +501,11 @@ document.getElementById('verFoot').textContent = APP_VERSION;
 const PREFS = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
 
 const DEFAULT_CFG = {
-  improveRate: 15,        // 発電量改善率 %
-  costPerKw: 30000,       // 工事費 円/kW（パネル出力あたり）
-  costMin: 3000000,       // 最低工事費 円
+  improveRate: 40,        // 発電量改善率 %
+  costPerKw: 80000,       // 工事費 円/kW（パネル容量あたり）
+  costMin: 0,             // 最低工事費 円（0で無効）
+  genMethod: 'panelYield',// 発電量の算出方法 panelYield＝パネル容量×原単位 / pcsUtil＝PCS×8760×設備利用率
+  panelYield: 1000,       // パネル1kWあたりの年間発電量 kWh
   fitTerm: 20,            // FIT期間 年
   roundRemain: "round",   // 残FIT年数の端数処理
   baseUtil: 13,           // 全国平均設備利用率 %
@@ -641,87 +644,84 @@ function calc(p){
   const c = CFG, out = { notes:[] };
 
   // 出力：元データの値をそのまま使う。推定値は作らない。
-  const realPanel = (p.panelKw > 0) ? p.panelKw : null;   // 太陽電池の合計出力（kW）パネル
-  const realPcs   = (p.pcsKw   > 0) ? p.pcsKw   : null;   // 発電出力（kW）PCS
+  const realPanel = (p.panelKw > 0) ? p.panelKw : null;   // パネル容量kW
+  const realPcs   = (p.pcsKw   > 0) ? p.pcsKw   : null;   // 連系出力kW（PCS）
   out.panelKw = realPanel;
   out.pcsKw   = realPcs;
 
-  if(!realPcs){
-    out.overload = null;
-    out.error = '発電出力（kW）PCS が登録されていないため、発電量以降を算出できません。データタブで該当列が取り込まれているか確認してください。';
-    return out;
-  }
-  if(!realPanel){
-    out.notes.push('太陽電池の合計出力（kW）パネル が未登録のため、過積載率は算出できません。工事費用は発電出力（PCS）を基準に概算しています。');
-  }
-
-  // 過積載率 ＝ 太陽電池の合計出力 ÷ 発電出力（実データのみ）
-  out.overload = realPanel ? (realPanel / realPcs) : null;
+  // 過積載率 ＝ パネル容量 ÷ 連系出力（実データが両方そろうときだけ）
+  out.overload = (realPanel && realPcs) ? (realPanel / realPcs) : null;
   if(out.overload != null && out.overload < 1){
-    out.notes.push('太陽電池の合計出力が発電出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
+    out.notes.push('パネル容量が連系出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
   }
 
-  // 設備利用率
-  const base = (c.prefUtil[p.pref] ?? c.baseUtil);
-  out.baseUtil = base;
-  out.overload = out.panelKw / out.pcsKw;
-  if(out.overload < 1){
-    out.notes.push('パネル出力が交流出力を下回っています。取り込んだ列が逆になっていないか、データタブで確認してください。');
+  // ---- 現状年間発電量 ----
+  if(c.genMethod === 'pcsUtil'){
+    if(!realPcs){ out.error = '連系出力（PCS）が登録されていないため発電量を算出できません。'; return out; }
+    const base = (c.prefUtil[p.pref] ?? c.baseUtil);
+    out.baseUtil = base;
+    let util = base;
+    if(out.overload != null && out.overload > c.overloadStart){
+      util = Math.min(base * (1 + (out.overload - c.overloadStart) * c.overloadCoef), c.utilCap);
+      out.adjusted = true;
+    }
+    out.util = util;
+    out.genKwh = realPcs * 8760 * (util/100);
+    out.genSrc = `連系出力 ${f1(realPcs)}kW × 8,760h × ${f1(util)}%`;
+  }else{
+    if(!realPanel){ out.error = 'パネル容量が登録されていないため発電量を算出できません。データタブで該当列が取り込まれているか確認してください。'; return out; }
+    out.genKwh = realPanel * c.panelYield;
+    out.genSrc = `パネル容量 ${f1(realPanel)}kW × ${c.panelYield.toLocaleString()} kWh/kW`;
   }
-  let util = base;
-  if(out.overload != null && out.overload > c.overloadStart){
-    util = base * (1 + (out.overload - c.overloadStart) * c.overloadCoef);
-    util = Math.min(util, c.utilCap);
-    out.adjusted = true;
-  }
-  out.util = util;
 
-  // 現状年間発電量
-  out.genKwh = out.pcsKw * 8760 * (util/100);
-
-  // ---- FIT単価：認定日 → 認定年度（4月始まり）→ 単価表 ----
+  // ---- FIT単価：データの値 → 認定日の年度 → 単価表 ----
   const cd = parseDate(p.certDate);
   let year = null, ysrc = '';
   if(cd){ year = fiscalYear(cd); ysrc = `認定日 ${fmtDate(cd)}`; }
   else if(p.certYear!=null){ year = +p.certYear; ysrc = 'データの認定年度'; }
   else if(p.startDate){
     year = fiscalYear(p.startDate); ysrc = '運転開始日からの推定';
-    out.notes.push('認定日が登録されていないため、運転開始日から認定年度を推定しています。実際の単価と異なる場合があるので、詳細画面で単価を手入力して確認してください。');
   }
   out.certYear = year; out.certDate = cd; out.certYearSrc = ysrc;
 
   const dataFit = validFit(p.fitPrice);
   if(p.fitPrice!=null && p.fitPrice!=='' && dataFit==null){
-    out.notes.push(`データの調達価格「${p.fitPrice}」はFIT単価として扱えない値のため使いません。認定年度から単価表を引いています。`);
+    out.notes.push(`データのFIT単価「${p.fitPrice}」は単価として扱えない値のため使いません。`);
   }
   if(p.fitOverride!=null){
     out.fit = p.fitOverride; out.fitSrc = 'この画面で手入力した単価';
   }else if(dataFit!=null){
-    out.fit = dataFit; out.fitSrc = 'データの調達価格';
+    out.fit = dataFit; out.fitSrc = 'データのFIT単価';
   }else if(year!=null){
-    const t = fitFromTable(year, out.pcsKw, cd);
+    const t = fitFromTable(year, realPcs || realPanel, cd);
     out.fit = t.price; out.fitSrc = t.label;
+    if(ysrc === '運転開始日からの推定') out.notes.push('認定日が未登録のため、運転開始日から認定年度を推定しています。詳細画面で単価を手入力して確認してください。');
   }
-  if(!out.fit){ out.error = "認定日・認定年度が分からないため、FIT単価を判定できません"; return out; }
+  if(!out.fit){ out.error = "FIT単価も認定日も登録されていないため試算できません"; return out; }
 
-  // 残FIT年数
-  const st = parseDate(p.startDate);
-  if(st){
-    const elapsed = (Date.now() - st.getTime()) / (365.25*24*3600*1000);
-    const raw = c.fitTerm - elapsed;
-    out.remainRaw = raw;
-    out.remain = Math.max(0, c.roundRemain==='floor' ? Math.floor(raw) : Math.round(raw));
+  // ---- 残FIT年数：データの列があればそれを使う ----
+  if(p.remainYears != null && p.remainYears !== '' && p.remainYears >= 0){
+    out.remain = +p.remainYears;
+    out.remainSrc = 'データの残FIT年';
   }else{
-    out.remain = null;
-    out.notes.push("運転開始日が未登録のため、残FIT年数を計算できません");
+    const st = parseDate(p.startDate);
+    if(st){
+      const raw = c.fitTerm - (Date.now() - st.getTime()) / (365.25*24*3600*1000);
+      out.remainRaw = raw;
+      out.remain = Math.max(0, c.roundRemain==='floor' ? Math.floor(raw) : Math.round(raw));
+      out.remainSrc = `運転開始日 ${fmtDate(st)} から算出`;
+    }else{
+      out.remain = null;
+      out.notes.push("残FIT年数の列も運転開始日も無いため、回収余剰年数を計算できません。");
+    }
   }
 
-  // 効果
+  // ---- 効果 ----
   out.addKwh = out.genKwh * (c.improveRate/100);
   out.addIncome = out.addKwh * out.fit;
   out.costBase = out.panelKw || out.pcsKw;
-  out.costBaseName = out.panelKw ? '太陽電池の合計出力' : '発電出力（PCS）';
-  out.cost = Math.max(out.costBase * c.costPerKw, c.costMin);
+  out.costBaseName = out.panelKw ? 'パネル容量' : '連系出力（PCS）';
+  out.cost = Math.max(out.costBase * c.costPerKw, c.costMin || 0);
   out.payback = out.addIncome > 0 ? out.cost / out.addIncome : null;
   out.surplus = (out.remain!=null && out.payback!=null) ? out.remain - out.payback : null;
   if(out.remain!=null){
@@ -979,7 +979,7 @@ function openDetail(id){
       <tr><td class="k">増加売電収入</td><td class="v num gold">+${yen(r.addIncome)} 円/年<em>${man(r.addIncome)}万円/年</em></td></tr>
       <tr><td class="k">工事費用</td><td class="v num">${yen(r.cost)} 円<em>${esc(r.costBaseName)} ${f1(r.costBase)}kW × ${yen(CFG.costPerKw)}円/kW（最低${man(CFG.costMin)}万円）</em></td></tr>
       <tr><td class="k">費用回収年数</td><td class="v num">${f1(r.payback)} 年</td></tr>
-      <tr><td class="k">残FIT年数</td><td class="v num">${r.remain!=null?r.remain+' 年':'—'}<em>${r.remainRaw!=null?'実残 '+f2(r.remainRaw)+'年を'+(CFG.roundRemain==='floor'?'切り捨て':'四捨五入'):''}</em></td></tr>
+      <tr><td class="k">残FIT年数</td><td class="v num">${r.remain!=null?f2(r.remain)+' 年':'—'}<em>${esc(r.remainSrc||'')}</em></td></tr>
       <tr class="total"><td class="k">回収余剰年数</td><td class="v num">${r.surplus!=null?f1(r.surplus)+' 年':'—'}<em>回収後にまるごと利益になる期間</em></td></tr>
       <tr><td class="k">残FIT期間の増収合計</td><td class="v num">${man(r.totalGain)} 万円</td></tr>
       <tr><td class="k">工事費を引いた純増</td><td class="v num gold">${r.netGain!=null?(r.netGain>=0?'+':'')+man(r.netGain)+' 万円':'—'}</td></tr>
@@ -1021,11 +1021,11 @@ function currentPanel(p,r){
   return `<div class="panel">
     <h3>現状データ</h3>
     <table class="calc">
-      <tr><td class="k">パネル出力</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>太陽電池の合計出力（kW）パネル${r.panelKw?'':'（データなし）'}</em></td></tr>
-      <tr><td class="k">交流出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>発電出力（kW）PCS</em></td></tr>
+      <tr><td class="k">パネル容量</td><td class="v num">${r.panelKw?f1(r.panelKw)+' kW':'—'}<em>発電量・工事費の基準${r.panelKw?'':'（データなし）'}</em></td></tr>
+      <tr><td class="k">連系出力（PCS）</td><td class="v num">${r.pcsKw?f1(r.pcsKw)+' kW':'—'}<em>過積載率の算出に使用</em></td></tr>
       <tr><td class="k">過積載率</td><td class="v num">${r.overload!=null?f2(r.overload):'—'}<em>${r.overload!=null?'太陽電池の合計出力 ÷ 発電出力':'両方のデータが揃うと算出します'}</em></td></tr>
       <tr><td class="k">適用設備利用率</td><td class="v num">${r.util?f1(r.util)+' %':'—'}<em>${r.adjusted?`基準${f1(r.baseUtil)}%を過積載${f2(r.overload)}で調整`:`${p.pref||'全国'}の基準値（過積載の調整なし）`}</em></td></tr>
-      <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年<em>発電出力（PCS）${f1(r.pcsKw)}kW × 8,760h × ${f1(r.util)}%</em></td></tr>
+      <tr><td class="k">現状年間発電量</td><td class="v num">${yen(r.genKwh)} kWh/年<em>${esc(r.genSrc||'')}</em></td></tr>
       <tr><td class="k">認定日</td><td class="v">${r.certDate?fmtDate(r.certDate):'—'}</td></tr>
       <tr><td class="k">認定年度</td><td class="v num">${r.certYear!=null?r.certYear+' 年度':'—'}<em>${esc(r.certYearSrc||'')}</em></td></tr>
       <tr><td class="k">FIT単価</td><td class="v num">${r.fit?r.fit+' 円/kWh':'—'}<em>${esc(r.fitSrc||'')}</em></td></tr>
@@ -1039,6 +1039,7 @@ function currentPanel(p,r){
         <tr><td class="k">保存されているパネル出力</td><td class="v num">${p.panelKw!=null&&p.panelKw!==''?p.panelKw:'（空）'}</td></tr>
         <tr><td class="k">取込時のPCS列</td><td class="v">${esc(srcName('交流出力(kW)'))}</td></tr>
         <tr><td class="k">取込時のパネル列</td><td class="v">${esc(srcName('パネル出力(kW)'))}</td></tr>
+        <tr><td class="k">保存されている残FIT年</td><td class="v num">${p.remainYears!=null?p.remainYears:'（空）'}</td></tr>
         <tr><td class="k">アプリのバージョン</td><td class="v">${APP_VERSION}</td></tr>
       </table>
     </details>
@@ -1107,17 +1108,19 @@ function renderRecent(){
 
 /* ---------- 取込 ---------- */
 const FIELDS = [
-  ['company','企業名（設備所有者）',['設備所有者','事業者名','会社名','企業名','発電事業者','所有者','法人名','名称']],
+  ['company','企業名（設備所有者）',['発電事業者','設備所有者','事業者名','会社名','企業名','所有者','法人名','名称']],
   ['rep','代表者名',['代表者','代表取締役','代表者名']],
-  ['plantName','発電所名',['発電所名','設備名','案件名','物件名','設備の名称']],
+  ['plantName','発電所名（無ければ所在地を使用）',['発電所名','設備名','案件名','物件名','設備の名称']],
   ['pref','都道府県',['都道府県','県名']],
-  ['city','市区町村・所在地',['市区町村','所在地','住所','設備所在地']],
-  ['panelKw','パネル出力(kW)　＝ 太陽電池の合計出力（kW）パネル',['太陽電池の合計出力（kW）パネル','太陽電池の合計出力(kw)パネル','太陽電池の合計出力パネル','パネル出力','太陽電池の合計出力','太陽電池合計出力','太陽電池','モジュール出力']],
-  ['pcsKw','交流出力(kW)　＝ 発電出力（kW）PCS',['発電出力（kW）PCS','発電出力(kw)pcs','発電出力pcs','pcs出力','交流出力','パワーコンディショナ出力','パワコン出力','発電出力','pcs']],
+  ['city','発電所の所在地',['発電所所在地','発電設備の所在地_代表住所','市区町村','設備所在地','所在地','住所']],
+  ['panelKw','パネル出力(kW)　＝ パネル容量kW／太陽電池の合計出力',['パネル容量kW','パネル容量','太陽電池の合計出力（kW）パネル','太陽電池の合計出力(kw)パネル','太陽電池の合計出力パネル','パネル出力','太陽電池の合計出力','太陽電池合計出力','太陽電池','モジュール出力']],
+  ['pcsKw','交流出力(kW)　＝ 連系出力kW／発電出力（kW）PCS',['連系出力kW','連系出力','発電出力（kW）PCS','発電出力(kw)pcs','発電出力pcs','pcs出力','交流出力','パワーコンディショナ出力','パワコン出力','発電出力','pcs']],
   ['certDate','認定日（FIT単価の判定に使用）',['認定日','設備認定日','認定取得日','認定年月日','新規認定日']],
   ['certYear','認定年度（認定日が無い場合）',['認定年度']],
   ['startDate','運転開始日（残FIT年数に使用）',['運転開始','供給開始','連系日']],
-  ['fitPrice','調達価格(円/kWh)',['調達価格','買取価格','売電単価','調達単価']]
+  ['fitPrice','FIT単価(円/kWh)',['FIT単価','調達価格','買取価格','売電単価','調達単価','単価']],
+  ['remainYears','残FIT年数（列がある場合）',['残FIT年','残fit年数','残FIT','残存年数']],
+  ['plantId','設備ID',['設備ID','設備id']]
 ];
 let IMP = null;
 
@@ -1283,16 +1286,18 @@ document.getElementById('doImport').onclick = async ()=>{
     const fp = validFit(get(r,'fitPrice'));
     if(get(r,'fitPrice') && fp==null) badFit++;
     const p = {
-      id: 'p_'+hash(company+'|'+plantName+'|'+city+'|'+(get(r,'startDate')||'')+'|'+idx),
-      company, rep, plantName, pref,
+      id: (String(get(r,'plantId')||'').trim() ? 'id_'+String(get(r,'plantId')).trim()
+           : 'p_'+hash(company+'|'+plantName+'|'+city+'|'+(get(r,'startDate')||'')+'|'+idx)),
+      company, rep, plantName: plantName || city.replace(pref,'') || '発電所', pref,
       city: city.replace(pref,''),
       panelKw: num(get(r,'panelKw')),
       pcsKw: num(get(r,'pcsKw')),      certDate: cd ? cd.toISOString() : null,
       certYear: cy!=null && cy!=='' ? (String(cy).replace(/\D/g,'').length<=4 ? num(cy) : fiscalYear(cy)) : null,
       startDate: parseDate(get(r,'startDate')) ? parseDate(get(r,'startDate')).toISOString() : null,
       fitPrice: fp,
+      remainYears: num(get(r,'remainYears')),
       companyKey: norm(company) + (rep?'#'+norm(rep):''),
-      searchKey: norm(company+rep+plantName)
+      searchKey: norm(company+rep+plantName+city)
     };
     out.push(p);
     if(p.panelKw && p.pcsKw){ both++; if(p.panelKw < p.pcsKw) reversed++; }
@@ -1302,16 +1307,12 @@ document.getElementById('doImport').onclick = async ()=>{
   // 発電出力（PCS）が実際に取得できているかを取込前に検証する
   const pcsFilled = out.filter(p=>p.pcsKw > 0).length;
   const panelFilled = out.filter(p=>p.panelKw > 0).length;
-  if(m.pcsKw < 0){
-    alert('「発電出力（kW）PCS」の列が選ばれていません。\n\nこの列が無いと発電量・売電収入を計算できません。列の対応で選び直してください。');
+  if(panelFilled === 0){
+    alert(`パネル容量の列が取り込めていません（全${out.length.toLocaleString()}件が空）。\n\n発電量はパネル容量を基準に計算するため、この列は必須です。列の対応で「パネル容量kW」を選び直してください。\n列名の右に出る「例：」のサンプル値で中身を確認できます。`);
     return;
   }
-  if(pcsFilled === 0){
-    alert(`選択した「発電出力（kW）PCS」の列は、全${out.length.toLocaleString()}件すべてが空でした。\n\n選んだ列：${IMP.header[m.pcsKw]}\n\n別の列を選び直してください。似た名前の列が複数ある場合は、列名の右に出る「例：」のサンプル値で中身を確認できます。`);
-    return;
-  }
-  if(pcsFilled / out.length < 0.5){
-    if(!confirm(`「発電出力（kW）PCS」の値が入っているのは ${pcsFilled.toLocaleString()}/${out.length.toLocaleString()}件です。\n\n選んだ列：${IMP.header[m.pcsKw]}\n\n列の選択が誤っている可能性があります。このまま取り込みますか。`)) return;
+  if(panelFilled / out.length < 0.5){
+    if(!confirm(`パネル容量が入っているのは ${panelFilled.toLocaleString()}/${out.length.toLocaleString()}件です。\n\n列の選択が誤っている可能性があります。このまま取り込みますか。`)) return;
   }
   if(both >= 5 && reversed / both > 0.5){
     const ok = confirm(
@@ -1393,6 +1394,12 @@ function buildConfigUI(){
         <option value="floor" ${CFG.roundRemain==='floor'?'selected':''}>切り捨て</option>
       </select></label>`;
   document.getElementById('cfgGen').innerHTML =
+    `<label class="f">発電量の算出方法
+      <select data-cfg="genMethod">
+        <option value="panelYield" ${CFG.genMethod==='panelYield'?'selected':''}>パネル容量 × 年間発電量原単位（確定ロジック）</option>
+        <option value="pcsUtil" ${CFG.genMethod==='pcsUtil'?'selected':''}>連系出力 × 8,760h × 設備利用率</option>
+      </select></label>` +
+    field('panelYield','パネル1kWあたりの年間発電量','kWh/kW','10') +
     field('baseUtil','全国平均 設備利用率','％','0.1') +
     field('overloadStart','調整を始める過積載率','倍','0.05') +
     field('overloadCoef','逓減係数','','0.05') +
