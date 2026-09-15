@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>銀行説明スタジオ｜試算表・決算書 分析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"
+  onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';document.head.appendChild(s);"></script>
+<!-- 共通認証（GitHub Pages上でのみ有効。supabase-js を先に読み込む必要があります） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="ec-auth.js" onerror="void 0"></script>
+<style>
+:root{
+  --ink:#172033; --sub:#56627A; --paper:#F1F3F6; --surface:#FFFFFF; --line:#D6DCE4;
+  --ai:#23457A; --ai-soft:#E4EBF5; --shu:#B8322A;
+  --good:#2F7A55; --warn:#A0660F; --bad:#B03A2E; --na:#8A93A3;
+  --mincho:"Shippori Mincho",serif; --gothic:"BIZ UDPGothic",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--gothic);font-size:15px;line-height:1.7}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--ai);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.num{font-variant-numeric:tabular-nums}
+
+header.top{background:var(--ink);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+header.top h1{font-family:var(--mincho);font-weight:800;font-size:22px;margin:0;letter-spacing:.04em}
+header.top .meta{font-size:13px;color:#C5CCD8}
+header.top .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--ai)}
+.btn.primary{background:var(--ai);color:#fff;border-color:var(--ai)}
+.btn.primary:hover{background:#1A3560}
+.btn.ghost{background:transparent;color:#fff;border-color:#4A5670}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:13px}
+
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 60px)}
+nav.steps{background:var(--surface);border-right:1px solid var(--line);padding:20px 0}
+nav.steps button{display:flex;gap:12px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:12px 20px;cursor:pointer;border-left:4px solid transparent}
+nav.steps button .n{font-family:var(--mincho);font-weight:800;font-size:18px;color:var(--na);width:18px}
+nav.steps button.on{border-left-color:var(--ai);background:var(--ai-soft)}
+nav.steps button.on .n{color:var(--ai)}
+nav.steps button .t{font-weight:700}
+nav.steps button .d{display:block;font-size:12px;color:var(--sub);font-weight:400}
+nav.steps .foot{padding:16px 20px;font-size:12px;color:var(--sub);border-top:1px solid var(--line);margin-top:16px}
+
+main{padding:28px 32px 80px;max-width:1180px}
+h2{font-family:var(--mincho);font-weight:800;font-size:26px;margin:0 0 4px}
+.lead{color:var(--sub);margin:0 0 24px;max-width:70ch}
+h3{font-size:17px;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label.f{display:block;font-size:13px;color:var(--sub);margin-bottom:4px}
+input.t,select.t,textarea.t{width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff}
+textarea.t{min-height:72px;resize:vertical}
+
+.drop{border:2px dashed #AEB8C6;border-radius:10px;padding:34px;text-align:center;background:#FAFBFC;cursor:pointer}
+.drop.over{border-color:var(--ai);background:var(--ai-soft)}
+.drop strong{font-size:17px}
+.doclist{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.doc{display:grid;grid-template-columns:1fr 120px 130px 90px auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.doc .name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc .st{font-size:13px}
+.st.ok{color:var(--good)} .st.run{color:var(--ai)} .st.err{color:var(--bad)} .st.wait{color:var(--sub)}
+
+table.nums{width:100%;border-collapse:collapse;background:var(--surface);font-size:14px}
+table.nums th,table.nums td{border-bottom:1px solid var(--line);padding:6px 10px;text-align:right}
+table.nums th:first-child,table.nums td:first-child{text-align:left}
+table.nums thead th{background:var(--ink);color:#fff;font-weight:700;position:sticky;top:0}
+table.nums tr.sec td{background:var(--ai-soft);font-weight:700;text-align:left}
+table.nums tr.total td{font-weight:700}
+table.nums input{width:130px;text-align:right;border:1px solid transparent;background:transparent;padding:3px 6px;border-radius:4px}
+table.nums input:hover{border-color:var(--line)} table.nums input:focus{border-color:var(--ai);background:#fff}
+.hint{font-size:12px;color:var(--sub);font-weight:400}
+.check{font-size:13px;padding:10px 14px;border-radius:6px;margin:6px 0}
+.check.ok{background:#E6F2EC;color:var(--good)} .check.ng{background:#F8E7E5;color:var(--bad)}
+
+/* 銀行評価のヘッダー：朱の検印 */
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:24px 28px}
+.stamp{width:132px;height:132px;border-radius:50%;border:5px solid var(--shu);color:var(--shu);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg);font-family:var(--mincho);box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 5px var(--shu)}
+.stamp .g{font-size:52px;font-weight:800;line-height:1}
+.stamp .s{font-size:14px;font-weight:600}
+.stamp.pop{animation:press .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes press{0%{transform:rotate(-8deg) scale(1.6);opacity:0}100%{transform:rotate(-8deg) scale(1);opacity:1}}
+.verdict h4{font-family:var(--mincho);font-size:22px;margin:0 0 6px}
+.verdict p{margin:0;color:var(--sub)}
+.periodpick{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+
+.metrics{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-top:16px}
+.m{display:grid;grid-template-columns:190px 130px 150px 1fr;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line);align-items:start}
+.m:last-child{border-bottom:0}
+.m .lab{font-weight:700}
+.m .lab small{display:block;font-weight:400;color:var(--sub);font-size:12px}
+.m .val{font-size:20px;font-weight:700;text-align:right}
+.m .val small{font-size:12px;font-weight:400;color:var(--sub);display:block}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px;color:#fff}
+.pill.good{background:var(--good)} .pill.warn{background:var(--warn)} .pill.bad{background:var(--bad)} .pill.na{background:var(--na)}
+.bar{height:6px;background:#E6E9EE;border-radius:3px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%}
+.m details{font-size:13px;color:var(--sub);margin-top:4px}
+.m details summary{cursor:pointer;color:var(--ai)}
+.m .view{font-size:14px}
+.delta{font-size:12px;font-weight:400}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.charts .panel{height:300px}
+
+.alerts{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.alert{border-left:4px solid var(--warn);background:#FBF3E6;padding:8px 12px;font-size:14px;border-radius:0 6px 6px 0}
+.alert.bad{border-color:var(--bad);background:#F8E7E5}
+
+.edit-list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:8px}
+.item .row{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:start}
+.item .row span{font-size:13px;color:var(--sub);padding-top:8px}
+.item .x{justify-self:end}
+.busy{display:inline-flex;align-items:center;gap:8px;color:var(--ai);font-weight:700}
+.busy::before{content:"";width:14px;height:14px;border:3px solid var(--ai-soft);border-top-color:var(--ai);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.outline{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.outline div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:14px}
+.outline div::before{counter-increment:s;content:counter(s);font-family:var(--mincho);font-weight:800;color:var(--ai);margin-right:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.toast.on{opacity:1}
+.empty{padding:40px;text-align:center;color:var(--sub);background:var(--surface);border:1px dashed var(--line);border-radius:8px}
+
+.simwrap{margin:14px 0 22px}
+.simgrid{display:grid;grid-template-columns:minmax(260px,1fr) 1.2fr;gap:22px;align-items:start;margin-top:10px}
+.simctl{display:grid;gap:14px}
+.simrow{display:grid;gap:4px;font-size:14px}
+.simrow span{display:flex;justify-content:space-between;gap:10px}
+.simrow b{color:var(--ai)}
+.simrow input{width:100%;accent-color:var(--ai)}
+.simtbl{width:100%;border-collapse:collapse;font-size:14px;background:var(--surface)}
+.simtbl th{background:var(--ink);color:#fff;font-weight:400;padding:6px 10px;text-align:right}
+.simtbl th:first-child,.simtbl td:first-child{text-align:left}
+.simtbl td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right}
+.simtbl td.upd{color:var(--good);font-weight:700}
+.simtbl td.dnd{color:var(--bad);font-weight:700}
+
+@media (max-width:860px){
+  .simgrid{grid-template-columns:1fr}
+  .shell{grid-template-columns:1fr}
+  nav.steps{display:flex;overflow-x:auto;padding:0;border-right:0;border-bottom:1px solid var(--line)}
+  nav.steps button{border-left:0;border-bottom:4px solid transparent;min-width:150px}
+  nav.steps button.on{border-bottom-color:var(--ai)}
+  nav.steps .foot{display:none}
+  main{padding:20px 16px 80px}
+  .grid2,.charts{grid-template-columns:1fr}
+  .doc{grid-template-columns:1fr 1fr}
+  .m{grid-template-columns:1fr 1fr}
+  .m .view{grid-column:1/-1}
+  .verdict{grid-template-columns:1fr;justify-items:center;text-align:center}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>銀行説明スタジオ</h1>
+  <span class="meta" id="hdrMeta">試算表・決算書を読み取り、銀行目線で分析して説明資料をつくる</span>
+  <div class="right">
+    <button class="btn ghost sm" onclick="saveJSON()">分析を保存</button>
+    <label class="btn ghost sm" style="cursor:pointer">保存データを開く<input type="file" accept=".json" hidden onchange="loadJSON(this)"></label>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="steps" id="steps"></nav>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   設定
+   ========================================================= */
+const CONFIG = {
+  EDGE_URL: "https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai",
+  SB_KEY: "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa",
+  // GitHub Pages上 → Edge Function経由 / claude.ai上のプレビュー → 直接呼び出し
+  MODE: location.hostname.endsWith("github.io") ? "edge" : "direct",
+  TAX_RATE: 0.30   // 簡易キャッシュフロー計算で使う実効税率の目安
+};
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* =========================================================
+   勘定科目の定義（円で保持、画面は千円表示）
+   ========================================================= */
+const FIELDS = [
+  { sec: "損益計算書（PL）" },
+  { k: "sales", s: "pl", l: "売上高", total: 1 },
+  { k: "cogs", s: "pl", l: "売上原価" },
+  { k: "gross", s: "pl", l: "売上総利益", total: 1 },
+  { k: "sga", s: "pl", l: "販売費及び一般管理費" },
+  { k: "officer_comp", s: "pl", l: "うち役員報酬" },
+  { k: "depreciation", s: "pl", l: "減価償却費（原価・販管費の合計）", hint: "試算表で未計上なら年間見込み×経過月÷12を入力" },
+  { k: "op", s: "pl", l: "営業利益", total: 1 },
+  { k: "nonop_inc", s: "pl", l: "営業外収益" },
+  { k: "interest", s: "pl", l: "うち支払利息" },
+  { k: "nonop_exp", s: "pl", l: "営業外費用" },
+  { k: "ordinary", s: "pl", l: "経常利益", total: 1 },
+  { k: "extra_inc", s: "pl", l: "特別利益" },
+  { k: "extra_loss", s: "pl", l: "特別損失" },
+  { k: "pretax", s: "pl", l: "税引前当期純利益" },
+  { k: "tax", s: "pl", l: "法人税等" },
+  { k: "net", s: "pl", l: "当期純利益", total: 1 },
+  { sec: "貸借対照表（BS）" },
+  { k: "cash", s: "bs", l: "現金及び預金" },
+  { k: "receivables", s: "bs", l: "売上債権（売掛金・受取手形）" },
+  { k: "inventory", s: "bs", l: "棚卸資産（商品・仕掛品等）" },
+  { k: "suspense", s: "bs", l: "仮払金・立替金", hint: "銀行は資産価値を割り引いて見ます" },
+  { k: "officer_recv", s: "bs", l: "役員・関係者への貸付金", hint: "銀行は実質的に資産から除外します" },
+  { k: "current_assets", s: "bs", l: "流動資産合計", total: 1 },
+  { k: "tangible", s: "bs", l: "有形固定資産" },
+  { k: "intangible", s: "bs", l: "無形固定資産" },
+  { k: "investments", s: "bs", l: "投資その他の資産" },
+  { k: "fixed_assets", s: "bs", l: "固定資産合計", total: 1 },
+  { k: "total_assets", s: "bs", l: "資産合計", total: 1 },
+  { k: "payables", s: "bs", l: "仕入債務（買掛金・支払手形）" },
+  { k: "st_loans", s: "bs", l: "短期借入金" },
+  { k: "cur_lt_loans", s: "bs", l: "1年内返済予定の長期借入金" },
+  { k: "current_liab", s: "bs", l: "流動負債合計", total: 1 },
+  { k: "lt_loans", s: "bs", l: "長期借入金" },
+  { k: "bonds", s: "bs", l: "社債" },
+  { k: "officer_loans", s: "bs", l: "役員借入金", hint: "銀行は自己資本に近いものとして見ることがあります" },
+  { k: "fixed_liab", s: "bs", l: "固定負債合計", total: 1 },
+  { k: "total_liab", s: "bs", l: "負債合計", total: 1 },
+  { k: "capital", s: "bs", l: "資本金" },
+  { k: "retained", s: "bs", l: "利益剰余金" },
+  { k: "net_assets", s: "bs", l: "純資産合計", total: 1 }
+];
+const KEYS = { pl: FIELDS.filter(f => f.s === "pl").map(f => f.k), bs: FIELDS.filter(f => f.s === "bs").map(f => f.k) };
+
+/* =========================================================
+   状態
+   ========================================================= */
+let S = {
+  step: 1,
+  company: "株式会社アースコム",
+  business: "太陽光発電・蓄電池の販売施工、既設発電所の再資産化（ReFort）、セカンダリー太陽光の売買を主軸とする再生可能エネルギー事業。",
+  bank: "",
+  visitDate: "",
+  docs: [],          // {id,name,kind,period_end,months,pl,bs,notes,status,msg,file}
+  targetId: null,    // 分析の対象期
+  analysis: null,    // AIの分析結果
+  sim: { salesUp: 0, gmPt: 0, sgaCut: 0, wcCut: 0 }  // 改善シミュレーター（年間ベース）
+};
+const SIM0 = { salesUp: 0, gmPt: 0, sgaCut: 0, wcCut: 0 };
+const simOn = () => Object.keys(SIM0).some(k => Number(S.sim?.[k]));
+const $ = id => document.getElementById(id);
+const n = v => (v === null || v === undefined || v === "" || isNaN(v)) ? null : Number(v);
+const z = v => n(v) ?? 0;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove("on"), 2600); }
+const fmtK = v => n(v) === null ? "—" : Math.round(v / 1000).toLocaleString();
+const fmtM = v => n(v) === null ? "—" : (v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const sortedDocs = () => [...S.docs].filter(d => d.status === "ok").sort((a, b) => (a.period_end || "").localeCompare(b.period_end || ""));
+const docLabel = d => `${d.period_end ? d.period_end.replace("-", "年") + "月" : "期間未設定"} ${d.kind}${d.kind === "試算表" ? `（${d.months}か月累計）` : ""}`;
+
+/* =========================================================
+   ナビゲーション
+   ========================================================= */
+const STEPS = [
+  { t: "資料を読み込む", d: "試算表・決算書のPDF" },
+  { t: "数値を確かめる", d: "読み取り結果の確認と修正" },
+  { t: "銀行目線で分析", d: "格付けの目安と主要指標" },
+  { t: "改善計画と想定問答", d: "改善の試算と説明の作成" },
+  { t: "プレゼン資料を出力", d: "PowerPoint・Chatwork" }
+];
+function renderNav() {
+  $("steps").innerHTML = STEPS.map((s, i) =>
+    `<button class="${S.step === i + 1 ? "on" : ""}" onclick="go(${i + 1})"><span class="n">${i + 1}</span><span><span class="t">${s.t}</span><span class="d">${s.d}</span></span></button>`
+  ).join("") + `<div class="foot">格付けは公開情報をもとにした定量面の目安です。金融機関ごとの審査モデルとは異なります。</div>`;
+  $("hdrMeta").textContent = [S.company, S.bank && S.bank + " 様向け", S.visitDate && "訪問日 " + S.visitDate].filter(Boolean).join("　");
+}
+function go(i) { S.step = i; render(); window.scrollTo({ top: 0 }); }
+function render() {
+  renderNav();
+  [null, step1, step2, step3, step4, step5][S.step]();
+}
+
+/* =========================================================
+   STEP 1 資料の読み込み
+   ========================================================= */
+function step1() {
+  $("main").innerHTML = `
+  <h2>資料を読み込む</h2>
+  <p class="lead">試算表や決算書のPDFを入れると、AIが勘定科目を読み取ります。前期の決算書と今期の試算表を一緒に入れると、推移も比較できます。</p>
+  <div class="grid2">
+    <div><label class="f">会社名</label><input class="t" value="${esc(S.company)}" oninput="S.company=this.value;renderNav()"></div>
+    <div><label class="f">訪問先の金融機関</label><input class="t" placeholder="例：○○銀行 越谷支店" value="${esc(S.bank)}" oninput="S.bank=this.value;renderNav()"></div>
+    <div><label class="f">訪問日</label><input class="t" type="date" value="${esc(S.visitDate)}" oninput="S.visitDate=this.value;renderNav()"></div>
+    <div><label class="f">事業の概要（AIが分析の前提として使います）</label><textarea class="t" oninput="S.business=this.value">${esc(S.business)}</textarea></div>
+  </div>
+  <h3>PDFを追加</h3>
+  <div class="drop" id="drop" tabindex="0" role="button" onclick="$('fileIn').click()" onkeydown="if(event.key==='Enter')$('fileIn').click()">
+    <strong>ここにPDFをドロップ、またはクリックして選択</strong><br>
+    <span class="hint">複数ファイルをまとめて入れられます。スキャンした画像のPDFにも対応しています。</span>
+    <input type="file" id="fileIn" accept="application/pdf" multiple hidden onchange="addFiles(this.files);this.value=''">
+  </div>
+  <div class="doclist" id="doclist"></div>
+  <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+    <button class="btn primary" onclick="readAll()" ${S.docs.some(d => d.status === "wait" || d.status === "err") ? "" : "disabled"}>AIで読み取る</button>
+    <button class="btn" onclick="loadDemo()">デモデータで試す</button>
+    ${sortedDocs().length ? `<button class="btn" onclick="go(2)">数値の確認へ進む</button>` : ""}
+  </div>`;
+  const dz = $("drop");
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add("over"); };
+  dz.ondragleave = () => dz.classList.remove("over");
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove("over"); addFiles(e.dataTransfer.files); };
+  renderDocList();
+}
+function renderDocList() {
+  const el = $("doclist"); if (!el) return;
+  el.innerHTML = S.docs.map(d => `
+    <div class="doc">
+      <span class="name" title="${esc(d.name)}">${esc(d.name)}</span>
+      <select class="t" aria-label="資料の種類" onchange="setDoc('${d.id}','kind',this.value)">
+        ${["試算表", "決算書"].map(k => `<option ${d.kind === k ? "selected" : ""}>${k}</option>`).join("")}
+      </select>
+      <input class="t" type="month" aria-label="対象期間の末月" value="${esc(d.period_end || "")}" onchange="setDoc('${d.id}','period_end',this.value)">
+      <span class="st ${d.status}">${{ wait: "未読み取り", run: "読み取り中…", ok: "読み取り済み", err: "失敗" }[d.status]}</span>
+      <button class="btn sm" onclick="removeDoc('${d.id}')">削除</button>
+      ${d.msg ? `<span class="hint" style="grid-column:1/-1">${esc(d.msg)}</span>` : ""}
+    </div>`).join("");
+}
+function setDoc(id, key, v) {
+  const d = S.docs.find(x => x.id === id); d[key] = v;
+  if (key === "kind" && v === "決算書") d.months = 12;
+  renderDocList();
+}
+function removeDoc(id) { S.docs = S.docs.filter(d => d.id !== id); if (S.targetId === id) S.targetId = null; step1(); }
+function addFiles(files) {
+  [...files].filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")).forEach(f => {
+    const kind = /決算|申告|financial/i.test(f.name) ? "決算書" : "試算表";
+    S.docs.push({ id: "d" + Date.now() + Math.random().toString(36).slice(2, 6), name: f.name, kind, period_end: "", months: kind === "決算書" ? 12 : null, pl: {}, bs: {}, notes: [], status: "wait", msg: "", file: f });
+  });
+  step1();
+}
+
+/* ---------- PDF → AI読み取り ---------- */
+async function readAll() {
+  const targets = S.docs.filter(d => d.status === "wait" || d.status === "err");
+  for (const d of targets) {
+    d.status = "run"; d.msg = ""; step1();
+    try { await extractDoc(d); d.status = "ok"; d.msg = d.notes.length ? "気になる点：" + d.notes.join("／") : ""; }
+    catch (e) { d.status = "err"; d.msg = e.message; }
+    step1();
+  }
+  if (sortedDocs().length) { S.targetId = sortedDocs().at(-1).id; toast("読み取りが終わりました。数値を確認してください"); }
+}
+async function fileToBase64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = () => rej(new Error("ファイルを読めませんでした")); r.readAsDataURL(file); });
+}
+async function pdfText(file) {
+  if (!window.pdfjsLib) return "";
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let out = "";
+  for (let i = 1; i <= Math.min(pdf.numPages, 30); i++) {
+    const page = await pdf.getPage(i);
+    const c = await page.getTextContent();
+    // 行ごとにまとめる（y座標でグループ化）
+    const rows = {};
+    c.items.forEach(it => { const y = Math.round(it.transform[5]); (rows[y] = rows[y] || []).push([it.transform[4], it.str]); });
+    out += `\n[${i}ページ]\n` + Object.keys(rows).sort((a, b) => b - a).map(y => rows[y].sort((a, b) => a[0] - b[0]).map(x => x[1]).join(" ")).join("\n");
+  }
+  return out.slice(0, 60000);
+}
+const EXTRACT_SYSTEM = "あなたは日本の会計資料（試算表・決算書）の読み取り専門家です。必ずJSONだけを返し、前置き・説明・コードブロック記号は付けません。";
+function extractPrompt(d) {
+  return `この${d.kind}から数値を読み取り、次のJSON形式で返してください。
+ルール：
+- 金額はすべて「円」の整数。千円単位の資料なら1000倍、百万円単位なら1000000倍にする。マイナスは負の数。
+- 資料に無い科目は null。複数科目の合算が必要なもの（例：売掛金＋受取手形）は合算する。
+- 試算表は「当月」ではなく「期首からの累計（当期累計）」の列を使う。前年比較の列は使わない。
+- months は期首から対象月までの月数（決算書は12）。period_end は対象期間の末月（YYYY-MM）。
+- notes には銀行が気にしそうな点を最大3つ、各30字以内（例：仮払金が多い、減価償却が未計上）。
+{"company":"","period_end":"YYYY-MM","months":12,
+"pl":{${KEYS.pl.map(k => `"${k}":null`).join(",")}},
+"bs":{${KEYS.bs.map(k => `"${k}":null`).join(",")}},
+"notes":[]}
+科目の意味：cogs=売上原価, sga=販管費, officer_comp=役員報酬, op=営業利益, nonop_inc=営業外収益, interest=支払利息, nonop_exp=営業外費用, ordinary=経常利益, pretax=税引前利益, suspense=仮払金+立替金, officer_recv=役員等への貸付金, tangible=有形固定資産, intangible=無形固定資産, investments=投資その他の資産, payables=買掛金+支払手形, st_loans=短期借入金, cur_lt_loans=1年内返済予定長期借入金, lt_loans=長期借入金, officer_loans=役員借入金, retained=利益剰余金`;
+}
+async function extractDoc(d) {
+  if (!d.file) throw new Error("PDFファイルがありません。もう一度追加してください");
+  const b64 = await fileToBase64(d.file);
+  if (d.file.size > 25 * 1024 * 1024) throw new Error("PDFが大きすぎます（25MBまで）。必要なページだけにしてください");
+  let text = "";
+  try { text = await pdfText(d.file); } catch (e) { }
+  const raw = await callAI({ system: EXTRACT_SYSTEM, prompt: extractPrompt(d), pdfBase64: b64, pdfText: text, maxTokens: 2500 });
+  const j = parseJSON(raw);
+  if (!j || !j.pl) throw new Error("数値を読み取れませんでした。ページの向きや解像度を確認してください");
+  d.pl = {}; d.bs = {};
+  KEYS.pl.forEach(k => d.pl[k] = n(j.pl[k]));
+  KEYS.bs.forEach(k => d.bs[k] = n(j.bs?.[k]));
+  if (!d.period_end && j.period_end) d.period_end = String(j.period_end).slice(0, 7);
+  d.months = d.kind === "決算書" ? 12 : (n(j.months) || d.months || 12);
+  d.notes = (j.notes || []).slice(0, 3);
+  if (j.company && !S.company) S.company = j.company;
+}
+
+/* ---------- AI呼び出し（プレビュー＝直接／本番＝Edge Function） ---------- */
+async function getToken() {
+  try {
+    if (window.EC) {
+      if (typeof EC.token === "function") { const t = await EC.token(); if (t) return t; }
+      const cli = EC.sb || EC.supabase || EC.client;
+      if (cli?.auth) { const { data } = await cli.auth.getSession(); if (data?.session?.access_token) return data.session.access_token; }
+    }
+  } catch (e) { }
+  return CONFIG.SB_KEY;
+}
+async function callAI({ system, prompt, pdfBase64, pdfText, maxTokens }) {
+  const content = pdfBase64
+    ? [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } }, { type: "text", text: prompt }]
+    : prompt;
+
+  if (CONFIG.MODE === "direct") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content }] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error("AI呼び出しに失敗しました：" + (data.error.message || ""));
+    return (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
+  }
+
+  const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await getToken(), apikey: CONFIG.SB_KEY };
+  // 1) PDFをそのまま渡す（Edge Functionを更新済みの場合）
+  let res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
+  let data = await res.json().catch(() => ({}));
+  // 2) 旧版のEdge Functionなら、抽出テキストで再送
+  if (!data.text && pdfBase64 && pdfText && pdfText.trim().length > 200) {
+    res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, prompt: prompt + "\n\n以下はPDFから抽出したテキストです。\n" + pdfText }) });
+    data = await res.json().catch(() => ({}));
+  }
+  if (!pdfBase64 && !data.text) {
+    res = await fetch(CONFIG.EDGE_URL, { method: "POST", headers, body: JSON.stringify({ system, max_tokens: maxTokens, prompt }) });
+    data = await res.json().catch(() => ({}));
+  }
+  if (!data.text) throw new Error("AI呼び出しに失敗しました：" + (data.error || res.status) + (pdfBase64 && !pdfText ? "（画像PDFはEdge Functionの更新が必要です）" : ""));
+  return data.text;
+}
+function parseJSON(t) {
+  if (!t) return null;
+  const s = t.replace(/```json|```/g, "");
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a < 0 || b < 0) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }
+}
+
+/* =========================================================
+   STEP 2 数値の確認
+   ========================================================= */
+function step2() {
+  const docs = sortedDocs();
+  if (!docs.length) { $("main").innerHTML = `<h2>数値を確かめる</h2><div class="empty">まだ読み取った資料がありません。<br><br><button class="btn primary" onclick="go(1)">資料を読み込む</button></div>`; return; }
+  const checks = docs.map(d => {
+    const out = [];
+    const bsDiff = z(d.bs.total_assets) - z(d.bs.total_liab) - z(d.bs.net_assets);
+    out.push(Math.abs(bsDiff) < 1000 ? { ok: 1, t: `${docLabel(d)}：資産合計 ＝ 負債合計 ＋ 純資産 が一致しています` } : { ok: 0, t: `${docLabel(d)}：資産合計と「負債＋純資産」に ${fmtK(bsDiff)}千円 の差があります` });
+    const gDiff = z(d.pl.sales) - z(d.pl.cogs) - z(d.pl.gross);
+    if (n(d.pl.gross) !== null) out.push(Math.abs(gDiff) < 1000 ? { ok: 1, t: `${docLabel(d)}：売上高 − 売上原価 ＝ 売上総利益 が一致しています` } : { ok: 0, t: `${docLabel(d)}：売上総利益の計算に ${fmtK(gDiff)}千円 の差があります` });
+    if (d.kind === "試算表" && !z(d.pl.depreciation)) out.push({ ok: 0, t: `${docLabel(d)}：減価償却費が0です。年末一括計上の場合は見込み額を入れると、返済能力を正しく評価できます` });
+    return out;
+  }).flat();
+
+  $("main").innerHTML = `
+  <h2>数値を確かめる</h2>
+  <p class="lead">AIが読み取った数値です（単位：千円）。金額をクリックすると修正できます。ここで確定した数値が、分析と資料の根拠になります。</p>
+  ${checks.map(c => `<div class="check ${c.ok ? "ok" : "ng"}">${c.ok ? "一致" : "要確認"}　${esc(c.t)}</div>`).join("")}
+  <div style="overflow-x:auto;margin-top:14px">
+  <table class="nums num">
+    <thead><tr><th>勘定科目</th>${docs.map(d => `<th>${esc(d.kind)}<br><input type="month" value="${esc(d.period_end)}" onchange="upd('${d.id}','period_end',this.value)" style="color:#fff;width:auto">
+      ${d.kind === "試算表" ? `<br><label style="font-weight:400;font-size:12px">累計 <input type="number" min="1" max="12" value="${d.months}" style="width:48px;color:#fff" onchange="upd('${d.id}','months',+this.value)"> か月</label>` : ""}</th>`).join("")}</tr></thead>
+    <tbody>
+    ${FIELDS.map(f => f.sec
+      ? `<tr class="sec"><td colspan="${docs.length + 1}">${f.sec}</td></tr>`
+      : `<tr class="${f.total ? "total" : ""}"><td>${f.l}${f.hint ? `<br><span class="hint">${f.hint}</span>` : ""}</td>${docs.map(d =>
+        `<td><input inputmode="numeric" aria-label="${esc(docLabel(d) + " " + f.l)}" value="${n(d[f.s][f.k]) === null ? "" : Math.round(d[f.s][f.k] / 1000)}" onchange="updVal('${d.id}','${f.s}','${f.k}',this.value)"></td>`).join("")}</tr>`
+    ).join("")}
+    </tbody>
+  </table></div>
+  <div style="margin-top:18px"><button class="btn primary" onclick="go(3)">この数値で分析する</button></div>`;
+}
+function upd(id, key, v) { const d = S.docs.find(x => x.id === id); d[key] = v; S.analysis = null; }
+function updVal(id, s, k, v) {
+  const d = S.docs.find(x => x.id === id);
+  const t = String(v).replace(/[,，\s]/g, "").replace(/^△|^▲/, "-");
+  d[s][k] = t === "" ? null : Number(t) * 1000;
+  S.analysis = null;
+  step2();
+}
+
+/* =========================================================
+   指標の計算（すべて根拠の数式つき）
+   ========================================================= */
+function calc(d) {
+  const p = d.pl, b = d.bs, m = d.months || 12, f = 12 / m;
+  const ann = k => n(p[k]) === null ? null : p[k] * f;
+  const debt = z(b.st_loans) + z(b.cur_lt_loans) + z(b.lt_loans) + z(b.bonds);
+  const salesA = ann("sales"), ordA = ann("ordinary"), opA = ann("op"), depA = z(p.depreciation) * f, intA = ann("interest");
+  const cf = ordA === null ? null : (ordA > 0 ? ordA * (1 - CONFIG.TAX_RATE) : ordA) + depA;
+  const netDebt = debt - z(b.cash);
+  const realNA = z(b.net_assets) - z(b.officer_recv) - z(b.suspense) * 0.5;
+  const annNote = m !== 12 ? `（${m}か月累計を12か月換算）` : "";
+  const K = v => fmtK(v) + "千円";
+  const r = (a, c) => (n(a) === null || !n(c)) ? null : a / c;
+
+  return {
+    debt, cf, netDebt, realNA, salesA, ordA, opA, depA, annNote,
+    list: [
+      { key: "equity", label: "自己資本比率", sub: "財務の安定性", unit: "%", v: r(b.net_assets, b.total_assets), pct: 1,
+        rule: [40, 20, "hi"], formula: `純資産 ${K(b.net_assets)} ÷ 資産合計 ${K(b.total_assets)}`,
+        view: "銀行が最初に見る指標の一つ。20%超で安定、40%超で優良。債務超過（マイナス）は融資判断が大きく厳しくなります。" },
+      { key: "realEquity", label: "実質自己資本比率", sub: "銀行の修正後", unit: "%", v: r(realNA + z(b.officer_loans), b.total_assets), pct: 1,
+        rule: [40, 20, "hi"], formula: `（純資産 ${K(b.net_assets)} − 役員貸付金 ${K(b.officer_recv)} − 仮払金等の半額 ${K(z(b.suspense) * 0.5)} ＋ 役員借入金 ${K(b.officer_loans)}）÷ 資産合計`,
+        view: "回収の見込みが薄い資産を差し引き、役員借入金を自己資本とみなして評価し直します。帳簿上の比率より低ければ、資産の中身の説明が必要です。" },
+      { key: "repay", label: "債務償還年数", sub: "返済能力", unit: "年", v: debt <= 0 ? 0 : (cf === null ? null : (cf <= 0 ? Infinity : Math.max(0, netDebt) / cf)),
+        rule: [10, 15, "lo"], formula: `（有利子負債 ${K(debt)} − 現預金 ${K(b.cash)}）÷ 簡易CF ${K(cf)}${annNote}　※簡易CF＝経常利益×(1−${CONFIG.TAX_RATE * 100}%)＋減価償却費`,
+        view: "借入金を何年で返せるか。10年以内が正常先の目安、15年超や計算不能（CFマイナス）は要注意と見られやすい指標です。" },
+      { key: "ordMargin", label: "売上高経常利益率", sub: "収益力", unit: "%", v: r(p.ordinary, p.sales), pct: 1,
+        rule: [3, 0.0001, "hi"], formula: `経常利益 ${K(p.ordinary)} ÷ 売上高 ${K(p.sales)}`,
+        view: "本業と金融収支を合わせた稼ぐ力。赤字は理由と黒字化の時期を必ず問われます。3%以上で安心感があります。" },
+      { key: "grossMargin", label: "売上高総利益率", sub: "付加価値", unit: "%", v: r(p.gross, p.sales), pct: 1,
+        rule: [25, 15, "hi"], formula: `売上総利益 ${K(p.gross)} ÷ 売上高 ${K(p.sales)}`,
+        view: "価格決定力と原価管理の結果。前期から下がっていれば、仕入価格・値引き・案件構成の変化を説明できるようにします。" },
+      { key: "icr", label: "インタレスト・カバレッジ", sub: "利払い余力", unit: "倍", v: !z(p.interest) ? null : r(z(p.op) + z(p.nonop_inc), p.interest),
+        rule: [5, 2, "hi"], formula: `（営業利益 ${K(p.op)} ＋ 営業外収益 ${K(p.nonop_inc)}）÷ 支払利息 ${K(p.interest)}`,
+        view: "利息の何倍を稼いでいるか。金利上昇局面では特に注目されます。2倍を切ると追加融資に慎重になります。" },
+      { key: "current", label: "流動比率", sub: "短期の支払能力", unit: "%", v: r(b.current_assets, b.current_liab), pct: 1,
+        rule: [150, 100, "hi"], formula: `流動資産 ${K(b.current_assets)} ÷ 流動負債 ${K(b.current_liab)}`,
+        view: "1年以内に払うものを1年以内に現金化できる資産で賄えるか。100%を下回ると資金繰りを確認されます。" },
+      { key: "loanMonths", label: "借入金月商倍率", sub: "借入の大きさ", unit: "か月", v: !salesA ? null : debt / (salesA / 12),
+        rule: [6, 12, "lo"], formula: `有利子負債 ${K(debt)} ÷ 月商 ${K(salesA / 12)}${annNote}`,
+        view: "借入が月の売上の何か月分か。業種差はありますが、設備型でない事業では6か月以内が目安です。発電所など設備を持つ場合はその旨を説明します。" },
+      { key: "roa", label: "総資本経常利益率（ROA）", sub: "資産効率", unit: "%", v: (ordA === null || !z(b.total_assets)) ? null : ordA / b.total_assets, pct: 1,
+        rule: [5, 1, "hi"], formula: `経常利益（年換算）${K(ordA)} ÷ 資産合計 ${K(b.total_assets)}`,
+        view: "持っている資産でどれだけ稼いでいるか。在庫や固定資産が増えているのに利益が伸びていなければ、その理由を問われます。" },
+      { key: "recvMonths", label: "売上債権回転期間", sub: "回収の速さ", unit: "か月", v: !salesA ? null : z(b.receivables) / (salesA / 12),
+        rule: [2, 3, "lo"], formula: `売上債権 ${K(b.receivables)} ÷ 月商 ${K(salesA / 12)}`,
+        view: "売上を現金で回収するまでの期間。前期より長くなると、回収遅延や架空売上を疑われることがあります。" },
+      { key: "invMonths", label: "棚卸資産回転期間", sub: "在庫の重さ", unit: "か月", v: !salesA ? null : z(b.inventory) / (salesA / 12),
+        rule: [1.5, 3, "lo"], formula: `棚卸資産 ${K(b.inventory)} ÷ 月商 ${K(salesA / 12)}`,
+        view: "在庫が月商の何か月分か。急増は不良在庫や利益の水増しを疑われるため、仕掛工事の内訳などで裏付けます。" }
+    ]
+  };
+}
+function judge(x) {
+  if (x.v === null || x.v === undefined || Number.isNaN(x.v)) return "na";
+  const v = x.pct ? x.v * 100 : x.v;
+  const [good, bad, dir] = x.rule;
+  if (v === Infinity) return dir === "lo" ? "bad" : "good";
+  if (dir === "hi") return v >= good ? "good" : v >= bad ? "warn" : "bad";
+  return v <= good ? "good" : v <= bad ? "warn" : "bad";
+}
+function fmtVal(x) {
+  if (x.v === null || x.v === undefined || Number.isNaN(x.v)) return "—";
+  if (x.v === Infinity) return "計算不能";
+  const v = x.pct ? x.v * 100 : x.v;
+  return v.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+}
+/* 定量スコア（100点）と格付けの目安 */
+function score(d) {
+  const c = calc(d), g = k => c.list.find(x => x.key === k);
+  const pick = (v, steps) => { for (const [th, pt] of steps) if (th(v)) return pt; return 0; };
+  const pctv = k => g(k).v === null ? null : g(k).v * 100;
+  const parts = [
+    ["自己資本比率", 15, pctv("realEquity") === null ? 0 : pick(pctv("realEquity"), [[v => v >= 40, 15], [v => v >= 25, 12], [v => v >= 15, 9], [v => v >= 5, 5], [v => v >= 0, 2]])],
+    ["債務償還年数", 20, g("repay").v === null ? 0 : pick(g("repay").v, [[v => v <= 3, 20], [v => v <= 5, 16], [v => v <= 10, 11], [v => v <= 15, 5]])],
+    ["利払い余力", 10, c.debt <= 0 || !z(d.pl.interest) ? 10 : pick(g("icr").v, [[v => v >= 10, 10], [v => v >= 5, 8], [v => v >= 2, 5], [v => v >= 1, 2]])],
+    ["流動比率", 10, pctv("current") === null ? 0 : pick(pctv("current"), [[v => v >= 200, 10], [v => v >= 150, 8], [v => v >= 120, 6], [v => v >= 100, 4], [v => v >= 0, 1]])],
+    ["経常利益率", 15, pctv("ordMargin") === null ? 0 : pick(pctv("ordMargin"), [[v => v >= 8, 15], [v => v >= 5, 12], [v => v >= 3, 9], [v => v >= 1, 5], [v => v > 0, 3]])],
+    ["ROA", 10, pctv("roa") === null ? 0 : pick(pctv("roa"), [[v => v >= 8, 10], [v => v >= 5, 8], [v => v >= 3, 6], [v => v >= 1, 3], [v => v > 0, 1]])],
+    ["借入金月商倍率", 10, c.debt <= 0 ? 10 : g("loanMonths").v === null ? 0 : pick(g("loanMonths").v, [[v => v <= 3, 10], [v => v <= 6, 7], [v => v <= 9, 4], [v => v <= 12, 2]])],
+    ["純資産・黒字", 10, (z(d.bs.net_assets) > 0 ? 5 : 0) + (z(d.pl.ordinary) > 0 ? 5 : 0)]
+  ];
+  const total = parts.reduce((a, p) => a + p[2], 0);
+  const grade = total >= 85 ? ["A", "正常先の上位に近い水準"] : total >= 70 ? ["B", "正常先に近い水準"] : total >= 55 ? ["C", "正常先の下位に近い水準"] : total >= 40 ? ["D", "要注意先と見られるおそれ"] : ["E", "要注意先以下と見られるおそれ"];
+  return { total, grade, parts };
+}
+function alertsFor(d, prev) {
+  const a = [], c = calc(d);
+  if (z(d.bs.net_assets) < 0) a.push(["bad", "債務超過です。解消の計画と時期を最優先で説明する必要があります。"]);
+  if (z(d.pl.ordinary) < 0) a.push(["bad", "経常赤字です。一時的な要因か構造的な要因かを、科目の根拠とともに説明します。"]);
+  if (z(d.bs.officer_recv) > 0) a.push(["warn", `役員・関係者への貸付金 ${fmtK(d.bs.officer_recv)}千円 は、銀行では資産から除外して評価されます。返済計画を示します。`]);
+  if (z(d.bs.suspense) > z(d.bs.total_assets) * 0.01) a.push(["warn", `仮払金・立替金 ${fmtK(d.bs.suspense)}千円 は中身を問われやすい科目です。精算して残高を減らすか内訳を用意します。`]);
+  if (d.kind === "試算表" && !z(d.pl.depreciation)) a.push(["warn", "試算表の減価償却費が未計上です。見込み額を入れないと利益が実態より大きく見えます。"]);
+  if (prev) {
+    const cp = calc(prev);
+    const gs = cp.salesA ? c.salesA / cp.salesA - 1 : null;
+    const pm = (x, y) => (x ?? 0) * 100 - (y ?? 0) * 100;
+    const rv = k => c.list.find(x => x.key === k).v, pv = k => cp.list.find(x => x.key === k).v;
+    if (gs !== null && Math.abs(gs) >= 0.1) a.push([gs < 0 ? "warn" : "warn", `売上高（年換算）が前回比 ${(gs * 100).toFixed(1)}% ${gs < 0 ? "減少" : "増加"}しています。${gs < 0 ? "減少の理由と回復策" : "増加に伴う運転資金の増加"}を説明できるようにします。`]);
+    if (rv("recvMonths") && pv("recvMonths") && rv("recvMonths") - pv("recvMonths") > 0.5) a.push(["warn", `売上債権回転期間が ${pv("recvMonths").toFixed(1)}→${rv("recvMonths").toFixed(1)}か月に長期化しています。大口の未回収先や入金サイトを確認します。`]);
+    if (rv("invMonths") && pv("invMonths") && rv("invMonths") - pv("invMonths") > 0.5) a.push(["warn", `棚卸資産回転期間が ${pv("invMonths").toFixed(1)}→${rv("invMonths").toFixed(1)}か月に長期化しています。仕掛工事・在庫の内訳を用意します。`]);
+    if (pm(rv("grossMargin"), pv("grossMargin")) <= -2) a.push(["warn", `売上総利益率が ${(pv("grossMargin") * 100).toFixed(1)}%→${(rv("grossMargin") * 100).toFixed(1)}% に低下しています。`]);
+  }
+  return a;
+}
+
+/* =========================================================
+   STEP 3 銀行目線の分析
+   ========================================================= */
+let charts = [];
+function getTarget() {
+  const docs = sortedDocs();
+  let d = docs.find(x => x.id === S.targetId) || docs.at(-1);
+  if (d) S.targetId = d.id;
+  const idx = docs.indexOf(d);
+  return { d, prev: idx > 0 ? docs[idx - 1] : null, docs };
+}
+function step3() {
+  const { d, prev, docs } = getTarget();
+  if (!d) { $("main").innerHTML = `<h2>銀行目線で分析</h2><div class="empty">分析する資料がありません。<br><br><button class="btn primary" onclick="go(1)">資料を読み込む</button></div>`; return; }
+  const c = calc(d), sc = score(d), cp = prev ? calc(prev) : null, al = alertsFor(d, prev);
+  const sameStamp = S._lastStamp === d.id + sc.total; S._lastStamp = d.id + sc.total;
+
+  $("main").innerHTML = `
+  <h2>銀行目線で分析</h2>
+  <p class="lead">確定した数値から、金融機関が融資判断で重視する指標を計算しました。各指標の「計算の根拠」を開くと、どの科目のいくらから出した数字かを確認できます。</p>
+  <div class="periodpick"><label class="f" style="margin:0">分析する期</label>
+    <select class="t" style="width:auto" onchange="S.targetId=this.value;S.analysis=null;step3()">${docs.map(x => `<option value="${x.id}" ${x.id === d.id ? "selected" : ""}>${esc(docLabel(x))}</option>`).join("")}</select>
+    ${prev ? `<span class="hint">比較対象：${esc(docLabel(prev))}</span>` : `<span class="hint">もう1期分を読み込むと前回比較が表示されます</span>`}
+  </div>
+  <div class="verdict">
+    <div class="stamp ${sameStamp ? "" : "pop"}" aria-label="格付けの目安 ${sc.grade[0]}、${sc.total}点"><span class="g">${sc.grade[0]}</span><span class="s num">${sc.total}点</span></div>
+    <div>
+      <h4>${sc.grade[1]}</h4>
+      <p>定量面のみで算出した100点満点の目安です。${d.kind === "試算表" ? `試算表のため、損益は${d.months}か月累計を12か月に換算しています（季節変動は反映されません）。` : ""}</p>
+      <p class="hint num" style="margin-top:8px">${sc.parts.map(p => `${p[0]} ${p[2]}/${p[1]}`).join("　")}</p>
+    </div>
+  </div>
+  ${al.length ? `<div class="alerts">${al.map(x => `<div class="alert ${x[0] === "bad" ? "bad" : ""}">${esc(x[1])}</div>`).join("")}</div>` : ""}
+
+  <div class="metrics">
+  ${c.list.map(x => {
+    const j = judge(x), pv = cp ? cp.list.find(y => y.key === x.key) : null;
+    let delta = "";
+    if (pv && pv.v !== null && x.v !== null && isFinite(pv.v) && isFinite(x.v)) {
+      const dv = (x.pct ? (x.v - pv.v) * 100 : x.v - pv.v);
+      delta = `<span class="delta">前回比 ${dv >= 0 ? "+" : ""}${dv.toFixed(1)}${x.pct ? "pt" : ""}</span>`;
+    }
+    const w = x.v === null ? 0 : Math.max(4, Math.min(100, j === "good" ? 90 : j === "warn" ? 55 : 22));
+    return `<div class="m">
+      <div class="lab">${x.label}<small>${x.sub}</small></div>
+      <div class="val num">${fmtVal(x)}<small>${x.v === null || x.v === Infinity ? "" : x.unit} ${delta}</small></div>
+      <div><span class="pill ${j}">${{ good: "良好", warn: "注意", bad: "懸念", na: "データ不足" }[j]}</span>
+        <div class="bar"><i style="width:${w}%;background:var(--${j})"></i></div></div>
+      <div class="view">${x.view}
+        <details><summary>計算の根拠</summary><div class="num">${esc(x.formula)}</div>
+        <div>目安：${x.rule[2] === "hi" ? `${x.rule[0]}${x.unit}以上で良好／${x.rule[1]}${x.unit}未満で懸念` : `${x.rule[0]}${x.unit}以内で良好／${x.rule[1]}${x.unit}超で懸念`}</div></details>
+      </div></div>`;
+  }).join("")}
+  </div>
+
+  <div class="charts">
+    <div class="panel"><canvas id="ch1" aria-label="損益の推移"></canvas></div>
+    <div class="panel"><canvas id="ch2" aria-label="貸借対照表の構成"></canvas></div>
+  </div>
+  <div style="margin-top:18px"><button class="btn primary" onclick="go(4)">改善計画と想定問答をつくる</button></div>`;
+  drawCharts(d, docs);
+}
+function drawCharts(d, docs) {
+  charts.forEach(ch => ch.destroy()); charts = [];
+  if (!window.Chart) return;
+  Chart.defaults.font.family = "'BIZ UDPGothic',sans-serif";
+  const labels = docs.map(x => (x.period_end || "").replace("-", "/") + (x.kind === "試算表" ? "試" : "決"));
+  const annual = (x, k) => z(x.pl[k]) * 12 / (x.months || 12) / 1e6;
+  charts.push(new Chart($("ch1"), {
+    data: {
+      labels, datasets: [
+        { type: "bar", label: "売上高（年換算・百万円）", data: docs.map(x => annual(x, "sales")), backgroundColor: "#C9D5E8", yAxisID: "y" },
+        { type: "line", label: "経常利益（年換算・百万円）", data: docs.map(x => annual(x, "ordinary")), borderColor: "#23457A", backgroundColor: "#23457A", yAxisID: "y1", tension: .2 }
+      ]
+    },
+    options: { maintainAspectRatio: false, plugins: { title: { display: true, text: "損益の推移" } }, scales: { y: { position: "left" }, y1: { position: "right", grid: { display: false } } } }
+  }));
+  const b = d.bs, M = v => z(v) / 1e6;
+  charts.push(new Chart($("ch2"), {
+    type: "bar",
+    data: {
+      labels: ["資産", "負債・純資産"], datasets: [
+        { label: "流動資産", data: [M(b.current_assets), 0], backgroundColor: "#8FB3DE" },
+        { label: "固定資産", data: [M(b.fixed_assets), 0], backgroundColor: "#4F77AE" },
+        { label: "流動負債", data: [0, M(b.current_liab)], backgroundColor: "#E3B4AE" },
+        { label: "固定負債", data: [0, M(b.fixed_liab)], backgroundColor: "#C27A70" },
+        { label: "純資産", data: [0, M(b.net_assets)], backgroundColor: "#2F7A55" }
+      ]
+    },
+    options: { maintainAspectRatio: false, plugins: { title: { display: true, text: "貸借対照表の構成（百万円）" } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+  }));
+}
+
+/* =========================================================
+   STEP 4 AIによる改善計画と想定問答
+   ========================================================= */
+const ANALYSIS_SYSTEM = "あなたは中小企業の財務と銀行の融資審査に精通したアドバイザーです。社長が四半期ごとの銀行訪問で、自社の数字の根拠と改善策を説明するための材料を作ります。渡された数値だけを根拠にし、数値に無いことは推測と明記します。金額は百万円単位で書きます。必ずJSONだけを返します。";
+function dataBrief() {
+  const { d, prev } = getTarget();
+  const pack = x => {
+    const c = calc(x), sc = score(x);
+    const M = v => n(v) === null ? null : Math.round(v / 1e5) / 10;
+    return {
+      period: docLabel(x), score: sc.total, grade: sc.grade[1],
+      pl_百万円: Object.fromEntries(KEYS.pl.map(k => [k, M(x.pl[k])])),
+      bs_百万円: Object.fromEntries(KEYS.bs.map(k => [k, M(x.bs[k])])),
+      指標: Object.fromEntries(c.list.map(m => [m.label, fmtVal(m) + (m.v === null || m.v === Infinity ? "" : m.unit) + "（" + { good: "良好", warn: "注意", bad: "懸念", na: "不明" }[judge(m)] + "）"])),
+      有利子負債_百万円: M(c.debt), 簡易CF年換算_百万円: M(c.cf)
+    };
+  };
+  const simLine = simOn() ? `\n社長が試算した改善シナリオ（12か月換算）：${simText()} → ${simRows(d).filter(r => /^経常利益$|債務償還|格付け/.test(r[0])).map(r => `${r[0]} ${r[1]}→${r[2]}`).join("、")}。改善計画の効果はこの数字と整合させること。` : "";
+  return `会社：${S.company}\n事業：${S.business}${simLine}\n今回：${JSON.stringify(pack(d))}\n${prev ? "前回：" + JSON.stringify(pack(prev)) : "前回データなし"}\n注意喚起：${alertsFor(d, prev).map(a => a[1]).join(" / ") || "なし"}`;
+}
+async function runAnalysis() {
+  S._busy = true; step4();
+  try {
+    const brief = dataBrief();
+    const [a, b] = await Promise.all([
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n\n銀行への説明の骨子を作ってください。\n{"headline":"今期を一言で（35字以内）","summary":"銀行に伝える要旨（180字以内）","strengths":[{"title":"強み（20字以内）","evidence":"根拠の数値と科目（50字以内）","message":"銀行への伝え方（60字以内）"}]} strengthsは3件。` }),
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n\n銀行が懸念する点を挙げてください。\n{"concerns":[{"title":"課題（20字以内）","evidence":"根拠の数値と科目（50字以内）","bank_view":"銀行がどう見るか（50字以内）","cause":"考えられる原因（50字以内）"}]} concernsは3件。重要な順に。` })
+    ]);
+    const A = parseJSON(a) || {}, B = parseJSON(b) || {};
+    const concerns = B.concerns || [];
+    const cText = concerns.map(x => x.title + "：" + x.evidence).join(" / ");
+    const [c2, d2] = await Promise.all([
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n課題：${cText}\n\n課題に対する改善計画を作ってください。数値目標は実現可能な水準にします。\n{"actions":[{"title":"施策（20字以内）","detail":"具体的な内容（60字以内）","kpi":"測る指標と目標値（30字以内）","deadline":"期限（例：2027年2月末）","effect":"財務への効果（40字以内）"}]} actionsは4件。今日は${new Date().toLocaleDateString("ja-JP")}。` }),
+      callAI({ system: ANALYSIS_SYSTEM, maxTokens: 1500, prompt: `${brief}\n課題：${cText}\n\n銀行担当者から聞かれそうな質問と、社長としての回答例を作ってください。回答は数字を根拠に誠実に。\n{"qa":[{"q":"質問（40字以内）","a":"回答（90字以内）"}],"closing":"結びの言葉と今後のお願い（90字以内）"} qaは5件。` })
+    ]);
+    const C = parseJSON(c2) || {}, D = parseJSON(d2) || {};
+    S.analysis = {
+      headline: A.headline || "", summary: A.summary || "",
+      strengths: A.strengths || [], concerns, actions: C.actions || [], qa: D.qa || [], closing: D.closing || ""
+    };
+    if (!S.analysis.summary && !concerns.length) throw new Error("AIの回答を読み取れませんでした。もう一度お試しください");
+    toast("分析をつくりました。内容を確認して修正してください");
+  } catch (e) { toast(e.message); }
+  S._busy = false; step4();
+}
+function step4() {
+  const { d } = getTarget();
+  if (!d) { $("main").innerHTML = `<h2>改善計画と想定問答</h2><div class="empty">分析する資料がありません。<br><br><button class="btn primary" onclick="go(1)">資料を読み込む</button></div>`; return; }
+  const A = S.analysis;
+  const field = (path, val, big) => big
+    ? `<textarea class="t" oninput="setA('${path}',this.value)">${esc(val)}</textarea>`
+    : `<input class="t" value="${esc(val)}" oninput="setA('${path}',this.value)">`;
+  const list = (name, cols, addTpl) => `
+    <div class="edit-list">${(A[name] || []).map((it, i) => `<div class="item">
+      ${cols.map(([k, l, big]) => `<div class="row"><span>${l}</span>${field(`${name}.${i}.${k}`, it[k] || "", big)}</div>`).join("")}
+      <button class="btn sm x" onclick="S.analysis.${name}.splice(${i},1);step4()">この項目を削除</button></div>`).join("")}
+    </div><button class="btn sm" style="margin-top:8px" onclick='S.analysis.${name}.push(${JSON.stringify(addTpl)});step4()'>項目を追加</button>`;
+
+  $("main").innerHTML = `
+  <h2>改善計画と想定問答</h2>
+  <p class="lead">まず改善シミュレーターで打ち手の大きさを数字で決め、そのうえでAIに「強み・課題と根拠・改善計画・想定される質問」をまとめさせます。社長の言葉に直してから資料にしてください。</p>
+  <div class="panel simwrap">${simPanel(d)}</div>
+  <h3>AIによる説明の組み立て</h3>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn primary" onclick="runAnalysis()" ${S._busy ? "disabled" : ""}>${A ? "AIでつくり直す" : "AIで分析をつくる"}</button>
+    ${!A ? `<button class="btn" onclick="S.analysis=demoAnalysis();step4()">AIを使わずに空の雛形から書く</button>` : ""}
+    ${S._busy ? `<span class="busy">数値を読み込んで分析しています（30秒ほど）</span>` : ""}
+    <span class="hint">対象：${esc(docLabel(d))}</span>
+  </div>
+  ${A ? `
+    <h3>今期の要旨</h3>
+    <div class="item"><div class="row"><span>ひとこと</span>${field("headline", A.headline)}</div>
+    <div class="row"><span>要旨</span>${field("summary", A.summary, 1)}</div></div>
+    <h3>強み（根拠つき）</h3>
+    ${list("strengths", [["title", "強み"], ["evidence", "根拠"], ["message", "伝え方", 1]], { title: "", evidence: "", message: "" })}
+    <h3>課題と根拠</h3>
+    ${list("concerns", [["title", "課題"], ["evidence", "根拠"], ["bank_view", "銀行の見方"], ["cause", "原因"]], { title: "", evidence: "", bank_view: "", cause: "" })}
+    <h3>改善計画</h3>
+    ${list("actions", [["title", "施策"], ["detail", "内容", 1], ["kpi", "KPI・目標"], ["deadline", "期限"], ["effect", "財務への効果"]], { title: "", detail: "", kpi: "", deadline: "", effect: "" })}
+    <h3>想定される質問と回答</h3>
+    ${list("qa", [["q", "質問"], ["a", "回答", 1]], { q: "", a: "" })}
+    <h3>結び</h3>
+    <div class="item"><div class="row"><span>結びの言葉</span>${field("closing", A.closing, 1)}</div></div>
+    <div style="margin-top:18px"><button class="btn primary" onclick="go(5)">プレゼン資料を出力する</button></div>
+  ` : ""}`;
+}
+/* =========================================================
+   改善シミュレーター
+   今期の数値を12か月に換算し、4つの打ち手を動かしたときの指標を出す
+   ========================================================= */
+function annualDoc(d) {
+  const f = 12 / (d.months || 12);
+  return { ...d, months: 12, pl: Object.fromEntries(KEYS.pl.map(k => [k, n(d.pl[k]) === null ? null : d.pl[k] * f])) };
+}
+function simDoc(d) {
+  const sm = S.sim, a = annualDoc(d), pl = { ...a.pl }, bs = { ...d.bs };
+  const salesA = z(pl.sales), grossA = n(pl.gross) !== null ? pl.gross : salesA - z(pl.cogs);
+  const gm = salesA ? grossA / salesA : 0;
+  const nSales = salesA * (1 + sm.salesUp / 100);
+  const nGross = nSales * (gm + sm.gmPt / 100);
+  const sgaCut = sm.sgaCut * 1e6;
+  const delta = (nGross - grossA) + sgaCut;
+  pl.sales = nSales; pl.gross = nGross; pl.cogs = nSales - nGross;
+  pl.sga = z(pl.sga) - sgaCut;
+  pl.op = z(pl.op) + delta; pl.ordinary = z(pl.ordinary) + delta;
+  if (pl.pretax !== null) pl.pretax += delta;
+  // 運転資金の圧縮：在庫から先に減らし、残りを売上債権から。減った分は現預金に
+  let wc = sm.wcCut * 1e6;
+  const invCut = Math.min(wc, Math.max(0, z(bs.inventory))); bs.inventory = z(bs.inventory) - invCut; wc -= invCut;
+  const recvCut = Math.min(wc, Math.max(0, z(bs.receivables))); bs.receivables = z(bs.receivables) - recvCut;
+  bs.cash = z(bs.cash) + invCut + recvCut;
+  return { ...d, id: "sim", kind: "決算書", months: 12, pl, bs };
+}
+function simRows(d) {
+  const base = annualDoc(d), after = simDoc(d);
+  const a = calc(base), b = calc(after), sa = score(base), sb = score(after);
+  const g = (c, k) => c.list.find(x => x.key === k);
+  const M = v => fmtM(v) + "百万円";
+  const yr = x => fmtVal(x) + (x.v !== null && isFinite(x.v) ? "年" : "");
+  const ra = g(a, "repay").v, rb = g(b, "repay").v;
+  const repayDelta = (ra !== null && rb !== null) ? (isFinite(ra) && isFinite(rb) ? ra - rb : (!isFinite(ra) && isFinite(rb) ? 1 : (isFinite(ra) && !isFinite(rb) ? -1 : 0))) : 0;
+  return [
+    ["売上高", M(a.salesA), M(b.salesA), z(b.salesA) - z(a.salesA)],
+    ["売上総利益率", fmtVal(g(a, "grossMargin")) + "%", fmtVal(g(b, "grossMargin")) + "%", z(g(b, "grossMargin").v) - z(g(a, "grossMargin").v)],
+    ["経常利益", M(a.ordA), M(b.ordA), z(b.ordA) - z(a.ordA)],
+    ["売上高経常利益率", fmtVal(g(a, "ordMargin")) + "%", fmtVal(g(b, "ordMargin")) + "%", z(g(b, "ordMargin").v) - z(g(a, "ordMargin").v)],
+    ["簡易キャッシュフロー", M(a.cf), M(b.cf), z(b.cf) - z(a.cf)],
+    ["現金及び預金", M(base.bs.cash), M(after.bs.cash), z(after.bs.cash) - z(base.bs.cash)],
+    ["債務償還年数", yr(g(a, "repay")), yr(g(b, "repay")), repayDelta],
+    ["格付けの目安", `${sa.grade[0]}（${sa.total}点）`, `${sb.grade[0]}（${sb.total}点）`, sb.total - sa.total]
+  ];
+}
+const SIM_DEF = [
+  ["salesUp", "売上高を増やす", -30, 50, 1, v => (v > 0 ? "+" : "") + v + "%"],
+  ["gmPt", "売上総利益率を上げる", -5, 10, 0.5, v => (v > 0 ? "+" : "") + v + "pt"],
+  ["sgaCut", "販管費を減らす（年間）", 0, 200, 1, v => v + "百万円"],
+  ["wcCut", "在庫・売掛金を現金化する", 0, 300, 5, v => v + "百万円"]
+];
+function simPanel(d) {
+  return `<h3 style="margin-top:0">改善シミュレーター</h3>
+  <p class="hint">打ち手を動かすと、12か月換算の数字と銀行の評価がどう変わるかをその場で確認できます。ここで決めた数字は、AIの改善計画とPowerPointにも反映されます。</p>
+  <div class="simgrid">
+    <div class="simctl">${SIM_DEF.map(([k, l, mn, mx, st, fm]) => `
+      <label class="simrow"><span>${l}<b id="sv-${k}" class="num">${fm(S.sim[k])}</b></span>
+      <input type="range" min="${mn}" max="${mx}" step="${st}" value="${S.sim[k]}" oninput="simSet('${k}',this.value)"></label>`).join("")}
+      <button class="btn sm" onclick="S.sim={...SIM0};step4()">初期値に戻す</button>
+      <p class="hint">売上の増加分は今の粗利率で利益に乗り、販管費は増えない前提です。純資産は動かさず、控えめに評価しています。</p>
+    </div>
+    <div id="simOut">${simTable(d)}</div>
+  </div>`;
+}
+function simTable(d) {
+  return `<table class="simtbl"><thead><tr><th>項目（12か月換算）</th><th>現状</th><th>改善後</th></tr></thead><tbody>${simRows(d).map(r =>
+    `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num ${r[3] > 1e-9 ? "upd" : r[3] < -1e-9 ? "dnd" : ""}">${r[2]}</td></tr>`).join("")}</tbody></table>`;
+}
+function simSet(k, v) {
+  S.sim[k] = Number(v);
+  const def = SIM_DEF.find(x => x[0] === k); $("sv-" + k).textContent = def[5](S.sim[k]);
+  const { d } = getTarget(); if (d) $("simOut").innerHTML = simTable(d);
+}
+function simText() {
+  if (!simOn()) return "";
+  return SIM_DEF.filter(([k]) => Number(S.sim[k])).map(([k, l, , , , fm]) => `${l.replace("（年間）", "")} ${fm(S.sim[k])}`).join("、");
+}
+
+function setA(path, v) {
+  const ks = path.split("."); let o = S.analysis;
+  for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
+  o[ks.at(-1)] = v;
+}
+function demoAnalysis() {
+  return { headline: "", summary: "", strengths: [{ title: "", evidence: "", message: "" }], concerns: [{ title: "", evidence: "", bank_view: "", cause: "" }], actions: [{ title: "", detail: "", kpi: "", deadline: "", effect: "" }], qa: [{ q: "", a: "" }], closing: "" };
+}
+
+/* =========================================================
+   STEP 5 出力
+   ========================================================= */
+function step5() {
+  const { d } = getTarget();
+  if (!d) { $("main").innerHTML = `<h2>プレゼン資料を出力</h2><div class="empty">分析する資料がありません。<br><br><button class="btn primary" onclick="go(1)">資料を読み込む</button></div>`; return; }
+  const titles = ["表紙", "本日のご報告", "今期の要旨", "損益の状況", "財務の状況", "主要財務指標と評価", "当社の強み", "課題とその根拠", "改善計画", "返済能力と資金の見通し", ...(simOn() ? ["改善後の見通し（試算）"] : []), "想定されるご質問への回答", "今後に向けて"];
+  $("main").innerHTML = `
+  <h2>プレゼン資料を出力</h2>
+  <p class="lead">16:9のPowerPoint（全${titles.length}枚）を作成します。改善シミュレーターを動かしている場合は「改善後の見通し」が加わります。各スライドの「ノート」に、社長が話す内容の要点も入れています。</p>
+  ${!S.analysis ? `<div class="alert">改善計画と想定問答がまだありません。数値と指標のスライドだけで出力するか、先に手順4でつくってください。</div>` : ""}
+  <div class="outline" style="margin-top:14px">${titles.map(t => `<div>${t}</div>`).join("")}</div>
+  <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+    <button class="btn primary" onclick="exportPptx()">PowerPointを出力</button>
+    <button class="btn" onclick="copyChatwork()">Chatwork用の要約をコピー</button>
+    <button class="btn" onclick="saveJSON()">分析を保存（次回の比較用）</button>
+  </div>`;
+}
+
+function exportPptx() {
+  if (!window.PptxGenJS) { toast("資料作成ライブラリを読み込めませんでした。通信環境を確認してください"); return; }
+  const { d, prev, docs } = getTarget(); const c = calc(d), sc = score(d), A = S.analysis || demoAnalysis();
+  const pres = new PptxGenJS(); pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
+  const INK = "172033", AI = "23457A", SOFT = "E4EBF5", SUB = "56627A", LINE = "D6DCE4", SHU = "B8322A";
+  const COL = { good: "2F7A55", warn: "A0660F", bad: "B03A2E", na: "8A93A3" };
+  const FONT = "BIZ UDPゴシック", HEAD = "BIZ UDP明朝 Medium";
+  const today = S.visitDate ? new Date(S.visitDate) : new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+  let pageNo = 0;
+  const T = (s, text, o) => s.addText(text, Object.assign({ fontFace: FONT, color: INK, fontSize: 14, isTextBox: true, margin: 0 }, o));
+  const base = (title, sub) => {
+    const s = pres.addSlide(); pageNo++;
+    s.background = { color: "FFFFFF" };
+    s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 0.18, h: 7.5, fill: { color: AI }, line: { color: AI } });
+    T(s, title, { x: 0.6, y: 0.35, w: 10.5, h: 0.7, fontSize: 28, bold: true, fontFace: HEAD });
+    if (sub) T(s, sub, { x: 0.6, y: 1.0, w: 12, h: 0.4, fontSize: 13, color: SUB });
+    s.addShape(pres.shapes.LINE, { x: 0.6, y: 1.45, w: 12.1, h: 0, line: { color: INK, width: 1.5 } });
+    T(s, `${S.company}　${pageNo}`, { x: 9.2, y: 7.0, w: 3.5, h: 0.3, fontSize: 10, color: SUB, align: "right" });
+    return s;
+  };
+  const hdr = t => ({ text: t, options: { bold: true, color: "FFFFFF", fill: { color: INK }, fontFace: FONT, fontSize: 12 } });
+  const cell = (t, o = {}) => ({ text: String(t ?? ""), options: Object.assign({ fontFace: FONT, fontSize: 12, color: INK }, o) });
+
+  // 1 表紙
+  let s = pres.addSlide(); pageNo++;
+  s.background = { color: INK };
+  s.addShape(pres.shapes.RECTANGLE, { x: 0.8, y: 2.1, w: 0.12, h: 2.3, fill: { color: SHU }, line: { color: SHU } });
+  T(s, S.bank ? `${S.bank}　御中` : "金融機関 御中", { x: 1.2, y: 1.2, w: 11, h: 0.5, fontSize: 18, color: "C5CCD8" });
+  T(s, "業績のご報告と\n今後の取り組みについて", { x: 1.2, y: 2.0, w: 11, h: 1.8, fontSize: 40, bold: true, color: "FFFFFF", fontFace: HEAD, valign: "top" });
+  T(s, `対象：${docLabel(d)}`, { x: 1.2, y: 3.9, w: 11, h: 0.5, fontSize: 16, color: "C5CCD8" });
+  T(s, `${dateStr}\n${S.company}　代表取締役社長`, { x: 1.2, y: 5.6, w: 11, h: 1.0, fontSize: 16, color: "FFFFFF" });
+  s.addNotes("本日はお時間をいただきありがとうございます。直近の数字と、その根拠、今後の改善の取り組みをご報告します。");
+
+  // 2 アジェンダ
+  s = base("本日のご報告");
+  ["今期の要旨", "損益と財務の状況", "主要財務指標と評価", "当社の強みと課題", "改善計画", "返済能力と資金の見通し", "ご質問への回答"].forEach((t, i) => {
+    T(s, String(i + 1), { x: 1.0, y: 1.9 + i * 0.68, w: 0.6, h: 0.55, fontSize: 24, bold: true, color: AI, fontFace: HEAD });
+    T(s, t, { x: 1.7, y: 1.9 + i * 0.68, w: 9, h: 0.55, fontSize: 20, valign: "middle" });
+  });
+
+  // 3 要旨
+  s = base("今期の要旨", docLabel(d));
+  T(s, A.headline || "（要旨を入力してください）", { x: 0.6, y: 1.75, w: 12.1, h: 0.8, fontSize: 26, bold: true, color: AI, fontFace: HEAD });
+  const kpis = [["売上高", fmtM(d.pl.sales) + "百万円", d.kind === "試算表" ? `${d.months}か月累計` : "通期"], ["経常利益", fmtM(d.pl.ordinary) + "百万円", "売上比 " + fmtVal(c.list.find(x => x.key === "ordMargin")) + "%"], ["自己資本比率", fmtVal(c.list[0]) + "%", "実質 " + fmtVal(c.list[1]) + "%"], ["債務償還年数", fmtVal(c.list[2]) + (isFinite(c.list[2].v) ? "年" : ""), "目安 10年以内"]];
+  kpis.forEach((k, i) => {
+    const x = 0.6 + i * 3.08;
+    s.addShape(pres.shapes.RECTANGLE, { x, y: 2.75, w: 2.9, h: 1.6, fill: { color: SOFT }, line: { color: SOFT } });
+    T(s, k[0], { x: x + 0.2, y: 2.9, w: 2.5, h: 0.35, fontSize: 13, color: SUB });
+    T(s, k[1], { x: x + 0.15, y: 3.25, w: 2.7, h: 0.65, fontSize: 21, bold: true, fit: "shrink" });
+    T(s, k[2], { x: x + 0.2, y: 3.9, w: 2.5, h: 0.3, fontSize: 11, color: SUB });
+  });
+  T(s, A.summary || "", { x: 0.6, y: 4.65, w: 12.1, h: 2.1, fontSize: 16, valign: "top", lineSpacingMultiple: 1.3 });
+  s.addNotes(A.summary || "");
+
+  // 4 損益
+  s = base("損益の状況", `単位：百万円${docs.length > 1 ? "　グラフは12か月換算" : ""}`);
+  const plRows = [["売上高", "sales"], ["売上総利益", "gross"], ["販売費及び一般管理費", "sga"], ["営業利益", "op"], ["経常利益", "ordinary"], ["当期純利益", "net"], ["減価償却費", "depreciation"]];
+  const plCols = prev ? [prev, d] : [d];
+  s.addTable([[hdr("科目"), ...plCols.map(x => hdr(docLabel(x)))], ...plRows.map(([l, k]) => [cell(l, { bold: ["op", "ordinary"].includes(k) }), ...plCols.map(x => cell(fmtM(x.pl[k]), { align: "right" }))])],
+    { x: 0.6, y: 1.8, w: 6.2, colW: prev ? [2.2, 2.0, 2.0] : [3.2, 3.0], border: { type: "solid", color: LINE, pt: 0.75 }, rowH: 0.42 });
+  const chLabels = docs.map(x => (x.period_end || "").replace("-", "/"));
+  s.addChart([
+    { type: pres.charts.BAR, data: [{ name: "売上高", labels: chLabels, values: docs.map(x => Math.round(z(x.pl.sales) * 12 / (x.months || 12) / 1e5) / 10) }], options: { chartColors: ["9DB4D6"], barGapWidthPct: 60 } },
+    { type: pres.charts.LINE, data: [{ name: "経常利益", labels: chLabels, values: docs.map(x => Math.round(z(x.pl.ordinary) * 12 / (x.months || 12) / 1e5) / 10) }], options: { chartColors: [AI], secondaryValAxis: true, secondaryCatAxis: true, lineSize: 3 } }
+  ], {
+    x: 7.1, y: 1.7, w: 5.7, h: 4.9, showLegend: true, legendPos: "b", legendFontFace: FONT, showTitle: true, title: "売上高と経常利益（年換算）", titleFontFace: FONT, titleFontSize: 13,
+    valAxes: [{ showValAxisTitle: false, valAxisMinVal: 0, valGridLine: { color: "E6E9EE", size: 0.5 } }, { showValAxisTitle: false, valAxisMinVal: Math.min(0, ...docs.map(x => z(x.pl.ordinary))), valGridLine: { style: "none" } }],
+    catAxes: [{ catAxisTitle: "" }, { catAxisHidden: true }], catAxisLabelFontFace: FONT
+  });
+  s.addNotes("売上と利益の増減要因を、科目の数字を示しながら説明します。" + (d.kind === "試算表" ? `試算表は${d.months}か月累計のため、グラフは12か月に換算しています。` : ""));
+
+  // 5 財務
+  s = base("財務の状況", "単位：百万円");
+  const bsL = [["現金及び預金", "cash"], ["売上債権", "receivables"], ["棚卸資産", "inventory"], ["流動資産合計", "current_assets"], ["固定資産合計", "fixed_assets"], ["資産合計", "total_assets"]];
+  const bsR = [["仕入債務", "payables"], ["借入金（短期・1年内）", null], ["長期借入金", "lt_loans"], ["役員借入金", "officer_loans"], ["負債合計", "total_liab"], ["純資産合計", "net_assets"]];
+  const bv = (x, k) => k ? fmtM(x.bs[k]) : fmtM(z(x.bs.st_loans) + z(x.bs.cur_lt_loans));
+  const bsTable = (rows, xpos) => s.addTable([[hdr("科目"), ...plCols.map(x => hdr((x.period_end || "").replace("-", "/")))], ...rows.map(([l, k]) => [cell(l, { bold: /合計/.test(l) }), ...plCols.map(x => cell(bv(x, k), { align: "right", bold: /合計/.test(l) }))])],
+    { x: xpos, y: 1.8, w: 6.0, colW: prev ? [2.4, 1.8, 1.8] : [3.4, 2.6], border: { type: "solid", color: LINE, pt: 0.75 }, rowH: 0.42 });
+  bsTable(bsL, 0.6); bsTable(bsR, 6.8);
+  T(s, `有利子負債 ${fmtM(c.debt)}百万円　／　現預金 ${fmtM(d.bs.cash)}百万円　／　実質自己資本比率 ${fmtVal(c.list[1])}%`, { x: 0.6, y: 5.2, w: 12.1, h: 0.5, fontSize: 16, bold: true, color: AI });
+  const bsAl = alertsFor(d, prev).filter(a => /貸付|仮払|債務超過|回転/.test(a[1])).map(a => a[1]);
+  if (bsAl.length) T(s, bsAl.slice(0, 2).map(t => ({ text: t, options: { bullet: true, breakLine: true } })), { x: 0.6, y: 5.8, w: 12.1, h: 1.0, fontSize: 13, color: SUB, paraSpaceAfter: 4 });
+
+  // 6 指標
+  s = base("主要財務指標と評価", `格付けの目安 ${sc.grade[0]}（${sc.total}点／100点）　${sc.grade[1]}　※定量面のみの自社試算`);
+  const prevC = prev ? calc(prev) : null;
+  s.addTable([[hdr("指標"), ...(prev ? [hdr("前回")] : []), hdr("今回"), hdr("評価"), hdr("目安")],
+    ...c.list.slice(0, 9).map(x => {
+      const j = judge(x), pv = prevC?.list.find(y => y.key === x.key);
+      return [cell(x.label), ...(prev ? [cell(fmtVal(pv) + (pv && pv.v !== null && isFinite(pv.v) ? x.unit : ""), { align: "right", color: SUB })] : []),
+        cell(fmtVal(x) + (x.v !== null && isFinite(x.v) ? x.unit : ""), { align: "right", bold: true }),
+        cell({ good: "良好", warn: "注意", bad: "懸念", na: "—" }[j], { align: "center", bold: true, color: "FFFFFF", fill: { color: COL[j] } }),
+        cell(x.rule[2] === "hi" ? `${x.rule[0]}${x.unit}以上` : `${x.rule[0]}${x.unit}以内`, { color: SUB, fontSize: 11 })];
+    })],
+    { x: 0.6, y: 1.75, w: 9.3, colW: prev ? [3.1, 1.6, 1.6, 1.2, 1.8] : [3.9, 2.0, 1.4, 2.0], border: { type: "solid", color: LINE, pt: 0.75 }, rowH: 0.5 });
+  s.addShape(pres.shapes.OVAL, { x: 10.5, y: 2.1, w: 2.1, h: 2.1, fill: { color: "FFFFFF" }, line: { color: SHU, width: 4 }, rotate: -8 });
+  T(s, sc.grade[0], { x: 10.5, y: 2.35, w: 2.1, h: 1.1, fontSize: 60, bold: true, color: SHU, align: "center", fontFace: HEAD });
+  T(s, `${sc.total}点`, { x: 10.5, y: 3.4, w: 2.1, h: 0.4, fontSize: 16, color: SHU, align: "center" });
+  T(s, "計算の根拠は、決算書・試算表の各科目の数値です。債務償還年数は（有利子負債−現預金）÷（経常利益×70%＋減価償却費）で算出しています。", { x: 10.2, y: 4.6, w: 2.7, h: 2.2, fontSize: 11, color: SUB, valign: "top" });
+  s.addNotes(c.list.slice(0, 4).map(x => `${x.label}：${fmtVal(x)}${x.unit}（${x.formula}）`).join("\n"));
+
+  // 7 強み・8 課題（3件までのカード）
+  const cards = (title, sub, items, fields, accent) => {
+    const sl = base(title, sub);
+    const list = (items || []).slice(0, 3);
+    if (!list.length) T(sl, "（手順4で入力してください）", { x: 0.6, y: 2, w: 10, h: 0.5, color: SUB });
+    list.forEach((it, i) => {
+      const x = 0.6 + i * 4.1;
+      sl.addShape(pres.shapes.RECTANGLE, { x, y: 1.8, w: 3.85, h: 5.0, fill: { color: "FFFFFF" }, line: { color: LINE, width: 1 } });
+      sl.addShape(pres.shapes.RECTANGLE, { x, y: 1.8, w: 3.85, h: 0.08, fill: { color: accent }, line: { color: accent } });
+      T(sl, it.title || "", { x: x + 0.25, y: 2.05, w: 3.4, h: 0.8, fontSize: 19, bold: true, fontFace: HEAD, valign: "top" });
+      let yy = 2.95;
+      fields.forEach(([k, l]) => {
+        if (!it[k]) return;
+        T(sl, l, { x: x + 0.25, y: yy, w: 3.4, h: 0.3, fontSize: 11, bold: true, color: accent });
+        T(sl, it[k], { x: x + 0.25, y: yy + 0.3, w: 3.4, h: 0.95, fontSize: 13, valign: "top" });
+        yy += 1.3;
+      });
+    });
+    return sl;
+  };
+  s = cards("当社の強み", "数字に裏付けられた強み", A.strengths, [["evidence", "根拠"], ["message", "お伝えしたいこと"]], "2F7A55");
+  s.addNotes((A.strengths || []).map(x => `${x.title}：${x.message}`).join("\n"));
+  s = cards("課題とその根拠", "数字から見える課題を、原因とあわせてご報告します", A.concerns, [["evidence", "根拠"], ["cause", "原因"], ["bank_view", "認識している影響"]], SHU);
+  s.addNotes((A.concerns || []).map(x => `${x.title}：${x.evidence}。原因は${x.cause}`).join("\n"));
+
+  // 9 改善計画
+  s = base("改善計画", "課題ごとに、測る指標と期限を決めて実行します");
+  s.addTable([[hdr("施策"), hdr("内容"), hdr("KPI・目標"), hdr("期限"), hdr("財務への効果")],
+    ...(A.actions || []).slice(0, 5).map(a => [cell(a.title, { bold: true }), cell(a.detail, { fontSize: 11 }), cell(a.kpi, { fontSize: 11 }), cell(a.deadline, { fontSize: 11 }), cell(a.effect, { fontSize: 11 })])],
+    { x: 0.6, y: 1.75, w: 12.1, colW: [2.2, 4.1, 2.3, 1.4, 2.1], border: { type: "solid", color: LINE, pt: 0.75 }, valign: "middle", rowH: 0.9 });
+  T(s, "進捗は3か月ごとのご訪問時に、この表のKPIでご報告します。", { x: 0.6, y: 6.6, w: 12, h: 0.35, fontSize: 13, color: AI, bold: true });
+  s.addNotes((A.actions || []).map(a => `${a.title}：${a.detail}（${a.kpi}／${a.deadline}）`).join("\n"));
+
+  // 10 返済能力
+  s = base("返済能力と資金の見通し", c.annNote ? "損益は12か月換算" : "");
+  const repayRows = [["有利子負債", fmtM(c.debt) + "百万円", "短期・1年内返済・長期借入金・社債の合計"], ["現金及び預金", fmtM(d.bs.cash) + "百万円", "月商の " + (c.salesA ? (z(d.bs.cash) / (c.salesA / 12)).toFixed(1) : "—") + "か月分"], ["簡易キャッシュフロー（年）", fmtM(c.cf) + "百万円", "経常利益×70%＋減価償却費"], ["1年内返済予定の長期借入金", fmtM(d.bs.cur_lt_loans) + "百万円", c.cf && z(d.bs.cur_lt_loans) ? `CFでの返済カバー ${(c.cf / d.bs.cur_lt_loans).toFixed(2)}倍` : ""], ["債務償還年数", fmtVal(c.list[2]) + (isFinite(c.list[2].v) ? "年" : ""), "10年以内が正常先の目安"]];
+  s.addTable(repayRows.map(r => [cell(r[0], { bold: true }), cell(r[1], { align: "right", fontSize: 16, bold: true, color: AI }), cell(r[2], { color: SUB })]),
+    { x: 0.6, y: 1.9, w: 12.1, colW: [4.0, 3.0, 5.1], border: { type: "solid", color: LINE, pt: 0.75 }, rowH: 0.75 });
+  T(s, c.cf > 0 && z(d.bs.cur_lt_loans) ? (c.cf >= d.bs.cur_lt_loans ? "年間の約定返済は、事業から生み出すキャッシュフローの範囲内で賄える見込みです。" : "年間の約定返済がキャッシュフローを上回るため、収益改善と返済条件の組み立てをご相談させてください。") : "返済能力の評価には、減価償却費と約定返済額の確認が必要です。",
+    { x: 0.6, y: 6.0, w: 12.1, h: 0.6, fontSize: 16, bold: true });
+
+  // 10-2 改善後の見通し（シミュレーターを動かしたときだけ）
+  if (simOn()) {
+    s = base("改善後の見通し（試算）", "今期の数値を12か月に換算し、打ち手を反映した場合");
+    s.addTable([[hdr("項目"), hdr("現状"), hdr("改善後")], ...simRows(d).map(r => [cell(r[0], { bold: true }),
+      cell(r[1], { align: "right", color: SUB }), cell(r[2], { align: "right", bold: true, color: r[3] > 1e-9 ? COL.good : r[3] < -1e-9 ? COL.bad : INK })])],
+      { x: 0.6, y: 1.8, w: 8.2, colW: [3.2, 2.5, 2.5], border: { type: "solid", color: LINE, pt: 0.75 }, rowH: 0.56 });
+    T(s, [{ text: "打ち手", options: { bold: true, color: AI, fontSize: 14, breakLine: true } },
+      ...SIM_DEF.filter(([k]) => Number(S.sim[k])).map(([k, l, , , , fm]) => ({ text: `${l}　${fm(S.sim[k])}`, options: { bullet: true, breakLine: true, fontSize: 13 } }))],
+      { x: 9.2, y: 1.8, w: 3.6, h: 2.3, color: INK, valign: "top", lineSpacingMultiple: 1.25 });
+    T(s, "前提\n・売上の増加分は現状の粗利率で利益に上乗せ\n・販管費は売上が増えても増やさない\n・在庫・売掛金の現金化分は現預金に移す\n・純資産は据え置き（控えめに評価）", { x: 9.2, y: 4.3, w: 3.6, h: 2.3, fontSize: 11, color: SUB, valign: "top", lineSpacingMultiple: 1.3 });
+    s.addNotes(`打ち手は${simText()}です。` + simRows(d).filter(r => /^経常利益$|債務償還|格付け/.test(r[0])).map(r => `${r[0]}は${r[1]}から${r[2]}になる試算です。`).join(""));
+  }
+
+  // 11 Q&A
+  const qa = (A.qa || []).filter(x => x.q);
+  for (let p = 0; p < Math.max(1, Math.ceil(qa.length / 3)); p++) {
+    s = base("想定されるご質問への回答", qa.length > 3 ? `${p + 1}／${Math.ceil(qa.length / 3)}` : "");
+    qa.slice(p * 3, p * 3 + 3).forEach((x, i) => {
+      const y = 1.8 + i * 1.72;
+      T(s, "Q", { x: 0.6, y, w: 0.5, h: 0.5, fontSize: 22, bold: true, color: SHU, fontFace: HEAD });
+      T(s, x.q, { x: 1.15, y, w: 11.5, h: 0.5, fontSize: 17, bold: true, valign: "middle" });
+      T(s, "A", { x: 0.6, y: y + 0.55, w: 0.5, h: 0.5, fontSize: 22, bold: true, color: AI, fontFace: HEAD });
+      T(s, x.a, { x: 1.15, y: y + 0.58, w: 11.5, h: 1.0, fontSize: 14, valign: "top" });
+    });
+  }
+
+  // 12 結び
+  s = pres.addSlide(); pageNo++;
+  s.background = { color: INK };
+  T(s, "今後に向けて", { x: 1.2, y: 1.4, w: 11, h: 0.8, fontSize: 32, bold: true, color: "FFFFFF", fontFace: HEAD });
+  T(s, A.closing || "引き続き、数字の根拠を明らかにしながら改善に取り組み、3か月ごとに進捗をご報告いたします。今後ともご支援のほど、よろしくお願い申し上げます。", { x: 1.2, y: 2.6, w: 10.8, h: 2.4, fontSize: 20, color: "FFFFFF", valign: "top", lineSpacingMultiple: 1.4 });
+  T(s, `${S.company}　代表取締役社長`, { x: 1.2, y: 5.9, w: 11, h: 0.5, fontSize: 16, color: "C5CCD8" });
+
+  const fname = `銀行説明資料_${S.company}_${(d.period_end || "").replace("-", "")}.pptx`;
+  pres.writeFile({ fileName: fname }).then(() => toast("PowerPointを出力しました"));
+}
+
+function copyChatwork() {
+  const { d, prev } = getTarget(); const c = calc(d), sc = score(d), A = S.analysis || demoAnalysis();
+  const lines = [];
+  lines.push(`[info][title]銀行説明サマリー ${docLabel(d)}[/title]`);
+  lines.push(`■今期の要旨`);
+  if (A.headline) lines.push(`【${A.headline}】`);
+  if (A.summary) lines.push(A.summary);
+  lines.push(`[hr]■主要数値`);
+  lines.push(`売上高 ${fmtM(d.pl.sales)}百万円／経常利益 ${fmtM(d.pl.ordinary)}百万円`);
+  c.list.slice(0, 4).forEach(x => lines.push(`${x.label} ${fmtVal(x)}${x.v !== null && isFinite(x.v) ? x.unit : ""}（${{ good: "良好", warn: "注意", bad: "懸念", na: "—" }[judge(x)]}）`));
+  lines.push(`格付けの目安 【${sc.grade[0]}】${sc.total}点（${sc.grade[1]}）`);
+  if ((A.concerns || []).length) { lines.push(`[hr]■課題と根拠`); A.concerns.forEach(x => lines.push(`【${x.title}】${x.evidence}`)); }
+  if (simOn()) { lines.push(`[hr]■改善試算`); lines.push(simText()); simRows(d).filter(r => /^経常利益$|債務償還|格付け/.test(r[0])).forEach(r => lines.push(`${r[0]} ${r[1]} → 【${r[2]}】`)); }
+  if ((A.actions || []).length) { lines.push(`[hr]■改善計画`); A.actions.forEach(x => lines.push(`【${x.title}】${x.kpi}／期限 ${x.deadline}`)); }
+  lines.push(`[/info]`);
+  navigator.clipboard.writeText(lines.join("\n")).then(() => toast("Chatwork用の要約をコピーしました"), () => toast("コピーできませんでした"));
+}
+
+/* ---------- 保存・読み込み ---------- */
+function saveJSON() {
+  const data = JSON.stringify({ ...S, docs: S.docs.map(({ file, ...r }) => r), _busy: false }, null, 1);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+  a.download = `銀行説明_${S.company}_${new Date().toISOString().slice(0, 10)}.json`; a.click();
+  toast("分析を保存しました");
+}
+function loadJSON(inp) {
+  const f = inp.files[0]; if (!f) return;
+  f.text().then(t => { const j = JSON.parse(t); S = Object.assign(S, j, { _busy: false }); S.sim = Object.assign({}, SIM0, j.sim || {}); S.step = sortedDocs().length ? 3 : 1; render(); toast("保存データを開きました"); })
+    .catch(() => toast("このファイルは開けません"));
+  inp.value = "";
+}
+
+/* ---------- デモデータ（架空の数値） ---------- */
+function loadDemo() {
+  const M = x => x * 1e6;
+  const mk = (id, name, kind, pe, months, pl, bs) => ({ id, name, kind, period_end: pe, months, status: "ok", msg: "デモ用の架空の数値です", notes: [],
+    pl: Object.fromEntries(Object.entries(pl).map(([k, v]) => [k, v === null ? null : M(v)])), bs: Object.fromEntries(Object.entries(bs).map(([k, v]) => [k, v === null ? null : M(v)])) });
+  S.docs = [
+    mk("demo1", "デモ_前期決算書.pdf", "決算書", "2025-11", 12,
+      { sales: 1850, cogs: 1380, gross: 470, sga: 360, officer_comp: 36, depreciation: 42, op: 110, nonop_inc: 8, interest: 18, nonop_exp: 22, ordinary: 96, extra_inc: 0, extra_loss: 0, pretax: 96, tax: 30, net: 66 },
+      { cash: 280, receivables: 190, inventory: 160, suspense: 12, officer_recv: 0, current_assets: 680, tangible: 420, intangible: 10, investments: 60, fixed_assets: 490, total_assets: 1170, payables: 150, st_loans: 120, cur_lt_loans: 95, current_liab: 470, lt_loans: 380, bonds: 0, officer_loans: 30, fixed_liab: 420, total_liab: 890, capital: 20, retained: 260, net_assets: 280 }),
+    mk("demo2", "デモ_今期8月試算表.pdf", "試算表", "2026-08", 9,
+      { sales: 1520, cogs: 1150, gross: 370, sga: 290, officer_comp: 27, depreciation: 20, op: 80, nonop_inc: 5, interest: 14, nonop_exp: 16, ordinary: 69, extra_inc: 0, extra_loss: 0, pretax: 69, tax: 0, net: 69 },
+      { cash: 240, receivables: 230, inventory: 210, suspense: 25, officer_recv: 15, current_assets: 740, tangible: 450, intangible: 9, investments: 60, fixed_assets: 519, total_assets: 1259, payables: 170, st_loans: 150, cur_lt_loans: 100, current_liab: 520, lt_loans: 360, bonds: 0, officer_loans: 30, fixed_liab: 390, total_liab: 910, capital: 20, retained: 329, net_assets: 349 })
+  ];
+  S.targetId = "demo2"; S.analysis = null;
+  toast("デモデータを読み込みました（架空の数値）");
+  go(2);
+}
+
+/* ---------- 起動（本番はログイン確認を通ってから表示） ---------- */
+function boot() {
+  if (CONFIG.MODE === "edge") {
+    if (!window.EC || !EC.guard) {
+      $("main").innerHTML = `<h2>ログイン部品を読み込めません</h2><p class="lead">bank-brief.html を ec-auth.js と同じフォルダに置いて開いてください。</p>`;
+      return;
+    }
+    EC.guard({ app: "bank-brief", name: "銀行説明スタジオ", allow: ["admin", "manager"] })
+      .then(() => render())
+      .catch(e => { $("main").innerHTML = `<h2>ログインを確認できません</h2><p class="lead">${esc(e && e.message || e)}</p>`; });
+    return;
+  }
+  render();
+}
+boot();
+</script>
+</body>
+</html>
