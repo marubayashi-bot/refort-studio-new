@@ -168,7 +168,7 @@ footer.foot s{display:block;width:34px;height:2px;background:var(--green);text-d
 .back{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:10px 15px;font-size:14px;font-weight:600}
 .crumb h2{font-size:20px;margin:0;font-weight:700}
 .crumb .sub{color:var(--muted);font-size:13px}
-.sorter{display:flex;gap:6px;margin:0 0 14px}
+.sorter{display:flex;gap:6px;margin:0 0 14px;align-items:center;flex-wrap:wrap}
 .sorter button{background:var(--white);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;color:var(--muted)}
 .sorter button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .cardlist{display:grid;gap:10px}
@@ -356,6 +356,8 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
       <button data-sort="surplus" aria-pressed="true">回収余剰年数順</button>
       <button data-sort="income" aria-pressed="false">増加売電収入順</button>
       <button data-sort="kw" aria-pressed="false">出力順</button>
+      <span style="flex:1"></span>
+      <button id="csvList" style="background:var(--white);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;color:var(--ink)">CSV出力</button>
     </div>
     <div class="cardlist" id="listBody"></div>
   </section>
@@ -380,6 +382,7 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn ghost" id="loadDemo">サンプルデータを入れる</button>
         <button class="btn ghost" id="swapAll">登録済み全件のパネルと交流を入れ替える</button>
+        <button class="btn ghost" id="csvAll">登録済み全件をCSV出力</button>
         <button class="btn danger" id="clearDb">全データを削除</button>
       </div>
       <div id="diag" class="note" style="margin:14px 0 0"></div>
@@ -472,8 +475,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.13";
+const APP_VERSION = "ver.2026.09.14";
 const CHANGELOG = [
+  ["ver.2026.09.14","案件一覧のCSV出力を追加。一覧画面では表示中の全件、データタブでは登録済み全件を、試算結果ごと出力できます。"],
   ["ver.2026.09.13","抽出案件ファイル（パネル容量kW／連系出力kW／FIT単価／残FIT年）の列名に対応。計算ロジックを確定版に更新（発電量＝パネル容量×1,000kWh/kW、改善率40%、工事費80,000円/kW）。残FIT年は列があればそれを使用。過積載率の二重計算を除去。"],
   ["ver.2026.09.12b","アプリマークを新ロゴに変更。ホーム画面に追加したときのアイコンも設定。"],
   ["ver.2026.09.12","見出し行の自動判定を追加（表題行があるシートに対応）。PCS列が未選択・空のまま取り込めないよう検証を追加。データタブに取り込み状態の診断、詳細画面に元データ確認を追加。"],
@@ -913,6 +917,7 @@ function renderList(){
              : (o.r.panelKw ?? -1);
     return g(b) - g(a);
   });
+  CUR.rendered = rows;
   const c0 = rows[0].p;
   document.getElementById('listTitle').textContent = c0.company || '（企業名なし）';
   document.getElementById('listSub').textContent =
@@ -1005,6 +1010,70 @@ function openDetail(id){
   };
   show('detail');
 }
+
+/* ---------- CSV出力 ---------- */
+const CSV_COLS = [
+  ['設備ID',        (p,r)=> String(p.id||'').replace(/^id_/,'')],
+  ['企業名',        (p,r)=> p.company],
+  ['代表者',        (p,r)=> p.rep],
+  ['発電所名',      (p,r)=> p.plantName],
+  ['都道府県',      (p,r)=> p.pref],
+  ['所在地',        (p,r)=> p.city],
+  ['パネル容量kW',  (p,r)=> r.panelKw],
+  ['連系出力kW',    (p,r)=> r.pcsKw],
+  ['過積載率',      (p,r)=> r.overload!=null ? +r.overload.toFixed(3) : ''],
+  ['FIT単価',       (p,r)=> r.fit],
+  ['残FIT年',       (p,r)=> r.remain],
+  ['現状年間発電量kWh',   (p,r)=> r.genKwh!=null ? Math.round(r.genKwh) : ''],
+  ['現状年間売電収入円',  (p,r)=> (r.genKwh!=null&&r.fit) ? Math.round(r.genKwh*r.fit) : ''],
+  ['増加発電量kWh',       (p,r)=> r.addKwh!=null ? Math.round(r.addKwh) : ''],
+  ['増加売電収入円年',    (p,r)=> r.addIncome!=null ? Math.round(r.addIncome) : ''],
+  ['工事費用円',          (p,r)=> r.cost!=null ? Math.round(r.cost) : ''],
+  ['費用回収年数',        (p,r)=> r.payback!=null ? +r.payback.toFixed(2) : ''],
+  ['回収余剰年数',        (p,r)=> r.surplus!=null ? +r.surplus.toFixed(2) : ''],
+  ['FIT期間増収合計円',   (p,r)=> r.totalGain!=null ? Math.round(r.totalGain) : ''],
+  ['FIT期間純利益円',     (p,r)=> r.netGain!=null ? Math.round(r.netGain) : ''],
+  ['判定',          (p,r)=> r.judge ? r.judge.k : ''],
+  ['判定の意味',    (p,r)=> r.judge ? r.judge.label : ''],
+  ['算出できない理由', (p,r)=> r.error || (r.notes||[]).join(' / ')]
+];
+function csvCell(v){
+  const t = (v==null) ? '' : String(v);
+  return /[",\n]/.test(t) ? '"'+t.replace(/"/g,'""')+'"' : t;
+}
+function buildCsv(plants){
+  const lines = [CSV_COLS.map(c=>csvCell(c[0])).join(',')];
+  for(const p of plants){
+    const r = calc(p);
+    lines.push(CSV_COLS.map(c=>{ try{ return csvCell(c[1](p,r)); }catch(e){ return ''; } }).join(','));
+  }
+  return lines.join('\r\n');
+}
+function downloadCsv(plants, name){
+  if(!plants.length){ toast('出力するデータがありません'); return; }
+  const blob = new Blob(['\uFEFF'+buildCsv(plants)], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast(`${plants.length.toLocaleString()}件をCSV出力しました`);
+}
+function today(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+document.getElementById('csvList').onclick = ()=>{
+  const rows = (CUR.rendered && CUR.rendered.length) ? CUR.rendered.map(o=>o.p) : CUR.list;
+  const co = (rows[0] && rows[0].company || '一覧').replace(/[\\\/:*?"<>|]/g,'');
+  downloadCsv(rows, `ReFort試算_${co}_${today()}.csv`);
+};
+document.getElementById('csvAll').onclick = ()=>{
+  if(!PLANTS.length){ toast('データがありません'); return; }
+  if(PLANTS.length > 20000 &&
+     !confirm(`${PLANTS.length.toLocaleString()}件すべてを出力します。\n\n件数が多いため、作成に時間がかかり、端末によっては動かなくなることがあります。実行しますか。`)) return;
+  downloadCsv(PLANTS, `ReFort試算_全件_${today()}.csv`);
+};
 
 function bindFitOverride(p){
   const ap = document.getElementById('applyFit');
