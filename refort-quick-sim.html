@@ -477,8 +477,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.15";
+const APP_VERSION = "ver.2026.09.15b";
 const CHANGELOG = [
+  ["ver.2026.09.15b","企業一覧の画面でCSV出力が直前の会社の件数しか出力されない不具合を修正。検索結果の全社・全発電所が出力されるようにし、ボタンに出力件数を表示。"],
   ["ver.2026.09.15","確定ロジックを改善率50%・工事費82,000円/kW・最低工事費なしに統一。端末ごとに保存された古い設定を起動時に自動で確定値へ更新し、設定タブに【確定値に戻す】を追加。"],
   ["ver.2026.09.14","案件一覧のCSV出力を追加。一覧画面では表示中の全件、データタブでは登録済み全件を、試算結果ごと出力できます。"],
   ["ver.2026.09.13","抽出案件ファイル（パネル容量kW／連系出力kW／FIT単価／残FIT年）の列名に対応。計算ロジックを確定版に更新（発電量＝パネル容量×1,000kWh/kW、改善率40%、工事費80,000円/kW）。残FIT年は列があればそれを使用。過積載率の二重計算を除去。"],
@@ -782,7 +783,7 @@ function toast(msg){
 
 /* ---------- 状態 ---------- */
 let PLANTS = [];
-let CUR = { companyKey:null, list:[], sort:'surplus', plant:null };
+let CUR = { companyKey:null, list:[], sort:'surplus', plant:null, mode:'list', hits:[], keyword:'', rendered:null };
 let SRC = null;
 function srcName(label){
   if(!SRC) return '（記録なし）';
@@ -879,7 +880,8 @@ function doSearch(){
   const k = norm(raw);
   const hit = PLANTS.filter(p => p.searchKey.includes(k));
   if(!hit.length){
-    CUR.list = [];
+    CUR.list = []; CUR.hits = []; CUR.mode = 'picker'; CUR.keyword = raw;
+    updateCsvLabel(0);
     document.getElementById('listTitle').textContent = `「${raw}」`;
     document.getElementById('listSub').textContent = '';
     document.getElementById('listBody').innerHTML =
@@ -895,6 +897,8 @@ function doSearch(){
 
 function openCompanyPicker(hit, comps, raw){
   CUR.companyKey = null;
+  CUR.mode = 'picker'; CUR.hits = hit; CUR.keyword = raw; CUR.rendered = null;
+  updateCsvLabel(hit.length);
   document.getElementById('listTitle').textContent = `「${raw}」の検索結果`;
   document.getElementById('listSub').textContent = `${comps.length}社 / ${hit.length}件の発電所`;
   document.getElementById('listBody').innerHTML = comps.map(ck=>{
@@ -916,6 +920,7 @@ function openCompanyPicker(hit, comps, raw){
 
 function openCompany(ck, raw){
   CUR.companyKey = ck;
+  CUR.mode = 'list';
   CUR.list = PLANTS.filter(p=>p.companyKey===ck);
   pushRecent(CUR.list[0].company, ck);
   renderList();
@@ -948,6 +953,7 @@ function renderList(){
     return g(b) - g(a);
   });
   CUR.rendered = rows;
+  updateCsvLabel(rows.length);
   const c0 = rows[0].p;
   document.getElementById('listTitle').textContent = c0.company || '（企業名なし）';
   document.getElementById('listSub').textContent =
@@ -1093,10 +1099,26 @@ function today(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+function csvTarget(){
+  let rows;
+  if(CUR.mode === 'picker'){
+    rows = CUR.hits || [];                       // 検索でヒットした全社・全発電所
+    if(FILTER.size) rows = rows.filter(p=>{ const r = calc(p); return FILTER.has(r.judge && r.judge.k); });
+  }else{
+    rows = (CUR.rendered && CUR.rendered.length) ? CUR.rendered.map(o=>o.p) : CUR.list;
+  }
+  return rows;
+}
+function updateCsvLabel(n){
+  const b = document.getElementById('csvList');
+  if(b) b.textContent = n!=null ? `CSV出力（${n.toLocaleString()}件）` : 'CSV出力';
+}
 document.getElementById('csvList').onclick = ()=>{
-  const rows = (CUR.rendered && CUR.rendered.length) ? CUR.rendered.map(o=>o.p) : CUR.list;
-  const co = (rows[0] && rows[0].company || '一覧').replace(/[\\\/:*?"<>|]/g,'');
-  downloadCsv(rows, `ReFort試算_${co}_${today()}.csv`);
+  const rows = csvTarget();
+  const name = CUR.mode === 'picker'
+    ? (CUR.keyword || '検索結果')
+    : (rows[0] && rows[0].company || '一覧');
+  downloadCsv(rows, `ReFort試算_${String(name).replace(/[\\\/:*?"<>|\s]/g,'')}_${today()}.csv`);
 };
 document.getElementById('csvAll').onclick = ()=>{
   if(!PLANTS.length){ toast('データがありません'); return; }
