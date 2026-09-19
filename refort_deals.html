@@ -417,6 +417,14 @@ tr:hover .ec-pen{color:var(--gold)}
 .badge.ok{background:#eaf6ef;color:#1f8a55;border-color:#bfe6cf}
 .badge.none{background:#eef2f7;color:#8893a2}
 .memo-wrap{width:100%;margin-top:8px}
+.memo-view{min-height:52px;border:1px solid var(--line2);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.85;
+  color:var(--ink);white-space:pre-wrap;word-break:break-all;background:#fff;cursor:text;position:relative}
+.memo-view:hover{border-color:var(--navy3)}
+.memo-view::after{content:"✎ クリックで編集";position:absolute;right:10px;top:7px;font-size:11px;color:var(--muted);opacity:0;transition:opacity .15s}
+.memo-view:hover::after{opacity:1}
+.memo-view a{display:inline-block;color:var(--info);font-weight:700;background:#eaf2fc;border:1px solid #cfe0f5;
+  border-radius:6px;padding:0 8px;margin:1px 0;text-decoration:none;line-height:1.7;white-space:nowrap}
+.memo-view a:hover{background:#d9e8fa;text-decoration:underline}
 .memo-wrap textarea{width:100%;min-height:52px;resize:vertical;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px;color:var(--ink)}
 .alert-strip{display:flex;flex-direction:column;gap:7px;margin:2px 0 18px}
 .alert-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:9px;padding:9px 13px;font-size:12.5px;cursor:pointer;transition:.12s}
@@ -2477,7 +2485,9 @@ function renderDeal(){
     <span id="dueBadgeSlot">${curDeal.due?dueBadge(curDeal):''}</span>
     <button class="btn btn-line btn-sm" id="memoBtn">📝 メモ</button>
   </div>
-  <div class="memo-wrap" id="memoWrap" style="display:${curDeal.memo?'block':'none'}"><textarea id="dealMemo" placeholder="社内メモ（提案シートには印刷されません）">${esc(curDeal.memo||'')}</textarea></div>
+  <div class="memo-wrap" id="memoWrap" style="display:${curDeal.memo?'block':'none'}">
+    <div class="memo-view" id="memoView" title="クリックで編集（リンクはそのまま開きます）" style="display:${curDeal.memo?'block':'none'}">${memoHtml(curDeal.memo)}</div>
+    <textarea id="dealMemo" placeholder="社内メモ（提案シートには印刷されません）&#10;URLを貼り付けると、入力欄から離れたときにクリックで開けるリンクになります" style="display:${curDeal.memo?'none':'block'}">${esc(curDeal.memo||'')}</textarea></div>
   <div class="ws-grid">
     <div id="formCol"></div>
     <div id="resCol"></div>
@@ -2490,7 +2500,14 @@ function renderDeal(){
   $('#dealNext').oninput=e=>{curDeal.next=e.target.value;markDirty();};
   $('#dealDue').onchange=e=>{curDeal.due=e.target.value;markDirty();
     const slot=$('#dueBadgeSlot');if(slot)slot.innerHTML=curDeal.due?dueBadge(curDeal):'';};
-  $('#memoBtn').onclick=()=>{const w=$('#memoWrap');w.style.display=w.style.display==='none'?'block':'none';if(w.style.display==='block')$('#dealMemo').focus();};
+  const memoEdit=()=>{const t=$('#dealMemo'),mv=$('#memoView'); mv.style.display='none'; t.style.display='block';
+    t.focus(); try{t.setSelectionRange(t.value.length,t.value.length);}catch(e){} };
+  const memoShow=()=>{const t=$('#dealMemo'),mv=$('#memoView'); if(!t.value.trim())return;
+    mv.innerHTML=memoHtml(t.value); t.style.display='none'; mv.style.display='block'; };
+  $('#memoBtn').onclick=()=>{const w=$('#memoWrap');w.style.display=w.style.display==='none'?'block':'none';
+    if(w.style.display==='block'&&!$('#dealMemo').value.trim())memoEdit();};
+  $('#memoView').onclick=e=>{ if(e.target.closest('a'))return; memoEdit(); };
+  $('#dealMemo').onblur=memoShow;
   $('#dealMemo').oninput=e=>{curDeal.memo=e.target.value;markDirty();};
   $('#sheetBtn').onclick=()=>openSheet([curDeal],autoModel(curDeal));
   $('#riskBtn').onclick=()=>openRiskCompare(curDeal);
@@ -3089,6 +3106,27 @@ function exportCSV(){
 /* ==================== 次アクション・期限・確度 ==================== */
 const STAGE_PROB={hearing:.10,screen:.25,dd:.45,propose:.65,nego:.85,won:1,lost:0};
 function fmtDate(s){const d=new Date(s+'T00:00:00');return (d.getMonth()+1)+'/'+d.getDate();}
+/* メモ内のURLをクリックできるリンクにする（Googleの資料は種類名で短く表示） */
+function memoLinkLabel(u){
+  try{ const x=new URL(u), h=x.hostname.replace(/^www\./,''), p=x.pathname;
+    if(h==='docs.google.com'){ if(p.startsWith('/presentation'))return 'Googleスライド';
+      if(p.startsWith('/spreadsheets'))return 'Googleスプレッドシート'; if(p.startsWith('/document'))return 'Googleドキュメント';
+      if(p.startsWith('/forms'))return 'Googleフォーム'; return 'Googleドキュメント類'; }
+    if(h==='drive.google.com')return p.includes('/folders/')?'Googleドライブ（フォルダ）':'Googleドライブ（ファイル）';
+    if(h==='maps.google.com'||h==='goo.gl'||h==='maps.app.goo.gl'||(h.startsWith('google.')&&p.startsWith('/maps')))return 'Googleマップ';
+    const rest=(p+x.search).replace(/\/$/,''); return h+(rest.length>28?rest.slice(0,28)+'…':rest);
+  }catch(e){ return u.length>48?u.slice(0,48)+'…':u; }
+}
+function memoHtml(text){
+  const src=String(text||''); const re=/https?:\/\/[^\s<>"'「」（）()、。]+/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){ let u=m[0].replace(/[.,;:!?]+$/,'');
+    out+=esc(src.slice(last,m.index));
+    out+=`<a href="${esc(u)}" target="_blank" rel="noopener" title="${esc(u)}">🔗 ${esc(memoLinkLabel(u))}</a>`;
+    last=m.index+u.length; re.lastIndex=last; }
+  out+=esc(src.slice(last));
+  return out;
+}
 function dueInfo(deal){
   if(!deal.due)return{state:'none',days:null,label:'期限なし'};
   const today=new Date();today.setHours(0,0,0,0);
@@ -4844,9 +4882,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19';
+const APP_VERSION = '2026.09.19b';
 
 const CHANGELOG = [
+  ['2026.09.19b', [
+    '<b>案件のメモに貼り付けたURLが、クリックで開けるリンクになりました。</b>入力欄から離れると「🔗 Googleドライブ（ファイル）」「🔗 Googleスライド」のように表示され、クリックすると別タブで開きます',
+    'メモの文章部分をクリックすると、これまで通り編集できます。リンクにマウスを乗せると元のURLが確認できます',
+  ]],
   ['2026.09.19', [
     '<b>アプリのアイコンと画面デザインを新しくしました。</b>メニューは画面左の縦並びになり、「ダッシュボード／案件一覧／台帳／マップ／活用マニュアル」をいつでも切り替えられます',
     '<b>案件一覧の上部に「全案件・要対応・今月更新・見込取引額」</b>の4つの数字を表示します。要対応は、次アクション期限を過ぎた案件と3日以内の案件の合計です',
