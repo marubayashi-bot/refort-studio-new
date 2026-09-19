@@ -457,6 +457,7 @@ tr:hover .ec-pen{color:var(--gold)}
 .tk-note{font-size:11px;color:var(--muted);margin-top:4px}
 .sec-note{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px}
 .tk-own{margin-left:8px;font-size:11px;color:#8893a2}
+.tk-cw{font-size:10.5px;border-radius:4px;padding:0 5px}.tk-cw.ok{background:#eaf6ef;color:#1f8a55}.tk-cw.ng{background:#fdecec;color:#c0392b}
 .memo-view{min-height:52px;border:1px solid var(--line2);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.85;
   color:var(--ink);white-space:pre-wrap;word-break:break-all;background:#fff;cursor:text;position:relative}
 .memo-view:hover{border-color:var(--navy3)}
@@ -1126,6 +1127,13 @@ table.grid .lnk:hover{color:#0d4f9e}
 /* 左右スクロールボタン（続きがある方向にだけ表示） */
 .lt-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:34px;height:64px;border:1px solid var(--line2);
   background:rgba(255,255,255,.95);box-shadow:0 4px 14px rgba(13,35,64,.18);color:var(--navy);font-size:18px;font-weight:800;cursor:pointer;display:none}
+.lt-top{overflow-x:auto;overflow-y:hidden;height:16px;background:#eef2f7;border-bottom:1px solid var(--line);scrollbar-width:auto;scrollbar-color:#9aa8ba #eef2f7}
+.lt-top>div{height:1px}
+.lt-top::-webkit-scrollbar{height:14px}
+.lt-top::-webkit-scrollbar-track{background:#eef2f7}
+.lt-top::-webkit-scrollbar-thumb{background:#8d9cb0;border-radius:8px;border:2px solid #eef2f7}
+.lt-top::-webkit-scrollbar-thumb:hover{background:#5f718a}
+.lt-top.none{display:none}
 .lt-nav.l{left:0;border-radius:0 10px 10px 0}.lt-nav.r{right:0;border-radius:10px 0 0 10px}
 .lt-nav.show{display:block}.lt-nav:hover{background:#fff;color:var(--gold)}
 .prio .pnext{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -2489,7 +2497,7 @@ function renderList(){
   }
   /* 表示する列は「⚙ 列設定」で各自が決めた並び（タブごとに記憶） */
   const cols=listCols();
-  html+=`<div class="card list-table"><div class="lt-scroll"><table class="grid"><thead><tr>`
+  html+=`<div class="card list-table"><div class="lt-top" title="ここを左右にドラッグして表を横に動かせます"><div></div></div><div class="lt-scroll"><table class="grid"><thead><tr>`
     + cols.map(c=>`<th class="c-${c.k}${c.r?' r':''}">${esc(c.label)}</th>`).join('')
     + `</tr></thead><tbody>`;
   const ps=listPageSize==='all'?rows.length:Number(listPageSize)||50;
@@ -2506,10 +2514,19 @@ let ltScrollX=0;
 function ltEnhance(){
   const sc=$('.lt-scroll'); if(!sc) return;
   const box=sc.closest('.list-table'), bl=box.querySelector('.lt-nav.l'), br=box.querySelector('.lt-nav.r');
+  /* 表の上にも横スクロールバー（表の下まで行かなくても左右に動かせる） */
+  const top=box.querySelector('.lt-top'), topIn=top&&top.firstElementChild;
+  let syncing=false;
   const upd=()=>{ const max=sc.scrollWidth-sc.clientWidth;
     if(bl) bl.classList.toggle('show', sc.scrollLeft>4);
     if(br) br.classList.toggle('show', max>4 && sc.scrollLeft<max-4);
+    if(top){ top.classList.toggle('none', max<=4); topIn.style.width=sc.scrollWidth+'px';
+      if(!syncing && Math.abs(top.scrollLeft-sc.scrollLeft)>1){ syncing=true; top.scrollLeft=sc.scrollLeft; requestAnimationFrame(()=>{syncing=false;}); } }
     ltScrollX=sc.scrollLeft; };
+  if(top) top.addEventListener('scroll',()=>{ if(syncing) return; syncing=true; sc.scrollLeft=top.scrollLeft; requestAnimationFrame(()=>{syncing=false;}); },{passive:true});
+  /* 見出し行の上でホイールを回すと、横に動く */
+  const th=sc.querySelector('thead');
+  if(th) th.addEventListener('wheel',e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ sc.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
   if(ltScrollX) sc.scrollLeft=ltScrollX;
   sc.addEventListener('scroll',upd,{passive:true});
   const step=()=>Math.max(240,Math.round(sc.clientWidth*0.6));
@@ -2661,7 +2678,8 @@ function renderDealTasks(){
       ${t.due?tkBadgeHTML(t):'<span class="badge none">期限なし</span>'}
       <div class="tk-main"><b class="tk-edit-t" data-tk="${t.id}" data-a="edit" title="クリックで編集">${esc(t.t||'')}</b>
         ${t.cond?`<div class="tk-sub">完了条件：${esc(t.cond)}</div>`:''}
-        <div class="tk-sub">担当 ${esc(t.owner||'—')}　出所 ${esc(t.src||'手動')}${own?'':'　<span class="tk-scope">商談全体のタスク</span>'}${t.doneAt?'　完了 '+esc(t.doneAt):''}</div></div>
+        <div class="tk-sub">担当 ${esc(t.owner||'—')}　出所 ${esc(t.src||'手動')}${own?'':'　<span class="tk-scope">商談全体のタスク</span>'}${t.doneAt?'　完了 '+esc(t.doneAt)+(t.doneBy==='Chatwork'?'（Chatworkで完了）':''):''}
+          ${t.cw&&t.cw.ids&&t.cw.ids.length?'　<span class="tk-cw ok" title="担当者のChatworkタスクに登録済み">💬 Chatwork登録済</span>':(t.cwErr&&tkOpen(t)&&CW_CONF().on?`　<span class="tk-cw ng" title="${esc(t.cwErr)}">⚠ Chatwork未登録</span>`:'')}</div></div>
       <div class="tk-btns">
         ${tkOpen(t)&&t.st!=='doing'?`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="doing">着手</button>`:''}
         ${tkOpen(t)?`<button class="btn btn-gold btn-sm" data-tk="${t.id}" data-a="done">完了</button>`:`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="todo">戻す</button>`}
@@ -2722,7 +2740,10 @@ function renderDealTasks(){
     const t={id:'T'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:txt,cond:$('#tkC').value.trim(),due:$('#tkD').value||'',
       st:'todo',src:'査定スタジオ',owner:$('#tkO').value.trim(),made:new Date().toISOString().slice(0,10),
       dealId:d.id,dealName:d.name||'',leadId:d.leadId||null,leadName:d.leadName||'',app:'refort'};
-    if(await tkPut(t)){ TASKS.push(t); toast('タスクを登録しました（商談ボードにも表示されます）'); renderDealTasks(); }
+    if(await tkPut(t)){ TASKS.push(t); renderDealTasks();
+      await cwOnCreate(t);
+      toast('タスクを登録しました（商談ボードにも表示されます）'+(t.cw?'／担当者のChatworkタスクにも登録しました':(t.cwErr&&CW_CONF().on?'／⚠ Chatworkには登録できませんでした':'')));
+      renderDealTasks(); }
   };
   if(tkEditId && $('#teSave')){
     const t=TASKS.find(x=>x.id===tkEditId);
@@ -2734,7 +2755,10 @@ function renderDealTasks(){
       t.t=v; t.cond=$('#teC').value.trim(); t.due=$('#teD').value||''; t.owner=$('#teO').value.trim();
       const ns=$('#teS').value;
       if(ns!==t.st){ t.st=ns; if(ns==='done'||ns==='drop') t.doneAt=t.doneAt||new Date().toISOString().slice(0,10); else delete t.doneAt; }
-      if(await tkPut(t)){ tkEditId=null; toast('タスクを更新しました（商談ボードにも反映されます）'); renderDealTasks(); }
+      if(await tkPut(t)){ tkEditId=null; renderDealTasks();
+        if(bk.st!==t.st) await cwAfterChange(t,bk.st);
+        else if(t.cw&&(bk.t!==t.t||bk.cond!==t.cond||bk.due!==t.due||bk.owner!==t.owner)) await cwReplace(t);
+        toast('タスクを更新しました（商談ボードにも反映されます）'); renderDealTasks(); }
       else Object.assign(t,bk);
     };
     slot.querySelectorAll('.tk-ef input').forEach(i=>i.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();$('#teSave').click();} if(e.key==='Escape'){$('#teCancel').click();} });
@@ -2742,9 +2766,10 @@ function renderDealTasks(){
   slot.querySelectorAll('[data-tk]').forEach(b=>b.onclick=async()=>{
     const t=TASKS.find(x=>x.id===b.dataset.tk); if(!t)return; const a=b.dataset.a;
     if(a==='edit'){ tkEditId=t.id; renderDealTasks(); return; }
+    const prevSt=t.st;
     if(a==='del'){ if(!confirm('このタスクを削除しますか？（商談ボードからも消えます）'))return; t.del=true; }
     else { t.st=a; if(a==='done'||a==='drop') t.doneAt=new Date().toISOString().slice(0,10); else delete t.doneAt; }
-    await tkPut(t); renderDealTasks();
+    await tkPut(t); renderDealTasks(); await cwAfterChange(t,prevSt); renderDealTasks();
   });
 }
 function openDeal(id){
@@ -3508,6 +3533,7 @@ async function loadShared(){
   }catch(e){ taskCloud=false; console.warn('[refort] sales_tasks 未使用（従来の次アクションで動作）:',(e&&e.message)||e); return; }
   try{
     const {data}=await sb.from('battery_leads').select('id,data');
+    const setRow=(data||[]).find(r=>r.id==='_settings'); CWSET=(setRow&&setRow.data&&setRow.data.cw)||null;
     BLEADS=(data||[]).filter(r=>r.id!=='_settings'&&r.data&&!r.data.sheetGone)
       .map(r=>({id:r.id,name:r.data.name||'',owner:r.data.owner||'',status:r.data.status||''}))
       .sort((a,b)=>a.name.localeCompare(b.name,'ja'));
@@ -3527,6 +3553,97 @@ async function loadShared(){
     }catch(e){ console.warn('[refort] task migrate',e); }
   }
 }
+let CWSET=null;
+const CW_CONF=()=>Object.assign({on:false,room:'441792999',map:{}},CWSET||{});
+/* ===== Chatwork連携：タスクを担当者本人のChatworkタスクへ自動登録 =====
+   ・アプリでタスクを作る → 担当者のChatworkタスクとして登録（グループチャット内）
+   ・アプリで完了／中止／削除 → Chatwork側も完了。戻す → Chatwork側も未完了に
+   ・Chatworkで完了にされた → 5分ごとに確認し、アプリ側も完了にする
+   Chatworkとの通信はSupabaseのEdge Function（chatwork-task）経由。APIトークンはアプリに書かない */
+const CW_FN='chatwork-task';
+let CW_MEMBERS=null, cwSyncing=false;
+async function cwCall(payload){
+  const {data,error}=await sb.functions.invoke(CW_FN,{body:payload});
+  if(error){ let m=error.message||String(error);
+    try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){}
+    throw new Error(m); }
+  if(data&&data.error) throw new Error(data.error);
+  return data||{};
+}
+async function cwMembers(force){
+  if(!force&&CW_MEMBERS) return CW_MEMBERS;
+  const r=await cwCall({action:'members',room:CW_CONF().room});
+  CW_MEMBERS=r.members||[]; return CW_MEMBERS;
+}
+const cwNorm=v=>String(v||'').replace(/[\s　]/g,'');
+/* 担当欄（例「営業部 石井」「大河原・石井」）から人名らしい部分だけを取り出す */
+function cwTokens(owner){ return String(owner||'').split(/[\s　・、,，\/／&＆]+/).map(x=>x.trim())
+  .filter(x=>x.length>=2&&!/(部|課|室|グループ|チーム|本部|事業部)$/.test(x)); }
+/* 名前の一部が一致するChatworkメンバーが1人だけのときに自動で対応づける（同姓が複数いる場合は手動設定） */
+function cwAuto(owner,members){ const ids=[];
+  cwTokens(owner).forEach(tok=>{ const hit=members.filter(m=>cwNorm(m.name).includes(tok));
+    if(hit.length===1&&!ids.includes(String(hit[0].account_id))) ids.push(String(hit[0].account_id)); });
+  return ids; }
+function cwIdsFor(owner,members){
+  const c=CW_CONF(), k=String(owner||'').trim();
+  if(c.map&&Object.prototype.hasOwnProperty.call(c.map,k)){ const v=c.map[k]; return (Array.isArray(v)?v:(v?[v]:[])).map(String); }
+  return cwAuto(owner,members); }
+function cwBodyText(t){
+  const base=location.href.replace(/[#?].*$/,'').replace(/[^\/]*$/,'');
+  const where=[t.leadName, (t.dealName&&t.dealName!==t.leadName)?t.dealName:''].filter(Boolean).join(' ／ ');
+  let b='【商談タスク】'+(where?where+'\n':'\n')+(t.t||'');
+  if(t.cond) b+='\n完了条件：'+t.cond;
+  b+='\n\n▶ '+(t.dealId? base+'refort_deals.html#deal='+encodeURIComponent(t.dealId) : base+'battery_leads.html');
+  b+='\n※アプリで完了にすると、このタスクも自動で完了になります';
+  return b; }
+function cwLimit(due){ if(!due) return 0; const x=Date.parse(due+'T18:00:00+09:00'); return isFinite(x)?Math.floor(x/1000):0; }
+const cwIsOpen=t=>t&&!t.del&&(t.st==='todo'||t.st==='doing'||!t.st);
+async function cwPush(t){
+  const c=CW_CONF();
+  if(!c.on||!sb||!cwIsOpen(t)||(t.cw&&t.cw.ids&&t.cw.ids.length)) return false;
+  try{
+    const ids=cwIdsFor(t.owner, await cwMembers());
+    if(!ids.length){ t.cwErr='担当者をChatworkメンバーに対応づけできません（'+(t.owner||'担当未設定')+'）'; return false; }
+    const r=await cwCall({action:'create',room:c.room,body:cwBodyText(t),to_ids:ids,limit:cwLimit(t.due)});
+    t.cw={room:c.room,ids:(r.task_ids||[]).map(String),to:ids,at:Date.now()}; delete t.cwErr; return true;
+  }catch(e){ t.cwErr=String((e&&e.message)||e); console.warn('[chatwork]',e); return false; }
+}
+async function cwSetStatus(t,st){ if(!t||!t.cw||!t.cw.ids) return;
+  for(const id of t.cw.ids){ try{ await cwCall({action:'status',room:t.cw.room,task_id:id,status:st}); }catch(e){ console.warn('[chatwork status]',e); } } }
+/* 作成直後：Chatworkへ登録して結果を保存 */
+async function cwOnCreate(t){ if(!CW_CONF().on) return; const ok=await cwPush(t); if(ok||t.cwErr) await tkPut(t); }
+/* 状態変更後：Chatwork側を合わせる */
+async function cwAfterChange(t,prevSt){
+  if(!CW_CONF().on) return;
+  const wasOpen=(prevSt==='todo'||prevSt==='doing'||!prevSt), isOpen=cwIsOpen(t);
+  if(wasOpen&&!isOpen) await cwSetStatus(t,'done');
+  else if(!wasOpen&&isOpen){ if(t.cw) await cwSetStatus(t,'open'); else await cwOnCreate(t); }
+}
+/* 内容・担当・期限を変えたとき：Chatworkのタスクは書き換えられないため、旧タスクを完了にして作り直す */
+async function cwReplace(t){
+  if(!CW_CONF().on||!cwIsOpen(t)) return;
+  if(t.cw) await cwSetStatus(t,'done');
+  delete t.cw; await cwOnCreate(t);
+}
+/* Chatworkで完了にされたタスクをアプリへ取り込む */
+async function cwPull(){
+  if(!CW_CONF().on||!sb||cwSyncing) return 0; cwSyncing=true; let n=0;
+  try{
+    const open=TASKS.filter(t=>cwIsOpen(t)&&t.cw&&t.cw.ids&&t.cw.ids.length).slice(0,40);
+    if(!open.length) return 0;
+    const byRoom={}; open.forEach(t=>{ (byRoom[t.cw.room]=byRoom[t.cw.room]||[]).push(...t.cw.ids); });
+    const st={};
+    for(const room in byRoom){ const r=await cwCall({action:'statuses',room,task_ids:byRoom[room]}); Object.assign(st,r.statuses||{}); }
+    for(const t of open){
+      if(t.cw.ids.some(id=>st[id]==='done')){
+        t.st='done'; t.doneAt=new Date().toISOString().slice(0,10); t.doneBy='Chatwork'; await tkPut(t); n++;
+        for(const id of t.cw.ids){ if(st[id]!=='done'){ try{ await cwCall({action:'status',room:t.cw.room,task_id:id,status:'done'}); }catch(_){} } }
+      }
+    }
+  }catch(e){ console.warn('[chatwork pull]',e); } finally{ cwSyncing=false; }
+  return n;
+}
+
 async function refreshShared(){
   await loadShared();
   const v=activeView();
@@ -5317,9 +5434,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19j';
+const APP_VERSION = '2026.09.19k';
 
 const CHANGELOG = [
+  ['2026.09.19k', [
+    '<b>案件一覧の表の上にも横スクロールバーを付けました。</b>表の下まで行かなくても、上のバーをドラッグするか、見出し行の上でマウスホイールを回すと左右に動かせます',
+    '<b>タスクが担当者本人のChatworkタスクに自動で入るようになりました</b>（商談ボードの「💬 Chatworkタスク連携」で有効にした場合）。完了・中止・削除もChatworkと連動し、Chatworkで完了にしたタスクもアプリ側が完了になります。内容・担当・期限を変更したときはChatworkのタスクを登録し直します',
+  ]],
   ['2026.09.19j', [
     '<b>案件一覧の表を、右側の列まで見られるようにしました。</b>表の高さを画面内に収めたので、横スクロールバーが常に画面下に見えます。表の左右に出る「‹ ›」ボタンでも移動できます（ノートPCのタッチパッドやShift＋ホイールでも可）',
     'スクロールしても、見出し行と「案件名」の列は固定表示のままです',
@@ -5932,7 +6053,9 @@ EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
   initCloud().then(async()=>{
     await loadShared();
     if(taskCloud){ if(activeView()==='deal') renderDealTasks(); else refreshView();
-      setInterval(refreshShared, 60*1000); }   /* 商談ボードで更新されたタスクを取り込む */
+      setInterval(refreshShared, 60*1000);   /* 商談ボードで更新されたタスクを取り込む */
+      /* Chatworkで完了にされたタスクを取り込む（5分ごと） */
+      setInterval(async()=>{ if(await cwPull()) refreshShared(); }, 5*60*1000); }
     /* 商談ボードのタスク一覧から「refort_deals.html#deal=ID」で開かれたとき */
     const m=location.hash.match(/deal=([^&]+)/);
     if(m){ const id=decodeURIComponent(m[1]); if(DB.deals.some(x=>x.id===id)) openDeal(id); }

@@ -341,6 +341,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   </div>
   <div id="viewTask" style="display:none">
     <div class="focushead" id="taskHead"></div>
+    <div id="cwPanel" style="display:none;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 12px"></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
       <select id="tkOwner" style="min-width:150px"><option value="">担当：全員</option></select>
       <select id="tkState" style="min-width:140px">
@@ -355,7 +356,8 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
         <option value="手動">出所：手動</option>
         <option value="査定スタジオ">出所：査定スタジオ</option>
       </select>
-      <button class="btn gray" id="tkCopy" style="margin-left:auto;font-size:12px">📋 一覧をChatwork用にコピー</button>
+      <button class="btn gray" id="cwBtn" style="margin-left:auto;font-size:12px">💬 Chatworkタスク連携</button>
+      <button class="btn gray" id="tkCopy" style="font-size:12px">📋 一覧をChatwork用にコピー</button>
     </div>
     <div class="tblwrap"><table id="tkTbl"></table></div>
   </div>
@@ -840,6 +842,9 @@ async function initCloud(){
     /* 査定スタジオで追加・完了されたタスクを取り込む（1分ごと） */
     setInterval(async()=>{ if(!taskCloud) return; await loadTasks(); updateTaskBadge();
       if($('viewTask') && $('viewTask').style.display!=='none') renderTask(); }, 60*1000);
+    /* Chatworkで完了にされたタスクを取り込む（起動時＋5分ごと） */
+    const cwTick=async()=>{ if(!taskCloud) return; if(await cwPull()){ renderAll(); } };
+    setTimeout(cwTick, 8000); setInterval(cwTick, 5*60*1000);
   }catch(e){
     cloud=false; cloudErr=(e && (e.message||e.error_description||JSON.stringify(e)))||'不明なエラー';
     $('syncBadge').textContent='● ローカル（⚠タップで原因）';
@@ -1416,6 +1421,96 @@ async function loadTasks(){
     taskCloud=true;
   }catch(e){ taskCloud=false; console.warn('sales_tasks 未使用（従来の保存方式で動作）:', e.message||e); }
 }
+const CW_CONF=()=>Object.assign({on:false,room:'441792999',map:{}},settings.cw||{});
+/* ===== Chatwork連携：タスクを担当者本人のChatworkタスクへ自動登録 =====
+   ・アプリでタスクを作る → 担当者のChatworkタスクとして登録（グループチャット内）
+   ・アプリで完了／中止／削除 → Chatwork側も完了。戻す → Chatwork側も未完了に
+   ・Chatworkで完了にされた → 5分ごとに確認し、アプリ側も完了にする
+   Chatworkとの通信はSupabaseのEdge Function（chatwork-task）経由。APIトークンはアプリに書かない */
+const CW_FN='chatwork-task';
+let CW_MEMBERS=null, cwSyncing=false;
+async function cwCall(payload){
+  const {data,error}=await sb.functions.invoke(CW_FN,{body:payload});
+  if(error){ let m=error.message||String(error);
+    try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){}
+    throw new Error(m); }
+  if(data&&data.error) throw new Error(data.error);
+  return data||{};
+}
+async function cwMembers(force){
+  if(!force&&CW_MEMBERS) return CW_MEMBERS;
+  const r=await cwCall({action:'members',room:CW_CONF().room});
+  CW_MEMBERS=r.members||[]; return CW_MEMBERS;
+}
+const cwNorm=v=>String(v||'').replace(/[\s　]/g,'');
+/* 担当欄（例「営業部 石井」「大河原・石井」）から人名らしい部分だけを取り出す */
+function cwTokens(owner){ return String(owner||'').split(/[\s　・、,，\/／&＆]+/).map(x=>x.trim())
+  .filter(x=>x.length>=2&&!/(部|課|室|グループ|チーム|本部|事業部)$/.test(x)); }
+/* 名前の一部が一致するChatworkメンバーが1人だけのときに自動で対応づける（同姓が複数いる場合は手動設定） */
+function cwAuto(owner,members){ const ids=[];
+  cwTokens(owner).forEach(tok=>{ const hit=members.filter(m=>cwNorm(m.name).includes(tok));
+    if(hit.length===1&&!ids.includes(String(hit[0].account_id))) ids.push(String(hit[0].account_id)); });
+  return ids; }
+function cwIdsFor(owner,members){
+  const c=CW_CONF(), k=String(owner||'').trim();
+  if(c.map&&Object.prototype.hasOwnProperty.call(c.map,k)){ const v=c.map[k]; return (Array.isArray(v)?v:(v?[v]:[])).map(String); }
+  return cwAuto(owner,members); }
+function cwBodyText(t){
+  const base=location.href.replace(/[#?].*$/,'').replace(/[^\/]*$/,'');
+  const where=[t.leadName, (t.dealName&&t.dealName!==t.leadName)?t.dealName:''].filter(Boolean).join(' ／ ');
+  let b='【商談タスク】'+(where?where+'\n':'\n')+(t.t||'');
+  if(t.cond) b+='\n完了条件：'+t.cond;
+  b+='\n\n▶ '+(t.dealId? base+'refort_deals.html#deal='+encodeURIComponent(t.dealId) : base+'battery_leads.html');
+  b+='\n※アプリで完了にすると、このタスクも自動で完了になります';
+  return b; }
+function cwLimit(due){ if(!due) return 0; const x=Date.parse(due+'T18:00:00+09:00'); return isFinite(x)?Math.floor(x/1000):0; }
+const cwIsOpen=t=>t&&!t.del&&(t.st==='todo'||t.st==='doing'||!t.st);
+async function cwPush(t){
+  const c=CW_CONF();
+  if(!c.on||!sb||!cwIsOpen(t)||(t.cw&&t.cw.ids&&t.cw.ids.length)) return false;
+  try{
+    const ids=cwIdsFor(t.owner, await cwMembers());
+    if(!ids.length){ t.cwErr='担当者をChatworkメンバーに対応づけできません（'+(t.owner||'担当未設定')+'）'; return false; }
+    const r=await cwCall({action:'create',room:c.room,body:cwBodyText(t),to_ids:ids,limit:cwLimit(t.due)});
+    t.cw={room:c.room,ids:(r.task_ids||[]).map(String),to:ids,at:Date.now()}; delete t.cwErr; return true;
+  }catch(e){ t.cwErr=String((e&&e.message)||e); console.warn('[chatwork]',e); return false; }
+}
+async function cwSetStatus(t,st){ if(!t||!t.cw||!t.cw.ids) return;
+  for(const id of t.cw.ids){ try{ await cwCall({action:'status',room:t.cw.room,task_id:id,status:st}); }catch(e){ console.warn('[chatwork status]',e); } } }
+/* 作成直後：Chatworkへ登録して結果を保存 */
+async function cwOnCreate(t){ if(!CW_CONF().on) return; const ok=await cwPush(t); if(ok||t.cwErr) await tkPut(t); }
+/* 状態変更後：Chatwork側を合わせる */
+async function cwAfterChange(t,prevSt){
+  if(!CW_CONF().on) return;
+  const wasOpen=(prevSt==='todo'||prevSt==='doing'||!prevSt), isOpen=cwIsOpen(t);
+  if(wasOpen&&!isOpen) await cwSetStatus(t,'done');
+  else if(!wasOpen&&isOpen){ if(t.cw) await cwSetStatus(t,'open'); else await cwOnCreate(t); }
+}
+/* 内容・担当・期限を変えたとき：Chatworkのタスクは書き換えられないため、旧タスクを完了にして作り直す */
+async function cwReplace(t){
+  if(!CW_CONF().on||!cwIsOpen(t)) return;
+  if(t.cw) await cwSetStatus(t,'done');
+  delete t.cw; await cwOnCreate(t);
+}
+/* Chatworkで完了にされたタスクをアプリへ取り込む */
+async function cwPull(){
+  if(!CW_CONF().on||!sb||cwSyncing) return 0; cwSyncing=true; let n=0;
+  try{
+    const open=TASKS.filter(t=>cwIsOpen(t)&&t.cw&&t.cw.ids&&t.cw.ids.length).slice(0,40);
+    if(!open.length) return 0;
+    const byRoom={}; open.forEach(t=>{ (byRoom[t.cw.room]=byRoom[t.cw.room]||[]).push(...t.cw.ids); });
+    const st={};
+    for(const room in byRoom){ const r=await cwCall({action:'statuses',room,task_ids:byRoom[room]}); Object.assign(st,r.statuses||{}); }
+    for(const t of open){
+      if(t.cw.ids.some(id=>st[id]==='done')){
+        t.st='done'; t.doneAt=new Date().toISOString().slice(0,10); t.doneBy='Chatwork'; await tkPut(t); n++;
+        for(const id of t.cw.ids){ if(st[id]!=='done'){ try{ await cwCall({action:'status',room:t.cw.room,task_id:id,status:'done'}); }catch(_){} } }
+      }
+    }
+  }catch(e){ console.warn('[chatwork pull]',e); } finally{ cwSyncing=false; }
+  return n;
+}
+
 /* 査定スタジオだけで作られ、商談に紐づいていないタスクを表示するための仮の商談 */
 function tkPseudo(t){ return { id:null, _pseudo:true, dealId:t.dealId||'', name:t.dealName||t.leadName||'（商談未設定）', status:'ReFort査定スタジオ', owner:t.owner||'' }; }
 
@@ -1426,7 +1521,7 @@ function taskAdd(l, obj){
   l.updated=today();
   if(taskCloud){
     Object.assign(t,{leadId:l.id, leadName:l.name||'', app:'board'});
-    TASKS.push(t); tkPut(t);
+    TASKS.push(t); tkPut(t).then(()=>cwOnCreate(t)).then(()=>{ if($('viewTask')&&$('viewTask').style.display!=='none') renderTask(); });
   }else{ l.tasks=l.tasks||[]; l.tasks.push(t); }
   saveLocal(); pushLead(l); return t;
 }
@@ -1434,10 +1529,11 @@ function taskSet(leadId, taskId, st){
   const l=leads.find(x=>x.id===leadId);
   const t= taskCloud? TASKS.find(x=>x.id===taskId) : (l&&(l.tasks||[]).find(x=>x.id===taskId));
   if(!t) return;
+  const prevSt=t.st;
   t.st=st;
   if(st==='done'||st==='drop'){ t.doneAt=today(); if(l) (l.logs=l.logs||[]).push({d:today(), t:(st==='done'?'タスク完了：':'タスク中止：')+t.t}); }
   else { delete t.doneAt; }
-  if(taskCloud) tkPut(t);
+  if(taskCloud) tkPut(t).then(()=>cwAfterChange(t,prevSt));
   if(l){ l.updated=today(); saveLocal(); pushLead(l); }
   renderAll();
 }
@@ -1445,7 +1541,7 @@ function taskDel(leadId, taskId){
   const l=leads.find(x=>x.id===leadId);
   if(taskCloud){
     const t=TASKS.find(x=>x.id===taskId); if(!t) return;
-    t.del=true; tkPut(t);   /* 行は消さず「削除済み」にする（査定スタジオからの移行タスクが復活しないように） */
+    const prevSt=t.st; t.del=true; tkPut(t).then(()=>cwAfterChange(t,prevSt));   /* 行は消さず「削除済み」にする（査定スタジオからの移行タスクが復活しないように） */
   }else if(l){ l.tasks=(l.tasks||[]).filter(x=>x.id!==taskId); }
   if(l){ l.updated=today(); saveLocal(); pushLead(l); }
   renderAll();
@@ -1543,7 +1639,9 @@ function renderTask(){
           ${t.dealName&&!x.l._pseudo? `<div class="sub">物件：<a href="refort_deals.html#deal=${encodeURIComponent(t.dealId||'')}" target="_blank" rel="noopener" style="color:inherit">${esc(t.dealName)} ↗</a></div>`:''}</td>
         <td style="font-size:12.5px">${esc(t.t)}</td>
         <td style="font-size:12px;color:var(--tx2)">${esc(t.cond||'—')}</td>
-        <td style="text-align:center"><span class="pill" style="background:#eef2f7;color:var(--tx2)">${esc(t.src||'手動')}</span></td>
+        <td style="text-align:center"><span class="pill" style="background:#eef2f7;color:var(--tx2)">${esc(t.src||'手動')}</span>
+          ${t.cw&&t.cw.ids&&t.cw.ids.length? '<div class="sub" title="担当者のChatworkタスクに登録済み" style="color:#1f6e46">💬 CW済</div>' : (t.cwErr&&tkOpen(t)? `<div class="sub" title="${esc(t.cwErr)}" style="color:var(--red)">⚠ CW未登録</div>`:'')}
+          ${t.doneBy==='Chatwork'? '<div class="sub" style="color:#1f6e46">CWで完了</div>':''}</td>
         <td style="text-align:center"><span class="pill" style="background:${st.c}1f;color:${st.c};font-weight:900">${st.n}</span></td>
         <td>${ t.st==='done'||t.st==='drop'
             ? `<button class="btn gray tkR" data-l="${x.l.id}" data-t="${t.id}" data-a="todo" style="font-size:11px;padding:4px 8px">戻す</button>`
@@ -2973,6 +3071,65 @@ async function syncSheet(silent){
 $('btnGas').onclick=()=> syncSheet(false);
 
 ['tkOwner','tkState','tkSrc'].forEach(id=> $(id).onchange=()=> renderTask());
+/* ===== Chatworkタスク連携の設定パネル ===== */
+function cwOwnersInUse(){
+  const set=new Set();
+  TASKS.filter(t=>!t.del&&tkOpen(t)).forEach(t=>set.add(String(t.owner||'').trim()));
+  leads.filter(isOpenDeal).forEach(l=>set.add(String(l.owner||'').trim()));
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ja'));
+}
+async function renderCwPanel(loadMembers){
+  const P=$('cwPanel'), c=CW_CONF();
+  if(!taskCloud){ P.innerHTML='<div style="font-size:12.5px">共通タスク（sales_tasks）が有効になっていないため、Chatwork連携は使えません。</div>'; return; }
+  let members=CW_MEMBERS, err='';
+  if(loadMembers||!members){ try{ members=await cwMembers(true); }catch(e){ err=String(e.message||e); members=null; } }
+  const unsent=TASKS.filter(t=>cwIsOpen(t)&&!(t.cw&&t.cw.ids&&t.cw.ids.length));
+  const owners=cwOwnersInUse();
+  const optM=(sel)=>(members||[]).map(m=>`<option value="${m.account_id}"${String(sel)===String(m.account_id)?' selected':''}>${esc(m.name)}</option>`).join('');
+  const rows=owners.map(o=>{
+    const has=c.map&&Object.prototype.hasOwnProperty.call(c.map,o), v=has?c.map[o]:null;
+    const cur= has? ((Array.isArray(v)&&v.length)? String(v[0]) : '-') : '';
+    const auto= members? cwAuto(o,members).map(id=>(members.find(m=>String(m.account_id)===id)||{}).name).filter(Boolean).join('、') : '';
+    return `<tr><td style="padding:4px 8px;font-weight:700">${esc(o)}</td>
+      <td style="padding:4px 8px"><select data-cwo="${esc(o)}" style="min-width:220px">
+        <option value=""${cur===''?' selected':''}>自動：${auto?esc(auto):'（該当なし → 送られません）'}</option>
+        <option value="-"${cur==='-'?' selected':''}>送らない</option>${optM(cur)}</select></td></tr>`;
+  }).join('');
+  P.innerHTML=`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <b style="font-size:14px">💬 Chatworkタスク連携</b>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="cwOn"${c.on?' checked':''}> タスクを担当者本人のChatworkタスクに自動登録する</label>
+      <label style="font-size:12px;color:var(--tx2)">グループのルームID <input id="cwRoom" value="${esc(c.room)}" style="width:120px"></label>
+      <button class="btn gray" id="cwReload" style="font-size:12px">メンバーを読み込み直す</button>
+    </div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">登録・完了は、商談ボードと査定スタジオのどちらで操作しても連動します。Chatworkで完了にしたタスクも、5分以内にアプリ側が完了になります。</div>
+    ${err? `<div style="font-size:12.5px;color:var(--red);margin-bottom:8px">Chatworkに接続できませんでした：${esc(err)}<br>Edge Function「chatwork-task」のデプロイと、ルームIDをご確認ください。</div>`:''}
+    ${members? `<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">担当者 → Chatworkメンバーの対応（名前の一部が一致する人が1人なら自動。同姓がいる場合などは選んでください）</div>
+      <div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table style="width:100%;font-size:12.5px"><tbody>${rows||'<tr><td style="padding:8px">担当者がいません</td></tr>'}</tbody></table></div>`:''}
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+      <button class="btn" id="cwSave" style="font-size:12px">設定を保存</button>
+      <button class="btn gray" id="cwSend" style="font-size:12px"${c.on&&unsent.length?'':' disabled'}>未登録の未完了タスクをChatworkへ送る（${unsent.length}件）</button>
+      <span id="cwMsg" style="font-size:12px;color:var(--tx2)"></span>
+    </div>`;
+  $('cwReload').onclick=()=>renderCwPanel(true);
+  $('cwSave').onclick=async()=>{
+    const map={}; P.querySelectorAll('[data-cwo]').forEach(sel=>{ const k=sel.dataset.cwo, v=sel.value;
+      if(v==='-') map[k]=[]; else if(v) map[k]=[v]; });
+    /* 画面に出ていない担当者の設定は残す */
+    const old=(settings.cw&&settings.cw.map)||{}; Object.keys(old).forEach(k=>{ if(!owners.includes(k)) map[k]=old[k]; });
+    settings.cw={ on:$('cwOn').checked, room:String($('cwRoom').value||'441792999').replace(/\D/g,''), map };
+    await saveSettings(); $('cwMsg').textContent='保存しました（全員に共有されます）'; renderCwPanel(false);
+  };
+  $('cwSend').onclick=async()=>{
+    if(!confirm(unsent.length+'件のタスクを、担当者のChatworkタスクとして登録します。よろしいですか？')) return;
+    let ok=0, ng=0; const msg=$('cwMsg');
+    for(const t of unsent){ msg.textContent='送信中… '+(ok+ng+1)+'/'+unsent.length;
+      if(await cwPush(t)){ ok++; } else ng++; await tkPut(t); }
+    msg.textContent='登録 '+ok+'件'+(ng?'／未登録 '+ng+'件（一覧の「⚠ CW未登録」にマウスを乗せると理由が出ます）':'');
+    renderTask();
+  };
+}
+$('cwBtn').onclick=()=>{ const P=$('cwPanel'); const show=P.style.display==='none'; P.style.display=show?'':'none'; if(show) renderCwPanel(false); };
+
 $('tkCopy').onclick=async ()=>{
   const rows=[...$('tkTbl').querySelectorAll('tbody tr')].map(tr=>[...tr.children].slice(0,5).map(td=>td.innerText.replace(/\s+/g,' ').trim()));
   if(!rows.length){ alert('コピーするタスクがありません。'); return; }
@@ -3147,8 +3304,13 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.09.19d';
+const APP_VERSION = '2026.09.19e';
 const CHANGELOG = [
+  ['2026.09.19e', [
+    '<b>タスクを、担当者本人のChatworkタスクに自動で登録できるようにしました。</b>タスクタブの「💬 Chatworkタスク連携」で有効にします（担当者とChatworkメンバーの対応もここで確認・設定）',
+    'アプリで完了・中止・削除するとChatwork側も完了に、Chatworkで完了にするとアプリ側も完了になります（5分以内）。査定スタジオで登録したタスクも同じです',
+    'タスク一覧の「出所」欄に、Chatworkへの登録状況（💬 CW済／⚠ CW未登録）を表示します',
+  ]],
   ['2026.09.19d', [
     '<b>タスクを ReFort査定スタジオ と共通にしました。</b>どちらのアプリで登録・完了しても、同じタスクとして両方に表示されます（二重入力が不要になります）',
     '査定スタジオの案件で登録したタスクは、出所「査定スタジオ」として表示されます。物件名をクリックすると査定スタジオの案件が開きます',
