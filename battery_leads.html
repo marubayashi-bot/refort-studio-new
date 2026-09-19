@@ -22,7 +22,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
-header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative;z-index:50}
 header h1{font-size:16px;font-weight:900;letter-spacing:.04em;line-height:1.25;margin-top:1px}
 .brand{display:flex;align-items:center;gap:11px}
 .brand .applogo{width:38px;height:38px;border-radius:10px;display:block;box-shadow:0 2px 6px rgba(0,0,0,.28)}
@@ -36,7 +36,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:7px;font-siz
 .btn.ghost{background:transparent;color:#fff;border:1px solid #4a648a;padding:7px 12px}
 .btn.gray{background:#e8edf3;color:var(--tx);padding:8px 12px}
 .btn.danger{background:#f7e2e2;color:var(--red)}
-.tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px;position:sticky;top:var(--hh,54px);z-index:49;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs{display:flex;gap:4px;background:#0a2138;padding:0 18px;position:sticky;top:0;z-index:49;box-shadow:0 2px 6px rgba(10,20,35,.18);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 /* スクロール中はヘッダーを薄くして画面を広く使う */
 header.mini{padding:4px 18px;gap:8px}
@@ -321,6 +321,14 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div class="focushead" id="phHead"></div>
     <div style="display:flex;gap:10px;align-items:center;margin:0 0 8px;flex-wrap:wrap">
       <div style="font-size:13px;font-weight:900;color:var(--navy)">🧭 フェーズ別ボード</div>
+      <select id="phModel" style="font-size:12px;font-weight:700;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--navy)">
+        <option value="auto">フェーズ表：自動（事業の絞り込みに合わせる）</option>
+        <option value="pc">全社共通 PH01〜PH08（全事業）</option>
+        <option value="hv">高圧リフォート</option>
+        <option value="lv">低圧リフォート（LR-01〜06）</option>
+        <option value="sk">サンキーパー（SK-01〜04）</option>
+        <option value="sc">セカンダリー販売（SC-01〜06）</option>
+      </select>
       <small style="color:var(--tx2);font-size:11px">カードをドラッグするとフェーズを移動できます（ステータスは変わりません）</small>
       <button class="btn gray" id="phEdit" style="margin-left:auto;font-size:12px;padding:6px 10px">✎ フェーズ名を編集</button>
     </div>
@@ -1801,29 +1809,48 @@ function renderAi(){
 }
 
 /* ===== フェーズ（PH01〜PH08） ===== */
+/* 表示するフェーズ表：自動なら「事業」の絞り込みに合わせる（サンキーパー→SK、ReFort→高圧RF、セカンダリー→セカンダリー販売） */
+function phViewModel(){
+  const v=($('phModel')&&$('phModel').value)||'auto';
+  if(v!=='auto') return v;
+  const b=$('fBiz')? $('fBiz').value : '';
+  return b==='サンキーパー'? 'sk' : b==='ReFort'? 'hv' : b==='セカンダリー'? 'sc' : 'pc';
+}
 function renderPhase(){
-  const f=filtered().filter(phLive);
-  const reach=PH_IDS.map((id,i)=> f.filter(l=> phNo(l)>=i).length);
-  const cells=PH_IDS.map((id,i)=>{
+  const model=phViewModel();
+  const inModel=l=> model==='pc' || bizModel(l)===model;
+  const base=filtered().filter(inModel);
+  const f=base.filter(phLive);
+  /* 列の定義：全社共通はPH、それ以外はそのモデルの事業フェーズ */
+  const list= model==='pc'? PH_IDS.map((id,i)=>({code:id,n:phDef(id).n,cph:i+1})) : bphList(model);
+  const keyOf=l=> model==='pc'? phOf(l) : ((bphOf(l)||{}).code||'');
+  const idxOf=l=> list.findIndex(x=>x.code===keyOf(l));
+  const colOf=x=> PH8_COLOR['PH0'+x.cph]||'#8a97a8';
+  const reach=list.map((x,i)=> f.filter(l=> idxOf(l)>=i).length);
+  const cells=list.map((x,i)=>{
     const rate= (i>0 && reach[i-1])? Math.round(reach[i]/reach[i-1]*100) : null;
-    return `<div class="fh" style="text-align:center;min-width:70px">${id}<br><span style="font-size:10px">${esc(phDef(id).n)}</span><b>${reach[i]}</b>${rate!=null? `<span style="font-size:10px;color:#a9bdd4">▶ ${rate}%</span>`:''}</div>`;
+    return `<div class="fh" style="text-align:center;min-width:70px">${esc(x.code)}<br><span style="font-size:10px">${esc(x.n)}</span><b>${reach[i]}</b>${rate!=null? `<span style="font-size:10px;color:#a9bdd4">▶ ${rate}%</span>`:''}</div>`;
   }).join('<div style="color:#4a648a;font-weight:900">→</div>');
-  const overall=reach[0]? Math.round(reach[7]/reach[0]*100):0;
+  const last=list.length-1;
+  const overall=reach[0]? Math.round(reach[last]/reach[0]*100):0;
+  const note= model==='pc'? '' : `<div class="fh" style="margin-left:12px">表示中のフェーズ表<br><b style="font-size:15px">${esc(BPH_SETS[model].label)}</b></div>`;
   $('phHead').innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">${cells}
-    <div class="fh" style="margin-left:12px">全体通過率<br>（PH01→PH08）<b class="gold">${overall}%</b></div>
-    <div class="fh">生きている商談MQ<br>（失注・保留を除く）<b>${fmtOku(f.reduce((s,l)=>s+mqOf(l),0))}</b></div></div>`;
+    <div class="fh" style="margin-left:12px">全体通過率<br>（${esc(list[0].code)}→${esc(list[last].code)}）<b class="gold">${overall}%</b></div>
+    <div class="fh">生きている商談MQ<br>（失注・保留を除く）<b>${fmtOku(f.reduce((s,l)=>s+mqOf(l),0))}</b></div>${note}</div>`;
 
-  const cols=PH_IDS.concat(['']);
-  $('phkb').innerHTML=cols.map(id=>{
-    const items= id? f.filter(l=>phOf(l)===id) : filtered().filter(l=> !phLive(l) || !phOf(l));
-    const c= id? PH8_COLOR[id] : '#9a8f6b';
+  const cols=list.map(x=>x.code).concat(['']);
+  $('phkb').innerHTML=cols.map((code,ci)=>{
+    const x=list[ci];
+    const items= code? f.filter(l=>keyOf(l)===code) : base.filter(l=> !phLive(l) || !keyOf(l));
+    const c= code? colOf(x) : '#9a8f6b';
     const mq=items.reduce((s,l)=>s+mqOf(l),0);
-    return `<div class="kcol" data-ph="${id}">
-      <h3><span style="color:${c}">■</span>${id? esc(phLabel(id)) : '未設定・保留・失注'}<em>${items.length}</em></h3>
+    const title= code? (model==='pc'? phLabel(code) : x.code+' '+x.n+(x.code!=='PH0'+x.cph? '（PH0'+x.cph+'）':'')) : '未設定・保留・失注';
+    return `<div class="kcol" data-ph="${code}">
+      <h3><span style="color:${c}">■</span>${esc(title)}<em>${items.length}</em></h3>
       <div style="font-size:11px;color:var(--tx2);padding:0 6px 6px;font-weight:700">MQ ${mq.toLocaleString()}万円</div>
       ${items.map(l=>`<div class="kcard" draggable="true" data-id="${l.id}" style="border-left-color:${c}">
         <div class="n">${esc(l.name)}</div>
-        ${(()=>{const b=bphOf(l);return b&&b.code!==phOf(l)? `<div style="font-size:11px;font-weight:700;color:${c};margin:1px 0 3px">${esc(b.code+' '+b.n)}</div>`:'';})()}
+        ${(()=>{ if(model!=='pc') return ''; const b=bphOf(l);return b&&b.code!==phOf(l)? `<div style="font-size:11px;font-weight:700;color:${c};margin:1px 0 3px">${esc(b.code+' '+b.n)}</div>`:'';})()}
         <div class="m"><span class="pill" style="background:${BIZ_COLOR[getBiz(l)]}22;color:${BIZ_COLOR[getBiz(l)]}">${esc(getBiz(l))}</span> ${mqOf(l)? 'MQ '+mqOf(l).toLocaleString()+'万円':''}<br>
         担当：${esc(l.owner||'—')}　<span class="pill" style="background:${ST_COLOR[l.status]}22;color:${ST_COLOR[l.status]}">${esc(l.status)}</span><br>
         ${l.next? '▶ '+esc(l.next):''}${l.due? `<span class="${l.due<today()?'due-over':''}">（${l.due.slice(5).replace('-','/')}）</span>`:''}</div>
@@ -1842,28 +1869,31 @@ function renderPhase(){
       e.preventDefault(); col.classList.remove('dragover');
       const id=e.dataTransfer.getData('text/plain'); const l=leads.find(x=>x.id===id);
       const to=col.dataset.ph||'';
-      if(l && phOf(l)!==to){
-        let val='';
-        if(to){ const model=bizModel(l); const hit=bphList(model).find(x=>'PH0'+x.cph===to);
-          if(!hit){ alert(BPH_SETS[model].label+'には「'+phLabel(to)+'」に当たるフェーズがありません。\n（'+bphList(model).map(x=>x.code+' '+x.n).join('／')+'）'); return; }
+      if(!l || keyOf(l)===to) return;
+      let val='';
+      if(to){
+        if(model==='pc'){ const lm=bizModel(l); const hit=bphList(lm).find(x=>'PH0'+x.cph===to);
+          if(!hit){ alert(BPH_SETS[lm].label+'には「'+phLabel(to)+'」に当たるフェーズがありません。\n（'+bphList(lm).map(x=>x.code+' '+x.n).join('／')+'）'); return; }
           val=hit.code; }
-        l.ph=val; l.updated=today();
-        (l.logs=l.logs||[]).push({d:today(), t:'フェーズを「'+(val? phDisp(l):'未設定')+'」に変更'});
-        saveLocal(); pushLead(l); renderAll();
+        else val=to;
       }
+      l.ph=val; l.updated=today();
+      (l.logs=l.logs||[]).push({d:today(), t:'フェーズを「'+(val? phDisp(l):'未設定')+'」に変更'});
+      saveLocal(); pushLead(l); renderAll();
     };
   });
-  renderPhMatrix(f);
+  renderPhMatrix(f, list, keyOf);
 }
-function renderPhMatrix(f){
+function renderPhMatrix(f, list, keyOf){
+  list=list||PH_IDS.map((id,i)=>({code:id,n:phDef(id).n,cph:i+1})); keyOf=keyOf||phOf;
   const owners=[...new Set(f.map(l=>l.owner||'未設定'))].sort();
   const cell=(a)=> a.length? `<td style="text-align:center"><b>${a.length}</b><div class="sub">${a.reduce((s,l)=>s+mqOf(l),0).toLocaleString()}</div></td>` : '<td style="text-align:center;color:#c8d2dd">—</td>';
-  const head='<thead><tr><th>担当者</th>'+PH_IDS.map(id=>`<th style="text-align:center">${id}<div class="sub" style="font-weight:700">${esc(phDef(id).n)}</div></th>`).join('')+'<th style="text-align:center">合計</th></tr></thead>';
+  const head='<thead><tr><th>担当者</th>'+list.map(x=>`<th style="text-align:center">${esc(x.code)}<div class="sub" style="font-weight:700">${esc(x.n)}</div></th>`).join('')+'<th style="text-align:center">合計</th></tr></thead>';
   const rows=owners.map(o=>{
     const arr=f.filter(l=>(l.owner||'未設定')===o);
-    return `<tr><td><b>${esc(o)}</b></td>${PH_IDS.map(id=>cell(arr.filter(l=>phOf(l)===id))).join('')}${cell(arr)}</tr>`;
+    return `<tr><td><b>${esc(o)}</b></td>${list.map(x=>cell(arr.filter(l=>keyOf(l)===x.code))).join('')}${cell(arr)}</tr>`;
   }).join('');
-  const tot=`<tr style="background:#f2f5f9"><td><b>全体</b></td>${PH_IDS.map(id=>cell(f.filter(l=>phOf(l)===id))).join('')}${cell(f)}</tr>`;
+  const tot=`<tr style="background:#f2f5f9"><td><b>全体</b></td>${list.map(x=>cell(f.filter(l=>keyOf(l)===x.code))).join('')}${cell(f)}</tr>`;
   $('phMatrix').innerHTML= owners.length? head+'<tbody>'+rows+tot+'</tbody>' : '<tbody><tr><td><div class="empty">データがありません。</div></td></tr></tbody>';
 }
 
@@ -2470,6 +2500,26 @@ function parseLeadRows(rows){
   return parsed;
 }
 const SHEET_MARK='── シート連動 ──';
+/* シート由来の商談ID：案件IDがあれば S_案件ID、無ければ顧客名から作る。
+   端末ごとにランダムIDを振ると、ボードを開いている人数分だけ同じ商談が登録されてしまうため */
+function sheetLeadId(x){ return x.sid? 'S_'+String(x.sid).replace(/[^\w\-]/g,'') : 'N_'+normName(x.name).slice(0,60); }
+/* 重複の自動統合（シート連動のたびに実行）
+   ① 同じ案件IDの商談は同一 → 1件に統合
+   ② 案件IDの無いシート由来の商談で、同名の「案件ID付き」商談がある → そちらへ統合
+   手入力の商談どうしの同名は自動では統合しない（データ整理で人が判断） */
+function autoDedupe(){
+  let merged=0;
+  const pickKeep=(arr,sid)=> arr.find(l=>sid && l.id==='S_'+String(sid).replace(/[^\w\-]/g,''))
+    || arr.slice().sort((a,b)=> String(a.created||'').localeCompare(String(b.created||'')) || String(a.id).localeCompare(String(b.id)))[0];
+  const bySid={};
+  leads.forEach(l=>{ if(l.sid) (bySid[l.sid]=bySid[l.sid]||[]).push(l); });
+  Object.keys(bySid).forEach(sid=>{ const g=bySid[sid]; if(g.length<2) return;
+    const keep=pickKeep(g,sid); g.filter(l=>l!==keep).forEach(d=>{ mergeLeads(keep.id,d.id,true); merged++; }); });
+  const withSid={}; leads.forEach(l=>{ if(l.sid){ const k=normName(l.name); if(k && !withSid[k]) withSid[k]=l; } });
+  leads.filter(l=> !l.sid && isFromSheet(l) && withSid[normName(l.name)]).forEach(d=>{
+    mergeLeads(withSid[normName(d.name)].id, d.id, true); merged++; });
+  return merged;
+}
 function applyParsedLeads(parsed, srcLabel){
   let added=0,updated=0,renamed=0;
   const seen=[];
@@ -2508,7 +2558,7 @@ function applyParsedLeads(parsed, srcLabel){
         || b.temp!==l.temp || b.finance!==l.finance || b.kubun!==l.kubun || b.owner!==l.owner || b.memo!==l.memo;
       if(changed){ l.updated=today(); (l.logs=l.logs||[]).push({d:today(),t:srcLabel+'で更新'}); updated++; pushLead(l); }
     }else{
-      l=Object.assign({id:uid(),created:today(),updated:today(),logs:[{d:today(),t:srcLabel+'で登録'}]},x);
+      l=Object.assign({id:sheetLeadId(x),created:today(),updated:today(),logs:[{d:today(),t:srcLabel+'で登録'}]},x);
       const m=String(l.memo||'').trim();
       l.memo = m? SHEET_MARK+'\n'+m : '';
       leads.unshift(l); added++; pushLead(l);
@@ -2549,21 +2599,22 @@ function updateCleanBadge(){
   el.textContent = n? ' '+n : '';
   el.style.cssText = n? 'display:inline-block;margin-left:5px;background:var(--red);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;font-weight:900' : 'display:none';
 }
-function mergeLeads(keepId, dropId){
+function mergeLeads(keepId, dropId, quiet){
   const keep=leads.find(l=>l.id===keepId), drop=leads.find(l=>l.id===dropId);
   if(!keep||!drop||keep===drop) return;
   /* 情報は「残す側」優先。残す側が空の項目だけ相手から引き継ぐ */
-  ['contact','tel','mail','area','wantarea','ref','refname','route','payday','need','memo2'].forEach(k=>{ if(!keep[k] && drop[k]) keep[k]=drop[k]; });
+  ['contact','tel','mail','area','wantarea','ref','refname','route','payday','need','memo2','ph','revday','cday','block','blockdue','props'].forEach(k=>{ if((!keep[k]||(Array.isArray(keep[k])&&!keep[k].length)) && drop[k]) keep[k]=drop[k]; });
   if(!keep.sid && drop.sid) keep.sid=drop.sid;
   if(drop.created && (!keep.created || drop.created<keep.created)) keep.created=drop.created;
   const dm=String(drop.memo||'').split('── シート連動 ──')[0].trim();
   if(dm && !String(keep.memo||'').includes(dm)) keep.memo=(dm+'\n'+String(keep.memo||'')).trim();
   keep.logs=(keep.logs||[]).concat(drop.logs||[]).sort((a,b)=>String(a.d||'').localeCompare(String(b.d||'')));
-  keep.logs.push({d:today(), t:'重複していた「'+drop.name+'」を統合（データ整理）'});
-  delete keep.sheetGone; delete keep.goneAt;
+  keep.logs.push({d:today(), t:'重複していた「'+drop.name+'」を統合（'+(quiet?'自動':'データ整理')+'）'});
+  if(!drop.sheetGone || keep.sid){ delete keep.sheetGone; delete keep.goneAt; }
   keep.updated=today();
   leads=leads.filter(l=>l.id!==drop.id);
   removeLead(drop.id); pushLead(keep);
+  if(quiet) return;
   saveLocal(); renderAll(); renderClean();
 }
 function deleteLead(id, silent){
@@ -2823,7 +2874,11 @@ async function syncSheet(silent){
     const parsed=parseLeadRows(j.rows||[]);
     const parsedP=parsePropRows(j.propRows||[]);
     if(!parsed.length && !parsedP.length){ if(!silent) alert('スプレッドシートに取込対象が見つかりませんでした。テンプレートの列見出しをご確認ください。'); $('gasStatus').textContent=''; return; }
+    if(cloud && parsed.length){
+      try{ const {data,error}=await sb.from(TABLE).select('id,data');
+        if(!error && data) leads=data.filter(r=>r.id!=='_settings').map(r=>r.data).filter(Boolean); }catch(e){ console.warn('pre-sync reload',e); } }
     const r=parsed.length? applyParsedLeads(parsed,'シート連動') : {added:0,updated:0,renamed:0,gone:0};
+    const dd=autoDedupe(); if(dd) r.dedup=dd;
     const rp=parsedP.length? applyParsedProps(parsedP) : {added:0,updated:0};
     saveLocal(); renderAll();
     const bits=[];
@@ -2831,6 +2886,7 @@ async function syncSheet(silent){
     if(r.updated) bits.push('更新'+r.updated);
     if(r.renamed) bits.push('改名'+r.renamed);
     if(r.gone) bits.push('⚠シート消失'+r.gone);
+    if(r.dedup) bits.push('重複統合'+r.dedup);
     if(rp.added+rp.updated) bits.push('物件'+(rp.added+rp.updated));
     lastSyncAt=Date.now(); renderSyncAge(); updateCleanBadge();
     $('gasStatus').textContent='📗 シート連動済 '+new Date().toTimeString().slice(0,5)+(bits.length? '（'+bits.join('・')+'）':'（変更なし）');
@@ -3032,8 +3088,18 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.09.19';
+const APP_VERSION = '2026.09.19c';
 const CHANGELOG = [
+  ['2026.09.19c', [
+    '<b>フェーズタブを事業ごとのフェーズ表で見られるようにしました。</b>「フェーズ表」で全社共通／高圧リフォート／低圧リフォート／サンキーパー／セカンダリー販売を選べます。「自動」のときは事業の絞り込みに合わせて切り替わります（例：サンキーパーを選ぶと SK-01 商談化 → SK-02 商品の交渉 → SK-03 合意書取得 → SK-04 入金済み の4列）',
+    '事業別のフェーズ表では、ファネル・通過率・列・担当×フェーズがすべてその事業の段階で表示され、カードをドラッグするとその段階がそのまま保存されます',
+    '<b>【不具合修正】画面をスクロールしたときに、上部の境目で文字がチカチカ・ブレる現象を直しました。</b>スクロールに合わせてヘッダーを縮める動きが、ページの高さを変えて境目を行き来していたのが原因です。ヘッダーは通常どおりスクロールし、タブだけが画面上部に固定されます',
+  ]],
+  ['2026.09.19b', [
+    '<b>【不具合修正】シートに1行しか入力していない商談が、ボードに2〜3件登録される不具合を直しました。</b>原因は、ボードを開いている各端末が2分ごとの自動連動でそれぞれ「新規」として登録していたことです。今後はシートの案件IDから決まる同じIDで登録するため、何人が開いていても1件になります',
+    'シート連動の直前に共有データベースの最新を読み直すようにしました。長時間開いたままの画面が古い情報で連動することを防ぎます',
+    'シート連動のたびに重複を自動で統合します：①同じ案件IDの商談、②案件IDが付く前に登録された同名のシート由来商談。活動ログ・手入力した項目は統合先に引き継ぎます。手入力の商談どうしの同名は、これまで通り「🧹 データ整理」で確認してから統合してください',
+  ]],
   ['2026.09.19', [
     '<b>フェーズ名を全社の正式定義に合わせました。</b>PH01 商談の見極め／PH02 課題の把握／PH03 要件整理／PH04 解決策の提案／PH05 稟議検討中／PH06 意思決定者の合意／PH07 事務手続き／PH08 受注',
     '<b>事業ごとのフェーズに対応しました。</b>低圧リフォート（LR-01〜06）・サンキーパー（SK-01〜04）・セカンダリー販売（SC-01〜06）は各事業の段階で管理し、フェーズタブ・ファネル・担当×フェーズ・4Q・AIマネージャーは全社共通PHに自動換算して表示します。高圧リフォートと系統用蓄電池などはPH01〜PH08をそのまま使います',
@@ -3157,6 +3223,7 @@ const MANUAL = [
       '<tr><td>契約</td><td>PH08</td><td>LR-05</td><td>SK-03</td><td>SC-05</td></tr>' +
       '<tr><td>入金済</td><td>PH08</td><td>LR-06</td><td>SK-04</td><td>SC-06</td></tr></table>',
     '<div class="mnote">PH03（要件整理）・LR-03（現調後 見積待ち）はステータスに対応する段階が無いため、自動では入りません。カードをドラッグするか、商談編集画面の「商談フェーズ」で設定してください。一度設定すると、以後はステータスが変わっても手動設定が優先されます。フェーズタブでカードを別の列へドラッグすると、その商談の事業フェーズに変換して保存します（該当が無い列には移せません）。</div>',
+    '<p><b>事業ごとのフェーズ表で見る</b>：フェーズタブの「フェーズ表」で、全社共通／高圧リフォート／低圧リフォート／サンキーパー／セカンダリー販売を切り替えられます。「自動」のままなら、上の絞り込みで事業を選ぶとその事業のフェーズ表（例：サンキーパー→SK-01〜04）に切り替わり、ファネル・列・担当×フェーズもその事業の段階で表示します。</p>',
     '<p><b>入力シートの「フェーズ」列</b>には PH03 のほか、SK-03／LR-02／SC-04 のような事業フェーズの表記もそのまま書けます。</p>',
     '<p><b>フェーズ名を自社定義に合わせる</b>：フェーズタブ右上の「✎ フェーズ名を編集」から、8つの名称を「/」区切りで入力すると全員共通で変わります。</p>',
     '<p><b>担当別タブ</b>では、担当者ごとに 件数／確定MQ（契約＋入金）／商談中MQ／個人粗利目標に対する進捗／期限超過／次アクション未設定 と、フェーズ分布を確認できます。個人目標は「🚩 4Q作戦 ▶ ✎ 個人目標を設定」で登録した値を使います。</p>',
@@ -3310,11 +3377,8 @@ window.addEventListener('resize', syncStickyOffset);
 window.addEventListener('load', syncStickyOffset);
 if(window.ResizeObserver){ new ResizeObserver(syncStickyOffset).observe(document.querySelector('header')); }
 setTimeout(syncStickyOffset, 300);
-window.addEventListener('scroll', ()=>{
-  const h=document.querySelector('header'); if(!h) return;
-  const mini=window.scrollY>40;
-  if(h.classList.contains('mini')!==mini){ h.classList.toggle('mini',mini); syncStickyOffset(); }
-}, {passive:true});
+/* 以前はスクロール量40pxでヘッダーを縮めていたが、縮むとページの高さが変わり
+   スクロール位置が境目を行き来して文字がチカチカしたため廃止。タブだけ上部に固定する */
 $('verBadge').onclick = ()=>{ const b=document.querySelector('.tabs button[data-tab="man"]'); if(b) b.click(); };
 
 $('btnNew').onclick=()=> openModal(null);
@@ -3322,6 +3386,8 @@ $('btnReload').onclick=reload;
 ['fQ','fBiz','fKubun','fStatus','fPh','fRef','fOwner','fTemp'].forEach(id=> $(id).addEventListener('input',renderAll));
 $('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
 $('fGone').addEventListener('change',e=>{ showGone=e.target.checked; renderAll(); });
+$('phModel').addEventListener('change',()=> renderPhase());
+$('fBiz').addEventListener('change',()=>{ if($('phModel')&&$('phModel').value!=='auto'){ $('phModel').value='auto'; renderPhase(); } });
 $('i_biz').addEventListener('change',()=>{ updateNeedOptions(); fillPhSelect(formModel(), $('i_ph').value); });
 ['i_volt','i_need'].forEach(id=> $(id).addEventListener('change',()=> fillPhSelect(formModel(), $('i_ph').value)));
 
