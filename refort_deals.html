@@ -1300,21 +1300,31 @@ const Store = {
   }
 };
 let LOCAL_OK = true, LOCAL_WARNED = false;
-function load(){ const d=Store.read(); if(!d.deals)d.deals=[]; return d; }
+function load(){ const d=Store.read(); if(!d.deals)d.deals=[]; return migrateStages(d); }
 /* one を渡すと、その案件だけをクラウドへ送る（全件送信による失敗・他人のデータ巻き込みを防ぐ） */
 function saveDB(d, one, force){ Store.write(d); try{ if(window.__cloudPush) window.__cloudPush(d, one, force); }catch(e){} }
 
 /* ---------- stages ---------- */
+/* 全社共通の商談フェーズ PH01〜PH08（商談パイプラインボードと同じ定義）。
+   PH08 受注は内部キー 'won'、見送りは 'lost' のまま（集計・判定ロジックを変えないため） */
 const STAGES = [
-  {k:'hearing', n:'ヒアリング', c:'#8b9bb0'},
-  {k:'screen',  n:'一次判定',   c:'#2a6fb0'},
-  {k:'dd',      n:'DD・現調',   c:'#c98414'},
-  {k:'propose', n:'提案中',     c:'#7a5cc7'},
-  {k:'nego',    n:'契約交渉',   c:'#1f8a55'},
-  {k:'won',     n:'成約',       c:'#0d7a4a'},
-  {k:'lost',    n:'見送り',     c:'#9aa3ad'},
+  {k:'ph01', ph:'PH01', n:'PH01 商談の見極め',   d:'初回提案',                     c:'#8b9bb0'},
+  {k:'ph02', ph:'PH02', n:'PH02 課題の把握',     d:'意向確認',                     c:'#5a86b8'},
+  {k:'ph03', ph:'PH03', n:'PH03 要件整理',       d:'無料診断（シミュ＋見積）',     c:'#2a6fb0'},
+  {k:'ph04', ph:'PH04', n:'PH04 解決策の提案',   d:'診断提案〜見積提示',           c:'#c98414'},
+  {k:'ph05', ph:'PH05', n:'PH05 稟議検討中',     d:'稟議対応／プレゼン支援',       c:'#b8612a'},
+  {k:'ph06', ph:'PH06', n:'PH06 意思決定者の合意', d:'発注意思の確認',             c:'#7a5cc7'},
+  {k:'ph07', ph:'PH07', n:'PH07 事務手続き',     d:'契約書・発注書処理、納品調整', c:'#1f8a55'},
+  {k:'won',  ph:'PH08', n:'PH08 受注',           d:'正式受注完了',                 c:'#0d7a4a'},
+  {k:'lost', ph:'',     n:'見送り',              d:'失注・見送り',                 c:'#9aa3ad'},
 ];
-const stageOf = k => STAGES.find(s=>s.k===k) || STAGES[0];
+/* 旧ステージ → 正式フェーズ（v2026.09.19c で移行） */
+const LEGACY_STAGE={hearing:'ph02',screen:'ph03',dd:'ph03',propose:'ph04',nego:'ph06'};
+function normStage(k){ return LEGACY_STAGE[k] || (STAGES.some(s=>s.k===k)?k:'ph01'); }
+/* 読み込んだ案件の旧ステージを置き換える（更新日時は変えない＝他の社員の編集を上書きしない） */
+function migrateStages(db){ (db&&db.deals||[]).forEach(d=>{ if(!d)return; if(LEGACY_STAGE[d.stage]) d.stage=LEGACY_STAGE[d.stage];
+    try{ if(window.__phaseNorm) window.__phaseNorm(d); }catch(e){} }); return db; }
+const stageOf = k => STAGES.find(s=>s.k===normStage(k)) || STAGES[0];
 
 /* ---------- DD checklist template ---------- */
 const DD_TEMPLATE = [
@@ -1728,8 +1738,70 @@ window.RF = {load,saveDB,STAGES,stageOf,DD_TEMPLATE,REDFLAGS,blankInputs,derive,
 /* ===== ReFort 査定スタジオ — UI ===== */
 'use strict';
 (function(){
-const {load,saveDB,STAGES,stageOf,DD_TEMPLATE,REDFLAGS,blankInputs,derive,judge,
+const {load,saveDB,STAGES,DD_TEMPLATE,REDFLAGS,blankInputs,derive,judge,
   simSecondary,simSecondaryRF,simRefortOnly,yen,yenM,pct,kwh,n} = window.RF;
+
+/* ===== 商談フェーズ：事業モデル別（現場が動かす）× 全社共通PH01〜PH08（経営が見る） =====
+   受注・入金（共通PH08）は内部キー 'won'、見送りは 'lost' で全モデル共通 */
+const COMMON_PH=[
+  {cph:1,code:'PH01',n:'商談の見極め',d:'初回提案'},
+  {cph:2,code:'PH02',n:'課題の把握',d:'意向確認'},
+  {cph:3,code:'PH03',n:'要件整理',d:'提案・見積に必要な情報を揃える（高圧RFは無料診断）'},
+  {cph:4,code:'PH04',n:'解決策の提案',d:'提案〜見積提示'},
+  {cph:5,code:'PH05',n:'稟議検討中',d:'お客様の社内検討・稟議'},
+  {cph:6,code:'PH06',n:'意思決定者の合意',d:'発注意思の確認'},
+  {cph:7,code:'PH07',n:'事務手続き',d:'契約書・発注書処理、納品調整'},
+  {cph:8,code:'PH08',n:'受注',d:'正式受注完了（契約・入金）'}
+];
+const PH_COLOR={0:'#9aa3ad',1:'#8b9bb0',2:'#5a86b8',3:'#2a6fb0',4:'#c98414',5:'#b8612a',6:'#7a5cc7',7:'#1f8a55',8:'#0d7a4a'};
+const PHASE_SETS={
+  hv:{label:'高圧リフォート',short:'高圧RF',list:[
+    {k:'ph01',code:'PH01',n:'商談の見極め',d:'初回提案',cph:1},
+    {k:'ph02',code:'PH02',n:'課題の把握',d:'意向確認',cph:2},
+    {k:'ph03',code:'PH03',n:'要件整理',d:'無料診断（シミュ＋見積）',cph:3},
+    {k:'ph04',code:'PH04',n:'解決策の提案',d:'診断提案〜見積提示',cph:4},
+    {k:'ph05',code:'PH05',n:'稟議検討中',d:'稟議対応／プレゼン支援',cph:5},
+    {k:'ph06',code:'PH06',n:'意思決定者の合意',d:'発注意思の確認',cph:6},
+    {k:'ph07',code:'PH07',n:'事務手続き',d:'契約書・発注書処理、納品調整',cph:7},
+    {k:'won', code:'PH08',n:'受注',d:'正式受注完了',cph:8}]},
+  lv:{label:'低圧リフォート',short:'低圧RF',list:[
+    {k:'lr01',code:'LR-01',n:'商談化',d:'',cph:2},
+    {k:'lr02',code:'LR-02',n:'申込書受領',d:'現地調査中',cph:3},
+    {k:'lr03',code:'LR-03',n:'現調後 見積待ち',d:'',cph:4},
+    {k:'lr04',code:'LR-04',n:'最終提案済み',d:'お客様の判断待ち',cph:5},
+    {k:'lr05',code:'LR-05',n:'契約締結',d:'',cph:7},
+    {k:'won', code:'LR-06',n:'入金',d:'',cph:8}]},
+  sc:{label:'セカンダリー販売',short:'セカンダリー',list:[
+    {k:'sc01',code:'SC-01',n:'買主の見極め',d:'投資目的・予算・購入時期・融資か現金かを確認済み',cph:2},
+    {k:'sc02',code:'SC-02',n:'物件提案',d:'物件資料・シミュレーション・利回りを提示済み',cph:4},
+    {k:'sc03',code:'SC-03',n:'検討・DD対応',d:'現地見学・質疑・資料開示に対応中',cph:5},
+    {k:'sc04',code:'SC-04',n:'買付証明受領',d:'価格・条件の合意、購入申込書を受領',cph:6},
+    {k:'sc05',code:'SC-05',n:'売買契約締結',d:'融資承認（融資の場合）、契約締結・手付金入金',cph:7},
+    {k:'won', code:'SC-06',n:'決済・引渡し',d:'残代金入金、名義変更完了',cph:8}]}
+};
+const PH_LOST={k:'lost',code:'',n:'見送り',d:'失注・見送り（理由をメモに残す）',cph:0};
+/* 区分（カテゴリ）と容量から事業モデルを決める：セカンダリー系→セカンダリー販売／リフォート→50kW以上は高圧・未満は低圧／その他→高圧RFの定義 */
+function phaseSetKey(d){ let cat=''; try{ cat=ledCat(d)||''; }catch(e){}
+  if(/セカンダリー/.test(cat)) return 'sc';
+  if(cat==='リフォート') return isHV(d)?'hv':'lv';
+  return 'hv'; }
+function phasesFor(d){ return PHASE_SETS[phaseSetKey(d)].list.concat([PH_LOST]); }
+function cphOfKey(k){ if(k==='lost')return 0; if(k==='won')return 8;
+  for(const sk in PHASE_SETS){ const f=PHASE_SETS[sk].list.find(x=>x.k===k); if(f)return f.cph; } return 1; }
+/* 他モデルのキーが入っていたら、同じ共通PH（無ければその手前）のフェーズへ寄せる */
+function phaseNorm(d){ if(!d)return d; const list=phasesFor(d);
+  if(list.some(x=>x.k===d.stage)) return d;
+  const c=cphOfKey(d.stage); if(c===0){d.stage='lost';return d;}
+  const real=list.filter(x=>x.k!=='lost');
+  const hit=real.find(x=>x.cph===c) || real.filter(x=>x.cph<=c).pop() || real[0];
+  d.stage=hit.k; return d; }
+window.__phaseNorm=phaseNorm;
+function stageOf(k,d){ const base=d? phasesFor(d) : PHASE_SETS.hv.list.concat([PH_LOST]);
+  const f=base.find(x=>x.k===k) || base[0];
+  const cp=COMMON_PH.find(x=>x.cph===f.cph);
+  return {k:f.k, code:f.code, n:(f.code?f.code+' ':'')+f.n, d:f.d, cph:f.cph, c:PH_COLOR[f.cph],
+    pcode:cp?cp.code:'見送り', pn:cp?cp.code+' '+cp.n:'見送り'}; }
+function cphOf(d){ return stageOf(d.stage,d).cph; }
 
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
@@ -1766,12 +1838,13 @@ function dealPipelineValue(deal){
 
 /* ==================== DASHBOARD ==================== */
 function renderDash(){
+  migrateStages(DB);
   const v=$('#view-dash');
   const deals=DB.deals;
   const active=deals.filter(d=>d.stage!=='won'&&d.stage!=='lost');
   const won=deals.filter(d=>d.stage==='won');
   const pipeVal=active.reduce((s,d)=>s+dealPipelineValue(d),0);
-  const weighted=active.reduce((s,d)=>s+dealPipelineValue(d)*(STAGE_PROB[d.stage]||0),0);
+  const weighted=active.reduce((s,d)=>s+dealPipelineValue(d)*(CPH_PROB[cphOf(d)]||0),0);
   const goCount=active.filter(d=>dealVerdict(d).level==='go').length;
   const flagCount=deals.filter(d=>dealVerdict(d).ng>0).length;
   const todo=active.filter(d=>{const st=dueInfo(d).state;return st==='overdue'||st==='soon';})
@@ -1787,7 +1860,7 @@ function renderDash(){
   html+=`<div class="kpis">
     ${kpi('進行中案件',active.length,'件','成約・見送り除く','📁')}
     ${kpi('パイプライン金額',yenM(pipeVal),'','進行中案件の想定取引額','💰')}
-    ${kpi('加重見込',yenM(weighted),'','ステージ確度で加重','📈')}
+    ${kpi('加重見込',yenM(weighted),'','フェーズ確度で加重','📈')}
     ${kpi('Go判定',goCount,'件','一次判定で推奨','✅')}
     ${kpi('要対応',todo.length,'件','期限超過・3日以内','⏰')}
     ${kpi('成約',won.length,'件','クローズ済','🏆')}
@@ -1800,16 +1873,16 @@ function renderDash(){
       html+=`<div class="alert-row ${di.state}" data-open="${d.id}">
         ${dueBadge(d)}<span class="nm">${esc(d.name||'(無題案件)')}</span>
         <span class="ax">${esc(d.next||'次アクション未設定')}</span>
-        <span class="sp"></span><span class="hint">${stageOf(d.stage).n} →</span></div>`;
+        <span class="sp"></span><span class="hint">${stageOf(d.stage,d).n} →</span></div>`;
     });
     html+=`</div>`;
   }
 
   // pipeline lanes / 事業者別ツリー
   html+=`<div class="dash-bar">
-    <div class="sec-title">${DASH_MODE==='cust'?'発電事業者別（事業者 → 物件 → シミュレーション）':'パイプライン'}</div>
+    <div class="sec-title">${DASH_MODE==='cust'?'発電事業者別（事業者 → 物件 → シミュレーション）':'パイプライン（PH01〜PH08）'}</div>
     <div class="modesw">
-      <button class="ms ${DASH_MODE==='stage'?'on':''}" data-mode="stage">ステージ別</button>
+      <button class="ms ${DASH_MODE==='stage'?'on':''}" data-mode="stage">フェーズ別</button>
       <button class="ms ${DASH_MODE==='cust'?'on':''}" data-mode="cust">事業者別</button>
     </div>
     ${DASH_MODE==='cust'?`<input class="txt" id="custQ" placeholder="事業者名・物件名・案件名で検索" value="${esc(custQuery)}" style="width:250px;margin-left:auto">`:''}
@@ -1837,11 +1910,12 @@ function renderDash(){
   if(DASH_MODE==='cust'){ renderCustTree(); return; }
 
   const pipe=$('#pipe');
-  STAGES.forEach(st=>{
-    const list=deals.filter(d=>d.stage===st.k);
+  COMMON_PH.map(x=>({k:x.code,cph:x.cph,n:x.code+' '+x.n,d:x.d,c:PH_COLOR[x.cph]}))
+    .concat([{k:'lost',cph:0,n:'見送り',d:PH_LOST.d,c:PH_COLOR[0]}]).forEach(st=>{
+    const list=deals.filter(d=>cphOf(d)===st.cph);
     const sum=list.reduce((s,d)=>s+dealPipelineValue(d),0);
     const lane=el('div','lane');lane.dataset.stage=st.k;
-    lane.innerHTML=`<div class="lane-h"><span class="dot" style="background:${st.c}"></span>
+    lane.innerHTML=`<div class="lane-h" title="${esc(st.d||'')}"><span class="dot" style="background:${st.c}"></span>
       <b>${st.n}</b><span class="cnt">${list.length}</span>
       <span class="sum">${list.length?yenM(sum):'—'}</span></div>
       <div class="lane-body"></div>`;
@@ -1853,7 +1927,12 @@ function renderDash(){
     lane.addEventListener('dragleave',()=>lane.classList.remove('drop'));
     lane.addEventListener('drop',e=>{e.preventDefault();lane.classList.remove('drop');
       const id=e.dataTransfer.getData('id');const deal=DB.deals.find(x=>x.id===id);
-      if(deal&&deal.stage!==st.k){deal.stage=st.k;deal.updatedAt=Date.now();saveDB(DB,deal);renderDash();toast(deal.name+'を「'+st.n+'」へ移動');}
+      if(!deal)return;
+      if(cphOf(deal)===st.cph)return;
+      const cand=phasesFor(deal).find(x=>x.cph===st.cph);
+      if(!cand){ toast(PHASE_SETS[phaseSetKey(deal)].label+'には「'+st.n+'」に当たるフェーズがありません'); return; }
+      deal.stage=cand.k;deal.updatedAt=Date.now();saveDB(DB,deal);renderDash();
+      toast(deal.name+'を「'+stageOf(cand.k,deal).n+'」へ移動');
     });
     pipe.appendChild(lane);
   });
@@ -1865,7 +1944,7 @@ function kpi(lab,val,unit,foot,ic){
 }
 function dealCard(d){
   const v=dealVerdict(d);const der=derive(d.inputs);
-  const c=el('div','deal');c.draggable=true;c.style.borderLeftColor=stageOf(d.stage).c;
+  const c=el('div','deal');c.draggable=true;c.style.borderLeftColor=stageOf(d.stage,d).c;
   c.innerHTML=`<div class="nm">${esc(d.name||'(無題案件)')}</div>
     <div class="meta">
       ${d.inputs.location?'<span>📍 '+esc(d.inputs.location)+'</span>':''}
@@ -1873,6 +1952,7 @@ function dealCard(d){
       ${der.gen?'<span>'+kwh(der.gen)+' kWh/年</span>':''}
     </div>
     <div class="row2">
+      ${(()=>{const st=stageOf(d.stage,d);return st.cph&&st.code!==st.pcode?'<span class="chip neutral" style="background:'+st.c+'22;color:'+st.c+'" title="'+esc(PHASE_SETS[phaseSetKey(d)].label)+'">'+esc(st.n)+'</span>':'';})()}
       <span class="chip ${v.level}">${esc(v.policy)}</span>
       ${v.irr!=null?'<span class="chip neutral">IRR '+pct(v.irr)+'</span>':''}
       ${v.ng>0?'<span class="chip stop">🚩'+v.ng+'</span>':''}
@@ -1990,7 +2070,7 @@ function renderCustTree(){
         if(po){
           h+='<div class="ct-l2-body">';
           p.deals.forEach(d=>{
-            const st=stageOf(d.stage), v=dealVerdict(d), der=derive(d.inputs);
+            const st=stageOf(d.stage,d), v=dealVerdict(d), der=derive(d.inputs);
             h+=`<div class="ct-sim" data-open="${esc(d.id)}" style="border-left-color:${st.c}">
               <span class="nm">${esc(simLabel(d,p.name))}</span>
               <span class="rr">
@@ -2042,10 +2122,12 @@ const COL_DEFS=[
   {k:'custAddress',label:'お客様住所',cell:d=>esc(d.inputs.custAddress||'—'),csv:d=>d.inputs.custAddress||'',edit:EF('custAddress')},
   {k:'location',label:'所在地',cell:d=>esc(d.inputs.location||'—'),csv:d=>d.inputs.location||'',edit:EF('location')},
   {k:'owner',label:'担当',cell:d=>esc(d.inputs.owner||'—'),csv:d=>d.inputs.owner||'',edit:EF('owner')},
-  {k:'stage',label:'ステージ',
-    cell:(d,c)=>`<span class="chip neutral" style="background:${c.st.c}22;color:${c.st.c}">${c.st.n}</span>`,
+  {k:'stage',label:'フェーズ',
+    cell:(d,c)=>`<span class="chip neutral" style="background:${c.st.c}22;color:${c.st.c}" title="${esc(c.st.d||'')}">${c.st.n}</span>${c.st.cph&&c.st.code!==c.st.pcode?' <span class="hint">'+c.st.pcode+'</span>':''}`,
     csv:(d,c)=>c.st.n,
-    edit:{type:'select',get:d=>d.stage||'hearing',set:(d,v)=>{d.stage=v;},options:()=>STAGES.map(x=>[x.k,x.n])}},
+    edit:{type:'select',get:d=>phaseNorm(d).stage,set:(d,v)=>{d.stage=v;},options:d=>phasesFor(d).map(x=>[x.k,stageOf(x.k,d).n])}},
+  {k:'model',label:'事業モデル',cell:d=>esc(PHASE_SETS[phaseSetKey(d)].label),csv:d=>PHASE_SETS[phaseSetKey(d)].label},
+  {k:'cph',label:'共通フェーズ',cell:(d,c)=>esc(c.st.pn),csv:(d,c)=>c.st.pn},
   {k:'category',label:'区分（カテゴリ）',cell:d=>esc(ledCat(d)),csv:d=>ledCat(d),
     edit:{type:'select',get:d=>ledObj(d).category||'',set:(d,v)=>{ledObj(d).category=v;},
       options:()=>[['','（自動判定）'],['セカンダリー','セカンダリー'],['リフォート','リフォート'],
@@ -2107,7 +2189,7 @@ function saveColsFor(p,list){ const all=colPrefsAll(); all[p]=list.slice();
   try{ localStorage.setItem(COL_KEY,JSON.stringify(all)); }catch(e){} }
 function resetColsFor(p){ const all=colPrefsAll(); delete all[p];
   try{ localStorage.setItem(COL_KEY,JSON.stringify(all)); }catch(e){} }
-function colCtx(d){ return {der:derive(d.inputs), v2:dealVerdict(d), st:stageOf(d.stage)}; }
+function colCtx(d){ return {der:derive(d.inputs), v2:dealVerdict(d), st:stageOf(d.stage,d)}; }
 
 let colEdit=null, colEditPreset='';
 function openColModal(){
@@ -2233,6 +2315,7 @@ function listPager(total,from,shown,pages){
 }
 
 function renderList(){
+  migrateStages(DB);
   const v=$('#view-list');
   let html=listKpis();
   const owners=[...new Set(DB.deals.map(d=>d.inputs.owner).filter(Boolean))];
@@ -2249,7 +2332,7 @@ function renderList(){
   html+=`<div class="list-toolbar">
     <select id="lcat"><option value="">全カテゴリ</option>${LCAT.map(c=>`<option ${listFilter.category===c?'selected':''}>${c}</option>`).join('')}</select>
     <select id="lvolt"><option value="">全区分</option><option ${listFilter.voltage==='高圧'?'selected':''}>高圧</option><option ${listFilter.voltage==='低圧'?'selected':''}>低圧</option></select>
-    <select id="lstage"><option value="">全ステージ</option>${STAGES.map(s=>`<option value="${s.k}" ${listFilter.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
+    <select id="lstage"><option value="">全フェーズ（共通PH）</option>${COMMON_PH.map(x=>[x.code,x.code+' '+x.n]).concat([['lost','見送り']]).map(([v,t])=>`<option value="${v}" ${listFilter.stage===v?'selected':''}>${t}</option>`).join('')}</select>
     <select id="lowner"><option value="">全担当</option>${owners.map(o=>`<option ${listFilter.owner===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
     <select id="lsort">${[['updated','更新が新しい順'],['dueAsc','期限が近い順'],['fitAsc','FIT残が短い順'],['fitDesc','FIT残が長い順'],['netAsc','投資後残FITが短い順'],['netDesc','投資後残FITが長い順']].map(([k,t])=>`<option value="${k}" ${listFilter.sort===k?'selected':''}>${t}</option>`).join('')}</select>
   </div>`;
@@ -2263,7 +2346,7 @@ function renderList(){
     if(listFilter.category&&ledCat(d)!==listFilter.category)return false;
     if(listFilter.voltage==='高圧'&&!isHV(d))return false;
     if(listFilter.voltage==='低圧'&&isHV(d))return false;
-    if(listFilter.stage&&d.stage!==listFilter.stage)return false;
+    if(listFilter.stage&&(listFilter.stage==='lost'?d.stage!=='lost':stageOf(d.stage,d).pcode!==listFilter.stage))return false;
     if(listFilter.owner&&d.inputs.owner!==listFilter.owner)return false;
     if(listFilter.q){
       const q=normQ(listFilter.q);
@@ -2416,11 +2499,11 @@ let _lt; function renderListSoft(){clearTimeout(_lt);_lt=setTimeout(renderList,2
 
 /* ==================== DEAL WORKSPACE ==================== */
 function openDeal(id){
-  curDeal=DB.deals.find(d=>d.id===id); if(!curDeal)return;
+  curDeal=DB.deals.find(d=>d.id===id); if(!curDeal)return; migrateStages({deals:[curDeal]});
   dirty=false; resTab='judge'; nav('deal'); renderDeal();
 }
 function newDeal(){
-  const d={id:uid(),name:'',stage:'hearing',createdAt:Date.now(),updatedAt:Date.now(),
+  const d={id:uid(),name:'',stage:'ph01',createdAt:Date.now(),updatedAt:Date.now(),
     inputs:blankInputs(),dd:{}};
   DB.deals.unshift(d); saveDB(DB,d); curDeal=d; dirty=false; resTab='judge'; nav('deal'); renderDeal();
   setTimeout(()=>{const i=$('#dealName');if(i)i.focus();},60);
@@ -2466,7 +2549,7 @@ function renderDeal(){
     <div class="nmbox"><input id="dealName" placeholder="案件名を入力" value="${esc(curDeal.name)}"></div>
     <div class="sel">
       <input class="txt" id="dealOwner" placeholder="担当者" style="width:110px" value="${esc(curDeal.inputs.owner||'')}">
-      <select id="dealStage">${STAGES.map(s=>`<option value="${s.k}" ${curDeal.stage===s.k?'selected':''}>${s.n}</option>`).join('')}</select>
+      <select id="dealStage" title="${esc(PHASE_SETS[phaseSetKey(curDeal)].label+'のフェーズ')}">${phasesFor(curDeal).map(s=>{const o=stageOf(s.k,curDeal);return `<option value="${s.k}" ${curDeal.stage===s.k?'selected':''}>${o.n}${o.cph&&o.code!==o.pcode?'（'+o.pcode+'）':''}</option>`;}).join('')}</select>
       <span class="savebar" id="savebar"></span>
       <button class="btn btn-line btn-sm" id="excelBtn">📥 Excel取込</button>
       <button class="btn btn-line btn-sm" id="undoImpBtn" style="display:none">↩ 取込を元に戻す</button>
@@ -3085,7 +3168,7 @@ function importBackup(file){
   r.onload=()=>{try{const data=JSON.parse(r.result);
     if(!data.deals)throw 0;
     if(!confirm('現在の'+DB.deals.length+'件を、バックアップの'+data.deals.length+'件で置き換えますか？'))return;
-    DB=data;saveDB(DB,null,true);toast('復元しました');nav('dash');renderDash();
+    DB=migrateStages(data);saveDB(DB,null,true);toast('復元しました');nav('dash');renderDash();
   }catch(e){toast('ファイルを読み込めませんでした');}};
   r.readAsText(file);
 }
@@ -3104,7 +3187,8 @@ function exportCSV(){
 }
 
 /* ==================== 次アクション・期限・確度 ==================== */
-const STAGE_PROB={hearing:.10,screen:.25,dd:.45,propose:.65,nego:.85,won:1,lost:0};
+const STAGE_PROB={ph01:.05,ph02:.10,ph03:.25,ph04:.40,ph05:.55,ph06:.75,ph07:.90,won:1,lost:0};
+const CPH_PROB={0:0,1:.05,2:.10,3:.25,4:.40,5:.55,6:.75,7:.90,8:1};
 function fmtDate(s){const d=new Date(s+'T00:00:00');return (d.getMonth()+1)+'/'+d.getDate();}
 /* メモ内のURLをクリックできるリンクにする（Googleの資料は種類名で短く表示） */
 function memoLinkLabel(u){
@@ -4178,7 +4262,7 @@ function xLedDate(v){ if(v==null||v==='')return '';
   if(v&&typeof v.getFullYear==='function')return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2);
   if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.toISOString().slice(0,10);}
   const s=String(v);const m=s.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);return m?`${m[1]}-${('0'+m[2]).slice(-2)}-${('0'+m[3]).slice(-2)}`:'';}
-function ledStage(sell){return {'販売準備中':'screen','販売中':'propose','商談中':'propose','契約手続中':'nego','成約':'won','引渡完了':'won','販売見送り':'lost'}[sell]||'screen';}
+function ledStage(sell){return {'販売準備中':'ph03','販売中':'ph04','商談中':'ph04','契約手続中':'ph07','成約':'won','引渡完了':'won','販売見送り':'lost'}[sell]||'ph03';}
 function importLedgerRows(wb){
   const ws=wb.Sheets['案件一覧'];
   const gv=(col,r)=>{const c=ws[col+r];return c?c.v:undefined;};
@@ -4205,7 +4289,7 @@ function importExcelNew(file){
   readExcelFile(file).then(wb=>{
     if(isLedgerWB(wb)){ const added=importLedgerRows(wb); saveDB(DB); nav('ledger'); renderLedger(); toast('案件管理台帳から '+added+' 件を取込みました'); return; }
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
-    const d={id:uid(),name:name||'(無題案件)',stage:'screen',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
+    const d={id:uid(),name:name||'(無題案件)',stage:'ph03',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
     DB.deals.unshift(d);saveDB(DB,d);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
     const ddn=dd?Object.keys(dd).length:0;
     toast('Excelから新規案件を取込みました（'+count+'項目'+(ddn?'／DD '+ddn+'件':'')+'）');
@@ -4222,7 +4306,7 @@ function importExcelCur(file){
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
     if(!confirm('Excelに値が入っている項目だけを上書きします。よろしいですか？\n\n'+
       '・現地画像、お客様名、顧客住所、各種URLなど、Excel側が空欄の項目はそのまま残ります\n'+
-      '・次アクション、期限、メモ、ステージも保持されます'))return;
+      '・次アクション、期限、メモ、フェーズも保持されます'))return;
     const blank=blankInputs();
     const before=JSON.parse(JSON.stringify(curDeal.inputs||{}));
     const merged=Object.assign({},blank,curDeal.inputs);
@@ -4514,7 +4598,7 @@ function drawMap(){
 }
 
 function mapPopup(d,der,km,exact){
-  const vd=dealVerdict(d), st=stageOf(d.stage);
+  const vd=dealVerdict(d), st=stageOf(d.stage,d);
   const irr=vd.irr!=null?'IRR '+pct(vd.irr):'';
   const kw=n(d.inputs.dcExisting)?n(d.inputs.dcExisting).toLocaleString()+'kW':'';
   return `<div class="lpop"><div class="lp-nm">${esc(d.name||'(無題案件)')}</div>
@@ -4882,9 +4966,18 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19b';
+const APP_VERSION = '2026.09.19d';
 
 const CHANGELOG = [
+  ['2026.09.19d', [
+    '<b>案件の進み具合を「フェーズ」で管理するようにしました。</b>事業モデルごとに進め方が違うため、現場は各モデルのフェーズで動かし、ダッシュボードは全社共通の PH01〜PH08 に自動換算して表示します（商談パイプラインボードと同じ定義）',
+    '<b>高圧リフォート</b>：PH01 商談の見極め／PH02 課題の把握／PH03 要件整理（無料診断）／PH04 解決策の提案／PH05 稟議検討中／PH06 意思決定者の合意／PH07 事務手続き／PH08 受注',
+    '<b>低圧リフォート</b>：LR-01 商談化／LR-02 申込書受領（現地調査中）／LR-03 現調後 見積待ち／LR-04 最終提案済み／LR-05 契約締結／LR-06 入金',
+    '<b>セカンダリー販売</b>：SC-01 買主の見極め／SC-02 物件提案／SC-03 検討・DD対応／SC-04 買付証明受領／SC-05 売買契約締結／SC-06 決済・引渡し',
+    '事業モデルは区分と容量から自動で決まります（セカンダリー系→セカンダリー販売、リフォートは50kW以上→高圧・未満→低圧）',
+    '既存の案件は自動で置き換わります（ヒアリング→課題の把握、一次判定・DD・現調→要件整理、提案中→解決策の提案、契約交渉→意思決定者の合意、成約→受注。低圧・セカンダリーは同じ段階のフェーズへ）。実態と違う案件は手動で直してください',
+    '一覧に「事業モデル」「共通フェーズ」の列を追加しました（⚙ 列設定から表示できます）。フェーズの絞り込みは共通PHで行います',
+  ]],
   ['2026.09.19b', [
     '<b>案件のメモに貼り付けたURLが、クリックで開けるリンクになりました。</b>入力欄から離れると「🔗 Googleドライブ（ファイル）」「🔗 Googleスライド」のように表示され、クリックすると別タブで開きます',
     'メモの文章部分をクリックすると、これまで通り編集できます。リンクにマウスを乗せると元のURLが確認できます',
@@ -4997,7 +5090,7 @@ const CHANGELOG = [
   ]],
   ['2026.08.27', [
     '<b>案件一覧の値を、その場で直接編集できるようにしました。</b>編集できるセルは点線の下線が付いています。クリック→入力→<b>Enterで確定</b>（Escで取り消し）。案件名だけは、名前の右に出る ✎ を押すと編集できます',
-    '編集できるのは<b>査定の元になる入力項目だけ</b>です：案件名／お客様／お客様住所／所在地／担当／ステージ／区分／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／次アクション（内容）／次アクション期限',
+    '編集できるのは<b>査定の元になる入力項目だけ</b>です：案件名／お客様／お客様住所／所在地／担当／フェーズ／区分／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／次アクション（内容）／次アクション期限',
     'FIT残・投資後残FIT・投資回収年数・FIT終了・RF後発電量率・想定IRR・一次判定・取引額は<b>計算結果のため編集できません</b>。元の数値（連系日・発電量・FIT単価など）を直せば自動で計算し直され、その行がその場で更新されます',
     '変更は共有データベースへ即時保存し、保存できた場合だけ「保存しました」と表示します。失敗した場合は警告を出します',
     '誤操作が心配な場合は、ツールバーの<b>「✎ 直接編集：ON／OFF」</b>で切り替えられます（設定はご自身の端末に記憶されます）',
@@ -5006,7 +5099,7 @@ const CHANGELOG = [
     '案件一覧に<b>「お客様」列</b>を追加できるようにしました（①案件基本情報の「お客様名」を表示します）',
     '<b>ツールバーの「⚙ 列設定」から、表示する項目の追加・削除・並べ替えができます。</b>▲▼で順番を入れ替え、×で非表示、右側の「＋ 追加」で項目を足せます',
     '列の設定は<b>「全件」「セカンダリー物件」「高圧リフォート進捗」のタブごとに別々に記憶</b>されます。設定はご自身の端末のブラウザにのみ保存されるので、他の社員の画面には影響しません。「初期設定に戻す」でいつでも元に戻せます',
-    '選べる項目：お客様／お客様住所／案件名／所在地／担当／ステージ／区分／高圧低圧／FIT残／投資後残FIT／投資回収年数／FIT終了／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／RF後発電量率／RF金額／売却価格／想定IRR／一次判定／次アクション期限／取引額／更新／作成日',
+    '選べる項目：お客様／お客様住所／案件名／所在地／担当／フェーズ／事業モデル／共通フェーズ／区分／高圧低圧／FIT残／投資後残FIT／投資回収年数／FIT終了／連系日／DC容量／AC容量／発電量/年／FIT単価／RF後発電量／RF後発電量率／RF金額／売却価格／想定IRR／一次判定／次アクション期限／取引額／更新／作成日',
     'CSV出力が、画面に表示中の列と絞り込み結果に合わせて出るようになりました',
   ]],
   ['2026.08.21', [
@@ -5018,7 +5111,7 @@ const CHANGELOG = [
   ]],
   ['2026.08.17', [
     'ダッシュボードに「事業者別」表示を追加しました。<b>発電事業者 → 物件 → シミュレーション</b>の3段階でたどれるため、同じお客様に複数のシミュレーション（HT版・トリナ版・反射シート有など）がある場合も探す手間がなくなります',
-    'ダッシュボード右上の検索欄で、事業者名・物件名・案件名から絞り込めます。表示の切替（ステージ別／事業者別）は次回開いたときも記憶されます',
+    'ダッシュボード右上の検索欄で、事業者名・物件名・案件名から絞り込めます。表示の切替（フェーズ別／事業者別）は次回開いたときも記憶されます',
     '事業者名は①案件基本情報の「お客様名」で束ねます。空欄の案件は「（事業者名 未設定）」にまとまるので、お客様名を入れると正しい事業者の下に入ります',
   ]],
   ['2026.08.08', [
@@ -5048,7 +5141,7 @@ const MANUAL = [
     '<li><b>② FIT条件</b>：FIT単価を入れる。残FIT年数は連系日から自動計算されます</li>' +
     '<li><b>④ 発電実績</b>：実績発電量（kWh/年）を入れる。設備利用率が自動で出ます</li>' +
     '<li><b>⑦ セカンダリー仕入・販売</b>：仕入原価を入れる。<b>ここを入れて初めてIRRが出ます</b></li>' +
-    '<li>右側の<b>判定</b>を確認 → Goなら現調・DDへ、見送りなら理由を残してステージを「見送り」に</li>' +
+    '<li>右側の<b>判定</b>を確認 → Goなら現調・DDへ、見送りなら理由を残してフェーズを「見送り」に</li>' +
     '<li><b>DDチェックリスト</b>と<b>レッドフラグ</b>を埋める（赤旗が1つでもNGなら自動で「停止」判定）</li>' +
     '<li><b>📄 提案シート</b>／<b>📦 リフォート提案（一括）</b>でPDFを出力してお客様へ</li>' +
     '<li>次アクションと期限を入れて<b>保存</b>。一覧・台帳・マップに反映されます</li>' +
@@ -5115,16 +5208,27 @@ const MANUAL = [
   ]},
 
   { id:'manage', t:'⑧ 案件一覧・台帳・マップ', b:[
-    '<p><b>ステージ</b>は次の7段階です。実態に合わせてこまめに動かしてください。ダッシュボードと台帳の集計はこのステージを見ています。</p>',
-    '<p class="mchips">ヒアリング → 一次判定 → DD・現調 → 提案中 → 契約交渉 → 成約 ／ 見送り</p>',
+    '<p><b>フェーズ</b>は2階建てです。現場は<b>事業モデルごとのフェーズ</b>で動かし、ダッシュボードの集計は<b>全社共通の PH01〜PH08</b> に自動で換算して表示します（商談パイプラインボードと同じ定義）。</p>',
+    '<p><b>事業モデルは自動で決まります</b>：区分がセカンダリー系→<b>セカンダリー販売</b>／区分がリフォートで50kW以上→<b>高圧リフォート</b>・50kW未満→<b>低圧リフォート</b>／それ以外→高圧リフォートと同じPH01〜PH08。</p>',
+    '<table class="mtbl"><tr><th>高圧リフォート</th><th>低圧リフォート</th><th>セカンダリー販売</th><th>共通PH</th></tr>' +
+      '<tr><td>PH01 商談の見極め</td><td>—</td><td>—</td><td>PH01</td></tr>' +
+      '<tr><td>PH02 課題の把握</td><td>LR-01 商談化</td><td>SC-01 買主の見極め</td><td>PH02</td></tr>' +
+      '<tr><td>PH03 要件整理（無料診断）</td><td>LR-02 申込書受領（現地調査中）</td><td>—</td><td>PH03</td></tr>' +
+      '<tr><td>PH04 解決策の提案</td><td>LR-03 現調後 見積待ち</td><td>SC-02 物件提案</td><td>PH04</td></tr>' +
+      '<tr><td>PH05 稟議検討中</td><td>LR-04 最終提案済み</td><td>SC-03 検討・DD対応</td><td>PH05</td></tr>' +
+      '<tr><td>PH06 意思決定者の合意</td><td>—</td><td>SC-04 買付証明受領</td><td>PH06</td></tr>' +
+      '<tr><td>PH07 事務手続き</td><td>LR-05 契約締結</td><td>SC-05 売買契約締結</td><td>PH07</td></tr>' +
+      '<tr><td>PH08 受注</td><td>LR-06 入金</td><td>SC-06 決済・引渡し</td><td>PH08</td></tr>' +
+      '<tr><td colspan="3">見送り（理由をメモに残す）</td><td>—</td></tr></table>',
+    '<div class="mnote">ダッシュボードのレーンは共通PHです。カードをドラッグすると、その案件の事業モデルで該当するフェーズへ移ります。該当が無い組み合わせ（例：低圧リフォートをPH06へ）は移動できません。一覧の「フェーズ」列・案件画面のフェーズ欄は、その案件の事業モデルの選択肢だけが出ます。区分や容量を変えると、同じ段階のフェーズへ自動で置き換わります。</div>',
     '<table class="mtbl"><tr><th>タブ</th><th>用途</th></tr>' +
-    '<tr><td>ダッシュボード</td><td>ステージ別の件数・金額。今どこに案件が溜まっているかを見る。「事業者別」に切り替えると 事業者→物件→シミュレーション の3段階で開けます</td></tr>' +
+    '<tr><td>ダッシュボード</td><td>フェーズ別の件数・金額。今どこに案件が溜まっているかを見る。「事業者別」に切り替えると 事業者→物件→シミュレーション の3段階で開けます</td></tr>' +
     '<tr><td>案件一覧</td><td>検索・絞り込み。日々の作業はここが起点</td></tr>' +
     '<tr><td>台帳</td><td>一覧表形式での集計。会議資料に使えます</td></tr>' +
     '<tr><td>マップ</td><td>所在地からピン表示。エリアの偏りや現調のまとめ方を考えるとき</td></tr>' +
     '</table>',
     '<div class="mbox"><b>事業者別ビュー（ダッシュボード）</b><br>' +
-      'パイプラインの上にある<b>「ステージ別／事業者別」</b>で切り替えます。事業者別では<br>' +
+      'パイプラインの上にある<b>「フェーズ別／事業者別」</b>で切り替えます。事業者別では<br>' +
       '① 発電事業者名 → ② 物件名 → ③ シミュレーション の順にクリックして開きます。<br>' +
       '同じお客様に複数のシミュレーション（例：HT版・トリナ版・反射シート有）がある場合、物件の下に並ぶので探す手間がありません。<br>' +
       '検索欄では事業者名・物件名・案件名から絞り込めます。</div>',
@@ -5307,7 +5411,7 @@ if(DB.deals.length===0 && !safeLS(true,'refort_seeded')){
     propTaxApply:'適応', rfRetireApply:'適応', rfDepYears:17, goodwillYears:5,
     skrfRetireYear:2,
   });
-  DB.deals.push({id:uid(),name:'【サンプル】サンプル発電所（削除可）',stage:'dd',
+  DB.deals.push({id:uid(),name:'【サンプル】サンプル発電所（削除可）',stage:'ph03',
     createdAt:Date.now(),updatedAt:Date.now(),inputs:si,dd:{'A-1':'OK','A-3':'OK','B-2':'要確認','D-1':'OK'}});
   saveDB(DB);
 }
@@ -5402,7 +5506,7 @@ async function initCloud(){
     cloudReady=true;
     if(rows.length===0 && DB.deals.length>0){ await cloudUpsert(DB.deals); }
     else {
-      DB.deals = orphans.concat(merged); localWrite(DB);
+      DB.deals = orphans.concat(merged); migrateStages(DB); localWrite(DB);
       if(activeView()!=='deal') refreshView();
       const back=orphans.concat(newerLocal);
       if(back.length){
