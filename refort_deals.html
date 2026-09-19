@@ -3952,15 +3952,20 @@ function sheetM3(deal){
   const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
   /* 現状維持 vs リフォート後：お客様が一目で差を掴めるよう数字を大きく表示 */
   const sgn=v=>(v>=0?'+':'−')+nfn(Math.abs(v));
-  const vsRow=(lbl,c,a2,last)=>{const L=last?' last':'';
-    const u=v=>`<span>${v}<small> 円</small></span>`;
+  const vsRow=(lbl,c,a2,last,unit)=>{const L=last?' last':''; unit=unit||'円';
+    const u=v=>`<span>${v}<small> ${unit}</small></span>`;
     return `<div class="vl${L}">${lbl}</div><div class="vv${L}">${u(nfn(c))}</div><div class="vv va${L}">&#9654;</div>`
       +`<div class="vv aft${L}">${u(nfn(a2))}</div><div class="vv diff${L}">${u(sgn(a2-c))}</div>`;};
   const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
     <div class="vs-big">
       <div class="vh">項目</div><div class="vh">現状維持のまま</div><div class="vh"></div><div class="vh aft">リフォート実施後</div><div class="vh diff">差額（年間）</div>
-      ${vsRow('年間 売電収入',s.cur.rev,s.aft.rev,false)}
-      ${vsRow('年間 キャッシュフロー',s.cur.cf,s.aft.cf,true)}
+      ${(()=>{ /* 1行目は発電量（kWh）、2行目は売電収入（円）。メンテ費・保険費が入っていてCFが売電収入と違う場合だけCF行を足す */
+        const g0=n((s.rows.RF前発電||[])[0])||n(d.gen), g1=n((s.rows.RF後発電||[])[0])||n(d.rfGenAfter);
+        const showCF=Math.round(s.cur.cf)!==Math.round(s.cur.rev)||Math.round(s.aft.cf)!==Math.round(s.aft.rev);
+        return vsRow('年間 発電量',g0,g1,false,'kWh')
+          + vsRow('年間 売電収入',s.cur.rev,s.aft.rev,!showCF)
+          + (showCF? vsRow('年間 キャッシュフロー<br><small style="font-weight:600">（メンテ・保険差引後）</small>',s.cur.cf,s.aft.cf,true) : '');
+      })()}
     </div>`;
   return spec+kpis+msg+t1+t2+t3;
 }
@@ -5035,9 +5040,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19f';
+const APP_VERSION = '2026.09.19g';
 
 const CHANGELOG = [
+  ['2026.09.19g', [
+    '<b>リフォート提案（一括）の「現状維持 vs リフォート後」を見直しました。</b>「年間 売電収入」と「年間 キャッシュフロー」が同じ数字で並んでいたため、1行目を<b>年間 発電量（kWh）</b>に変更しました（発電量が増える → 売電収入が増える、の順で読めます）',
+    'メンテ費・保険費を入力していてキャッシュフローが売電収入と異なる案件だけ、3行目に「年間 キャッシュフロー（メンテ・保険差引後）」を表示します',
+  ]],
   ['2026.09.19f', [
     '<b>放置リスク比較から「パネル交換のみ」を外しました。</b>比較は「現状維持／PCS交換のみ／総合改善（ReFort）」の3つです（一括提案の資料・放置リスク比較ツールの両方）',
     'グラフ・カードも3つ並びになり、その分カードが広く見やすくなっています',
