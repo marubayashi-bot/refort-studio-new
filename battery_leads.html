@@ -353,6 +353,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
         <option value="">出所：すべて</option>
         <option value="AI">出所：AI提案</option>
         <option value="手動">出所：手動</option>
+        <option value="査定スタジオ">出所：査定スタジオ</option>
       </select>
       <button class="btn gray" id="tkCopy" style="margin-left:auto;font-size:12px">📋 一覧をChatwork用にコピー</button>
     </div>
@@ -833,8 +834,12 @@ async function initCloud(){
         else if(props.length){ for(const p of props){ await pushProp(p); } }
       }
     }catch(e){ console.warn('props table:',e.message||e); }
+    await loadTasks();
     saveLocal(); renderAll();
     if(settings.gasUrl){ syncSheet(true); setInterval(()=>syncSheet(true), 2*60*1000); }
+    /* 査定スタジオで追加・完了されたタスクを取り込む（1分ごと） */
+    setInterval(async()=>{ if(!taskCloud) return; await loadTasks(); updateTaskBadge();
+      if($('viewTask') && $('viewTask').style.display!=='none') renderTask(); }, 60*1000);
   }catch(e){
     cloud=false; cloudErr=(e && (e.message||e.error_description||JSON.stringify(e)))||'不明なエラー';
     $('syncBadge').textContent='● ローカル（⚠タップで原因）';
@@ -846,7 +851,9 @@ $('syncBadge').onclick=()=>{
   if(cloud){ alert('クラウド接続は正常です（共有中）'); return; }
   alert('クラウド接続エラーの内容：\n\n'+(cloudErr||'まだ接続を試行していません')+'\n\n【対処のヒント】\n・「Invalid API key」等 → SupabaseのAPIキーが変わっています。Project Settings → API Keys の sb_publishable_... をコピーして共有してください\n・「Failed to fetch」→ 通信環境（社内ネットワーク制限等）の可能性\n・上記を↺最新を取得で再試行できます');
 };
-async function pushLead(l){ if(!cloud) return; try{ await sb.from(TABLE).upsert({id:l.id, data:l, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
+async function pushLead(l){ if(!cloud) return;
+  const data= taskCloud? Object.assign({},l,{tasks:undefined}) : l;   /* 共通タスク運用中はタスクを商談に持たせない */
+  try{ await sb.from(TABLE).upsert({id:l.id, data:data, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
 async function removeLead(id){ if(!cloud) return; try{ await sb.from(TABLE).delete().eq('id',id); }catch(e){ console.warn(e); } }
 async function pushProp(p){ if(!cloud) return; try{ await sb.from(PTABLE).upsert({id:p.id, data:p, updated_at:new Date().toISOString()}); }catch(e){ console.warn(e); } }
 async function removeProp(id){ if(!cloud) return; try{ await sb.from(PTABLE).delete().eq('id',id); }catch(e){ console.warn(e); } }
@@ -854,6 +861,7 @@ async function reload(){
   if(!cloud){ initCloud(); return; }
   const {data}=await sb.from(TABLE).select('id,data'); if(data) leads=data.filter(r=>r.id!=='_settings').map(r=>r.data);
   try{ const pr=await sb.from(PTABLE).select('data'); if(!pr.error && pr.data) props=pr.data.map(r=>r.data); }catch(e){}
+  await loadTasks();
   saveLocal(); renderAll();
 }
 function propName(id){ const p=props.find(x=>x.id===id); return p? p.name : ''; }
@@ -1360,6 +1368,10 @@ function renderKanban(){
    AIの出力そのものは保存しない。人が採用した「次の一手」だけをタスクとして残す。 */
 const TK_ST={ todo:{n:'未着手',c:'#8a97a8'}, doing:{n:'実行中',c:'#3068a8'}, done:{n:'完了',c:'#1f6e46'}, drop:{n:'中止',c:'#9a8f6b'} };
 function allTasks(){
+  if(taskCloud){
+    const byId={}; leads.forEach(l=>{ byId[l.id]=l; });
+    return TASKS.filter(tkLive).map(t=>({t:t, l:(t.leadId&&byId[t.leadId])||tkPseudo(t)}));
+  }
   const out=[];
   leads.forEach(l=>(l.tasks||[]).forEach(t=> out.push({t:t,l:l})));
   return out;
@@ -1372,27 +1384,71 @@ function tkOpen(t){ return t.st==='todo'||t.st==='doing'; }
 function tkOver(t){ return tkOpen(t) && t.due && t.due<today(); }
 function myName(){ try{ return (window.__me&&(window.__me.full_name||window.__me.name))||''; }catch(e){ return ''; } }
 
+/* ===== 共通タスク（sales_tasks） =====
+   商談パイプラインボードと ReFort査定スタジオ で「同じタスク」を読み書きする。
+   1タスク＝1行で保存するので、片方のアプリで商談を保存しても、もう片方で足したタスクが消えない。
+   テーブルが未作成のとき（SQL未実行）は、従来どおり商談の中（l.tasks）に保存する。 */
+const ST_TABLE='sales_tasks';
+let TASKS=[], taskCloud=false;
+const tkLive=t=> t && !t.del;
+function leadTasks(l){ if(!l) return []; return taskCloud? TASKS.filter(t=>tkLive(t)&&t.leadId===l.id) : (l.tasks||[]); }
+async function tkPut(t){
+  t.upd=Date.now(); t.by=myName()||t.by||'';
+  const {error}=await sb.from(ST_TABLE).upsert({id:t.id, lead_id:t.leadId||null, deal_id:t.dealId||null, data:t, updated_at:new Date().toISOString()});
+  if(error){ console.warn('sales_tasks',error); alert('タスクを保存できませんでした：'+(error.message||error)); }
+}
+async function loadTasks(){
+  if(!cloud||!sb){ taskCloud=false; return; }
+  try{
+    const {data,error}=await sb.from(ST_TABLE).select('id,data');
+    if(error) throw error;
+    TASKS=(data||[]).map(r=>r.data).filter(Boolean);
+    const have=new Set(TASKS.map(t=>t.id));
+    /* 初回だけ：商談の中に入っていた従来のタスクを共通タスクへ移す（同じIDなので何度実行しても重複しない） */
+    const mig=[];
+    leads.forEach(l=>(l.tasks||[]).forEach(t=>{ if(!have.has(t.id)){
+      mig.push(Object.assign({},t,{leadId:l.id, leadName:l.name||'', app:'board', upd:Date.now()})); have.add(t.id); } }));
+    for(let i=0;i<mig.length;i+=50){
+      const {error:e2}=await sb.from(ST_TABLE).upsert(mig.slice(i,i+50).map(t=>({id:t.id, lead_id:t.leadId, deal_id:null, data:t, updated_at:new Date().toISOString()})));
+      if(e2) throw e2;
+    }
+    TASKS=TASKS.concat(mig);
+    taskCloud=true;
+  }catch(e){ taskCloud=false; console.warn('sales_tasks 未使用（従来の保存方式で動作）:', e.message||e); }
+}
+/* 査定スタジオだけで作られ、商談に紐づいていないタスクを表示するための仮の商談 */
+function tkPseudo(t){ return { id:null, _pseudo:true, dealId:t.dealId||'', name:t.dealName||t.leadName||'（商談未設定）', status:'ReFort査定スタジオ', owner:t.owner||'' }; }
+
 function taskAdd(l, obj){
   if(!l) return null;
-  l.tasks=l.tasks||[];
   const t=Object.assign({ id:uid(), st:'todo', made:today(), src:'手動', owner:l.owner||'', t:'', cond:'', due:'' }, obj);
-  l.tasks.push(t); l.updated=today();
   (l.logs=l.logs||[]).push({d:today(), t:'タスク登録（'+t.src+'）：'+t.t});
+  l.updated=today();
+  if(taskCloud){
+    Object.assign(t,{leadId:l.id, leadName:l.name||'', app:'board'});
+    TASKS.push(t); tkPut(t);
+  }else{ l.tasks=l.tasks||[]; l.tasks.push(t); }
   saveLocal(); pushLead(l); return t;
 }
 function taskSet(leadId, taskId, st){
-  const l=leads.find(x=>x.id===leadId); if(!l) return;
-  const t=(l.tasks||[]).find(x=>x.id===taskId); if(!t) return;
+  const l=leads.find(x=>x.id===leadId);
+  const t= taskCloud? TASKS.find(x=>x.id===taskId) : (l&&(l.tasks||[]).find(x=>x.id===taskId));
+  if(!t) return;
   t.st=st;
-  if(st==='done'){ t.doneAt=today(); (l.logs=l.logs||[]).push({d:today(), t:'タスク完了：'+t.t}); }
-  else if(st==='drop'){ t.doneAt=today(); (l.logs=l.logs||[]).push({d:today(), t:'タスク中止：'+t.t}); }
+  if(st==='done'||st==='drop'){ t.doneAt=today(); if(l) (l.logs=l.logs||[]).push({d:today(), t:(st==='done'?'タスク完了：':'タスク中止：')+t.t}); }
   else { delete t.doneAt; }
-  l.updated=today(); saveLocal(); pushLead(l); renderAll();
+  if(taskCloud) tkPut(t);
+  if(l){ l.updated=today(); saveLocal(); pushLead(l); }
+  renderAll();
 }
 function taskDel(leadId, taskId){
-  const l=leads.find(x=>x.id===leadId); if(!l) return;
-  l.tasks=(l.tasks||[]).filter(x=>x.id!==taskId);
-  l.updated=today(); saveLocal(); pushLead(l); renderAll();
+  const l=leads.find(x=>x.id===leadId);
+  if(taskCloud){
+    const t=TASKS.find(x=>x.id===taskId); if(!t) return;
+    t.del=true; tkPut(t);   /* 行は消さず「削除済み」にする（査定スタジオからの移行タスクが復活しないように） */
+  }else if(l){ l.tasks=(l.tasks||[]).filter(x=>x.id!==taskId); }
+  if(l){ l.updated=today(); saveLocal(); pushLead(l); }
+  renderAll();
 }
 function updateTaskBadge(){
   const el=$('taskCnt'); if(!el) return;
@@ -1404,7 +1460,7 @@ function updateTaskBadge(){
 /* 商談カード内のタスク欄 */
 function renderTaskBox(l){
   const box=$('taskBox'); if(!box) return;
-  const arr=(l&&l.tasks)||[];
+  const arr=leadTasks(l);
   if(!arr.length){ box.innerHTML='<div style="font-size:12px;color:var(--tx2);padding:4px 0 8px">この商談に登録されたタスクはありません。</div>'; return; }
   box.innerHTML=arr.slice().sort((a,b)=> (tkOpen(b)?1:0)-(tkOpen(a)?1:0) || String(a.due||'9999').localeCompare(String(b.due||'9999'))).map(t=>{
     const st=TK_ST[t.st]||TK_ST.todo, over=tkOver(t);
@@ -1481,7 +1537,10 @@ function renderTask(){
       return `<tr>
         <td style="color:${over?'var(--red)':'inherit'};font-weight:${over?'900':'400'}">${t.due||'—'}${over?'<div class="sub" style="color:var(--red)">超過</div>':''}</td>
         <td>${esc(t.owner||x.l.owner||'—')}</td>
-        <td><a href="#" class="tkGo" data-id="${x.l.id}" style="color:var(--navy);font-weight:700;text-decoration:none">${esc(x.l.name)}</a><div class="sub">${esc(x.l.status)}</div></td>
+        <td>${x.l._pseudo
+            ? `<a href="refort_deals.html#deal=${encodeURIComponent(x.l.dealId)}" target="_blank" rel="noopener" style="color:var(--navy);font-weight:700;text-decoration:none">${esc(x.l.name)}</a><div class="sub">査定スタジオの案件 ↗</div>`
+            : `<a href="#" class="tkGo" data-id="${x.l.id}" style="color:var(--navy);font-weight:700;text-decoration:none">${esc(x.l.name)}</a><div class="sub">${esc(x.l.status)}</div>`}
+          ${t.dealName&&!x.l._pseudo? `<div class="sub">物件：<a href="refort_deals.html#deal=${encodeURIComponent(t.dealId||'')}" target="_blank" rel="noopener" style="color:inherit">${esc(t.dealName)} ↗</a></div>`:''}</td>
         <td style="font-size:12.5px">${esc(t.t)}</td>
         <td style="font-size:12px;color:var(--tx2)">${esc(t.cond||'—')}</td>
         <td style="text-align:center"><span class="pill" style="background:#eef2f7;color:var(--tx2)">${esc(t.src||'手動')}</span></td>
@@ -1928,7 +1987,7 @@ function renderOwner(){
     const top=r.arr.filter(phLive).sort((a,b)=> mqOf(b)-mqOf(a)).slice(0,6);
     return `<div class="refcard"><h3>${esc(r.o)}<small>${esc(r.unit||'責任組織 未設定')}</small></h3>
       <div class="stats"><span>担当 <b>${r.arr.length}</b>件</span><span>確定MQ <b>${r.fixed.toLocaleString()}</b></span><span>商談中MQ <b>${r.live.toLocaleString()}</b></span><span>期限超過 <b style="color:${r.over.length?'var(--red)':'inherit'}">${r.over.length}</b></span></div>
-      ${(function(){ const tk=r.arr.flatMap(l=>(l.tasks||[])); const op=tk.filter(tkOpen).length, ov=tk.filter(tkOver).length, dn=tk.filter(t=>t.st==='done').length;
+      ${(function(){ const tk=r.arr.flatMap(l=>leadTasks(l)); const op=tk.filter(tkOpen).length, ov=tk.filter(tkOver).length, dn=tk.filter(t=>t.st==='done').length;
         return tk.length? `<div style="font-size:11px;color:var(--tx2);margin-bottom:6px">タスク　未完了 <b>${op}</b>件（期限超過 <b style="color:${ov?'var(--red)':'inherit'}">${ov}</b>）　完了 <b>${dn}</b>件</div>` : ''; })()}
       ${r.goal
         ? `<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">個人粗利目標 ${r.goal.toLocaleString()}万円 に対して <b style="color:var(--navy)">${pct}%</b>（残り ${Math.max(0,r.goal-r.fixed).toLocaleString()}万円）</div>
@@ -3088,8 +3147,13 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.09.19c';
+const APP_VERSION = '2026.09.19d';
 const CHANGELOG = [
+  ['2026.09.19d', [
+    '<b>タスクを ReFort査定スタジオ と共通にしました。</b>どちらのアプリで登録・完了しても、同じタスクとして両方に表示されます（二重入力が不要になります）',
+    '査定スタジオの案件で登録したタスクは、出所「査定スタジオ」として表示されます。物件名をクリックすると査定スタジオの案件が開きます',
+    'これまで商談の中に保存していたタスクは、最初に開いたときに自動で共通タスクへ移ります（内容はそのまま）',
+  ]],
   ['2026.09.19c', [
     '<b>フェーズタブを事業ごとのフェーズ表で見られるようにしました。</b>「フェーズ表」で全社共通／高圧リフォート／低圧リフォート／サンキーパー／セカンダリー販売を選べます。「自動」のときは事業の絞り込みに合わせて切り替わります（例：サンキーパーを選ぶと SK-01 商談化 → SK-02 商品の交渉 → SK-03 合意書取得 → SK-04 入金済み の4列）',
     '事業別のフェーズ表では、ファネル・通過率・列・担当×フェーズがすべてその事業の段階で表示され、カードをドラッグするとその段階がそのまま保存されます',

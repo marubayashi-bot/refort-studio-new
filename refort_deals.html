@@ -417,6 +417,30 @@ tr:hover .ec-pen{color:var(--gold)}
 .badge.ok{background:#eaf6ef;color:#1f8a55;border-color:#bfe6cf}
 .badge.none{background:#eef2f7;color:#8893a2}
 .memo-wrap{width:100%;margin-top:8px}
+/* 共通タスク欄 */
+.tk-slot{flex:1 1 640px;min-width:0}
+.ws-sub #memoBtn{align-self:flex-start}
+.tk-slot.legacy{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
+.tk-head{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.tk-ttl{font-weight:800;color:var(--navy);font-size:13px}
+.tk-cnt{font-size:12px;color:var(--muted)}.tk-cnt b{color:var(--ink)}.tk-cnt b.ov{color:#c0392b}
+.tk-link{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-left:auto}
+.tk-link select{max-width:280px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.tk-form{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding:8px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px}
+.tk-form input{font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;flex:1 1 200px;min-width:0}
+.tk-form input[type=date]{flex:0 0 140px}
+.tk-list{margin-top:6px}
+.tk-row{display:flex;align-items:flex-start;gap:8px;border:1px solid var(--line);border-left:3px solid #8a97a8;border-radius:8px;padding:7px 10px;margin-bottom:5px;background:#fff}
+.tk-row.closed{opacity:.6}
+.tk-st{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.tk-main{flex:1;min-width:0;font-size:12.5px}.tk-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.tk-scope{background:#eef2f7;color:#5a6a7c;border-radius:4px;padding:0 5px}
+.tk-btns{display:flex;gap:4px;flex-shrink:0}.tk-btns .tk-del{color:#c0392b}
+.tk-empty{font-size:12px;color:var(--muted);padding:6px 2px}
+.tk-closed summary{font-size:11.5px;color:var(--muted);cursor:pointer;padding:3px 2px}
+.tk-note{font-size:11px;color:var(--muted);margin-top:4px}
+.sec-note{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px}
+.tk-own{margin-left:8px;font-size:11px;color:#8893a2}
 .memo-view{min-height:52px;border:1px solid var(--line2);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.85;
   color:var(--ink);white-space:pre-wrap;word-break:break-all;background:#fff;cursor:text;position:relative}
 .memo-view:hover{border-color:var(--navy3)}
@@ -1879,6 +1903,12 @@ function renderDash(){
   const flagCount=deals.filter(d=>dealVerdict(d).ng>0).length;
   const todo=active.filter(d=>{const st=dueInfo(d).state;return st==='overdue'||st==='soon';})
     .sort((a,b)=>(dueInfo(a).days)-(dueInfo(b).days));
+  /* 共通タスク運用中：要対応は「期限超過・3日以内のタスク」を1件ずつ並べる（ボードのタスクタブと同じもの） */
+  const activeById={}; active.forEach(d=>{activeById[d.id]=d;});
+  const dealOfTask=t=>activeById[t.dealId]||(t.leadId?active.find(d=>d.leadId===t.leadId):null);
+  const tkTodo= taskCloud? TASKS.filter(t=>tkOpen(t)&&t.due&&dealOfTask(t))
+      .map(t=>({t,d:dealOfTask(t),di:dueInfoDate(t.due,false)}))
+      .filter(x=>x.di.state==='overdue'||x.di.state==='soon').sort((a,b)=>a.di.days-b.di.days) : null;
 
   let html=`<div class="page-h"><h1>ダッシュボード</h1>
     <span class="sub">セカンダリー査定・パイプライン全体像</span></div>`;
@@ -1892,12 +1922,22 @@ function renderDash(){
     ${kpi('パイプライン金額',yenM(pipeVal),'','進行中案件の想定取引額','💰')}
     ${kpi('加重見込',yenM(weighted),'','フェーズ確度で加重','📈')}
     ${kpi('Go判定',goCount,'件','一次判定で推奨','✅')}
-    ${kpi('要対応',todo.length,'件','期限超過・3日以内','⏰')}
+    ${kpi('要対応',tkTodo?tkTodo.length:todo.length,'件',tkTodo?'期限超過・3日以内のタスク':'期限超過・3日以内','⏰')}
     ${kpi('成約',won.length,'件','クローズ済','🏆')}
     ${kpi('赤旗あり',flagCount,'件','要確認・停止検討','🚩')}
   </div>`;
 
-  if(todo.length){
+  if(tkTodo&&tkTodo.length){
+    html+=`<div class="sec-title">要対応（タスク）<span class="sec-note">商談パイプラインボードのタスクと共通です</span></div><div class="alert-strip">`;
+    tkTodo.slice(0,8).forEach(({t,d,di})=>{
+      html+=`<div class="alert-row ${di.state}" data-open="${d.id}">
+        ${tkBadgeHTML(t)}<span class="nm">${esc(t.dealName||d.name||t.leadName||'(無題案件)')}</span>
+        <span class="ax">${esc(t.t||'')}${t.owner?'<span class="tk-own">担当 '+esc(t.owner)+'</span>':''}</span>
+        <span class="sp"></span><span class="hint">${stageOf(d.stage,d).n} →</span></div>`;
+    });
+    if(tkTodo.length>8) html+=`<div class="hint" style="padding:4px 2px">ほか ${tkTodo.length-8} 件（商談パイプラインボードの「タスク」タブで一覧できます）</div>`;
+    html+=`</div>`;
+  }else if(!tkTodo&&todo.length){
     html+=`<div class="sec-title">要対応（次アクション）</div><div class="alert-strip">`;
     todo.slice(0,6).forEach(d=>{const di=dueInfo(d);
       html+=`<div class="alert-row ${di.state}" data-open="${d.id}">
@@ -1987,7 +2027,7 @@ function dealCard(d){
       ${v.irr!=null?'<span class="chip neutral">IRR '+pct(v.irr)+'</span>':''}
       ${v.ng>0?'<span class="chip stop">🚩'+v.ng+'</span>':''}
     </div>
-    ${(d.due||d.next)?`<div class="na2">${d.due?dueBadge(d):''}${d.next?'<span>🎯 '+esc(d.next)+'</span>':''}</div>`:''}`;
+    ${(()=>{const x=nx(d);return (x.due||x.next)?`<div class="na2">${x.due?dueBadge(d):''}${x.next?'<span>🎯 '+esc(x.next)+'</span>':''}</div>`:'';})()}`;
   c.addEventListener('dragstart',e=>e.dataTransfer.setData('id',d.id));
   c.addEventListener('click',()=>openDeal(d.id));
   return c;
@@ -2185,11 +2225,12 @@ const COL_DEFS=[
   {k:'irr',label:'想定IRR',r:true,cell:(d,c)=>c.v2.irr!=null?pct(c.v2.irr):'—',csv:(d,c)=>c.v2.irr!=null?(c.v2.irr*100).toFixed(1)+'%':''},
   {k:'verdict',label:'一次判定',cell:(d,c)=>`<span class="chip ${c.v2.level}">${esc(c.v2.policy)}</span>`,csv:(d,c)=>c.v2.policy||''},
   {k:'due',label:'次アクション・期限',
-    cell:d=>`${d.due?dueBadge(d):'<span class="hint">—</span>'}${d.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(d.next)+'</div>':''}`,
-    csv:d=>(d.due||'')+(d.next?' / '+d.next:''),
-    edit:{type:'date',get:d=>d.due||'',set:(d,v)=>{d.due=v||'';}}},
-  {k:'next',label:'次アクション（内容）',cell:d=>d.next?esc(d.next):'<span class="hint">—</span>',csv:d=>d.next||'',
-    edit:{type:'text',get:d=>d.next||'',set:(d,v)=>{d.next=v.trim();}}},
+    cell:d=>{const x=nx(d);return `${x.due?dueBadge(d):'<span class="hint">—</span>'}${x.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(x.next)+'</div>':''}`;},
+    csv:d=>{const x=nx(d);return (x.due||'')+(x.next?' / '+x.next:'');},
+    /* 共通タスク運用中は一覧から直接編集しない（案件を開いてタスクで管理） */
+    get edit(){return taskCloud?undefined:{type:'date',get:d=>d.due||'',set:(d,v)=>{d.due=v||'';}};}},
+  {k:'next',label:'次アクション（内容）',cell:d=>{const x=nx(d);return x.next?esc(x.next):'<span class="hint">—</span>';},csv:d=>nx(d).next||'',
+    get edit(){return taskCloud?undefined:{type:'text',get:d=>d.next||'',set:(d,v)=>{d.next=v.trim();}};}},
   {k:'amount',label:'取引額',r:true,cell:d=>yenM(dealPipelineValue(d)),csv:d=>dealPipelineValue(d)||''},
   {k:'updated',label:'更新',cell:d=>`<span class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</span>`,
     csv:d=>new Date(d.updatedAt).toLocaleDateString('ja-JP')},
@@ -2292,7 +2333,7 @@ function listKpis(){
     <div><div class="lk-lab">${lab}</div><div class="lk-val num">${val}<small>${unit}</small></div></div></div>`;
   return `<div class="lkpis">
     ${card('all','b','全案件',deals.length.toLocaleString(),'件','登録されている全ての案件')}
-    ${card('due','r','要対応',need,'件','次アクション期限を過ぎた案件＋3日以内の案件（成約・失注を除く）')}
+    ${card('due','r','要対応',need,'件','一番近いタスクの期限を過ぎた案件＋3日以内の案件（成約・失注を除く）')}
     ${card('month','b','今月更新',month,'件','今月に更新された案件')}
     ${card('amt','b','見込取引額',av,au,'成約・失注を除く案件の取引額の合計（売却価格、なければRF金額・税込）')}
   </div>`;
@@ -2303,7 +2344,7 @@ function newsTitle(items){
   t=t.replace(/[。．]$/,''); return t.length>30?t.slice(0,30)+'…':t;
 }
 function listRail(){
-  const pri=DB.deals.filter(d=>d.due&&d.stage!=='won'&&d.stage!=='lost')
+  const pri=DB.deals.filter(d=>nx(d).due&&d.stage!=='won'&&d.stage!=='lost')
     .map(d=>({d,di:dueInfo(d)})).sort((a,b)=>a.di.days-b.di.days).slice(0,3);
   let h=`<aside class="list-rail"><div class="rail-card"><div class="rail-h"><b>今日の優先対応</b>
     <button class="rail-more" data-allprio>すべて見る ›</button></div>`;
@@ -2319,7 +2360,7 @@ function listRail(){
       ${d.inputs.customer?`<div class="pmeta">${esc(d.inputs.customer)}</div>`:''}
       ${loc?`<div class="pmeta">📍 ${esc(loc)}</div>`:''}
       <div class="pmeta">🗓 ${esc(di.label)}</div>
-      ${d.next?`<div class="pmeta pnext">🎯 ${esc(d.next)}</div>`:''}
+      ${nx(d).next?`<div class="pmeta pnext">🎯 ${esc(nx(d).next)}</div>`:''}
       <button class="btn btn-gold pgo" data-open="${d.id}">対応する →</button></div></div>`;
   });
   h+=`</div><div class="rail-card news"><div class="rail-h"><b>📣 お知らせ</b><button class="rail-more" data-allnews>すべて見る ›</button></div>`;
@@ -2381,7 +2422,7 @@ function renderList(){
     if(listFilter.q){
       const q=normQ(listFilter.q);
       const hay=normQ([d.name,d.inputs.customer,d.inputs.location,d.inputs.plantName,
-        d.inputs.custAddress,d.inputs.owner,ledCat(d),d.next].filter(Boolean).join(' '));
+        d.inputs.custAddress,d.inputs.owner,ledCat(d),nx(d).next].filter(Boolean).join(' '));
       if(!hay.includes(q))return false;}
     return true;
   });
@@ -2397,7 +2438,7 @@ function renderList(){
       if(x==null&&y==null)return b.updatedAt-a.updatedAt;
       if(x==null)return 1; if(y==null)return -1; return (x-y)*dir;});
   } else if(listFilter.sort==='dueAsc'){
-    const dd=d=>(d.due&&d.stage!=='won'&&d.stage!=='lost')?new Date(d.due+'T00:00:00').getTime():null;
+    const dd=d=>{const u=nx(d).due;return (u&&d.stage!=='won'&&d.stage!=='lost')?new Date(u+'T00:00:00').getTime():null;};
     rows.sort((a,b)=>{const x=dd(a),y=dd(b);
       if(x==null&&y==null)return b.updatedAt-a.updatedAt;
       if(x==null)return 1; if(y==null)return -1; return x-y;});
@@ -2528,6 +2569,81 @@ function startCellEdit(el){
 let _lt; function renderListSoft(){clearTimeout(_lt);_lt=setTimeout(renderList,200);}
 
 /* ==================== DEAL WORKSPACE ==================== */
+function renderDealTasks(){
+  const slot=$('#dealTaskSlot'); if(!slot||!curDeal) return;
+  if(!taskCloud){  /* 従来方式（共通タスク未導入） */
+    slot.className='tk-slot legacy';
+    slot.innerHTML=`<div class="na grow"><span>次アクション</span><input class="na-txt" id="dealNext" placeholder="例：DM送付／現地調査の日程調整／提案書送付" value="${esc(curDeal.next||'')}"></div>
+      <label class="na">期限 <input type="date" id="dealDue" value="${esc(curDeal.due||'')}"></label>
+      <span id="dueBadgeSlot">${curDeal.due?dueBadge(curDeal):''}</span>`;
+    $('#dealNext').oninput=e=>{curDeal.next=e.target.value;markDirty();};
+    $('#dealDue').onchange=e=>{curDeal.due=e.target.value;markDirty();
+      const b=$('#dueBadgeSlot');if(b)b.innerHTML=curDeal.due?dueBadge(curDeal):'';};
+    return;
+  }
+  slot.className='tk-slot';
+  const d=curDeal, list=dealTasks(d).sort(tkSort), open=list.filter(tkOpen), closed=list.filter(t=>!tkOpen(t));
+  const cust=normCo(d.inputs.customer);
+  const sugg=cust?BLEADS.filter(l=>{const n=normCo(l.name);return n&&(n.includes(cust)||cust.includes(n));}):[];
+  const opt=l=>`<option value="${esc(l.id)}"${l.id===d.leadId?' selected':''}>${esc(l.name)}${l.owner?'（'+esc(l.owner)+'）':''}${l.status?' ・'+esc(l.status):''}</option>`;
+  const linked=d.leadId&&!BLEADS.some(l=>l.id===d.leadId)?`<option value="${esc(d.leadId)}" selected>${esc(d.leadName||d.leadId)}</option>`:'';
+  const row=t=>{const st=TK_ST[t.st]||TK_ST.todo, own=t.dealId===d.id;
+    return `<div class="tk-row ${tkOpen(t)?'':'closed'}" style="border-left-color:${st.c}">
+      <span class="tk-st" style="background:${st.c}1f;color:${st.c}">${st.n}</span>
+      ${t.due?tkBadgeHTML(t):'<span class="badge none">期限なし</span>'}
+      <div class="tk-main"><b>${esc(t.t||'')}</b>
+        ${t.cond?`<div class="tk-sub">完了条件：${esc(t.cond)}</div>`:''}
+        <div class="tk-sub">担当 ${esc(t.owner||'—')}　出所 ${esc(t.src||'手動')}${own?'':'　<span class="tk-scope">商談全体のタスク</span>'}${t.doneAt?'　完了 '+esc(t.doneAt):''}</div></div>
+      <div class="tk-btns">
+        ${tkOpen(t)&&t.st!=='doing'?`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="doing">着手</button>`:''}
+        ${tkOpen(t)?`<button class="btn btn-gold btn-sm" data-tk="${t.id}" data-a="done">完了</button>`:`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="todo">戻す</button>`}
+        <button class="btn btn-line btn-sm tk-del" data-tk="${t.id}" data-a="del" title="削除">✕</button>
+      </div></div>`;};
+  slot.innerHTML=`<div class="tk-head">
+      <span class="tk-ttl">✅ タスク（次アクション）</span>
+      <span class="tk-cnt">未完了 <b>${open.length}</b> 件${open.filter(t=>dueInfoDate(t.due,false).state==='overdue').length?'・<b class="ov">期限超過 '+open.filter(t=>dueInfoDate(t.due,false).state==='overdue').length+'</b>':''}</span>
+      <label class="tk-link">🔗 商談ボード
+        <select id="dealLead"><option value="">— 未紐づけ —</option>
+          ${linked}${sugg.length?`<optgroup label="お客様名が近い商談">${sugg.map(opt).join('')}</optgroup>`:''}
+          <optgroup label="すべての商談">${BLEADS.filter(l=>!sugg.includes(l)).map(opt).join('')}</optgroup></select></label>
+      <button class="btn btn-gold btn-sm" id="tkAddBtn">＋ タスク追加</button>
+    </div>
+    <div class="tk-form" id="tkForm" style="display:none">
+      <input id="tkT" placeholder="やること（例：現地調査の日程を確定する）">
+      <input id="tkC" placeholder="完了条件（例：日程がお客様と合意できている）">
+      <input id="tkD" type="date">
+      <input id="tkO" placeholder="担当" value="${esc(d.inputs.owner||ME_NAME||'')}" style="width:110px">
+      <button class="btn btn-gold btn-sm" id="tkSave">登録</button>
+      <button class="btn btn-line btn-sm" id="tkCancel">やめる</button>
+    </div>
+    <div class="tk-list">${open.length?open.map(row).join(''):'<div class="tk-empty">未完了のタスクはありません。「＋ タスク追加」で次にやることを登録してください。</div>'}
+      ${closed.length?`<details class="tk-closed"><summary>完了・中止 ${closed.length} 件</summary>${closed.map(row).join('')}</details>`:''}</div>
+    <div class="tk-note">このタスクは <b>商談パイプラインボードのタスクと共通</b> です（どちらで更新しても両方に反映）。${d.leadId?'':'商談ボードの商談を選ぶと、ボードの担当別・タスク一覧にもこの商談として表示されます。'}</div>`;
+
+  $('#dealLead').onchange=async e=>{
+    const v=e.target.value, l=BLEADS.find(x=>x.id===v);
+    d.leadId=v||''; d.leadName=l?l.name:''; markDirty();
+    /* この物件で登録したタスクも、選んだ商談に付け替える */
+    for(const t of TASKS.filter(t=>tkLive(t)&&t.dealId===d.id)){ t.leadId=d.leadId||null; t.leadName=d.leadName||''; await tkPut(t); }
+    toast(v?'商談ボードの「'+d.leadName+'」と紐づけました（案件の保存もお忘れなく）':'商談ボードとの紐づけを外しました');
+    renderDealTasks();
+  };
+  $('#tkAddBtn').onclick=()=>{const f=$('#tkForm');f.style.display='flex';$('#tkT').focus();};
+  $('#tkCancel').onclick=()=>{$('#tkForm').style.display='none';};
+  $('#tkSave').onclick=async()=>{
+    const txt=$('#tkT').value.trim(); if(!txt){toast('「やること」を入力してください');return;}
+    const t={id:'T'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:txt,cond:$('#tkC').value.trim(),due:$('#tkD').value||'',
+      st:'todo',src:'査定スタジオ',owner:$('#tkO').value.trim(),made:new Date().toISOString().slice(0,10),
+      dealId:d.id,dealName:d.name||'',leadId:d.leadId||null,leadName:d.leadName||'',app:'refort'};
+    if(await tkPut(t)){ TASKS.push(t); toast('タスクを登録しました（商談ボードにも表示されます）'); renderDealTasks(); }
+  };
+  slot.querySelectorAll('[data-tk]').forEach(b=>b.onclick=async()=>{
+    const t=TASKS.find(x=>x.id===b.dataset.tk); if(!t)return; const a=b.dataset.a;
+    if(a==='del'){ if(!confirm('このタスクを削除しますか？（商談ボードからも消えます）'))return; t.del=true; }
+    else { t.st=a; if(a==='done'||a==='drop') t.doneAt=new Date().toISOString().slice(0,10); else delete t.doneAt; }
+    await tkPut(t); renderDealTasks();
+  });
+}
 function openDeal(id){
   curDeal=DB.deals.find(d=>d.id===id); if(!curDeal)return; migrateStages({deals:[curDeal]});
   dirty=false; resTab='judge'; nav('deal'); renderDeal();
@@ -2593,9 +2709,7 @@ function renderDeal(){
     </div>
   </div>
   <div class="ws-sub">
-    <div class="na grow"><span>次アクション</span><input class="na-txt" id="dealNext" placeholder="例：DM送付／現地調査の日程調整／提案書送付" value="${esc(curDeal.next||'')}"></div>
-    <label class="na">期限 <input type="date" id="dealDue" value="${esc(curDeal.due||'')}"></label>
-    <span id="dueBadgeSlot">${curDeal.due?dueBadge(curDeal):''}</span>
+    <div id="dealTaskSlot" class="tk-slot"></div>
     <button class="btn btn-line btn-sm" id="memoBtn">📝 メモ</button>
   </div>
   <div class="memo-wrap" id="memoWrap" style="display:${curDeal.memo?'block':'none'}">
@@ -2610,9 +2724,7 @@ function renderDeal(){
   $('#dealOwner').oninput=e=>{curDeal.inputs.owner=e.target.value;markDirty();};
   $('#dealStage').onchange=e=>{curDeal.stage=e.target.value;markDirty();};
   $('#saveBtn').onclick=persist;
-  $('#dealNext').oninput=e=>{curDeal.next=e.target.value;markDirty();};
-  $('#dealDue').onchange=e=>{curDeal.due=e.target.value;markDirty();
-    const slot=$('#dueBadgeSlot');if(slot)slot.innerHTML=curDeal.due?dueBadge(curDeal):'';};
+  renderDealTasks();
   const memoEdit=()=>{const t=$('#dealMemo'),mv=$('#memoView'); mv.style.display='none'; t.style.display='block';
     t.focus(); try{t.setSelectionRange(t.value.length,t.value.length);}catch(e){} };
   const memoShow=()=>{const t=$('#dealMemo'),mv=$('#memoView'); if(!t.value.trim())return;
@@ -3241,15 +3353,81 @@ function memoHtml(text){
   out+=esc(src.slice(last));
   return out;
 }
-function dueInfo(deal){
-  if(!deal.due)return{state:'none',days:null,label:'期限なし'};
+/* ===== 共通タスク（商談パイプラインボードと共通：sales_tasks） =====
+   「次アクション・期限」は案件の中に持たず、ボードと共通のタスクとして1件ずつ保存する。
+   どちらのアプリで登録・完了しても両方に反映されるので、二重入力・二重管理にならない。
+   テーブルが未作成（SQL未実行）のときは、従来どおり案件の「次アクション・期限」で動く。 */
+const ST_TABLE='sales_tasks';
+let TASKS=[], taskCloud=false, BLEADS=[], ME_NAME='';
+const TK_ST={todo:{n:'未着手',c:'#8a97a8'},doing:{n:'実行中',c:'#3068a8'},done:{n:'完了',c:'#1f8a55'},drop:{n:'中止',c:'#9a8f6b'}};
+const tkLive=t=>t&&!t.del;
+const tkOpen=t=>tkLive(t)&&(t.st==='todo'||t.st==='doing'||!t.st);
+/* この案件に関係するタスク：この物件で登録したもの＋紐づく商談全体のタスク */
+function dealTasks(d){
+  if(!d) return [];
+  return TASKS.filter(t=>tkLive(t)&&(t.dealId===d.id||(d.leadId&&t.leadId===d.leadId&&!t.dealId)));
+}
+const tkSort=(a,b)=>(tkOpen(b)?1:0)-(tkOpen(a)?1:0)||String(a.due||'9999').localeCompare(String(b.due||'9999'));
+function nextTaskOf(d){ return dealTasks(d).filter(tkOpen).sort(tkSort)[0]||null; }
+/* 画面表示用の「次アクション・期限」：共通タスクがあれば一番期限の近い未完了タスク */
+function nx(d){
+  if(!taskCloud) return {next:d.next||'',due:d.due||''};
+  const t=nextTaskOf(d); return t?{next:t.t||'',due:t.due||'',task:t}:{next:'',due:''};
+}
+function dueInfoDate(dstr,closed){
+  if(!dstr)return{state:'none',days:null,label:'期限なし'};
   const today=new Date();today.setHours(0,0,0,0);
-  const due=new Date(deal.due+'T00:00:00');
-  const days=Math.round((due-today)/86400000);
-  if(deal.stage==='won'||deal.stage==='lost')return{state:'ok',days,label:fmtDate(deal.due)};
-  if(days<0)return{state:'overdue',days,label:fmtDate(deal.due)+'（'+(-days)+'日超過）'};
-  if(days<=3)return{state:'soon',days,label:fmtDate(deal.due)+'（あと'+days+'日）'};
-  return{state:'ok',days,label:fmtDate(deal.due)};
+  const days=Math.round((new Date(dstr+'T00:00:00')-today)/86400000);
+  if(closed)return{state:'ok',days,label:fmtDate(dstr)};
+  if(days<0)return{state:'overdue',days,label:fmtDate(dstr)+'（'+(-days)+'日超過）'};
+  if(days<=3)return{state:'soon',days,label:fmtDate(dstr)+'（あと'+days+'日）'};
+  return{state:'ok',days,label:fmtDate(dstr)};
+}
+function dueInfo(deal){ return dueInfoDate(nx(deal).due, deal.stage==='won'||deal.stage==='lost'); }
+function tkBadgeHTML(t){ const di=dueInfoDate(t.due,!tkOpen(t));
+  const ic=di.state==='overdue'?'⚠':di.state==='soon'?'⏰':di.state==='ok'?'📅':'';
+  return `<span class="badge ${di.state}">${ic} ${esc(di.label)}</span>`; }
+const normCo=v=>String(v||'').replace(/株式会社|（株）|\(株\)|有限会社|合同会社|様|\s|　/g,'').toLowerCase();
+async function tkPut(t){
+  t.upd=Date.now(); t.by=ME_NAME||t.by||'';
+  try{ const {error}=await sb.from(ST_TABLE).upsert({id:t.id,lead_id:t.leadId||null,deal_id:t.dealId||null,data:t,updated_at:new Date().toISOString()});
+    if(error)throw error; return true; }
+  catch(e){ console.warn('[refort] task save',e); toast('⚠ タスクを保存できませんでした：'+((e&&e.message)||e)); return false; }
+}
+async function loadShared(){
+  if(!sb||!cloudReady){ taskCloud=false; return; }
+  try{
+    const {data,error}=await sb.from(ST_TABLE).select('id,data');
+    if(error)throw error;
+    TASKS=(data||[]).map(r=>r.data).filter(Boolean);
+    taskCloud=true;
+  }catch(e){ taskCloud=false; console.warn('[refort] sales_tasks 未使用（従来の次アクションで動作）:',(e&&e.message)||e); return; }
+  try{
+    const {data}=await sb.from('battery_leads').select('id,data');
+    BLEADS=(data||[]).filter(r=>r.id!=='_settings'&&r.data&&!r.data.sheetGone)
+      .map(r=>({id:r.id,name:r.data.name||'',owner:r.data.owner||'',status:r.data.status||''}))
+      .sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  }catch(e){ BLEADS=[]; console.warn('[refort] battery_leads',e); }
+  /* 初回だけ：案件に入っていた「次アクション・期限」を共通タスクへ移す。
+     IDを案件ごとに固定しているので、何度読み込んでも1件しか作られない（削除後も復活しない） */
+  const have=new Set(TASKS.map(t=>t.id)), mig=[];
+  DB.deals.forEach(d=>{ if((d.next||d.due)&&!have.has('mig-'+d.id)&&d.stage!=='won'&&d.stage!=='lost'){
+    mig.push({id:'mig-'+d.id,t:d.next||'（内容未記入）',cond:'',due:d.due||'',st:'todo',src:'査定スタジオ',
+      owner:(d.inputs&&d.inputs.owner)||'',made:new Date().toISOString().slice(0,10),
+      dealId:d.id,dealName:d.name||'',leadId:d.leadId||null,leadName:d.leadName||'',app:'refort',upd:Date.now(),by:ME_NAME}); } });
+  if(mig.length){
+    try{ for(let i=0;i<mig.length;i+=50){
+        const {error}=await sb.from(ST_TABLE).upsert(mig.slice(i,i+50).map(t=>({id:t.id,lead_id:t.leadId,deal_id:t.dealId,data:t,updated_at:new Date().toISOString()})));
+        if(error)throw error; }
+      TASKS=TASKS.concat(mig);
+    }catch(e){ console.warn('[refort] task migrate',e); }
+  }
+}
+async function refreshShared(){
+  await loadShared();
+  const v=activeView();
+  if(v==='deal'){ const f=document.activeElement; if(!(f&&f.closest&&f.closest('#dealTaskSlot'))) renderDealTasks(); }
+  else refreshView();
 }
 function dueBadge(deal){const di=dueInfo(deal);
   const ic=di.state==='overdue'?'⚠':di.state==='soon'?'⏰':di.state==='ok'?'📅':'';
@@ -3952,20 +4130,15 @@ function sheetM3(deal){
   const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
   /* 現状維持 vs リフォート後：お客様が一目で差を掴めるよう数字を大きく表示 */
   const sgn=v=>(v>=0?'+':'−')+nfn(Math.abs(v));
-  const vsRow=(lbl,c,a2,last,unit)=>{const L=last?' last':''; unit=unit||'円';
-    const u=v=>`<span>${v}<small> ${unit}</small></span>`;
+  const vsRow=(lbl,c,a2,last)=>{const L=last?' last':'';
+    const u=v=>`<span>${v}<small> 円</small></span>`;
     return `<div class="vl${L}">${lbl}</div><div class="vv${L}">${u(nfn(c))}</div><div class="vv va${L}">&#9654;</div>`
       +`<div class="vv aft${L}">${u(nfn(a2))}</div><div class="vv diff${L}">${u(sgn(a2-c))}</div>`;};
   const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
     <div class="vs-big">
       <div class="vh">項目</div><div class="vh">現状維持のまま</div><div class="vh"></div><div class="vh aft">リフォート実施後</div><div class="vh diff">差額（年間）</div>
-      ${(()=>{ /* 1行目は発電量（kWh）、2行目は売電収入（円）。メンテ費・保険費が入っていてCFが売電収入と違う場合だけCF行を足す */
-        const g0=n((s.rows.RF前発電||[])[0])||n(d.gen), g1=n((s.rows.RF後発電||[])[0])||n(d.rfGenAfter);
-        const showCF=Math.round(s.cur.cf)!==Math.round(s.cur.rev)||Math.round(s.aft.cf)!==Math.round(s.aft.rev);
-        return vsRow('年間 発電量',g0,g1,false,'kWh')
-          + vsRow('年間 売電収入',s.cur.rev,s.aft.rev,!showCF)
-          + (showCF? vsRow('年間 キャッシュフロー<br><small style="font-weight:600">（メンテ・保険差引後）</small>',s.cur.cf,s.aft.cf,true) : '');
-      })()}
+      ${vsRow('年間 売電収入',s.cur.rev,s.aft.rev,false)}
+      ${vsRow('年間 キャッシュフロー',s.cur.cf,s.aft.cf,true)}
     </div>`;
   return spec+kpis+msg+t1+t2+t3;
 }
@@ -5044,8 +5217,10 @@ const APP_VERSION = '2026.09.19g';
 
 const CHANGELOG = [
   ['2026.09.19g', [
-    '<b>リフォート提案（一括）の「現状維持 vs リフォート後」を見直しました。</b>「年間 売電収入」と「年間 キャッシュフロー」が同じ数字で並んでいたため、1行目を<b>年間 発電量（kWh）</b>に変更しました（発電量が増える → 売電収入が増える、の順で読めます）',
-    'メンテ費・保険費を入力していてキャッシュフローが売電収入と異なる案件だけ、3行目に「年間 キャッシュフロー（メンテ・保険差引後）」を表示します',
+    '<b>「次アクション・期限」を、商談パイプラインボードのタスクと共通にしました。</b>案件画面の次アクション欄が「タスク」欄になり、やること・完了条件・期限・担当を登録できます。ここで登録・完了したタスクはボードの「タスク」タブにもそのまま出ます（逆も同じ）。二重入力は不要です',
+    '案件画面の「🔗 商談ボード」で、ボードの商談と紐づけられます（お客様名が近い商談を上に表示）。紐づけると、ボードでその商談に登録したタスクもこの案件に表示されます',
+    'ダッシュボードの「要対応」は、期限超過・3日以内のタスクを1件ずつ並べる形になりました。一覧の「次アクション・期限」列には、一番期限の近い未完了タスクが表示されます',
+    'これまでの「次アクション・期限」は、最初に開いたときに自動でタスクへ移ります（成約・失注の案件は除く）',
   ]],
   ['2026.09.19f', [
     '<b>放置リスク比較から「パネル交換のみ」を外しました。</b>比較は「現状維持／PCS交換のみ／総合改善（ReFort）」の3つです（一括提案の資料・放置リスク比較ツールの両方）',
@@ -5636,8 +5811,16 @@ EC.guard({ allow:['admin','manager','sales'] }).then(function(me){
   EC.mountBadge('#userBadge');
   /* 同期設定は管理者だけに見せる（一般社員が誤って切り替えないように） */
   if(!EC.can('admin')){ const b=document.getElementById('btnSync'); if(b) b.style.display='none'; }
+  ME_NAME=(me&&(me.full_name||me.name))||'';
   renderDash();
-  initCloud();
+  initCloud().then(async()=>{
+    await loadShared();
+    if(taskCloud){ if(activeView()==='deal') renderDealTasks(); else refreshView();
+      setInterval(refreshShared, 60*1000); }   /* 商談ボードで更新されたタスクを取り込む */
+    /* 商談ボードのタスク一覧から「refort_deals.html#deal=ID」で開かれたとき */
+    const m=location.hash.match(/deal=([^&]+)/);
+    if(m){ const id=decodeURIComponent(m[1]); if(DB.deals.some(x=>x.id===id)) openDeal(id); }
+  });
 });
 })();
 
