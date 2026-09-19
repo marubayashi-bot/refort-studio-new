@@ -425,7 +425,23 @@ tr:hover .ec-pen{color:var(--gold)}
 .tk-ttl{font-weight:800;color:var(--navy);font-size:13px}
 .tk-cnt{font-size:12px;color:var(--muted)}.tk-cnt b{color:var(--ink)}.tk-cnt b.ov{color:#c0392b}
 .tk-link{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-left:auto}
-.tk-link select{max-width:280px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.lk-chip{display:inline-flex;align-items:center;gap:4px;background:#eaf3fa;color:#1f5f8f;border:1px solid #cfe2f1;border-radius:20px;padding:2px 4px 2px 10px;font-weight:700;font-size:12px;max-width:240px}
+.lk-chip button{border:none;background:none;color:#8893a2;cursor:pointer;font-size:12px;padding:0 4px}
+.lk-box{position:relative}
+.lk-box input{width:230px;font:inherit;font-size:12px;padding:5px 9px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.lk-pop{display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:30;width:340px;max-height:320px;overflow:auto;background:#fff;border:1px solid var(--line2);border-radius:9px;box-shadow:0 10px 28px rgba(13,35,64,.16);padding:4px}
+.lk-h{font-size:10.5px;font-weight:800;color:#8893a2;padding:6px 8px 3px}
+.lk-it{padding:6px 8px;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.lk-it:hover{background:#f3f6fa}.lk-it.on{background:#fbf3df}
+.lk-it b{font-size:12.5px;color:var(--ink)}.lk-it span{font-size:11px;color:#8893a2}
+.lk-more{font-size:11px;color:#8893a2;padding:6px 8px}
+.tk-edit-t{cursor:pointer}.tk-edit-t:hover{text-decoration:underline dotted}
+.tk-row.tk-editing{background:#fbfaf5}
+.tk-ef{display:flex;flex-wrap:wrap;gap:6px 8px;width:100%;align-items:flex-end}
+.tk-ef label{display:flex;flex-direction:column;font-size:10.5px;color:#8893a2;font-weight:700;gap:2px;flex:0 0 130px}
+.tk-ef label.w2{flex:1 1 260px}
+.tk-ef input,.tk-ef select{font:inherit;font-size:12.5px;color:var(--ink);font-weight:400;padding:5px 8px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.tk-ef-b{display:flex;gap:5px;margin-left:auto}
 .tk-form{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding:8px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px}
 .tk-form input{font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;flex:1 1 200px;min-width:0}
 .tk-form input[type=date]{flex:0 0 140px}
@@ -1092,8 +1108,27 @@ table.grid .lnk:hover{color:#0d4f9e}
   background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23253449' stroke-width='1.8'/%3E%3C/svg%3E") no-repeat right 12px center}
 .btn-tool{height:42px;padding:0 13px;border-radius:9px;font-size:13px}
 .btn-tool.is-on{border-color:var(--gold);background:var(--gold-soft)}
-.list-table{overflow:hidden}
-.lt-scroll{overflow:auto}
+.list-table{overflow:hidden;position:relative}
+/* 表の高さを画面内に収め、横スクロールバーが常に見える位置に来るようにする */
+.lt-scroll{overflow:auto;max-height:calc(100vh - 170px);min-height:260px;scrollbar-width:auto;scrollbar-color:#9aa8ba #eef2f7}
+.lt-scroll::-webkit-scrollbar{height:12px;width:12px}
+.lt-scroll::-webkit-scrollbar-track{background:#eef2f7}
+.lt-scroll::-webkit-scrollbar-thumb{background:#9aa8ba;border-radius:8px;border:2px solid #eef2f7}
+.lt-scroll::-webkit-scrollbar-thumb:hover{background:#6f8198}
+/* 見出し行と案件名の列は、スクロールしても固定 */
+.lt-scroll thead th{position:sticky;top:0;z-index:3}
+.lt-scroll th.c-name,.lt-scroll td.c-name{position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 var(--line)}
+.lt-scroll thead th.c-name{z-index:4;background:var(--navy)}
+.lt-scroll tbody tr:hover td.c-name{background:#f3f6fa}
+/* 次アクションの長文は2行で省略（全文はマウスを乗せると表示） */
+.lt-scroll td.c-due .hint,.lt-scroll td.c-next{max-width:260px}
+.lt-scroll td.c-due .hint,.lt-scroll td.c-next .ec,.lt-scroll td.c-next>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 左右スクロールボタン（続きがある方向にだけ表示） */
+.lt-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:34px;height:64px;border:1px solid var(--line2);
+  background:rgba(255,255,255,.95);box-shadow:0 4px 14px rgba(13,35,64,.18);color:var(--navy);font-size:18px;font-weight:800;cursor:pointer;display:none}
+.lt-nav.l{left:0;border-radius:0 10px 10px 0}.lt-nav.r{right:0;border-radius:10px 0 0 10px}
+.lt-nav.show{display:block}.lt-nav:hover{background:#fff;color:var(--gold)}
+.prio .pnext{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .list-pager{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--line)}
 .pg-info{font-size:13px;color:#4a5667;min-width:150px}
 .pg-nums{flex:1;display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap}
@@ -2225,11 +2260,11 @@ const COL_DEFS=[
   {k:'irr',label:'想定IRR',r:true,cell:(d,c)=>c.v2.irr!=null?pct(c.v2.irr):'—',csv:(d,c)=>c.v2.irr!=null?(c.v2.irr*100).toFixed(1)+'%':''},
   {k:'verdict',label:'一次判定',cell:(d,c)=>`<span class="chip ${c.v2.level}">${esc(c.v2.policy)}</span>`,csv:(d,c)=>c.v2.policy||''},
   {k:'due',label:'次アクション・期限',
-    cell:d=>{const x=nx(d);return `${x.due?dueBadge(d):'<span class="hint">—</span>'}${x.next?'<div class="hint" style="margin-top:3px">🎯 '+esc(x.next)+'</div>':''}`;},
+    cell:d=>{const x=nx(d);return `${x.due?dueBadge(d):'<span class="hint">—</span>'}${x.next?'<div class="hint" style="margin-top:3px" title="'+esc(x.next)+'">🎯 '+esc(x.next)+'</div>':''}`;},
     csv:d=>{const x=nx(d);return (x.due||'')+(x.next?' / '+x.next:'');},
     /* 共通タスク運用中は一覧から直接編集しない（案件を開いてタスクで管理） */
     get edit(){return taskCloud?undefined:{type:'date',get:d=>d.due||'',set:(d,v)=>{d.due=v||'';}};}},
-  {k:'next',label:'次アクション（内容）',cell:d=>{const x=nx(d);return x.next?esc(x.next):'<span class="hint">—</span>';},csv:d=>nx(d).next||'',
+  {k:'next',label:'次アクション（内容）',cell:d=>{const x=nx(d);return x.next?'<span title="'+esc(x.next)+'">'+esc(x.next)+'</span>':'<span class="hint">—</span>';},csv:d=>nx(d).next||'',
     get edit(){return taskCloud?undefined:{type:'text',get:d=>d.next||'',set:(d,v)=>{d.next=v.trim();}};}},
   {k:'amount',label:'取引額',r:true,cell:d=>yenM(dealPipelineValue(d)),csv:d=>dealPipelineValue(d)||''},
   {k:'updated',label:'更新',cell:d=>`<span class="hint">${new Date(d.updatedAt).toLocaleDateString('ja-JP')}</span>`,
@@ -2360,7 +2395,7 @@ function listRail(){
       ${d.inputs.customer?`<div class="pmeta">${esc(d.inputs.customer)}</div>`:''}
       ${loc?`<div class="pmeta">📍 ${esc(loc)}</div>`:''}
       <div class="pmeta">🗓 ${esc(di.label)}</div>
-      ${nx(d).next?`<div class="pmeta pnext">🎯 ${esc(nx(d).next)}</div>`:''}
+      ${nx(d).next?`<div class="pmeta pnext" title="${esc(nx(d).next)}">🎯 ${esc(nx(d).next)}</div>`:''}
       <button class="btn btn-gold pgo" data-open="${d.id}">対応する →</button></div></div>`;
   });
   h+=`</div><div class="rail-card news"><div class="rail-h"><b>📣 お知らせ</b><button class="rail-more" data-allnews>すべて見る ›</button></div>`;
@@ -2462,10 +2497,34 @@ function renderList(){
   if(listPage>pages)listPage=pages; if(listPage<1)listPage=1;
   const from=(listPage-1)*ps, pageRows=rows.slice(from,from+ps);
   pageRows.forEach(d=>{ html+=`<tr data-row="${d.id}">`+listRowHtml(d,cols)+`</tr>`; });
-  html+=`</tbody></table></div>`+listPager(rows.length,from,pageRows.length,pages)+`</div>`;
+  html+=`</tbody></table></div><button class="lt-nav l" title="左へ">‹</button><button class="lt-nav r" title="右へ（続きの列）">›</button>`
+    +listPager(rows.length,from,pageRows.length,pages)+`</div>`;
   v.innerHTML=listShell(html); wireList();
 }
+/* 一覧表の横スクロール：ボタン・Shift不要のホイール・位置の記憶 */
+let ltScrollX=0;
+function ltEnhance(){
+  const sc=$('.lt-scroll'); if(!sc) return;
+  const box=sc.closest('.list-table'), bl=box.querySelector('.lt-nav.l'), br=box.querySelector('.lt-nav.r');
+  const upd=()=>{ const max=sc.scrollWidth-sc.clientWidth;
+    if(bl) bl.classList.toggle('show', sc.scrollLeft>4);
+    if(br) br.classList.toggle('show', max>4 && sc.scrollLeft<max-4);
+    ltScrollX=sc.scrollLeft; };
+  if(ltScrollX) sc.scrollLeft=ltScrollX;
+  sc.addEventListener('scroll',upd,{passive:true});
+  const step=()=>Math.max(240,Math.round(sc.clientWidth*0.6));
+  if(bl) bl.onclick=()=>sc.scrollBy({left:-step(),behavior:'smooth'});
+  if(br) br.onclick=()=>sc.scrollBy({left:step(),behavior:'smooth'});
+  /* 表の端まで縦スクロールしたら、ページ全体を縦にスクロールさせる（表の中で止まらないように） */
+  sc.addEventListener('wheel',e=>{
+    if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)) return;   /* 横スクロール操作はそのまま */
+    const atTop=sc.scrollTop<=0, atEnd=sc.scrollTop+sc.clientHeight>=sc.scrollHeight-1;
+    if((e.deltaY<0&&atTop)||(e.deltaY>0&&atEnd)){ window.scrollBy(0,e.deltaY); e.preventDefault(); }
+  },{passive:false});
+  upd(); window.addEventListener('resize',upd,{passive:true});
+}
 function wireList(){
+  ltEnhance();
   const lc0=$('#listCount'); if(lc0){const shown=lastListRows.length,tot=DB.deals.length;
     lc0.textContent=(shown===tot?('全'+tot+'件'):(shown+'件表示 ／ 全'+tot+'件'));}
   const q=$('#lq');
@@ -2588,24 +2647,34 @@ function renderDealTasks(){
   const opt=l=>`<option value="${esc(l.id)}"${l.id===d.leadId?' selected':''}>${esc(l.name)}${l.owner?'（'+esc(l.owner)+'）':''}${l.status?' ・'+esc(l.status):''}</option>`;
   const linked=d.leadId&&!BLEADS.some(l=>l.id===d.leadId)?`<option value="${esc(d.leadId)}" selected>${esc(d.leadName||d.leadId)}</option>`:'';
   const row=t=>{const st=TK_ST[t.st]||TK_ST.todo, own=t.dealId===d.id;
+    if(t.id===tkEditId) return `<div class="tk-row tk-editing" style="border-left-color:${st.c}">
+      <div class="tk-ef">
+        <label class="w2">やること<input id="teT" value="${esc(t.t||'')}"></label>
+        <label class="w2">完了条件<input id="teC" value="${esc(t.cond||'')}" placeholder="何ができたら完了か"></label>
+        <label>期限<input id="teD" type="date" value="${esc(t.due||'')}"></label>
+        <label>担当<input id="teO" value="${esc(t.owner||'')}"></label>
+        <label>状態<select id="teS">${Object.entries(TK_ST).map(([k,v])=>`<option value="${k}"${(t.st||'todo')===k?' selected':''}>${v.n}</option>`).join('')}</select></label>
+        <div class="tk-ef-b"><button class="btn btn-gold btn-sm" id="teSave">保存</button><button class="btn btn-line btn-sm" id="teCancel">やめる</button></div>
+      </div></div>`;
     return `<div class="tk-row ${tkOpen(t)?'':'closed'}" style="border-left-color:${st.c}">
       <span class="tk-st" style="background:${st.c}1f;color:${st.c}">${st.n}</span>
       ${t.due?tkBadgeHTML(t):'<span class="badge none">期限なし</span>'}
-      <div class="tk-main"><b>${esc(t.t||'')}</b>
+      <div class="tk-main"><b class="tk-edit-t" data-tk="${t.id}" data-a="edit" title="クリックで編集">${esc(t.t||'')}</b>
         ${t.cond?`<div class="tk-sub">完了条件：${esc(t.cond)}</div>`:''}
         <div class="tk-sub">担当 ${esc(t.owner||'—')}　出所 ${esc(t.src||'手動')}${own?'':'　<span class="tk-scope">商談全体のタスク</span>'}${t.doneAt?'　完了 '+esc(t.doneAt):''}</div></div>
       <div class="tk-btns">
         ${tkOpen(t)&&t.st!=='doing'?`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="doing">着手</button>`:''}
         ${tkOpen(t)?`<button class="btn btn-gold btn-sm" data-tk="${t.id}" data-a="done">完了</button>`:`<button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="todo">戻す</button>`}
+        <button class="btn btn-line btn-sm" data-tk="${t.id}" data-a="edit" title="編集">✎ 編集</button>
         <button class="btn btn-line btn-sm tk-del" data-tk="${t.id}" data-a="del" title="削除">✕</button>
       </div></div>`;};
   slot.innerHTML=`<div class="tk-head">
       <span class="tk-ttl">✅ タスク（次アクション）</span>
       <span class="tk-cnt">未完了 <b>${open.length}</b> 件${open.filter(t=>dueInfoDate(t.due,false).state==='overdue').length?'・<b class="ov">期限超過 '+open.filter(t=>dueInfoDate(t.due,false).state==='overdue').length+'</b>':''}</span>
-      <label class="tk-link">🔗 商談ボード
-        <select id="dealLead"><option value="">— 未紐づけ —</option>
-          ${linked}${sugg.length?`<optgroup label="お客様名が近い商談">${sugg.map(opt).join('')}</optgroup>`:''}
-          <optgroup label="すべての商談">${BLEADS.filter(l=>!sugg.includes(l)).map(opt).join('')}</optgroup></select></label>
+      <div class="tk-link">🔗 商談ボード
+        ${d.leadId?`<span class="lk-chip" title="紐づいている商談">${esc(d.leadName||(BLEADS.find(l=>l.id===d.leadId)||{}).name||d.leadId)}<button id="lkClear" title="紐づけを外す">✕</button></span>`:''}
+        <div class="lk-box"><input id="leadQ" autocomplete="off" placeholder="${d.leadId?'別の商談を検索して変更':'商談名・担当・状態で検索'}">
+          <div class="lk-pop" id="leadPop"></div></div></div>
       <button class="btn btn-gold btn-sm" id="tkAddBtn">＋ タスク追加</button>
     </div>
     <div class="tk-form" id="tkForm" style="display:none">
@@ -2617,11 +2686,29 @@ function renderDealTasks(){
       <button class="btn btn-line btn-sm" id="tkCancel">やめる</button>
     </div>
     <div class="tk-list">${open.length?open.map(row).join(''):'<div class="tk-empty">未完了のタスクはありません。「＋ タスク追加」で次にやることを登録してください。</div>'}
-      ${closed.length?`<details class="tk-closed"><summary>完了・中止 ${closed.length} 件</summary>${closed.map(row).join('')}</details>`:''}</div>
+      ${closed.length?`<details class="tk-closed"${closed.some(t=>t.id===tkEditId)?' open':''}><summary>完了・中止 ${closed.length} 件</summary>${closed.map(row).join('')}</details>`:''}</div>
     <div class="tk-note">このタスクは <b>商談パイプラインボードのタスクと共通</b> です（どちらで更新しても両方に反映）。${d.leadId?'':'商談ボードの商談を選ぶと、ボードの担当別・タスク一覧にもこの商談として表示されます。'}</div>`;
 
-  $('#dealLead').onchange=async e=>{
-    const v=e.target.value, l=BLEADS.find(x=>x.id===v);
+  /* 商談の検索：お客様名が近い商談を先頭に、入力した文字で名前・担当・状態を絞り込む */
+  const lkRender=()=>{
+    const q=normCo($('#leadQ').value), pop=$('#leadPop');
+    const hit=l=>!q||normCo(l.name+' '+l.owner+' '+l.status).includes(q);
+    const top=sugg.filter(hit), rest=BLEADS.filter(l=>!sugg.includes(l)&&hit(l));
+    const item=l=>`<div class="lk-it${l.id===d.leadId?' on':''}" data-lid="${esc(l.id)}"><b>${esc(l.name)}</b><span>${esc(l.owner||'担当未設定')}${l.status?'・'+esc(l.status):''}</span></div>`;
+    let h='';
+    if(top.length) h+=`<div class="lk-h">お客様名が近い商談</div>`+top.map(item).join('');
+    if(rest.length) h+=`<div class="lk-h">${q?'検索結果':'すべての商談'}（${rest.length}件）</div>`+rest.slice(0,60).map(item).join('')+(rest.length>60?`<div class="lk-more">ほか ${rest.length-60} 件 — 文字を追加して絞り込んでください</div>`:'');
+    if(!h) h=`<div class="lk-more">「${esc($('#leadQ').value)}」に一致する商談はありません</div>`;
+    pop.innerHTML=h; pop.style.display='block';
+    pop.querySelectorAll('[data-lid]').forEach(el=>el.onmousedown=e=>{e.preventDefault();linkLead(el.dataset.lid);});
+  };
+  $('#leadQ').onfocus=lkRender; $('#leadQ').oninput=lkRender;
+  $('#leadQ').onblur=()=>setTimeout(()=>{const p=$('#leadPop');if(p)p.style.display='none';},120);
+  $('#leadQ').onkeydown=e=>{ if(e.key==='Escape'){e.target.blur();}
+    if(e.key==='Enter'){const f=$('#leadPop [data-lid]');if(f){e.preventDefault();linkLead(f.dataset.lid);}} };
+  if($('#lkClear')) $('#lkClear').onclick=()=>{ if(confirm('商談ボードとの紐づけを外しますか？')) linkLead(''); };
+  const linkLead=async v=>{
+    const l=BLEADS.find(x=>x.id===v);
     d.leadId=v||''; d.leadName=l?l.name:''; markDirty();
     /* この物件で登録したタスクも、選んだ商談に付け替える */
     for(const t of TASKS.filter(t=>tkLive(t)&&t.dealId===d.id)){ t.leadId=d.leadId||null; t.leadName=d.leadName||''; await tkPut(t); }
@@ -2637,14 +2724,31 @@ function renderDealTasks(){
       dealId:d.id,dealName:d.name||'',leadId:d.leadId||null,leadName:d.leadName||'',app:'refort'};
     if(await tkPut(t)){ TASKS.push(t); toast('タスクを登録しました（商談ボードにも表示されます）'); renderDealTasks(); }
   };
+  if(tkEditId && $('#teSave')){
+    const t=TASKS.find(x=>x.id===tkEditId);
+    $('#teT').focus();
+    $('#teCancel').onclick=()=>{tkEditId=null;renderDealTasks();};
+    $('#teSave').onclick=async()=>{
+      const v=$('#teT').value.trim(); if(!v){toast('「やること」を入力してください');return;}
+      const bk=Object.assign({},t);
+      t.t=v; t.cond=$('#teC').value.trim(); t.due=$('#teD').value||''; t.owner=$('#teO').value.trim();
+      const ns=$('#teS').value;
+      if(ns!==t.st){ t.st=ns; if(ns==='done'||ns==='drop') t.doneAt=t.doneAt||new Date().toISOString().slice(0,10); else delete t.doneAt; }
+      if(await tkPut(t)){ tkEditId=null; toast('タスクを更新しました（商談ボードにも反映されます）'); renderDealTasks(); }
+      else Object.assign(t,bk);
+    };
+    slot.querySelectorAll('.tk-ef input').forEach(i=>i.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();$('#teSave').click();} if(e.key==='Escape'){$('#teCancel').click();} });
+  }
   slot.querySelectorAll('[data-tk]').forEach(b=>b.onclick=async()=>{
     const t=TASKS.find(x=>x.id===b.dataset.tk); if(!t)return; const a=b.dataset.a;
+    if(a==='edit'){ tkEditId=t.id; renderDealTasks(); return; }
     if(a==='del'){ if(!confirm('このタスクを削除しますか？（商談ボードからも消えます）'))return; t.del=true; }
     else { t.st=a; if(a==='done'||a==='drop') t.doneAt=new Date().toISOString().slice(0,10); else delete t.doneAt; }
     await tkPut(t); renderDealTasks();
   });
 }
 function openDeal(id){
+  tkEditId=null;
   curDeal=DB.deals.find(d=>d.id===id); if(!curDeal)return; migrateStages({deals:[curDeal]});
   dirty=false; resTab='judge'; nav('deal'); renderDeal();
 }
@@ -3358,7 +3462,7 @@ function memoHtml(text){
    どちらのアプリで登録・完了しても両方に反映されるので、二重入力・二重管理にならない。
    テーブルが未作成（SQL未実行）のときは、従来どおり案件の「次アクション・期限」で動く。 */
 const ST_TABLE='sales_tasks';
-let TASKS=[], taskCloud=false, BLEADS=[], ME_NAME='';
+let TASKS=[], taskCloud=false, BLEADS=[], ME_NAME='', tkEditId=null;
 const TK_ST={todo:{n:'未着手',c:'#8a97a8'},doing:{n:'実行中',c:'#3068a8'},done:{n:'完了',c:'#1f8a55'},drop:{n:'中止',c:'#9a8f6b'}};
 const tkLive=t=>t&&!t.del;
 const tkOpen=t=>tkLive(t)&&(t.st==='todo'||t.st==='doing'||!t.st);
@@ -3426,7 +3530,7 @@ async function loadShared(){
 async function refreshShared(){
   await loadShared();
   const v=activeView();
-  if(v==='deal'){ const f=document.activeElement; if(!(f&&f.closest&&f.closest('#dealTaskSlot'))) renderDealTasks(); }
+  if(v==='deal'){ const f=document.activeElement; if(!tkEditId&&!(f&&f.closest&&f.closest('#dealTaskSlot'))) renderDealTasks(); }
   else refreshView();
 }
 function dueBadge(deal){const di=dueInfo(deal);
@@ -4130,15 +4234,15 @@ function sheetM3(deal){
   const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
   /* 現状維持 vs リフォート後：お客様が一目で差を掴めるよう数字を大きく表示 */
   const sgn=v=>(v>=0?'+':'−')+nfn(Math.abs(v));
-  const vsRow=(lbl,c,a2,last)=>{const L=last?' last':'';
-    const u=v=>`<span>${v}<small> 円</small></span>`;
+  const vsRow=(lbl,c,a2,last,unit)=>{const L=last?' last':'', un=unit||'円';
+    const u=v=>`<span>${v}<small> ${un}</small></span>`;
     return `<div class="vl${L}">${lbl}</div><div class="vv${L}">${u(nfn(c))}</div><div class="vv va${L}">&#9654;</div>`
       +`<div class="vv aft${L}">${u(nfn(a2))}</div><div class="vv diff${L}">${u(sgn(a2-c))}</div>`;};
   const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
     <div class="vs-big">
       <div class="vh">項目</div><div class="vh">現状維持のまま</div><div class="vh"></div><div class="vh aft">リフォート実施後</div><div class="vh diff">差額（年間）</div>
-      ${vsRow('年間 売電収入',s.cur.rev,s.aft.rev,false)}
-      ${vsRow('年間 キャッシュフロー',s.cur.cf,s.aft.cf,true)}
+      ${vsRow('年間 発電量',d.gen,d.rfGenAfter,false,'kWh')}
+      ${vsRow('年間 売電収入',s.cur.rev,s.aft.rev,true)}
     </div>`;
   return spec+kpis+msg+t1+t2+t3;
 }
@@ -5213,9 +5317,21 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19g';
+const APP_VERSION = '2026.09.19j';
 
 const CHANGELOG = [
+  ['2026.09.19j', [
+    '<b>案件一覧の表を、右側の列まで見られるようにしました。</b>表の高さを画面内に収めたので、横スクロールバーが常に画面下に見えます。表の左右に出る「‹ ›」ボタンでも移動できます（ノートPCのタッチパッドやShift＋ホイールでも可）',
+    'スクロールしても、見出し行と「案件名」の列は固定表示のままです',
+    '「次アクション・期限」の長い文章は2行で省略し、行が縦に伸びすぎないようにしました（全文は案件を開くと確認できます）',
+  ]],
+  ['2026.09.19i', [
+    'リフォート提案シートの「現状維持 vs リフォート後」を「年間 発電量」と「年間 売電収入」の2行にしました（キャッシュフローは売電収入と同じ数字になっていたため）',
+  ]],
+  ['2026.09.19h', [
+    '<b>タスクを編集できるようにしました。</b>「✎ 編集」またはタスク名をクリックすると、やること・完了条件・期限・担当・状態を直せます（Enterで保存、Escで取消）。商談ボードにもそのまま反映されます',
+    '<b>「🔗 商談ボード」を検索できるようにしました。</b>商談名・担当・状態の一部を入力すると候補が絞り込まれ、Enterで先頭の商談を選べます。お客様名が近い商談は常に上に出ます。紐づけ中の商談は青いラベルで表示され、✕で外せます',
+  ]],
   ['2026.09.19g', [
     '<b>「次アクション・期限」を、商談パイプラインボードのタスクと共通にしました。</b>案件画面の次アクション欄が「タスク」欄になり、やること・完了条件・期限・担当を登録できます。ここで登録・完了したタスクはボードの「タスク」タブにもそのまま出ます（逆も同じ）。二重入力は不要です',
     '案件画面の「🔗 商談ボード」で、ボードの商談と紐づけられます（お客様名が近い商談を上に表示）。紐づけると、ボードでその商談に登録したタスクもこの案件に表示されます',
