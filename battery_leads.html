@@ -272,6 +272,7 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
   <button data-tab="prop">物件</button>
   <button data-tab="map">地図</button>
   <button data-tab="asset">💼 大型案件</button>
+  <button data-tab="hs">🔗 HubSpot照合</button>
   <button data-tab="man">📖 活用マニュアル</button>
 </div>
 
@@ -442,6 +443,27 @@ tr.row:hover td{background:#f7f9fc;cursor:pointer}
     <div id="aStages" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:12px"></div>
     <div class="tblwrap" id="aTable"></div>
     <p style="font-size:12px;color:var(--tx2);margin-top:8px">案件管理表の内容をそのまま表示しています。修正はシート側で行ってください（編集後、数秒で反映されます）。</p>
+  </div>
+
+  <div id="viewHs" style="display:none">
+    <div class="fbar">
+      <select id="hsOwner"><option value="all">全担当者</option></select>
+      <select id="hsState">
+        <option value="todo">要確認のみ（ずれ・HubSpotにない）</option>
+        <option value="all">すべて</option>
+        <option value="same">一致のみ</option>
+      </select>
+      <input id="hsQ" placeholder="会社名で絞り込み" style="min-width:160px">
+      <button class="btn gray" id="hsReload">↺ 再取得</button>
+      <button class="btn gray" id="hsCopy">📋 担当者別にChatwork用コピー</button>
+      <span class="fcount" id="hsStatus"></span>
+    </div>
+    <div class="kpis" id="hsKpis"></div>
+    <div class="tblwrap" id="hsTable"></div>
+    <h3 style="font-size:14px;margin:18px 0 6px">HubSpotにあって、ボードにない商談（進行中・金額の大きい順）</h3>
+    <p style="font-size:12px;color:var(--tx2);margin:0 0 6px">ボード（入力シート）への登録漏れか、HubSpot側の整理が必要な商談です。</p>
+    <div class="tblwrap" id="hsOrphan"></div>
+    <p style="font-size:12px;color:var(--tx2);margin-top:10px">HubSpotの取引は10分ごとに自動で取り込んでいます（通常商談・サンキーパーの進行中＋今期の受注・失注）。ボードは「お客様ごと」、HubSpotは「物件・区画ごと」なので、同じお客様のHubSpot取引を合計して比べています。組み合わせが違うときは「✎ 紐づけ」で直せます（全員に共有）。</p>
   </div>
 
   <div id="viewMan" style="display:none">
@@ -3218,17 +3240,159 @@ document.querySelectorAll('.tabs button').forEach(b=> b.onclick=()=>{
   $('viewMap').style.display= t==='map'?'':'none';
   $('viewAsset').style.display= t==='asset'?'':'none';
   $('viewMan').style.display= t==='man'?'':'none';
-  $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man'||t==='q4'||t==='task')?'none':'';
-  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4'||t==='ai'||t==='task')?'none':'';
+  $('viewHs').style.display= t==='hs'?'':'none';
+  $('fbar').style.display= (t==='prop'||t==='map'||t==='asset'||t==='man'||t==='q4'||t==='task'||t==='hs')?'none':'';
+  $('kpis').style.display= (t==='prop'||t==='map'||t==='focus'||t==='asset'||t==='man'||t==='q4'||t==='ai'||t==='task'||t==='hs')?'none':'';
   if(t==='task') renderTask();
   if(t==='ai') renderAi();
   if(t==='phase') renderPhase();
   if(t==='own') renderOwner();
   if(t==='q4') renderQ4();
   if(t==='asset') loadAssets();
+  if(t==='hs') loadHs(false);
   if(t==='man') renderManual();
   if(t==='map'){ renderMap(); setTimeout(()=>{ if(map) map.invalidateSize(); },60); geocodeAll(false); }
 });
+/* ===== HubSpot照合（入力シート由来のボード商談 ⇔ HubSpot取引） =====
+   HubSpotの取引は Edge Function（hubspot-sync）が10分ごとに hs_deals へ取り込んでいる。
+   このタブを開いたときだけ読み込む（普段のボードは重くならない）。紐づけの手直しは settings.hsLink に保存（全員共有）。 */
+let HS=null, hsAt=0, hsPulled='';
+const hsNorm=v=>String(v??'').replace(/株式会社|（株）|\(株\)|有限会社|合同会社|一般社団法人|様|【[^】]*】|（[^）]*）|\([^)]*\)|[\s　・,，.。]/g,'').toLowerCase();
+const hsMan=y=> Math.round((Number(y)||0)/10000);          // 円 → 万円
+const hsLinks=()=> (settings.hsLink=settings.hsLink||{});
+async function loadHs(force){
+  if(!cloud){ $('hsTable').innerHTML='<p style="padding:14px">クラウド未接続のため表示できません。</p>'; return; }
+  if(!force && HS && Date.now()-hsAt<5*60*1000){ renderHs(); return; }
+  $('hsStatus').textContent='HubSpotの取引を読み込み中…';
+  try{
+    const {data,error}=await sb.from('hs_deals').select('data,updated_at');
+    if(error) throw error;
+    HS=(data||[]).map(r=>Object.assign({},r.data,{_n:hsNorm(r.data.name)}));
+    hsPulled=(data||[]).reduce((m,r)=> r.updated_at>m? r.updated_at : m,'');
+    hsAt=Date.now();
+  }catch(e){ $('hsTable').innerHTML='<p style="padding:14px;color:var(--red)">読み込めませんでした：'+esc(e.message||e)+'</p>'; $('hsStatus').textContent=''; return; }
+  renderHs();
+}
+/* ボードの商談1件に対応するHubSpot取引（手動の紐づけがあればそれを優先） */
+function hsMatch(l){
+  const map=hsLinks();
+  if(Object.prototype.hasOwnProperty.call(map,l.id)){ const ids=map[l.id]||[]; return {deals:HS.filter(d=>ids.includes(d.id)), manual:true, none:!ids.length}; }
+  const n=hsNorm(l.name); if(n.length<2) return {deals:[],manual:false};
+  return {deals:HS.filter(d=> d.status!=='lost' && (d._n.includes(n) || (d._n.length>=4 && n.includes(d._n)))), manual:false};
+}
+function hsRows(){
+  return leads.filter(l=> !l.sheetGone && !/失注|見送/.test(l.status||'')).map(l=>{
+    const m=hsMatch(l), bPq=Number(l.budget)||0, bMq=Number(l.mq)||0;
+    const hPq=m.deals.reduce((a,d)=>a+hsMan(d.amount),0), hMq=m.deals.reduce((a,d)=>a+hsMan(d.mq),0);
+    let st;
+    if(m.none) st='skip';
+    else if(!m.deals.length) st='missing';
+    else if(bPq && hPq && Math.abs(bPq-hPq)<=Math.max(1,bPq*0.01)) st='same';
+    else st='diff';
+    return {l,m,bPq,bMq,hPq,hMq,st};
+  });
+}
+const HS_ST={same:['一致','#1f8a55','#eaf6ef'],diff:['金額ずれ','#b26b00','#fff4e0'],missing:['HubSpotにない','#c0392b','#fdecec'],skip:['登録不要（確認済）','#6b7a8c','#eef2f7']};
+function renderHs(){
+  if(!HS) return;
+  const rows=hsRows();
+  const owners=[...new Set(rows.map(r=>r.l.owner||'未設定'))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const os=$('hsOwner'), cur=os.value;
+  os.innerHTML='<option value="all">全担当者</option>'+owners.map(o=>`<option${o===cur?' selected':''}>${esc(o)}</option>`).join('');
+  const f=$('hsState').value, q=hsNorm($('hsQ').value), ow=os.value;
+  const cnt=k=>rows.filter(r=>r.st===k).length;
+  const mins=hsPulled? Math.max(0,Math.round((Date.now()-new Date(hsPulled).getTime())/60000)) : null;
+  $('hsStatus').innerHTML= mins==null? '' : (mins>30? `<span style="color:var(--red);font-weight:700">⚠ HubSpotの取り込みが${mins}分止まっています</span>` : `HubSpot取り込み：${mins}分前`);
+  $('hsKpis').innerHTML=[
+    ['照合したボードの商談',rows.length+'件',''],
+    ['一致',cnt('same')+'件','#1f8a55'],
+    ['金額ずれ',cnt('diff')+'件','#b26b00'],
+    ['HubSpotにない',cnt('missing')+'件','#c0392b'],
+    ['登録不要（確認済）',cnt('skip')+'件','#6b7a8c'],
+  ].map(([k,v,c])=>`<div class="kpi"><div class="l">${k}</div><div class="v"${c?` style="color:${c}"`:''}>${v}</div></div>`).join('');
+  let list=rows.filter(r=> (ow==='all'||(r.l.owner||'未設定')===ow) && (!q||hsNorm(r.l.name).includes(q)));
+  if(f==='todo') list=list.filter(r=>r.st==='diff'||r.st==='missing');
+  if(f==='same') list=list.filter(r=>r.st==='same');
+  list.sort((a,b)=>(a.l.owner||'').localeCompare(b.l.owner||'','ja')||Math.abs(b.bPq-b.hPq)-Math.abs(a.bPq-a.hPq));
+  const man=v=> v? v.toLocaleString()+'万' : '<span style="color:#aab">—</span>';
+  $('hsTable').innerHTML= list.length? `<table><thead><tr><th>担当</th><th>ボードの商談（入力シート）</th><th style="text-align:right">ボード PQ</th><th style="text-align:right">HubSpot 金額</th><th style="text-align:right">差</th><th style="text-align:right">ボード MQ</th><th style="text-align:right">HubSpot MQ</th><th>HubSpotの取引</th><th>状態</th><th></th></tr></thead><tbody>${
+    list.map(r=>{ const s=HS_ST[r.st], diff=r.hPq-r.bPq;
+      const deals=r.m.deals.slice(0,4).map(d=>`<div class="sub" style="white-space:normal">${esc(d.name)}　<b>${esc(d.phase)}</b>　${hsMan(d.amount).toLocaleString()}万${d.owner?'　'+esc(d.owner):''}</div>`).join('')+(r.m.deals.length>4?`<div class="sub">ほか${r.m.deals.length-4}件</div>`:'');
+      return `<tr><td>${esc(r.l.owner||'未設定')}</td><td><b>${esc(r.l.name)}</b><div class="sub">${esc(r.l.status||'')}</div></td>
+        <td style="text-align:right">${man(r.bPq)}</td><td style="text-align:right">${r.m.deals.length?man(r.hPq):'—'}</td>
+        <td style="text-align:right;${r.st==='diff'?'color:#b26b00;font-weight:700':''}">${r.m.deals.length&&r.bPq? (diff>0?'+':'')+diff.toLocaleString()+'万':'—'}</td>
+        <td style="text-align:right">${man(r.bMq)}</td><td style="text-align:right">${r.m.deals.length?man(r.hMq):'—'}</td>
+        <td style="min-width:260px">${deals||'<span class="sub">該当なし</span>'}${r.m.manual&&!r.m.none?'<div class="sub" style="color:#3068a8">✎ 手動で紐づけ済み</div>':''}</td>
+        <td><span class="pill" style="background:${s[2]};color:${s[1]};font-weight:700">${s[0]}</span></td>
+        <td><button class="btn gray hsEdit" data-id="${esc(r.l.id)}" style="font-size:11px;padding:4px 8px">✎ 紐づけ</button></td></tr>
+        <tr class="hsEditRow" id="hsEdit_${esc(r.l.id)}" style="display:none"><td colspan="10"></td></tr>`; }).join('')
+  }</tbody></table>` : '<p style="padding:14px">該当する商談はありません。</p>';
+  document.querySelectorAll('.hsEdit').forEach(b=>b.onclick=()=>hsOpenEdit(b.dataset.id));
+
+  // HubSpotにあってボードにない（進行中）
+  const used=new Set(); rows.forEach(r=>r.m.deals.forEach(d=>used.add(d.id)));
+  const orphan=HS.filter(d=>d.status==='open' && !used.has(d.id)).sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
+  $('hsOrphan').innerHTML= orphan.length? `<table><thead><tr><th>HubSpotの取引</th><th>フェーズ</th><th style="text-align:right">金額</th><th>担当（HubSpot）</th><th>受注予定日</th><th>パイプライン</th></tr></thead><tbody>${
+    orphan.slice(0,40).map(d=>`<tr><td>${esc(d.name)}</td><td>${esc(d.phase)}</td><td style="text-align:right">${hsMan(d.amount).toLocaleString()}万</td><td>${esc(d.owner||'')}</td><td>${esc(d.closeDate||'')}</td><td>${esc(d.pipeline||'')}</td></tr>`).join('')
+  }</tbody></table>${orphan.length>40?`<p class="sub" style="padding:6px">ほか ${orphan.length-40} 件（金額の小さいもの）</p>`:''}` : '<p style="padding:14px">ありません。</p>';
+}
+/* 紐づけの手直し：HubSpot取引を検索してチェック */
+function hsOpenEdit(id){
+  const l=leads.find(x=>x.id===id); if(!l) return;
+  const row=$('hsEdit_'+id); if(!row) return;
+  if(row.style.display!=='none'){ row.style.display='none'; return; }
+  const cur=new Set(hsMatch(l).deals.map(d=>d.id));
+  const td=row.firstElementChild;
+  const draw=()=>{
+    const q=hsNorm(td.querySelector('.hsEq').value);
+    const cand=HS.filter(d=> cur.has(d.id) || (q? d._n.includes(q) : d._n.includes(hsNorm(l.name).slice(0,4))))
+      .sort((a,b)=>(cur.has(b.id)?1:0)-(cur.has(a.id)?1:0)).slice(0,25);
+    td.querySelector('.hsEl').innerHTML= cand.length? cand.map(d=>`<label style="display:block;font-size:12px;padding:2px 0"><input type="checkbox" value="${esc(d.id)}"${cur.has(d.id)?' checked':''}> ${esc(d.name)}　<b>${esc(d.phase)}</b>　${hsMan(d.amount).toLocaleString()}万　${esc(d.owner||'')}</label>`).join('') : '<div class="sub">見つかりません。会社名の一部で検索してください。</div>';
+    td.querySelectorAll('.hsEl input').forEach(c=>c.onchange=()=>{ c.checked? cur.add(c.value) : cur.delete(c.value); });
+  };
+  td.innerHTML=`<div style="background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:10px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <b style="font-size:12.5px">「${esc(l.name)}」に対応するHubSpotの取引を選ぶ</b>
+      <input class="hsEq" placeholder="会社名・物件名で検索" style="min-width:200px">
+    </div>
+    <div class="hsEl" style="max-height:220px;overflow:auto"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn hsSave" style="font-size:12px">この組み合わせで保存</button>
+      <button class="btn gray hsNone" style="font-size:12px">HubSpotには登録しない（確認済）</button>
+      <button class="btn gray hsAuto" style="font-size:12px">自動に戻す</button>
+    </div></div>`;
+  td.querySelector('.hsEq').oninput=draw; draw();
+  const save=async v=>{ const map=hsLinks(); if(v===undefined) delete map[id]; else map[id]=v; await saveSettings(); renderHs(); };
+  td.querySelector('.hsSave').onclick=()=>save([...cur]);
+  td.querySelector('.hsNone').onclick=()=>save([]);
+  td.querySelector('.hsAuto').onclick=()=>save(undefined);
+  row.style.display='';
+}
+$('hsReload').onclick=()=>loadHs(true);
+['hsOwner','hsState'].forEach(i=>$(i).onchange=renderHs);
+$('hsQ').oninput=renderHs;
+/* 担当者別に、直してほしい商談をChatwork用の文面でコピー */
+$('hsCopy').onclick=async()=>{
+  if(!HS) return;
+  const rows=hsRows().filter(r=>r.st==='diff'||r.st==='missing');
+  const ow=$('hsOwner').value, by={};
+  rows.filter(r=>ow==='all'||(r.l.owner||'未設定')===ow).forEach(r=>{ (by[r.l.owner||'未設定']=by[r.l.owner||'未設定']||[]).push(r); });
+  const d=new Date(), md=(d.getMonth()+1)+'/'+d.getDate();
+  let t='[info][title]HubSpotと入力シートの照合（'+md+'時点）[/title]HubSpotの取引を正しい金額・フェーズに更新してください。HubSpotに一本化するための確認です。\n';
+  Object.keys(by).sort((a,b)=>a.localeCompare(b,'ja')).forEach((o,i)=>{
+    if(i) t+='[hr]';
+    t+='■ '+o+'（'+by[o].length+'件）\n';
+    by[o].forEach(r=>{
+      t+= r.st==='missing'
+        ? '・'+r.l.name+'：【HubSpotに取引がありません】ボードPQ '+r.bPq.toLocaleString()+'万\n'
+        : '・'+r.l.name+'：ボード '+r.bPq.toLocaleString()+'万／HubSpot '+r.hPq.toLocaleString()+'万【差 '+((r.hPq-r.bPq)>0?'+':'')+(r.hPq-r.bPq).toLocaleString()+'万】\n';
+    });
+  });
+  t+='[/info]';
+  try{ await navigator.clipboard.writeText(t); alert('コピーしました（'+rows.length+'件）。Chatworkに貼り付けてください。'); }
+  catch(e){ prompt('コピーできなかったので、下の文面を選択してコピーしてください。',t); }
+};
+
 /* ===== 大型案件（案件管理表 → Supabase asset_deals） ===== */
 let assetRows=null, assetLoading=false;
 const A_STAGES=['種まき','商談中','内諾','受注','完了','失注'];
@@ -3304,8 +3468,13 @@ function renderAssets(){
 $('aReload').onclick=()=> loadAssets(true);
 
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
-const APP_VERSION = '2026.09.19e';
+const APP_VERSION = '2026.09.19f';
 const CHANGELOG = [
+  ['2026.09.19f', [
+    '<b>「🔗 HubSpot照合」タブを追加しました。</b>ボードの商談（入力シート）と、HubSpotの取引を並べて「一致／金額ずれ／HubSpotにない」を一覧にします。HubSpotに一本化する前の確認用です',
+    'ボードは「お客様ごと」、HubSpotは「物件・区画ごと」なので、同じお客様のHubSpot取引を合計して比べます。組み合わせが違うときは「✎ 紐づけ」で直せます（全員に共有）',
+    '「📋 担当者別にChatwork用コピー」で、直してほしい商談を担当者ごとにまとめた文面をコピーできます。下の表には「HubSpotにあってボードにない商談」も出ます',
+  ]],
   ['2026.09.19e', [
     '<b>タスクを、担当者本人のChatworkタスクに自動で登録できるようにしました。</b>タスクタブの「💬 Chatworkタスク連携」で有効にします（担当者とChatworkメンバーの対応もここで確認・設定）',
     'アプリで完了・中止・削除するとChatwork側も完了に、Chatworkで完了にするとアプリ側も完了になります（5分以内）。査定スタジオで登録したタスクも同じです',
