@@ -3371,6 +3371,37 @@ function hsOpenEdit(id){
 $('hsReload').onclick=()=>loadHs(true);
 ['hsOwner','hsState'].forEach(i=>$(i).onchange=renderHs);
 $('hsQ').oninput=renderHs;
+/* Chatwork文面の末尾に付ける「直し方」（HTMLタグは使わない。見出しは■、強調は【】） */
+const HS_HOWTO=
+'■ 直し方（HubSpot）\n'+
+'【A】金額がずれている商談\n'+
+'1. HubSpot左メニューの「CRM」→「取引」を開く\n'+
+'2. 上の検索欄に会社名を入れて、該当の取引を開く\n'+
+'3. 左側の項目を最新の内容に直す（入力するとその場で保存されます）\n'+
+'　・金額（税抜の請負金額）\n'+
+'　・MQ（粗利）\n'+
+'　・取引ステージ（今のフェーズ）\n'+
+'　・クローズ日（受注予定日）\n'+
+'4. 1社で複数の物件・区画がある場合は、それぞれの取引を直す（ボードでは会社ごとに合計して照合します）\n'+
+'5. 入力シートの金額が古い場合は、入力シートの方を直してください\n'+
+'\n'+
+'【B】HubSpotに取引がない商談\n'+
+'1. 「CRM」→「取引」→右上の「取引を作成」\n'+
+'2. 次の項目を入れて「作成」\n'+
+'　・取引名：（事業名）物件名　会社名様　例：（高圧リフォート）城里太陽光発電所　広島建設株式会社様\n'+
+'　　※【会社名を必ず入れる】（ボードは会社名で照合します）\n'+
+'　・パイプライン：Salesforce - 通常商談（サンキーパーは「Salesforce - サンキーパー」）\n'+
+'　・取引ステージ：今のフェーズ\n'+
+'　・金額／クローズ日（受注予定日）／取引担当者：ご自身\n'+
+'　・会社：該当の会社を関連付け\n'+
+'3. 役員案件など、HubSpotに登録しない商談の場合は、登録せずにこのスレッドへ返信してください\n'+
+'\n'+
+'【C】照合の組み合わせが違う場合\n'+
+'別の事業や別物件の取引と照合されている場合は、HubSpotは直さずにこのスレッドへ返信してください（ボード側で紐づけを直します）\n'+
+'\n'+
+'■ 確認\n'+
+'直した内容は10分以内に、商談パイプラインボードの「🔗 HubSpot照合」タブに反映されます。自分の名前で絞り込み、「一致」になっていれば完了です。\n'+
+'【期限】{DL}までに更新をお願いします。';
 /* 担当者別に、直してほしい商談をChatwork用の文面でコピー */
 $('hsCopy').onclick=async()=>{
   if(!HS) return;
@@ -3378,7 +3409,8 @@ $('hsCopy').onclick=async()=>{
   const ow=$('hsOwner').value, by={};
   rows.filter(r=>ow==='all'||(r.l.owner||'未設定')===ow).forEach(r=>{ (by[r.l.owner||'未設定']=by[r.l.owner||'未設定']||[]).push(r); });
   const d=new Date(), md=(d.getMonth()+1)+'/'+d.getDate();
-  let t='[info][title]HubSpotと入力シートの照合（'+md+'時点）[/title]HubSpotの取引を正しい金額・フェーズに更新してください。HubSpotに一本化するための確認です。\n';
+  const dl=new Date(d.getTime()+7*86400000), dlmd=(dl.getMonth()+1)+'/'+dl.getDate();
+  let t='[info][title]HubSpotと入力シートの照合（'+md+'時点）【確認のお願い】[/title]HubSpotへの一本化に向けて、入力シート（商談パイプラインボード）とHubSpotの取引を照合しました。\nご自身の担当案件について、下の「直し方」を見ながらHubSpotを更新してください。\n';
   Object.keys(by).sort((a,b)=>a.localeCompare(b,'ja')).forEach((o,i)=>{
     if(i) t+='[hr]';
     t+='■ '+o+'（'+by[o].length+'件）\n';
@@ -3388,7 +3420,7 @@ $('hsCopy').onclick=async()=>{
         : '・'+r.l.name+'：ボード '+r.bPq.toLocaleString()+'万／HubSpot '+r.hPq.toLocaleString()+'万【差 '+((r.hPq-r.bPq)>0?'+':'')+(r.hPq-r.bPq).toLocaleString()+'万】\n';
     });
   });
-  t+='[/info]';
+  t+='[hr]'+HS_HOWTO.replace('{DL}',dlmd)+'[/info]';
   try{ await navigator.clipboard.writeText(t); alert('コピーしました（'+rows.length+'件）。Chatworkに貼り付けてください。'); }
   catch(e){ prompt('コピーできなかったので、下の文面を選択してコピーしてください。',t); }
 };
