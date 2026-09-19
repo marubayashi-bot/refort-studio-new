@@ -565,6 +565,36 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .mon-chart svg{width:100%;height:auto;display:block}
 .mon-lg{display:flex;gap:14px;justify-content:center;margin-top:3px;font-size:8px;color:#5a6a7c}
 .mon-lg i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
+/* 発電シミュ：現状 → リフォート後 → 差分 */
+.gs-cmp{display:grid;grid-template-columns:1fr 18px 1fr 1.15fr;gap:6px;align-items:stretch;margin:3px 0 2px}
+.gs-col{border:1px solid #e3e9f0;border-radius:8px;padding:4px 11px;background:#f6f8fb}
+.gs-col.aft{background:#eaf3fa;border-color:#cfe2f1}
+.gs-col.diff{background:#0d2340;border-color:#0d2340}
+.gs-h{font-size:10px;font-weight:800;color:#5a6a7c;margin-bottom:0}
+.gs-col.aft .gs-h{color:#1f5f8f}.gs-col.diff .gs-h{color:#e3c878}
+.gs-r{padding:2px 0}.gs-r+.gs-r{border-top:1px dashed #d6dee8}
+.gs-col.diff .gs-r+.gs-r{border-top-color:#2b4466}
+.gs-k{font-size:8.4px;font-weight:700;color:#6a7787}
+.gs-col.diff .gs-k{color:#9fb2c8}
+.gs-v{font-size:20px;font-weight:800;color:#0d2340;line-height:1.15;font-variant-numeric:tabular-nums}
+.gs-v small{font-size:10px;font-weight:700;margin-left:2px}
+.gs-col.aft .gs-v{color:#1f5f8f}.gs-col.diff .gs-v{color:#f3d27a;font-size:22px}
+.gs-s{font-size:7.8px;color:#9fb2c8;margin-top:0}
+.gs-arrow{display:flex;align-items:center;justify-content:center;color:#c8a24a;font-size:15px}
+.gs-note{font-size:8px;color:#8a6d1f;margin-top:2px}
+/* リフォート提案：現状維持 vs リフォート後（大きく） */
+.vs-big{display:grid;grid-template-columns:auto 1fr 18px 1fr 1.1fr;gap:0;border:1px solid #d9e2ec;border-radius:9px;overflow:hidden;margin-top:3px}
+.vs-big>div{padding:6px 11px;display:flex;flex-direction:column;justify-content:center;border-bottom:1px solid #e6ecf2}
+.vs-big>div.last{border-bottom:none}
+.vs-big .vh{background:#f1f4f8;font-size:9.5px;font-weight:800;color:#5a6a7c;padding:5px 11px}
+.vs-big .vh.aft{color:#1f5f8f}.vs-big .vh.diff{background:#0d2340;color:#e3c878}
+.vs-big .vl{font-size:10px;font-weight:800;color:#0d2340;background:#fafbfd;white-space:nowrap}
+.vs-big .vv{font-size:20px;font-weight:800;color:#5a6a7c;font-variant-numeric:tabular-nums;line-height:1.15}
+.vs-big .vv.aft{color:#1f5f8f;background:#f3f8fc}
+.vs-big .vv.diff{color:#f3d27a;background:#0d2340;font-size:23px}
+.vs-big .vv.diff.last{border-bottom:none}
+.vs-big .va{color:#c8a24a;font-size:14px;align-items:center;padding:0}
+.vs-big .vv small{font-size:10px;font-weight:700;margin-left:2px}
 .eco-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:3px}
 .eco{border:1px solid #e3e9f0;border-radius:7px;padding:6px 9px;background:#f7fbf8}
 .eco .k{font-size:8px;color:#5a6a7c;font-weight:700}
@@ -602,7 +632,7 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .cv-flow{display:flex;align-items:stretch;gap:2px;padding:0 22px 20px;justify-content:center}
 .cv-step{flex:1;background:#f5f8fb;border:1px solid #e3ebf3;border-radius:9px;padding:8px 4px;text-align:center;position:relative}
 .cv-step .cv-num{width:20px;height:20px;border-radius:50%;background:#3d6bb0;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 5px}
-.cv-step .cv-st-name{font-size:10px;font-weight:800;color:#123a6b;line-height:1.25}
+.cv-step .cv-st-name{font-size:11px;font-weight:800;color:#123a6b;line-height:1.3}
 .cv-step .cv-st-note{font-size:8px;color:#7a8a9c;margin-top:3px;line-height:1.3}
 .cv-arrow{display:flex;align-items:center;color:#b0bccb;font-size:11px}
 /* セカンダリーRF提案：指標5枚・スペック帯・画像1枚もののスライド */
@@ -3319,23 +3349,28 @@ function resizeDataURL(src,maxW,maxH,cb){
   img.onerror=function(){cb(src);};
   img.src=src;
 }
-function monChartSVG(gen,sol){
-  const W=780,H=250,padL=62,padR=54,padT=16,padB=30;
+function monChartSVG(gen,sol,base){
+  /* base（現状の月別発電量）を渡すと「現状／リフォート後」の2本並びの棒グラフになる */
+  const W=780,H=122,padL=62,padR=54,padT=10,padB=20;
   const iw=W-padL-padR, ih=H-padT-padB, bw=iw/12;
-  const maxG=Math.max.apply(null,gen)*1.18||1, maxS=Math.max.apply(null,sol)*1.3||1;
+  const maxG=Math.max.apply(null,gen.concat(base||[]))*1.18||1, maxS=Math.max.apply(null,sol)*1.3||1;
   const yG=v=>padT+ih-(v/maxG)*ih, yS=v=>padT+ih-(v/maxS)*ih;
   let g='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="月別予測発電量">';
   for(let i=0;i<=4;i++){const y=padT+ih*i/4;
     g+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e6ecf3" stroke-width="1"/>';
     g+='<text x="'+(padL-6)+'" y="'+(y+3)+'" text-anchor="end" font-size="9" fill="#8a97a6">'+Math.round(maxG*(1-i/4)).toLocaleString('ja-JP')+'</text>';
     g+='<text x="'+(W-padR+6)+'" y="'+(y+3)+'" font-size="9" fill="#c0392b">'+(maxS*(1-i/4)).toFixed(1)+'</text>';}
-  gen.forEach((v,i)=>{const x=padL+bw*i+bw*0.18,w=bw*0.64,y=yG(v);
-    g+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(0,(padT+ih-y))+'" fill="#9fd7e8" rx="2"/>';});
+  if(base&&base.length===12){
+    gen.forEach((v,i)=>{const w=bw*0.34, xb=padL+bw*i+bw*0.14, xa=xb+w+bw*0.04, yb=yG(base[i]), ya=yG(v);
+      g+='<rect x="'+xb+'" y="'+yb+'" width="'+w+'" height="'+Math.max(0,(padT+ih-yb))+'" fill="#c3ccd7" rx="2"/>';
+      g+='<rect x="'+xa+'" y="'+ya+'" width="'+w+'" height="'+Math.max(0,(padT+ih-ya))+'" fill="#3f93c9" rx="2"/>';});
+  }else{
+    gen.forEach((v,i)=>{const x=padL+bw*i+bw*0.18,w=bw*0.64,y=yG(v);
+      g+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(0,(padT+ih-y))+'" fill="#9fd7e8" rx="2"/>';});
+  }
   g+='<polyline points="'+sol.map((v,i)=>(padL+bw*i+bw/2)+','+yS(v)).join(' ')+'" fill="none" stroke="#c0392b" stroke-width="2"/>';
   sol.forEach((v,i)=>{g+='<circle cx="'+(padL+bw*i+bw/2)+'" cy="'+yS(v)+'" r="2.6" fill="#c0392b"/>';});
-  MON_LBL.forEach((m,i)=>{g+='<text x="'+(padL+bw*i+bw/2)+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="#5a6a7c">'+m+'</text>';});
-  g+='<text x="4" y="12" font-size="9" fill="#5a6a7c">kWh/月</text>';
-  g+='<text x="'+(W-46)+'" y="12" font-size="9" fill="#c0392b">kWh/m2/日</text>';
+  MON_LBL.forEach((m,i)=>{g+='<text x="'+(padL+bw*i+bw/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="#5a6a7c">'+m+'</text>';});
   return g+'</svg>';
 }
 /* ===== 一括提案 表紙（1枚目・インパクト重視） ===== */
@@ -3348,14 +3383,14 @@ function sheetCover(deal){
   const gain20=s.incomeTotal||0;
   const pay=s.payback?s.payback.toFixed(1):'—';
   const photo=I.sitePhoto||'';
-  const flow=[['1','接続検討申込','系統影響検討を申込'],['2','接続検討回答','約3ヶ月（混雑時は延長）'],
-    ['3','工事費負担金契約','数週間〜数ヶ月'],['4','系統連系契約','数週間'],
-    ['5','変更認定申請','約3ヶ月（④の後）'],['6','工事計画届出','着工30日前まで'],['7','工事・切替','案件規模による']];
+  /* ご検討から工事完了までの流れ（お客様目線の7ステップ） */
+  const flow=[['1','現地確認'],['2','お見積り提出'],['3','ご合意'],
+    ['4','変更認定申請・<br>電力申請 着手'],['5','ご契約'],['6','申請受理・<br>着工'],['7','工事完了']];
   return `<div class="sheet cover-sheet">
     <div class="cv-top">
       <div class="cv-brand">
         <div class="cv-logo"><img src="${EC_LOGO}" alt="アースコム"></div>
-        <div class="cv-title"><div class="cv-h1">${esc(plant)} リフォート工事</div><div class="cv-sub">案件概要・投資効果・手続きフロー</div></div>
+        <div class="cv-title"><div class="cv-h1">${esc(plant)} リフォート工事</div><div class="cv-sub">案件概要・投資効果・工事完了までの流れ</div></div>
       </div>
       <div class="cv-photo">${photo?`<img src="${photo}" alt="現地">`:'<span class="cv-nophoto">現地画像を「① 案件基本情報」で取り込めます</span>'}</div>
     </div>
@@ -3370,8 +3405,8 @@ function sheetCover(deal){
       <div class="cv-kpi"><div class="cv-ico">💰</div><div class="cv-k">20年増収益（税込）</div><div class="cv-v">${yenLoose(gain20)}</div></div>
       <div class="cv-kpi"><div class="cv-ico">⏱</div><div class="cv-k">投資回収年数</div><div class="cv-v">${pay}<small>年</small></div></div>
     </div>
-    <div class="cv-flow-title">手続きフロー</div>
-    <div class="cv-flow">${flow.map((f,i)=>`<div class="cv-step"><div class="cv-num">${f[0]}</div><div class="cv-st-name">${f[1]}</div><div class="cv-st-note">${f[2]}</div></div>${i<flow.length-1?'<div class="cv-arrow">&#9654;</div>':''}`).join('')}</div>
+    <div class="cv-flow-title">ご検討から工事完了までの流れ</div>
+    <div class="cv-flow">${flow.map((f,i)=>`<div class="cv-step"><div class="cv-num">${f[0]}</div><div class="cv-st-name">${f[1]}</div>${f[2]?`<div class="cv-st-note">${f[2]}</div>`:''}</div>${i<flow.length-1?'<div class="cv-arrow">&#9654;</div>':''}`).join('')}</div>
   </div>`;
 }
 
@@ -3789,39 +3824,67 @@ function sheetEST(deal){
   return spec+kpis+tb+note+terms;
 }
 function sheetMON(deal){
-  const inp=deal.inputs, gen=monGenArr(inp), sol=monSolarArr(inp);
-  const tot=gen.reduce((a,b)=>a+b,0);
-  const price=n(inp.fitPrice)||0, rev=gen.map(v=>Math.round(v*price*1.1));
-  const revTot=rev.reduce((a,b)=>a+b,0), eco=ecoCalc(tot);
-  const s=simRefortOnly(inp), d=s.d;
-  if(!tot) return shMsg('「④ 発電実績」または「⑤ リフォート想定」の発電量を入力すると、月別の予測発電量が表示されます。');
+  /* 発電シミュ：現状の発電量・売電収入 と リフォート後 を並べ、その差分（増える分）を大きく見せる */
+  const inp=deal.inputs, s=simRefortOnly(inp), d=s.d, sol=monSolarArr(inp);
+  const price=n(inp.fitPrice)||0;
+  /* 年間の合計を月別に配分する（端数は大きい順に1ずつ寄せ、月別の合計が年間とぴったり一致するようにする） */
+  const split=(total,w)=>{const W=w.reduce((a,b)=>a+b,0);total=Math.round(total);
+    if(!(W>0)||!total)return w.map(()=>0);
+    const raw=w.map(v=>total*v/W), out=raw.map(Math.floor);let rest=total-out.reduce((a,b)=>a+b,0);
+    raw.map((v,i)=>[v-Math.floor(v),i]).sort((x,y)=>y[0]-x[0]).forEach(([,i])=>{if(rest>0){out[i]++;rest--;}});
+    return out;};
+  // リフォート後の月別：手入力があればその値、なければ「リフォート後の想定発電量」を標準プロファイルで配分
+  const aft=arr12(inp.monGen)? monGenArr(inp) : split(d.rfGenAfter||n(inp.actualGen),MON_PROFILE);
+  const aftTot=aft.reduce((a,b)=>a+b,0);
+  if(!aftTot) return shMsg('「④ 発電実績」または「⑤ リフォート想定」の発電量を入力すると、月別の予測発電量が表示されます。');
+  // 現状の月別：リフォート後と同じ月別の形で、年間を「現状の想定発電量」に合わせる
+  const hasCur=d.gen>0;
+  const cur=hasCur? split(d.gen,aft) : null;
+  const curTot=hasCur? d.gen : 0;
+  // 売電収入（税込）は年間を先に出してから月別に配分（3ページ目「現状維持 vs リフォート後」と金額を一致させる）
+  const aftRevTot=Math.round(aftTot*price*1.1), curRevTot=hasCur? Math.round(curTot*price*1.1) : 0;
+  const aftRev=split(aftRevTot,aft), curRev=hasCur? split(curRevTot,cur) : null;
+  const dGen=aftTot-curTot, dRev=aftRevTot-curRevTot;
+  const upR=hasCur&&curTot>0? dGen/curTot : 0;
   const spec=shSpec([
     ['所在地',esc(inp.location||'—')],
     ['パネルDC/AC',(n(inp.dcExisting)?nfn(inp.dcExisting):'—')+' / '+(n(inp.acExisting)?nfn(inp.acExisting):'—')+' kW'],
     ['FIT単価',price?price+'円/kWh':'—'],
-    ['年間予測発電量',nfn(tot)+' kWh','nv'],
+    ['発電量UP率',hasCur?pct(upR):'—','up'],
   ]);
-  const kpis=shKpiTiles([
-    {l:'年間予測発電量',v:nfn(tot)+' kWh',cls:'gold'},
-    {l:'年間予測売電収入（税込）',v:yen(revTot),cls:'gold'},
-    {l:'最大月 ／ 最小月',v:MON_LBL[gen.indexOf(Math.max.apply(null,gen))]+' ／ '+MON_LBL[gen.indexOf(Math.min.apply(null,gen))]},
-    {l:'月平均 発電量',v:nfn(tot/12)+' kWh'},
-  ]);
-  const chart='<div class="sh-sec">月別 予測発電電力量と平均日射量</div><div class="mon-chart">'+monChartSVG(gen,sol)+'</div>'
-    +'<div class="mon-lg"><span><i style="background:#9fd7e8"></i>月間予測発電電力量（kWh）</span><span><i style="background:#c0392b"></i>平均日射量（kWh/m2/日）</span></div>';
+  const col=(cls,h,g,r)=>`<div class="gs-col ${cls}"><div class="gs-h">${h}</div>
+      <div class="gs-r"><div class="gs-k">年間 発電量</div><div class="gs-v">${g}</div></div>
+      <div class="gs-r"><div class="gs-k">年間 売電収入（税込）</div><div class="gs-v">${r}</div></div></div>`;
+  const cmp=`<div class="sh-sec">現状 と リフォート後 の比較（年間）</div><div class="gs-cmp">`
+    +col('cur','現状',hasCur?nfn(curTot)+'<small>kWh</small>':'—',hasCur?yen(curRevTot):'—')
+    +`<div class="gs-arrow">&#9654;</div>`
+    +col('aft','リフォート後',nfn(aftTot)+'<small>kWh</small>',yen(aftRevTot))
+    +`<div class="gs-col diff"><div class="gs-h">差分（増える分）</div>
+      <div class="gs-r"><div class="gs-k">発電量</div><div class="gs-v">${hasCur?'+'+nfn(dGen)+'<small>kWh</small>':'—'}</div>${hasCur?`<div class="gs-s">現状比 +${pct(upR)}</div>`:''}</div>
+      <div class="gs-r"><div class="gs-k">売電収入（税込）</div><div class="gs-v">${hasCur?'+'+yen(dRev):'—'}</div>${hasCur?`<div class="gs-s">毎年 この金額が上乗せされる想定</div>`:''}</div></div>`
+    +`</div>`
+    +(hasCur?'':'<div class="gs-note">※「④ 発電実績」に現状の年間発電量を入力すると、現状との比較が表示されます。</div>');
+  const chart='<div class="sh-sec">月別 発電量（現状／リフォート後）と平均日射量</div><div class="mon-chart">'+monChartSVG(aft,sol,cur)+'</div>'
+    +'<div class="mon-lg">'+(hasCur?'<span><i style="background:#c3ccd7"></i>現状（kWh）</span>':'')
+    +'<span><i style="background:'+(hasCur?'#3f93c9':'#9fd7e8')+'"></i>リフォート後（kWh）</span><span><i style="background:#c0392b"></i>平均日射量（kWh/m2/日）</span></div>';
   let th='<th class="lbl">項目</th>';MON_LBL.forEach(m=>{th+='<th>'+m+'</th>';});th+='<th class="tot">年間</th>';
-  const rowOf=(lbl,a,fmt,tt)=>{let c='';a.forEach(v=>{c+='<td>'+fmt(v)+'</td>';});return '<tr><td class="lbl">'+lbl+'</td>'+c+'<td class="tot">'+tt+'</td></tr>';};
-  const tbl='<div class="sh-sec">月別データ</div><table class="st"><thead><tr>'+th+'</tr></thead><tbody>'
-    +rowOf('平均日射量(kWh/m2/日)',sol,v=>v.toFixed(2),(sol.reduce((a,b)=>a+b,0)/12).toFixed(2))
-    +rowOf('予測発電電力量(kWh)',gen,v=>nfn(v),nfn(tot))
-    +rowOf('予測売電収入(税込・円)',rev,v=>nfn(v),nfn(revTot))
-    +'</tbody></table>';
-  const ecoBox='<div class="sh-sec">環境貢献の目安（年間）</div><div class="eco-row">'
+  const rowOf=(lbl,a,fmt,tt,cls)=>{let c='';a.forEach(v=>{c+='<td>'+fmt(v)+'</td>';});return '<tr class="'+(cls||'')+'"><td class="lbl">'+lbl+'</td>'+c+'<td class="tot">'+tt+'</td></tr>';};
+  const plus=v=>(v>0?'+':'')+nfn(v);
+  let rows=rowOf('平均日射量(kWh/m2/日)',sol,v=>v.toFixed(2),(sol.reduce((a,b)=>a+b,0)/12).toFixed(2));
+  if(hasCur) rows+=rowOf('現状 発電量(kWh)',cur,v=>nfn(v),nfn(curTot));
+  rows+=rowOf('リフォート後 発電量(kWh)',aft,v=>nfn(v),nfn(aftTot));
+  if(hasCur) rows+=rowOf('発電量 増加(kWh)',aft.map((v,i)=>v-cur[i]),plus,plus(dGen),'sum');
+  if(hasCur) rows+=rowOf('現状 売電収入(円)',curRev,v=>nfn(v),nfn(curRevTot));
+  rows+=rowOf('リフォート後 売電収入(円)',aftRev,v=>nfn(v),nfn(aftRevTot));
+  if(hasCur) rows+=rowOf('売電収入 増加(円)',aftRev.map((v,i)=>v-curRev[i]),plus,plus(dRev),'sum');
+  const tbl='<div class="sh-sec">月別データ（売電収入は税込）</div><table class="st"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  const eco=ecoCalc(aftTot), ecoUp=ecoCalc(Math.max(dGen,0));
+  const ecoBox='<div class="sh-sec">環境貢献の目安（年間・リフォート後）</div><div class="eco-row">'
     +'<div class="eco"><div class="k">石油削減効果</div><div class="v">'+eco.oilKL.toFixed(1)+'<small> kL/年</small></div><div class="s">ドラム缶(200L)換算 '+Math.round(eco.drum).toLocaleString('ja-JP')+' 本分</div></div>'
     +'<div class="eco"><div class="k">二酸化炭素 削減効果</div><div class="v">'+Math.round(eco.tCO2).toLocaleString('ja-JP')+'<small> t-CO2/年</small></div><div class="s">炭素換算 '+Math.round(eco.tC).toLocaleString('ja-JP')+' t-C/年</div></div>'
-    +'<div class="eco"><div class="k">発電量アップ（リフォート効果）</div><div class="v">'+pct(d.rfGenRate)+'</div><div class="s">'+nfn(d.gen)+' → '+nfn(d.rfGenAfter)+' kWh/年</div></div>'
+    +(hasCur?'<div class="eco"><div class="k">リフォートで増える CO2削減量</div><div class="v">+'+Math.round(ecoUp.tCO2).toLocaleString('ja-JP')+'<small> t-CO2/年</small></div><div class="s">発電量の増加分（+'+nfn(dGen)+' kWh）による効果</div></div>':'')
     +'</div>';
-  return spec+kpis+chart+tbl+ecoBox;
+  return spec+cmp+chart+tbl+ecoBox;
 }
 
 function shYearTable(secTitle,N,defs,fit){
@@ -3888,11 +3951,18 @@ function sheetM3(deal){
     {lbl:'累積効果（投資対効果）',arr:s.rows.累積効果,cls:'cum'},
   ],{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null,postPrice:(I.sotsuApply==='適応'?n(I.sotsuFit):0)});
   const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
+  /* 現状維持 vs リフォート後：お客様が一目で差を掴めるよう数字を大きく表示 */
+  const sgn=v=>(v>=0?'+':'−')+nfn(Math.abs(v));
+  const vsRow=(lbl,c,a2,last)=>{const L=last?' last':'';
+    const u=v=>`<span>${v}<small> 円</small></span>`;
+    return `<div class="vl${L}">${lbl}</div><div class="vv${L}">${u(nfn(c))}</div><div class="vv va${L}">&#9654;</div>`
+      +`<div class="vv aft${L}">${u(nfn(a2))}</div><div class="vv diff${L}">${u(sgn(a2-c))}</div>`;};
   const t3=`<div class="sh-sec">現状維持 vs リフォート後（初年度・税込）</div>
-    <table class="st" style="table-layout:auto"><thead><tr><th class="lbl" style="width:auto">項目</th><th>現状維持のまま</th><th>リフォート実施後</th><th class="tot">差額（年間）</th></tr></thead><tbody>
-    <tr><td class="lbl" style="width:auto">年間 売電収入</td><td>${nfn(s.cur.rev)}</td><td>${nfn(s.aft.rev)}</td><td class="tot">+${nfn(s.aft.rev-s.cur.rev)}</td></tr>
-    <tr class="op"><td class="lbl" style="width:auto">年間 キャッシュフロー</td><td>${nfn(s.cur.cf)}</td><td>${nfn(s.aft.cf)}</td><td class="tot">+${nfn(s.aft.cf-s.cur.cf)}</td></tr>
-    </tbody></table>`;
+    <div class="vs-big">
+      <div class="vh">項目</div><div class="vh">現状維持のまま</div><div class="vh"></div><div class="vh aft">リフォート実施後</div><div class="vh diff">差額（年間）</div>
+      ${vsRow('年間 売電収入',s.cur.rev,s.aft.rev,false)}
+      ${vsRow('年間 キャッシュフロー',s.cur.cf,s.aft.cf,true)}
+    </div>`;
   return spec+kpis+msg+t1+t2+t3;
 }
 function sheetM1(deal){
@@ -4966,9 +5036,15 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19d';
+const APP_VERSION = '2026.09.19e';
 
 const CHANGELOG = [
+  ['2026.09.19e', [
+    '<b>リフォート提案（一括）の資料を見直しました。</b>',
+    '表紙：「手続きフロー」を「ご検討から工事完了までの流れ」に変更。①現地確認 → ②お見積り提出 → ③ご合意 → ④変更認定申請・電力申請 着手 → ⑤ご契約 → ⑥申請受理・着工 → ⑦工事完了 の7ステップにしました',
+    '発電シミュ：現状の発電量・売電収入と、リフォート後の発電量・売電収入を並べ、その差分（増える分）を大きく表示するようにしました。月別グラフも「現状／リフォート後」の2本並びになり、月別表に増加分の行を追加しています',
+    'リフォート提案：一番下の「現状維持 vs リフォート後」を大きな数字で表示するようにしました',
+  ]],
   ['2026.09.19d', [
     '<b>案件の進み具合を「フェーズ」で管理するようにしました。</b>事業モデルごとに進め方が違うため、現場は各モデルのフェーズで動かし、ダッシュボードは全社共通の PH01〜PH08 に自動換算して表示します（商談パイプラインボードと同じ定義）',
     '<b>高圧リフォート</b>：PH01 商談の見極め／PH02 課題の把握／PH03 要件整理（無料診断）／PH04 解決策の提案／PH05 稟議検討中／PH06 意思決定者の合意／PH07 事務手続き／PH08 受注',
