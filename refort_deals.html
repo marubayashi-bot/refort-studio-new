@@ -4325,17 +4325,28 @@ function sheetM3(deal){
     ['発電量UP率',pct(d.rfGenRate),'up'],
     ['リフォート費用',nfn(s.rfIn)+' 円(税込)','nv'],
   ]);
+  /* 投資家向けKPI：1段目＝いくら出して・何年で戻り・利回りは何％か／2段目＝いくら残るか
+     IRR・純利益は税引前（売電収益の増加分 − リフォート費用。0年目にリフォート費用を支出する前提） */
+  const fitY=Math.min(Math.max(d.residual,0),20), postY=Math.max(20-fitY,0);
+  const inc=s.rows.売電収益増加;
+  const irrOf=cf=>{ const f=r=>cf.reduce((a,c,t)=>a+c/Math.pow(1+r,t),0);
+    let lo=-0.99,hi=10,flo=f(lo); if(flo*f(hi)>0) return null;
+    for(let i=0;i<200;i++){ const m=(lo+hi)/2,fm=f(m); if(Math.abs(fm)<1) return m; if(flo*fm<0) hi=m; else {lo=m;flo=fm;} } return (lo+hi)/2; };
+  const irrFit= (s.rfIn>0&&fitY>0)? irrOf([-s.rfIn].concat(inc.slice(0,fitY))) : null;
+  const irr20 = (s.rfIn>0&&I.sotsuApply==='適応')? irrOf([-s.rfIn].concat(inc.slice(0,20))) : irrFit;
+  const netFit=inc.slice(0,fitY).reduce((a,b)=>a+b,0)-s.rfIn;
+  const net20 = (I.sotsuApply==='適応')? s.netGain20 : netFit;
   const kpis=shKpiTiles([
-    {l:'発電量アップ率',v:pct(d.rfGenRate),cls:'nv'},
-    {l:'リフォート費用(税込)',v:yen(s.rfIn)},
-    {l:'20年 売電収益増加',v:yen(s.incomeTotal),s:`FIT期間${d.residual}年＋卒FIT後${Math.max(20-d.residual,0)}年`,cls:'gold'},
-    {l:'20年 純増効果',v:yen(s.netGain20),s:'投資差引後',cls:'gold'},
+    {l:'リフォート費用（税込）',v:yen(s.rfIn),s:'初期投資額'},
     {l:'投資回収',v:s.payback!=null?s.payback.toFixed(1)+'年':'—',
       s:(s.payback!=null&&d.residual)?(s.payback<=d.residual?`残FIT${d.residual}年以内に回収`:`残FIT${d.residual}年を超過`):'',
       cls:(s.payback!=null&&d.residual&&s.payback<=d.residual)?'gold':''},
-    {l:'強化税制ROI',v:pct(s.roi),s:s.roiOK?'適用可能':'要確認'},
-    {l:'即時償却 見込',v:yen(s.immediateDep),s:'RF費用×30%目安'},
-    {l:'税額控除 見込',v:yen(s.taxCredit),s:'RF費用×7%目安'},
+    {l:`IRR（FIT期間内・${fitY}年）`,v:irrFit!=null?pct(irrFit):'—',s:'税引前・FIT単価での利回り',cls:'nv'},
+    {l:'IRR（卒FIT含む・20年）',v:irr20!=null?pct(irr20):'—',s:I.sotsuApply==='適応'?`税引前・卒FIT後${n(I.sotsuFit)}円/kWhで試算`:'卒FIT後の売電なしで試算'},
+    {l:'発電量アップ率',v:pct(d.rfGenRate),s:kwh(d.gen)+' → '+kwh(d.rfGenAfter)+' kWh'},
+    {l:'20年 売電収益増加',v:yen(s.incomeTotal),s:`FIT期間${fitY}年＋卒FIT後${postY}年`},
+    {l:`純利益（FIT期間内・${fitY}年）`,v:yen(netFit),s:'税引前・売電収益増加 − リフォート費用',cls:netFit>=0?'gold':''},
+    {l:'純利益（卒FIT含む・20年）',v:yen(net20),s:'税引前・売電収益増加 − リフォート費用',cls:net20>=0?'gold':''},
   ]);
   const t1=shYearTable('発電量比較（kWh）',N,[
     {lbl:'リフォート前 発電量',arr:s.rows.RF前発電},
@@ -4348,7 +4359,7 @@ function sheetM3(deal){
     {lbl:'特別損失（除却損）',arr:s.rows.除却損},
     {lbl:'累積効果（投資対効果）',arr:s.rows.累積効果,cls:'cum'},
   ],{residual:d.residual,endYear:d.gridYear?d.gridYear+20:null,postPrice:(I.sotsuApply==='適応'?n(I.sotsuFit):0)});
-  const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、投資促進税制（即時償却・税額控除）の活用とあわせて、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
+  const msg=shMsg(`<b>ご提案の要点：</b>現在の発電所にリフォートを実施することで、年間発電量が約 <b>${pct(d.rfGenRate)}</b> 向上する想定です。増えた発電量はFIT単価でそのまま売電収入の増加となり、残りのFIT期間（残${d.residual}年${d.gridYear?`・${d.gridYear+20}年まで`:''}）での投資回収を目指せます。<br><span style="color:#5a6a7c">※下表は<b style="color:#1c6b34">緑の帯＝FIT期間（${d.residual}年）</b>、<b style="color:#5a6a7c">グレーの帯＝卒FIT後（${Math.max(20-d.residual,0)}年）</b>を表します。卒FIT後は${I.sotsuApply===`適応`?`買取単価 <b>${n(I.sotsuFit)}円/kWh</b> での試算`:`売電なしの前提`}のため、FIT期間より収益増加額は小さくなります。</span>`);
   /* 現状維持 vs リフォート後：お客様が一目で差を掴めるよう数字を大きく表示 */
   const sgn=v=>(v>=0?'+':'−')+nfn(Math.abs(v));
   const vsRow=(lbl,c,a2,last,unit)=>{const L=last?' last':'', un=unit||'円';
@@ -5434,9 +5445,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.19k';
+const APP_VERSION = '2026.09.20';
 
 const CHANGELOG = [
+  ['2026.09.20', [
+    '<b>リフォート提案（一括・単体）の上部の数字を、投資家が判断しやすい並びに変更しました。</b>1段目：リフォート費用 → 投資回収 → IRR（FIT期間内）→ IRR（卒FIT含む・20年）／2段目：発電量アップ率 → 20年 売電収益増加 → 純利益（FIT期間内）→ 純利益（卒FIT含む・20年）',
+    'IRRを新たに表示します。リフォート費用を0年目に支出し、毎年の売電収益の増加分を受け取る前提の税引前の年利回りです',
+    '「強化税制ROI」「即時償却 見込」「税額控除 見込」は外しました。FIT全量売電の発電所は中小企業経営強化税制の対象外となるケースが多く、お客様向け資料で適用を前提にした金額を示すと誤解を招くためです。「ご提案の要点」の税制の記述も外しています',
+  ]],
   ['2026.09.19k', [
     '<b>案件一覧の表の上にも横スクロールバーを付けました。</b>表の下まで行かなくても、上のバーをドラッグするか、見出し行の上でマウスホイールを回すと左右に動かせます',
     '<b>タスクが担当者本人のChatworkタスクに自動で入るようになりました</b>（商談ボードの「💬 Chatworkタスク連携」で有効にした場合）。完了・中止・削除もChatworkと連動し、Chatworkで完了にしたタスクもアプリ側が完了になります。内容・担当・期限を変更したときはChatworkのタスクを登録し直します',
