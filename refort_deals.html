@@ -858,6 +858,36 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .rk-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:7px;flex:1 1 auto;min-height:0}
 .rk-chart{border:1px solid #e3e9f0;border-radius:10px;padding:6px 9px;background:#fff;display:flex;min-height:0}
 .rk-chart svg{width:100%;height:100%;display:block}
+/* 社内用：説明ポイント */
+.all-aud{display:inline-flex;border:1px solid #3b5170;border-radius:8px;overflow:hidden;margin-right:6px}
+.all-aud label{font-size:12px;color:#cfd9e6;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.all-aud input{accent-color:#c8a24a}
+.sheet.gd{display:flex;flex-direction:column;padding:0 18mm 10mm}
+.gd-band{background:#AE3D28;color:#fff;font-weight:800;font-size:11px;letter-spacing:.08em;text-align:center;padding:5px 0;margin:0 -18mm 10px}
+.gd-head{display:flex;align-items:baseline;gap:14px;border-bottom:2px solid #0d2340;padding-bottom:6px;margin-bottom:8px}
+.gd-head h2{font-size:20px;margin:0;color:#0d2340}
+.gd-p{font-size:11px;font-weight:800;color:#AE3D28;background:#fdecec;border-radius:4px;padding:2px 8px;white-space:nowrap}
+.gd-cust{margin-left:auto;font-size:11px;color:#5a6a7c}
+.gd-goal{background:#fbf6ea;border-left:4px solid #c8a24a;padding:7px 12px;font-size:12px;color:#3b4654;margin-bottom:10px;line-height:1.55}
+.gd-goal b{color:#8a6d1f;margin-right:4px}
+.gd-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;flex:1 1 auto;min-height:0}
+.gd-col h3{font-size:12px;color:#0d2340;margin:0 0 6px;padding-left:7px;border-left:3px solid #0d2340}
+.gd-col h3:not(:first-child){margin-top:12px}
+.gd-talk{margin:0;padding-left:20px;font-size:12.2px;line-height:1.6;color:#27313d}
+.gd-talk li{margin-bottom:6px}
+.gd-talk b{color:#0d2340}
+.gd-nums{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.gd-nums div{background:#f3f6fa;border-radius:6px;padding:5px 9px;display:flex;flex-direction:column}
+.gd-nums span{font-size:9.5px;color:#6a7787;font-weight:700}
+.gd-nums b{font-size:15px;color:#0d2340}
+.gd-faq{margin:0;font-size:11px;line-height:1.5}
+.gd-faq dt{font-weight:800;color:#0d2340;margin-top:5px}
+.gd-faq dd{margin:1px 0 0 14px;color:#3b4654}
+.gd-warn{margin:0;padding-left:18px;font-size:11px;line-height:1.5;color:#8a2f1f}
+.gd-next{margin-top:12px;background:#eef4fb;border:1px solid #d3e2f2;border-radius:8px;padding:9px 12px;font-size:12px;line-height:1.6;color:#27313d}
+.gd-next b{display:block;font-size:10.5px;color:#1f5f8f;margin-bottom:2px}
+.gd-foot{font-size:9px;color:#8893a2;border-top:1px solid #e3e9f0;padding-top:5px;margin-top:8px}
+@media print{.gd-band{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .rk-lower{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:7px;flex:1 1 auto;min-height:0}
 .rk-basis{border:1px solid #e3e9f0;border-radius:8px;background:#f8fafc;padding:8px 12px;display:flex;gap:10px;align-items:flex-start;min-height:0;overflow:hidden}
 .rk-basis-h{font-size:9px;font-weight:800;color:#5a6a7c;white-space:nowrap;padding-top:1px;line-height:1.3;text-align:center}
@@ -1359,6 +1389,7 @@ table.grid .lnk:hover{color:#0d4f9e}
 <div id="allOverlay" aria-hidden="true">
   <div class="sheet-bar">
     <span class="t" id="allTitle">📦 リフォート提案（一括）</span>
+    <span class="all-aud" id="allAud"><label><input type="radio" name="allAud" value="cust" checked>お客様用</label><label><input type="radio" name="allAud" value="staff">社内用（説明ポイント付き）</label></span>
     <span class="all-picks" id="allPicks"></span>
     <button class="btn btn-line btn-sm" id="allNone" title="チェックを全て外す">☐ 全解除</button>
     <button class="btn btn-line btn-sm" id="allAll" title="全てチェック">☑ 全選択</button>
@@ -5408,6 +5439,7 @@ const ALL_SHEETS=[['cover','表紙'],['mon','発電シミュ'],['m3','リフォ�
 const SK_SHEETS=[['skcover','① 表紙'],['flyer','② 物件チラシ'],['points','③ 投資ポイント'],['scheme','④ スキーム図'],
   ['support','⑤ アースコムサポート'],['sched','⑥ スケジュール'],['mon','⑦ 発電シミュ（月別）'],['m2','⑧ 年別収支（セカンダリーRF）']];
 let ALL_MODE='rf';
+let ALL_AUD='cust';   // 'cust'＝お客様用／'staff'＝社内用（説明ポイント付き）
 let ALL_OPT={cover:true,mon:true,m3:true,est:true,risk:true,case:true};
 let SK_OPT={skcover:true,flyer:true,points:true,scheme:true,support:true,sched:true,mon:true,m2:true};
 let ALL_OPT_DEAL=null;
@@ -5416,6 +5448,7 @@ const allOpt=()=>ALL_MODE==='sk'?SK_OPT:ALL_OPT;
 function openAllSheets(deal,mode){
   if(!deal)return;
   allCurDeal=deal; ALL_MODE=(mode==='sk')?'sk':'rf';
+  ALL_AUD='cust';   // 開くたびに「お客様用」に戻す（社内用をお客様に送ってしまう事故を防ぐ）
   const hasQuote=!!quoteRows(deal.inputs).length;
   // 案件が変わったら判定し直す（同じ案件内での手動チェックは維持）
   if(ALL_OPT_DEAL!==deal.id){
@@ -5424,6 +5457,9 @@ function openAllSheets(deal,mode){
     ALL_OPT_DEAL=deal.id;
   }
   const bar=$('#allTitle'); if(bar)bar.textContent=ALL_MODE==='sk'?'📦 セカンダリーRF提案（一括）':'📦 リフォート提案（一括）';
+  const aud=$('#allAud');
+  if(aud){ aud.style.display= ALL_MODE==='sk'?'none':'';
+    $$('input[name="allAud"]').forEach(r=>{ r.checked=(r.value===ALL_AUD); r.onchange=e=>{ ALL_AUD=e.target.value; renderAllSheets(); }; }); }
   const O=allOpt();
   $('#allPicks').innerHTML=allSheetDefs().map(([k,t])=>{
     const warn=(k==='est'&&!hasQuote);
@@ -5457,18 +5493,169 @@ function renderAllSheets(){
     if(O.mon)     html+=buildSheet(deal,'mon',showOwner);
     if(O.m2)      html+=buildSheet(deal,'m2',showOwner);
   }else{
-    if(O.cover) html+=sheetCover(deal);
-    if(O.mon)   html+=buildSheet(deal,'mon',showOwner);
-    if(O.m3)    html+=buildSheet(deal,'m3',showOwner);
-    if(O.est)   html+=buildSheet(deal,'est',showOwner);
-    if(O.risk)  html+=sheetRisk(deal);
-    if(O.case)  html+=sheetRefCase();
+    const G=(ALL_AUD==='staff')? gdData(deal) : null;     // 社内用：各ページの後ろに説明ポイントを挟む
+    const add=(k,page)=>{ html+=page; if(G) html+=gdSheet(k,G); };
+    if(G) html+=gdSheet('flow',G);
+    if(O.cover) add('cover',sheetCover(deal));
+    if(O.mon)   add('mon',buildSheet(deal,'mon',showOwner));
+    if(O.m3)    add('m3',buildSheet(deal,'m3',showOwner));
+    if(O.est)   add('est',buildSheet(deal,'est',showOwner));
+    if(O.risk)  add('risk',sheetRisk(deal));
+    if(O.case)  add('case',sheetRefCase());
   }
   $('#allRoot').innerHTML=html||'<div class="sheet"><div style="padding:60px;text-align:center;color:#8a939c">出力するシートを1つ以上選んでください。</div></div>';
   const cnt=allSheetDefs().filter(([k])=>O[k]).length;
   const noQuote=ALL_MODE!=='sk'&&O.est&&!quoteRows(deal.inputs).length;
-  const msg = noQuote ? '見積明細が未作成です（Excel取込 または ⑩ で作成してください）' : cnt+'枚を出力します';
-  $('#allHint').innerHTML = esc(msg)+'<span class="fname">保存名：'+esc(allFileName(deal))+'.pdf</span>';
+  const staff=(ALL_AUD==='staff'&&ALL_MODE!=='sk');
+  const msg = noQuote ? '見積明細が未作成です（Excel取込 または ⑩ で作成してください）' : (staff? cnt+'枚＋説明ポイント'+(cnt+1)+'枚（社内用・お客様には渡さない）を出力します' : cnt+'枚を出力します');
+  $('#allHint').innerHTML = esc(msg)+'<span class="fname">保存名：'+esc(allFileNameAud(deal))+'.pdf</span>';
+}
+/* ==================== 社内用：説明ポイント（リフォート提案一括） ====================
+   お客様用の各ページの直後に挟む、営業向けの説明ガイド。数字は案件から自動で入る。
+   ※お客様には渡さない（各ページ上部に赤帯を表示、保存名にも「社内用」を付ける） */
+function allFileNameAud(deal){ return allFileName(deal)+((ALL_AUD==='staff'&&ALL_MODE!=='sk')?'_社内用（説明ポイント付き）':''); }
+function gdData(deal){
+  const I=deal.inputs, s=simRefortOnly(I), d=s.d;
+  const fitY=Math.min(Math.max(d.residual,0),20), inc=s.rows.売電収益増加||[];
+  const irrOf=cf=>{ const f=r=>cf.reduce((a,c,t)=>a+c/Math.pow(1+r,t),0); let lo=-0.99,hi=1,flo=f(lo);
+    for(let i=0;i<200;i++){ const m=(lo+hi)/2,fm=f(m); if(Math.abs(fm)<1) return m; if(flo*fm<0) hi=m; else {lo=m;flo=fm;} } return (lo+hi)/2; };
+  const sotsu=I.sotsuApply==='適応';
+  const irrFit=(s.rfIn>0&&fitY>0)? irrOf([-s.rfIn].concat(inc.slice(0,fitY))) : null;
+  const irr20=(s.rfIn>0&&sotsu)? irrOf([-s.rfIn].concat(inc.slice(0,20))) : irrFit;
+  const netFit=inc.slice(0,fitY).reduce((a,b)=>a+b,0)-s.rfIn;
+  let cum=-s.rfIn, plusY=null; for(let i=0;i<Math.min(20,inc.length);i++){ cum+=inc[i]; if(plusY==null&&cum>=0) plusY=i+1; }
+  let rk=null; try{ const p=riskParamsFor(deal), m=riskModel(p);
+    rk={m, lose:Math.round(m.s3.upRevTotal/10000)-Math.round(m.s3.invest/10000)+Math.round((m._fault||0)/10000)}; }catch(e){}
+  const q=quoteRows(I).slice().sort((a,b)=>(+b.a||0)-(+a.a||0));
+  const dcMW=(n(I.dcExisting)||0)/1000;
+  const CASES=[['A',1.2,153],['B',1.4,146],['C',2.0,152],['D',0.956,246],['E',1.4,142],['F',1.8,135]];
+  const near=dcMW? CASES.slice().sort((a,b)=>Math.abs(a[1]-dcMW)-Math.abs(b[1]-dcMW)).slice(0,2) : [];
+  return {deal,I,s,d,fitY,sotsu,irrFit,irr20,netFit,plusY,net20:sotsu?s.netGain20:netFit,rk,q,dcMW,near,
+    cust:(I.customer||'お客様'), plant:(I.plantName||deal.name||'発電所'),
+    revNow:(d.gen||0)*(d.fit||0)*1.1, revAft:(d.rfGenAfter||0)*(d.fit||0)*1.1, up1:inc[0]||0};
+}
+const gdMan=v=>Math.round((v||0)/10000).toLocaleString('ja-JP')+'万円';
+const gdKwh=v=>Math.round(v||0).toLocaleString('ja-JP')+' kWh';
+function gdSheet(k,G){
+  const {I,s,d}=G, rate=((d.rfGenRate||0)*100).toFixed(1)+'%', pay=s.payback!=null? s.payback.toFixed(1)+'年':'—';
+  const irrF=G.irrFit!=null? pct(G.irrFit):'—', irr2=G.irr20!=null? pct(G.irr20):'—';
+  let T='',P='',goal='',talk=[],nums=[],faq=[],warn=[],next='';
+  if(k==='flow'){
+    next='資料の順番どおりに進めれば、自然に「次の一歩」まで話がつながります。まず表紙から';
+    T='商談の進め方（この資料の使い方）'; P='最初に読む';
+    goal='本日のゴールは「次の一歩（現地確認・お見積の確定・ご合意）の日程を、その場で決めること」。資料は結論→根拠→比較→実績の順に並んでいます';
+    talk=[
+      '<b>表紙（1分）</b>：結論を先に。「発電量を約'+rate+'回復させ、'+pay+'で回収、20年で'+gdMan(s.incomeTotal)+'の増収」',
+      '<b>発電シミュ（3分）</b>：現状とリフォート後で、年間いくら増えるかを見せる',
+      '<b>リフォート提案（5分）</b>：投資判断の数字（回収年数・IRR・純利益）。ここが本題',
+      '<b>お見積（3分）</b>：何にいくらかかるか。見積条件（有効期限・工期・備考）も必ず読む',
+      '<b>放置リスク比較（3分）</b>：「何もしない」にもコストがあることを、数字で静かに示す',
+      '<b>導入事例（2分）</b>：規模の近い事例で安心していただく',
+      '<b>締め</b>：表紙の「ご検討から工事完了までの流れ」を指し、次の一歩の日程を決める',
+    ];
+    nums=[['工事代（税込）',gdMan(s.rfIn)],['発電量UP率',rate],['投資回収',pay],['20年の増収（税込）',gdMan(s.incomeTotal)]];
+    faq=[['決裁者は誰か','その場で確認する。決裁者が不在なら「決裁者の方へのご説明の場」を次の一歩にする'],
+         ['いつまでに決めればよいか','FIT残'+G.fitY+'年。着工が遅れるほどFIT期間中の増収が減ることを、数字で伝える（例：1年遅れると約'+gdMan(G.up1)+'の増収機会）'],
+         ['他社と比べたい','比較は歓迎と伝え、比べるポイント（発電量の根拠・保証・施工実績・アフター）を渡す']];
+    warn=['事前チェック：現地調査の有無／現状発電量の出典（実績何年分か）／見積の有効期限／FIT残年数と卒FIT単価の前提',
+          '「必ず」「保証します」は使わない。資料はすべて想定シミュレーション',
+          '税金（即時償却・税額控除など）は断定しない。「顧問税理士の先生にご確認ください」'];
+  }else if(k==='cover'){
+    next='「では、なぜそこまで発電量が上がるのか、現状とリフォート後の発電量から見ていきます」→ 発電シミュへ';
+    T='表紙'; P='① 表紙';
+    goal='最初の1分で、提案の全体像と結論（いくらかけて、何年で戻り、20年でいくら増えるか）を伝える';
+    talk=['「本日は'+G.plant+'の発電量を回復させるご提案です」',
+          '「工事代は税込'+gdMan(s.rfIn)+'。増えた売電収入で約'+pay+'で回収できる計画です」',
+          '「20年間で約'+gdMan(s.incomeTotal)+'の増収を見込んでいます。根拠を順にご説明します」',
+          '下段の「ご検討から工事完了までの流れ」で、今日がどの段階かを共有する'];
+    nums=[['工事代（税込）',gdMan(s.rfIn)],['予測発電量UP率',rate],['20年増収益（税込）',gdMan(s.incomeTotal)],['投資回収年数',pay]];
+    faq=[['なぜそんなに発電量が上がるのか','パネル・PCSを新しくし、経年劣化で落ちた分を回復させるため。詳しくは次の発電シミュで説明'],
+         ['工事期間はどれくらいか','着工後おおむね2〜4か月が目安（見積条件）。停電工事を伴う']];
+    warn=['UP率・回収年数は想定値。「見込み」「想定」と言い添える'];
+  }else if(k==='mon'){
+    next='「この増えた売電収入で、工事代が何年で戻るのかを見ていきます」→ リフォート提案へ';
+    T='発電シミュレーション（月別）'; P='② 発電シミュ';
+    goal='現状とリフォート後で、発電量と売電収入が年間どれだけ増えるかを具体的に見せる';
+    talk=['「今の発電量は年'+gdKwh(d.gen)+'、売電収入は年約'+gdMan(G.revNow)+'です」',
+          '「リフォート後は年'+gdKwh(d.rfGenAfter)+'、売電収入は年約'+gdMan(G.revAft)+'の想定です」',
+          '「差し引き、毎年約'+gdMan(G.revAft-G.revNow)+'（税込）が上乗せされる計算です」（右上の濃紺の枠）',
+          'グラフで、日射の多い春〜夏ほど増え幅が大きいことを見せる'];
+    nums=[['現状の年間発電量',gdKwh(d.gen)],['リフォート後',gdKwh(d.rfGenAfter)],['増える発電量',gdKwh((d.rfGenAfter||0)-(d.gen||0))],['増える売電収入（年・税込）',gdMan(G.revAft-G.revNow)]];
+    faq=[['発電量の根拠は','現状は実績（または想定発電量）、リフォート後は設備構成からの想定。現地調査で精査して確定させる'],
+         ['月別の数字は実績か','年間の想定値を、標準的な日射の形で月ごとに割り振ったもの。実際は天候で前後する'],
+         ['出力制御の影響は','地域・時期で変わる前提のため、資料の注意書きのとおり変動しうると伝える']];
+    warn=['売電収入は「FIT単価×発電量×税込」の単純計算。手取り（経費・税引後）ではない'];
+  }else if(k==='m3'){
+    next='「では、この工事代の中身をご説明します」→ お見積へ';
+    T='リフォート投資シミュレーション（年別効果）'; P='③ リフォート提案';
+    goal='投資判断に必要な数字（回収年数・IRR・純利益）を、FIT期間と卒FIT後に分けて示す。ここが本題';
+    talk=['「リフォート費用は税込'+gdMan(s.rfIn)+'です」',
+          '「増えた売電収入で、約'+pay+'で回収できる見込みです（残FIT'+G.fitY+'年以内）」',
+          '「FIT期間'+G.fitY+'年での利回り（IRR）は'+irrF+'、卒FIT後も含めた20年では'+irr2+'です」',
+          '「FIT期間内の純利益は約'+gdMan(G.netFit)+'、20年では約'+gdMan(G.net20)+'です」',
+          '年別表：緑の帯＝FIT期間、グレー＝卒FIT後（'+(n(I.sotsuFit)||'—')+'円/kWh）。'+(G.plusY?'「累積効果」の行が<b>'+G.plusY+'年目</b>にプラスに変わるところを指で示す':'累積効果がプラスに変わる年を指で示す'),
+          '一番下の「現状維持 vs リフォート後」で、初年度の発電量と売電収入の差をもう一度見せる'];
+    nums=[['投資回収',pay],['IRR（FIT期間内）',irrF],['IRR（20年）',irr2],['純利益（FIT期間内）',gdMan(G.netFit)],['純利益（20年）',gdMan(G.net20)]];
+    faq=[['IRRとは','投資額に対して、毎年の増収が何%の利回りに当たるかの目安。税引前'],
+         ['卒FIT後の'+(n(I.sotsuFit)||'—')+'円は確実か','想定単価。卒FIT後の売電先・市場で変わるため、FIT期間内で回収できる点を軸に話す'],
+         ['税金はどうなるか','数字は税引前。減価償却の扱いや税制優遇は会社ごとに違うため、顧問税理士の確認をお願いする']];
+    warn=['IRR・純利益はすべて税引前。「手取り」と言わない','即時償却・税額控除は選択制・要件ありのため、使える前提で話さない'];
+  }else if(k==='est'){
+    next='「最後に、もし何もしなかった場合と比べるとどうなるかも、判断材料としてご覧ください」→ 放置リスク比較へ';
+    T='お見積書'; P='④ お見積';
+    const top=G.q.slice(0,3).map(r=>(r.n||'項目')+' '+gdMan(+r.a||0));
+    goal='何にいくらかかるかを示し、金額の納得感と見積条件（有効期限・工期・備考）を確実に伝える';
+    talk=['「お見積は税込'+gdMan(s.rfIn)+'です」',
+          top.length?'「大きな項目は、'+top.join('、')+'です」':'主な工事項目を上から順に説明する',
+          '「有効期限は発行日から30日、工期は着工後おおむね2〜4か月を想定しています」',
+          '備考欄（配線の仕様、部材価格の改定の可能性、停電工事など）を必ず読み上げる'];
+    nums=[['お見積金額（税込）',gdMan(s.rfIn)],['発電量アップ（想定）',rate]].concat(top.slice(0,2).map((t,i)=>['主な項目'+(i+1),t]));
+    faq=[['値引きはできるか','その場で約束しない。「社内で確認して回答します」と持ち帰り、上長に相談'],
+         ['支払い条件は','契約書で定める。標準の条件を社内で確認してから回答する'],
+         ['見積の金額は変わるか','現地確認で仕様が確定すると変わりうる。部材価格の改定の可能性も備考のとおり伝える']];
+    warn=['金額・割引・工期の約束は、社内確認の前にしない','見積の有効期限（30日）を伝え、次回の日程につなげる'];
+  }else if(k==='risk'){
+    next='「実際に同じような発電所でどれだけ改善したか、事例をご覧ください」→ 導入事例へ';
+    const m=G.rk&&G.rk.m;
+    T='放置リスク比較'; P='⑤ 放置リスク比較';
+    goal='「何もしない」ことにもコストがあると、数字で静かに示す。不安をあおらず、判断材料として出す';
+    talk=[m?'「現状維持を選ぶと、総合改善に比べて20年で約'+G.rk.lose.toLocaleString('ja-JP')+'万円の差になります」':'一番上の「取りこぼす金額」を示す',
+          m?'「内訳は、20年の増収'+gdMan(m.s3.upRevTotal)+'から工事代'+gdMan(m.s3.invest)+'を引き、現状のままPCSが故障した場合の損失'+gdMan(m._fault)+'を足したものです」':'下段の「計算の前提と内訳」で式を示す',
+          m?'「PCS交換だけでも発電は+'+(+m._uppcs).toFixed(1)+'%回復しますが、パネルの劣化が残るため投資の回収が難しい」':'PCS交換のみとの比較を示す',
+          '最後に「判断材料の1つとしてご覧ください」と添える'];
+    nums=m?[['取りこぼす金額（20年）',G.rk.lose.toLocaleString('ja-JP')+'万円'],['20年の増収',gdMan(m.s3.upRevTotal)],['故障損失（想定）',gdMan(m._fault)],['劣化率 現状／RF後',m._deg.toFixed(1)+'%／'+m._degrf.toFixed(1)+'%']]:[];
+    faq=[['故障損失は大げさでは','「'+(m?m._failY:'—')+'年目にPCSが故障、停止'+(m?m._failm:'—')+'か月、交換費は目安」という想定であることを正直に伝える。過去の故障事例や実際の交換見積があれば、それで置き換えて説明'],
+         ['PCS交換だけでよいのでは','PCS交換のみの欄（発電量UPと回収年数）を指して、パネル劣化が残る点を説明']];
+    warn=['「必ず壊れる」「今やらないと損」とは言わない','故障損失を含めない場合の差（増収−工事代）も答えられるようにしておく'+(m?'（'+(Math.round(m.s3.upRevTotal/10000)-Math.round(m.s3.invest/10000)).toLocaleString('ja-JP')+'万円）':'')];
+  }else if(k==='case'){
+    next='「本日のお話を踏まえて、次は現地確認（または正式なお見積の確定）に進めさせていただけますか。ご都合のよい日はいつ頃でしょうか」→ その場で日程を決める';
+    T='導入事例'; P='⑥ 導入事例';
+    goal='実績で安心していただく。規模の近い事例を指して「同じような発電所で、ここまで改善した」と見せる';
+    talk=['「これまでに累計500MWを施工し、平均の改善率は140%超です」',
+          G.near.length?'「今回（パネル約'+G.dcMW.toFixed(2)+'MW）に規模が近いのは、事例'+G.near.map(c=>c[0]+'（'+c[1]+'MW・'+c[2]+'%アップ）').join('と事例')+'です」':'規模の近い事例を指して説明する',
+          '「改善実績は135%〜246%。発電所の状態によって幅があります」',
+          '締めに、表紙の「ご検討から工事完了までの流れ」に戻り、次の一歩（現地確認など）の日程を決める'];
+    nums=[['改善実績','135%〜246%'],['累計施工実績','500MW'],['平均改善率','140%超']].concat(G.near.slice(0,1).map(c=>['規模の近い事例','事例'+c[0]+'（'+c[2]+'%）']));
+    faq=[['見学はできるか','その場で約束せず、候補の発電所とお客様の了承を社内で確認して回答'],
+         ['同じ改善率になるか','発電所の状態で変わる。今回の見込み（'+rate+'）は、この案件の条件での想定と説明']];
+    warn=['事例の改善率を、この案件の約束として話さない'];
+  }
+  const li=a=>a.map(x=>'<li>'+x+'</li>').join('');
+  return `<div class="sheet gd"><div class="gd-band">社内用｜お客様には渡さないでください</div>
+    <div class="gd-head"><span class="gd-p">説明ポイント　${esc(P)}</span><h2>${esc(T)}</h2>
+      <div class="gd-cust">${esc(G.cust)} 様／${esc(G.plant)}</div></div>
+    <div class="gd-goal"><b>このページの目的</b>　${goal}</div>
+    <div class="gd-grid">
+      <div class="gd-col"><h3>伝える順番（トーク例）</h3><ol class="gd-talk">${li(talk)}</ol>
+        ${next?`<div class="gd-next"><b>次のページへのつなぎ</b>${next}</div>`:''}</div>
+      <div class="gd-col">
+        ${nums.length?`<h3>強調する数字</h3><div class="gd-nums">${nums.map(([a,b])=>`<div><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('')}</div>`:''}
+        <h3>よくある質問と答え方</h3><dl class="gd-faq">${faq.map(([q,a])=>`<dt>Q. ${esc(q)}</dt><dd>${a}</dd>`).join('')}</dl>
+        <h3>注意</h3><ul class="gd-warn">${li(warn)}</ul>
+      </div>
+    </div>
+    <div class="gd-foot">この説明ページは「社内用（説明ポイント付き）」で出力したときだけ入ります。お客様へ送る・渡すときは「お客様用」で出力してください。</div>
+  </div>`;
 }
 function sheetWrap(deal,cls,inner){return inner;}
 function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').innerHTML=''; document.body.style.overflow=''; }
@@ -5480,9 +5667,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.20d';
+const APP_VERSION = '2026.09.20e';
 
 const CHANGELOG = [
+  ['2026.09.20e', [
+    '<b>リフォート提案（一括）に「お客様用／社内用（説明ポイント付き）」の切り替えを追加しました。</b>画面上部で「社内用」を選ぶと、最初に「商談の進め方」、各ページの直後にそのページの「説明ポイント」が入ります',
+    '説明ポイントには、このページの目的・伝える順番（トーク例）・強調する数字・よくある質問と答え方・注意を載せています。金額や回収年数などはその案件の数字が自動で入ります',
+    '社内用のページには上部に赤帯「社内用｜お客様には渡さないでください」が入り、保存名にも「社内用（説明ポイント付き）」が付きます。お客様に送るときは「お客様用」で出力してください',
+  ]],
   ['2026.09.20d', [
     '<b>放置リスク比較シートの「計算の前提と内訳」を詳しくしました。</b>取りこぼす金額＝①総合改善の20年の増収−②リフォート費用＋③現状維持の故障損失 の式と、①の年ごとの計算式（発電量の差×売電単価×1.1）・FIT期間と卒FIT後の内訳、③の故障の想定（何年目・停止期間・PCS交換費の決め方）を資料に記載しています',
   ]],
@@ -5930,7 +6122,7 @@ function applyPageSize(rootSel){
 function printAllSheets(){
   applyPageSize('#allRoot');
   const keep=document.title;
-  document.title=allFileName(allCurDeal);
+  document.title=allFileNameAud(allCurDeal);
   const restore=()=>{document.title=keep;window.removeEventListener('afterprint',restore);};
   window.addEventListener('afterprint',restore);
   setTimeout(restore,60000);
