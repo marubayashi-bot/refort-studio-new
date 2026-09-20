@@ -858,9 +858,13 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .rk-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:7px;flex:1 1 auto;min-height:0}
 .rk-chart{border:1px solid #e3e9f0;border-radius:10px;padding:6px 9px;background:#fff;display:flex;min-height:0}
 .rk-chart svg{width:100%;height:100%;display:block}
-.rk-basis{border:1px solid #e3e9f0;border-radius:8px;background:#f8fafc;padding:6px 10px;margin-bottom:7px;flex:none;display:flex;gap:10px;align-items:flex-start}
-.rk-basis-h{font-size:9px;font-weight:800;color:#5a6a7c;white-space:nowrap;padding-top:1px}
-.rk-basis-b{font-size:8.6px;color:#3b4654;line-height:1.5}
+.rk-lower{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:7px;flex:1 1 auto;min-height:0}
+.rk-basis{border:1px solid #e3e9f0;border-radius:8px;background:#f8fafc;padding:8px 12px;display:flex;gap:10px;align-items:flex-start;min-height:0;overflow:hidden}
+.rk-basis-h{font-size:9px;font-weight:800;color:#5a6a7c;white-space:nowrap;padding-top:1px;line-height:1.3;text-align:center}
+.rk-basis-b{font-size:8.8px;color:#3b4654;line-height:1.5}
+.rk-basis-b>div{margin-bottom:2px}
+.rk-basis-b .rk-bf{font-size:9.6px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px dashed #d6dee8}
+.rk-basis-b .neg{color:#AE3D28}
 .rk-basis-b b{color:#0d2340}
 .rk-foot{font-size:8px;color:#8a939c;line-height:1.35;border-top:1px solid #e3e9f0;padding-top:5px;flex:none}
 table.st tr.fitband th{padding:2.6px 2px;font-size:6.6px;letter-spacing:0;text-align:center;font-weight:800;border-color:#cfd8e3}
@@ -4095,11 +4099,12 @@ function riskModel(p){
         pbFrac=j+(yr>0?(invest[k]-prev)/yr:0); pbY=j+1; break; } }
     }
     out[k]={gen1:base[k], rev1incl:rev1*1.1, up:up[k], invest:invest[k],
-      netFinal:cum[N-1], upRev1:upRev1, upRevTotal:cumUp[N-1], payback:pbY, paybackFrac:pbFrac};
+      netFinal:cum[N-1], upRev1:upRev1, upRevTotal:cumUp[N-1], upRevFit:fit>0?cumUp[Math.min(fit,N)-1]:0, payback:pbY, paybackFrac:pbFrac};
   });
   out._N=N; out._gnow=gnow; out._fit=fit; out._banned=!!p.panelban; out._pcsdone=!!p.pcsdone;
   out._failY=failY; out._fault=(p.failon!==false)? genAt('s0',0)*priceIn(0)*((p.failm||0)/12)+(p.cpcs||0)*1.3 : 0;
   out._pcsCost=(p.cpcs||0)*1.3; out._stopCost=(p.failon!==false)? genAt('s0',0)*priceIn(0)*((p.failm||0)/12) : 0;
+  out._failm=p.failm||0; out._cpcs=p.cpcs||0; out._ctotal=p.ctotal||0; out._uppcs=p.uppcs||0;
   out._deg=deg*100; out._degrf=SR?(p.degrf||0):deg*20; out._fitP=fitP; out._postP=postP;
   return out;
 }
@@ -4177,13 +4182,14 @@ function sheetRisk(deal){
       <div class="rk-ub-flow"><span class="cur">${kw(gnow)}<small>kWh</small></span><span class="to">→</span><span class="aft">${kw(m.s3.gen1)}<small>kWh/年</small></span></div>
       <div class="rk-ub-pct">+${upPct}<small>%</small></div></div>
     <div class="rk-cards">${SC.map(cardHTML).join('')}</div>
-    <div class="rk-basis"><div class="rk-basis-h">計算の前提</div><div class="rk-basis-b">
-      <div>・<b>劣化率</b>：現状維持とPCS交換のみは、パネルが古いまま毎年<b>${m._deg.toFixed(1)}%</b>ずつ発電量が低下。総合改善（ReFort）は、パネル・PCSを新しくするため毎年<b>${m._degrf.toFixed(1)}%</b>の低下で計算（リフォート提案の年別表と同じ前提）</div>
-      <div>・<b>売電単価</b>：FIT期間（残${m._fit}年）は${m._fitP}円/kWh、卒FIT後（${N-m._fit}年）は${m._postP}円/kWh。金額はすべて税込</div>
-      <div>・<b>取りこぼす金額</b>：総合改善の${N}年の増収 ${man(m.s3.upRevTotal)}万円 − リフォート費用 ${man(m.s3.invest)}万円${m._fault?` ＋ 現状維持で想定される故障損失 ${man(m._fault)}万円（${m._failY}年目にPCSが故障し、停止中の売電ロス ${man(m._stopCost)}万円＋PCS交換費 ${man(m._pcsCost)}万円）`:''} ＝ ${lose.toLocaleString('ja-JP')}万円</div>
+    <div class="rk-lower"><div class="rk-basis"><div class="rk-basis-h">計算の<br>前提と<br>内訳</div><div class="rk-basis-b">
+      <div class="rk-bf"><b>取りこぼす金額</b> ＝ ①総合改善の${N}年の増収 <b>${man(m.s3.upRevTotal)}万円</b> − ②リフォート費用 <b>${man(m.s3.invest)}万円</b>${m._fault?` ＋ ③現状維持の故障損失 <b>${man(m._fault)}万円</b>`:''} ＝ <b class="neg">${lose.toLocaleString('ja-JP')}万円</b></div>
+      <div>① 各年の増収 ＝（リフォート後の発電量 − 現状の発電量）× 売電単価 × 1.1（税込）。現状は毎年<b>${m._deg.toFixed(1)}%</b>、リフォート後はパネル・PCSが新しくなるため毎年<b>${m._degrf.toFixed(1)}%</b>ずつ発電量が低下。単価は1〜${m._fit}年目（FIT期間）${m._fitP}円/kWh、${m._fit+1}〜${N}年目（卒FIT後）${m._postP}円/kWh。FIT期間 ${man(m.s3.upRevFit)}万円 ＋ 卒FIT後 ${(Math.round(m.s3.upRevTotal/10000)-Math.round(m.s3.upRevFit/10000)).toLocaleString('ja-JP')}万円（リフォート提案の「${N}年 売電収益増加」と同じ金額）</div>
+      <div>② リフォート費用：お見積の税込金額。総合改善を選んだ場合にかかる費用として差し引き</div>
+      ${m._fault?`<div>③ 故障損失（想定）：現状維持では古いPCSが${m._failY}年目（残FIT期間の約6割の時点）に故障すると想定。停止${m._failm}か月の売電ロス ${man(m._stopCost)}万円（初年度の売電収入 × ${m._failm}/12）＋ PCS交換費 ${man(m._pcsCost)}万円（交換費の目安 ${man(m._cpcs)}万円${Math.abs(m._cpcs-m._ctotal*0.25)<=1?'＝リフォート費用の25%':''} × 緊急対応1.3倍）</div>`:''}
+      <div>PCS交換のみは、パネルが古いまま残るため発電量+${(+m._uppcs).toFixed(1)}%・毎年${m._deg.toFixed(1)}%低下で計算</div>
     </div></div>
-    <div class="rk-charts"><div class="rk-chart">${riskBarSVG(bars,'発電量アップ（現状比）')}</div>
-      <div class="rk-chart">${riskBarSVG(bars2,'現状維持と比べ、取り戻せる金額（万円）')}</div></div>
+    <div class="rk-chart">${riskBarSVG(bars2,'現状維持と比べ、取り戻せる金額（万円）')}</div></div>
     <div class="rk-foot">本資料は現地調査・ヒアリング情報に基づく想定シミュレーションであり、記載の発電量・収益・利回り・税制効果等を保証するものではありません。FIT／FIP制度・税制・出力制御等の前提は変動する可能性があります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>
   </div>`;
 }
@@ -5474,9 +5480,12 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.20c';
+const APP_VERSION = '2026.09.20d';
 
 const CHANGELOG = [
+  ['2026.09.20d', [
+    '<b>放置リスク比較シートの「計算の前提と内訳」を詳しくしました。</b>取りこぼす金額＝①総合改善の20年の増収−②リフォート費用＋③現状維持の故障損失 の式と、①の年ごとの計算式（発電量の差×売電単価×1.1）・FIT期間と卒FIT後の内訳、③の故障の想定（何年目・停止期間・PCS交換費の決め方）を資料に記載しています',
+  ]],
   ['2026.09.20c', [
     '<b>放置リスク比較の計算を、リフォート提案ページと同じ前提に揃えました。</b>現状維持は毎年0.5%、総合改善（ReFort）は毎年0.2%の劣化率で計算します（案件の「既存パネル劣化率」「リフォート後劣化率」の値）。これで「総合改善なら得られた増収」が、表紙・リフォート提案の「20年増収益」と同じ金額になります',
     '放置リスク比較シートに「計算の前提」を追加しました。劣化率・売電単価と、「取りこぼす金額＝20年の増収−リフォート費用＋故障損失（何年目にPCSが故障し、停止中の売電ロスと交換費がいくらか）」の内訳を記載しています',
