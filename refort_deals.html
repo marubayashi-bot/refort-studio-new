@@ -4306,8 +4306,10 @@ function shYearTable(secTitle,N,defs,fit){
     for(let i=0;i<N;i++){const v=r.arr[i]||0;sum+=v;
       const cls=cf(i+1);if(!pctRow&&v<0)cls.push('neg');
       cells+=`<td class="${cls.join(' ')}">${pctRow?pct(v):(v?nfn(v):'–')}</td>`;}
-    const tot=(r.tot!==undefined)?r.tot:(r.noTot?'–':nfn(sum));
-    h+=`<tr class="${r.cls||''}"><td class="lbl">${r.lbl}</td>${cells}<td class="tot">${tot}</td></tr>`;
+    /* 累積の行は「毎年の累計」を並べているため、横に足すと二重・三重に数えてしまう。合計欄は最終年の累計を表示する */
+    const lastV=r.arr[N-1]||0;
+    const tot=(r.tot!==undefined)?r.tot:(r.noTot?'–':(r.cls==='cum'?nfn(lastV):(sum?nfn(sum):'–')));
+    h+=`<tr class="${r.cls||''}"><td class="lbl">${r.lbl}</td>${cells}<td class="tot${(r.cls==='cum'&&r.tot===undefined&&lastV<0)?' neg':''}">${tot}</td></tr>`;
   });
   return h+'</tbody></table>';
 }
@@ -5445,9 +5447,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.20';
+const APP_VERSION = '2026.09.20b';
 
 const CHANGELOG = [
+  ['2026.09.20b', [
+    '<b>【不具合修正】リフォート提案の年別表で、「累積効果（投資対効果）」の合計欄が約21億円と大きすぎる数字になっていたのを直しました。</b>累積の行は毎年の累計を並べたものなので、横に足すと同じお金を何度も数えてしまっていました。合計欄には最終年の累積（＝20年間の純利益）を表示します',
+    '合計が0の行（特別損失など）は「0」ではなく「–」と表示するようにしました',
+  ]],
   ['2026.09.20', [
     '<b>リフォート提案（一括・単体）の上部の数字を、投資家が判断しやすい並びに変更しました。</b>1段目：リフォート費用 → 投資回収 → IRR（FIT期間内）→ IRR（卒FIT含む・20年）／2段目：発電量アップ率 → 20年 売電収益増加 → 純利益（FIT期間内）→ 純利益（卒FIT含む・20年）',
     'IRRを新たに表示します。リフォート費用を0年目に支出し、毎年の売電収益の増加分を受け取る前提の税引前の年利回りです',
