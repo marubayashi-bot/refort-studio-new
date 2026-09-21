@@ -173,6 +173,142 @@ nav.steps .grp{padding:14px 20px 4px;font-size:12px;font-weight:700;color:var(--
   .m .view{grid-column:1/-1}
   .verdict{grid-template-columns:1fr;justify-items:center;text-align:center}
 }
+
+/* ===== 見た目の刷新：背景・作業パネル・固定ヘッダー ===== */
+html{background:#0B1834}
+body{background:transparent;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(1100px 650px at 88% 108%,rgba(168,230,204,.70),transparent 62%),
+  radial-gradient(900px 600px at 8% -10%,rgba(46,109,176,.55),transparent 60%),
+  linear-gradient(150deg,#0A1631 0%,#12346A 40%,#2B6CB0 72%,#9BD6C2 100%)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:
+  linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px),
+  linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px}
+header.top{position:sticky;top:0;z-index:40;background:rgba(8,19,42,.80);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.12);padding:10px 24px 12px;row-gap:10px}
+header.top .btn.ghost{border-color:rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.06)}
+header.top .btn.ghost:hover{background:rgba(255,255,255,.16)}
+.btn.meet{background:linear-gradient(135deg,#46B98F,#2A8A6C);color:#fff;border-color:transparent;font-weight:700;box-shadow:0 4px 12px rgba(42,138,108,.35)}
+.btn.meet:hover{filter:brightness(1.08)}
+.shell{grid-template-columns:250px minmax(0,1fr);gap:22px;padding:22px 24px 60px;align-items:start;min-height:auto}
+nav.steps{background:rgba(255,255,255,.90);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.7);
+  border-radius:16px;box-shadow:0 12px 32px rgba(4,14,38,.28);padding:10px 0;position:sticky;top:calc(var(--hdr,120px) + 16px);
+  max-height:calc(100vh - var(--hdr,120px) - 32px);overflow:auto}
+nav.steps button{border-left:0;margin:3px 10px;width:calc(100% - 20px);border-radius:10px;padding:10px 12px;align-items:center;transition:background .15s}
+nav.steps button:hover{background:#EEF3FA}
+nav.steps button .n{width:30px;height:30px;border-radius:50%;background:#E4E9F1;color:var(--sub);display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+nav.steps button.done .n{background:#D8F0E5;color:var(--good)}
+nav.steps button.on{background:linear-gradient(135deg,#2A62B0,#1C3F75);color:#fff;box-shadow:0 6px 16px rgba(28,63,117,.35)}
+nav.steps button.on .n{background:#fff;color:var(--ai)}
+nav.steps button.on .d{color:#D5E3F6}
+nav.steps .grp{border-top:1px solid var(--line)}
+main{background:rgba(255,255,255,.93);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.7);
+  border-radius:18px;box-shadow:0 18px 48px rgba(4,14,38,.30);padding:30px 34px 56px;max-width:none;min-width:0}
+.drop{border:2px dashed #5A8ED6;background:linear-gradient(180deg,#F4F9FF,#E6F1FF);border-radius:14px;padding:38px 24px;transition:all .15s}
+.drop::before{content:"";display:block;width:52px;height:52px;margin:0 auto 10px;border-radius:14px;background:#2A62B0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V4M7 9l5-5 5 5'/%3E%3Cpath d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/%3E%3C/svg%3E") center/26px no-repeat;box-shadow:0 6px 14px rgba(42,98,176,.35)}
+.drop:hover,.drop:focus-visible,.drop.over{border-color:#1C3F75;background:#DDEBFF;box-shadow:0 0 0 4px rgba(42,98,176,.15)}
+.drop strong{font-size:18px;color:#1C3F75}
+.btn{border-radius:8px}
+.btn.primary{background:linear-gradient(135deg,#2A62B0,#1C3F75);border-color:#1C3F75;padding:11px 22px;font-weight:700;box-shadow:0 6px 14px rgba(28,63,117,.28)}
+.btn.primary:hover{background:linear-gradient(135deg,#2F6DC2,#1F4683)}
+.btn.sm.primary{padding:6px 12px}
+
+/* 進捗 */
+.prog{flex-basis:100%;display:flex;align-items:center;gap:14px}
+.prog .pct{color:#fff;font-weight:700;font-size:13px;white-space:nowrap;min-width:96px}
+.prog .pct b{font-size:18px;margin-right:2px}
+.prog ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;flex:1}
+.prog li button{all:unset;display:block;width:100%;cursor:pointer;color:#A9B8D0;font-size:12px}
+.prog li button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.prog li i{display:block;height:6px;border-radius:3px;background:rgba(255,255,255,.18);margin-bottom:5px;overflow:hidden}
+.prog li.done i{background:#7FD3B4}
+.prog li.done button{color:#E8F6F0}
+.prog li.run i{background:linear-gradient(90deg,#7FD3B4,#5BA8F0,#7FD3B4);background-size:200% 100%;animation:progrun 1.2s linear infinite}
+.prog li.next button{color:#fff;font-weight:700}
+@keyframes progrun{to{background-position:-200% 0}}
+
+/* 根拠確認 */
+.cellw{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.srcbtn{border:1px solid transparent;background:none;border-radius:6px;padding:3px;cursor:pointer;color:#7D8BA3;line-height:0}
+.srcbtn:hover{border-color:var(--line);color:var(--ai);background:#fff}
+.srcbtn.has{color:var(--ai)}
+.modal{position:fixed;inset:0;z-index:80;background:rgba(6,14,32,.62);display:flex;align-items:center;justify-content:center;padding:18px}
+.modal .box{background:#fff;border-radius:16px;width:min(1180px,100%);height:min(92vh,980px);display:grid;grid-template-columns:320px 1fr;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.modal .side{padding:20px;border-right:1px solid var(--line);overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal .side h4{margin:0;font-family:var(--mincho);font-size:20px}
+.modal .val{font-size:26px;font-weight:700}
+.modal .quote{background:#FFF7DB;border-left:4px solid #E3B324;padding:8px 10px;font-size:14px;border-radius:0 6px 6px 0}
+.modal .viewer{display:flex;flex-direction:column;min-width:0;background:#E9EDF3}
+.modal .vbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
+.modal .vbody{flex:1;overflow:auto;padding:14px;text-align:center}
+.modal canvas{box-shadow:0 4px 18px rgba(0,0,0,.18);background:#fff;max-width:none}
+.modal .x{margin-left:auto}
+
+/* 面談モード */
+body.meet-on{overflow:hidden}
+#meet{position:fixed;inset:0;z-index:90;color:#fff;display:flex;flex-direction:column;
+  background:radial-gradient(1000px 600px at 90% 110%,rgba(120,210,180,.35),transparent 60%),linear-gradient(150deg,#08142D,#123368 55%,#1D5A9E)}
+#meet .mt{display:flex;align-items:center;gap:14px;padding:14px 28px;font-size:15px;color:#C9D6EA}
+#meet .mt .co{font-weight:700;color:#fff}
+#meet .mt .sp{margin-left:auto}
+#meet .mb{flex:1;overflow:auto;padding:10px 6vw 30px;display:flex;flex-direction:column;justify-content:center}
+#meet h2{font-family:var(--mincho);font-size:clamp(26px,3.4vw,46px);margin:0 0 22px;color:#fff}
+#meet .lead2{font-size:clamp(18px,1.8vw,26px);line-height:1.7;color:#E3ECF8;max-width:60ch}
+#meet .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+#meet .kp>div{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:20px 22px;border-top:6px solid #8FA3C4}
+#meet .kp>div.good{border-top-color:#6FD1A7}#meet .kp>div.warn{border-top-color:#F2B84B}#meet .kp>div.bad{border-top-color:#F07A6E}
+#meet .kp .l{font-size:clamp(14px,1.2vw,18px);color:#C9D6EA}
+#meet .kp .v{font-size:clamp(30px,3.6vw,54px);font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+#meet .kp .s{font-size:clamp(13px,1.1vw,16px);color:#C9D6EA}
+#meet .cards{display:grid;gap:14px}
+#meet .card{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:16px 20px}
+#meet .card h3{border:0;margin:0 0 6px;padding:0;font-size:clamp(19px,1.8vw,26px);color:#fff}
+#meet .card p{margin:0;font-size:clamp(15px,1.3vw,19px);color:#E3ECF8}
+#meet .tag{display:inline-block;font-size:13px;background:rgba(255,255,255,.16);border-radius:99px;padding:2px 10px;margin:6px 8px 0 0}
+#meet .qa{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:14px;margin-bottom:10px}
+#meet .qa button{all:unset;display:block;width:100%;box-sizing:border-box;padding:16px 20px;cursor:pointer;font-size:clamp(18px,1.7vw,24px);font-weight:700}
+#meet .qa button::after{content:"回答を表示";float:right;font-size:13px;font-weight:400;color:#9FD8C4}
+#meet .qa.open button::after{content:"閉じる"}
+#meet .qa .a{display:none;padding:0 20px 18px;font-size:clamp(16px,1.4vw,21px);color:#E3ECF8;line-height:1.7}
+#meet .qa.open .a{display:block}
+#meet table{width:100%;border-collapse:collapse;font-size:clamp(16px,1.5vw,22px)}
+#meet th,#meet td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.18);text-align:right}
+#meet th:first-child,#meet td:first-child{text-align:left}
+#meet td.up{color:#7FE0B5;font-weight:700}#meet td.dn{color:#FF9C90;font-weight:700}
+#meet .mf{display:flex;align-items:center;gap:10px;padding:14px 28px 20px}
+#meet .mf .dots{display:flex;gap:8px;margin:0 auto}
+#meet .mf .dots button{all:unset;cursor:pointer;height:10px;width:10px;border-radius:5px;background:rgba(255,255,255,.3)}
+#meet .mf .dots button.on{width:34px;background:#9FD8C4}
+#meet .nb{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:10px 20px;font-size:16px;cursor:pointer}
+#meet .nb:hover{background:rgba(255,255,255,.22)}
+
+@media (max-width:860px){
+  header.top{padding:8px 12px 10px;gap:8px}
+  header.top .meta{display:none}
+  header.top h1{font-size:18px}
+  header.top .logo{width:34px;height:34px}
+  header.top .right{gap:6px}
+  header.top .right .btn{padding:5px 9px;font-size:12px}
+  .prog{gap:8px}.prog .pct{min-width:auto}.prog .pct span{display:none}
+  .prog li button{font-size:11px}
+  .shell{grid-template-columns:1fr;padding:10px 10px 40px;gap:10px}
+  nav.steps{position:static;display:flex;overflow-x:auto;border-radius:12px;padding:6px;max-height:none}
+  nav.steps button{min-width:150px;margin:0 3px;width:auto}
+  nav.steps .grp{display:none}
+  main{padding:18px 14px 40px;border-radius:14px}
+  .modal{padding:0}
+  .modal .box{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100vh;border-radius:0}
+  .modal .side{border-right:0;border-bottom:1px solid var(--line);max-height:42vh}
+  #meet .kp{grid-template-columns:1fr 1fr;gap:10px}
+  #meet .kp>div{padding:14px}
+  #meet .kp .v{font-size:26px;white-space:nowrap}
+  #meet .mt{gap:8px;font-size:13px}
+  #meet .mt .ttl{display:none}
+  #meet .mt .nb{padding:6px 12px;font-size:13px}
+  #meet .mt,#meet .mf{padding-left:14px;padding-right:14px}
+  #meet .mb{padding:6px 16px 20px;justify-content:flex-start}
+}
 </style>
 </head>
 <body>
@@ -181,9 +317,11 @@ nav.steps .grp{padding:14px 20px 4px;font-size:12px;font-weight:700;color:var(--
   <h1>銀行説明スタジオ</h1>
   <span class="meta" id="hdrMeta">試算表・決算書を読み取り、銀行目線で分析して説明資料をつくる</span>
   <div class="right">
+    <button class="btn meet sm" onclick="openMeeting()">面談モード</button>
     <button class="btn ghost sm" onclick="saveJSON()">分析を保存</button>
     <label class="btn ghost sm" style="cursor:pointer">保存データを開く<input type="file" accept=".json" hidden onchange="loadJSON(this)"></label>
   </div>
+  <nav class="prog" id="prog" aria-label="分析の進み具合"></nav>
 </header>
 
 <div class="shell">
@@ -203,6 +341,8 @@ const CONFIG = {
   MODE: location.hostname.endsWith("github.io") ? "edge" : "direct",
   TAX_RATE: 0.30   // 簡易キャッシュフロー計算で使う実効税率の目安
 };
+// 日本語フォントのPDFから文字を取り出すための対応表（CMap）と標準フォント
+const PDF_OPTS = { cMapUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/", cMapPacked: true, standardFontDataUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/" };
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -296,9 +436,29 @@ const STEPS = [
   { t: "長期計画を読み込む", d: "長期事業構想書のPDF", grp: "長期事業計画" },
   { t: "計画を判断する", d: "点検・崩れたときの試算・所見" }
 ];
+function stepDone(i) {
+  const loaded = sortedDocs().length > 0;
+  return [false, loaded, loaded && !!S.confirmed, loaded && !!S.confirmed, !!S.analysis, !!S.exported, !!S.plan, !!S.planAnalysis][i];
+}
+function renderProgress() {
+  const el = $("prog"); if (!el) return;
+  const loaded = sortedDocs().length > 0, running = S.docs.some(d => d.status === "run");
+  const st = [
+    { l: "資料の読込", done: loaded, run: running, go: 1 },
+    { l: "数値確認", done: loaded && !!S.confirmed, go: 2 },
+    { l: "分析完了", done: !!S.analysis, go: 4 },
+    { l: "資料出力", done: !!S.exported, go: 5 }
+  ];
+  const cnt = st.filter(x => x.done).length, nextI = st.findIndex(x => !x.done);
+  el.innerHTML = `<div class="pct"><b>${cnt * 25}</b>%<span> 完了</span></div><ol>${st.map((x, i) =>
+    `<li class="${x.done ? "done" : ""} ${x.run ? "run" : ""} ${i === nextI && !x.run ? "next" : ""}"><button onclick="go(${x.go})" aria-label="${x.l}${x.done ? "（完了）" : ""}"><i></i>${x.run ? "読込中…" : x.l}${x.done ? " ✓" : ""}</button></li>`).join("")}</ol>`;
+  const h = document.querySelector("header.top"); if (h) document.documentElement.style.setProperty("--hdr", h.offsetHeight + "px");
+}
+window.addEventListener("resize", () => renderProgress());
 function renderNav() {
+  renderProgress();
   $("steps").innerHTML = STEPS.map((s, i) =>
-    (i >= 5 && !canPlan()) ? "" : (s.grp ? `<div class="grp">${s.grp}</div>` : "") + `<button class="${S.step === i + 1 ? "on" : ""}" onclick="go(${i + 1})"><span class="n">${i + 1}</span><span><span class="t">${s.t}</span><span class="d">${s.d}</span></span></button>`
+    (i >= 5 && !canPlan()) ? "" : (s.grp ? `<div class="grp">${s.grp}</div>` : "") + `<button class="${S.step === i + 1 ? "on" : ""} ${stepDone(i + 1) ? "done" : ""}" aria-current="${S.step === i + 1 ? "step" : "false"}" onclick="go(${i + 1})"><span class="n">${i + 1}</span><span><span class="t">${s.t}</span><span class="d">${s.d}</span></span></button>`
   ).join("") + `<div class="foot">格付けは公開情報をもとにした定量面の目安です。金融機関ごとの審査モデルとは異なります。</div>`;
   $("hdrMeta").textContent = [S.company, S.bank && S.bank + " 様向け", S.visitDate && "訪問日 " + S.visitDate].filter(Boolean).join("　");
 }
@@ -361,6 +521,7 @@ function setDoc(id, key, v) {
 }
 function removeDoc(id) { S.docs = S.docs.filter(d => d.id !== id); if (S.targetId === id) S.targetId = null; step1(); }
 function addFiles(files) {
+  S.confirmed = false; S.exported = false;
   [...files].filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")).forEach(f => {
     const kind = /決算|申告|financial/i.test(f.name) ? "決算書" : "試算表";
     S.docs.push({ id: "d" + Date.now() + Math.random().toString(36).slice(2, 6), name: f.name, kind, period_end: "", months: kind === "決算書" ? 12 : null, pl: {}, bs: {}, notes: [], status: "wait", msg: "", file: f });
@@ -384,7 +545,7 @@ async function fileToBase64(file) {
 }
 async function pdfText(file) {
   if (!window.pdfjsLib) return "";
-  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), ...PDF_OPTS }).promise;
   let out = "";
   for (let i = 1; i <= Math.min(pdf.numPages, 30); i++) {
     const page = await pdf.getPage(i);
@@ -405,10 +566,11 @@ function extractPrompt(d) {
 - 試算表は「当月」ではなく「期首からの累計（当期累計）」の列を使う。前年比較の列は使わない。
 - months は期首から対象月までの月数（決算書は12）。period_end は対象期間の末月（YYYY-MM）。
 - notes には銀行が気にしそうな点を最大3つ、各30字以内（例：仮払金が多い、減価償却が未計上）。
+- src には、値を入れた科目ごとに根拠を書く：{"科目キー":{"p":PDFのページ番号(1始まり),"t":"その数字が書かれている行の原文（科目名と数字、40字以内）"}}。合算した科目は合算元を「＋」でつなぐ。nullの科目は入れない。
 {"company":"","period_end":"YYYY-MM","months":12,
 "pl":{${KEYS.pl.map(k => `"${k}":null`).join(",")}},
 "bs":{${KEYS.bs.map(k => `"${k}":null`).join(",")}},
-"notes":[]}
+"notes":[],"src":{}}
 科目の意味：cogs=売上原価, sga=販管費, officer_comp=役員報酬, op=営業利益, nonop_inc=営業外収益, interest=支払利息, nonop_exp=営業外費用, ordinary=経常利益, pretax=税引前利益, suspense=仮払金+立替金, officer_recv=役員等への貸付金, tangible=有形固定資産, intangible=無形固定資産, investments=投資その他の資産, payables=買掛金+支払手形, st_loans=短期借入金, cur_lt_loans=1年内返済予定長期借入金, lt_loans=長期借入金, officer_loans=役員借入金, retained=利益剰余金`;
 }
 async function extractDoc(d) {
@@ -417,7 +579,7 @@ async function extractDoc(d) {
   if (d.file.size > 25 * 1024 * 1024) throw new Error("PDFが大きすぎます（25MBまで）。必要なページだけにしてください");
   let text = "";
   try { text = await pdfText(d.file); } catch (e) { }
-  const raw = await callAI({ system: EXTRACT_SYSTEM, prompt: extractPrompt(d), pdfBase64: b64, pdfText: text, maxTokens: 8000 });
+  const raw = await callAI({ system: EXTRACT_SYSTEM, prompt: extractPrompt(d), pdfBase64: b64, pdfText: text, maxTokens: 12000 });
   const j = parseJSON(raw);
   if (!j || !j.pl) throw new Error("数値を読み取れませんでした。ページの向きや解像度を確認してください");
   d.pl = {}; d.bs = {};
@@ -426,6 +588,7 @@ async function extractDoc(d) {
   if (!d.period_end && j.period_end) d.period_end = String(j.period_end).slice(0, 7);
   d.months = d.kind === "決算書" ? 12 : (n(j.months) || d.months || 12);
   d.notes = (j.notes || []).slice(0, 3);
+  d.src = (j.src && typeof j.src === "object") ? j.src : {};
   if (j.company && !S.company) S.company = j.company;
 }
 
@@ -508,7 +671,7 @@ function step2() {
 
   $("main").innerHTML = `
   <h2>数値を確かめる</h2>
-  <p class="lead">AIが読み取った数値です（単位：千円）。金額をクリックすると修正できます。ここで確定した数値が、分析と資料の根拠になります。</p>
+  <p class="lead">AIが読み取った数値です（単位：千円）。金額をクリックすると修正できます。虫めがねを押すと、元のPDFの該当ページが開き、その数字の位置を黄色で示します。ここで確定した数値が、分析と資料の根拠になります。</p>
   ${checks.map(c => `<div class="check ${c.ok ? "ok" : "ng"}">${c.ok ? "一致" : "要確認"}　${esc(c.t)}</div>`).join("")}
   <div style="overflow-x:auto;margin-top:14px">
   <table class="nums num">
@@ -518,11 +681,11 @@ function step2() {
     ${FIELDS.map(f => f.sec
       ? `<tr class="sec"><td colspan="${docs.length + 1}">${f.sec}</td></tr>`
       : `<tr class="${f.total ? "total" : ""}"><td>${f.l}${f.hint ? `<br><span class="hint">${f.hint}</span>` : ""}</td>${docs.map(d =>
-        `<td><input inputmode="numeric" aria-label="${esc(docLabel(d) + " " + f.l)}" value="${n(d[f.s][f.k]) === null ? "" : Math.round(d[f.s][f.k] / 1000)}" onchange="updVal('${d.id}','${f.s}','${f.k}',this.value)"></td>`).join("")}</tr>`
+        `<td><div class="cellw"><input inputmode="numeric" aria-label="${esc(docLabel(d) + " " + f.l)}" value="${n(d[f.s][f.k]) === null ? "" : Math.round(d[f.s][f.k] / 1000)}" onchange="updVal('${d.id}','${f.s}','${f.k}',this.value)">${n(d[f.s][f.k]) === null ? `<span style="width:24px"></span>` : `<button class="srcbtn ${d.src && d.src[f.k] ? "has" : ""}" title="元のPDFで確かめる" aria-label="${esc(f.l)}の根拠をPDFで確かめる" onclick="showSource('${d.id}','${f.s}','${f.k}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>`}</div></td>`).join("")}</tr>`
     ).join("")}
     </tbody>
   </table></div>
-  <div style="margin-top:18px"><button class="btn primary" onclick="go(3)">この数値で分析する</button></div>`;
+  <div style="margin-top:18px"><button class="btn primary" onclick="S.confirmed=true;go(3)">この数値で分析する</button></div>`;
 }
 function upd(id, key, v) { const d = S.docs.find(x => x.id === id); d[key] = v; S.analysis = null; }
 function updVal(id, s, k, v) {
@@ -927,6 +1090,7 @@ function step5() {
 }
 
 function exportPptx() {
+  S.exported = true; setTimeout(renderProgress, 0);
   if (!window.PptxGenJS) { toast("資料作成ライブラリを読み込めませんでした。通信環境を確認してください"); return; }
   const { d, prev, docs } = getTarget(); const c = calc(d), sc = score(d), A = S.analysis || demoAnalysis();
   const pres = new PptxGenJS(); pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
@@ -1107,6 +1271,7 @@ function exportPptx() {
 }
 
 function copyChatwork() {
+  S.exported = true; setTimeout(renderProgress, 0);
   const { d, prev } = getTarget(); const c = calc(d), sc = score(d), A = S.analysis || demoAnalysis();
   const lines = [];
   lines.push(`[info][title]銀行説明サマリー ${docLabel(d)}[/title]`);
@@ -1129,15 +1294,18 @@ function copyChatwork() {
    単位はすべて百万円。期は「当期＋5期」の6期を想定するが、期数は読み取り結果に合わせる
    ========================================================= */
 let planCharts = [];
-/* 長期事業計画を使える人（役員のみ）
-   emails に社長・副社長など役員のGoogleアカウントを入れると、その人だけに絞られます。
-   emails が空のあいだは、共通認証の役割が「管理者」の人だけが使えます。 */
-const PLAN_ACCESS = { emails: [], roles: ["admin"] };
+/* このアプリを使える人（社長・副社長のみ）
+   社員マスタの氏名（空白は無視）か、ログインに使うGoogleアカウントのメールアドレスで判定します。
+   メールアドレスを入れておくと、氏名の登録が変わっても確実に通ります。 */
+const ALLOWED = { names: ["丸林信宏", "丸林綾子"], emails: [] };
+function isAllowed(me) {
+  if (!me) return false;
+  const nm = String(me.full_name || "").replace(/[\s　]/g, ""), em = String(me.email || "").toLowerCase();
+  return ALLOWED.names.includes(nm) || ALLOWED.emails.map(x => x.toLowerCase()).includes(em);
+}
 function canPlan() {
   if (CONFIG.MODE !== "edge") return true;
-  const me = window.EC && EC.me; if (!me) return false;
-  if (PLAN_ACCESS.emails.length) return PLAN_ACCESS.emails.map(x => x.toLowerCase()).includes(String(me.email || "").toLowerCase());
-  return PLAN_ACCESS.roles.includes(me.role);
+  return isAllowed(window.EC && EC.me);
 }
 const PLAN_TAX = 0.35;   // 崩れたときの試算で、利益の増減を現預金に反映するときの税率の目安
 const PL_ROWS = [
@@ -1840,6 +2008,176 @@ function copyPlanChatwork() {
 }
 
 
+
+/* =========================================================
+   根拠確認：読み取った数値 → 元PDFの該当ページ・該当箇所
+   ========================================================= */
+const pdfCache = {};
+let SRC = null;
+async function getPdf(d) {
+  if (!d.file || !window.pdfjsLib) return null;
+  if (!pdfCache[d.id]) pdfCache[d.id] = await pdfjsLib.getDocument({ data: await d.file.arrayBuffer(), ...PDF_OPTS }).promise;
+  return pdfCache[d.id];
+}
+function numKeys(v) {
+  const a = Math.abs(v), out = new Set([String(Math.round(a)), String(Math.round(a / 1000)), String(Math.floor(a / 1000)), String(Math.ceil(a / 1000))]);
+  if (a >= 1e8) out.add(String(Math.round(a / 1e6)));
+  return [...out].filter(x => x.length >= 2);
+}
+const normNum = t => String(t).replace(/[,，\s円]/g, "").replace(/^[△▲\-−(（]/, "").replace(/[)）]$/, "");
+async function locateSource(d, k) {
+  const pdf = await getPdf(d), v = d.pl[k] ?? d.bs[k], src = (d.src || {})[k] || null;
+  if (!pdf) return { page: src?.p || null, hit: null, noFile: true };
+  const keys = n(v) === null ? [] : numKeys(v);
+  const f = FIELDS.find(x => x.k === k);
+  const labs = [((src?.t || "").replace(/[0-9０-９,，.△▲\-−\s円()（）＋+]/g, "")).slice(0, 4), f.l.replace(/（.*?）/g, "").slice(0, 3)].filter(x => x && x.length >= 2);
+  const order = [...new Set([src?.p, ...Array.from({ length: pdf.numPages }, (_, i) => i + 1)])].filter(p => p >= 1 && p <= pdf.numPages);
+  let noText = true;
+  for (const p of order) {
+    const items = (await (await pdf.getPage(p)).getTextContent()).items.filter(it => it.str && it.str.trim());
+    if (items.length) noText = false;
+    const hits = items.filter(it => keys.includes(normNum(it.str)));
+    if (!hits.length) continue;
+    const sameLine = h => items.filter(o => Math.abs(o.transform[5] - h.transform[5]) < 4).map(o => o.str.replace(/\s/g, "")).join("");
+    const best = hits.find(h => labs.some(l => sameLine(h).includes(l)));
+    return { page: p, hit: best || hits[0], labelMatch: !!best, count: hits.length };
+  }
+  return { page: src?.p || 1, hit: null, noText };
+}
+async function showSource(id, s, k) {
+  const d = S.docs.find(x => x.id === id); if (!d) return;
+  const f = FIELDS.find(x => x.k === k), v = d[s][k], src = (d.src || {})[k];
+  SRC = { id, s, k, page: src?.p || 1, hit: null };
+  let m = $("srcModal");
+  if (!m) { m = document.createElement("div"); m.id = "srcModal"; m.className = "modal"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); document.body.appendChild(m);
+    m.addEventListener("click", e => { if (e.target === m) closeSource(); }); }
+  m.style.display = "flex";
+  m.innerHTML = `<div class="box">
+    <div class="side">
+      <div class="hint">${esc(docLabel(d))}　${esc(d.name || "")}</div>
+      <h4>${esc(f.l)}</h4>
+      <div><span class="hint">読み取った値</span><div class="val num">${fmtK(v)}<small class="hint"> 千円</small></div></div>
+      <div><span class="hint">AIが示した根拠</span>${src ? `<div class="quote">${src.p ? `${src.p}ページ　` : ""}「${esc(src.t || "")}」</div>` : `<div class="hint">根拠の記録はありません（この機能の追加前に読み取った資料です）</div>`}</div>
+      <div id="srcStatus" class="hint">PDFの中から数字を探しています…</div>
+      <div><label class="f">値を直す（千円）</label><div style="display:flex;gap:6px"><input class="t num" id="srcFix" value="${n(v) === null ? "" : Math.round(v / 1000)}"><button class="btn sm primary" style="white-space:nowrap" onclick="fixFromSource()">反映</button></div></div>
+      <div id="srcReattach"></div>
+    </div>
+    <div class="viewer">
+      <div class="vbar"><button class="btn sm" onclick="srcPage(-1)" aria-label="前のページ">← 前</button><span id="srcPageLab" class="num">—</span><button class="btn sm" onclick="srcPage(1)" aria-label="次のページ">次 →</button>
+        <button class="btn sm x" onclick="closeSource()">閉じる（Esc）</button></div>
+      <div class="vbody" id="srcBody"><canvas id="srcCanvas"></canvas></div>
+    </div></div>`;
+  const loc = await locateSource(d, k);
+  if (loc.noFile) {
+    $("srcStatus").innerHTML = `<span style="color:var(--warn)">元のPDFがこの画面にありません（保存データから開いたため）。下からPDFを選び直すと、該当ページを表示できます。</span>`;
+    $("srcReattach").innerHTML = `<label class="btn sm" style="cursor:pointer">元のPDFを選び直す<input type="file" accept="application/pdf" hidden onchange="reattachPdf('${id}',this.files[0])"></label>`;
+    $("srcPageLab").textContent = src?.p ? `${src.p}ページ` : "—";
+    return;
+  }
+  SRC.page = loc.page; SRC.hit = loc.hit; SRC.hitPage = loc.page;
+  $("srcStatus").innerHTML = loc.hit
+    ? `<span style="color:var(--good);font-weight:700">PDF上の数字と一致しました。</span><br>${loc.page}ページの黄色い枠の位置です。${loc.labelMatch ? "同じ行に科目名もあります。" : "同じ数字が他の行にもある場合は、科目名と見比べてください。"}`
+    : loc.noText
+      ? `<span style="color:var(--warn)">画像のPDFのため、数字の位置は示せません。</span>${src?.p ? `AIが示した${src.p}ページを表示しています。` : ""}`
+      : `<span style="color:var(--warn)">同じ数字がPDFの中に見つかりませんでした。</span><br>複数の科目を合算した値か、単位の換算が違う可能性があります。AIが示した根拠と見比べてください。`;
+  renderSrcPage();
+}
+async function renderSrcPage() {
+  const d = S.docs.find(x => x.id === SRC.id), pdf = await getPdf(d); if (!pdf) return;
+  SRC.page = Math.min(Math.max(1, SRC.page), pdf.numPages);
+  $("srcPageLab").textContent = `${SRC.page} / ${pdf.numPages}ページ`;
+  const page = await pdf.getPage(SRC.page), body = $("srcBody");
+  const base = page.getViewport({ scale: 1 }), dpr = window.devicePixelRatio || 1;
+  const scale = Math.max(0.6, (body.clientWidth - 28) / base.width), vp = page.getViewport({ scale: scale * dpr });
+  const cv = $("srcCanvas"); cv.width = vp.width; cv.height = vp.height; cv.style.width = vp.width / dpr + "px"; cv.style.height = vp.height / dpr + "px";
+  const ctx = cv.getContext("2d");
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  if (SRC.hit && SRC.hitPage === SRC.page) {
+    const t = pdfjsLib.Util.transform(vp.transform, SRC.hit.transform), h = Math.hypot(t[2], t[3]);
+    const x = t[4], y = t[5] - h, w = SRC.hit.width * vp.scale, pad = 5 * dpr;
+    ctx.fillStyle = "rgba(255,205,0,.35)"; ctx.fillRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
+    ctx.strokeStyle = "#D23B2E"; ctx.lineWidth = 3 * dpr; ctx.strokeRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
+    body.scrollTop = Math.max(0, y / dpr - body.clientHeight / 2);
+    body.scrollLeft = Math.max(0, x / dpr - body.clientWidth / 2);
+  }
+}
+function srcPage(dx) { if (!SRC) return; SRC.page += dx; renderSrcPage(); }
+function closeSource() { const m = $("srcModal"); if (m) m.style.display = "none"; SRC = null; }
+function fixFromSource() { if (!SRC) return; updVal(SRC.id, SRC.s, SRC.k, $("srcFix").value); toast("値を直しました"); closeSource(); }
+function reattachPdf(id, file) {
+  if (!file) return; const d = S.docs.find(x => x.id === id); d.file = file; delete pdfCache[id];
+  showSource(SRC.id, SRC.s, SRC.k);
+}
+
+/* =========================================================
+   面談モード：銀行訪問でそのまま見せる大きな画面
+   ========================================================= */
+let MEET = { i: 0 };
+function meetingSlides() {
+  const { d, prev } = getTarget(); if (!d) return [];
+  const c = calc(d), cp = prev ? calc(prev) : null, A = S.analysis;
+  const g = (cc, k) => cc.list.find(x => x.key === k);
+  const kpi = (k, label) => {
+    const x = g(c, k), px = cp ? g(cp, k) : null;
+    return `<div class="${judge(x)}"><div class="l">${label}</div><div class="v">${fmtVal(x)}<small style="font-size:.45em">${x.v !== null && isFinite(x.v) ? x.unit : ""}</small></div><div class="s">${px ? `前回 ${fmtVal(px)}${px.v !== null && isFinite(px.v) ? px.unit : ""}` : ""}</div></div>`;
+  };
+  const M = v => fmtM(v) + "<small style=\"font-size:.45em\">百万円</small>";
+  // 試算表は累計なので、比べるときは12か月に換算してから前回（通期）と並べる
+  const ann = (x, k) => n(x.pl[k]) === null ? null : x.pl[k] * 12 / (x.months || 12);
+  const cmpTxt = k => {
+    const a = d.kind === "試算表" && d.months !== 12 ? `年換算 ${fmtM(ann(d, k))}百万円` : "";
+    const b = prev ? `前回${prev.kind === "試算表" && prev.months !== 12 ? "（年換算）" : ""} ${fmtM(ann(prev, k))}百万円` : "";
+    return [a, b].filter(Boolean).join("／");
+  };
+  const slides = [];
+  slides.push({ t: "要旨", h: `<div class="hint" style="color:#9FD8C4;font-size:16px;margin-bottom:10px">${esc(docLabel(d))}</div>
+    <h2>${esc(A?.headline || "業績のご報告")}</h2><p class="lead2">${esc(A?.summary || "（手順4で要旨をつくると、ここに表示されます）")}</p>` });
+  slides.push({ t: "重要指標", h: `<h2>重要指標</h2><div class="kp">
+    <div><div class="l">売上高${d.kind === "試算表" ? `（${d.months}か月累計）` : ""}</div><div class="v">${M(d.pl.sales)}</div><div class="s">${cmpTxt("sales")}</div></div>
+    <div class="${z(d.pl.ordinary) > 0 ? "good" : "bad"}"><div class="l">経常利益${d.kind === "試算表" ? `（${d.months}か月累計）` : ""}</div><div class="v">${M(d.pl.ordinary)}</div><div class="s">${cmpTxt("ordinary")}</div></div>
+    ${kpi("ordMargin", "売上高経常利益率")}${kpi("equity", "自己資本比率")}${kpi("repay", "債務償還年数")}${kpi("current", "流動比率")}</div>` });
+  if (A && (A.concerns || []).filter(x => x.title).length) slides.push({ t: "課題と認識", h: `<h2>課題と、その認識</h2><div class="cards">${A.concerns.filter(x => x.title).map(x => `<div class="card"><h3>${esc(x.title)}</h3><p>${esc(x.evidence || "")}</p>${x.cause ? `<p style="margin-top:6px;color:#C9D6EA">要因：${esc(x.cause)}</p>` : ""}</div>`).join("")}</div>` });
+  if (A && (A.actions || []).filter(x => x.title).length) slides.push({ t: "改善計画", h: `<h2>改善計画</h2><div class="cards">${A.actions.filter(x => x.title).map(x => `<div class="card"><h3>${esc(x.title)}</h3><p>${esc(x.detail || "")}</p>
+    ${x.effect ? `<span class="tag">効果 ${esc(x.effect)}</span>` : ""}${x.deadline ? `<span class="tag">期限 ${esc(x.deadline)}</span>` : ""}${x.kpi ? `<span class="tag">確認する数字 ${esc(x.kpi)}</span>` : ""}</div>`).join("")}</div>` });
+  if (simOn()) slides.push({ t: "改善後の見通し", h: `<h2>改善後の見通し（年換算の試算）</h2><table><thead><tr><th>項目</th><th>現状</th><th>改善後</th></tr></thead><tbody>${simRows(d).filter(r => !/格付け/.test(r[0])).map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="${r[3] > 1e-9 ? "up" : r[3] < -1e-9 ? "dn" : ""}">${r[2]}</td></tr>`).join("")}</tbody></table>
+    <p style="color:#C9D6EA;margin-top:12px">打ち手：${esc(simText())}</p>` });
+  if (A && (A.qa || []).filter(x => x.q).length) slides.push({ t: "ご質問への回答", h: `<h2>ご質問への回答</h2><div>${A.qa.filter(x => x.q).map((x, i) => `<div class="qa" id="qa${i}"><button onclick="this.parentNode.classList.toggle('open')">${esc(x.q)}</button><div class="a">${esc(x.a)}</div></div>`).join("")}</div>` });
+  if (A?.closing) slides.push({ t: "今後に向けて", h: `<h2>今後に向けて</h2><p class="lead2">${esc(A.closing)}</p>` });
+  return slides;
+}
+function openMeeting() {
+  if (!getTarget().d) { toast("先に資料を読み込み、数値を確認してください"); return; }
+  MEET.i = 0;
+  let el = $("meet");
+  if (!el) { el = document.createElement("div"); el.id = "meet"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "面談モード"); document.body.appendChild(el);
+    let sx = null;
+    el.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener("touchend", e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 60) meetGo(MEET.i + (dx < 0 ? 1 : -1)); sx = null; }); }
+  el.style.display = "flex"; document.body.classList.add("meet-on");
+  renderMeeting();
+  if (!S.analysis) toast("手順4で改善計画と想定問答をつくると、面談モードに表示されます");
+}
+function renderMeeting() {
+  const el = $("meet"), sl = meetingSlides(); MEET.i = Math.min(Math.max(0, MEET.i), sl.length - 1);
+  const cur = sl[MEET.i];
+  el.innerHTML = `<div class="mt"><img src="${document.querySelector("header.top .logo").src}" alt="" width="28" height="28" style="border-radius:7px"><span class="co">${esc(S.company)}</span><span class="ttl">${esc(cur.t)}</span>
+    <span class="sp">${MEET.i + 1} / ${sl.length}</span><button class="nb" onclick="closeMeeting()">終了（Esc）</button></div>
+    <div class="mb">${cur.h}</div>
+    <div class="mf"><button class="nb" onclick="meetGo(MEET.i-1)" ${MEET.i === 0 ? "disabled style=\"opacity:.3\"" : ""}>← 前へ</button>
+      <div class="dots">${sl.map((x, i) => `<button class="${i === MEET.i ? "on" : ""}" onclick="meetGo(${i})" aria-label="${esc(x.t)}"></button>`).join("")}</div>
+      <button class="nb" onclick="meetGo(MEET.i+1)" ${MEET.i === sl.length - 1 ? "disabled style=\"opacity:.3\"" : ""}>次へ →</button></div>`;
+}
+function meetGo(i) { MEET.i = i; renderMeeting(); }
+function closeMeeting() { const el = $("meet"); if (el) el.style.display = "none"; document.body.classList.remove("meet-on"); }
+document.addEventListener("keydown", e => {
+  const meetOpen = $("meet") && $("meet").style.display !== "none", srcOpen = $("srcModal") && $("srcModal").style.display !== "none";
+  if (srcOpen && e.key === "Escape") { closeSource(); return; }
+  if (!meetOpen) return;
+  if (e.key === "Escape") closeMeeting();
+  else if (e.key === "ArrowRight" || e.key === "PageDown" || (e.key === " " && e.target === document.body)) { e.preventDefault(); meetGo(MEET.i + 1); }
+  else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); meetGo(MEET.i - 1); }
+});
+
 /* ---------- 保存・読み込み ---------- */
 function saveJSON() {
   const base = { ...S, docs: S.docs.map(({ file, ...r }) => r), _busy: false, planBusy: false };
@@ -1882,8 +2220,17 @@ function boot() {
       $("main").innerHTML = `<h2>ログイン部品を読み込めません</h2><p class="lead">bank-brief.html を ec-auth.js と同じフォルダに置いて開いてください。</p>`;
       return;
     }
-    EC.guard({ app: "bank-brief", name: "銀行説明スタジオ", allow: ["admin", "manager"] })
-      .then(() => render())
+    EC.guard({ app: "bank-brief", name: "銀行説明スタジオ", allow: ["admin", "manager", "sales", "field"] })
+      .then(() => {
+        if (!isAllowed(EC.me)) {
+          document.querySelector(".shell").innerHTML = `<main style="grid-column:1/-1"><h2>このアプリは閲覧できません</h2>
+            <p class="lead">銀行説明スタジオは、社長・副社長のみが使えるアプリです。</p>
+            <p class="hint">ログイン中：${esc(EC.me?.full_name || "")}（${esc(EC.me?.email || "")}）</p></main>`;
+          document.querySelectorAll("header.top .right").forEach(e => e.remove());
+          return;
+        }
+        render();
+      })
       .catch(e => { $("main").innerHTML = `<h2>ログインを確認できません</h2><p class="lead">${esc(e && e.message || e)}</p>`; });
     return;
   }
