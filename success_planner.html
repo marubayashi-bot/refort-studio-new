@@ -414,6 +414,140 @@ details.sec .body{padding:12px 14px;}
 .angttl button{font-size:11px;padding:4px 10px;background:var(--navy);color:#fff;}
 .ansitem{border-left:3px solid var(--gold);background:var(--goldbg);border-radius:0 8px 8px 0;padding:8px 10px;margin-bottom:6px;font-size:12.5px;line-height:1.65;}
 .ansitem .d{font-size:11px;color:var(--sub);font-weight:800;margin-bottom:2px;}
+
+/* ===== RITUAL（朝の1分・夜の1分／習慣トラッカー） ===== */
+.rit-card{background:var(--leather);color:#efe3c8;border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(201,160,78,.5);box-shadow:0 4px 16px rgba(20,14,6,.3);}
+.rc-top{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.rc-n{font-family:'Cinzel',serif;font-size:46px;font-weight:700;line-height:1;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.rc-u{font-family:'Shippori Mincho',serif;font-size:15px;color:#e0c98f;margin-left:4px;}
+.rc-l{font-size:11.5px;color:#b39f78;margin-top:6px;}
+.rc-week{display:flex;gap:6px;}
+.rw{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:#b39f78;}
+.rw i{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(201,160,78,.5);display:block;}
+.rw i.f{background:linear-gradient(140deg,#e8cd8e,#c9a04e);border-color:transparent;}
+.rw i.h{background:linear-gradient(135deg,transparent 44%,#7fa7dc 44%,#7fa7dc 56%,transparent 56%);border-color:#7fa7dc;}
+.rw.today{color:#f0d9a8;font-weight:700;}
+.rw.today i{box-shadow:0 0 0 3px rgba(240,217,168,.22);}
+.rc-steps{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 12px;}
+.rc-steps span{font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid rgba(201,160,78,.4);color:#cdbb95;}
+.rc-steps span.on{background:rgba(201,160,78,.92);color:#241d0e;border-color:transparent;font-weight:700;}
+.rc-btns{display:grid;grid-template-columns:1.5fr 1fr;gap:8px;}
+.rc-go{background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;font-weight:700;padding:14px 10px;font-size:14.5px;font-family:'Shippori Mincho',serif;}
+.rc-go.night{background:rgba(240,230,210,.08);color:#e8d9b8;border:1px solid rgba(201,160,78,.5);}
+.rc-go.done{opacity:.72;}
+.rc-go:focus-visible,.ro-nav:focus-visible,.ro-main:focus-visible,.ro-opt:focus-visible{outline:2px solid #f0d9a8;outline-offset:2px;}
+
+.rit-ov{position:fixed;inset:0;z-index:500;background:#110d09;background-image:var(--leather);display:none;flex-direction:column;color:#efe3c8;}
+.rit-ov.on{display:flex;}
+.ro-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;}
+.ro-prog{flex:1;display:flex;gap:4px;}
+.ro-prog i{flex:1;height:3px;border-radius:2px;background:rgba(240,230,210,.16);}
+.ro-prog i.done{background:#c9a04e;}
+.ro-prog i.cur{background:#f0d9a8;}
+.ro-ttl{font-family:'Shippori Mincho',serif;font-size:13px;color:#e0c98f;white-space:nowrap;}
+.ro-x{background:rgba(240,230,210,.1);color:#e8d9b8;width:36px;height:36px;border-radius:50%;font-size:15px;flex:0 0 auto;}
+.ro-body{flex:1;overflow:auto;position:relative;-webkit-overflow-scrolling:touch;}
+.ro-foot{padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;border-top:1px solid rgba(201,160,78,.22);}
+.ro-board{height:100%;display:flex;align-items:center;justify-content:center;padding:8px;touch-action:pan-y;}
+.ro-board img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.55);user-select:none;-webkit-user-drag:none;}
+.ro-board.zoom{display:block;overflow:auto;touch-action:auto;}
+.ro-board.zoom img{max-width:none;max-height:none;width:190%;}
+.ro-cap{flex:1;text-align:center;font-family:'Shippori Mincho',serif;font-size:13px;color:#e0c98f;line-height:1.4;}
+.ro-cap small{display:block;font-size:10.5px;color:#9c8b69;font-family:inherit;}
+.ro-nav{background:rgba(240,230,210,.08);color:#e8d9b8;border:1px solid rgba(201,160,78,.45);padding:12px 16px;font-size:14px;flex:0 0 auto;}
+.ro-main{background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;font-weight:700;padding:13px 18px;font-size:14.5px;flex:1;}
+.ro-sheet{max-width:560px;margin:0 auto;padding:18px 18px 34px;}
+.ro-h{font-family:'Shippori Mincho',serif;font-size:22px;color:#f0e2c2;margin:4px 0 6px;font-weight:700;}
+.ro-sub{font-size:12.5px;color:#b39f78;margin-bottom:18px;line-height:1.7;}
+.ro-decl p{font-family:'Shippori Mincho',serif;font-size:16px;line-height:2;margin-bottom:14px;color:#efe3c8;}
+.ro-decl p.short{font-size:18px;color:#f0d9a8;margin-bottom:6px;line-height:1.8;}
+.ro-decl p.gap{margin-top:22px;}
+.ro-f label{display:block;font-size:12.5px;color:#e0c98f;font-weight:700;margin:16px 0 6px;}
+.ro-f label small{font-weight:400;color:#9c8b69;margin-left:6px;}
+.ro-f input[type=text],.ro-f textarea{width:100%;background:rgba(255,252,242,.96);border:1px solid rgba(201,160,78,.5);border-radius:9px;padding:10px 11px;font-size:15px;color:#241d14;}
+.ro-f textarea{min-height:64px;}
+.ro-iam{display:flex;align-items:center;gap:8px;font-family:'Shippori Mincho',serif;font-size:15px;}
+.ro-iam input{flex:1;}
+.ro-who{display:grid;grid-template-columns:1fr 1.6fr;gap:6px;margin-bottom:6px;}
+.ro-prev{border:1px solid rgba(201,160,78,.5);border-radius:12px;padding:12px;background:rgba(0,0,0,.2);display:flex;gap:12px;align-items:center;}
+.ro-prev .t{flex:1;font-size:14px;line-height:1.6;}
+.ro-prev .t small{display:block;font-size:11px;color:#b39f78;}
+.ro-tick{width:44px;height:44px;border-radius:50%;border:2px solid #c9a04e;background:transparent;color:transparent;font-size:20px;flex:0 0 auto;}
+.ro-tick.on{background:linear-gradient(140deg,#e8cd8e,#c9a04e);color:#241d0e;}
+.ro-hab{border:1px solid rgba(201,160,78,.32);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(0,0,0,.2);}
+.ro-hab .hn{font-weight:700;font-size:14.5px;margin-bottom:9px;color:#f0e2c2;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.ro-hab .hn small{font-weight:400;color:#9c8b69;font-size:11px;}
+.ro-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.ro-opt{background:rgba(240,230,210,.05);color:#d9c9a5;border:1px solid rgba(201,160,78,.32);padding:9px 10px;text-align:left;font-size:12.5px;line-height:1.45;}
+.ro-opt b{display:block;font-size:11px;color:#c9a04e;margin-bottom:2px;}
+.ro-opt.on{background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;border-color:transparent;}
+.ro-opt.on b{color:#4a3814;}
+.ro-opt.d.on{background:#dbe9fb;color:#1c3f6e;}
+.ro-opt.d.on b{color:#2f5f9e;}
+.ro-opt.z{grid-column:1/-1;text-align:center;font-size:11.5px;padding:7px;}
+.ro-opt.z.on{background:rgba(240,230,210,.18);color:#efe3c8;}
+.ro-scale{display:flex;gap:4px;flex-wrap:wrap;}
+.ro-scale button{width:36px;height:36px;border-radius:8px;background:rgba(240,230,210,.08);color:#d9c9a5;border:1px solid rgba(201,160,78,.32);font-weight:700;}
+.ro-scale button.on{background:linear-gradient(140deg,#e8cd8e,#c9a04e);color:#241d0e;border-color:transparent;}
+.ro-done{text-align:center;padding:10vh 20px 30px;max-width:520px;margin:0 auto;}
+.ro-done .k{font-family:'Shippori Mincho',serif;font-size:15px;color:#e0c98f;}
+.ro-big{font-family:'Cinzel',serif;font-size:96px;font-weight:700;line-height:1.1;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;animation:roRise .9s cubic-bezier(.2,.8,.2,1);}
+.ro-big small{font-size:22px;font-family:'Shippori Mincho',serif;}
+.ro-done .m{font-family:'Shippori Mincho',serif;font-size:16px;line-height:1.9;margin-top:18px;color:#efe3c8;}
+.ro-done .rc-week{justify-content:center;margin-top:22px;}
+.ro-empty{max-width:440px;margin:12vh auto 0;text-align:center;padding:0 20px;line-height:1.9;font-size:14px;color:#d9c9a5;}
+.ro-empty button{margin:8px 4px 0;}
+@keyframes roRise{from{opacity:0;transform:translateY(18px) scale(.94);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){.ro-big{animation:none;}}
+
+.vb-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory;}
+.vb-item{flex:0 0 112px;scroll-snap-align:start;background:none;padding:0;text-align:left;border-radius:8px;}
+.vb-item img{width:112px;height:158px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;}
+.vb-item span{display:block;font-size:11.5px;margin-top:5px;color:var(--navy);font-weight:700;line-height:1.3;}
+.vb-item.seen img{outline:2px solid var(--gold);outline-offset:1px;}
+.vb-empty{border:1.5px dashed var(--gold);border-radius:10px;padding:18px;text-align:center;color:var(--sub);font-size:12.5px;line-height:1.8;width:100%;background:var(--goldbg);}
+.vb-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.vb-edit-row img{width:40px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--line);}
+.vb-edit-row input{flex:1;min-width:0;}
+.vb-edit-row button{background:#eef2f7;width:32px;height:32px;border-radius:7px;font-size:13px;flex:0 0 auto;}
+.pdf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin:12px 0;}
+.pdf-pg{position:relative;background:none;padding:0;border-radius:8px;border:2px solid transparent;opacity:.45;}
+.pdf-pg.on{border-color:var(--gold);opacity:1;}
+.pdf-pg img{width:100%;display:block;border-radius:6px;}
+.pdf-pg span{position:absolute;top:5px;left:5px;background:var(--navy);color:#fff;font-size:11px;border-radius:999px;padding:1px 8px;}
+
+.ht-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.ht-head button{background:#fff;border:1px solid var(--line);padding:5px 10px;font-size:12px;color:var(--navy);}
+.ht-sum{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.ht-sum span{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--goldbg);border:1px solid var(--line);color:var(--navy);}
+.ht-sum span b{font-size:14px;}
+.ht-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table.ht{border-collapse:separate;border-spacing:3px;}
+.ht th{font-weight:700;color:var(--sub);font-size:10px;min-width:22px;text-align:center;}
+.ht th.wk{color:#9a6b2a;}
+.ht th.tday{color:var(--navy);}
+.ht .hn{position:sticky;left:0;background:var(--card);text-align:left;min-width:86px;max-width:110px;font-size:12px;color:var(--navy);font-weight:700;padding-right:6px;z-index:1;line-height:1.25;}
+.ht td.c{width:22px;height:22px;border-radius:5px;background:#efece5;cursor:pointer;padding:0;}
+.ht td.c.a{background:linear-gradient(140deg,#e8cd8e,#c9a04e);}
+.ht td.c.d{background:linear-gradient(135deg,#fff 42%,#5b8fd1 42%,#5b8fd1 58%,#fff 58%);box-shadow:inset 0 0 0 1px #b9d2f0;}
+.ht td.c.fut{background:transparent;box-shadow:inset 0 0 0 1px #ece5d6;cursor:default;}
+.ht td.c.tday{outline:2px solid var(--navy);outline-offset:1px;}
+.ht td.tot{font-size:10.5px;color:var(--sub);white-space:nowrap;padding-left:6px;}
+.ht tr.zr td.c{background:transparent;cursor:default;text-align:center;font-size:12px;color:var(--gold);}
+.ht tr.zr .hn{color:var(--sub);font-weight:400;font-size:11px;}
+.hc-row{display:grid;grid-template-columns:1fr 1.4fr 1.4fr 32px;gap:6px;margin-bottom:6px;align-items:center;}
+.hc-row input{min-width:0;width:100%;}
+.hc-row button{background:#eef2f7;width:32px;height:32px;border-radius:7px;}
+.hc-auto{font-size:10.5px;color:var(--sub);grid-column:1/-1;margin:-3px 0 6px;}
+@media(max-width:640px){.hc-row{grid-template-columns:1fr 32px;}.hc-row input:nth-child(2),.hc-row input:nth-child(3){grid-column:1/-1;}}
+.hl-list{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:#fff;margin-bottom:12px;}
+.hl-row{display:flex;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line);line-height:1.5;cursor:pointer;}
+.hl-row:last-child{border-bottom:none;}
+.hl-row .d{color:var(--sub);min-width:38px;font-weight:700;}
+.hl-row .t{flex:1;}
+.hl-row .s{color:#9a6b2a;font-size:11px;white-space:nowrap;}
+.kpt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(max-width:720px){.kpt-grid{grid-template-columns:1fr;}}
 </style>
 
 <!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
@@ -478,6 +612,21 @@ details.sec .body{padding:12px 14px;}
 
 <!-- ============ HOME ============ -->
 <div class="tab act" id="tab-home">
+  <div class="rit-card" id="ritCard">
+    <div class="rc-top">
+      <div>
+        <div><span class="rc-n" id="ritStreak">0</span><span class="rc-u">日連続</span></div>
+        <div class="rc-l" id="ritStreakL">今日をゼロにしない。1枚のビジョンからでいい。</div>
+      </div>
+      <div class="rc-week" id="ritWeek"></div>
+    </div>
+    <div class="rc-steps" id="ritSteps"></div>
+    <div class="rc-btns">
+      <button class="rc-go" id="ritAmBtn" onclick="openRitual('am')">🌅 朝の1分　ビジョンを見る</button>
+      <button class="rc-go night" id="ritPmBtn" onclick="openRitual('pm')">🌙 夜の1分</button>
+    </div>
+  </div>
+
   <div class="quote">
     <div class="qt" id="qTitle">今日の原点</div>
     <div class="qb" id="qBody">…</div>
@@ -812,6 +961,49 @@ details.sec .body{padding:12px 14px;}
   </div>
 
   <div class="card">
+    <h2>ビジョンボード <span class="mini">毎朝ここから1日を始める。タップで全画面表示</span></h2>
+    <div class="vb-strip" id="vbStrip"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="goldbtn" onclick="openRitual('am')">🌅 朝の1分を始める</button>
+      <button class="addbtn ghost" style="margin-top:0" onclick="el('vbImgInput').click()">＋ 画像を追加</button>
+      <button class="addbtn ghost" style="margin-top:0" onclick="el('vbPdfInput').click()">📄 PDFから取り込む</button>
+    </div>
+    <input type="file" id="vbImgInput" accept="image/*" multiple style="display:none" onchange="onBoardImgs(this)">
+    <input type="file" id="vbPdfInput" accept="application/pdf" style="display:none" onchange="onBoardPdf(this)">
+    <details class="sec" style="margin-top:12px;margin-bottom:0"><summary>✏ ボードの並び順・タイトル／宣言文／自動表示</summary>
+      <div class="body" id="ritCfg"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>習慣トラッカー <span class="mini">塗りつぶし＝攻めの目標、斜線＝守りの目標。完全なゼロの日を作らない</span></h2>
+    <div class="ht-head">
+      <button onclick="moveVisMonth(-1)">◀ 前月</button>
+      <b id="htLabel" style="color:var(--navy);font-size:13px">-</b>
+      <button onclick="moveVisMonth(1)">翌月 ▶</button>
+      <button onclick="goVisThisMonth()">今月へ</button>
+    </div>
+    <div class="ht-sum" id="htSum"></div>
+    <div class="ht-wrap"><table class="ht" id="htTable"></table></div>
+    <div class="hint">マスをタップすると「攻め → 守り → 空白」の順に切り替わります。起床・運動・歩数・夜の1分は、健康タブや夜の記録から自動で入ります（タップした日は手動の値が優先）。</div>
+    <details class="sec" style="margin-top:12px;margin-bottom:0"><summary>⚙ 習慣の設定（攻めの目標・守りの目標）</summary>
+      <div class="body" id="htCfg"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>今月のハイライトとKPT <span class="mini">毎晩の1行を材料に、月末に来月の改善を1つ決める</span></h2>
+    <div class="lbl">今月のハイライト</div>
+    <div class="hl-list" id="hlList"></div>
+    <div class="kpt-grid">
+      <div><div class="lbl">Keep　続けること・できたこと</div><textarea id="kpt_k" onchange="updKpt('k',this.value)"></textarea></div>
+      <div><div class="lbl">Problem　できなかったこと・問題</div><textarea id="kpt_p" onchange="updKpt('p',this.value)"></textarea></div>
+      <div><div class="lbl">Try　来月改善すること・試すこと</div><textarea id="kpt_t" onchange="updKpt('t',this.value)"></textarea></div>
+    </div>
+    <div class="hint" id="kptHint"></div>
+  </div>
+
+  <div class="card">
     <h2>今日の達成リング <span class="mini">総合点ではなく、領域ごとの状態を見る</span></h2>
     <div class="rings" id="visRings"></div>
     <div class="hint" id="visRingHint" style="margin-top:10px"></div>
@@ -974,6 +1166,29 @@ details.sec .body{padding:12px 14px;}
       <div class="spacer"></div>
       <button class="delbtn" style="width:auto;padding:0 12px" id="dDelBtn" onclick="deleteDream()">🗑 削除</button>
     </div>
+  </div>
+</div>
+
+<!-- ritual overlay -->
+<div class="rit-ov" id="ritOv" role="dialog" aria-modal="true" aria-label="朝の1分・夜の1分">
+  <div class="ro-bar">
+    <span class="ro-ttl" id="roTtl"></span>
+    <div class="ro-prog" id="roProg"></div>
+    <button class="ro-x" onclick="closeRitual()" aria-label="閉じる">✕</button>
+  </div>
+  <div class="ro-body" id="roBody"></div>
+  <div class="ro-foot" id="roFoot"></div>
+</div>
+
+<!-- pdf page picker -->
+<div class="modal-bg" id="pdfModal">
+  <div class="modal" style="max-width:720px">
+    <button class="mclose" onclick="closePdfPick()">✕</button>
+    <h3>📄 ビジョンボードとして登録するページを選ぶ</h3>
+    <div class="hint">タップで選択を切り替えます。記入用シートなど、毎朝見ないページは外してください。</div>
+    <div class="pdf-grid" id="pdfGrid"></div>
+    <label id="pdfReplaceWrap" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px"><input type="checkbox" id="pdfReplace" checked> 登録済みのボードと入れ替える</label>
+    <button class="goldbtn" id="pdfGo" onclick="importPdfPick()">登録する</button>
   </div>
 </div>
 
@@ -1204,6 +1419,7 @@ async function boot(){
   renderLife();
   await loadDay(curDate);
   renderProblems();
+  ritAfterBoot();
 }
 
 async function loadDay(dateStr){
@@ -1227,6 +1443,7 @@ async function loadDay(dateStr){
   renderDate();renderDay();
   await renderCarry();
   updateStats();
+  renderRitHome();
   loadIdx().then(()=>{const i=el('idxInfo');if(i)i.textContent=Object.keys(sidx.d).length+'日分の索引があります';});
   el('saveState').textContent='保存済み';
 }
@@ -2650,11 +2867,12 @@ function updVisNote(v){ensureVis().minNote=v;saveLife();renderSelfCheck();}
 /* ---- タブ描画 ---- */
 async function renderVision(){
   ensureVis();
-  renderVisWord();renderRings();renderVisCfg();renderBodyPhotos();
+  ensureRit();
+  renderVisWord();renderRings();renderVisCfg();renderBodyPhotos();renderBoards();renderRitCfg();
   if(!visMonthStr)visMonthStr=curDate.slice(0,7);
   const map=await visFetch(visDates());
   visCache=map;
-  renderVisCal(map);renderVisStatus(map);renderVis90(map);renderVisAnswers(map);
+  renderVisCal(map);renderVisStatus(map);renderVis90(map);renderVisAnswers(map);renderRitVision(map);
 }
 
 /* ================= 横断検索 ================= */
@@ -2674,6 +2892,8 @@ function idxText(d){
   const n=d.nextPlan||{};add('明日の設計',n.goal);(n.ka||[]).forEach(k=>add('明日の重点行動',k));add('準備',n.prep);
   const h=d.health||{};add('運動',h.exercise);add('体調メモ',h.memo);
   const v=d.vision||{};(v.answers||[]).forEach(a=>add('今日できたこと',a));
+  const vf=v.focus||{};add('ハイライト',vf.hl);add('今日学んだこと',vf.learn);add('明日の一歩',vf.step);add('相手に起こしたい変化',vf.change);add('私は何者であるか',vf.iam);
+  (vf.who||[]).forEach((w,i)=>{if(w)add('価値を届けたい相手',w+((vf.whatG||[])[i]?'：'+vf.whatG[i]:''));});
   return L.join('\n').slice(0,3000);
 }
 async function loadIdx(){
@@ -2729,7 +2949,8 @@ function hlt(text,terms){
 const SLABEL_TAB={'アクション':'acts','結果':'acts','学び':'acts','予定':'sched','予定のゴール':'sched','予定の結果':'sched',
  '最高イメージ':'image','成果':'review','未完了':'review','うまくいったこと':'review','反省':'review',
  '明日への申し送り':'review','仕組み化':'review','最優先':'review','明日の設計':'review','明日の重点行動':'review','準備':'review',
- '運動':'health','体調メモ':'health','今日できたこと':'review'};
+ '運動':'health','体調メモ':'health','今日できたこと':'review',
+ 'ハイライト':'vision','今日学んだこと':'vision','明日の一歩':'vision','相手に起こしたい変化':'home','私は何者であるか':'home','価値を届けたい相手':'home'};
 function doSearch(){
   const q=el('sqInput').value.trim();
   const list=el('sList');
@@ -2780,6 +3001,482 @@ function srHTML(r,terms){
 function srGo(date,label){closeSearch();loadDay(date);setTimeout(()=>showTab(SLABEL_TAB[label]||'home'),120);}
 function srProblem(id){closeSearch();showTab('problem');if(typeof openProblem==='function')openProblem(id);}
 function srTab(t){closeSearch();showTab(t);}
+
+/* ================= RITUAL（朝の1分・夜の1分／習慣トラッカー／KPT） ================= */
+const BOARD_TITLES=['人生の軸','健康','人間関係・家族','キャリア・ビジネス','環境','スピリチュアル'];
+const DECL_DEF=`私は、志高く、利他の心で生き、家族・社員・お客様・社会を幸せにするために生まれてきました。
+私は、心身ともに健康で、引き締まった力強い身体と、揺るぎない自信、満ちあふれるエネルギーを手にしています。
+私は、妻と子どもたちを心から愛し、互いを尊重し、笑顔と信頼に満ちた温かい家庭を築いています。素晴らしい仲間に恵まれ、共に成長し、人生の喜びを分かち合っています。
+私は、アースコムを通じてエネルギーの未来を創り、日本、そして世界に大きな価値を届けています。情熱と決断力を持って挑戦を続け、社員と共に圧倒的な成長と成功を実現しています。
+私は、正しい価値を生み出すことで豊かさを受け取り、60歳までに純資産1,000億円、年間不労所得10億円を実現しています。その財力を、家族の幸福、社員の成長、社会への貢献、そして未来への投資に生かしています。
+私は、世界各地に理想の拠点を持ち、広大な庭、海を望む邸宅、都心のペントハウス、自然に囲まれたリゾートで、家族と豊かな時間を過ごしています。
+私は、目の前の一日を大切にし、感謝を忘れず、誠実に行動します。困難を成長の機会に変え、決めたことを必ず実行し、昨日の自分を超え続けています。
+私の可能性は無限です。
+私は愛され、必要とされ、豊かさと成功にふさわしい存在です。
+私の人生は、健康、愛、使命、豊かさ、自由、感謝に満ちています。
+私は、自分の人生を自分の意志で創ります。
+今日も最高の未来につながる、価値ある一日を生きます。
+すべては、すでに始まっています。`;
+const HAB_AUTO={vision:'朝の1分から自動',wake:'健康タブの起床時刻から自動',train:'セルフチェック（筋トレ・有酸素・最低ライン）から自動',steps:'健康タブの歩数から自動',note:'夜の1分の記録から自動'};
+function defaultHabits(){return [
+ {id:'h_vision',name:'ビジョンを見る',atk:'全ボードを見て宣言文を読む',def:'ボードを1枚だけ見る',auto:'vision'},
+ {id:'h_wake',name:'早起き',atk:'5:00に起きる',def:'6:00までに起きる',auto:'wake',atkT:'05:00',defT:'06:00'},
+ {id:'h_move',name:'運動',atk:'筋トレか有酸素運動',def:'最低ラインを1つ（スクワット20回など）',auto:'train'},
+ {id:'h_walk',name:'歩く',atk:'8,000歩',def:'10分だけ早歩き（3,000歩）',auto:'steps'},
+ {id:'h_sleep',name:'眠る準備',atk:'21時にスマホを置き、7時間眠る',def:'0時までに布団に入る',auto:''},
+ {id:'h_note',name:'夜の1分',atk:'ハイライト・学び・明日の一歩を書く',def:'ハイライトを1行だけ書く',auto:'note'}
+];}
+function ensureRit(){
+  const c=ensureVis();
+  if(!c.boards)c.boards=[];
+  if(!c.decl)c.decl=DECL_DEF;
+  if(!c.habits||!c.habits.length)c.habits=defaultHabits();
+  if(!c.kpt)c.kpt={};
+  if(c.autoRit===undefined)c.autoRit=true;
+  return c;
+}
+function ritV(v){
+  v=v||vis();
+  if(!v.rit)v.rit={seen:[],decl:false,am:'',pm:''};
+  if(!v.rit.seen)v.rit.seen=[];
+  if(!v.focus)v.focus={who:['',''],change:'',iam:'',hl:'',learn:'',step:'',sat:0,yStep:'',yDone:false};
+  if(!v.focus.who)v.focus.who=['',''];
+  if(!v.hb)v.hb={};
+  return v;
+}
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+
+/* ---- 習慣の判定：手動の値 > 記録からの自動判定 ---- */
+function habAuto(h,v,hl){
+  v=v||{};hl=hl||{};
+  const c=v.chk||{},r=v.rit||{},f=v.focus||{};
+  const tot=(ensureRit().boards||[]).length;
+  switch(h.auto){
+    case 'vision':{const n=(r.seen||[]).length;
+      if(r.decl&&(tot===0||n>=tot))return 2;
+      return (n||r.decl)?1:0;}
+    case 'wake':{const w=hl.sleepEnd||'';if(!w)return 0;
+      if(h.atkT&&w<=h.atkT)return 2;if(h.defT&&w<=h.defT)return 1;return 0;}
+    case 'train':if(c.train||c.cardio)return 2;return VIS_MIN.some(m=>c[m[0]])?1:0;
+    case 'steps':{const s=num(hl.steps),t=num(visT().steps)||8000;
+      if(s!==null&&s>=t)return 2;return((s!==null&&s>=3000)||c.m_walk)?1:0;}
+    case 'note':{const ok=x=>!!String(x||'').trim();
+      if(ok(f.hl)&&ok(f.learn)&&ok(f.step))return 2;return ok(f.hl)?1:0;}
+  }
+  return 0;
+}
+function habVal(h,v,hl){
+  if(v&&v.hb&&v.hb[h.id]!==undefined&&v.hb[h.id]!==null)return v.hb[h.id];
+  return habAuto(h,v,hl);
+}
+function dayTally(v,hl){
+  const hs=ensureRit().habits;let a=0,d=0;
+  hs.forEach(h=>{const x=habVal(h,v,hl);if(x===2)a++;else if(x===1)d++;});
+  return {a,d,n:hs.length};
+}
+/* 0=ゼロの日 1=守りを含めて前進 2=半分以上を攻めで達成 */
+function dayLevel(v,hl){
+  if(v&&v.dayType==='rest')return 1;
+  const t=dayTally(v,hl);
+  if(t.a>=Math.ceil(t.n/2))return 2;
+  return (t.a+t.d)>0?1:0;
+}
+
+/* ---- 連続記録 ---- */
+let ritMap=null;
+async function refreshRitMap(){
+  const ds=[];for(let i=0;i<120;i++)ds.push(addDaysStr(todayStr(),-i));
+  ritMap=await visFetch(ds);
+}
+function ritStreak(map){
+  const t=todayStr();
+  const nz=x=>{const r=map[x];return !!r&&dayLevel(r.vision,r.health)>0;};
+  let d=nz(t)?t:addDaysStr(t,-1),n=0;
+  while(n<400&&nz(d)){n++;d=addDaysStr(d,-1);}
+  return n;
+}
+function weekDotsHTML(map){
+  const mon=mondayOf(todayStr()),w=['月','火','水','木','金','土','日'],t=todayStr();
+  let h='';
+  for(let i=0;i<7;i++){
+    const d=addDaysStr(mon,i),r=map[d];
+    const lv=(r&&d<=t)?dayLevel(r.vision,r.health):0;
+    h+='<div class="rw'+(d===t?' today':'')+'"><i class="'+(lv===2?'f':(lv===1?'h':''))+'"></i>'+w[i]+'</div>';
+  }
+  return h;
+}
+async function renderRitHome(refetch){
+  if(!el('ritCard')||!day)return;
+  const v=ritV(vis()),r=v.rit;
+  const isToday=curDate===todayStr();
+  const st=[['ビジョン',r.seen.length>0],['宣言',!!r.decl],['今日をつくる',!!r.am],['夜の1分',!!r.pm]];
+  el('ritSteps').innerHTML=(isToday?'':'<span>'+fmtMD(curDate)+' の記録</span>')+st.map(s=>'<span class="'+(s[1]?'on':'')+'">'+(s[1]?'✓ ':'')+s[0]+'</span>').join('');
+  el('ritAmBtn').classList.toggle('done',isToday&&!!r.am);
+  el('ritAmBtn').textContent=(isToday&&r.am)?'🌅 ビジョンを見る':'🌅 朝の1分　ビジョンを見る';
+  el('ritPmBtn').classList.toggle('done',isToday&&!!r.pm);
+  if(refetch||!ritMap)await refreshRitMap();
+  if(curDate>=addDaysStr(todayStr(),-119)&&curDate<=todayStr())ritMap[curDate]={vision:day.vision,health:day.health};
+  const n=ritStreak(ritMap);
+  el('ritStreak').textContent=n;
+  const tl=ritMap[todayStr()];
+  el('ritStreakL').textContent=(tl&&dayLevel(tl.vision,tl.health)>0)?'今日もゼロにしていません。この積み上げが自信の根拠です。':
+    (n?'今日も1枚のビジョンから。ゼロの日を作らない。':'今日をゼロにしない。1枚のビジョンからでいい。');
+  el('ritWeek').innerHTML=weekDotsHTML(ritMap);
+}
+
+/* ---- オーバーレイ ---- */
+let RIT={mode:'am',step:0,bi:0,prev:null};
+const RIT_STEPS={am:['board','decl','focus','done'],pm:['habit','night','done'],view:['board']};
+async function openRitual(mode,bi){
+  ensureRit();
+  if(mode!=='view'&&curDate!==todayStr())await loadDay(todayStr());
+  RIT={mode:mode,step:0,bi:bi||0,prev:null};
+  if(mode==='am'){
+    const pd=addDaysStr(todayStr(),-1);
+    let p=lsGet('day_'+pd);const cp=await cloudGet('day_'+pd);if(cp)p=cp;
+    const s=p&&p.vision&&p.vision.focus&&p.vision.focus.step;
+    RIT.prev=(s&&s.trim())?s.trim():((p&&p.nextPlan&&p.nextPlan.goal)||'').trim()||null;
+  }
+  el('ritOv').classList.add('on');document.body.style.overflow='hidden';
+  renderRit();
+}
+function closeRitual(){
+  try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
+  el('ritOv').classList.remove('on');document.body.style.overflow='';
+  flushSave();renderRitHome();
+  if(el('tab-vision').classList.contains('act'))renderVision();
+}
+function ritGo(n){RIT.step=Math.max(0,Math.min(RIT_STEPS[RIT.mode].length-1,RIT.step+n));renderRit();el('roBody').scrollTop=0;}
+function renderRit(){
+  const steps=RIT_STEPS[RIT.mode],s=steps[RIT.step];
+  el('roTtl').textContent=RIT.mode==='pm'?'夜の1分':(RIT.mode==='view'?'ビジョンボード':'朝の1分');
+  el('roProg').innerHTML=RIT.mode==='view'?'':steps.map((x,i)=>'<i class="'+(i<RIT.step?'done':(i===RIT.step?'cur':''))+'"></i>').join('');
+  ({board:ritBoard,decl:ritDecl,focus:ritFocus,habit:ritHabit,night:ritNight,done:ritDone})[s]();
+}
+function ritMark(){if(RIT.mode==='view'&&curDate!==todayStr())return false;return true;}
+
+function ritBoard(){
+  const bs=ensureRit().boards;
+  if(!bs.length){
+    el('roBody').innerHTML='<div class="ro-empty"><div class="ro-h">ビジョンボードが未登録です</div>'+
+      '作成したビジョンボードのPDFか画像を登録すると、毎朝ここに全画面で表示されます。<br>'+
+      '<button class="ro-nav" onclick="closeRitual();showTab(\'vision\');el(\'vbPdfInput\').click()">📄 PDFから取り込む</button>'+
+      '<button class="ro-nav" onclick="closeRitual();showTab(\'vision\');el(\'vbImgInput\').click()">＋ 画像を登録</button></div>';
+    el('roFoot').innerHTML=RIT.mode==='view'?'<button class="ro-main" onclick="closeRitual()">閉じる</button>':'<button class="ro-main" onclick="ritGo(1)">宣言文へ進む</button>';
+    return;
+  }
+  RIT.bi=Math.max(0,Math.min(bs.length-1,RIT.bi));
+  const b=bs[RIT.bi];
+  el('roBody').innerHTML='<div class="ro-board" id="roBoard" onclick="this.classList.toggle(\'zoom\')"><img src="'+esc(b.url)+'" alt="'+esc(b.title||'ビジョンボード')+'"></div>';
+  if(bs[RIT.bi+1]){const pre=new Image();pre.src=bs[RIT.bi+1].url;}
+  if(ritMark()){const v=ritV(vis());if(v.rit.seen.indexOf(RIT.bi)<0){v.rit.seen.push(RIT.bi);markDirty();}}
+  const last=RIT.bi>=bs.length-1;
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritBoardMove(-1)" '+(RIT.bi===0?'style="visibility:hidden"':'')+' aria-label="前のボード">◀</button>'+
+    '<div class="ro-cap">'+esc(b.title||('ボード '+(RIT.bi+1)))+'<small>'+(RIT.bi+1)+' / '+bs.length+'　タップで拡大</small></div>'+
+    (last?(RIT.mode==='view'?'<button class="ro-nav" onclick="closeRitual()">閉じる</button>':'<button class="ro-nav" style="background:linear-gradient(120deg,#b98f3e,#e0bc74);color:#241d0e;font-weight:700;border:none" onclick="ritGo(1)">宣言へ ▶</button>')
+      :'<button class="ro-nav" onclick="ritBoardMove(1)" aria-label="次のボード">▶</button>');
+  bindSwipe();
+}
+function ritBoardMove(n){
+  const bs=ensureRit().boards,ni=RIT.bi+n;
+  if(ni<0)return;
+  if(ni>=bs.length){if(RIT.mode!=='view')ritGo(1);return;}
+  RIT.bi=ni;ritBoard();
+}
+function bindSwipe(){
+  const b=el('roBoard');if(!b)return;let x0=null,y0=null;
+  b.addEventListener('touchstart',e=>{if(b.classList.contains('zoom'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+  b.addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;
+    if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){ritBoardMove(dx<0?1:-1);}});
+}
+document.addEventListener('keydown',e=>{
+  if(!el('ritOv')||!el('ritOv').classList.contains('on'))return;
+  if(e.key==='Escape')closeRitual();
+  const s=RIT_STEPS[RIT.mode][RIT.step];
+  if(s==='board'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){if(e.key==='ArrowRight')ritBoardMove(1);if(e.key==='ArrowLeft')ritBoardMove(-1);}
+});
+
+function ritDecl(){
+  const lines=ensureRit().decl.split('\n').map(x=>x.trim()).filter(Boolean);
+  let prevShort=false;
+  el('roBody').innerHTML='<div class="ro-sheet"><div class="ro-h">宣言</div><div class="ro-sub">声に出して読むと、今日の基準が決まります。</div><div class="ro-decl">'+
+    lines.map(l=>{const sh=l.length<=26;const g=sh&&!prevShort;prevShort=sh;return '<p class="'+(sh?'short':'')+(g?' gap':'')+'">'+esc(l)+'</p>';}).join('')+'</div></div>';
+  const done=ritV(vis()).rit.decl;
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="speakDecl()">🔊 読み上げ</button>'+
+    '<button class="ro-main" onclick="ritDeclDone()">'+(done?'✓ 宣言済み　次へ':'宣言しました')+'</button>';
+}
+function speakDecl(){
+  if(!('speechSynthesis' in window)){toast('この端末では読み上げを利用できません');return;}
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(ensureRit().decl);u.lang='ja-JP';u.rate=.95;
+  speechSynthesis.speak(u);
+}
+function ritDeclDone(){try{speechSynthesis.cancel();}catch(e){}const v=ritV(vis());if(!v.rit.decl){v.rit.decl=true;markDirty();}ritGo(1);}
+
+function ritFocus(){
+  const v=ritV(vis()),f=v.focus;
+  if(RIT.prev&&!f.yStep)f.yStep=RIT.prev;
+  const inp=(k,ph,val)=>'<input type="text" value="'+esc(val)+'" placeholder="'+esc(ph)+'" oninput="ritF(\''+k+'\',this.value)">';
+  el('roBody').innerHTML='<div class="ro-sheet ro-f"><div class="ro-h">今日をつくる</div><div class="ro-sub">目標と、価値を届ける相手を決める。1分で十分です。</div>'+
+    (f.yStep?'<div class="ro-prev"><div class="t"><small>昨夜決めた「明日の一歩」</small>'+esc(f.yStep)+'</div>'+
+      '<button class="ro-tick'+(f.yDone?' on':'')+'" onclick="ritYDone(this)" aria-label="実行した">✓</button></div>':'')+
+    '<label>今日のテーマ</label>'+inp('theme','例：選択と集中。重要案件を前進させる日',day.theme||'')+
+    '<label>今日の目標</label><textarea placeholder="今日が終わった時、何ができていれば前進か" oninput="ritF(\'topGoal\',this.value)">'+esc(day.topGoal||'')+'</textarea>'+
+    '<label>今日、価値を届けたい相手<small>誰に・何を</small></label>'+
+    [0,1].map(i=>'<div class="ro-who"><input type="text" value="'+esc(f.who[i]||'')+'" placeholder="誰に" oninput="ritWho('+i+',this.value)">'+
+      '<input type="text" value="'+esc((f.whatG||['',''])[i]||'')+'" placeholder="何を届けるか" oninput="ritWhat('+i+',this.value)"></div>').join('')+
+    '<label>相手にどんな変化を起こしたいか<small>表情・言葉・行動まで</small></label><textarea oninput="ritF(\'change\',this.value)">'+esc(f.change||'')+'</textarea>'+
+    '<label>私は何者であるか</label><div class="ro-iam">私は'+inp('iam','家族と仲間の可能性を解放する経営者',f.iam||'')+'である。</div>'+
+    '</div>';
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritGo(-1)">◀</button><button class="ro-main" onclick="ritAmDone()">今日を始める</button>';
+}
+function ritF(k,val){
+  if(k==='theme'){day.theme=val;el('f_theme').value=val;}
+  else if(k==='topGoal'){day.topGoal=val;el('f_topGoal').value=val;}
+  else ritV(vis()).focus[k]=val;
+  markDirty();
+}
+function ritWho(i,val){ritV(vis()).focus.who[i]=val;markDirty();}
+function ritWhat(i,val){const f=ritV(vis()).focus;if(!f.whatG)f.whatG=['',''];f.whatG[i]=val;markDirty();}
+function ritYDone(b){const f=ritV(vis()).focus;f.yDone=!f.yDone;b.classList.toggle('on',f.yDone);markDirty();}
+function ritAmDone(){const v=ritV(vis());if(!v.rit.am){v.rit.am=nowHM();}markDirty();ritGo(1);}
+
+function ritHabit(){
+  const v=ritV(vis());
+  el('roBody').innerHTML='<div class="ro-sheet"><div class="ro-h">今日の習慣</div><div class="ro-sub">攻めができなくても、守りができれば前進。空白の日を作らないことが一番大事です。</div>'+
+    ensureRit().habits.map(h=>{
+      const man=v.hb[h.id]!==undefined&&v.hb[h.id]!==null;
+      const val=habVal(h,v,day.health);
+      return '<div class="ro-hab"><div class="hn">'+esc(h.name)+(h.auto&&!man&&val>0?'<small>記録から自動</small>':'')+'</div><div class="ro-opts">'+
+        '<button class="ro-opt'+(val===2?' on':'')+'" onclick="ritSetHb(\''+h.id+'\',2)"><b>攻め</b>'+esc(h.atk)+'</button>'+
+        '<button class="ro-opt d'+(val===1?' on':'')+'" onclick="ritSetHb(\''+h.id+'\',1)"><b>守り</b>'+esc(h.def)+'</button>'+
+        '<button class="ro-opt z'+(man&&val===0?' on':'')+'" onclick="ritSetHb(\''+h.id+'\',0)">今日はできなかった</button></div></div>';
+    }).join('')+'</div>';
+  el('roFoot').innerHTML='<button class="ro-main" onclick="ritGo(1)">次へ　今日を振り返る</button>';
+}
+function ritSetHb(id,val){const v=ritV(vis());if(v.hb[id]===val)delete v.hb[id];else v.hb[id]=val;markDirty();const sc=el('roBody').scrollTop;ritHabit();el('roBody').scrollTop=sc;}
+
+function ritNight(){
+  const f=ritV(vis()).focus;
+  let sc='';for(let i=1;i<=10;i++)sc+='<button class="'+(f.sat===i?'on':'')+'" onclick="ritSat('+i+')">'+i+'</button>';
+  el('roBody').innerHTML='<div class="ro-sheet ro-f"><div class="ro-h">今日を意味に変える</div><div class="ro-sub">1行で構いません。続けると、調子が良い日の条件と崩れやすいパターンが見えてきます。</div>'+
+    '<label>今日のハイライト<small>1行で</small></label><input type="text" value="'+esc(f.hl||'')+'" placeholder="今日いちばん印象に残ったこと" oninput="ritF(\'hl\',this.value)">'+
+    '<label>今日学んだこと</label><textarea oninput="ritF(\'learn\',this.value)">'+esc(f.learn||'')+'</textarea>'+
+    '<label>明日の一歩<small>明朝の「今日をつくる」に表示されます</small></label><input type="text" value="'+esc(f.step||'')+'" placeholder="例：朝イチで○○さんに電話する" oninput="ritF(\'step\',this.value)">'+
+    '<label>今日の満足度</label><div class="ro-scale" id="roSat">'+sc+'</div></div>';
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritGo(-1)">◀</button><button class="ro-main" onclick="ritPmDone()">記録して終える</button>';
+}
+function ritSat(n){const f=ritV(vis()).focus;f.sat=(f.sat===n?0:n);markDirty();el('roSat').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',f.sat===i+1));}
+function ritPmDone(){const v=ritV(vis());if(!v.rit.pm)v.rit.pm=nowHM();markDirty();ritGo(1);}
+
+async function ritDone(){
+  el('roFoot').innerHTML='<button class="ro-main" onclick="closeRitual()">ホームへ戻る</button>';
+  flushSave();
+  if(!ritMap)await refreshRitMap();
+  ritMap[todayStr()]={vision:day.vision,health:day.health};
+  const n=ritStreak(ritMap),t=dayTally(day.vision,day.health);
+  let msg;
+  if(RIT.mode==='am'){
+    msg='今日の一歩目は、もう踏み出しています。<br>'+(day.topGoal?'「'+esc(day.topGoal.split('\n')[0].slice(0,40))+'」に向かいましょう。':'目の前の一日を大切に。');
+  }else{
+    msg='今日の約束　攻め <b>'+t.a+'</b>・守り <b>'+t.d+'</b>（全 '+t.n+'）<br>'+
+      ((t.a+t.d)>0?'今日もゼロにしませんでした。<br>決めたことを実行できる自分が、毎日育っています。':'記録したこと自体が前進です。<br>明日の一歩から、また始めましょう。');
+  }
+  el('roBody').innerHTML='<div class="ro-done"><div class="k">ゼロにしなかった日</div><div class="ro-big">'+n+'<small> 日連続</small></div>'+
+    '<div class="rc-week">'+weekDotsHTML(ritMap)+'</div><div class="m">'+msg+'</div></div>';
+}
+
+/* ---- ビジョンボードの登録 ---- */
+function renderBoards(){
+  const bs=ensureRit().boards,w=el('vbStrip');if(!w)return;
+  const seen=(curDate===todayStr())?ritV(vis()).rit.seen:[];
+  w.innerHTML=bs.length?bs.map((b,i)=>'<button class="vb-item'+(seen.indexOf(i)>=0?' seen':'')+'" onclick="openRitual(\'view\','+i+')"><img src="'+esc(b.url)+'" loading="lazy" alt=""><span>'+esc(b.title||('ボード '+(i+1)))+'</span></button>').join(''):
+    '<div class="vb-empty">ビジョンボードを登録すると、毎朝「朝の1分」で全画面表示されます。<br>PDFなら、ページを選んでまとめて取り込めます。</div>';
+}
+function renderRitCfg(){
+  const c=ensureRit(),w=el('ritCfg');if(!w)return;
+  w.innerHTML='<div class="lbl">ボードの並び順・タイトル</div>'+
+    (c.boards.length?c.boards.map((b,i)=>'<div class="vb-edit-row"><img src="'+esc(b.url)+'" alt=""><input type="text" value="'+esc(b.title||'')+'" onchange="updBoard('+i+',this.value)">'+
+      '<button onclick="moveBoard('+i+',-1)" aria-label="上へ">↑</button><button onclick="moveBoard('+i+',1)" aria-label="下へ">↓</button><button onclick="delBoard('+i+')" aria-label="削除">✕</button></div>').join(''):'<div class="hint">まだ登録されていません。</div>')+
+    '<div class="lbl" style="margin-top:14px">宣言文（朝の1分で表示・読み上げ）</div>'+
+    '<textarea style="min-height:220px" onchange="updDecl(this.value)">'+esc(c.decl)+'</textarea>'+
+    '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:12px"><input type="checkbox" '+(c.autoRit?'checked':'')+' onchange="updAutoRit(this.checked)"> その日最初にアプリを開いたとき、朝の1分を自動で表示する</label>'+
+    '<div class="hint">スマホのホーム画面やGoogleカレンダーの5:00の定期予定には、このアプリのURLの末尾に <b>#ritual</b>（夜は <b>#night</b>）を付けたリンクを登録すると、開いた瞬間に朝の1分・夜の1分が始まります。</div>';
+}
+function updBoard(i,v){ensureRit().boards[i].title=v;saveLife();renderBoards();}
+function moveBoard(i,d){const b=ensureRit().boards,j=i+d;if(j<0||j>=b.length)return;[b[i],b[j]]=[b[j],b[i]];saveLife();renderBoards();renderRitCfg();}
+function delBoard(i){if(!confirm('このボードを削除しますか？'))return;const p=ensureRit().boards.splice(i,1)[0];
+  if(cloudOn&&p&&p.path)sb.storage.from(IMG_BUCKET).remove([p.path]).catch(e=>console.warn(e));saveLife();renderBoards();renderRitCfg();}
+function updDecl(v){ensureRit().decl=v.trim()||DECL_DEF;saveLife();}
+function updAutoRit(on){ensureRit().autoRit=on;saveLife();}
+async function uploadBoardBlob(blob){
+  if(cloudOn){
+    const path='board/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.jpg';
+    const{error}=await sb.storage.from(IMG_BUCKET).upload(path,blob,{contentType:'image/jpeg'});
+    if(error)throw error;
+    const{data}=sb.storage.from(IMG_BUCKET).getPublicUrl(path);
+    return {url:data.publicUrl,path:path};
+  }
+  return {url:await blobToDataURL(blob)};
+}
+async function onBoardImgs(input){
+  const files=Array.from(input.files||[]);input.value='';if(!files.length)return;
+  toast('ボードを保存しています…');
+  const bs=ensureRit().boards;
+  for(const f of files){
+    try{const blob=await compressImage(f,1800);const e=await uploadBoardBlob(blob);e.title=BOARD_TITLES[bs.length]||('ボード '+(bs.length+1));bs.push(e);}
+    catch(err){console.warn(err);toast('保存に失敗しました：'+(err.message||''));}
+  }
+  saveLife();renderBoards();renderRitCfg();toast('ビジョンボードを登録しました');
+}
+let pdfPick=null;
+async function loadPdfJs(){
+  if(window.pdfjsLib)return window.pdfjsLib;
+  await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=res;s.onerror=()=>rej(new Error('PDF読込ライブラリを取得できませんでした'));document.head.appendChild(s);});
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+async function onBoardPdf(input){
+  const f=input.files&&input.files[0];input.value='';if(!f)return;
+  toast('PDFをページごとに変換しています…');
+  try{
+    const lib=await loadPdfJs();
+    const pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise;
+    const pages=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const vp0=pg.getViewport({scale:1});
+      const vp=pg.getViewport({scale:Math.min(3,1700/vp0.width)});
+      const cv=document.createElement('canvas');cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);
+      const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+      await pg.render({canvasContext:cx,viewport:vp}).promise;
+      const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.86));
+      pages.push({blob:blob,thumb:URL.createObjectURL(blob),on:true});
+    }
+    pdfPick=pages;
+    el('pdfReplaceWrap').style.display=ensureRit().boards.length?'flex':'none';
+    renderPdfPick();el('pdfModal').classList.add('show');
+  }catch(e){console.warn(e);toast('PDFの取り込みに失敗しました：'+(e.message||''));}
+}
+function renderPdfPick(){
+  el('pdfGrid').innerHTML=pdfPick.map((p,i)=>'<button class="pdf-pg'+(p.on?' on':'')+'" onclick="pdfPick['+i+'].on=!pdfPick['+i+'].on;renderPdfPick()"><img src="'+p.thumb+'" alt=""><span>'+(i+1)+'</span></button>').join('');
+  el('pdfGo').textContent='選んだ '+pdfPick.filter(p=>p.on).length+' 枚を登録する';
+}
+function closePdfPick(){el('pdfModal').classList.remove('show');(pdfPick||[]).forEach(p=>URL.revokeObjectURL(p.thumb));pdfPick=null;}
+async function importPdfPick(){
+  const sel=(pdfPick||[]).filter(p=>p.on);if(!sel.length){toast('ページを1枚以上選んでください');return;}
+  const c=ensureRit();
+  const replace=c.boards.length&&el('pdfReplace').checked;
+  el('pdfGo').disabled=true;el('pdfGo').textContent='登録しています…';
+  const out=[];
+  try{
+    for(let i=0;i<sel.length;i++){const e=await uploadBoardBlob(sel[i].blob);out.push(e);}
+  }catch(err){console.warn(err);toast('保存に失敗しました：'+(err.message||''));el('pdfGo').disabled=false;renderPdfPick();return;}
+  if(replace){
+    const old=c.boards.filter(b=>b.path).map(b=>b.path);
+    if(cloudOn&&old.length)sb.storage.from(IMG_BUCKET).remove(old).catch(e=>console.warn(e));
+    c.boards=[];
+  }
+  out.forEach(e=>{e.title=BOARD_TITLES[c.boards.length]||('ボード '+(c.boards.length+1));c.boards.push(e);});
+  saveLife();el('pdfGo').disabled=false;closePdfPick();renderBoards();renderRitCfg();
+  toast('ビジョンボードを '+out.length+' 枚登録しました');
+}
+
+/* ---- 習慣トラッカー ---- */
+function renderHabitTracker(map){
+  const c=ensureRit(),tb=el('htTable');if(!tb)return;
+  const[y,m]=visMonthStr.split('-').map(Number),last=new Date(y,m,0).getDate(),t=todayStr();
+  el('htLabel').textContent=y+'年'+m+'月';
+  const ds=[];for(let i=1;i<=last;i++)ds.push(visMonthStr+'-'+String(i).padStart(2,'0'));
+  let h='<tr><th class="hn"></th>'+ds.map((d,i)=>{const w=new Date(y,m-1,i+1).getDay();return '<th class="'+(d===t?'tday':((w===0||w===6)?'wk':''))+'">'+(i+1)+'</th>';}).join('')+'<th></th></tr>';
+  let A=0,D=0;
+  c.habits.forEach(hb=>{
+    let a=0,d2=0;
+    h+='<tr><td class="hn">'+esc(hb.name)+'</td>'+ds.map(d=>{
+      if(d>t)return '<td class="c fut"></td>';
+      const r=map[d]||{};const val=habVal(hb,r.vision,r.health);
+      if(val===2)a++;else if(val===1)d2++;
+      return '<td class="c'+(val===2?' a':(val===1?' d':''))+(d===t?' tday':'')+'" title="'+esc(hb.name)+' '+fmtMD(d)+'" onclick="htTap(\''+d+'\',\''+hb.id+'\')"></td>';
+    }).join('')+'<td class="tot">攻'+a+'・守'+d2+'</td></tr>';
+    A+=a;D+=d2;
+  });
+  let nz=0,past=0;
+  h+='<tr class="zr"><td class="hn">ゼロにしない</td>'+ds.map(d=>{
+    if(d>t)return '<td class="c"></td>';past++;
+    const r=map[d]||{};const lv=dayLevel(r.vision,r.health);if(lv>0)nz++;
+    return '<td class="c">'+(lv===2?'●':(lv===1?'○':''))+'</td>';
+  }).join('')+'<td></td></tr>';
+  tb.innerHTML=h;
+  const tc=tb.querySelector('th.tday');
+  if(tc){const wr=tb.parentElement;wr.scrollLeft=Math.max(0,tc.offsetLeft-wr.clientWidth+60);}
+  const st=ritMap?ritStreak(ritMap):0;
+  el('htSum').innerHTML='<span>ゼロにしなかった日 <b>'+nz+'</b> / '+past+'日</span><span>連続 <b>'+st+'</b> 日</span><span>攻め <b>'+A+'</b> 回</span><span>守り <b>'+D+'</b> 回</span>';
+  renderHabitCfg();
+}
+async function htTap(d,hid){
+  if(d>todayStr())return;
+  const hb=ensureRit().habits.find(x=>x.id===hid);if(!hb)return;
+  const r=visCache[d]||{};const cur=habVal(hb,r.vision,r.health);
+  const nv=cur===0?2:(cur===2?1:0);
+  if(d===curDate){const v=ritV(vis());v.hb[hid]=nv;markDirty();visCache[d]={vision:v,health:day.health};}
+  else{
+    const nd=await patchDay(d,x=>{x.vision=Object.assign(emptyVision(),x.vision||{});if(!x.vision.hb)x.vision.hb={};x.vision.hb[hid]=nv;},true);
+    if(nd)visCache[d]={vision:nd.vision,health:nd.health};
+  }
+  if(ritMap&&visCache[d])ritMap[d]=visCache[d];
+  renderHabitTracker(visCache);renderRitHome();
+}
+function renderHabitCfg(){
+  const w=el('htCfg');if(!w)return;
+  if(w.contains(document.activeElement))return;
+  w.innerHTML=ensureRit().habits.map((h,i)=>'<div class="hc-row"><input type="text" value="'+esc(h.name)+'" placeholder="習慣の名前" onchange="updHab('+i+',\'name\',this.value)">'+
+    '<input type="text" value="'+esc(h.atk)+'" placeholder="攻めの目標" onchange="updHab('+i+',\'atk\',this.value)">'+
+    '<input type="text" value="'+esc(h.def)+'" placeholder="守りの目標（最低ライン）" onchange="updHab('+i+',\'def\',this.value)">'+
+    '<button onclick="delHab('+i+')" aria-label="削除">✕</button></div>'+
+    (h.auto?'<div class="hc-auto">'+HAB_AUTO[h.auto]+(h.auto==='wake'?'（攻め '+esc(h.atkT)+' まで／守り '+esc(h.defT)+' まで）':'')+'</div>':'')).join('')+
+    '<div class="row"><button class="addbtn ghost" onclick="addHab()">＋ 習慣を追加</button><button class="addbtn ghost" onclick="resetHab()">初期の6項目に戻す</button></div>'+
+    '<div class="hint">習慣は増やしすぎないのがコツです。守りの目標は「どんなに忙しい日でもできる量」にしてください。</div>';
+}
+function updHab(i,k,v){const h=ensureRit().habits[i];h[k]=v;
+  if(h.auto==='wake'&&(k==='atk'||k==='def')){const mt=v.match(/(\d{1,2})[:：時](\d{2})?/);if(mt){const tm=String(mt[1]).padStart(2,'0')+':'+(mt[2]||'00');if(k==='atk')h.atkT=tm;else h.defT=tm;}}
+  saveLife();renderHabitTracker(visCache);}
+function addHab(){ensureRit().habits.push({id:'h_'+Math.random().toString(36).slice(2,8),name:'新しい習慣',atk:'',def:'',auto:''});saveLife();renderHabitTracker(visCache);}
+function delHab(i){if(!confirm('この習慣を削除しますか？（過去の記録は残ります）'))return;ensureRit().habits.splice(i,1);saveLife();renderHabitTracker(visCache);}
+function resetHab(){if(!confirm('習慣を初期の6項目に戻しますか？'))return;ensureRit().habits=defaultHabits();saveLife();renderHabitTracker(visCache);}
+
+/* ---- 今月のハイライトとKPT ---- */
+function renderKpt(map){
+  const c=ensureRit(),k=c.kpt[visMonthStr]||{k:'',p:'',t:''};
+  const[y,m]=visMonthStr.split('-').map(Number),last=new Date(y,m,0).getDate();
+  const rows=[];let ss=0,sn=0;
+  for(let i=1;i<=last;i++){const d=visMonthStr+'-'+String(i).padStart(2,'0');const v=(map[d]||{}).vision;const f=v&&v.focus;
+    if(f&&f.sat){ss+=f.sat;sn++;}
+    if(f&&(f.hl||'').trim())rows.push('<div class="hl-row" onclick="jumpToDay(\''+d+'\')"><span class="d">'+i+'日</span><span class="t">'+esc(f.hl)+'</span>'+(f.sat?'<span class="s">満足度 '+f.sat+'</span>':'')+'</div>');}
+  el('hlList').innerHTML=rows.length?rows.join(''):'<div class="hint" style="padding:8px 0">夜の1分で書いたハイライトが、ここに1日1行で並びます。</div>';
+  ['k','p','t'].forEach(x=>{const t=el('kpt_'+x);if(t&&document.activeElement!==t)t.value=k[x]||'';});
+  el('kptHint').textContent=(sn?'今月の満足度の平均 '+(ss/sn).toFixed(1)+'（'+sn+'日分）。':'')+'Tryに書いたことは、翌月の習慣トラッカーの設定に反映しましょう。';
+}
+function updKpt(x,v){const c=ensureRit();if(!c.kpt[visMonthStr])c.kpt[visMonthStr]={k:'',p:'',t:''};c.kpt[visMonthStr][x]=v;saveLife();}
+
+function renderRitVision(map){
+  if(ritMap)Object.keys(map).forEach(d=>{if(ritMap[d]!==undefined||d>=addDaysStr(todayStr(),-119))ritMap[d]=map[d];});
+  renderHabitTracker(map);renderKpt(map);
+}
+
+/* ---- 起動時：その日最初は朝の1分を表示 ---- */
+function ritAfterBoot(){
+  const hsh=(location.hash||'').toLowerCase();
+  if(hsh==='#ritual'||hsh==='#morning'){history.replaceState(null,'',location.pathname+location.search);openRitual('am');return;}
+  if(hsh==='#night'){history.replaceState(null,'',location.pathname+location.search);openRitual('pm');return;}
+  const c=ensureRit(),t=todayStr();
+  if(!c.autoRit||curDate!==t)return;
+  const v=ritV(vis());
+  if(v.rit.am||v.rit.seen.length)return;
+  if(lsGet('ritAuto')===t)return;
+  lsSet('ritAuto',t);
+  openRitual('am');
+}
 
 /* ================= tabs ================= */
 function showTab(t){
