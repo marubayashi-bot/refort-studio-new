@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>EARTHCOM SUCCESS PLANNER</title>
+<title>MY SUCCESS PLANNER</title>
+<link rel="manifest" href="success_planner.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="sp-icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="sp-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MY SUCCESS PLANNER">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0f2a1c">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
@@ -33,6 +41,7 @@ button{cursor:pointer;border:none;border-radius:8px;}
 header{background:var(--leather);color:#f0e6d2;padding:12px 14px;position:sticky;top:0;z-index:50;box-shadow:0 3px 12px rgba(10,8,4,.45);border-bottom:1px solid rgba(201,160,78,.45);}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .brand{display:flex;flex-direction:column;line-height:1.2;}
+.brand-ic{width:32px;height:32px;border-radius:8px;flex:none;margin-right:-2px;box-shadow:0 1px 4px rgba(0,0,0,.35);}
 .brand b{font-size:15px;font-family:'Cinzel',serif;letter-spacing:.12em;background:linear-gradient(100deg,#a97f35,#e8cd8e 35%,#c9a04e 60%,#f4e3b2 85%);-webkit-background-clip:text;background-clip:text;color:transparent;}
 .brand small{color:#b39355;font-size:9px;letter-spacing:.22em;font-family:'Cinzel',serif;}
 .spacer{flex:1;}
@@ -574,7 +583,7 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 
 <header>
   <div class="hrow">
-    <div class="brand"><b>EARTHCOM SUCCESS PLANNER</b><small>目的・目標・行動・振り返りを、毎日の成果につなげる</small></div>
+    <img src="sp-icon-192.png" alt="" class="brand-ic"><div class="brand"><b>MY SUCCESS PLANNER</b><small>目的・目標・行動・振り返りを、毎日の成果につなげる</small></div>
     <div class="spacer"></div>
     <span class="badge" id="syncBadge">● ローカル</span>
     <button class="hbtn" onclick="openSearch()">🔍 検索</button>
@@ -1092,6 +1101,11 @@ table.ht{border-collapse:separate;border-spacing:3px;}
     <div class="hint" style="margin-top:8px">設定手順は「連携セットアップ手順」の資料を参照してください。設定後、スケジュール画面に「📥 カレンダー取得」、アクション画面に「📥 ToDo取得」ボタンが有効になります。アプリでアクションを完了にすると、Google ToDo側も自動で完了になります。</div>
   </div>
 
+  <div class="card" id="spPushCard">
+    <h2>📱 スマホ通知 <span class="mini">朝・夜の入力がまだの時だけ、ホーム画面のアイコンに通知が届きます</span></h2>
+    <div id="spPushBody"><div class="hint">読み込み中…</div></div>
+  </div>
+
   <div class="card">
     <h2>人生・仕事における目的と目標 <span class="mini">初回登録後は毎朝自動表示。月1回見直し</span></h2>
     <div class="hint" style="margin-bottom:10px">この内容がホーム画面の「今日の原点」として毎日1項目ずつ表示されます。Success Planning 2026 の記入内容を初期登録済みです。</div>
@@ -1378,6 +1392,7 @@ async function initAuth(){
   const ov=el('loginOv'); if(ov) ov.style.display='none';
   setBadge();
   await boot();
+  spPushInit();
 }
 /* doLogin / skipLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
 function setBadge(){const b=el('syncBadge');if(cloudOn){b.textContent='● 共有中（クラウド保存）';b.classList.add('on');}else{b.textContent='● ローカル（この端末のみ）';b.classList.remove('on');}}
@@ -2857,7 +2872,7 @@ function renderVisCfg(){
     '<textarea style="min-height:110px" onchange="updVisWords(this.value)">'+esc(cfg.words.join('\n'))+'</textarea>'+
     '<div class="lbl">🔥 最低ラインの補足メモ</div>'+
     '<textarea style="min-height:56px" placeholder="例：出張日はホテルの部屋でスクワットだけ" onchange="updVisNote(this.value)">'+esc(cfg.minNote||'')+'</textarea>'+
-    '<div class="hint">通知はアプリからは送りません。Googleカレンダーに朝・昼・運動時刻・夜の定期予定を入れて運用します。</div>';
+    '<div class="hint">朝・夜の未入力は、スマホ通知でお知らせします（設定は「目的・目標」タブの「📱 スマホ通知」）。</div>';
 }
 function updVisTarget(k,v){ensureVis().targets[k]=v;saveLife();renderVision();}
 function updVisStart(k,v){ensureVis().start[k]=v;saveLife();renderVision();}
@@ -3493,6 +3508,128 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
 window.addEventListener('beforeunload',()=>{if(dirty){flushCollect();lsSet('day_'+curDate,day);}});
 
 initAuth();
+</script>
+<script>
+/* ================= 📱 スマホ通知（Web Push：朝・夜の未入力リマインド） ================= */
+const SP_VAPID_PUB='BBP9h3z2uHUdDWsMSIPkfyVEGwnoGvA4rAILixG00Ga_dviuLmBK0HHg1bSGxZ_glZm2AyX73FZYEuKQPRWS-gI';
+const SP_FN='sp-reminder';          /* Supabase Edge Function 名 */
+const SP_SW='sp-sw.js';
+const SP_SCOPE='./success_planner';
+let spCfg=null,spReg=null,spSub=null;
+
+function spDefaultCfg(){return {on:true,am:'07:30',pm:'21:30',subs:[]};}
+function spSupported(){return ('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);}
+function spStandalone(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;}
+function spIsIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function spDevName(){const u=navigator.userAgent;if(/iPhone/.test(u))return 'iPhone';if(/iPad/.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))return 'iPad';if(/Android/.test(u))return 'Android';if(/Mac/.test(u))return 'Mac';if(/Windows/.test(u))return 'Windows';return 'この端末';}
+function spB64(b){const p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s),o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o;}
+function spTxt(x){return typeof x==='string'&&x.trim()!=='';}
+/* 入力済みの判定（Edge Function側と同じ基準） */
+function spAmDone(d){if(!d)return false;const r=(d.vision&&d.vision.rit)||{};return !!(r.am||spTxt(d.theme)||spTxt(d.topGoal)||(d.ka||[]).some(spTxt));}
+function spPmDone(d){if(!d)return false;const v=d.vision||{},r=v.rit||{};return !!(r.pm||Object.values(d.review||{}).some(spTxt)||(v.focus&&spTxt(v.focus.hl)));}
+
+async function spPushInit(){
+  spCfg=await cloudGet('push_cfg')||lsGet('push_cfg')||spDefaultCfg();
+  if(!spCfg.subs)spCfg.subs=[];
+  if(spSupported()){
+    try{
+      spReg=await navigator.serviceWorker.register(SP_SW,{scope:SP_SCOPE});
+      spSub=await spReg.pushManager.getSubscription();
+      /* 購読が更新されていたらクラウド側も差し替え */
+      if(spSub&&Notification.permission==='granted'&&!spCfg.subs.some(x=>x.sub&&x.sub.endpoint===spSub.endpoint)){await spSaveSub(spSub);}
+    }catch(e){console.warn('sw register',e);}
+    navigator.serviceWorker.addEventListener('message',ev=>{
+      const m=ev.data||{};if(m.type!=='sp-open')return;
+      const mode=m.hash==='#night'?'pm':'am';
+      Promise.resolve(curDate!==todayStr()?loadDay(todayStr()):0).then(()=>setTimeout(()=>openRitual(mode),200));
+    });
+  }
+  spRender();spBadgeSync();
+}
+async function spSaveCfg(){lsSet('push_cfg',spCfg);await cloudSet('push_cfg',spCfg);}
+async function spSaveSub(sub){
+  const j=sub.toJSON();
+  spCfg.subs=(spCfg.subs||[]).filter(x=>x.sub&&x.sub.endpoint!==j.endpoint);
+  spCfg.subs.push({sub:j,dev:spDevName(),added:new Date().toISOString()});
+  await spSaveCfg();
+}
+async function spEnable(){
+  if(!spSupported()){toast('この端末・ブラウザは通知に対応していません');return;}
+  if(spIsIOS()&&!spStandalone()){toast('先にホーム画面に追加し、アイコンから開いてください');return;}
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('通知が許可されませんでした');spRender();return;}
+    if(!spReg)spReg=await navigator.serviceWorker.register(SP_SW,{scope:SP_SCOPE});
+    await navigator.serviceWorker.ready;
+    spSub=await spReg.pushManager.getSubscription()||await spReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:spB64(SP_VAPID_PUB)});
+    spCfg.on=true;
+    await spSaveSub(spSub);
+    toast('この端末で通知をオンにしました');
+  }catch(e){console.warn(e);toast('通知の登録に失敗しました：'+(e.message||e));}
+  spRender();
+}
+async function spDisable(){
+  try{
+    if(spSub){const ep=spSub.endpoint;await spSub.unsubscribe();spCfg.subs=spCfg.subs.filter(x=>x.sub&&x.sub.endpoint!==ep);await spSaveCfg();}
+    spSub=null;toast('この端末の通知をオフにしました');
+  }catch(e){toast('解除に失敗しました');}
+  spRender();
+}
+async function spRemoveDev(i){spCfg.subs.splice(i,1);await spSaveCfg();spRender();}
+async function spSetTime(k,v){if(!/^\d{2}:\d{2}$/.test(v))return;spCfg[k]=v;await spSaveCfg();toast((k==='am'?'朝':'夜')+'の通知を '+v+' に設定しました');}
+async function spToggle(on){spCfg.on=on;await spSaveCfg();spRender();}
+async function spTest(){
+  const st=el('spStat');if(st)st.textContent='送信中…';
+  try{
+    const {data,error}=await sb.functions.invoke(SP_FN,{body:{test:true}});
+    if(error)throw error;
+    if(st)st.textContent=data&&data.total?('送信しました（'+data.ok+'/'+data.total+'台）'):'登録済みの端末がありません';
+  }catch(e){if(st)st.textContent='送信失敗：Edge Function「'+SP_FN+'」を確認してください';console.warn(e);}
+}
+function spBadgeSync(){
+  try{
+    if(!('clearAppBadge' in navigator)||!day||curDate!==todayStr())return;
+    const now=nowHM(),c=spCfg||spDefaultCfg();
+    const amOk=spAmDone(day),pmOk=spPmDone(day);
+    const need=(now>=c.am&&!amOk?1:0)+(now>=c.pm&&!pmOk?1:0);
+    if(need)navigator.setAppBadge(need).catch(()=>{});else navigator.clearAppBadge().catch(()=>{});
+  }catch(e){}
+}
+function spRender(){
+  const b=el('spPushBody');if(!b||!spCfg)return;
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  let h='';
+  if(!spSupported()||(spIsIOS()&&!spStandalone())){
+    h+='<div class="hint" style="background:var(--goldbg);border:1px solid var(--gold3);border-radius:8px;padding:10px 12px;line-height:1.8">'+
+      '<b>iPhoneで通知を受け取る手順</b><br>① Safariでこのページを開く<br>② 共有ボタン（□↑）→「ホーム画面に追加」<br>③ ホーム画面の <b>MY SUCCESS PLANNER</b> アイコンから開き直す<br>④ この画面で「この端末で通知をオン」を押す<br>'+
+      '<span style="color:var(--sub)">※ 以前に追加したアイコンがある場合は、削除してから追加し直すと新しいアイコンになります。</span></div>';
+  }else{
+    const onDev=!!spSub&&perm==='granted';
+    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">'+
+      (onDev?'<span class="chip" style="background:#e7f4ec;color:var(--ok)">● この端末：通知オン</span><button class="addbtn ghost" onclick="spDisable()">この端末の通知をオフ</button>'
+            :'<button class="goldbtn" onclick="spEnable()">🔔 この端末で通知をオン</button>'+(perm==='denied'?'<span class="hint" style="margin:0;color:var(--bad)">通知がブロックされています。設定アプリ→通知から許可してください</span>':''))+
+      '</div>';
+  }
+  h+='<div class="row" style="gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center">'+
+    '<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" '+(spCfg.on?'checked':'')+' onchange="spToggle(this.checked)"> 通知を使う</label>'+
+    '<label style="font-size:13px">🌅 朝 <input type="time" value="'+esc(spCfg.am)+'" onchange="spSetTime(\'am\',this.value)"></label>'+
+    '<label style="font-size:13px">🌙 夜 <input type="time" value="'+esc(spCfg.pm)+'" onchange="spSetTime(\'pm\',this.value)"></label>'+
+    '</div>';
+  h+='<div class="hint" style="margin-top:8px">設定時刻になっても入力がなければ通知します（入力済みなら届きません）。<br>'+
+    '朝＝「朝の1分」完了、または「朝の3分入力」のテーマ・最重要ゴール・重点行動のどれか／夜＝「夜の1分」完了、または「夜の5分振り返り」のどれか。<br>'+
+    '通知をタップすると、朝の1分・夜の1分がそのまま開きます。未入力の間はアイコンに赤い数字（バッジ）が付きます。</div>';
+  if(spCfg.subs.length){
+    h+='<div class="lbl" style="margin-top:10px">登録端末</div>'+spCfg.subs.map((x,i)=>
+      '<div class="row" style="gap:8px;align-items:center;font-size:13px;margin:3px 0"><span>📱 '+esc(x.dev||'端末')+'</span><span class="hint" style="margin:0">'+esc((x.added||'').slice(0,10))+'</span>'+
+      '<button class="addbtn ghost" style="padding:2px 8px;font-size:12px" onclick="spRemoveDev('+i+')">削除</button></div>').join('');
+  }
+  h+='<div class="row" style="margin-top:10px;gap:8px;align-items:center"><button class="addbtn ghost" onclick="spTest()">📨 テスト通知を送る</button><span class="hint" id="spStat" style="margin:0"></span></div>';
+  b.innerHTML=h;
+}
+/* 保存のたびにバッジを更新 */
+(function(){const _s=saveAll;saveAll=function(x){const r=_s(x);try{spBadgeSync();}catch(e){}return r;};})();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')spBadgeSync();});
+
 </script>
 </body>
 </html>
