@@ -567,6 +567,29 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 .mf-li.done{opacity:.5;text-decoration:line-through;}
 .mf-li .pr{font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:#f3e6c4;color:#7a5a12;flex:0 0 auto;}
 .mf-note{font-size:11px;color:var(--sub);margin-top:8px;}
+/* 健康チェック（朝・夜）共通 */
+.hc-sec{font-size:11.5px;font-weight:700;color:var(--sub);margin:12px 0 5px;}
+.hc-sleep{font-size:12px;color:var(--sub);margin-top:4px;}
+.hc-sleep b{font-size:16px;color:var(--navy);}
+.hc-note{font-size:11px;color:var(--sub);margin-top:10px;}
+.hc-flow{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px;font-size:11px;color:var(--sub);}
+.hc-flow span{padding:3px 9px;border-radius:999px;background:#f2f5f9;}
+.hc-flow span.on{background:var(--goldbg);color:var(--navy);font-weight:700;}
+/* 朝の1分・夜の1分（濃色）の中で使うとき */
+.hc-dark .hc-sec{color:#e0c98f;}
+.hc-dark .hcell{background:rgba(0,0,0,.22);border-color:rgba(201,160,78,.32);}
+.hc-dark .hcell .hl{color:#e0c98f;}
+.hc-dark .hcell input,.hc-dark .hcell select,.hc-dark .hc-in{background:rgba(255,252,242,.96);border:1px solid rgba(201,160,78,.5);border-radius:8px;color:#241d14;padding:8px;font-size:15px;width:100%;}
+.hc-dark .hc-sleep{color:#b8a67f;} .hc-dark .hc-sleep b{color:#f0e2c2;}
+.hc-dark .chk{background:rgba(240,230,210,.05);border-color:rgba(201,160,78,.32);color:#d9c9a5;}
+.hc-dark .chk .box{border-color:rgba(201,160,78,.5);}
+.hc-dark .chk.on{background:rgba(201,160,78,.22);border-color:#c9a04e;color:#f0e2c2;}
+.hc-dark .chk.on .box{background:#c9a04e;color:#241d0e;}
+.hc-dark .scale button,.hc-dark .dtype button{background:rgba(240,230,210,.06);border-color:rgba(201,160,78,.32);color:#d9c9a5;}
+.hc-dark .scale button.on,.hc-dark .dtype button.on{background:linear-gradient(140deg,#e8cd8e,#c9a04e);color:#241d0e;border-color:transparent;}
+.hc-dark .cond button{background:rgba(240,230,210,.08);}
+.hc-dark .cond button.sel{background:rgba(201,160,78,.25);border-color:#c9a04e;}
+.hc-dark .hc-note{color:#9c8b69;}
 </style>
 
 <!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
@@ -646,6 +669,36 @@ table.ht{border-collapse:separate;border-spacing:3px;}
     </div>
   </div>
 
+  <div class="card">
+    <h2>朝の3項目 <span class="mini">朝の1分の②。ビジョンを見たあとに書く</span></h2>
+    <div class="lbl">① 今日のテーマ</div>
+    <input type="text" id="f_theme" style="width:100%" placeholder="例：選択と集中。重要案件を前進させる日">
+    <div class="sp-moved">
+    <textarea id="f_topGoal" placeholder="例：PH04・PH05の重要案件3件について、契約予定日と次回アクションを確定する"></textarea>
+    <div class="ka"><span class="num">1</span><input type="text" id="f_ka1" placeholder="重点行動 1"></div>
+    <div class="ka"><span class="num">2</span><input type="text" id="f_ka2" placeholder="重点行動 2"></div>
+    <div class="ka"><span class="num">3</span><input type="text" id="f_ka3" placeholder="重点行動 3"></div>
+    </div>
+    <div class="lbl">② 今日、誰に何をGIVEするか</div>
+    <textarea id="f_give" placeholder="例：担当者が迷わない判断基準を示す／お客様に比較表を先回りで用意する"></textarea>
+    <div class="lbl">③ 今日の注意点・見えていないこと</div>
+    <textarea id="f_caution" placeholder="例：顧客の本当の決裁条件／工事供給能力"></textarea>
+  </div>
+
+  <div class="card" id="amHealthCard">
+    <h2>朝の健康チェック <span class="mini">朝の1分の③。正確さより継続</span></h2>
+    <div id="amHealth"></div>
+  </div>
+
+  <div class="card" id="mfCard">
+    <h2>MIND FLOWの今日 <span class="mini">仕事の予定・タスク・目標はMIND FLOWで管理します</span></h2>
+    <div id="mfBody"><div class="hint">読み込んでいます…</div></div>
+    <div class="row" style="margin-top:10px">
+      <button class="goldbtn" onclick="location.href='earthcom-mind-flow.html#/home'">🧭 MIND FLOWで今日を始める</button>
+      <button class="addbtn ghost" style="margin-top:0" onclick="mfLoad(true)">↻ 最新にする</button>
+    </div>
+  </div>
+
   <div class="quote">
     <div class="qt" id="qTitle">今日の原点</div>
     <div class="qb" id="qBody">…</div>
@@ -656,15 +709,6 @@ table.ht{border-collapse:separate;border-spacing:3px;}
     <div class="ns">⭐ ノーススター（最終目的地）</div>
     <div class="nsb" id="pyrNS"></div>
     <div class="sp-moved"><div class="bg-chips" id="pyrBG"></div><div id="pyrKPI"></div></div>
-  </div>
-
-  <div class="card" id="mfCard">
-    <h2>MIND FLOWの今日 <span class="mini">仕事の予定・タスク・目標はMIND FLOWで管理します</span></h2>
-    <div id="mfBody"><div class="hint">読み込んでいます…</div></div>
-    <div class="row" style="margin-top:10px">
-      <button class="goldbtn" onclick="location.href='earthcom-mind-flow.html#/home'">🧭 MIND FLOWで今日を始める</button>
-      <button class="addbtn ghost" style="margin-top:0" onclick="mfLoad(true)">↻ 最新にする</button>
-    </div>
   </div>
 
   <div class="card" id="progCard">
@@ -683,22 +727,6 @@ table.ht{border-collapse:separate;border-spacing:3px;}
     <h2>引継ぎ・未完了 <span class="mini">昨夜の「明日の設計」と、過去60日の未完了アクション</span></h2>
     <div id="coList"></div>
     <div class="row" id="coBtns" style="margin-top:10px"></div>
-  </div>
-
-  <div class="card">
-    <h2>朝の3分入力 <span class="mini">今日の自分を決める3項目</span></h2>
-    <div class="lbl">① 今日のテーマ</div>
-    <input type="text" id="f_theme" style="width:100%" placeholder="例：選択と集中。重要案件を前進させる日">
-    <div class="sp-moved">
-    <textarea id="f_topGoal" placeholder="例：PH04・PH05の重要案件3件について、契約予定日と次回アクションを確定する"></textarea>
-    <div class="ka"><span class="num">1</span><input type="text" id="f_ka1" placeholder="重点行動 1"></div>
-    <div class="ka"><span class="num">2</span><input type="text" id="f_ka2" placeholder="重点行動 2"></div>
-    <div class="ka"><span class="num">3</span><input type="text" id="f_ka3" placeholder="重点行動 3"></div>
-    </div>
-    <div class="lbl">② 今日、誰に何をGIVEするか</div>
-    <textarea id="f_give" placeholder="例：担当者が迷わない判断基準を示す／お客様に比較表を先回りで用意する"></textarea>
-    <div class="lbl">③ 今日の注意点・見えていないこと</div>
-    <textarea id="f_caution" placeholder="例：顧客の本当の決裁条件／工事供給能力"></textarea>
   </div>
 
   <div class="card">
@@ -800,6 +828,11 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 
 <!-- ============ REVIEW ============ -->
 <div class="tab" id="tab-review">
+  <div class="card" id="pmHealthCard">
+    <h2>夜の健康チェック <span class="mini">夜の1分の①。今日の身体の記録</span></h2>
+    <div id="pmHealth"></div>
+  </div>
+
   <div class="card">
     <h2>夜の5分振り返り <span class="mini">結果を明日の仕組みに変える</span></h2>
     <div class="grid2">
@@ -854,6 +887,7 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 
 <!-- ============ HEALTH ============ -->
 <div class="tab" id="tab-health">
+  <div class="hint" style="margin:0 0 10px">毎日の入力は、朝は「ホーム（朝の1分）」、夜は「振り返り（夜の1分）」で行えます。このタブは詳細の入力と推移の確認用です。</div>
   <div class="card">
     <h2>今日のコンディション <span class="mini">健康も経営課題として管理する</span></h2>
     <div class="hgrid">
@@ -1492,7 +1526,7 @@ function goToday(){loadDay(todayStr());}
 
 /* ================= render day into UI ================= */
 function renderDay(){
-  setTimeout(()=>mfLoad(false),0);
+  setTimeout(()=>{mfLoad(false);hcRender();},0);
   el('f_theme').value=day.theme||'';
   el('f_topGoal').value=day.topGoal||'';
   el('f_ka1').value=day.ka[0]||'';el('f_ka2').value=day.ka[1]||'';el('f_ka3').value=day.ka[2]||'';
@@ -3202,7 +3236,10 @@ async function renderRitHome(refetch){
   if(!el('ritCard')||!day)return;
   const v=ritV(vis()),r=v.rit;
   const isToday=curDate===todayStr();
-  const st=[['ビジョン',r.seen.length>0],['宣言',!!r.decl],['今日をつくる',!!r.am],['夜の1分',!!r.pm]];
+  const hh=day.health||{},vv=vis();
+  const hcDone=!!(hh.sleepEnd||hh.cond||vv.sleepSat||vv.energy||VIS_CHK.morning.some(x=>vv.chk&&vv.chk[x[0]]));
+  const t3=!!((day.theme||'').trim()||(day.give||'').trim()||(day.caution||'').trim());
+  const st=[['ビジョン',r.seen.length>0],['宣言',!!r.decl],['3項目',t3],['健康',hcDone],['夜の1分',!!r.pm]];
   el('ritSteps').innerHTML=(isToday?'':'<span>'+fmtMD(curDate)+' の記録</span>')+st.map(s=>'<span class="'+(s[1]?'on':'')+'">'+(s[1]?'✓ ':'')+s[0]+'</span>').join('');
   el('ritAmBtn').classList.toggle('done',isToday&&!!r.am);
   el('ritAmBtn').textContent=(isToday&&r.am)?'🌅 ビジョンを見る':'🌅 朝の1分　ビジョンを見る';
@@ -3217,9 +3254,80 @@ async function renderRitHome(refetch){
   el('ritWeek').innerHTML=weekDotsHTML(ritMap);
 }
 
+
+/* ================= 健康チェック（朝・夜）— ホーム／振り返り／朝夜の1分で共通 ================= */
+const HC_TARGETS=['amHealth','pmHealth'];
+function hcSleepTxt(){const h=day.health||{};const v=calcSleepH(h.sleepStart,h.sleepEnd);return v?'睡眠 <b>'+v+'</b> 時間':'就寝・起床を入れると睡眠時間を計算します';}
+function hcBtns(k,n){const v=vis();let h='';for(let i=1;i<=n;i++)h+='<button class="'+(v[k]===i?'on':'')+'" onclick="hcScale(\''+k+'\','+i+')">'+i+'</button>';return h;}
+function hcChks(g){const v=vis();return VIS_CHK[g].map(x=>'<button class="chk'+(v.chk[x[0]]?' on':'')+'" onclick="hcChk(\''+x[0]+'\')"><span class="box">✓</span><span>'+x[1]+'</span></button>').join('');}
+function hcCell(label,inner){return '<div class="hcell"><div class="hl">'+label+'</div>'+inner+'</div>';}
+function hcHTML(mode){
+  const h=day.health||(day.health={}),v=vis();
+  if(mode==='am'){
+    const cond=[1,2,3,4,5].map(i=>'<button class="'+(h.cond===i?'sel':'')+'" onclick="hcCond('+i+')">'+['😫','😕','😐','🙂','💪'][i-1]+'</button>').join('');
+    return '<div class="dtype">'+[['normal','通常の日'],['busy','忙しい日（最低ライン）'],['rest','休養日']]
+        .map(t=>'<button class="'+((v.dayType||'normal')===t[0]?'on':'')+'" onclick="hcType(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>'+
+      '<div class="hc-sec">睡眠</div><div class="hgrid">'+
+        hcCell('🛏 就寝（昨夜）','<input type="time" value="'+esc(h.sleepStart||'')+'" onchange="hcSet(\'sleepStart\',this.value)">')+
+        hcCell('🌅 起床','<input type="time" value="'+esc(h.sleepEnd||'')+'" onchange="hcSet(\'sleepEnd\',this.value)">')+
+      '</div><div class="hc-sleep">'+hcSleepTxt()+'</div>'+
+      '<div class="hc-sec">睡眠の満足度（1〜5）</div><div class="scale">'+hcBtns('sleepSat',5)+'</div>'+
+      '<div class="hc-sec">起床時のエネルギー（1〜10）</div><div class="scale">'+hcBtns('energy',10)+'</div>'+
+      '<div class="hc-sec">今日の体調</div><div class="cond">'+cond+'</div>'+
+      '<div class="hc-sec">身体の数値<span style="font-weight:400">（測った日だけで十分）</span></div><div class="hgrid">'+
+        hcCell('⚖ 体重 kg','<input type="number" step="0.1" value="'+esc(h.weight||'')+'" onchange="hcSet(\'weight\',this.value)">')+
+        hcCell('📊 体脂肪率 ％','<input type="number" step="0.1" value="'+esc(v.fat||'')+'" onchange="hcSet(\'fat\',this.value,1)">')+
+        hcCell('📏 ウエスト cm','<input type="number" step="0.1" value="'+esc(v.waist||'')+'" onchange="hcSet(\'waist\',this.value,1)">')+
+      '</div>'+
+      '<div class="hc-sec">朝の習慣</div><div class="chkgrid">'+hcChks('morning')+'</div>'+
+      '<div class="hc-sec">今日の運動予定時刻</div><div class="hgrid">'+hcCell('🏃 予定','<input type="time" value="'+esc(v.planTime||'')+'" onchange="hcSet(\'planTime\',this.value,1)">')+'</div>'+
+      '<div class="hc-note">詳しい記録と推移は「健康」タブで見られます。</div>';
+  }
+  const prot=VIS_PROT.map(p=>'<button class="'+(v.protein===p?'on':'')+'" onclick="hcProt(\''+p+'\')">'+p+'</button>').join('');
+  return '<div class="hgrid">'+
+      hcCell('👣 歩数','<input type="number" value="'+esc(h.steps||'')+'" onchange="hcSet(\'steps\',this.value)">')+
+      hcCell('🍺 飲酒','<select onchange="hcSet(\'alcohol\',this.value)">'+['','なし','少量','普通','多め'].map(o=>'<option value="'+o+'"'+((h.alcohol||'')===o?' selected':'')+'>'+(o||'-')+'</option>').join('')+'</select>')+
+    '</div>'+
+    '<div class="hc-sec">🏃 今日の運動・トレーニング</div><input type="text" class="hc-in" style="width:100%" value="'+esc(h.exercise||'')+'" placeholder="例：朝ウォーキング30分" onchange="hcSet(\'exercise\',this.value)">'+
+    '<div class="hc-sec">☀️ 日中できたこと</div><div class="chkgrid">'+hcChks('daytime')+'</div>'+
+    '<div class="hc-sec">🎯 日中の集中力（1〜10）</div><div class="scale">'+hcBtns('focus',10)+'</div>'+
+    '<div class="hc-sec">🌙 夜の習慣</div><div class="chkgrid">'+hcChks('night')+'</div>'+
+    '<div class="hc-sec">🥩 今日のたんぱく質</div><div class="dtype">'+prot+'</div>';
+}
+function hcRender(){
+  if(!day)return;
+  const a=el('amHealth'),p=el('pmHealth');
+  if(a)a.innerHTML=hcHTML('am');
+  if(p)p.innerHTML=hcHTML('pm');
+  const ov=el('ritOv');
+  if(ov&&ov.classList.contains('on')){const st=RIT_STEPS[RIT.mode][RIT.step];if(st==='hcam'||st==='hcpm'){const sc=el('roBody').scrollTop;(st==='hcam'?ritHcAm:ritHcPm)();el('roBody').scrollTop=sc;}}
+}
+function hcSync(){try{renderHealth();}catch(e){}try{renderSelfCheck();}catch(e){}try{renderRings();}catch(e){}}
+function hcAfter(){markDirty();hcSync();hcRender();}
+function hcSet(k,val,isVis){
+  if(isVis)vis()[k]=val;
+  else{day.health[k]=val;if(k==='sleepStart'||k==='sleepEnd')day.health.sleepH=calcSleepH(day.health.sleepStart,day.health.sleepEnd);}
+  markDirty();hcSync();
+  document.querySelectorAll('.hc-sleep').forEach(x=>x.innerHTML=hcSleepTxt());
+  if(!isVis){const o=document.querySelectorAll('#amHealth,#pmHealth');o.forEach(c=>{if(!c.contains(document.activeElement))c.innerHTML=hcHTML(c.id==='amHealth'?'am':'pm');});}
+}
+function hcChk(k){snapUndo();const v=vis();v.chk[k]=!v.chk[k];hcAfter();}
+function hcScale(k,n){snapUndo();const v=vis();v[k]=(v[k]===n?0:n);hcAfter();}
+function hcCond(n){snapUndo();day.health.cond=(day.health.cond===n?0:n);hcAfter();}
+function hcProt(p){snapUndo();const v=vis();v.protein=(v.protein===p?'':p);hcAfter();}
+function hcType(t){snapUndo();vis().dayType=t;hcAfter();if(t==='rest')toast('休養日として記録します。回復も計画のうちです。');}
+function ritHcAm(){
+  el('roBody').innerHTML='<div class="ro-sheet ro-f hc-dark"><div class="ro-h">朝の健康チェック</div><div class="ro-sub">身体の状態を知ってから一日を始める。わかる項目だけで構いません。</div>'+hcHTML('am')+'</div>';
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritGo(-1)">◀</button><button class="ro-main" onclick="ritAmDone()">今日を始める</button>';
+}
+function ritHcPm(){
+  el('roBody').innerHTML='<div class="ro-sheet ro-f hc-dark"><div class="ro-h">夜の健康チェック</div><div class="ro-sub">今日の身体の記録。チェックするだけで1分です。</div>'+hcHTML('pm')+'</div>';
+  el('roFoot').innerHTML='<button class="ro-main" onclick="ritGo(1)">次へ　今日の習慣</button>';
+}
+
 /* ---- オーバーレイ ---- */
 let RIT={mode:'am',step:0,bi:0,prev:null};
-const RIT_STEPS={am:['board','decl','focus','done'],pm:['habit','night','done'],view:['board']};
+const RIT_STEPS={am:['board','decl','focus','hcam','done'],pm:['hcpm','habit','night','done'],view:['board']};
 async function openRitual(mode,bi){
   ensureRit();
   if(mode!=='view'&&curDate!==todayStr())await loadDay(todayStr());
@@ -3244,7 +3352,7 @@ function renderRit(){
   const steps=RIT_STEPS[RIT.mode],s=steps[RIT.step];
   el('roTtl').textContent=RIT.mode==='pm'?'夜の1分':(RIT.mode==='view'?'ビジョンボード':'朝の1分');
   el('roProg').innerHTML=RIT.mode==='view'?'':steps.map((x,i)=>'<i class="'+(i<RIT.step?'done':(i===RIT.step?'cur':''))+'"></i>').join('');
-  ({board:ritBoard,decl:ritDecl,focus:ritFocus,habit:ritHabit,night:ritNight,done:ritDone})[s]();
+  ({board:ritBoard,decl:ritDecl,focus:ritFocus,hcam:ritHcAm,hcpm:ritHcPm,habit:ritHabit,night:ritNight,done:ritDone})[s]();
 }
 function ritMark(){if(RIT.mode==='view'&&curDate!==todayStr())return false;return true;}
 
@@ -3309,22 +3417,21 @@ function ritDeclDone(){try{speechSynthesis.cancel();}catch(e){}const v=ritV(vis(
 function ritFocus(){
   const v=ritV(vis()),f=v.focus;
   if(RIT.prev&&!f.yStep)f.yStep=RIT.prev;
-  const inp=(k,ph,val)=>'<input type="text" value="'+esc(val)+'" placeholder="'+esc(ph)+'" oninput="ritF(\''+k+'\',this.value)">';
-  el('roBody').innerHTML='<div class="ro-sheet ro-f"><div class="ro-h">今日をつくる</div><div class="ro-sub">目標と、価値を届ける相手を決める。1分で十分です。</div>'+
+  const mf=(typeof mfDay==='function'&&MF)?mfDay(todayStr()):null;
+  el('roBody').innerHTML='<div class="ro-sheet ro-f"><div class="ro-h">今日の3項目</div><div class="ro-sub">今日をどんな自分で過ごすかを決める。1分で十分です。</div>'+
     (f.yStep?'<div class="ro-prev"><div class="t"><small>昨夜決めた「明日の一歩」</small>'+esc(f.yStep)+'</div>'+
       '<button class="ro-tick'+(f.yDone?' on':'')+'" onclick="ritYDone(this)" aria-label="実行した">✓</button></div>':'')+
-    '<label>今日のテーマ</label>'+inp('theme','例：選択と集中。重要案件を前進させる日',day.theme||'')+
-    '<label>今日の目標</label><textarea placeholder="今日が終わった時、何ができていれば前進か" oninput="ritF(\'topGoal\',this.value)">'+esc(day.topGoal||'')+'</textarea>'+
-    '<label>今日、価値を届けたい相手<small>誰に・何を</small></label>'+
-    [0,1].map(i=>'<div class="ro-who"><input type="text" value="'+esc(f.who[i]||'')+'" placeholder="誰に" oninput="ritWho('+i+',this.value)">'+
-      '<input type="text" value="'+esc((f.whatG||['',''])[i]||'')+'" placeholder="何を届けるか" oninput="ritWhat('+i+',this.value)"></div>').join('')+
-    '<label>相手にどんな変化を起こしたいか<small>表情・言葉・行動まで</small></label><textarea oninput="ritF(\'change\',this.value)">'+esc(f.change||'')+'</textarea>'+
-    '<label>私は何者であるか</label><div class="ro-iam">私は'+inp('iam','家族と仲間の可能性を解放する経営者',f.iam||'')+'である。</div>'+
+    (mf&&mf.goal?'<div class="ro-prev"><div class="t"><small>MIND FLOWで決めた今日のゴール</small>'+esc(mf.goal)+'</div></div>':'')+
+    '<label>① 今日のテーマ</label><input type="text" value="'+esc(day.theme||'')+'" placeholder="例：選択と集中。重要案件を前進させる日" oninput="ritF(\'theme\',this.value)">'+
+    '<label>② 今日、誰に何をGIVEするか</label><textarea placeholder="例：担当者が迷わない判断基準を示す" oninput="ritF(\'give\',this.value)">'+esc(day.give||'')+'</textarea>'+
+    '<label>③ 今日の注意点・見えていないこと</label><textarea placeholder="例：顧客の本当の決裁条件" oninput="ritF(\'caution\',this.value)">'+esc(day.caution||'')+'</textarea>'+
     '</div>';
-  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritGo(-1)">◀</button><button class="ro-main" onclick="ritAmDone()">今日を始める</button>';
+  el('roFoot').innerHTML='<button class="ro-nav" onclick="ritGo(-1)">◀</button><button class="ro-main" onclick="ritGo(1)">次へ　健康チェック</button>';
 }
 function ritF(k,val){
   if(k==='theme'){day.theme=val;el('f_theme').value=val;}
+  else if(k==='give'){day.give=val;el('f_give').value=val;}
+  else if(k==='caution'){day.caution=val;el('f_caution').value=val;}
   else if(k==='topGoal'){day.topGoal=val;el('f_topGoal').value=val;}
   else ritV(vis()).focus[k]=val;
   markDirty();
@@ -3370,7 +3477,10 @@ async function ritDone(){
   const n=ritStreak(ritMap),t=dayTally(day.vision,day.health);
   let msg;
   if(RIT.mode==='am'){
-    msg='今日の一歩目は、もう踏み出しています。<br>'+(day.topGoal?'「'+esc(day.topGoal.split('\n')[0].slice(0,40))+'」に向かいましょう。':'目の前の一日を大切に。');
+    const mfg=(typeof mfDay==='function'&&MF)?(mfDay(todayStr())||{}).goal:'';
+    const tg=day.theme||mfg||day.topGoal||'';
+    msg='今日の一歩目は、もう踏み出しています。<br>'+(tg?'「'+esc(String(tg).split('\n')[0].slice(0,40))+'」の一日にしましょう。':'目の前の一日を大切に。')+
+      '<br><br><button class="ro-nav" style="margin-top:6px" onclick="location.href=\'earthcom-mind-flow.html#/home\'">🧭 MIND FLOWで仕事を始める</button>';
   }else{
     msg='今日の約束　攻め <b>'+t.a+'</b>・守り <b>'+t.d+'</b>（全 '+t.n+'）<br>'+
       ((t.a+t.d)>0?'今日もゼロにしませんでした。<br>決めたことを実行できる自分が、毎日育っています。':'記録したこと自体が前進です。<br>明日の一歩から、また始めましょう。');
