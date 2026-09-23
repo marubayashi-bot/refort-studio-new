@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.1.0">
+<meta name="app-version" content="5.2.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -52,6 +52,7 @@ a{color:var(--blue)}
 h1,h2,h3,h4{margin:0;font-weight:700;line-height:1.35}
 :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:600px){.pbact{grid-template-columns:1fr 1fr 30px!important}.pbact input:first-child{grid-column:1/-1}}
 
 /* ---------- login ---------- */
 #login{position:fixed;inset:0;background:linear-gradient(160deg,#0C1527 0%,#16233F 55%,#1E2F52 100%);display:flex;align-items:center;justify-content:center;padding:24px;z-index:80}
@@ -619,6 +620,7 @@ const Store = {
       audit_logs: [], trash: [],
       ai_inputs: [], ai_plans: [], goals: [], goal_metrics: [], opportunities: [],
       pipeline_snapshots: [], ai_recommendations: [], plan_approvals: [], daily_reviews: [],
+      breakthroughs: [], focus_kpis: [], problems: [],
       capacity: { start: '08:00', end: '19:00', bufferPct: 20 },
       settings: { theme: 'light', role: 'admin' }
     };
@@ -886,10 +888,13 @@ const ICON = {
   ai:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2.6l1.7 4.2 4.2 1.7-4.2 1.7L10 14.4 8.3 10.2 4.1 8.5l4.2-1.7z"/><path d="M15.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg>',
   edit:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12.6 3.9l3.5 3.5L7.5 16H4v-3.5z"/><path d="M11 5.5l3.5 3.5"/></svg>',
   pipe:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 16.5V9M8 16.5V5M13 16.5v-4M3 16.5h14"/><path d="M16.5 4.5v4h-4" stroke-linejoin="round"/><path d="M16.5 4.5 12 9"/></svg>',
+  goal:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.6"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>',
+  problem:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17"/><path d="M6.8 8.5h3.4M8.5 6.8v3.4"/></svg>',
   settings:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6h9M15 6h1.5M3.5 14h1.5M7.5 14h9"/><circle cx="13.6" cy="6" r="1.9"/><circle cx="6.4" cy="14" r="1.9"/></svg>'
 };
 const NAV = [
   { id: 'home', label: 'ホーム', icon: ICON.home },
+  { id: 'goals', label: 'ブレイクスルーゴール', icon: ICON.goal },
   { id: 'ai', label: 'AI GOAL TO ACTION', icon: ICON.ai },
   { id: 'cal', label: '戦略カレンダー', icon: ICON.cal },
   { id: 'pipeline', label: '達成見込み', icon: ICON.pipe },
@@ -897,6 +902,7 @@ const NAV = [
   { id: 'maps', label: 'マインドマップ', icon: ICON.maps },
   { id: 'board', label: 'GTDボード', icon: ICON.board },
   { id: 'projects', label: 'プロジェクト', icon: ICON.projects },
+  { id: 'problems', label: '問題解決', icon: ICON.problem },
   { id: 'review', label: 'レビュー', icon: ICON.review },
   { id: 'settings', label: '連携・設定', icon: ICON.settings }
 ];
@@ -912,7 +918,7 @@ function render() {
   route = parseHash();
   renderNav(); renderTabs();
   const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (['cal','pipeline','ai','data'].includes(route.name) ? ' wide' : '');
-  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, data: viewData, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings };
+  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, data: viewData, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings, goals: viewGoals, problems: viewProblems };
   (map[route.name] || viewHome)();
   if (route.name !== 'map') { window.scrollTo(0, 0); }
 }
@@ -929,7 +935,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.1.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.2.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -965,7 +971,7 @@ function viewHome() {
   const listCard = (title, arr, emptyMsg, more) => '<div class="card"><div class="pad" style="padding-bottom:6px"><div class="sec-h"><h3>' + title + '</h3><div class="sp"></div>' + (more || '') + '</div></div>' +
     (arr.length ? arr.slice(0, 5).map(li).join('') : '<div class="empty small">' + emptyMsg + '</div>') + '</div>';
 
-  $('#view').innerHTML = homeHero() + reviewBanner() +
+  $('#view').innerHTML = homeHero() + reviewBanner() + btHomeCard() +
     '<div class="grid g4 keep2" style="margin-bottom:14px">' +
       kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green', 'inbox') +
       kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green', 'overdue') +
@@ -5812,6 +5818,386 @@ function flowFinish(kind) {
     flowResult('プロジェクトにしました', first ? '最初の一手「' + first + '」を次にとるべき行動に入れました。' : '次にとるべき行動がまだありません。決まり次第、必ず1つ入れてください。');
     return;
   }
+}
+
+
+/* =========================================================================
+   ブレイクスルーゴール／フォーカスKPI／問題解決（v5.2.0：SUCCESS PLANNERから移設）
+   ・ブレイクスルーゴール：最大3。プロジェクトをひも付けて進捗を見る
+   ・フォーカスKPI：最大2。実績の更新履歴を残す
+   ・問題解決：10ステップ＋次の行動（タスク化）＋Chatwork記法の報告文
+   ========================================================================= */
+const BT_MAX = 3, KPI_MAX = 2;
+const PSTEPS = [
+  ['q1', '問題は何か？'],
+  ['q2', '問題を分けると何か？'],
+  ['q3', '問題を引き起こしている根本問題は何か？'],
+  ['q4', '誰に相談すると解決するか？'],
+  ['q5', '社内トップパフォーマーは何をしているか？'],
+  ['q6', '同業他社のトップパフォーマーは何をしているか？'],
+  ['q7', '異業種のトップパフォーマーは何をしているか？'],
+  ['q8', 'その領域の原理原則、正しいやり方は何か？'],
+  ['q9', 'どこを実践し、どこを見落としているか？'],
+  ['q10', '今後、同じことを繰り返さないために変えることは何か？（ステップ・ツール・トーク・言動）']
+];
+const PB_STATUS = { open: { l: '対応中', c: 'orange' }, done: { l: '解決済み', c: 'green' }, hold: { l: '保留', c: 'grey' } };
+
+function ensureGoalData() {
+  ['breakthroughs', 'focus_kpis', 'problems'].forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
+}
+const btById = id => DB.breakthroughs.find(b => b.id === id);
+const btProjects = b => DB.projects.filter(p => p.bt_id === b.id);
+function btProgress(b) {
+  const ps = btProjects(b);
+  if (!ps.length) return null;
+  return Math.round(ps.reduce((a, p) => a + projectProgress(p), 0) / ps.length);
+}
+function kpiRate(k) {
+  const t = parseFloat(k.target), a = parseFloat(k.actual);
+  return (!isNaN(t) && t > 0 && !isNaN(a)) ? Math.round(a / t * 100) : null;
+}
+function kpiBar(k) {
+  const r = kpiRate(k);
+  const col = r === null ? '#C9D1DE' : r >= 100 ? 'var(--green)' : r >= 80 ? 'var(--orange)' : 'var(--red)';
+  const a = parseFloat(k.actual), t = parseFloat(k.target);
+  return '<div style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">' +
+    '<b style="font-size:13px">' + esc(k.name) + '</b>' +
+    '<span class="small muted">' + (isNaN(a) ? '—' : a) + ' / ' + (isNaN(t) ? '—' : t) + ' ' + esc(k.unit || '') + '</span>' +
+    '<span style="margin-left:auto;font-weight:800;font-size:15px;color:' + (r === null ? 'var(--ink3)' : col) + '">' + (r === null ? '' : r + '%') + '</span></div>' +
+    '<div class="bar" style="height:8px;margin-top:5px"><i style="width:' + (r === null ? 0 : Math.min(r, 100)) + '%;background:' + col + '"></i></div>' +
+    '<button class="btn sm ghost" style="padding-left:0" onclick="kpiQuick(\'' + k.id + '\')">実績を更新する</button></div>';
+}
+
+/* ---------- ホームのカード ---------- */
+function btHomeCard() {
+  ensureGoalData();
+  const bts = DB.breakthroughs, ks = DB.focus_kpis;
+  if (!bts.length && !ks.length) {
+    return '<div class="card pad" style="margin-bottom:14px"><div class="sec-h"><h3>🚀 今年のブレイクスルーゴール</h3></div>' +
+      '<div class="small muted" style="margin-bottom:10px">まだ登録がありません。SUCCESS PLANNERに入っている目標とKPIを取り込めます。</div>' +
+      '<button class="btn sm gold" onclick="spImportDialog()">SUCCESS PLANNERから取り込む</button> ' +
+      '<button class="btn sm" onclick="go(\'goals\')">自分で登録する</button></div>';
+  }
+  const openPb = DB.problems.filter(p => (p.status || 'open') === 'open').length;
+  return '<div class="grid g2" style="margin-bottom:14px">' +
+    '<div class="card pad"><div class="sec-h"><h3>🚀 今年のブレイクスルーゴール</h3><div class="sp"></div><a class="small" href="#/goals">編集</a></div>' +
+      (bts.length ? bts.map((b, i) => {
+        const pr = btProgress(b);
+        return '<div style="margin-bottom:10px"><div style="display:flex;gap:8px;align-items:center">' +
+          '<span class="chip gold">' + (i + 1) + '</span><b style="font-size:13px;flex:1">' + esc(b.title) + '</b>' +
+          '<span class="small muted">' + (pr === null ? 'プロジェクト未設定' : pr + '%') + '</span></div>' +
+          (pr === null ? '' : '<div class="bar" style="margin-top:5px"><i class="gold" style="width:' + pr + '%"></i></div>') + '</div>';
+      }).join('') : '<div class="empty small">未設定</div>') +
+    '</div>' +
+    '<div class="card pad"><div class="sec-h"><h3>🎯 フォーカスKPI</h3><div class="sp"></div>' +
+      (openPb ? '<a class="small" href="#/problems">対応中の問題 ' + openPb + '件</a>' : '') + '</div>' +
+      (ks.length ? ks.map(kpiBar).join('') : '<div class="empty small">未設定</div>') +
+    '</div></div>';
+}
+
+/* ---------- ブレイクスルーゴール画面 ---------- */
+function viewGoals() {
+  ensureGoalData();
+  setTop('ブレイクスルーゴール', '<button class="btn sm" onclick="spImportDialog()">SUCCESS PLANNERから取り込む</button>');
+  const bts = DB.breakthroughs, ks = DB.focus_kpis;
+  $('#view').innerHTML =
+    '<div class="card pad" style="margin-bottom:14px"><div class="sec-h"><h3>🚀 今年のブレイクスルーゴール</h3><span class="small muted">最大' + BT_MAX + '個。「これ以外の道はない」と決断できるもの</span></div>' +
+      (bts.length ? bts.map((b, i) => {
+        const ps = btProjects(b), pr = btProgress(b);
+        return '<div style="border-top:' + (i ? '1px solid var(--line)' : '0') + ';padding:12px 0">' +
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="chip gold">' + (i + 1) + '</span>' +
+          '<b style="flex:1;min-width:180px">' + esc(b.title) + '</b>' +
+          (pr === null ? '' : '<span class="small muted">進捗 ' + pr + '%</span>') +
+          '<button class="btn sm" onclick="btEdit(\'' + b.id + '\')">編集</button>' +
+          '<button class="btn sm" onclick="btLink(\'' + b.id + '\')">プロジェクトをひも付ける</button></div>' +
+          (b.note ? '<div class="small muted" style="margin-top:6px;white-space:pre-wrap">' + esc(b.note) + '</div>' : '') +
+          (ps.length ? '<div style="margin-top:8px">' + ps.map(p => {
+            const pp = projectProgress(p);
+            return '<div style="display:flex;gap:8px;align-items:center;margin-top:5px"><a class="small" href="#/project/' + p.id + '" style="flex:1">' + esc(p.title) + '</a>' +
+              '<span class="small muted">' + pp + '%</span></div><div class="bar" style="margin-top:3px"><i class="gold" style="width:' + pp + '%"></i></div>';
+          }).join('') + '</div>' : '<div class="small" style="margin-top:6px;color:var(--orange)">ひも付いたプロジェクトがありません。行動につながる状態にしてください。</div>') +
+          '</div>';
+      }).join('') : '<div class="empty small">まだ登録がありません。</div>') +
+      (bts.length < BT_MAX ? '<button class="btn sm pri" style="margin-top:8px" onclick="btEdit()">＋ ゴールを追加</button>' : '') +
+    '</div>' +
+
+    '<div class="card pad"><div class="sec-h"><h3>🎯 フォーカスKPI</h3><span class="small muted">最大' + KPI_MAX + '個。達成の鍵となる数字だけを追う</span></div>' +
+      (ks.length ? ks.map(k => '<div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1">' + kpiBar(k) + '</div>' +
+        '<button class="btn sm" onclick="kpiEdit(\'' + k.id + '\')">編集</button></div>' +
+        (k.hist && k.hist.length ? '<div class="small muted" style="margin:-6px 0 12px">更新履歴：' +
+          k.hist.slice(-5).reverse().map(h => fmtDate(h.d) + ' ' + esc(h.v)).join(' ／ ') + '</div>' : '')).join('')
+        : '<div class="empty small">まだ登録がありません。</div>') +
+      (ks.length < KPI_MAX ? '<button class="btn sm pri" style="margin-top:4px" onclick="kpiEdit()">＋ KPIを追加</button>' : '') +
+    '</div>';
+}
+function btEdit(id) {
+  if (!requireEdit()) return;
+  const b = id ? btById(id) : null;
+  openModal(b ? 'ブレイクスルーゴールを編集' : 'ブレイクスルーゴールを追加',
+    '<div class="field"><label>ゴール</label><input id="btT" value="' + esc(b ? b.title : '') + '" placeholder="例）ReFortを業界標準にする"></div>' +
+    '<div class="field"><label>決断の理由・達成した状態（任意）</label><textarea id="btN">' + esc(b ? b.note || '' : '') + '</textarea></div>',
+    [].concat(b ? [{ label: '削除', cls: 'danger', fn: () => {
+      if (!confirm('このゴールを削除しますか？（ひも付いたプロジェクトは残ります）')) return;
+      DB.breakthroughs = DB.breakthroughs.filter(x => x.id !== b.id);
+      DB.projects.forEach(p => { if (p.bt_id === b.id) p.bt_id = ''; });
+      Store.log('ブレイクスルーゴール削除', b.title); Store.save(); closeModal(); render();
+    } }] : [], [{ label: '保存する', cls: 'pri', fn: () => {
+      const t = $('#btT').value.trim(); if (!t) return toast('ゴールを入力してください', 'err');
+      if (b) { b.title = t; b.note = $('#btN').value; b.updated_at = new Date().toISOString(); }
+      else DB.breakthroughs.push({ id: uid(), title: t, note: $('#btN').value, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      Store.log('ブレイクスルーゴール保存', t); Store.save(); closeModal(); render(); toast('保存しました');
+    } }]));
+}
+function btLink(id) {
+  const b = btById(id); if (!b || !requireEdit()) return;
+  const ps = DB.projects.filter(p => p.status !== 'archived');
+  openModal('「' + b.title.slice(0, 20) + '」にひも付けるプロジェクト',
+    (ps.length ? ps.map(p => {
+      const other = p.bt_id && p.bt_id !== b.id ? btById(p.bt_id) : null;
+      return '<label style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)">' +
+        '<input type="checkbox" class="btchk" value="' + p.id + '"' + (p.bt_id === b.id ? ' checked' : '') + '>' +
+        '<span style="flex:1">' + esc(p.title) + '</span>' + (other ? '<span class="chip grey">別ゴール: ' + esc(other.title.slice(0, 10)) + '</span>' : '') + '</label>';
+    }).join('') : '<div class="empty small">プロジェクトがまだありません。</div>') +
+    '<div class="small muted" style="margin-top:8px">1つのプロジェクトは1つのゴールにだけひも付きます。</div>',
+    [{ label: '保存する', cls: 'pri', fn: () => {
+      $$('.btchk').forEach(c => { const p = projectById(c.value); if (!p) return;
+        if (c.checked) p.bt_id = b.id; else if (p.bt_id === b.id) p.bt_id = ''; });
+      Store.save(); closeModal(); render(); toast('ひも付けを保存しました');
+    } }]);
+}
+function kpiEdit(id) {
+  if (!requireEdit()) return;
+  const k = id ? DB.focus_kpis.find(x => x.id === id) : null;
+  openModal(k ? 'フォーカスKPIを編集' : 'フォーカスKPIを追加',
+    '<div class="field"><label>KPI名</label><input id="kN" value="' + esc(k ? k.name : '') + '" placeholder="例）現調申込から20日以内の受注率"></div>' +
+    '<div class="grid g3" style="gap:10px"><div class="field"><label>単位</label><input id="kU" value="' + esc(k ? k.unit || '' : '') + '" placeholder="％"></div>' +
+    '<div class="field"><label>目標値</label><input id="kT" type="number" step="any" value="' + esc(k ? k.target : '') + '"></div>' +
+    '<div class="field"><label>現在の実績</label><input id="kA" type="number" step="any" value="' + esc(k ? k.actual : '') + '"></div></div>',
+    [].concat(k ? [{ label: '削除', cls: 'danger', fn: () => {
+      if (!confirm('このKPIを削除しますか？')) return;
+      DB.focus_kpis = DB.focus_kpis.filter(x => x.id !== k.id); Store.save(); closeModal(); render();
+    } }] : [], [{ label: '保存する', cls: 'pri', fn: () => {
+      const n = $('#kN').value.trim(); if (!n) return toast('KPI名を入力してください', 'err');
+      const a = $('#kA').value;
+      const rec = k || { id: uid(), hist: [], created_at: new Date().toISOString() };
+      const changed = a !== '' && String(a) !== String(rec.actual);
+      Object.assign(rec, { name: n, unit: $('#kU').value.trim(), target: $('#kT').value, actual: a });
+      if (changed) { rec.hist = rec.hist || []; rec.hist.push({ d: today(), v: a }); rec.hist = rec.hist.slice(-120); }
+      if (!k) DB.focus_kpis.push(rec);
+      Store.save(); closeModal(); render(); toast('保存しました');
+    } }]));
+}
+function kpiQuick(id) {
+  const k = DB.focus_kpis.find(x => x.id === id); if (!k || !requireEdit()) return;
+  const v = prompt('「' + k.name + '」の現在の実績（' + (k.unit || '数値') + '）', k.actual || '');
+  if (v === null || v.trim() === '') return;
+  k.actual = v.trim(); k.hist = k.hist || []; k.hist.push({ d: today(), v: k.actual }); k.hist = k.hist.slice(-120);
+  Store.save(); render(); toast('実績を更新しました');
+}
+
+/* ---------- 問題解決画面 ---------- */
+function viewProblems() {
+  ensureGoalData();
+  const f = DB.settings.pbFilter || 'open';
+  setTop('問題解決', '<button class="btn pri sm" onclick="pbOpen()">＋ 新しい問題</button>');
+  const list = DB.problems.filter(p => f === 'all' || (p.status || 'open') === f)
+    .sort((a, b) => (b.updated_at || b.date || '').localeCompare(a.updated_at || a.date || ''));
+  const cnt = s => DB.problems.filter(p => (p.status || 'open') === s).length;
+  $('#view').innerHTML =
+    '<div class="small muted" style="margin-bottom:12px">問題を10ステップで分解し、次の行動をタスクにして、Chatworkに貼れる報告文まで作ります。</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
+      [['open', '対応中 ' + cnt('open')], ['hold', '保留 ' + cnt('hold')], ['done', '解決済み ' + cnt('done')], ['all', 'すべて ' + DB.problems.length]]
+        .map(x => '<button class="btn sm ' + (f === x[0] ? 'pri' : '') + '" onclick="DB.settings.pbFilter=\'' + x[0] + '\';Store.save();render()">' + x[1] + '</button>').join('') +
+      (DB.problems.length ? '' : '<span class="sp" style="flex:1"></span><button class="btn sm gold" onclick="spImportDialog()">SUCCESS PLANNERから取り込む</button>') +
+    '</div>' +
+    '<div class="card">' + (list.length ? list.map(p => {
+      const st = PB_STATUS[p.status || 'open'], ts = (p.task_ids || []).map(taskById).filter(Boolean);
+      const openT = ts.filter(t => t.gtd !== 'done').length;
+      const link = p.bt_id ? btById(p.bt_id) : (p.project_id ? projectById(p.project_id) : null);
+      return '<div class="list-item tapcard" onclick="pbOpen(\'' + p.id + '\')"><div class="t"><b>' + esc(p.title || '（無題）') + '</b><div class="meta">' +
+        '<span class="chip ' + st.c + '">' + st.l + '</span><span>' + esc(p.date || '') + '</span>' +
+        (ts.length ? '<span>次の行動 ' + (ts.length - openT) + '/' + ts.length + ' 完了</span>' : '<span style="color:var(--orange)">次の行動が未設定</span>') +
+        (link ? '<span>🔗 ' + esc((link.title || '').slice(0, 18)) + '</span>' : '') + '</div></div>' +
+        '<span class="small muted">開く ›</span></div>';
+    }).join('') : '<div class="empty small">' + (f === 'open' ? '対応中の問題はありません。' : '該当する問題はありません。') + '</div>') + '</div>';
+}
+let PB = null;
+function pbOpen(id) {
+  ensureGoalData();
+  const src = id ? DB.problems.find(x => x.id === id) : null;
+  PB = src ? JSON.parse(JSON.stringify(src)) : { id: uid(), date: today(), title: '', status: 'open', steps: {}, actions: [], task_ids: [], bt_id: '', project_id: '', report: '' };
+  PB.actions = PB.actions || []; PB.task_ids = PB.task_ids || []; PB.steps = PB.steps || {};
+  pbRender(!!src);
+}
+function pbRender(exists) {
+  const bts = DB.breakthroughs, ps = DB.projects.filter(p => p.status !== 'archived');
+  const tasks = PB.task_ids.map(taskById).filter(Boolean);
+  openModal(exists ? '問題解決シート' : '新しい問題',
+    '<div class="field"><label>問題のタイトル（一覧に表示されます）</label><input id="pbT" value="' + esc(PB.title) + '"></div>' +
+    '<div class="grid g3" style="gap:10px">' +
+      '<div class="field"><label>状態</label><select id="pbS">' + Object.keys(PB_STATUS).map(k => '<option value="' + k + '"' + ((PB.status || 'open') === k ? ' selected' : '') + '>' + PB_STATUS[k].l + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label>関係するゴール</label><select id="pbB"><option value="">なし</option>' + bts.map(b => '<option value="' + b.id + '"' + (PB.bt_id === b.id ? ' selected' : '') + '>' + esc(b.title) + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label>関係するプロジェクト</label><select id="pbP"><option value="">なし</option>' + ps.map(p => '<option value="' + p.id + '"' + (PB.project_id === p.id ? ' selected' : '') + '>' + esc(p.title) + '</option>').join('') + '</select></div>' +
+    '</div>' +
+    PSTEPS.map((s, i) => '<div class="field"><label><b>' + (i + 1) + '.</b> ' + esc(s[1]) + '</label><textarea id="pb_' + s[0] + '">' + esc(PB.steps[s[0]] || '') + '</textarea></div>').join('') +
+
+    '<div class="card pad" style="margin:4px 0 12px;background:#FBF8EF;border-color:#EADFC0">' +
+      '<div class="sec-h"><h3>▶ 次の行動</h3><span class="small muted">「タスクにする」でGTDの「次にとるべき行動」に入ります</span></div>' +
+      (tasks.length ? tasks.map(t => '<div class="small" style="padding:4px 0">' + (t.gtd === 'done' ? '✅ ' : '・') + esc(t.title) +
+        (t.owner ? '（' + esc(t.owner) + '）' : '') + (t.due ? ' 期限 ' + fmtDate(t.due) : '') + '</div>').join('') : '') +
+      '<div id="pbActs">' + PB.actions.map((a, i) => pbActRow(a, i)).join('') + '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn sm" onclick="pbAddAct()">＋ 行動を追加</button>' +
+      '<button class="btn sm gold" onclick="pbMakeTasks()">タスクにする</button></div>' +
+    '</div>' +
+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm pri" onclick="pbGenReport()">報告文を作る</button>' +
+      '<button class="btn sm" onclick="pbCollect();copyText(PB.report||\'\')">コピー</button></div>' +
+    '<pre id="pbOut" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#F4F6FA;border:1px solid var(--line);border-radius:var(--r-s);padding:10px;margin:0;min-height:48px">' +
+      esc(PB.report || '「報告文を作る」で、Chatworkにそのまま貼れる報告文を作ります。') + '</pre>',
+    [].concat(exists ? [{ label: '削除', cls: 'danger', fn: pbDelete }] : [], [{ label: '保存して閉じる', cls: 'pri', fn: pbSave }]));
+}
+function pbActRow(a, i) {
+  return '<div style="display:grid;grid-template-columns:1fr 110px 130px 30px;gap:6px;margin-top:6px" class="pbact">' +
+    '<input data-i="' + i + '" data-f="title" value="' + esc(a.title) + '" placeholder="何をするか（完了条件がわかる書き方）">' +
+    '<input data-i="' + i + '" data-f="owner" value="' + esc(a.owner) + '" placeholder="担当者">' +
+    '<input data-i="' + i + '" data-f="due" type="date" value="' + esc(a.due) + '">' +
+    '<button class="btn sm ghost" onclick="pbCollect();PB.actions.splice(' + i + ',1);pbRender(true)">✕</button></div>';
+}
+function pbCollect() {
+  if (!$('#pbT')) return;
+  PB.title = $('#pbT').value.trim(); PB.status = $('#pbS').value; PB.bt_id = $('#pbB').value; PB.project_id = $('#pbP').value;
+  PSTEPS.forEach(s => { PB.steps[s[0]] = $('#pb_' + s[0]).value; });
+  $$('.pbact input').forEach(inp => { const a = PB.actions[+inp.dataset.i]; if (a) a[inp.dataset.f] = inp.value; });
+}
+function pbAddAct() { pbCollect(); PB.actions.push({ title: '', owner: '', due: '' }); pbRender(!!DB.problems.find(x => x.id === PB.id)); }
+function pbMakeTasks() {
+  if (!requireEdit()) return;
+  pbCollect();
+  const acts = PB.actions.filter(a => a.title.trim());
+  if (!acts.length) return toast('行動を入力してください', 'err');
+  acts.forEach(a => {
+    const t = mkTask({ title: a.title.trim(), gtd: 'next', owner: a.owner.trim(), due: a.due, priority: 2,
+      project_id: PB.project_id || '', source: 'problem', notes: '問題解決シート「' + (PB.title || '無題') + '」から作成' });
+    PB.task_ids.push(t.id);
+  });
+  PB.actions = PB.actions.filter(a => !a.title.trim());
+  pbPersist(); pbRender(true); toast(acts.length + '件を「次にとるべき行動」に入れました');
+}
+function pbGenReport() {
+  pbCollect();
+  const s = PB.steps, g = k => (s[k] || '').trim();
+  const tasks = PB.task_ids.map(taskById).filter(Boolean);
+  const pend = PB.actions.filter(a => a.title.trim());
+  const link = PB.bt_id ? btById(PB.bt_id) : null, pj = PB.project_id ? projectById(PB.project_id) : null;
+  const sec = (h, body) => body ? '■' + h + '\n' + body + '\n' : '';
+  const parts = [
+    sec('問題', g('q1')), sec('問題の分解', g('q2')), sec('根本原因', g('q3')),
+    sec('ベンチマーク（社内／同業／異業種）', [g('q5'), g('q6'), g('q7')].filter(Boolean).join('\n')),
+    sec('原理原則', g('q8')), sec('実践できていること／見落とし', g('q9')),
+    sec('再発防止（変えること）', g('q10')), sec('相談先', g('q4'))
+  ].filter(Boolean);
+  const acts = tasks.map(t => '・' + t.title + '（担当：' + (t.owner || '未定') + '／期限：' + (t.due ? fmtDate(t.due) : '未定') + (t.gtd === 'done' ? '／完了' : '') + '）')
+    .concat(pend.map(a => '・' + a.title.trim() + '（担当：' + (a.owner || '未定') + '／期限：' + (a.due ? fmtDate(a.due) : '未定') + '）'));
+  let out = '[info][title]問題解決報告：' + (PB.title || '（無題）') + '[/title]' +
+    '作成日：' + PB.date + '　状態：【' + PB_STATUS[PB.status || 'open'].l + '】\n' +
+    (link ? '関係するゴール：' + link.title + '\n' : '') + (pj ? '関係するプロジェクト：' + pj.title + '\n' : '') +
+    '[hr]' + parts.join('[hr]') + '[hr]' +
+    '■次の行動\n' + (acts.length ? acts.join('\n') : '・担当者：\n・期限：\n・完了条件：') + '[/info]';
+  PB.report = out;
+  $('#pbOut').textContent = out;
+}
+function pbPersist() {
+  PB.updated_at = new Date().toISOString();
+  const i = DB.problems.findIndex(x => x.id === PB.id);
+  const rec = JSON.parse(JSON.stringify(PB));
+  if (i >= 0) DB.problems[i] = rec; else DB.problems.unshift(rec);
+  Store.log('問題解決シート保存', PB.title || '（無題）'); Store.save();
+}
+function pbSave() {
+  if (!requireEdit()) return;
+  pbCollect();
+  if (!PB.title && !PSTEPS.some(s => (PB.steps[s[0]] || '').trim())) { closeModal(); return; }
+  pbPersist(); closeModal(); render(); toast('問題解決シートを保存しました');
+}
+function pbDelete() {
+  if (!requireEdit() || !confirm('この問題解決シートを削除しますか？（作成したタスクは残ります）')) return;
+  DB.problems = DB.problems.filter(x => x.id !== PB.id); Store.save(); closeModal(); render();
+}
+
+/* ---------- SUCCESS PLANNERからの取り込み ----------
+   1) 同じサイトでSUCCESS PLANNERにログイン済みなら、そのログイン情報でクラウドから読む
+   2) 読めなければ、この端末に残っているSUCCESS PLANNERのデータを読む
+   SUCCESS PLANNER側のデータは消さない（バックアップとして残る） */
+async function spFetch() {
+  const out = { profile: null, problems: null, from: '' };
+  try {
+    const raw = localStorage.getItem('sb-' + CONFIG.SB_URL.replace(/^https:\/\//, '').split('.')[0] + '-auth-token');
+    const s = raw ? JSON.parse(raw) : null;
+    const tok = s && (s.access_token || (s.currentSession || {}).access_token);
+    const exp = s && (s.expires_at || (s.currentSession || {}).expires_at);
+    if (tok && (!exp || exp * 1000 > Date.now() + 30000)) {
+      const r = await fetch(CONFIG.SB_URL + '/rest/v1/success_planner?key=in.(profile,problems)&select=key,value',
+        { headers: { apikey: CONFIG.SB_KEY, Authorization: 'Bearer ' + tok } });
+      if (r.ok) {
+        (await r.json()).forEach(row => { out[row.key] = row.value; });
+        if (out.profile || out.problems) { out.from = 'クラウド'; return out; }
+      }
+    }
+  } catch (e) { console.warn('spFetch cloud', e); }
+  try {
+    out.profile = JSON.parse(localStorage.getItem('esp_profile') || 'null');
+    out.problems = JSON.parse(localStorage.getItem('esp_problems') || 'null');
+    if (out.profile || out.problems) out.from = 'この端末';
+  } catch (e) {}
+  return out;
+}
+async function spImportDialog() {
+  if (!requireEdit()) return;
+  ensureGoalData();
+  openModal('SUCCESS PLANNERから取り込む', '<div class="small muted">読み込んでいます…</div>');
+  const d = await spFetch();
+  if (!d.from) {
+    openModal('SUCCESS PLANNERから取り込む',
+      '<div class="err" style="margin-bottom:10px">SUCCESS PLANNERのデータが見つかりませんでした。</div>' +
+      '<div class="small">この端末のブラウザでSUCCESS PLANNERを開いてログインし、画面が表示されたらこちらに戻って、もう一度「取り込む」を押してください。</div>' +
+      '<div style="margin-top:12px"><a class="btn sm gold" href="success_planner.html" target="_blank" rel="noopener">SUCCESS PLANNERを開く</a></div>');
+    return;
+  }
+  const pf = d.profile || {};
+  const bts = (pf.breakthrough || []).map(s => (s || '').trim()).filter(Boolean).slice(0, BT_MAX);
+  const ks = (pf.focusKpi || []).filter(k => k && k.name).slice(0, KPI_MAX);
+  const pbs = (d.problems || []).filter(p => p && p.id);
+  const done = new Set(DB.problems.map(p => p.sp_id).filter(Boolean));
+  const newPbs = pbs.filter(p => !done.has(p.id));
+  const hasBt = DB.breakthroughs.length > 0, hasK = DB.focus_kpis.length > 0;
+  const row = (id, on, label, sub) => '<label style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)">' +
+    '<input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><span><b>' + label + '</b><br><span class="small muted">' + sub + '</span></span></label>';
+  openModal('SUCCESS PLANNERから取り込む',
+    '<div class="small muted" style="margin-bottom:6px">読み込み元：' + d.from + '。SUCCESS PLANNER側のデータは消えません。</div>' +
+    row('imB', bts.length && !hasBt, 'ブレイクスルーゴール ' + bts.length + '件', bts.map(esc).join('<br>') + (hasBt ? '<br><span style="color:var(--orange)">登録済みのゴールと入れ替えます</span>' : '')) +
+    row('imK', ks.length && !hasK, 'フォーカスKPI ' + ks.length + '件', ks.map(k => esc(k.name) + '（目標 ' + esc(k.target) + esc(k.unit || '') + '）').join('<br>') + (hasK ? '<br><span style="color:var(--orange)">登録済みのKPIと入れ替えます</span>' : '')) +
+    row('imP', newPbs.length > 0, '問題解決シート ' + newPbs.length + '件（未取り込み分）', pbs.length - newPbs.length ? (pbs.length - newPbs.length) + '件は取り込み済みのため対象外です' : '内容・報告文をそのまま移します'),
+    [{ label: '取り込む', cls: 'pri', fn: () => {
+      const r = [];
+      if ($('#imB').checked && bts.length) {
+        const olds = DB.breakthroughs; DB.breakthroughs = bts.map(t => ({ id: uid(), title: t, note: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), src: 'success_planner' }));
+        DB.projects.forEach(p => { if (olds.some(o => o.id === p.bt_id)) p.bt_id = ''; });
+        r.push('ゴール' + bts.length + '件');
+      }
+      if ($('#imK').checked && ks.length) {
+        DB.focus_kpis = ks.map(k => ({ id: uid(), name: k.name, unit: k.unit || '', target: k.target, actual: k.actual, hist: (k.hist || []).slice(-120), src: 'success_planner' }));
+        r.push('KPI' + ks.length + '件');
+      }
+      if ($('#imP').checked && newPbs.length) {
+        newPbs.forEach(p => DB.problems.unshift({ id: uid(), sp_id: p.id, date: p.date || today(), title: p.title || '', status: 'open',
+          steps: p.steps || {}, actions: [], task_ids: [], bt_id: '', project_id: '', report: p.report || '', updated_at: new Date().toISOString() }));
+        r.push('問題解決シート' + newPbs.length + '件');
+      }
+      if (!r.length) return toast('取り込む項目を選んでください', 'err');
+      DB.settings.sp_imported_at = new Date().toISOString();
+      Store.log('SUCCESS PLANNERから取り込み', r.join('・')); Store.save(true); closeModal(); render();
+      toast(r.join('・') + 'を取り込みました');
+    } }]);
 }
 
 /* =========================================================================
