@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.4.0">
+<meta name="app-version" content="5.4.1">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -968,9 +968,9 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.4.0</div>' +
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.4.1</div>' +
     '<div style="margin-top:6px">' + (Cloud.enabled()
-      ? '<span style="color:#7fd6a8">☁ 同期中</span>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + (d => (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'))(new Date(DB.settings.cloudAt)) + '</span>' : '')
+      ? '<span style="color:#7fd6a8">☁ 同期中</span>' + ' <a href="javascript:void(0)" onclick="syncStart()" style="color:#e0c98f;margin-left:4px">同期先を切り替える</a><br>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + (d => (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'))(new Date(DB.settings.cloudAt)) + '</span>' : '')
       : '<a href="javascript:void(0)" onclick="syncStart()" style="color:#ffb86b">⚠ この端末だけに保存（同期する）</a>') + '</div>';
 }
 function renderTabs() {
@@ -2284,7 +2284,9 @@ function viewSettings() {
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' +
           '<button class="btn sm pri" onclick="cloudDialog()">クラウド設定</button>' +
           '<button class="btn sm" onclick="cloudPush(false)"' + (DB.settings.cloud ? '' : ' style="opacity:.5"') + '>クラウドへ保存</button>' +
-          '<button class="btn sm" onclick="cloudPull()"' + (DB.settings.cloud ? '' : ' style="opacity:.5"') + '>クラウドから読み込む</button></div></div>' +
+          '<button class="btn sm" onclick="cloudPull()"' + (DB.settings.cloud ? '' : ' style="opacity:.5"') + '>クラウドから読み込む</button>' +
+          '<button class="btn sm gold" onclick="syncStart()">同期先（アカウント）を切り替える</button></div>' +
+          '<div class="small muted" style="margin-top:6px">同期先: ' + esc(Cloud.rowKey().slice(3)) + '　PCと違うときは「同期先を切り替える」でPCと同じものを選んでください。</div></div>' +
       '<div class="sec-h"><h3>GAS中継の設定</h3></div>' +
       '<div class="card pad" style="margin-bottom:12px">' +
         '<div class="small muted" style="margin-bottom:10px">Google Apps Scriptをウェブアプリとしてデプロイし、発行された /exec で終わるURLを貼ってください。合言葉はGAS内の SECRET と同じ文字列にします。</div>' +
