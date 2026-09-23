@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.3.0">
+<meta name="app-version" content="5.4.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -968,7 +968,10 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.3.0</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.4.0</div>' +
+    '<div style="margin-top:6px">' + (Cloud.enabled()
+      ? '<span style="color:#7fd6a8">☁ 同期中</span>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + String(DB.settings.cloudAt).slice(5, 16).replace('T', ' ') + '</span>' : '')
+      : '<a href="javascript:void(0)" onclick="syncStart()" style="color:#ffb86b">⚠ この端末だけに保存（同期する）</a>') + '</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -1004,7 +1007,7 @@ function viewHome() {
   const listCard = (title, arr, emptyMsg, more) => '<div class="card"><div class="pad" style="padding-bottom:6px"><div class="sec-h"><h3>' + title + '</h3><div class="sp"></div>' + (more || '') + '</div></div>' +
     (arr.length ? arr.slice(0, 5).map(li).join('') : '<div class="empty small">' + emptyMsg + '</div>') + '</div>';
 
-  $('#view').innerHTML = homeHero() + reviewBanner() + btHomeCard() +
+  $('#view').innerHTML = syncBanner() + homeHero() + reviewBanner() + btHomeCard() +
     '<div class="grid g4 keep2" style="margin-bottom:14px">' +
       kpi('📥 Inbox未整理', inbox.length, inbox.length ? '整理が必要' : '空になっています', inbox.length ? 'orange' : 'green', 'inbox') +
       kpi('⏰ 期限超過', od.length, od.length ? '今日中に再設定' : '超過なし', od.length ? 'red' : 'green', 'overdue') +
@@ -6407,6 +6410,67 @@ function viewGuide() {
   setTop('使い方');
   $('#view').innerHTML = '<div class="gd" style="max-width:900px">' +
     '<div class="small muted" style="margin-bottom:12px">MIND FLOWとSUCCESS PLANNERを、朝から夜、週・月・四半期まで続く習慣として使うためのガイドです。</div>' + gdHTML() + '</div>';
+}
+
+
+/* =========================================================================
+   同期のはじめ方（v5.4.0）
+   ・クラウド保存がオフの端末では、ホームの一番上に警告を出す
+   ・「同期を始める」で、クラウドにある保存データ（メールアドレスごと）を一覧し、
+     選んだものをこの端末に取り込む。ログインしたメールアドレスが違っていても合わせられる
+   ========================================================================= */
+function syncBanner() {
+  if (Cloud.enabled()) return '';
+  return '<div class="card pad" style="margin-bottom:14px;border-left:4px solid var(--orange);background:#FFF8EE">' +
+    '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px">' +
+    '<b>⚠ この端末はPC・他の端末と同期していません</b>' +
+    '<div class="small muted">今の内容はこの端末だけに保存されています。数字やタスクがPCと違う場合は、同期を始めてPCの内容を取り込んでください。</div></div>' +
+    '<button class="btn pri sm" onclick="syncStart()">同期を始める</button></div></div>';
+}
+async function cloudList() {
+  const r = await fetch(Cloud.url() + '/rest/v1/' + Cloud.table() + '?key=like.db:*&select=key,updated_at,dev:value->>device_name,at:value->>at,rev:value->>rev,uname:value->db->user->>name&order=updated_at.desc',
+    { headers: Cloud.headers() });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+async function cloudGetKey(k) {
+  const r = await fetch(Cloud.url() + '/rest/v1/' + Cloud.table() + '?key=eq.' + encodeURIComponent(k) + '&select=key,value', { headers: Cloud.headers() });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const rows = await r.json();
+  return rows && rows[0] ? rows[0].value : null;
+}
+async function syncStart() {
+  if (!requireEdit()) return;
+  if (!Cloud.ready()) { cloudDialog(); return; }
+  openModal('同期を始める', '<div class="small muted">クラウドの保存データを確認しています…</div>');
+  let rows = [];
+  try { rows = await cloudList(); } catch (e) { openModal('同期を始める', '<div class="err">クラウドに接続できませんでした（' + esc(e.message) + '）。通信状況を確認してください。</div>'); return; }
+  const mine = Cloud.rowKey();
+  const fmt = t => t ? String(t).slice(0, 16).replace('T', ' ') : '—';
+  const list = rows.filter(r => r.key !== 'db:default');
+  openModal('同期を始める',
+    '<div class="small" style="margin-bottom:10px">PCで使っている保存データを選んで「取り込む」を押してください。この端末の今の内容は、選んだデータに置き換わります。</div>' +
+    (list.length ? list.map((r, i) =>
+      '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer">' +
+        '<input type="radio" name="syncPick" value="' + esc(r.key) + '"' + (i === 0 ? ' checked' : '') + ' style="margin-top:3px">' +
+        '<span style="flex:1"><b>' + esc(r.key.slice(3)) + '</b>' + (r.uname ? '（' + esc(r.uname) + '）' : '') +
+        (r.key === mine ? ' <span class="chip grey">この端末のログイン</span>' : '') +
+        '<br><span class="small muted">最終保存 ' + fmt(r.at || r.updated_at) + ' ／ ' + esc(r.dev || '端末名なし') + ' ／ 版' + esc(r.rev || 0) + '</span></span></label>').join('')
+      : '<div class="small muted">クラウドにはまだ保存データがありません。PCで「連携・設定」→「クラウド設定」を「使う」にしてから、もう一度お試しください。</div>') +
+    '<div class="small muted" style="margin-top:6px">いちばん上が最後に保存されたデータです。PCで最後に使ったものを選んでください。</div>',
+    (list.length ? [{ label: '取り込む', cls: 'pri', fn: async () => {
+      const pick = ($$('input[name=syncPick]').find(x => x.checked) || {}).value; if (!pick) return;
+      try {
+        const remote = await cloudGetKey(pick);
+        if (!remote || !remote.db) return toast('データを読み込めませんでした', 'err');
+        DB.settings.cloud = true;
+        closeModal(); cloudApply(remote);
+        toast('同期を開始しました。以後は自動で同期します');
+      } catch (e) { toast('取り込みに失敗: ' + e.message, 'err'); }
+    } }] : []).concat(Cloud.enabled() ? [] : [{ label: 'この端末の内容で新しく同期を始める', fn: () => {
+      if (list.some(r => r.key === mine) && !confirm('クラウドにある「' + mine.slice(3) + '」のデータを、この端末の内容で上書きします。よろしいですか？')) return;
+      DB.settings.cloud = true; Store.save(true); closeModal(); cloudPush(true); render();
+    } }]));
 }
 
 /* =========================================================================
