@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EARTHCOM MIND FLOW</title>
-<meta name="app-version" content="5.2.1">
+<meta name="app-version" content="5.3.0">
 <meta name="theme-color" content="#07152D">
 <meta name="description" content="MIND FLOW — PERSONAL STRATEGIC CALENDAR｜時間を管理するのではなく、未来を設計する。">
 <link rel="icon" type="image/png" sizes="32x32" href="nm-icon-32.png">
@@ -915,6 +915,7 @@ const ICON = {
   pipe:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 16.5V9M8 16.5V5M13 16.5v-4M3 16.5h14"/><path d="M16.5 4.5v4h-4" stroke-linejoin="round"/><path d="M16.5 4.5 12 9"/></svg>',
   goal:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.6"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>',
   problem:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17"/><path d="M6.8 8.5h3.4M8.5 6.8v3.4"/></svg>',
+  guide:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 5.2C8.4 4 6 3.6 3.5 4v11.2c2.5-.4 4.9 0 6.5 1.2 1.6-1.2 4-1.6 6.5-1.2V4c-2.5-.4-4.9 0-6.5 1.2Z"/><path d="M10 5.2v11.2"/></svg>',
   menu:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13"/></svg>',
   settings:'<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6h9M15 6h1.5M3.5 14h1.5M7.5 14h9"/><circle cx="13.6" cy="6" r="1.9"/><circle cx="6.4" cy="14" r="1.9"/></svg>'
 };
@@ -930,6 +931,7 @@ const NAV = [
   { id: 'projects', label: 'プロジェクト', icon: ICON.projects },
   { id: 'problems', label: '問題解決', icon: ICON.problem },
   { id: 'review', label: 'レビュー', icon: ICON.review },
+  { id: 'guide', label: '使い方', icon: ICON.guide },
   { id: 'settings', label: '連携・設定', icon: ICON.settings }
 ];
 const TABS = ['home', 'ai', 'cal', 'board'];
@@ -949,7 +951,7 @@ function render() {
   route = parseHash();
   renderNav(); renderTabs();
   const v = $('#view'); v.className = 'view' + (route.name === 'map' ? ' full' : '') + (['cal','pipeline','ai','data'].includes(route.name) ? ' wide' : '');
-  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, data: viewData, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings, goals: viewGoals, problems: viewProblems };
+  const map = { home: viewHome, ai: viewAI, pipeline: viewPipeline, data: viewData, cal: viewCal, maps: viewMaps, map: viewMap, board: viewBoard, projects: viewProjects, project: viewProject, review: viewReview, settings: viewSettings, goals: viewGoals, problems: viewProblems, guide: viewGuide };
   (map[route.name] || viewHome)();
   if (route.name !== 'map') { window.scrollTo(0, 0); }
 }
@@ -966,7 +968,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.2.1</div>';
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.3.0</div>';
 }
 function renderTabs() {
   const inbox = tasksIn('inbox').length;
@@ -6229,6 +6231,182 @@ async function spImportDialog() {
       Store.log('SUCCESS PLANNERから取り込み', r.join('・')); Store.save(true); closeModal(); render();
       toast(r.join('・') + 'を取り込みました');
     } }]);
+}
+
+
+const APP_ID = 'mf';
+
+/* =========================================================================
+   使い方ガイド（SUCCESS PLANNER／MIND FLOW 共通の内容）
+   APP_ID: 'sp' または 'mf'。自分のアプリの行を強調し、相手のアプリへはリンクで移動する
+   ========================================================================= */
+const GD_URL = { sp: 'success_planner.html', mf: 'earthcom-mind-flow.html#/home' };
+const GD_NAME = { sp: 'SUCCESS PLANNER', mf: 'MIND FLOW' };
+const GD_DAY = [
+  // [開始分, 終了分, きっかけ, アプリ, やること, 目安, 行動キー]
+  [240, 480, '起きて水を飲んだら', 'sp', '「🌅 朝の1分」を押す → ビジョンボード → 宣言 → 今日の3項目（テーマ・GIVE・注意点）→ 朝の健康チェック →「今日を始める」', '5分', 'am'],
+  [480, 570, '出社してPCを開いたら', 'mf', 'ホームの「今日のゴールを決める」で1行 → GTDボードで「今日やる」を3〜5件に絞る → 戦略カレンダーで今日の予定を確認', '5分', 'mfstart'],
+  [540, 600, '9:00 朝のレビューが出たら', 'mf', 'ホームの「確認する」→ 最重要案件・獲得する合意を書いて「記録して始める」', '3分', 'mfreview'],
+  [570, 720, '日中、思いついたら／終わったら', 'mf', '思いついたことは右下の＋でInboxに入れるだけ。終わったタスクは完了にする', '10秒', 'mfinbox'],
+  [720, 810, '昼食後', 'mf', 'GTDボードでInboxを空にする（2分でできるものはその場でやる）', '3分', 'mfboard'],
+  [810, 1050, '日中、思いついたら／終わったら', 'mf', '思いついたことは右下の＋でInboxに入れるだけ。終わったタスクは完了にする', '10秒', 'mfinbox'],
+  [1050, 1170, '退社前、PCを閉じる前', 'mf', '残ったタスクを明日以降へ → Inboxを0にする → 戦略カレンダーで明日のゴールと「今日やる」を決める', '5分', 'mfend'],
+  [1170, 1500, '入浴後', 'sp', '「🌙 夜の1分」を押す → 夜の健康チェック → 今日の習慣 → 振り返り → 今日の写真とメッセージを1つ残す', '10分', 'pm']
+];
+function gdNowMin() { const d = new Date(); let m = d.getHours() * 60 + d.getMinutes(); if (m < 240) m += 1440; return m; }
+function gdNowRow() { const m = gdNowMin(); return GD_DAY.find(r => m >= r[0] && m < r[1]) || null; }
+function gdGo(key) {
+  const own = APP_ID;
+  const row = GD_DAY.find(r => r[6] === key); if (!row) return;
+  if (row[3] !== own) { location.href = GD_URL[row[3]]; return; }
+  if (typeof gdLocalAction === 'function') gdLocalAction(key);
+}
+function gdHTML() {
+  const own = APP_ID, other = own === 'sp' ? 'mf' : 'sp';
+  const now = gdNowRow();
+  const tag = a => '<span class="gd-app gd-' + a + '">' + (a === 'sp' ? 'SP' : 'MF') + '</span>';
+  const sec = (t, sub) => '<div class="gd-h">' + t + (sub ? '<span>' + sub + '</span>' : '') + '</div>';
+  let h = '';
+  // 今の時間帯
+  if (now) {
+    h += '<div class="gd-now"><div class="k">今の時間帯にやること</div><div class="t">' + tag(now[3]) + ' ' + now[2] + '</div>' +
+      '<div class="d">' + now[4] + '</div>' +
+      '<button class="gd-btn" onclick="gdGo(\'' + now[6] + '\')">' + (now[3] === own ? 'ここから始める' : GD_NAME[now[3]] + 'を開く') + '</button></div>';
+  }
+  // 役割
+  h += sec('2つのアプリの役割', '入力する場所を1つに決めると迷いません');
+  h += '<div class="gd-roles">' +
+    '<div class="gd-role' + (own === 'sp' ? ' me' : '') + '"><div class="n">' + tag('sp') + ' SUCCESS PLANNER</div><div class="c">自分を整える手帳（Be）</div>' +
+      '<div class="d">ビジョン・宣言・今日の3項目・健康・習慣・振り返り・写真とメッセージ（アルバム）・人生の目的とノーススター</div></div>' +
+    '<div class="gd-role' + (own === 'mf' ? ' me' : '') + '"><div class="n">' + tag('mf') + ' MIND FLOW</div><div class="c">仕事の司令塔（Do）</div>' +
+      '<div class="d">今日のゴール・タスク（GTD）・予定（戦略カレンダー）・案件と達成見込み・ブレイクスルーゴールとKPI・問題解決</div></div>' +
+    '</div><div class="gd-note">迷ったら：<b>会社の数字に向かう行動</b>はMIND FLOW、<b>自分の状態と人生の軸</b>はSUCCESS PLANNER。朝は SP → MF、夜は MF → SP の順です。</div>';
+  // 1日
+  h += sec('1日のルーティン', 'きっかけ（〜したら）にひも付けると続きます');
+  const seen = {};
+  h += '<div class="gd-day">' + GD_DAY.filter(r => { if (seen[r[6]]) return false; seen[r[6]] = 1; return true; }).map(r =>
+    '<div class="gd-row' + (now && now[6] === r[6] ? ' on' : '') + (r[3] === own ? '' : ' other') + '">' +
+      '<div class="w">' + tag(r[3]) + '<b>' + r[2] + '</b><em>' + r[5] + '</em></div><div class="x">' + r[4] + '</div></div>').join('') + '</div>';
+  h += '<div class="gd-min"><b>忙しい日の最低ライン</b>（これができた日は「続けた日」）<br>' +
+    '朝：SPでビジョンを1枚見る ＋ MFで今日のゴールを1行書く<br>夜：SPで「今日できたこと」に1問だけ答える<br>' +
+    '<span>SPの朝の健康チェックで日のタイプを「忙しい日」にすると、最低ラインで達成扱いになります。</span></div>';
+  // 週・月・四半期
+  h += sec('週・月・四半期のルーティン');
+  h += '<div class="gd-cycle">' +
+    '<div class="gd-cy"><div class="t">毎週 日曜 20:00<span>30分</span></div><ol>' +
+      '<li>' + tag('mf') + ' 「レビュー」でInboxを空にし、プロジェクトごとに次の行動があるか確認。対応中の問題解決シートを見直す</li>' +
+      '<li>' + tag('mf') + ' 「ブレイクスルーゴール」でフォーカスKPIの実績を更新</li>' +
+      '<li>' + tag('mf') + ' 「戦略カレンダー」で来週の週ゴールと重要予定を決める</li>' +
+      '<li>' + tag('sp') + ' 習慣トラッカーと今週の写真を見返し、来週の健康・家族の予定を1つずつ決めてMFのカレンダーに入れる</li></ol></div>' +
+    '<div class="gd-cy"><div class="t">月末の最終日曜<span>週次＋20分</span></div><ol>' +
+      '<li>' + tag('sp') + ' 「ライフデザイン」のアルバムで今月の写真とメッセージを見返す</li>' +
+      '<li>' + tag('sp') + ' 月のKPTを書き、来月の改善を1つ決める。ライフバランスを更新</li>' +
+      '<li>' + tag('mf') + ' 「ブレイクスルーゴール」で止まっているゴールにプロジェクトか次の行動を足す</li></ol></div>' +
+    '<div class="gd-cy"><div class="t">四半期末（2・5・8・11月の最終週）<span>半日</span></div><ol>' +
+      '<li>' + tag('mf') + ' 四半期を振り返り、AI GOAL TO ACTIONで次の四半期を行動まで分解する</li>' +
+      '<li>' + tag('sp') + ' 90日の変化（身体写真・ウエスト）を記録し、ビジョンボードを見直す</li>' +
+      '<li>11月末は期の締め。翌期のブレイクスルーゴール3つとフォーカスKPI2つを作り直す</li></ol></div>' +
+    '</div>';
+  // 立ち上げ
+  h += sec('最初の4週間の立ち上げ', 'いきなり全部やらず、1つずつ足す');
+  h += '<div class="gd-steps">' + [
+    ['1週目', '朝のSP「朝の1分」だけ', '7日中5日'],
+    ['2週目', '＋夜のSP「夜の1分」', '朝夜とも7日中5日'],
+    ['3週目', '＋出社時と退社前のMF', '平日5日のうち4日'],
+    ['4週目', '＋日曜の週次レビュー', '1回実施'],
+  ].map(s => '<div class="gd-st"><b>' + s[0] + '</b><div>' + s[1] + '</div><span>合格ライン：' + s[2] + '</span></div>').join('') + '</div>' +
+    '<div class="gd-note">5週目から、このルーティン全体で回します。</div>';
+  // 仕掛け
+  h += sec('続けるための仕掛け');
+  h += '<ul class="gd-ul">' +
+    '<li>スマホのホーム画面1ページ目の下段（ドック）に、SPとMIND FLOWを並べて置く</li>' +
+    '<li>SPの朝・夜の通知を、起床時刻と入浴後の時刻に合わせる</li>' +
+    '<li>毎日見る数字は2つだけ：SPの「ゼロにしなかった日」の連続日数と、MFの退社時点のInbox 0</li>' +
+    '<li>3日空いたら、翌朝は最低ラインだけで再開する。過去の日を埋め直さない</li></ul>';
+  // どこに入力するか
+  h += sec('どこに入力するか', '同じことを2か所に書かない');
+  h += '<div class="gd-tbl">' + [
+    ['タスク・ToDo', 'mf', 'GTDボード（思いついたら右下の＋）'],
+    ['予定', 'mf', '戦略カレンダー（Googleカレンダーと同期）'],
+    ['今日・明日のゴール', 'mf', 'ホーム「今日のゴールを決める」／戦略カレンダー'],
+    ['案件・受注見込み', 'mf', '達成見込み'],
+    ['ブレイクスルーゴール・フォーカスKPI', 'mf', 'ブレイクスルーゴール'],
+    ['仕事の問題・トラブル', 'mf', '問題解決（次の行動はタスクに）'],
+    ['今日のテーマ・GIVE・注意点', 'sp', 'ホーム／朝の1分'],
+    ['健康（睡眠・体重・運動など）', 'sp', 'ホーム・振り返り／朝夜の1分（推移は健康タブ）'],
+    ['習慣・振り返り・今日できたこと', 'sp', '振り返り／夜の1分'],
+    ['写真・送ったメッセージ', 'sp', 'ホームに登録 → ライフデザインのアルバムで見返す'],
+    ['人生の目的・ノーススター・夢', 'sp', '目的・目標／ライフデザイン'],
+  ].map(r => '<div class="gd-tr"><div class="a">' + r[0] + '</div><div class="b">' + tag(r[1]) + ' ' + r[2] + '</div></div>').join('') + '</div>';
+  h += '<div class="gd-foot"><button class="gd-btn ghost" onclick="location.href=\'' + GD_URL[other] + '\'">' + GD_NAME[other] + 'を開く</button></div>';
+  return h;
+}
+const GD_CSS = `
+.gd{font-size:13.5px;line-height:1.65;color:#1b2536}
+.gd-now{background:linear-gradient(135deg,#0f2a44,#173a5c);color:#f3ead4;border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.gd-now .k{font-size:11px;letter-spacing:.08em;color:#e0c98f;font-weight:700}
+.gd-now .t{font-size:15px;font-weight:800;margin:4px 0 2px}
+.gd-now .d{font-size:12.5px;color:#d7dbe4}
+.gd-btn{margin-top:10px;border:none;border-radius:999px;padding:9px 16px;font-weight:800;font-size:13px;background:linear-gradient(140deg,#e8cd8e,#c9a04e);color:#241d0e;cursor:pointer}
+.gd-btn.ghost{background:#fff;border:1px solid #d6dce6;color:#1b2536}
+.gd-h{font-size:15px;font-weight:800;margin:20px 0 8px;padding-left:9px;border-left:4px solid #c9a04e;color:#0f2a44}
+.gd-h span{font-size:11.5px;font-weight:500;color:#6b778a;margin-left:8px}
+.gd-app{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;vertical-align:1px;letter-spacing:.04em}
+.gd-sp{background:#f6ecd2;color:#7a5a12}
+.gd-mf{background:#dfe8f8;color:#1c3f7a}
+.gd-roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gd-role{border:1px solid #e1e6ee;border-radius:12px;padding:12px;background:#fff}
+.gd-role.me{border-color:#c9a04e;box-shadow:0 0 0 2px rgba(201,160,78,.18)}
+.gd-role .n{font-weight:800;font-size:13px}
+.gd-role .c{font-weight:700;color:#0f2a44;margin:3px 0}
+.gd-role .d{font-size:12px;color:#5a667a}
+.gd-note{font-size:12px;color:#5a667a;margin-top:8px}
+.gd-day{display:flex;flex-direction:column;gap:6px}
+.gd-row{border:1px solid #e1e6ee;border-radius:11px;padding:9px 12px;background:#fff}
+.gd-row.other{background:#fafbfd}
+.gd-row.on{border-color:#c9a04e;background:#fdf8ec;box-shadow:0 0 0 2px rgba(201,160,78,.2)}
+.gd-row .w{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.gd-row .w b{font-size:13px}
+.gd-row .w em{font-style:normal;font-size:11px;color:#6b778a;margin-left:auto}
+.gd-row .x{font-size:12.5px;color:#3c4758;margin-top:3px}
+.gd-min{margin-top:10px;border:1px dashed #c9a04e;border-radius:11px;padding:10px 12px;background:#fffcf4;font-size:12.5px}
+.gd-min span{display:block;font-size:11.5px;color:#6b778a;margin-top:4px}
+.gd-cycle{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.gd-cy{border:1px solid #e1e6ee;border-radius:12px;padding:11px 12px;background:#fff}
+.gd-cy .t{font-weight:800;font-size:13px;color:#0f2a44}
+.gd-cy .t span{font-weight:500;font-size:11px;color:#6b778a;margin-left:6px}
+.gd-cy ol{margin:6px 0 0;padding-left:18px;font-size:12.3px;color:#3c4758}
+.gd-cy li{margin-bottom:4px}
+.gd-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gd-st{border:1px solid #e1e6ee;border-radius:11px;padding:10px;background:#fff;font-size:12.5px}
+.gd-st b{color:#c9a04e;font-size:12px}
+.gd-st span{display:block;font-size:11px;color:#6b778a;margin-top:4px}
+.gd-ul{margin:0;padding-left:18px;font-size:12.8px;color:#3c4758}
+.gd-ul li{margin-bottom:5px}
+.gd-tbl{border:1px solid #e1e6ee;border-radius:12px;overflow:hidden;background:#fff}
+.gd-tr{display:grid;grid-template-columns:40% 60%;border-top:1px solid #eef1f5;font-size:12.5px}
+.gd-tr:first-child{border-top:0}
+.gd-tr .a{padding:8px 10px;font-weight:700;background:#f8f9fb}
+.gd-tr .b{padding:8px 10px;color:#3c4758}
+.gd-foot{margin:18px 0 6px;text-align:center}
+@media (max-width:760px){
+  .gd-roles,.gd-cycle{grid-template-columns:1fr}
+  .gd-steps{grid-template-columns:1fr 1fr}
+  .gd-tr{grid-template-columns:1fr}
+  .gd-tr .a{padding-bottom:2px}
+}`;
+
+document.head.insertAdjacentHTML('beforeend', '<style>' + GD_CSS + '</style>');
+function gdLocalAction(k) {
+  if (k === 'mfstart') { go('home'); setTimeout(setTopGoal, 60); }
+  else if (k === 'mfreview') { go('home'); setTimeout(morningReview, 60); }
+  else if (k === 'mfinbox') openQuick();
+  else go('board');
+}
+function viewGuide() {
+  setTop('使い方');
+  $('#view').innerHTML = '<div class="gd" style="max-width:900px">' +
+    '<div class="small muted" style="margin-bottom:12px">MIND FLOWとSUCCESS PLANNERを、朝から夜、週・月・四半期まで続く習慣として使うためのガイドです。</div>' + gdHTML() + '</div>';
 }
 
 /* =========================================================================
