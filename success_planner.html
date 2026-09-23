@@ -590,6 +590,26 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 .hc-dark .cond button{background:rgba(240,230,210,.08);}
 .hc-dark .cond button.sel{background:rgba(201,160,78,.25);border-color:#c9a04e;}
 .hc-dark .hc-note{color:#9c8b69;}
+/* アルバム */
+.al-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.al-bar b{font-size:15px;min-width:90px;text-align:center;}
+.al-bar .sw{display:flex;gap:4px;margin-left:auto;}
+.al-bar .sw button,.al-bar .mv{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;color:var(--sub);}
+.al-bar .sw button.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700;}
+.al-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;}
+.al-ph{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#eee;cursor:pointer;border:none;padding:0;}
+.al-ph img{width:100%;height:100%;object-fit:cover;display:block;}
+.al-ph span{position:absolute;left:6px;bottom:6px;background:rgba(15,42,28,.78);color:#f0e2c2;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;}
+.al-msg{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;}
+.al-msg .h{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--sub);margin-bottom:5px;}
+.al-msg .h a{margin-left:auto;color:var(--sub);cursor:pointer;text-decoration:underline;}
+.al-msg .t{font-size:13px;white-space:pre-wrap;line-height:1.6;}
+.al-sum{font-size:11.5px;color:var(--sub);margin-bottom:10px;}
+.ro-memo{margin:18px auto 0;max-width:420px;text-align:left;border:1px solid rgba(201,160,78,.4);border-radius:12px;padding:12px;background:rgba(0,0,0,.2);}
+.ro-memo .k{font-size:11.5px;color:#e0c98f;font-weight:700;margin-bottom:8px;}
+.ro-memo img{width:100%;max-height:220px;object-fit:cover;border-radius:9px;display:block;margin-bottom:8px;cursor:pointer;}
+.ro-memo .t{font-size:13px;color:#e8dcc0;white-space:pre-wrap;line-height:1.6;}
+.ro-memo .jump{margin-top:8px;font-size:12px;color:#c9a04e;text-decoration:underline;background:none;border:none;padding:0;}
 </style>
 
 <!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
@@ -991,6 +1011,16 @@ table.ht{border-collapse:separate;border-spacing:3px;}
     <div id="b10List"></div>
   </div>
 
+  <div class="card" id="albumCard">
+    <h2>アルバム <span class="mini">毎日の写真とメッセージを、月ごとに振り返る</span></h2>
+    <div class="al-bar">
+      <button class="mv" onclick="albumMove(-1)">◀</button><b id="alMonth"></b><button class="mv" onclick="albumMove(1)">▶</button>
+      <div class="sw"><button id="alTabP" class="on" onclick="albumView('photo')">📷 写真</button><button id="alTabM" onclick="albumView('msg')">✉ メッセージ</button></div>
+    </div>
+    <div class="al-sum" id="alSum"></div>
+    <div id="alBody"><div class="hint">読み込んでいます…</div></div>
+  </div>
+
   <div class="card">
     <h2>ドリームリスト <span class="mini">欲しいもの・行きたいところ・したいこと・なりたい姿を、期限と写真で具体化する</span></h2>
     <div class="dream-cats" id="dreamCats"></div>
@@ -1170,6 +1200,7 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 <div id="imgView" onclick="this.classList.remove('show')">
   <button class="x">✕</button>
   <img id="imgViewImg" src="" alt="">
+  <button id="imgJump" class="goldbtn" style="display:none;position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:2" onclick="event.stopPropagation();el('imgView').classList.remove('show');jumpToDay(this.dataset.d)">この日を開く</button>
 </div>
 
 <!-- problem modal -->
@@ -2119,7 +2150,7 @@ function renderDreams(){
     '</div></div>';
   }).join(''):'<div class="hint" style="margin-bottom:10px">この分類にはまだ登録がありません。</div>';
 }
-function viewUrl(u){el('imgViewImg').src=u;el('imgView').classList.add('show');}
+function viewUrl(u,d){el('imgViewImg').src=u;const j=el('imgJump');if(j){j.style.display=d?'block':'none';j.dataset.d=d||'';j.textContent=d?fmtMD(d)+' を開く':'';}el('imgView').classList.add('show');}
 function toggleDreamDone(id){
   const d=life.dreams.find(x=>x.id===id);if(!d)return;
   d.done=!d.done;d.doneDate=d.done?curDate:'';
@@ -3325,6 +3356,69 @@ function ritHcPm(){
   el('roFoot').innerHTML='<button class="ro-main" onclick="ritGo(1)">次へ　今日の習慣</button>';
 }
 
+
+/* ================= アルバム（写真・メッセージの振り返り） ================= */
+let alMonth='', alView='photo', alCache={};
+function monthDates(ym){const[y,m]=ym.split('-').map(Number);const n=new Date(y,m,0).getDate();const a=[];for(let i=1;i<=n;i++)a.push(ym+'-'+String(i).padStart(2,'0'));return a;}
+async function albumFetch(ym,force){
+  if(alCache[ym]&&!force)return alCache[ym];
+  const ds=monthDates(ym),out={};
+  ds.forEach(d=>{const v=lsGet('day_'+d);if(v&&((v.photos&&v.photos.length)||(v.message||'').trim()))out[d]={photos:v.photos||[],message:v.message||'',theme:v.theme||''};});
+  if(cloudOn){
+    try{
+      const{data,error}=await sb.from(TBL).select('key,photos:value->photos,message:value->>message,theme:value->>theme').in('key',ds.map(d=>'day_'+d));
+      if(!error&&data)data.forEach(r=>{const d=r.key.slice(4);if((r.photos&&r.photos.length)||(r.message||'').trim())out[d]={photos:r.photos||[],message:r.message||'',theme:r.theme||''};else delete out[d];});
+    }catch(e){console.warn('albumFetch',e);}
+  }
+  if(day&&ds.indexOf(curDate)>=0){flushCollect();if((day.photos&&day.photos.length)||(day.message||'').trim())out[curDate]={photos:day.photos||[],message:day.message||'',theme:day.theme||''};}
+  alCache[ym]=out;return out;
+}
+function albumMove(n){
+  let[y,m]=alMonth.split('-').map(Number);m+=n;if(m<1){m=12;y--;}if(m>12){m=1;y++;}
+  alMonth=y+'-'+String(m).padStart(2,'0');albumRender();
+}
+function albumView(v){alView=v;el('alTabP').classList.toggle('on',v==='photo');el('alTabM').classList.toggle('on',v==='msg');albumRender(true);}
+async function albumRender(noFetch){
+  if(!el('alBody'))return;
+  if(!alMonth)alMonth=todayStr().slice(0,7);
+  const[y,m]=alMonth.split('-').map(Number);
+  el('alMonth').textContent=y+'年'+m+'月';
+  if(!noFetch||!alCache[alMonth]){el('alBody').innerHTML='<div class="hint">読み込んでいます…</div>';}
+  const data=await albumFetch(alMonth,!noFetch);
+  const days=Object.keys(data).sort().reverse();
+  const nPh=days.reduce((a,d)=>a+data[d].photos.length,0),nMs=days.filter(d=>(data[d].message||'').trim()).length;
+  el('alSum').textContent='写真 '+nPh+'枚　メッセージ '+nMs+'件'+(alMonth===todayStr().slice(0,7)?'（今月）':'');
+  if(alView==='photo'){
+    const items=[];days.forEach(d=>data[d].photos.forEach(p=>items.push({d,u:p.url})));
+    el('alBody').innerHTML=items.length?'<div class="al-grid">'+items.map(x=>'<button class="al-ph" onclick="albumOpen(\''+x.d+'\',\''+esc(x.u).replace(/'/g,'%27')+'\')"><img loading="lazy" src="'+esc(x.u)+'" alt=""><span>'+fmtMD(x.d)+'</span></button>').join('')+'</div>'
+      :'<div class="hint">この月の写真はまだありません。ホームの「今日の記録写真」から1枚残すと、ここに並びます。</div>';
+  }else{
+    const ms=days.filter(d=>(data[d].message||'').trim());
+    el('alBody').innerHTML=ms.length?ms.map(d=>'<div class="al-msg"><div class="h"><b>'+fmtMD(d)+'（'+'日月火水木金土'[new Date(d+'T00:00:00').getDay()]+'）</b>'+(data[d].theme?'<span>テーマ：'+esc(data[d].theme.slice(0,24))+'</span>':'')+
+      '<a onclick="copyText(alCache[alMonth][\''+d+'\'].message,\'メッセージをコピーしました\')">コピー</a><a onclick="jumpToDay(\''+d+'\')">この日を開く</a></div><div class="t">'+esc(data[d].message)+'</div></div>').join('')
+      :'<div class="hint">この月のメッセージはまだありません。ホームの「今日送るメッセージ」に書くと、ここに残ります。</div>';
+  }
+}
+function albumOpen(d,u){viewUrl(decodeURIComponent(u),d);}
+/* 朝の1分の完了画面：1年前・1か月前の今日 */
+async function memoriesHTML(){
+  const t=todayStr(),[y,m,dd]=t.split('-').map(Number);
+  const cands=[];
+  const y1=(y-1)+'-'+String(m).padStart(2,'0')+'-'+String(dd).padStart(2,'0');cands.push(['1年前の今日',y1]);
+  const pm=new Date(y,m-2,dd);if(pm.getDate()===dd)cands.push(['1か月前の今日',todayStr(pm)]);
+  for(const c of cands){
+    let v=lsGet('day_'+c[1]);try{const cv=await cloudGet('day_'+c[1]);if(cv)v=cv;}catch(e){}
+    if(!v)continue;
+    const ph=(v.photos||[])[0],msg=(v.message||'').trim(),hl=((v.vision&&v.vision.focus&&v.vision.focus.hl)||'').trim();
+    if(!ph&&!msg&&!hl)continue;
+    return '<div class="ro-memo"><div class="k">📷 '+c[0]+'（'+fmtMD(c[1])+'）</div>'+
+      (ph?'<img src="'+esc(ph.url)+'" alt="" onclick="viewUrl(this.src)">':'')+
+      '<div class="t">'+esc((msg||hl).slice(0,140))+'</div>'+
+      '<button class="jump" onclick="closeRitual();jumpToDay(\''+c[1]+'\')">この日を開く</button></div>';
+  }
+  return '';
+}
+
 /* ---- オーバーレイ ---- */
 let RIT={mode:'am',step:0,bi:0,prev:null};
 const RIT_STEPS={am:['board','decl','focus','hcam','done'],pm:['hcpm','habit','night','done'],view:['board']};
@@ -3486,7 +3580,8 @@ async function ritDone(){
       ((t.a+t.d)>0?'今日もゼロにしませんでした。<br>決めたことを実行できる自分が、毎日育っています。':'記録したこと自体が前進です。<br>明日の一歩から、また始めましょう。');
   }
   el('roBody').innerHTML='<div class="ro-done"><div class="k">ゼロにしなかった日</div><div class="ro-big">'+n+'<small> 日連続</small></div>'+
-    '<div class="rc-week">'+weekDotsHTML(ritMap)+'</div><div class="m">'+msg+'</div></div>';
+    '<div class="rc-week">'+weekDotsHTML(ritMap)+'</div><div class="m">'+msg+'</div><div id="roMemo"></div></div>';
+  if(RIT.mode==='am'){memoriesHTML().then(h=>{const b=el('roMemo');if(b&&h)b.innerHTML=h;}).catch(()=>{});}
 }
 
 /* ---- ビジョンボードの登録 ---- */
@@ -3689,6 +3784,7 @@ function showTab(t){
   if(t==='health'){flushCollect();buildHealthChart();renderSelfCheck();}
   if(t==='vision'){flushCollect();renderVision();}
   if(t==='plan'){renderPlan();}
+  if(t==='life'){albumRender();}
   window.scrollTo({top:0});
 }
 
