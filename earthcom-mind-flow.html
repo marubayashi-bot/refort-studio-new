@@ -970,7 +970,7 @@ function renderNav() {
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
     '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.4.0</div>' +
     '<div style="margin-top:6px">' + (Cloud.enabled()
-      ? '<span style="color:#7fd6a8">☁ 同期中</span>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + String(DB.settings.cloudAt).slice(5, 16).replace('T', ' ') + '</span>' : '')
+      ? '<span style="color:#7fd6a8">☁ 同期中</span>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + (d => (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'))(new Date(DB.settings.cloudAt)) + '</span>' : '')
       : '<a href="javascript:void(0)" onclick="syncStart()" style="color:#ffb86b">⚠ この端末だけに保存（同期する）</a>') + '</div>';
 }
 function renderTabs() {
@@ -5517,7 +5517,8 @@ function cloudSchedule() {
 function cloudFingerprint() {
   const d = DB;
   return [d.maps, d.nodes, d.tasks, d.projects, d.calendar_events, d.opportunities, d.commitments,
-    d.owner_goals, d.period_goals, d.referrers, d.blockers, d.strategy, d.goals, d.ai_plans]
+    d.owner_goals, d.period_goals, d.referrers, d.blockers, d.strategy, d.goals, d.ai_plans,
+    d.breakthroughs, d.focus_kpis, d.problems, d.daily_reviews, d.goal_metrics]
     .map(x => (x ? JSON.stringify(x).length : 0)).join('-') + '|' +
     [d.tasks, d.calendar_events].map(x => (x || []).map(y => y.updated_at || y.last_modified_at || '').sort().slice(-1)[0] || '').join('|') + '|' +
     JSON.stringify(DB.settings.typeColors || {}).length;
@@ -6446,7 +6447,7 @@ async function syncStart() {
   let rows = [];
   try { rows = await cloudList(); } catch (e) { openModal('同期を始める', '<div class="err">クラウドに接続できませんでした（' + esc(e.message) + '）。通信状況を確認してください。</div>'); return; }
   const mine = Cloud.rowKey();
-  const fmt = t => t ? String(t).slice(0, 16).replace('T', ' ') : '—';
+  const fmt = t => { if (!t) return '—'; const d = new Date(t); return isNaN(d) ? String(t).slice(0, 16) : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
   const list = rows.filter(r => r.key !== 'db:default');
   openModal('同期を始める',
     '<div class="small" style="margin-bottom:10px">PCで使っている保存データを選んで「取り込む」を押してください。この端末の今の内容は、選んだデータに置き換わります。</div>' +
