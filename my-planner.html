@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="1.0.0">
+<meta name="app-version" content="1.0.1">
 <meta name="theme-color" content="#F6F2EA">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -384,7 +384,9 @@ async function cloudLike(prefix) {
 /* ---------- 起動 ---------- */
 async function boot() {
   try {
-    ME = await EC.guard({ app: 'my-planner', name: 'MY PLANNER（個人用）', allow: ['admin', 'manager', 'sales', 'field', 'viewer'] });
+    /* 個人用アプリのため、アプリ別の利用許可は求めない（会社のアカウントでログインできれば誰でも自分専用のプランナーが開く）。
+       中身は personal_planner 表の行レベルセキュリティで本人しか読めないので、ほかの人に見えることはない。 */
+    ME = await EC.guard({ allow: ['admin', 'manager', 'sales', 'field', 'viewer'] });
     sb = EC.supabase;
     const { data } = await sb.auth.getUser();
     OWNER = (data && data.user && data.user.id) || '';
