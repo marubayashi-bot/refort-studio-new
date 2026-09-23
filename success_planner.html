@@ -557,6 +557,16 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 .hl-row .s{color:#9a6b2a;font-size:11px;white-space:nowrap;}
 .kpt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 @media(max-width:720px){.kpt-grid{grid-template-columns:1fr;}}
+/* v2: 役割整理（仕事の予定・タスク・目標はMIND FLOWへ） */
+#tabs button[data-t="sched"],#tabs button[data-t="acts"],#tabs button[data-t="plan"],#tabs button[data-t="problem"]{display:none!important;}
+#progCard,#coCard,.sp-moved{display:none!important;}
+.mf-goal{font-weight:700;font-size:14px;line-height:1.5;margin:2px 0 10px;white-space:pre-wrap;}
+.mf-sec{font-size:11px;color:var(--sub);margin:10px 0 4px;font-weight:700;}
+.mf-li{display:flex;gap:8px;align-items:baseline;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,.06);}
+.mf-li .tm{flex:0 0 46px;color:var(--sub);font-variant-numeric:tabular-nums;}
+.mf-li.done{opacity:.5;text-decoration:line-through;}
+.mf-li .pr{font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:#f3e6c4;color:#7a5a12;flex:0 0 auto;}
+.mf-note{font-size:11px;color:var(--sub);margin-top:8px;}
 </style>
 
 <!-- ===== EARTHCOM 共通認証（社員アカウント） ===== -->
@@ -645,13 +655,19 @@ table.ht{border-collapse:separate;border-spacing:3px;}
   <div class="pyr" id="pyrCard">
     <div class="ns">⭐ ノーススター（最終目的地）</div>
     <div class="nsb" id="pyrNS"></div>
-    <div class="ns">🚀 今年のブレイクスルーゴール</div>
-    <div class="bg-chips" id="pyrBG" style="margin-top:5px"></div>
-    <div class="ns">🎯 フォーカスKPI</div>
-    <div id="pyrKPI" style="margin-top:5px"></div>
+    <div class="sp-moved"><div class="bg-chips" id="pyrBG"></div><div id="pyrKPI"></div></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="mfCard">
+    <h2>MIND FLOWの今日 <span class="mini">仕事の予定・タスク・目標はMIND FLOWで管理します</span></h2>
+    <div id="mfBody"><div class="hint">読み込んでいます…</div></div>
+    <div class="row" style="margin-top:10px">
+      <button class="goldbtn" onclick="location.href='earthcom-mind-flow.html#/home'">🧭 MIND FLOWで今日を始める</button>
+      <button class="addbtn ghost" style="margin-top:0" onclick="mfLoad(true)">↻ 最新にする</button>
+    </div>
+  </div>
+
+  <div class="card" id="progCard">
     <h2>今日の進捗 <span class="mini">アクション・スケジュールの完了状況</span></h2>
     <div class="stats">
       <span>アクション <b id="stAct">0/0</b></span>
@@ -670,18 +686,18 @@ table.ht{border-collapse:separate;border-spacing:3px;}
   </div>
 
   <div class="card">
-    <h2>朝の3分入力 <span class="mini">今日を決める5項目</span></h2>
+    <h2>朝の3分入力 <span class="mini">今日の自分を決める3項目</span></h2>
     <div class="lbl">① 今日のテーマ</div>
     <input type="text" id="f_theme" style="width:100%" placeholder="例：選択と集中。重要案件を前進させる日">
-    <div class="lbl">② 今日の最重要ゴール</div>
+    <div class="sp-moved">
     <textarea id="f_topGoal" placeholder="例：PH04・PH05の重要案件3件について、契約予定日と次回アクションを確定する"></textarea>
-    <div class="lbl">③ 今日の重点行動 3つ</div>
     <div class="ka"><span class="num">1</span><input type="text" id="f_ka1" placeholder="重点行動 1"></div>
     <div class="ka"><span class="num">2</span><input type="text" id="f_ka2" placeholder="重点行動 2"></div>
     <div class="ka"><span class="num">3</span><input type="text" id="f_ka3" placeholder="重点行動 3"></div>
-    <div class="lbl">④ 今日、誰に何をGIVEするか</div>
+    </div>
+    <div class="lbl">② 今日、誰に何をGIVEするか</div>
     <textarea id="f_give" placeholder="例：担当者が迷わない判断基準を示す／お客様に比較表を先回りで用意する"></textarea>
-    <div class="lbl">⑤ 今日の注意点・見えていないこと</div>
+    <div class="lbl">③ 今日の注意点・見えていないこと</div>
     <textarea id="f_caution" placeholder="例：顧客の本当の決裁条件／工事供給能力"></textarea>
   </div>
 
@@ -823,14 +839,15 @@ table.ht{border-collapse:separate;border-spacing:3px;}
   </div>
 
   <div class="card">
-    <h2>明日の設計 <span class="mini">夜に設計し、朝に再確認する。翌朝ワンタップで取り込めます</span></h2>
-    <div class="lbl">明日の最重要ゴール</div>
+    <h2>明日の準備 <span class="mini">明日のゴールとタスクはMIND FLOWで決める</span></h2>
+    <div class="sp-moved">
     <textarea id="n_goal"></textarea>
-    <div class="lbl">明日の重点行動 3つ</div>
     <div class="ka"><span class="num">1</span><input type="text" id="n_ka1"></div>
     <div class="ka"><span class="num">2</span><input type="text" id="n_ka2"></div>
     <div class="ka"><span class="num">3</span><input type="text" id="n_ka3"></div>
-    <div class="lbl">明日までに必要な準備</div>
+    </div>
+    <button class="goldbtn" onclick="location.href='earthcom-mind-flow.html#/cal'">🧭 MIND FLOWで明日を設計する</button>
+    <div class="lbl">明日までに必要な準備（心と体の準備も含めて）</div>
     <textarea id="n_prep" placeholder="例：会議資料の事前確認／比較表の用意"></textarea>
   </div>
 </div>
@@ -1076,14 +1093,12 @@ table.ht{border-collapse:separate;border-spacing:3px;}
 <!-- ============ PURPOSE ============ -->
 <div class="tab" id="tab-purpose">
   <div class="card">
-    <h2>目標ピラミッド <span class="mini">ノーススター → 突破口1〜3個 → 鍵となる数字1〜2個</span></h2>
+    <h2>ノーススター <span class="mini">人生・会社で変わらない最終目的</span></h2>
     <div class="lbl">⭐ ノーススター（人生・会社で変わらない最終目的。笑われるほど大きく、数字で具体的に）</div>
     <textarea id="p_ns" style="min-height:70px" onchange="profile.northStar=this.value;markDirty();renderPyramid()"></textarea>
-    <div class="lbl">🚀 今年のブレイクスルーゴール（最大3個。「これ以外の道はない」と決断できるもの）</div>
-    <div id="bgEdit"></div>
-    <div class="lbl">🎯 フォーカスKPI（最大2個。達成の鍵となる数字だけを追う）</div>
-    <div class="hint" style="margin-bottom:6px">名前／単位／目標値を設定。実績はホーム画面からいつでも更新できます。</div>
-    <div id="kpiEdit"></div>
+    <div class="sp-moved"><div id="bgEdit"></div><div id="kpiEdit"></div></div>
+    <div class="hint" style="margin-top:10px">今年のブレイクスルーゴールとフォーカスKPIは、MIND FLOWの「ブレイクスルーゴール」で管理しています。</div>
+    <button class="addbtn ghost" onclick="location.href='earthcom-mind-flow.html#/goals'">🧭 MIND FLOWで開く</button>
   </div>
 
   <div class="card">
@@ -1477,6 +1492,7 @@ function goToday(){loadDay(todayStr());}
 
 /* ================= render day into UI ================= */
 function renderDay(){
+  setTimeout(()=>mfLoad(false),0);
   el('f_theme').value=day.theme||'';
   el('f_topGoal').value=day.topGoal||'';
   el('f_ka1').value=day.ka[0]||'';el('f_ka2').value=day.ka[1]||'';el('f_ka3').value=day.ka[2]||'';
@@ -1759,6 +1775,67 @@ function buildProfileUI(){
     '<details class="sec"><summary>'+f[1]+'</summary><div class="body">'+
     '<textarea style="min-height:110px" onchange="profile[\''+f[0]+'\']=this.value;markDirty()">'+esc(profile[f[0]]||'')+'</textarea>'+
     '</div></details>').join('');
+}
+
+
+/* ================= MIND FLOW（読み取りのみ） =================
+   仕事の予定・タスク・今日のゴールはMIND FLOWが持ち主。SPでは表示だけ行い、書き込まない。
+   1) クラウド（mindflow表 key=db:<メール>） 2) 同じ端末のMIND FLOW保存データ の順に読む */
+let MF=null, mfBusy=false, mfErr='';
+function mfLocal(){try{return JSON.parse(localStorage.getItem('ecmf.db.v1')||'null');}catch(e){return null;}}
+async function mfLoad(force){
+  if(mfBusy)return; if(MF&&!force){mfRender();return;}
+  mfBusy=true; mfErr='';
+  const loc=mfLocal();
+  const mails=[...new Set([(window.EC&&EC.me&&EC.me.email)||'',(loc&&loc.user&&loc.user.email)||''].filter(Boolean).flatMap(x=>[x,x.toLowerCase()]))];
+  let got=null;
+  for(const m of mails){
+    try{
+      const q=SB_URL+'/rest/v1/mindflow?key=eq.'+encodeURIComponent('db:'+m)+
+        '&select=at:value->>at,tasks:value->db->tasks,days:value->db->strategy->days,top:value->db->settings->>top_goal,events:value->db->calendar_events';
+      const r=await fetch(q,{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}});
+      if(r.ok){const rows=await r.json();if(rows&&rows[0]&&rows[0].tasks){got=rows[0];got.from='cloud';break;}}
+    }catch(e){console.warn('mfLoad',e);}
+  }
+  if(!got&&loc)got={tasks:loc.tasks||[],days:(loc.strategy&&loc.strategy.days)||[],top:(loc.settings&&loc.settings.top_goal)||'',events:loc.calendar_events||[],from:'local'};
+  if(!got)mfErr='MIND FLOWのデータが見つかりませんでした。一度MIND FLOWを開いてログインしてください。';
+  MF=got; mfBusy=false; mfRender();
+  if(force&&got)toast('MIND FLOWの内容を読み込みました');
+}
+function mfDay(d){
+  if(!MF)return null;
+  const isToday=d===todayStr();
+  const dd=(MF.days||[]).find(x=>x.date===d)||{};
+  const goal=dd.goal||(isToday?MF.top||'':'');
+  const tasks=(MF.tasks||[]);
+  const doneOn=tasks.filter(t=>t.gtd==='done'&&(t.done_at||'').slice(0,10)===d);
+  const todo=isToday?tasks.filter(t=>t.gtd==='today'):tasks.filter(t=>t.gtd!=='done'&&t.due===d);
+  todo.sort((a,b)=>(a.priority||3)-(b.priority||3));
+  const evs=(MF.events||[]).filter(e=>(e.start||'').slice(0,10)===d&&!['deadline','reminder'].includes(e.type)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+  return {goal,todo,doneOn,evs,isToday};
+}
+function mfRender(){
+  const b=el('mfBody');if(!b)return;
+  if(mfBusy&&!MF){b.innerHTML='<div class="hint">読み込んでいます…</div>';return;}
+  if(!MF){b.innerHTML='<div class="hint">'+esc(mfErr||'MIND FLOWのデータがまだありません。')+'</div>';return;}
+  const x=mfDay(curDate);
+  const pr={1:'最重要',2:'重要'};
+  let h='<div class="mf-sec">'+(x.isToday?'今日':'この日')+'のゴール</div><div class="mf-goal">'+(x.goal?esc(x.goal):'<span class="hint">MIND FLOWで未設定</span>')+'</div>';
+  h+='<div class="mf-sec">'+(x.isToday?'今日やる':'期限のタスク')+'（'+x.todo.length+'件・完了 '+x.doneOn.length+'件）</div>';
+  h+=x.todo.length?x.todo.slice(0,6).map(t=>'<div class="mf-li">'+(pr[t.priority]?'<span class="pr">'+pr[t.priority]+'</span>':'')+'<span>'+esc(t.title)+'</span></div>').join('')
+    +(x.todo.length>6?'<div class="hint">ほか'+(x.todo.length-6)+'件</div>':''):'<div class="hint">なし</div>';
+  if(x.doneOn.length)h+=x.doneOn.slice(0,4).map(t=>'<div class="mf-li done"><span>'+esc(t.title)+'</span></div>').join('');
+  h+='<div class="mf-sec">予定（'+x.evs.length+'件）</div>';
+  h+=x.evs.length?x.evs.slice(0,6).map(e=>'<div class="mf-li"><span class="tm">'+esc((e.start||'').slice(11,16)||'終日')+'</span><span>'+esc(e.title||'')+'</span></div>').join(''):'<div class="hint">なし</div>';
+  h+='<div class="mf-note">'+(MF.from==='local'?'この端末のMIND FLOWから表示しています。':'MIND FLOWのクラウドから表示しています。')+'ここでは編集できません。</div>';
+  b.innerHTML=h;
+}
+function mfNippo(){
+  if(!MF)return '';
+  const x=mfDay(curDate);let o='';
+  if(x.doneOn.length)o+='■ 完了したタスク（MIND FLOW）\n'+x.doneOn.map(t=>'・'+t.title).join('\n')+'\n\n';
+  if(x.isToday&&x.todo.length)o+='■ 未完了のタスク（MIND FLOW）\n'+x.todo.map(t=>'・'+t.title).join('\n')+'\n\n';
+  return o;
 }
 
 /* ================= problems ================= */
@@ -2286,6 +2363,7 @@ function copyDaily(){
   if(day.topGoal)out+='■ 最重要ゴール\n'+day.topGoal+'\n\n';
   const ka=day.ka.filter(x=>x&&x.trim());
   if(ka.length)out+='■ 重点行動\n'+ka.map((k,i)=>(i+1)+'. '+k).join('\n')+'\n\n';
+  out+=mfNippo();
   const done=day.actions.filter(a=>a.action&&a.status==='完了');
   const undone=day.actions.filter(a=>a.action&&a.status!=='完了');
   if(done.length)out+='■ 完了したアクション\n'+done.map(a=>'・'+a.action+(a.result?'（結果：'+a.result+'）':'')).join('\n')+'\n\n';
