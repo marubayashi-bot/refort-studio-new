@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="1.0.0">
+<meta name="theme-color" content="#F6F2EA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MY PLANNER">
+<title>MY PLANNER</title>
+<link rel="icon" type="image/png" href="my-planner-icon.png">
+<link rel="apple-touch-icon" href="my-planner-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./ec-auth.js"></script>
+<style>
+:root{
+  --bg:#F6F2EA; --card:#FFFDF9; --ink:#2C2A31; --sub:#7A7480; --line:#E9E2D6;
+  --work:#3E6A6E; --work-bg:#E6EFEF; --priv:#B0707E; --priv-bg:#F6E8EA;
+  --acc:#B8935A; --acc-bg:#F5ECDD; --ok:#5E8B6A; --warn:#C0763F;
+  --r:16px; --serif:'Shippori Mincho',serif; --sans:'Zen Kaku Gothic New','Hiragino Sans',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{max-width:760px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 16px calc(96px + env(safe-area-inset-bottom,0px))}
+header.top{display:flex;align-items:flex-end;gap:10px;padding:8px 2px 12px}
+header.top h1{font-family:var(--serif);font-size:22px;margin:0;letter-spacing:.04em}
+header.top small{display:block;color:var(--sub);font-size:11.5px;letter-spacing:.06em}
+header.top .sp{flex:1}
+.sync{font-size:11px;color:var(--sub);white-space:nowrap}
+.sync.ok::before{content:'●';color:var(--ok);margin-right:4px}
+.sync.err::before{content:'●';color:var(--warn);margin-right:4px}
+
+.datebar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.datebar .d{font-family:var(--serif);font-size:18px;font-weight:700;flex:1;text-align:center}
+.datebar .d small{font-family:var(--sans);font-size:12px;color:var(--sub);margin-left:6px;font-weight:400}
+.nav{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card)}
+.todaybtn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:12px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card h2{font-family:var(--serif);font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 .mini{font-family:var(--sans);font-size:11.5px;color:var(--sub);font-weight:400}
+.card h2 .done{margin-left:auto;font-family:var(--sans);font-size:11px;background:#E7F0E9;color:var(--ok);padding:2px 9px;border-radius:999px}
+.vision{background:linear-gradient(145deg,#3B3A45,#5A4F4A);color:#F6EEDF;border:none}
+.vision .k{font-size:11px;letter-spacing:.14em;color:#E3C99A}
+.vision .t{font-family:var(--serif);font-size:16px;line-height:1.8;white-space:pre-wrap;margin-top:6px}
+.vision .e{margin-top:8px;font-size:12px;color:#CFC3AE;text-decoration:underline;background:none;border:none;padding:0}
+
+.lbl{font-size:12.5px;font-weight:700;margin:12px 0 5px;color:#4A4550}
+.lbl:first-of-type{margin-top:0}
+textarea,input[type=text],input[type=number],input[type=date],input[type=time],select{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 12px;font-size:15px;outline:none}
+textarea{min-height:64px;resize:vertical}
+textarea:focus,input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(184,147,90,.15)}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.hcell{border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
+.hcell .hl{font-size:11.5px;color:var(--sub);margin-bottom:4px}
+.hcell input{border:none;padding:2px 0;font-size:17px;font-weight:700;box-shadow:none!important}
+.scale{display:flex;gap:5px}
+.scale button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 0;font-weight:700;font-size:13px}
+.scale button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+
+.chks{display:flex;flex-wrap:wrap;gap:7px}
+.chk{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 13px;font-size:13.5px}
+.chk .b{width:18px;height:18px;border-radius:50%;border:1.5px solid #CFC6B8;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent}
+.chk.on{background:var(--acc-bg);border-color:var(--acc)}
+.chk.on .b{background:var(--acc);border-color:var(--acc);color:#fff}
+
+/* タスク */
+.seg{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13px}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
+.tgroup{margin-bottom:6px}
+.tgroup .gh{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#4A4550;margin:10px 0 6px}
+.tgroup .gh .n{font-weight:400;color:var(--sub)}
+.task{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:6px;border-left:4px solid var(--c,#ccc)}
+.task .cb{width:24px;height:24px;flex:0 0 24px;border-radius:50%;border:2px solid #CFC6B8;background:#fff;display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px;padding:0}
+.task.done .cb{background:var(--ok);border-color:var(--ok);color:#fff}
+.task .tt{flex:1;min-width:0}
+.task .tt b{font-weight:500;font-size:14.5px;display:block;overflow-wrap:anywhere}
+.task.done .tt b{text-decoration:line-through;color:var(--sub)}
+.task .meta{font-size:11px;color:var(--sub);display:flex;gap:8px;flex-wrap:wrap}
+.task .meta .late{color:var(--warn);font-weight:700}
+.task .star{border:none;background:none;font-size:17px;padding:2px;opacity:.35}
+.task .star.on{opacity:1}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--bg-c,#eee);color:var(--c,#555)}
+.add{display:flex;gap:6px;margin-top:8px}
+.add input{flex:1}
+.add select{width:auto;flex:0 0 auto}
+.btn{border:none;border-radius:11px;padding:10px 16px;font-weight:700;background:var(--ink);color:#fff}
+.btn.acc{background:var(--acc)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn.sm{padding:7px 12px;font-size:13px}
+.btn.danger{background:#fff;border:1px solid #E7C2B8;color:#B0533A}
+.empty{font-size:12.5px;color:var(--sub);padding:6px 2px}
+.hint{font-size:12px;color:var(--sub);margin-top:6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.cols{grid-template-columns:1fr}}
+
+/* 記録 */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .w{font-size:11px;color:var(--sub)}
+.cal button{aspect-ratio:1/1;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:13px;position:relative;padding:0}
+.cal button.today{border-color:var(--acc);font-weight:700}
+.cal button.blank{visibility:hidden}
+.cal button i{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);display:flex;gap:2px}
+.cal button i b{width:5px;height:5px;border-radius:50%;background:#ddd}
+.cal button i b.am{background:var(--acc)}
+.cal button i b.pm{background:var(--work)}
+.hist{border-top:1px solid var(--line);padding:10px 0}
+.hist:first-child{border-top:0}
+.hist .h{font-size:12px;color:var(--sub);display:flex;gap:8px}
+.hist .h a{margin-left:auto;color:var(--acc);text-decoration:underline;cursor:pointer}
+.hist .t{white-space:pre-wrap;font-size:13.5px}
+.streak{display:flex;gap:10px;align-items:baseline}
+.streak b{font-family:var(--serif);font-size:30px}
+
+/* 設定 */
+.elist .row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.elist .row input{flex:1}
+.elist .row select{width:110px}
+.elist .row .x,.elist .row .mv{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:40px;flex:0 0 34px;padding:0}
+.elist .row input[type=color]{width:40px;height:40px;padding:2px;border:1px solid var(--line);border-radius:9px;flex:0 0 40px;background:#fff}
+
+/* タブバー */
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,253,249,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:30}
+.tabbar .in{display:flex;max-width:760px;width:100%}
+.tabbar button{flex:1;border:none;background:none;padding:9px 0 8px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar button .ic{font-size:19px;line-height:1}
+.tabbar button.on{color:var(--ink);font-weight:700}
+.view{display:none}
+.view.on{display:block}
+
+/* モーダル */
+.ov{position:fixed;inset:0;background:rgba(40,35,45,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.ov.show{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow:auto}
+@media (min-width:700px){.ov{align-items:center}.sheet{border-radius:20px}}
+.sheet h3{font-family:var(--serif);margin:0 0 12px;font-size:17px;display:flex;align-items:center}
+.sheet h3 button{margin-left:auto;border:none;background:var(--bg);border-radius:50%;width:32px;height:32px}
+.sheet .acts{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.sheet .acts .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.guide p{margin:6px 0;font-size:13.5px}
+.guide ol{margin:4px 0 8px;padding-left:20px;font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div><h1 id="appName">MY PLANNER</h1><small id="appTag">自分を整え、仕事と暮らしを前に進める</small></div>
+    <div class="sp"></div>
+    <span class="sync" id="sync">読み込み中</span>
+  </header>
+
+  <!-- 今日 -->
+  <section class="view on" id="v-today">
+    <div class="datebar">
+      <button class="nav" onclick="moveDay(-1)" aria-label="前の日">◀</button>
+      <div class="d" id="dLabel"></div>
+      <button class="nav" onclick="moveDay(1)" aria-label="次の日">▶</button>
+      <button class="todaybtn" id="toToday" onclick="goDay(todayStr())">今日</button>
+    </div>
+
+    <div class="card vision" id="visionCard">
+      <div class="k">MY VISION</div>
+      <div class="t" id="visionText"></div>
+      <button class="e" onclick="openTab('settings');setTimeout(()=>document.getElementById('s_vision').focus(),50)">言葉を変える</button>
+    </div>
+
+    <div class="card">
+      <h2>🌅 朝 <span class="mini">今日をどう過ごすか</span><span class="done" id="amDone" style="display:none">✓ 記入済み</span></h2>
+      <div id="amItems"></div>
+    </div>
+
+    <div class="card" id="healthCard">
+      <h2>🌿 からだ <span class="mini">わかる項目だけで大丈夫</span></h2>
+      <div class="hgrid" id="healthGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>✔ 今日のタスク <span class="mini">「今日やる」と期限が今日までのもの</span></h2>
+      <div id="todayTasks"></div>
+      <div class="add">
+        <select id="qaList" aria-label="分類"></select>
+        <input type="text" id="qaText" placeholder="今日やることを追加" onkeydown="if(event.key==='Enter')quickAdd('today')">
+        <button class="btn sm" onclick="quickAdd('today')">追加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🌙 夜 <span class="mini">今日をふり返る</span><span class="done" id="pmDone" style="display:none">✓ 記入済み</span></h2>
+      <div class="lbl" id="habLbl">今日の習慣</div>
+      <div class="chks" id="habits"></div>
+      <div id="pmItems"></div>
+      <div class="lbl">今日の気分</div>
+      <div class="scale" id="mood"></div>
+    </div>
+  </section>
+
+  <!-- タスク -->
+  <section class="view" id="v-tasks">
+    <div class="seg" id="listSeg"></div>
+    <div class="add" style="margin:0 0 12px">
+      <select id="taList" aria-label="分類"></select>
+      <input type="text" id="taText" placeholder="思いついたことを入れる" onkeydown="if(event.key==='Enter')quickAdd('next',true)">
+      <button class="btn sm" onclick="quickAdd('next',true)">追加</button>
+    </div>
+    <div id="taskGroups"></div>
+  </section>
+
+  <!-- 記録 -->
+  <section class="view" id="v-log">
+    <div class="card">
+      <div class="streak"><b id="streakN">0</b><span>日連続で記録しています</span></div>
+      <div class="hint">朝か夜のどちらかを書いた日を「記録した日」として数えます。</div>
+    </div>
+    <div class="card">
+      <div class="datebar" style="margin-bottom:8px">
+        <button class="nav" onclick="moveMonth(-1)">◀</button>
+        <div class="d" id="mLabel"></div>
+        <button class="nav" onclick="moveMonth(1)">▶</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="hint"><span style="color:var(--acc)">●</span> 朝　<span style="color:var(--work)">●</span> 夜　日付を押すとその日を開きます</div>
+    </div>
+    <div class="card">
+      <h2>この月の「<span id="logQ"></span>」</h2>
+      <div id="logList"></div>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="view" id="v-settings">
+    <div class="card guide">
+      <h2>📖 使い方</h2>
+      <p><b>朝（起きたら3分）</b></p>
+      <ol><li>「MY VISION」の言葉を読む</li><li>「朝」の項目を書く</li><li>「からだ」を記録する</li><li>「今日のタスク」を仕事・プライベートあわせて3〜5個にしぼる</li></ol>
+      <p><b>日中</b>　思いついたことは「タスク」タブに入れるだけ。終わったら○を押す。</p>
+      <p><b>夜（寝る前に3分）</b>　習慣にチェックし、「夜」の項目を書いて気分を選ぶ。やり残したタスクは☆を外すか、明日の日付に。</p>
+      <p><b>週に1回（日曜の夜など）</b>　「タスク」で全体を見直し、来週やることに☆を付ける。「記録」で1週間を読み返す。</p>
+      <p><b>忙しい日は</b>　朝の1項目だけ、夜の1項目だけでOK。ゼロの日を作らないことを大切に。</p>
+      <p class="hint">このアプリの内容は、ログインした本人だけが見られます。ほかの人のアカウントからは見えません。</p>
+    </div>
+
+    <div class="card">
+      <h2>✏️ 自分用にアレンジする <span class="mini">変更は自動で保存されます</span></h2>
+      <div class="lbl">アプリの名前</div>
+      <input type="text" id="s_name" oninput="cfgSet('appName',this.value)">
+      <div class="lbl">ひとこと（名前の下に表示）</div>
+      <input type="text" id="s_tag" oninput="cfgSet('tagline',this.value)">
+      <div class="lbl">MY VISION（毎朝読む言葉）</div>
+      <textarea id="s_vision" style="min-height:96px" oninput="cfgSet('vision',this.value)"></textarea>
+    </div>
+
+    <div class="card"><h2>🗂 タスクの分類 <span class="mini">色と名前を自由に。例：仕事・プライベート・家族・健康</span></h2><div class="elist" id="e_lists"></div>
+      <button class="btn ghost sm" onclick="eAdd('lists')">＋ 分類を追加</button></div>
+    <div class="card"><h2>🌅 朝に書く項目</h2><div class="elist" id="e_morning"></div>
+      <button class="btn ghost sm" onclick="eAdd('morning')">＋ 項目を追加</button></div>
+    <div class="card"><h2>🌿 からだの記録項目</h2><div class="elist" id="e_health"></div>
+      <button class="btn ghost sm" onclick="eAdd('health')">＋ 項目を追加</button>
+      <div class="hint">形式：数値（単位つき）／時刻／5段階</div></div>
+    <div class="card"><h2>✅ 毎日の習慣</h2><div class="elist" id="e_habits"></div>
+      <button class="btn ghost sm" onclick="eAdd('habits')">＋ 習慣を追加</button></div>
+    <div class="card"><h2>🌙 夜に書く項目</h2><div class="elist" id="e_night"></div>
+      <button class="btn ghost sm" onclick="eAdd('night')">＋ 項目を追加</button></div>
+
+    <div class="card">
+      <h2>🔐 アカウントとデータ</h2>
+      <div class="hint" id="acct" style="margin-top:0"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn ghost sm" onclick="exportData()">データを書き出す</button>
+        <button class="btn ghost sm" onclick="EC.signOut()">ログアウト</button>
+      </div>
+      <div class="hint">項目を削除しても、過去に書いた内容は消えません（その項目が表示されなくなるだけです）。</div>
+    </div>
+  </section>
+</div>
+
+<nav class="tabbar"><div class="in">
+  <button data-t="today" class="on" onclick="openTab('today')"><span class="ic">☀️</span>今日</button>
+  <button data-t="tasks" onclick="openTab('tasks')"><span class="ic">✔</span>タスク</button>
+  <button data-t="log" onclick="openTab('log')"><span class="ic">📅</span>記録</button>
+  <button data-t="settings" onclick="openTab('settings')"><span class="ic">⚙︎</span>設定</button>
+</div></nav>
+
+<div class="ov" id="ov" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   MY PLANNER  v1.0.0
+   ・1人用のプランナー（朝・からだ・タスク・夜の振り返り・記録）
+   ・データは Supabase の personal_planner 表に保存。行ごとに owner（ログインした人のID）を持ち、
+     行レベルセキュリティで「本人の行だけ読める・書ける」ようにしている。
+     → 同じアプリを別の人がログインして開いても、その人自身の空のプランナーが開くだけで、中身は見えない。
+   ・この端末にも控えを保存（通信が切れても使える）
+   ===================================================================== */
+const el = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const pad = n => String(n).padStart(2, '0');
+function todayStr(d) { d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function addDays(s, n) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return todayStr(d); }
+const WD = '日月火水木金土';
+function fmtMD(s) { const d = new Date(s + 'T00:00:00'); return (d.getMonth() + 1) + '/' + d.getDate() + '（' + WD[d.getDay()] + '）'; }
+function toast(t) { const x = el('toast'); x.textContent = t; x.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => x.classList.remove('show'), 1800); }
+
+/* ---------- 初期設定（本人がすべて変更できる） ---------- */
+const DEFAULT_CFG = {
+  appName: 'MY PLANNER',
+  tagline: '自分を整え、仕事と暮らしを前に進める',
+  vision: 'ここに、毎朝読みたい言葉を書いてください。\n（設定タブの「MY VISION」から変更できます）',
+  lists: [{ id: 'work', name: '仕事', color: '#3E6A6E' }, { id: 'private', name: 'プライベート', color: '#B0707E' }],
+  morning: [
+    { id: 'm1', label: '今日のテーマ', ph: '例：丁寧に、先回りする日' },
+    { id: 'm2', label: '今日、誰に何をしてあげたいか', ph: '例：子どもの話をゆっくり聞く' },
+    { id: 'm3', label: '今日気をつけること', ph: '例：予定を詰め込みすぎない' }
+  ],
+  health: [
+    { id: 'h1', label: '睡眠時間', type: 'num', unit: '時間' },
+    { id: 'h2', label: '体調', type: 'scale' },
+    { id: 'h3', label: '体重', type: 'num', unit: 'kg' }
+  ],
+  habits: [{ id: 'b1', label: '朝、白湯を飲む' }, { id: 'b2', label: '15分歩く' }, { id: 'b3', label: '23時までに寝る' }],
+  night: [
+    { id: 'n1', label: '今日できたこと・うれしかったこと', ph: '' },
+    { id: 'n2', label: '感謝していること', ph: '' },
+    { id: 'n3', label: '明日の一歩', ph: '' }
+  ]
+};
+const EDIT_DEF = {
+  lists:   { label: '分類名', mk: () => ({ id: uid(), name: '', color: '#8A7F9E' }) },
+  morning: { label: '項目名', mk: () => ({ id: uid(), label: '', ph: '' }) },
+  health:  { label: '項目名', mk: () => ({ id: uid(), label: '', type: 'num', unit: '' }) },
+  habits:  { label: '習慣',   mk: () => ({ id: uid(), label: '' }) },
+  night:   { label: '項目名', mk: () => ({ id: uid(), label: '', ph: '' }) }
+};
+
+/* ---------- 保存（クラウド＋この端末） ---------- */
+const TBL = 'personal_planner';
+let sb = null, ME = null, OWNER = '', cloudOK = false;
+let CFG = null, TASKS = [], DAY = null, curDate = todayStr(), curTab = 'today', listFilter = 'all';
+const dayCache = {};
+const lsKey = k => 'mp.' + OWNER + '.' + k;
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(lsKey(k)) || 'null'); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(lsKey(k), JSON.stringify(v)); } catch (e) {} }
+const pending = {}; let flushT = null;
+function save(k, v) {
+  lsSet(k, v); pending[k] = v;
+  clearTimeout(flushT); flushT = setTimeout(flush, 900);
+  setSync('保存中…', '');
+}
+async function flush() {
+  const keys = Object.keys(pending); if (!keys.length) return;
+  const rows = keys.map(k => ({ owner: OWNER, key: k, value: pending[k], updated_at: new Date().toISOString() }));
+  keys.forEach(k => delete pending[k]);
+  if (!cloudOK) { setSync('この端末に保存', 'err'); return; }
+  const { error } = await sb.from(TBL).upsert(rows, { onConflict: 'owner,key' });
+  if (error) { rows.forEach(r => pending[r.key] = r.value); setSync('保存できませんでした', 'err'); console.warn(error); }
+  else setSync('保存済み ' + new Date().toTimeString().slice(0, 5), 'ok');
+}
+window.addEventListener('pagehide', () => { if (Object.keys(pending).length) flush(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); else refreshFromCloud(); });
+function setSync(t, c) { const s = el('sync'); s.textContent = t; s.className = 'sync ' + (c || ''); }
+async function cloudGet(keys) {
+  if (!cloudOK) return {};
+  const { data, error } = await sb.from(TBL).select('key,value,updated_at').in('key', keys);
+  if (error) throw error;
+  const o = {}; (data || []).forEach(r => o[r.key] = r.value); return o;
+}
+async function cloudLike(prefix) {
+  if (!cloudOK) return {};
+  const { data, error } = await sb.from(TBL).select('key,value').like('key', prefix + '%');
+  if (error) throw error;
+  const o = {}; (data || []).forEach(r => o[r.key] = r.value); return o;
+}
+
+/* ---------- 起動 ---------- */
+async function boot() {
+  try {
+    ME = await EC.guard({ app: 'my-planner', name: 'MY PLANNER（個人用）', allow: ['admin', 'manager', 'sales', 'field', 'viewer'] });
+    sb = EC.supabase;
+    const { data } = await sb.auth.getUser();
+    OWNER = (data && data.user && data.user.id) || '';
+  } catch (e) { console.warn(e); }
+  if (!OWNER) { setSync('ログインが必要です', 'err'); return; }
+  el('acct').textContent = 'ログイン中：' + ((ME && ME.email) || '') + '　この内容は、このアカウントでログインしたときだけ表示されます。';
+  CFG = lsGet('config'); TASKS = lsGet('tasks') || [];
+  try {
+    const { error } = await sb.from(TBL).select('key').limit(1);
+    if (error) throw error;
+    cloudOK = true;
+    const o = await cloudGet(['config', 'tasks']);
+    if (o.config) CFG = o.config;
+    if (o.tasks) TASKS = o.tasks;
+    setSync('同期済み', 'ok');
+  } catch (e) {
+    console.warn('cloud', e);
+    setSync('この端末に保存', 'err');
+    if (/relation|does not exist|42P01/.test(String(e.message || e.code))) toast('保存先の表がまだありません（設定の手順を確認）');
+  }
+  if (!CFG) { CFG = JSON.parse(JSON.stringify(DEFAULT_CFG)); save('config', CFG); }
+  Object.keys(DEFAULT_CFG).forEach(k => { if (CFG[k] == null) CFG[k] = JSON.parse(JSON.stringify(DEFAULT_CFG[k])); });
+  applyHeader();
+  await loadDay(curDate);
+  renderAll();
+}
+async function refreshFromCloud() {
+  if (!cloudOK || Object.keys(pending).length) return;
+  try {
+    const o = await cloudGet(['config', 'tasks', 'day_' + curDate]);
+    if (o.config) CFG = o.config;
+    if (o.tasks) TASKS = o.tasks;
+    if (o['day_' + curDate]) { DAY = normDay(o['day_' + curDate]); dayCache[curDate] = DAY; }
+    applyHeader(); renderAll();
+  } catch (e) {}
+}
+function normDay(d) { d = d || {}; d.m = d.m || {}; d.n = d.n || {}; d.h = d.h || {}; d.hab = d.hab || {}; d.mood = d.mood || 0; return d; }
+async function loadDay(ds) {
+  let d = lsGet('day_' + ds);
+  try { const o = await cloudGet(['day_' + ds]); if (o['day_' + ds]) d = o['day_' + ds]; } catch (e) {}
+  DAY = normDay(d); dayCache[ds] = DAY;
+}
+function saveDay() { DAY.updated = new Date().toISOString(); dayCache[curDate] = DAY; save('day_' + curDate, DAY); markDone(); }
+function saveTasks() { save('tasks', TASKS); }
+function applyHeader() {
+  el('appName').textContent = CFG.appName || 'MY PLANNER';
+  el('appTag').textContent = CFG.tagline || '';
+  document.title = CFG.appName || 'MY PLANNER';
+}
+
+/* ---------- 画面切替 ---------- */
+function openTab(t) {
+  curTab = t;
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + t));
+  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  window.scrollTo(0, 0);
+  if (t === 'tasks') renderTasks();
+  if (t === 'log') renderLog();
+  if (t === 'settings') renderSettings();
+  if (t === 'today') renderToday();
+}
+function renderAll() { renderToday(); if (curTab !== 'today') openTab(curTab); }
+
+/* ---------- 今日 ---------- */
+async function moveDay(n) { await flush(); curDate = addDays(curDate, n); await loadDay(curDate); renderToday(); }
+async function goDay(ds) { await flush(); curDate = ds; await loadDay(ds); openTab('today'); }
+function listById(id) { return CFG.lists.find(l => l.id === id) || { id: id, name: '（分類なし）', color: '#999' }; }
+function listOpts(sel) { return CFG.lists.map(l => '<option value="' + l.id + '"' + (l.id === sel ? ' selected' : '') + '>' + esc(l.name) + '</option>').join(''); }
+function renderToday() {
+  if (!CFG || !DAY) return;
+  const isT = curDate === todayStr();
+  el('dLabel').innerHTML = fmtMD(curDate) + (isT ? '<small>今日</small>' : '');
+  el('toToday').style.visibility = isT ? 'hidden' : 'visible';
+  el('visionText').textContent = CFG.vision || '';
+  el('amItems').innerHTML = CFG.morning.map(it => '<div class="lbl">' + esc(it.label) + '</div><textarea data-g="m" data-k="' + it.id + '" placeholder="' + esc(it.ph || '') + '" oninput="dayText(this)">' + esc(DAY.m[it.id] || '') + '</textarea>').join('') || '<div class="empty">設定タブで朝の項目を追加できます。</div>';
+  el('pmItems').innerHTML = CFG.night.map(it => '<div class="lbl">' + esc(it.label) + '</div><textarea data-g="n" data-k="' + it.id + '" placeholder="' + esc(it.ph || '') + '" oninput="dayText(this)">' + esc(DAY.n[it.id] || '') + '</textarea>').join('');
+  el('healthCard').style.display = CFG.health.length ? '' : 'none';
+  el('healthGrid').innerHTML = CFG.health.map(h => {
+    const v = DAY.h[h.id];
+    if (h.type === 'scale') return '<div class="hcell" style="grid-column:1/-1"><div class="hl">' + esc(h.label) + '</div><div class="scale">' +
+      [1, 2, 3, 4, 5].map(i => '<button class="' + (v === i ? 'on' : '') + '" onclick="dayScale(\'' + h.id + '\',' + i + ')">' + ['😣', '😕', '🙂', '😊', '✨'][i - 1] + '</button>').join('') + '</div></div>';
+    return '<div class="hcell"><div class="hl">' + esc(h.label) + (h.unit ? '（' + esc(h.unit) + '）' : '') + '</div><input type="' + (h.type === 'time' ? 'time' : 'number') + '" step="any" inputmode="decimal" value="' + esc(v == null ? '' : v) + '" onchange="dayH(\'' + h.id + '\',this.value)"></div>';
+  }).join('');
+  el('habLbl').style.display = CFG.habits.length ? '' : 'none';
+  el('habits').innerHTML = CFG.habits.map(h => '<button class="chk' + (DAY.hab[h.id] ? ' on' : '') + '" onclick="dayHab(\'' + h.id + '\')"><span class="b">✓</span>' + esc(h.label) + '</button>').join('');
+  el('mood').innerHTML = [1, 2, 3, 4, 5].map(i => '<button class="' + (DAY.mood === i ? 'on' : '') + '" onclick="dayMood(' + i + ')">' + ['😢', '😐', '🙂', '😊', '😆'][i - 1] + '</button>').join('');
+  el('qaList').innerHTML = listOpts(CFG.lists[0] && CFG.lists[0].id);
+  renderTodayTasks(); markDone();
+}
+function markDone() {
+  const am = CFG.morning.some(it => (DAY.m[it.id] || '').trim());
+  const pm = CFG.night.some(it => (DAY.n[it.id] || '').trim()) || Object.values(DAY.hab).some(Boolean) || DAY.mood > 0;
+  el('amDone').style.display = am ? '' : 'none';
+  el('pmDone').style.display = pm ? '' : 'none';
+}
+function dayText(t) { DAY[t.dataset.g][t.dataset.k] = t.value; saveDay(); }
+function dayH(k, v) { DAY.h[k] = v === '' ? null : v; saveDay(); }
+function dayScale(k, i) { DAY.h[k] = DAY.h[k] === i ? null : i; saveDay(); renderToday(); }
+function dayHab(k) { DAY.hab[k] = !DAY.hab[k]; saveDay(); renderToday(); }
+function dayMood(i) { DAY.mood = DAY.mood === i ? 0 : i; saveDay(); renderToday(); }
+
+function isTodayTask(t, ds) {
+  if (t.status === 'done') return (t.done_at || '').slice(0, 10) === ds;
+  if (ds === todayStr()) return t.status === 'today' || (t.due && t.due <= ds);
+  return t.due === ds;
+}
+function renderTodayTasks() {
+  const ds = curDate, ts = TASKS.filter(t => isTodayTask(t, ds));
+  if (!ts.length) { el('todayTasks').innerHTML = '<div class="empty">' + (ds === todayStr() ? 'まだありません。下から追加するか、「タスク」タブで☆を付けると並びます。' : 'この日のタスクはありません。') + '</div>'; return; }
+  el('todayTasks').innerHTML = '<div class="cols">' + CFG.lists.concat(ts.some(t => !CFG.lists.find(l => l.id === t.list)) ? [{ id: '_none', name: 'その他', color: '#999' }] : []).map(l => {
+    const mine = ts.filter(t => l.id === '_none' ? !CFG.lists.find(x => x.id === t.list) : t.list === l.id);
+    if (!mine.length) return '';
+    return '<div class="tgroup"><div class="gh"><span class="tag" style="--c:' + l.color + ';--bg-c:' + l.color + '22">' + esc(l.name) + '</span><span class="n">' + mine.filter(t => t.status === 'done').length + '/' + mine.length + '</span></div>' + mine.map(taskRow).join('') + '</div>';
+  }).join('') + '</div>';
+}
+function taskRow(t) {
+  const l = listById(t.list), td = todayStr();
+  const late = t.status !== 'done' && t.due && t.due < td;
+  return '<div class="task' + (t.status === 'done' ? ' done' : '') + '" style="--c:' + l.color + '">' +
+    '<button class="cb" onclick="toggleDone(\'' + t.id + '\')" aria-label="完了">✓</button>' +
+    '<div class="tt" onclick="editTask(\'' + t.id + '\')"><b>' + esc(t.title) + '</b><div class="meta">' +
+      (t.due ? '<span class="' + (late ? 'late' : '') + '">' + (late ? '期限切れ ' : '期限 ') + fmtMD(t.due) + '</span>' : '') +
+      (t.note ? '<span>📝</span>' : '') + '</div></div>' +
+    (t.status === 'done' ? '' : '<button class="star' + (t.status === 'today' ? ' on' : '') + '" onclick="toggleToday(\'' + t.id + '\')" aria-label="今日やる">☆</button>') +
+    '</div>';
+}
+
+/* ---------- タスク操作 ---------- */
+function quickAdd(status, fromTasks) {
+  const inp = el(fromTasks ? 'taText' : 'qaText'), sel = el(fromTasks ? 'taList' : 'qaList');
+  const title = inp.value.trim(); if (!title) return;
+  const t = { id: uid(), title: title, list: sel.value || (CFG.lists[0] || {}).id, status: status, due: '', note: '', created: new Date().toISOString() };
+  if (status === 'today' && curDate !== todayStr()) { t.status = 'next'; t.due = curDate; }
+  TASKS.unshift(t); saveTasks(); inp.value = '';
+  if (fromTasks) renderTasks(); else renderTodayTasks();
+  toast('追加しました');
+}
+function toggleDone(id) {
+  const t = TASKS.find(x => x.id === id); if (!t) return;
+  if (t.status === 'done') { t.status = t.prev || 'next'; t.done_at = ''; }
+  else { t.prev = t.status; t.status = 'done'; t.done_at = new Date().toISOString(); }
+  saveTasks(); curTab === 'tasks' ? renderTasks() : renderTodayTasks();
+}
+function toggleToday(id) {
+  const t = TASKS.find(x => x.id === id); if (!t) return;
+  t.status = t.status === 'today' ? 'next' : 'today';
+  saveTasks(); curTab === 'tasks' ? renderTasks() : renderTodayTasks();
+  toast(t.status === 'today' ? '今日やることに入れました' : '今日やることから外しました');
+}
+const ST = { today: '☆ 今日やる', next: '次にやる', someday: 'いつか・やりたいこと', done: '完了' };
+function editTask(id) {
+  const t = id ? TASKS.find(x => x.id === id) : null; if (id && !t) return;
+  openSheet((t ? 'タスクを編集' : 'タスクを追加'),
+    '<div class="lbl">内容</div><input type="text" id="tT" value="' + esc(t ? t.title : '') + '">' +
+    '<div class="cols" style="gap:8px"><div><div class="lbl">分類</div><select id="tL">' + listOpts(t ? t.list : (CFG.lists[0] || {}).id) + '</select></div>' +
+    '<div><div class="lbl">状態</div><select id="tS">' + Object.keys(ST).map(k => '<option value="' + k + '"' + ((t ? t.status : 'next') === k ? ' selected' : '') + '>' + ST[k] + '</option>').join('') + '</select></div></div>' +
+    '<div class="lbl">期限（任意）</div><input type="date" id="tD" value="' + esc(t ? t.due || '' : '') + '">' +
+    '<div class="lbl">メモ</div><textarea id="tN">' + esc(t ? t.note || '' : '') + '</textarea>',
+    [t ? { label: '削除', cls: 'danger', fn: () => { if (!confirm('このタスクを削除しますか？')) return; TASKS = TASKS.filter(x => x.id !== t.id); saveTasks(); closeSheet(); rerender(); } } : null,
+     { sp: 1 },
+     { label: '保存', cls: '', fn: () => {
+       const title = el('tT').value.trim(); if (!title) return toast('内容を入れてください');
+       const rec = t || { id: uid(), created: new Date().toISOString() };
+       const st = el('tS').value;
+       if (st === 'done' && rec.status !== 'done') rec.done_at = new Date().toISOString();
+       if (st !== 'done') rec.done_at = '';
+       Object.assign(rec, { title: title, list: el('tL').value, status: st, due: el('tD').value, note: el('tN').value });
+       if (!t) TASKS.unshift(rec);
+       saveTasks(); closeSheet(); rerender(); toast('保存しました');
+     } }]);
+}
+function rerender() { if (curTab === 'tasks') renderTasks(); else if (curTab === 'today') renderTodayTasks(); }
+function renderTasks() {
+  if (listFilter !== 'all' && !CFG.lists.find(l => l.id === listFilter)) listFilter = 'all';
+  el('listSeg').innerHTML = [{ id: 'all', name: 'すべて' }].concat(CFG.lists).map(l =>
+    '<button class="' + (listFilter === l.id ? 'on' : '') + '" onclick="listFilter=\'' + l.id + '\';renderTasks()">' + (l.color ? '<span style="color:' + (listFilter === l.id ? '#fff' : l.color) + '">●</span> ' : '') + esc(l.name) + ' <span style="opacity:.6">' + TASKS.filter(t => t.status !== 'done' && (l.id === 'all' || t.list === l.id)).length + '</span></button>').join('');
+  el('taList').innerHTML = listOpts(listFilter === 'all' ? (CFG.lists[0] || {}).id : listFilter);
+  const mine = TASKS.filter(t => listFilter === 'all' || t.list === listFilter);
+  const byDue = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
+  let h = '';
+  ['today', 'next', 'someday'].forEach(s => {
+    const xs = mine.filter(t => t.status === s).sort(byDue);
+    h += '<div class="tgroup"><div class="gh">' + ST[s] + '<span class="n">' + xs.length + '</span></div>' + (xs.length ? xs.map(t => taskRow(t).replace('<div class="meta">', '<div class="meta">' + (listFilter === 'all' ? '<span class="tag" style="--c:' + listById(t.list).color + ';--bg-c:' + listById(t.list).color + '22">' + esc(listById(t.list).name) + '</span>' : ''))).join('') : '<div class="empty">なし</div>') + '</div>';
+  });
+  const dn = mine.filter(t => t.status === 'done').sort((a, b) => (b.done_at || '').localeCompare(a.done_at || ''));
+  h += '<details class="tgroup"><summary class="gh" style="cursor:pointer">完了<span class="n">' + dn.length + '</span></summary>' + dn.slice(0, 50).map(taskRow).join('') +
+    (dn.length ? '<button class="btn ghost sm" style="margin-top:6px" onclick="clearDone()">30日より前の完了を片付ける</button>' : '') + '</details>';
+  el('taskGroups').innerHTML = h + '<div class="hint">☆を付けると「今日」画面に並びます。タスクを押すと、分類・期限・メモを変えられます。</div>';
+}
+function clearDone() {
+  const lim = addDays(todayStr(), -30);
+  const n = TASKS.filter(t => t.status === 'done' && (t.done_at || '').slice(0, 10) < lim).length;
+  if (!n) return toast('30日より前の完了はありません');
+  if (!confirm(n + '件の完了タスクを片付けます。よろしいですか？')) return;
+  TASKS = TASKS.filter(t => !(t.status === 'done' && (t.done_at || '').slice(0, 10) < lim)); saveTasks(); renderTasks();
+}
+
+/* ---------- 記録 ---------- */
+let logMonth = todayStr().slice(0, 7);
+function moveMonth(n) { let [y, m] = logMonth.split('-').map(Number); m += n; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; } logMonth = y + '-' + pad(m); renderLog(); }
+function dayHas(d) {
+  d = normDay(d);
+  return { am: Object.values(d.m).some(v => (v || '').trim()), pm: Object.values(d.n).some(v => (v || '').trim()) || Object.values(d.hab).some(Boolean) || d.mood > 0 };
+}
+async function renderLog() {
+  const [y, m] = logMonth.split('-').map(Number);
+  el('mLabel').textContent = y + '年' + m + '月';
+  let days = {};
+  for (let i = 1; i <= 31; i++) { const k = logMonth + '-' + pad(i); const v = lsGet('day_' + k); if (v) days[k] = v; }
+  try { const o = await cloudLike('day_' + logMonth); Object.keys(o).forEach(k => days[k.slice(4)] = o[k]); } catch (e) {}
+  if (dayCache[curDate] && curDate.slice(0, 7) === logMonth) days[curDate] = dayCache[curDate];
+  const first = new Date(y, m - 1, 1).getDay(), n = new Date(y, m, 0).getDate(), td = todayStr();
+  let c = WD.split('').map(w => '<div class="w">' + w + '</div>').join('');
+  for (let i = 0; i < first; i++) c += '<button class="blank"></button>';
+  for (let i = 1; i <= n; i++) {
+    const ds = logMonth + '-' + pad(i), f = days[ds] ? dayHas(days[ds]) : { am: false, pm: false };
+    c += '<button class="' + (ds === td ? 'today' : '') + '" onclick="goDay(\'' + ds + '\')">' + i + '<i>' + (f.am ? '<b class="am"></b>' : '') + (f.pm ? '<b class="pm"></b>' : '') + '</i></button>';
+  }
+  el('cal').innerHTML = c;
+  const q = CFG.night[0];
+  el('logQ').textContent = q ? q.label : '夜の記録';
+  const ks = Object.keys(days).sort().reverse().filter(k => q && ((normDay(days[k]).n[q.id] || '').trim()));
+  el('logList').innerHTML = ks.length ? ks.map(k => '<div class="hist"><div class="h"><b>' + fmtMD(k) + '</b>' + (days[k].mood ? '<span>' + ['😢', '😐', '🙂', '😊', '😆'][days[k].mood - 1] + '</span>' : '') + '<a onclick="goDay(\'' + k + '\')">この日を開く</a></div><div class="t">' + esc(days[k].n[q.id]) + '</div></div>').join('') : '<div class="empty">この月の記録はまだありません。</div>';
+  renderStreak();
+}
+async function renderStreak() {
+  let n = 0, d = todayStr();
+  const from = addDays(d, -120);
+  let all = {};
+  try { all = await cloudLike('day_'); } catch (e) {}
+  const get = ds => all['day_' + ds] || lsGet('day_' + ds) || (dayCache[ds]);
+  let cur = d; const t0 = get(cur);
+  if (!(t0 && (dayHas(t0).am || dayHas(t0).pm))) cur = addDays(cur, -1);
+  while (cur >= from) { const v = get(cur); if (v && (dayHas(v).am || dayHas(v).pm)) { n++; cur = addDays(cur, -1); } else break; }
+  el('streakN').textContent = n;
+}
+
+/* ---------- 設定（アレンジ） ---------- */
+function cfgSet(k, v) { CFG[k] = v; save('config', CFG); applyHeader(); }
+function renderSettings() {
+  el('s_name').value = CFG.appName || ''; el('s_tag').value = CFG.tagline || ''; el('s_vision').value = CFG.vision || '';
+  ['lists', 'morning', 'health', 'habits', 'night'].forEach(renderEdit);
+}
+function renderEdit(g) {
+  const arr = CFG[g];
+  el('e_' + g).innerHTML = arr.map((it, i) => {
+    let h = '<div class="row">';
+    if (g === 'lists') h += '<input type="color" value="' + esc(it.color) + '" onchange="eSet(\'' + g + '\',' + i + ',\'color\',this.value)">';
+    h += '<input type="text" value="' + esc(g === 'lists' ? it.name : it.label) + '" placeholder="' + EDIT_DEF[g].label + '" oninput="eSet(\'' + g + '\',' + i + ',\'' + (g === 'lists' ? 'name' : 'label') + '\',this.value)">';
+    if (g === 'health') h += '<select onchange="eSet(\'health\',' + i + ',\'type\',this.value);renderEdit(\'health\')">' + [['num', '数値'], ['time', '時刻'], ['scale', '5段階']].map(o => '<option value="' + o[0] + '"' + (it.type === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
+      (it.type === 'num' ? '<input type="text" style="flex:0 0 70px" value="' + esc(it.unit || '') + '" placeholder="単位" oninput="eSet(\'health\',' + i + ',\'unit\',this.value)">' : '');
+    h += '<button class="mv" onclick="eMove(\'' + g + '\',' + i + ')" aria-label="上へ">↑</button><button class="x" onclick="eDel(\'' + g + '\',' + i + ')" aria-label="削除">✕</button></div>';
+    return h;
+  }).join('') || '<div class="empty">項目がありません。</div>';
+}
+function eSet(g, i, f, v) { CFG[g][i][f] = v; save('config', CFG); }
+function eAdd(g) { CFG[g].push(EDIT_DEF[g].mk()); save('config', CFG); renderEdit(g); const ins = el('e_' + g).querySelectorAll('input[type=text]'); if (ins.length) ins[ins.length - (g === 'health' && CFG.health[CFG.health.length - 1].type === 'num' ? 2 : 1)].focus(); }
+function eDel(g, i) {
+  if (g === 'lists') {
+    if (CFG.lists.length <= 1) return toast('分類は1つ以上必要です');
+    const n = TASKS.filter(t => t.list === CFG.lists[i].id && t.status !== 'done').length;
+    if (n && !confirm('この分類のタスクが' + n + '件あります。分類を消すと「その他」に表示されます。よろしいですか？')) return;
+  } else if (!confirm('この項目を消しますか？（過去に書いた内容は残ります）')) return;
+  CFG[g].splice(i, 1); save('config', CFG); renderEdit(g);
+}
+function eMove(g, i) { if (i === 0) return; const a = CFG[g]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; save('config', CFG); renderEdit(g); }
+async function exportData() {
+  await flush();
+  let days = {}; try { days = await cloudLike('day_'); } catch (e) {}
+  const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), config: CFG, tasks: TASKS, days: days }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'my-planner-' + todayStr() + '.json'; a.click();
+}
+
+/* ---------- シート ---------- */
+let SHEET_BTNS = [];
+function openSheet(title, body, btns) {
+  SHEET_BTNS = btns || [];
+  el('sheet').innerHTML = '<h3>' + esc(title) + '<button onclick="closeSheet()" aria-label="閉じる">✕</button></h3>' + body +
+    '<div class="acts">' + SHEET_BTNS.map((b, i) => !b ? '' : b.sp ? '<span class="sp"></span>' : '<button class="btn ' + (b.cls || '') + '" onclick="SHEET_BTNS[' + i + '].fn()">' + b.label + '</button>').join('') + '</div>';
+  el('ov').classList.add('show');
+  setTimeout(() => { const f = el('sheet').querySelector('input[type=text]'); if (f && !f.value) f.focus(); }, 60);
+}
+function closeSheet() { el('ov').classList.remove('show'); }
+
+boot();
+</script>
+</body>
+</html>
