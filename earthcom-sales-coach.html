@@ -577,10 +577,46 @@ async function callAI({ prompt, system, messages, max_tokens=6000 }){
   if (typeof j === 'string') return j;
   return j.text || (Array.isArray(j.content) ? j.content.map(c=>c.text||'').join('') : '') || j.completion || j.result || '';
 }
+/* AIのJSON出力を読む：壊れていても自動で修復してから読む */
+function repairJSON(s){
+  let out='', inStr=false, esc=false;
+  for (let i=0;i<s.length;i++){
+    const ch=s[i];
+    if (inStr){
+      if (esc){ out+=ch; esc=false; continue; }
+      if (ch==='\\'){ out+=ch; esc=true; continue; }
+      if (ch==='"'){ let j=i+1; while(j<s.length && /\s/.test(s[j])) j++; const nx=s[j];
+        if (nx===undefined || ',:}]'.includes(nx)){ inStr=false; out+=ch; } else out+='\\"'; continue; }
+      if (ch==='\n'){ out+='\\n'; continue; } if (ch==='\r') continue; if (ch==='\t'){ out+='\\t'; continue; }
+      out+=ch;
+    } else { if (ch==='"') inStr=true; out+=ch; }
+  }
+  if (inStr) out+='"';
+  out = out.replace(/,\s*([}\]])/g,'$1').replace(/,\s*$/,'');
+  const stack=[]; inStr=false; esc=false;
+  for (const ch of out){ if(inStr){ if(esc){esc=false;continue;} if(ch==='\\'){esc=true;continue;} if(ch==='"') inStr=false; continue; }
+    if(ch==='"'){inStr=true;continue;} if(ch==='{'||ch==='[') stack.push(ch); else if(ch==='}'||ch===']') stack.pop(); }
+  while (stack.length) out += stack.pop()==='{' ? '}' : ']';
+  return out;
+}
 function parseJSON(t){
-  const s = t.replace(/```json|```/g,''); const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a<0||b<0) throw new Error('AIの回答を読み取れませんでした。もう一度実行してください。');
-  return JSON.parse(s.slice(a,b+1));
+  const s = String(t||'').replace(/```json|```/g,''); const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a<0) throw new Error('AIの回答を読み取れませんでした。');
+  const tries = [ ()=>JSON.parse(s.slice(a,b+1)), ()=>JSON.parse(repairJSON(s.slice(a,b+1))), ()=>JSON.parse(repairJSON(s.slice(a))) ];
+  let last; for (const f of tries){ try{ return f(); }catch(e){ last=e; } }
+  const err = new Error('AIの回答の形式が崩れていました'); err.cause = last; throw err;
+}
+/* JSONで答えさせるAI呼び出し：引用は「」に統一させ、読めなければ1回だけ自動でやり直す */
+const JSON_RULE = '\n【出力形式の厳守】出力は有効なJSONのみ。文字列の中でダブルクォート（"）は使わず、発言の引用は必ず「」を使う。改行は\\nで書く。';
+async function aiJSON(opts){
+  const sys = (opts.system||'') + JSON_RULE;
+  try{ return parseJSON(await callAI({ ...opts, system:sys })); }
+  catch(e){
+    if (!/形式|読み取れ/.test(e.message)) throw e;
+    console.warn('JSONの読み取りに失敗→再試行', e.cause||e);
+    try{ return parseJSON(await callAI({ ...opts, system: sys + '\n前回の出力はJSONとして壊れていました。今回は特に、文字列内にダブルクォートを入れないこと。' })); }
+    catch(e2){ throw new Error('AIの回答をうまく読み取れませんでした。もう一度ボタンを押してください（文字起こしが非常に長い場合は、前半・後半に分けると安定します）。'); }
+  }
 }
 const COMPANY_BASE = () => `あなたは株式会社アースコム（埼玉県越谷市、再生可能エネルギー事業）の営業育成責任者AIです。
 事業：太陽光発電所の再資産化ReFort（パネル交換・リパワリングによる発電量改善）、系統用・産業用蓄電池、セカンダリー太陽光（中古発電所）売買、サンキーパー。
@@ -760,7 +796,7 @@ async function runAnalysis(){
 ${SRC.text.slice(0,60000)}`;
   try{
     loading(true,'AIが商談を分析しています');
-    const a = parseJSON(await callAI({ system, prompt, max_tokens:8000 }));
+    const a = await aiJSON({ system, prompt, max_tokens:8000 });
     a._kpi = { model_id:meta._model, stage_id:meta._stage }; const { _model, _stage, ...row } = meta;
     const sess = await insert('s', { ...row, rep_email:ME.email, transcript:SRC.text, total_score:Math.round(a.total_score||0), analysis:a });
     const objs = (a.objections||[]).map(o=>({ session_id:sess.id, rep:meta.rep, customer:meta.customer, product:meta.product, result:meta.result, category:OBJ_CATS.includes(o.category)?o.category:'その他', quote:o.quote, detail:o }));
@@ -985,7 +1021,7 @@ ${RP.challenge?RP.challenge.pass:80}点以上を合格。JSONのみで返す：
 ${convo}`;
   try{
     loading(true,'採点しています');
-    const g=parseJSON(await callAI({ system:companyFor(RP.product), prompt, max_tokens:1500 }));
+    const g=await aiJSON({ system:companyFor(RP.product), prompt, max_tokens:1500 });
     const passLine = RP.challenge ? RP.challenge.pass : 80;
     g.passed = (g.score||0)>=passLine; g.pass = passLine;
     RP.result=g;
@@ -1041,7 +1077,7 @@ ${stats}
 JSONのみ：{"top5":[{"objection":"","probability":"高|中|低","why":"この顧客で出そうな理由"}],"preempt":[{"item":"潰す項目","question":"商談前半で聞く質問","talk":"予防トーク"}],"opening":"冒頭2分で言うべき一言","dm_plan":"意思決定者に届かせる工夫"}`;
     try{
       loading(true,'過去データから予測しています');
-      const p=parseJSON(await callAI({system:companyFor(m.prod),prompt,max_tokens:2500}));
+      const p=await aiJSON({system:companyFor(m.prod),prompt,max_tokens:2500});
       $('#pOut').innerHTML = `<div class="grid2">
         <div class="panel"><h2>出そうな断り文句 TOP5</h2><ol style="padding-left:20px;margin:0">${(p.top5||[]).map(t=>`<li style="margin-bottom:10px"><b>${esc(t.objection)}</b> <span class="tag ${t.probability==='高'?'red':t.probability==='中'?'amber':''}">${esc(t.probability)}</span><div class="small muted">${esc(t.why)}</div></li>`).join('')}</ol></div>
         <div class="panel"><h2>今日の商談前に潰すべき5項目</h2>${(p.preempt||[]).map(x=>`<div style="margin-bottom:12px"><b>${esc(x.item)}</b><div class="fix q" style="margin:4px 0"><b>聞く</b>${esc(x.question)}</div><div class="fix t" style="margin:0"><b>先に言う</b>${esc(x.talk)}</div></div>`).join('')}</div></div>
@@ -1656,7 +1692,7 @@ async function draftCaseFromSession(sessionId, type){
 JSONのみ：{"title":"一言で何が学べるか（40字以内）","situation":"誰に・どんな場面で（2〜3文）","key_points":["うまくいった理由"],"why_failed":"うまくいかなかった原因（失敗事例のみ）","lessons":["教訓（失敗事例のみ）"],"steps":["再現手順／次に同じ場面が来たらこうする"],"script":"営業：…\\nお客様：…（${type==='win'?'実際にうまくいったやり取りを中心に':'本来こう言うべきだった改善版'}、10往復以内）","category":"${OBJ_CATS.join('|')}|なし","stage_from":"段階の候補から","stage_to":"段階の候補から"}`;
   try{
     loading(true,'AIが事例の下書きを作っています');
-    const d = parseJSON(await callAI({ system:companyFor(s.product), prompt, max_tokens:3000 }));
+    const d = await aiJSON({ system:companyFor(s.product), prompt, max_tokens:3000 });
     const draft = { type, title:d.title||'', product:s.product, stage_from:m.stages.some(x=>x.name===d.stage_from)?d.stage_from:s.stage, stage_to:m.stages.some(x=>x.name===d.stage_to)?d.stage_to:'', category:[...OBJ_CATS,'なし'].includes(d.category)?d.category:'なし', industry:s.industry||'', rep:s.rep, rep_email:s.rep_email||ME.email, session_id:s.id, customer:s.customer, recording_url:s.recording_url||'', links:[],
       body:{ situation:d.situation||'', key_points:d.key_points||[], steps:d.steps||[], script:d.script||'', why_failed:d.why_failed||'', lessons:d.lessons||[] } };
     CASE_EDIT=null; go('cases', { draft, type, from:s.id });
@@ -1850,8 +1886,11 @@ async function autoStamps(){
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 const CHANGELOG = [
+  { v:'1.9.1', date:'2026-09-25', title:'AI分析の安定性を改善', items:[
+    '商談によってAI分析が「分析できませんでした」で止まることがある不具合を修正',
+    'AIの回答の形式が崩れても自動で修復し、それでも読めない場合は1回自動でやり直します' ]},
   { v:'1.9.0', date:'2026-09-25', title:'AIコーチが動くように', items:[
     'AIが考えている間、AIコーチが首をかしげて考え込むアニメーションに',
     '「文字起こしを読んでいます」「原因地点を考えています」など、考えている内容が順番に表示されます',
