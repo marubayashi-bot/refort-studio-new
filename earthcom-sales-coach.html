@@ -176,8 +176,9 @@ td.n,th.n{text-align:right;font-family:var(--num);font-size:17px}
       <button data-v="ceo"><i>★</i>社長画面</button>
     </nav>
     <div class="kpi-mini">
-      <div>無料診断→現調<strong>70%</strong></div>
-      <div>現調後→合意書<strong>30%</strong></div>
+      <div>無料診断→現調<strong id="kpiG">-</strong></div>
+      <div>現調後→合意書<strong id="kpiA">-</strong></div>
+      <div class="small" style="margin-top:4px;color:#7F918A">全商品共通の目標</div>
     </div>
     <div id="badge"></div>
   </aside>
@@ -214,7 +215,28 @@ const THEME_BY_ITEM = {
 };
 
 /* ============ 共通 ============ */
-let sb = null, ME = { name:'', email:'' }, LOCAL = false;
+let sb = null, ME = { name:'', email:'', role:'' }, LOCAL = false;
+/* ===== KPI目標：ここが唯一の定義元（画面の設定で上書きされ、Supabaseに保存） ===== */
+const KPI_DEFAULT = { base:{ genchou:70, gouisho:30 }, byProduct:{} };
+let KPI = JSON.parse(JSON.stringify(KPI_DEFAULT));
+const KPI_KEY = 'kpi_targets';
+function kpiFor(prod){ const p = prod && KPI.byProduct[prod]; return { genchou: p?.genchou ?? KPI.base.genchou, gouisho: p?.gouisho ?? KPI.base.gouisho, custom: !!p }; }
+function kpiText(prod){ const k=kpiFor(prod); return `無料診断→現調 ${k.genchou}%、現調後商談→合意書 ${k.gouisho}%`; }
+const canEditKPI = () => LOCAL || !window.EC || ME.role==='admin';
+async function loadKPI(){
+  try{
+    if (!LOCAL){ const { data, error } = await sb.from('sales_coach_settings').select('value').eq('key',KPI_KEY).maybeSingle(); if (error) throw error; if (data?.value) KPI = normKPI(data.value); }
+    else { const v = localStorage.getItem('scai_'+KPI_KEY); if (v) KPI = normKPI(JSON.parse(v)); }
+  }catch(e){ console.warn('KPI設定の読込失敗（初期値を使用）', e); }
+  renderKpiMini();
+}
+function normKPI(v){ return { base:{ genchou:+v?.base?.genchou||KPI_DEFAULT.base.genchou, gouisho:+v?.base?.gouisho||KPI_DEFAULT.base.gouisho }, byProduct: v?.byProduct||{} }; }
+async function saveKPI(next){
+  if (!LOCAL){ const { error } = await sb.from('sales_coach_settings').upsert({ key:KPI_KEY, value:next, updated_by:ME.email||ME.name, updated_at:new Date().toISOString() }); if (error) throw error; }
+  else localStorage.setItem('scai_'+KPI_KEY, JSON.stringify(next));
+  KPI = next; renderKpiMini();
+}
+function renderKpiMini(){ const g=document.getElementById('kpiG'), a=document.getElementById('kpiA'); if(g) g.textContent=KPI.base.genchou+'%'; if(a) a.textContent=KPI.base.gouisho+'%'; }
 const DATA = { s:[], o:[], r:[] };
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -279,11 +301,12 @@ function parseJSON(t){
   if (a<0||b<0) throw new Error('AIの回答を読み取れませんでした。もう一度実行してください。');
   return JSON.parse(s.slice(a,b+1));
 }
-const COMPANY = `あなたは株式会社アースコム（埼玉県越谷市、再生可能エネルギー事業）の営業育成責任者AIです。
+const COMPANY_BASE = () => `あなたは株式会社アースコム（埼玉県越谷市、再生可能エネルギー事業）の営業育成責任者AIです。
 事業：太陽光発電所の再資産化ReFort（パネル交換・リパワリングによる発電量改善）、系統用・産業用蓄電池、セカンダリー太陽光（中古発電所）売買、サンキーパー。
-営業KPI：無料診断→現調 70%、現調後商談→合意書 30%。
+営業KPI（全商品共通）：${kpiText()}。
 育成思想：「断り文句は失敗ではない。次の受注率を上げる教材である」「同じ断り文句で、二度負けない」。
 管理手法は識学。評価は感情ではなく事実と結果で行い、改善は「誰が・何を・いつまでに」まで落とす。`;
+const companyFor = prod => COMPANY_BASE() + (prod && kpiFor(prod).custom ? `\nこの商品（${prod}）のKPI目標：${kpiText(prod)}。` : '');
 
 /* ============ ルーティング ============ */
 const VIEWS = {};
@@ -361,7 +384,7 @@ async function runAnalysis(){
   if (!SRC.text || SRC.text.length<80) return alert('文字起こしを入れてください（80文字以上）。');
   if (!meta.rep || !meta.customer) return alert('担当営業と顧客名を入れてください。');
   const bankTop = topCats(DATA.o.filter(o=>o.product===meta.product)).slice(0,8).map(c=>c.cat).join('、') || 'まだなし';
-  const system = COMPANY + `\n出力は指定のJSONのみ。前置き・コードブロック禁止。日本語で具体的に。文字起こしに無い事実は作らず、推測は「可能性」と明記する。`;
+  const system = companyFor(meta.product) + `\n出力は指定のJSONのみ。前置き・コードブロック禁止。日本語で具体的に。文字起こしに無い事実は作らず、推測は「可能性」と明記する。`;
   const prompt = `以下の商談を育成カルテとして分析してください。
 【商談情報】担当:${meta.rep}／顧客:${meta.customer}（${meta.industry}）／商品:${meta.product}／段階:${meta.stage}／結果:${meta.result}
 【同商品で過去に多い断り文句】${bankTop}
@@ -536,7 +559,7 @@ function startRoleplay(sessionId, cat){
     const ex = DATA.o.filter(o=>o.category===cat); const pick = ex[0];
     opening = pick?.quote || cat; ctx = pick ? `${pick.customer}のような顧客。商品は${pick.product}。` : 'アースコムの提案を受けている事業会社の担当者。';
   }
-  RP = { sessionId, category, opening, followups, ctx, rep: ME.name || (s?.rep||''), log: opening?[{role:'assistant',content:opening}]:[], result:null };
+  RP = { product: s?.product || DATA.o.find(o=>o.category===cat)?.product || '', sessionId, category, opening, followups, ctx, rep: ME.name || (s?.rep||''), log: opening?[{role:'assistant',content:opening}]:[], result:null };
   go('roleplay');
 }
 VIEWS.roleplay = () => {
@@ -576,7 +599,7 @@ function drawChat(){
   c.scrollTop=c.scrollHeight;
 }
 function rpSystem(){
-  return `${COMPANY}
+  return `${companyFor(RP.product)}
 今からあなたは「お客様役」です。営業の練習相手として、リアルで少し手強いお客様を演じてください。
 設定：${RP.ctx}
 あなたの主な断り文句：「${RP.opening}」（分類：${RP.category}）
@@ -604,7 +627,7 @@ async function rpGrade(){
 ${convo}`;
   try{
     loading(true,'採点しています');
-    const g=parseJSON(await callAI({ system:COMPANY, prompt, max_tokens:1500 }));
+    const g=parseJSON(await callAI({ system:companyFor(RP.product), prompt, max_tokens:1500 }));
     g.passed = (g.score||0)>=80;
     RP.result=g;
     await insert('r',{ rep:RP.rep||ME.name, rep_email:ME.email, session_id:RP.sessionId, category:RP.category, objection:RP.opening, score:g.score, passed:g.passed, feedback:g, log:RP.log });
@@ -657,13 +680,13 @@ ${stats}
 JSONのみ：{"top5":[{"objection":"","probability":"高|中|低","why":"この顧客で出そうな理由"}],"preempt":[{"item":"潰す項目","question":"商談前半で聞く質問","talk":"予防トーク"}],"opening":"冒頭2分で言うべき一言","dm_plan":"意思決定者に届かせる工夫"}`;
     try{
       loading(true,'過去データから予測しています');
-      const p=parseJSON(await callAI({system:COMPANY,prompt,max_tokens:2500}));
+      const p=parseJSON(await callAI({system:companyFor(m.prod),prompt,max_tokens:2500}));
       $('#pOut').innerHTML = `<div class="grid2">
         <div class="panel"><h2>出そうな断り文句 TOP5</h2><ol style="padding-left:20px;margin:0">${(p.top5||[]).map(t=>`<li style="margin-bottom:10px"><b>${esc(t.objection)}</b> <span class="tag ${t.probability==='高'?'red':t.probability==='中'?'amber':''}">${esc(t.probability)}</span><div class="small muted">${esc(t.why)}</div></li>`).join('')}</ol></div>
         <div class="panel"><h2>今日の商談前に潰すべき5項目</h2>${(p.preempt||[]).map(x=>`<div style="margin-bottom:12px"><b>${esc(x.item)}</b><div class="fix q" style="margin:4px 0"><b>聞く</b>${esc(x.question)}</div><div class="fix t" style="margin:0"><b>先に言う</b>${esc(x.talk)}</div></div>`).join('')}</div></div>
         <div class="panel"><h3>冒頭2分</h3><p>${esc(p.opening)}</p><h3>意思決定者に届かせる工夫</h3><p style="margin:0">${esc(p.dm_plan)}</p>
         <div class="row" style="margin-top:14px">${(p.top5||[]).slice(0,3).map(t=>`<button class="btn red sm" data-o="${esc(t.objection)}">▶「${esc(t.objection)}」を事前ロープレ</button>`).join('')}</div></div>`;
-      document.querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ RP={sessionId:null,category:'商談前予測',opening:b.dataset.o,followups:[],ctx:`${m.cust||'顧客'}（${m.ind}）。商品は${m.prod}。${m.memo}`,rep:ME.name,log:[{role:'assistant',content:b.dataset.o}],result:null}; go('roleplay'); });
+      document.querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ RP={product:m.prod,sessionId:null,category:'商談前予測',opening:b.dataset.o,followups:[],ctx:`${m.cust||'顧客'}（${m.ind}）。商品は${m.prod}。${m.memo}`,rep:ME.name,log:[{role:'assistant',content:b.dataset.o}],result:null}; go('roleplay'); });
     }catch(e){ alert('予測できませんでした：'+e.message); }
     finally{ loading(false); }
   };
@@ -685,6 +708,7 @@ VIEWS.dash = () => {
   const reps=[...new Set(DATA.s.map(s=>s.rep).filter(Boolean))];
   const months=[...new Set(DATA.s.map(s=>(s.created_at||'').slice(0,7)))].sort().reverse();
   const S = DATA.s.filter(s=>(!f.rep||s.rep===f.rep)&&(!f.prod||s.product===f.prod)&&(!f.month||(s.created_at||'').startsWith(f.month)));
+  const K = kpiFor(f.prod);
   const fn = funnel(S); const r1=pct(fn.gen,fn.diag), r2=pct(fn.gou,fn.gen), r3=pct(fn.kei,fn.gou);
   const rate = (v,t)=> v==null?'<b>-</b>':`<b class="${v>=t?'ok':'ng'}">${v}%</b> <span class="muted">目標${t}%</span>`;
   const w = n => Math.max(8, fn.diag? n/fn.diag*100 : 0);
@@ -694,6 +718,7 @@ VIEWS.dash = () => {
     return { rep, n:rs.length, a:pct(x.gen,x.diag), b:pct(x.gou,x.gen), avg:rs.length?Math.round(rs.reduce((t,s)=>t+(s.total_score||0),0)/rs.length):null, wk, topObj:topObj?.cat };
   });
   $('#main').innerHTML = `${banner()}<h1>転換率ダッシュボード</h1><p class="lead">件数ではなく転換率を見ます。数字 → 原因 → 育成テーマまでつなげます。</p>
+  <p class="small" style="margin:-12px 0 16px">適用中の目標：<span class="tag ${K.custom?'amber':''}">${esc(f.prod||'全商品共通')}${K.custom?'（商品別）':''}</span>　現調 ${K.genchou}%／合意書 ${K.gouisho}%</p>
   <div class="row" style="margin-bottom:14px">
     <select id="dRep" style="width:auto"><option value="">全担当</option>${opts(reps,f.rep)}</select>
     <select id="dProd" style="width:auto"><option value="">全商品</option>${opts(PRODUCTS,f.prod)}</select>
@@ -702,9 +727,9 @@ VIEWS.dash = () => {
   <div class="grid2">
     <div class="panel"><h2>ファネル（顧客単位）</h2><div class="funnel">
       <div class="fstep"><span>無料診断</span><div class="fbar" style="width:${w(fn.diag)}%">${fn.diag}</div></div>
-      <div class="frate">→ 現調 ${rate(r1,70)}</div>
+      <div class="frate">→ 現調 ${rate(r1,K.genchou)}</div>
       <div class="fstep"><span>現調</span><div class="fbar" style="width:${w(fn.gen)}%">${fn.gen}</div></div>
-      <div class="frate">→ 合意書 ${rate(r2,30)}</div>
+      <div class="frate">→ 合意書 ${rate(r2,K.gouisho)}</div>
       <div class="fstep"><span>合意書</span><div class="fbar" style="width:${w(fn.gou)}%">${fn.gou}</div></div>
       <div class="frate">→ 契約 ${r3==null?'<b>-</b>':`<b>${r3}%</b>`}</div>
       <div class="fstep"><span>契約</span><div class="fbar" style="width:${w(fn.kei)}%;background:var(--green)">${fn.kei}</div></div>
@@ -713,7 +738,7 @@ VIEWS.dash = () => {
   </div>
   <div class="panel"><h2>担当者別：数字 → 原因 → 育成テーマ</h2><div class="scroll"><table>
     <tr><th>担当</th><th class="n">商談</th><th class="n">現調率</th><th class="n">合意書率</th><th class="n">平均点</th><th>ボトルネック</th><th>今週の重点練習</th></tr>
-    ${repRows.map(r=>`<tr><td><b>${esc(r.rep)}</b></td><td class="n">${r.n}</td><td class="n ${r.a!=null&&r.a<70?'ng':'ok'}">${r.a??'-'}%</td><td class="n ${r.b!=null&&r.b<30?'ng':'ok'}">${r.b??'-'}%</td><td class="n">${r.avg??'-'}</td><td>${esc(r.wk||'-')}${r.topObj?`<div class="small muted">頻出：${esc(r.topObj)}</div>`:''}</td><td class="small">${esc(THEME_BY_ITEM[r.wk]||'-')}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">データがありません</td></tr>'}
+    ${repRows.map(r=>`<tr><td><b>${esc(r.rep)}</b></td><td class="n">${r.n}</td><td class="n ${r.a!=null&&r.a<K.genchou?'ng':'ok'}">${r.a??'-'}%</td><td class="n ${r.b!=null&&r.b<K.gouisho?'ng':'ok'}">${r.b??'-'}%</td><td class="n">${r.avg??'-'}</td><td>${esc(r.wk||'-')}${r.topObj?`<div class="small muted">頻出：${esc(r.topObj)}</div>`:''}</td><td class="small">${esc(THEME_BY_ITEM[r.wk]||'-')}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">データがありません</td></tr>'}
   </table></div></div>`;
   const upd=()=>{ VIEWS.dash.f={rep:$('#dRep').value,prod:$('#dProd').value,month:$('#dMon').value}; VIEWS.dash(); };
   ['#dRep','#dProd','#dMon'].forEach(s=>$(s).onchange=upd);
@@ -751,7 +776,33 @@ VIEWS.ceo = () => {
   <div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">AI週次講評</h2><div class="row"><button class="btn go" id="ceoAi">AIに講評を書かせる</button><button class="btn" id="ceoCp" style="display:none">Chatwork用にコピー</button></div></div>
   <div id="ceoText" class="onepager" style="margin-top:12px;display:none"></div></div>`;
   $('#ceoAi').onclick=ceoReport;
+  renderKpiSettings();
 };
+function renderKpiSettings(){
+  const ed = canEditKPI();
+  const inp = (id,v,ph) => `<input type="number" min="1" max="100" step="1" id="${id}" value="${v??''}" placeholder="${ph??''}" style="width:80px;border:1px solid var(--line);border-radius:6px;padding:6px 8px" ${ed?'':'disabled'}>`;
+  const el = document.createElement('div'); el.className='panel'; el.id='kpiPanel';
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">KPI目標設定</h2>${ed?'':'<span class="tag">閲覧のみ（変更は管理者）</span>'}</div>
+  <p class="small muted">ここで変えた数値が、サイドバー・ファネル判定・担当者別表・AIの分析基準にすべて反映されます。商品別の欄は空欄なら全商品共通の値を使います。</p>
+  <div class="scroll"><table><tr><th>対象</th><th class="n">無料診断→現調</th><th class="n">現調後→合意書</th></tr>
+  <tr><td><b>全商品共通</b></td><td class="n">${inp('kb_g',KPI.base.genchou)} %</td><td class="n">${inp('kb_a',KPI.base.gouisho)} %</td></tr>
+  ${PRODUCTS.map((p,i)=>{ const v=KPI.byProduct[p]||{}; return `<tr><td>${esc(p)}</td><td class="n">${inp('kp_g'+i,v.genchou,KPI.base.genchou)} %</td><td class="n">${inp('kp_a'+i,v.gouisho,KPI.base.gouisho)} %</td></tr>`; }).join('')}
+  </table></div>
+  ${ed?'<div class="row" style="margin-top:12px"><button class="btn primary" id="kpiSave">保存して全社に反映</button><button class="btn" id="kpiReset">初期値（70%／30%）に戻す</button></div>':''}`;
+  $('#main').appendChild(el);
+  if (!ed) return;
+  const num = id => { const v=$('#'+id).value.trim(); if(v==='') return null; const n=Math.round(+v); if(!(n>=1&&n<=100)) throw new Error('1〜100の数値で入力してください'); return n; };
+  $('#kpiSave').onclick = async ()=>{
+    try{
+      const next={ base:{ genchou:num('kb_g'), gouisho:num('kb_a') }, byProduct:{} };
+      if(next.base.genchou==null||next.base.gouisho==null) throw new Error('全商品共通の目標は必須です');
+      PRODUCTS.forEach((p,i)=>{ const g=num('kp_g'+i), a=num('kp_a'+i); if(g!=null||a!=null) next.byProduct[p]={ ...(g!=null?{genchou:g}:{}), ...(a!=null?{gouisho:a}:{}) }; });
+      if(!confirm(`全商品共通：現調 ${next.base.genchou}%／合意書 ${next.base.gouisho}%\n商品別の設定：${Object.keys(next.byProduct).length}件\n\nこの目標で保存しますか？`)) return;
+      await saveKPI(next); toast('KPI目標を保存しました'); go('ceo');
+    }catch(e){ alert('保存できませんでした：'+e.message); }
+  };
+  $('#kpiReset').onclick = async ()=>{ if(!confirm('全商品共通 70%／30%、商品別の設定なし に戻しますか？')) return; try{ await saveKPI(JSON.parse(JSON.stringify(KPI_DEFAULT))); toast('初期値に戻しました'); go('ceo'); }catch(e){ alert(e.message); } };
+}
 async function ceoReport(){
   const st=VIEWS.ceo.stats; if(!st.S.length) return alert('今週分析した商談がまだありません。');
   const repLines=[...new Set(st.S.map(s=>s.rep))].map(r=>{ const rs=st.S.filter(s=>s.rep===r); return `${r}：${rs.length}件、平均${Math.round(rs.reduce((t,s)=>t+(s.total_score||0),0)/rs.length)}点、弱点${weakest(avgScores(rs))||'-'}、結果${rs.map(s=>s.result).join('/')}`; }).join('\n');
@@ -767,7 +818,7 @@ async function ceoReport(){
 ロープレ：${st.rpWeek.length}回中${st.rpWeek.filter(r=>r.passed).length}回合格`;
   try{
     loading(true,'今週の講評を書いています');
-    const t=await callAI({system:COMPANY,prompt,max_tokens:2500});
+    const t=await callAI({system:companyFor(),prompt,max_tokens:2500});
     $('#ceoText').style.display='block'; $('#ceoText').textContent=t.trim();
     $('#ceoCp').style.display=''; $('#ceoCp').onclick=()=>copy(t.trim());
   }catch(e){ alert('作成できませんでした：'+e.message); }
@@ -778,9 +829,10 @@ async function ceoReport(){
 (async function boot(){
   try{ if (window.EC?.guard) await EC.guard({ allow:['admin','manager','sales'] }); }catch(e){ console.warn(e); }
   try{ sb = supabase.createClient(CFG.url, CFG.key); }catch(e){ console.warn(e); }
-  try{ const m = window.EC?.me ? await EC.me() : null; if (m){ ME.name=m.full_name||m.name||''; ME.email=m.email||''; } }catch(e){}
+  try{ const m = window.EC?.me ? await EC.me() : null; if (m){ ME.name=m.full_name||m.name||''; ME.email=m.email||''; ME.role=m.role||''; } }catch(e){}
   try{ if (window.EC?.mountBadge) EC.mountBadge(document.getElementById('badge')); }catch(e){}
   await loadAll();
+  await loadKPI();
   go('home');
 })();
 </script>
