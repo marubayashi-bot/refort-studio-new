@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EARTHCOM SALES COACH AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="ec-auth.js" onerror="console.warn('ec-auth.js未読込：認証なしで起動')"></script>
+<style>
+:root{
+  --ink:#1C2733; --ink2:#2B3A4A; --paper:#EEF1EF; --panel:#FFFFFF; --line:#D6DDD9;
+  --muted:#5E6B75; --green:#18794E; --green-bg:#E3F1EA; --red:#B8322A; --red-bg:#FBEAE8;
+  --amber:#B97E0E; --amber-bg:#FBF1DC; --blue:#2F5D8A;
+  --num:'Barlow Condensed','Zen Kaku Gothic New',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{font-family:'Zen Kaku Gothic New','Hiragino Sans','Yu Gothic',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.7}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
+/* サイドバー */
+.side{background:var(--ink);color:#E8EDEA;padding:22px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{padding:0 8px 18px;border-bottom:1px solid #3A4A5A;margin-bottom:14px}
+.brand b{display:block;font-weight:900;font-size:17px;letter-spacing:.02em}
+.brand small{color:#9FB0A8;font-size:12px}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;color:#C9D3CE;padding:10px 10px;border-radius:6px;cursor:pointer;font-size:14px}
+.nav button:hover{background:#2A3847;color:#fff}
+.nav button.on{background:#fff;color:var(--ink);font-weight:700}
+.nav .grp{font-size:11px;color:#7F918A;margin:16px 10px 4px}
+.nav i{font-style:normal;width:18px;text-align:center}
+.kpi-mini{margin-top:22px;padding:12px;border:1px solid #3A4A5A;border-radius:8px;font-size:12px;color:#B6C3BD}
+.kpi-mini div{display:flex;justify-content:space-between}
+.kpi-mini strong{font-family:var(--num);font-size:20px;color:#fff}
+#badge{margin-top:14px;font-size:12px}
+/* メイン */
+main{padding:28px clamp(16px,3vw,40px) 80px;max-width:1180px;width:100%}
+h1{font-size:26px;font-weight:900;margin:0 0 4px;letter-spacing:.01em}
+.lead{color:var(--muted);margin:0 0 22px}
+h2{font-size:18px;font-weight:900;margin:0 0 12px}
+h3{font-size:15px;font-weight:700;margin:0 0 8px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+label.f{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
+input[type=text],input[type=url],input[type=date],select,textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:#fff}
+textarea{resize:vertical}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);background:#fff;padding:9px 16px;border-radius:6px;cursor:pointer;font-weight:700;font-size:14px}
+.btn:hover{background:var(--paper)}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:var(--ink2)}
+.btn.go{background:var(--green);border-color:var(--green);color:#fff}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
+.tag.red{background:var(--red-bg);color:var(--red);border-color:#F0C8C3}
+.tag.green{background:var(--green-bg);color:var(--green);border-color:#BFDCCB}
+.tag.amber{background:var(--amber-bg);color:var(--amber);border-color:#EED8A8}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:700;background:#F7F9F8}
+td.n,th.n{text-align:right;font-family:var(--num);font-size:17px}
+.scroll{overflow-x:auto}
+/* 入力DROP */
+.drop{border:2px dashed #9DB2A7;border-radius:12px;background:#F8FBF9;padding:26px;text-align:center;transition:background .15s}
+.drop.over{background:var(--green-bg);border-color:var(--green)}
+.drop .big{font-size:20px;font-weight:900;margin:0 0 6px}
+.src-tabs{display:flex;gap:6px;margin:14px 0 10px;justify-content:center;flex-wrap:wrap}
+.src-tabs button{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 14px;cursor:pointer;font-size:13px}
+.src-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.go-wrap{text-align:center;margin-top:18px}
+.go-wrap .btn{font-size:18px;padding:14px 44px}
+/* スコア */
+.score-head{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.total{font-family:var(--num);font-size:72px;font-weight:700;line-height:1}
+.total small{font-size:22px;color:var(--muted)}
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:150px 1fr 44px;gap:10px;align-items:center;font-size:13px}
+.bar .track{height:12px;background:#E5EAE7;border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;border-radius:6px}
+.bar .v{font-family:var(--num);font-size:18px;text-align:right}
+.bar.low .lbl{color:var(--red);font-weight:700}
+.bottleneck{border-left:5px solid var(--red);background:var(--red-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin-top:14px}
+/* 断り文句カード（このアプリの核） */
+.obj{border:1px solid #EBC9C4;border-radius:10px;overflow:hidden;margin-bottom:16px;background:#fff}
+.obj-q{background:var(--red);color:#fff;padding:14px 18px;font-size:18px;font-weight:900}
+.obj-q small{display:block;font-size:12px;font-weight:500;opacity:.85}
+.obj-body{padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chain{list-style:none;margin:0;padding:0;position:relative}
+.chain li{position:relative;padding:4px 0 10px 22px;font-size:14px}
+.chain li:before{content:'';position:absolute;left:5px;top:12px;width:9px;height:9px;border-radius:50%;background:#C9D3CE}
+.chain li:after{content:'';position:absolute;left:9px;top:22px;bottom:-4px;width:1px;background:#C9D3CE}
+.chain li:last-child:after{display:none}
+.chain li:last-child:before{background:var(--red)}
+.chain li:last-child{font-weight:700;color:var(--red)}
+.point{background:var(--amber-bg);border-radius:6px;padding:8px 12px;font-size:13px;margin-top:6px}
+.fix{border-radius:8px;padding:10px 14px;margin-bottom:10px}
+.fix.q{background:#EAF1F8}
+.fix.t{background:var(--green-bg)}
+.fix.r{background:#F4F4F4}
+.fix b{display:block;font-size:12px;color:var(--muted)}
+/* 意思決定者 */
+.ladder{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.rung{flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;font-size:13px}
+.rung b{display:block;font-size:15px}
+.rung.s0{background:#F4F5F5;color:#8C979F}
+.rung.s1{background:var(--amber-bg);border-color:#EED8A8}
+.rung.s2{background:var(--green-bg);border-color:#BFDCCB}
+.onepager{border:1px solid var(--line);border-radius:8px;padding:18px;background:#FCFDFC;white-space:pre-wrap;font-size:14px}
+/* NEXT ACTION */
+.na{display:grid;grid-template-columns:120px 1fr;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.na div{padding:10px 14px;border-bottom:1px solid var(--line)}
+.na .w{background:var(--ink);color:#fff;font-weight:700;font-size:13px;border-color:#33455A}
+/* ファネル */
+.funnel{display:grid;gap:4px}
+.fstep{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:12px}
+.fbar{background:var(--ink);color:#fff;border-radius:6px;padding:8px 12px;font-family:var(--num);font-size:22px;min-width:60px}
+.frate{grid-column:2;font-size:13px;padding:2px 0 2px 14px;border-left:2px solid var(--line);margin-left:10px}
+.frate b{font-family:var(--num);font-size:20px}
+.ok{color:var(--green)} .ng{color:var(--red)}
+/* チャット */
+.chat{height:440px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#F8FAF9;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;font-size:14px;white-space:pre-wrap}
+.msg.c{background:#fff;border:1px solid var(--line);align-self:flex-start}
+.msg.s{background:var(--ink);color:#fff;align-self:flex-end}
+.msg .who{font-size:11px;opacity:.7;display:block}
+.result-card{border:2px solid var(--ink);border-radius:10px;padding:18px;margin-top:14px}
+/* 汎用 */
+.list-item{border-bottom:1px solid var(--line);padding:12px 4px;cursor:pointer}
+.list-item:hover{background:#F7F9F8}
+.stat{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
+.stat .n{font-family:var(--num);font-size:34px;font-weight:700;line-height:1.1}
+.banner{background:var(--amber-bg);border:1px solid #EED8A8;color:#6B4A06;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px}
+.loading{position:fixed;inset:0;background:rgba(28,39,51,.55);display:none;align-items:center;justify-content:center;z-index:50}
+.loading.on{display:flex}
+.loading div{background:#fff;padding:26px 34px;border-radius:12px;text-align:center;max-width:360px}
+.spin{width:36px;height:36px;border:4px solid #DDE3E0;border-top-color:var(--green);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:8px;display:none;z-index:60}
+.empty{text-align:center;padding:40px 10px;color:var(--muted)}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;padding:12px}
+  .nav{display:flex;overflow-x:auto;gap:4px}
+  .nav button{white-space:nowrap;width:auto}
+  .nav .grp,.kpi-mini{display:none}
+  .grid2,.grid3,.obj-body{grid-template-columns:1fr}
+  .bar{grid-template-columns:110px 1fr 36px}
+}
+@media print{.side,.no-print{display:none!important}.app{display:block}main{padding:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side no-print">
+    <div class="brand"><b>SALES COACH AI</b><small>同じ断り文句で、二度負けない。</small></div>
+    <nav class="nav" id="nav">
+      <div class="grp">営業担当</div>
+      <button data-v="home"><i>＋</i>商談をAI分析</button>
+      <button data-v="karte"><i>▤</i>育成カルテ</button>
+      <button data-v="bank"><i>◆</i>断り文句BANK</button>
+      <button data-v="roleplay"><i>▶</i>AIロープレ</button>
+      <button data-v="predict"><i>◎</i>商談前予測</button>
+      <div class="grp">責任者・社長</div>
+      <button data-v="dash"><i>▼</i>転換率ダッシュボード</button>
+      <button data-v="ceo"><i>★</i>社長画面</button>
+    </nav>
+    <div class="kpi-mini">
+      <div>無料診断→現調<strong>70%</strong></div>
+      <div>現調後→合意書<strong>30%</strong></div>
+    </div>
+    <div id="badge"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div class="loading" id="loading"><div><div class="spin"></div><b id="loadingMsg">AIが分析しています</b><p class="small muted" style="margin:6px 0 0">長い商談は1〜2分かかります</p></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 設定 ============ */
+const CFG = {
+  url: 'https://aakofrzurgwrkctunthw.supabase.co',
+  key: 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
+  ai:  'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai'
+};
+const T = { s:'sales_coach_sessions', o:'sales_coach_objections', r:'sales_coach_roleplays' };
+const STAGES = ['初回商談','無料診断','現調','現調後商談','合意書','契約'];
+const RESULTS = ['前進','継続','保留','失注'];
+const PRODUCTS = ['ReFort（高圧）','ReFort（低圧）','系統蓄電池','産業用蓄電池','セカンダリー太陽光','サンキーパー','O&M','その他'];
+const SCORE_ITEMS = ['事前準備','アイスブレイク・関係構築','ヒアリング','課題深掘り','経営課題への転換','価値訴求','反論処理','意思決定者アプローチ','クロージング','次回アクション'];
+const OBJ_CATS = ['価格が高い','今は投資できない','自社で施工できる','改善効果への疑問','FIT残存期間が短い','今のままで困っていない','他社にも見積を取る','社長に相談します','検討します','今期予算がない','その他'];
+const DM_LEVELS = ['担当者','課長','部長','役員','社長'];
+const THEME_BY_ITEM = {
+  '事前準備':'商談前の顧客調査と仮説シート作成',
+  'アイスブレイク・関係構築':'最初の5分で相手の関心を引き出す入り方',
+  'ヒアリング':'財務・投資方針を先に聞く質問設計',
+  '課題深掘り':'「なぜ」を3回重ねる課題の掘り下げ',
+  '経営課題への転換':'発電量の話をキャッシュフローの話に変える',
+  '価値訴求':'現状維持コストとの比較で価値を示す',
+  '反論処理':'断り文句の前に予防トークを入れる',
+  '意思決定者アプローチ':'社長同席への転換',
+  'クロージング':'次の一歩（無料診断・現調）を日付で決める',
+  '次回アクション':'商談の最後に「誰が・何を・いつまでに」を合意する'
+};
+
+/* ============ 共通 ============ */
+let sb = null, ME = { name:'', email:'' }, LOCAL = false;
+const DATA = { s:[], o:[], r:[] };
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = d => d ? new Date(d).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '';
+const pct = (a,b) => b ? Math.round(a/b*1000)/10 : null;
+function toast(m){ const t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',2400); }
+function loading(on,msg){ $('#loading').classList.toggle('on',on); if(msg) $('#loadingMsg').textContent=msg; }
+async function copy(text){ try{ await navigator.clipboard.writeText(text); toast('コピーしました'); }catch(e){ prompt('コピーしてください',text); } }
+const opts = (arr,sel) => arr.map(v=>`<option ${v===sel?'selected':''}>${esc(v)}</option>`).join('');
+
+/* ============ データ層（Supabase／未作成時はブラウザ保存） ============ */
+async function loadAll(){
+  if (sb){
+    try{
+      const [a,b,c] = await Promise.all([
+        sb.from(T.s).select('*').order('created_at',{ascending:false}).limit(3000),
+        sb.from(T.o).select('*').order('created_at',{ascending:false}).limit(8000),
+        sb.from(T.r).select('*').order('created_at',{ascending:false}).limit(3000)
+      ]);
+      const err = a.error||b.error||c.error; if (err) throw err;
+      DATA.s=a.data; DATA.o=b.data; DATA.r=c.data; LOCAL=false; return;
+    }catch(e){ console.warn('Supabase読込失敗→ブラウザ保存モード', e); }
+  }
+  LOCAL = true;
+  for (const k of ['s','o','r']) DATA[k] = JSON.parse(localStorage.getItem('scai_'+k)||'[]');
+}
+function saveLocal(k){ localStorage.setItem('scai_'+k, JSON.stringify(DATA[k])); }
+async function insert(k,row){
+  row.id = row.id || crypto.randomUUID();
+  row.created_at = row.created_at || new Date().toISOString();
+  if (!LOCAL){
+    const { data, error } = await sb.from(T[k]).insert(row).select().single();
+    if (error) throw error; DATA[k].unshift(data); return data;
+  }
+  DATA[k].unshift(row); saveLocal(k); return row;
+}
+async function insertMany(k,rows){
+  rows.forEach(r=>{ r.id=r.id||crypto.randomUUID(); r.created_at=r.created_at||new Date().toISOString(); });
+  if (!rows.length) return;
+  if (!LOCAL){ const { error } = await sb.from(T[k]).insert(rows); if (error) throw error; }
+  DATA[k].unshift(...rows); if (LOCAL) saveLocal(k);
+}
+async function patch(k,id,p){
+  if (!LOCAL){ const { error } = await sb.from(T[k]).update(p).eq('id',id); if (error) throw error; }
+  const r = DATA[k].find(x=>x.id===id); if (r) Object.assign(r,p); if (LOCAL) saveLocal(k);
+}
+
+/* ============ AI（Edge Function `ai` 経由） ============ */
+async function callAI({ prompt, system, messages, max_tokens=6000 }){
+  let token = CFG.key;
+  try{ const { data } = await sb.auth.getSession(); if (data?.session?.access_token) token = data.session.access_token; }catch(e){}
+  const body = { system, max_tokens };
+  if (messages) body.messages = messages; else body.prompt = prompt;
+  const res = await fetch(CFG.ai, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey':CFG.key }, body: JSON.stringify(body) });
+  const j = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(j.error || j.message || ('AI呼び出しエラー（'+res.status+'）'));
+  if (typeof j === 'string') return j;
+  return j.text || (Array.isArray(j.content) ? j.content.map(c=>c.text||'').join('') : '') || j.completion || j.result || '';
+}
+function parseJSON(t){
+  const s = t.replace(/```json|```/g,''); const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a<0||b<0) throw new Error('AIの回答を読み取れませんでした。もう一度実行してください。');
+  return JSON.parse(s.slice(a,b+1));
+}
+const COMPANY = `あなたは株式会社アースコム（埼玉県越谷市、再生可能エネルギー事業）の営業育成責任者AIです。
+事業：太陽光発電所の再資産化ReFort（パネル交換・リパワリングによる発電量改善）、系統用・産業用蓄電池、セカンダリー太陽光（中古発電所）売買、サンキーパー。
+営業KPI：無料診断→現調 70%、現調後商談→合意書 30%。
+育成思想：「断り文句は失敗ではない。次の受注率を上げる教材である」「同じ断り文句で、二度負けない」。
+管理手法は識学。評価は感情ではなく事実と結果で行い、改善は「誰が・何を・いつまでに」まで落とす。`;
+
+/* ============ ルーティング ============ */
+const VIEWS = {};
+let CURRENT = { view:'home', arg:null };
+function go(view,arg){ CURRENT={view,arg}; document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view)); window.scrollTo(0,0); VIEWS[view](arg); }
+document.getElementById('nav').addEventListener('click',e=>{ const b=e.target.closest('button[data-v]'); if(b) go(b.dataset.v); });
+const banner = () => LOCAL ? `<div class="banner">Supabaseのテーブルが未作成のため、このブラウザ内に保存しています。sales-coach-setup.sql を実行すると全社共有になります。</div>` : '';
+
+/* ============ ① 商談をAI分析 ============ */
+let SRC = { mode:'paste', text:'', fileName:'' };
+VIEWS.home = () => {
+  const reps = [...new Set(DATA.s.map(s=>s.rep).filter(Boolean))];
+  $('#main').innerHTML = `${banner()}
+  <h1>商談をAI分析</h1>
+  <p class="lead">文字起こしを入れて、ボタンを押すだけ。断り文句の原因地点と、次回の一手まで出します。</p>
+  <div class="panel">
+    <div class="drop" id="drop">
+      <p class="big">商談の文字起こしをここへ</p>
+      <p class="small muted" style="margin:0">txt／Word（.docx）／PDF をドロップ、または下で貼り付け</p>
+      <div class="src-tabs">
+        <button data-m="paste" class="${SRC.mode==='paste'?'on':''}">文字起こしを貼る</button>
+        <button data-m="file" class="${SRC.mode==='file'?'on':''}">ファイルを選ぶ</button>
+        <button data-m="url" class="${SRC.mode==='url'?'on':''}">録画URLを記録</button>
+      </div>
+      <div id="srcBody"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="grid3">
+      <div><label class="f">担当営業</label><input type="text" id="fRep" list="repList" value="${esc(ME.name)}"><datalist id="repList">${reps.map(r=>`<option value="${esc(r)}">`).join('')}</datalist></div>
+      <div><label class="f">顧客名</label><input type="text" id="fCust" placeholder="例：賛光精機株式会社"></div>
+      <div><label class="f">顧客属性</label><select id="fInd">${opts(['EPC・施工会社','一般事業会社','個人投資家','発電事業者（SPC等）','不動産・金融','その他'])}</select></div>
+      <div><label class="f">商品</label><select id="fProd">${opts(PRODUCTS)}</select></div>
+      <div><label class="f">商談段階（KPI）</label><select id="fStage">${opts(STAGES,'無料診断')}</select></div>
+      <div><label class="f">商談結果</label><select id="fRes">${opts(RESULTS,'継続')}</select></div>
+      <div><label class="f">次回予定</label><input type="date" id="fNext"></div>
+    </div>
+  </div>
+  <div class="go-wrap"><button class="btn go" id="runBtn">AI徹底分析</button></div>`;
+  renderSrc();
+  document.querySelectorAll('.src-tabs button').forEach(b=>b.onclick=()=>{ SRC.mode=b.dataset.m; document.querySelectorAll('.src-tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderSrc(); });
+  const d=$('#drop');
+  d.addEventListener('dragover',e=>{e.preventDefault();d.classList.add('over')});
+  d.addEventListener('dragleave',()=>d.classList.remove('over'));
+  d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+  $('#runBtn').onclick = runAnalysis;
+};
+function renderSrc(){
+  const b=$('#srcBody');
+  if (SRC.mode==='paste') b.innerHTML = `<textarea id="srcText" rows="10" placeholder="営業：本日はお時間ありがとうございます…&#10;お客様：太陽光については今のところ控えていて…">${esc(SRC.text)}</textarea>`;
+  if (SRC.mode==='file') b.innerHTML = `<input type="file" id="srcFile" accept=".txt,.docx,.pdf,.vtt,.srt,.md"><p class="small muted">${SRC.fileName?('読込済み：'+esc(SRC.fileName)+'（'+SRC.text.length.toLocaleString()+'文字）'):''}</p>`;
+  if (SRC.mode==='url') b.innerHTML = `<input type="url" id="srcUrl" placeholder="https://（Zoom・tl;dv・Google Meet 等の録画URL）"><p class="small muted" style="text-align:left">録画URLはカルテに保存されます。AIは動画を直接視聴できないため、分析には文字起こし（貼付またはファイル）も入れてください。</p><textarea id="srcText" rows="6" placeholder="文字起こしを貼り付け">${esc(SRC.text)}</textarea>`;
+  const f=$('#srcFile'); if(f) f.onchange=()=>f.files[0]&&readFile(f.files[0]);
+  const t=$('#srcText'); if(t) t.oninput=()=>SRC.text=t.value;
+}
+async function readFile(f){
+  try{
+    loading(true,'ファイルを読み込んでいます');
+    let text='';
+    const ext=f.name.split('.').pop().toLowerCase();
+    if (ext==='docx'){ const r=await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()}); text=r.value; }
+    else if (ext==='pdf'){
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+      for(let i=1;i<=pdf.numPages;i++){ const p=await pdf.getPage(i); const c=await p.getTextContent(); text+=c.items.map(x=>x.str).join(' ')+'\n'; }
+    } else text = await f.text();
+    SRC.text=text.trim(); SRC.fileName=f.name; SRC.mode='paste';
+    VIEWS.home(); toast(f.name+' を読み込みました');
+  }catch(e){ alert('読み込めませんでした：'+e.message); }
+  finally{ loading(false); }
+}
+async function runAnalysis(){
+  const t=$('#srcText'); if(t) SRC.text=t.value;
+  const meta = { rep:$('#fRep').value.trim(), customer:$('#fCust').value.trim(), industry:$('#fInd').value, product:$('#fProd').value, stage:$('#fStage').value, result:$('#fRes').value, next_date:$('#fNext').value||null, recording_url:($('#srcUrl')?.value||'').trim()||null };
+  if (!SRC.text || SRC.text.length<80) return alert('文字起こしを入れてください（80文字以上）。');
+  if (!meta.rep || !meta.customer) return alert('担当営業と顧客名を入れてください。');
+  const bankTop = topCats(DATA.o.filter(o=>o.product===meta.product)).slice(0,8).map(c=>c.cat).join('、') || 'まだなし';
+  const system = COMPANY + `\n出力は指定のJSONのみ。前置き・コードブロック禁止。日本語で具体的に。文字起こしに無い事実は作らず、推測は「可能性」と明記する。`;
+  const prompt = `以下の商談を育成カルテとして分析してください。
+【商談情報】担当:${meta.rep}／顧客:${meta.customer}（${meta.industry}）／商品:${meta.product}／段階:${meta.stage}／結果:${meta.result}
+【同商品で過去に多い断り文句】${bankTop}
+
+【分析ルール】
+1. 10項目を各100点で採点：${SCORE_ITEMS.join('、')}。総合点は加重せず平均。
+2. 総合点より「どこで転換率を落としたか」を bottleneck に書く。
+3. 顧客の断り文句・保留発言・懸念をすべて抽出。各断り文句は「断られてから返す」ではなく「断られる前に潰す」視点で、発生の原因地点（商談の何分頃／どの場面の何が不足したか）まで遡る。cause_chain は原因→…→断り文句 の順に3〜5段。
+4. category は次から1つ：${OBJ_CATS.join('、')}
+5. 意思決定者到達度を ${DM_LEVELS.join('／')} で判定（status: 0=未接触 1=間接的に話題に出た 2=接触・同席）。
+6. 社長が聞きたくなる「経営情報」と、担当者が社長に転送できる「社長向け1枚」（400〜600字、営業臭さを消し、数字比較と判断材料中心。未確定の数字は【要確認】と書く）を作る。
+7. NEXT ACTION は 24時間以内／3日以内／7日以内／次回商談／ロープレ の5区分で、誰が・何を・いつまでに。
+8. roleplay は、この商談で一番痛かった断り文句でお客様役が言う最初の一言と、追撃しそうな質問。
+
+【JSON形式】
+{"summary":"3行要約","total_score":0,
+"scores":[{"item":"事前準備","score":0,"comment":"根拠となる発言や場面"}],
+"bottleneck":{"item":"","reason":"","impact":"転換率への影響"},
+"good_points":["再現すべき良かった点"],
+"objections":[{"quote":"顧客の実際の発言","category":"","timing":"商談○分頃／場面","surface":"表面的理由","background":"背景","sales_issue":"営業側の問題","cause_chain":["原因","…","断り文句"],"cause_point":"原因地点の説明","prevention_question":"本来事前に聞く質問","prevention_talk":"反論される前の予防トーク","rebuttal":"言われた後の切り返し","severity":"高|中|低"}],
+"decision_maker":{"levels":[{"role":"担当者","status":0,"note":""}],"analysis":"","ceo_interest":["社長が聞きたくなる経営情報"],"onepager_title":"","onepager":"社長向け1枚の本文"},
+"next_actions":[{"when":"24時間以内","who":"","what":"","done":"完了条件"}],
+"roleplay":{"opening":"お客様の最初の一言","followups":["追撃質問"],"category":""},
+"training_theme":"今週の重点練習テーマ（1行）"}
+
+【文字起こし】
+${SRC.text.slice(0,60000)}`;
+  try{
+    loading(true,'AIが商談を分析しています');
+    const a = parseJSON(await callAI({ system, prompt, max_tokens:8000 }));
+    const sess = await insert('s', { ...meta, rep_email:ME.email, transcript:SRC.text, total_score:Math.round(a.total_score||0), analysis:a });
+    const objs = (a.objections||[]).map(o=>({ session_id:sess.id, rep:meta.rep, customer:meta.customer, product:meta.product, result:meta.result, category:OBJ_CATS.includes(o.category)?o.category:'その他', quote:o.quote, detail:o }));
+    await insertMany('o', objs);
+    SRC = { mode:'paste', text:'', fileName:'' };
+    go('karte', sess.id);
+  }catch(e){ alert('分析できませんでした：'+e.message); }
+  finally{ loading(false); }
+}
+
+/* ============ ② 育成カルテ ============ */
+VIEWS.karte = (id) => {
+  if (!id){
+    const rows = DATA.s;
+    $('#main').innerHTML = `${banner()}<h1>育成カルテ</h1><p class="lead">分析した商談の一覧です。開くとスコア・断り文句・次回行動が見られます。</p>
+    <div class="panel">${rows.length?rows.map(s=>`<div class="list-item" data-id="${s.id}"><div class="row" style="justify-content:space-between"><b>${esc(s.customer)}</b><span class="total" style="font-size:28px">${s.total_score??'-'}</span></div>
+    <div class="small muted">${fmtDate(s.created_at)}　${esc(s.rep)}　${esc(s.product)}　<span class="tag">${esc(s.stage)}</span> <span class="tag ${s.result==='失注'?'red':s.result==='前進'?'green':''}">${esc(s.result)}</span>　断り文句 ${DATA.o.filter(o=>o.session_id===s.id).length}件</div></div>`).join(''):'<div class="empty">まだ分析した商談がありません。<br><button class="btn primary" onclick="go(\'home\')" style="margin-top:10px">商談をAI分析</button></div>'}</div>`;
+    document.querySelectorAll('.list-item').forEach(el=>el.onclick=()=>go('karte',el.dataset.id));
+    return;
+  }
+  const s = DATA.s.find(x=>x.id===id); if(!s) return go('karte');
+  const a = s.analysis||{};
+  const scores = SCORE_ITEMS.map(it=>(a.scores||[]).find(x=>x.item===it)||{item:it,score:0,comment:''});
+  const low = [...scores].sort((x,y)=>x.score-y.score).slice(0,3).map(x=>x.item);
+  const color = v => v>=70?'var(--green)':v>=50?'var(--amber)':'var(--red)';
+  const dm = DM_LEVELS.map(r=>(a.decision_maker?.levels||[]).find(l=>l.role===r)||{role:r,status:0});
+  const dmLabel = ['未接触','話題のみ','接触済'];
+  $('#main').innerHTML = `
+  <div class="row no-print" style="justify-content:space-between;margin-bottom:10px"><button class="btn sm" onclick="go('karte')">← 一覧</button>
+  <div class="row"><button class="btn sm" onclick="window.print()">印刷</button><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す</button></div></div>
+  <h1>${esc(s.customer)}</h1>
+  <p class="lead">${fmtDate(s.created_at)}　担当 ${esc(s.rep)}　${esc(s.product)}　<span class="tag">${esc(s.stage)}</span> <span class="tag ${s.result==='失注'?'red':s.result==='前進'?'green':''}">${esc(s.result)}</span>${s.recording_url?`　<a href="${esc(s.recording_url)}" target="_blank" rel="noopener">録画</a>`:''}</p>
+
+  <div class="panel">
+    <div class="score-head">
+      <div><div class="small muted">商談スコア</div><div class="total">${s.total_score??'-'}<small>/100</small></div></div>
+      <div style="flex:1;min-width:260px"><h3>要約</h3><p style="margin:0;white-space:pre-wrap">${esc(a.summary)}</p></div>
+    </div>
+    <div class="bars" style="margin-top:18px">${scores.map(x=>`<div class="bar ${low.includes(x.item)?'low':''}" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}</span><div class="track"><div class="fill" style="width:${x.score}%;background:${color(x.score)}"></div></div><span class="v">${x.score}</span></div>`).join('')}</div>
+    ${a.bottleneck?`<div class="bottleneck"><b>転換率を落とした地点：${esc(a.bottleneck.item)}</b><br>${esc(a.bottleneck.reason)}${a.bottleneck.impact?`<br><span class="small">${esc(a.bottleneck.impact)}</span>`:''}</div>`:''}
+    <details style="margin-top:12px"><summary class="small">項目別の根拠を見る</summary><table style="margin-top:8px">${scores.map(x=>`<tr><td style="width:170px">${esc(x.item)}</td><td class="n" style="width:50px">${x.score}</td><td class="small">${esc(x.comment)}</td></tr>`).join('')}</table></details>
+    ${(a.good_points||[]).length?`<h3 style="margin-top:14px">再現すべき良かった点</h3><ul style="margin:0">${a.good_points.map(g=>`<li>${esc(g)}</li>`).join('')}</ul>`:''}
+  </div>
+
+  <h2>断り文句AI</h2>
+  ${(a.objections||[]).length ? a.objections.map(o=>objCard(o)).join('') : '<div class="panel muted">この商談では明確な断り文句は検出されませんでした。</div>'}
+
+  <div class="panel">
+    <h2>意思決定者到達度</h2>
+    <div class="ladder">${dm.map(l=>`<div class="rung s${l.status||0}"><b>${esc(l.role)}</b>${dmLabel[l.status||0]}${l.note?`<div class="small muted">${esc(l.note)}</div>`:''}</div>`).join('')}</div>
+    <p>${esc(a.decision_maker?.analysis)}</p>
+    ${(a.decision_maker?.ceo_interest||[]).length?`<h3>社長が聞きたくなる経営情報</h3><ul>${a.decision_maker.ceo_interest.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${a.decision_maker?.onepager?`<div class="row" style="justify-content:space-between"><h3 style="margin:0">担当者が社長に転送できる1枚</h3><button class="btn sm" id="cpOne">コピー</button></div>
+    <div class="onepager" style="margin-top:8px"><b>${esc(a.decision_maker.onepager_title)}</b>\n\n${esc(a.decision_maker.onepager)}</div>`:''}
+  </div>
+
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">NEXT ACTION</h2><button class="btn sm" id="cpNA">Chatwork用にコピー</button></div>
+    <div class="na">${(a.next_actions||[]).map(n=>`<div class="w">${esc(n.when)}</div><div><b>${esc(n.what)}</b><div class="small muted">担当：${esc(n.who)}${n.done?'　完了条件：'+esc(n.done):''}</div></div>`).join('')}</div>
+    ${a.training_theme?`<p style="margin:14px 0 0"><span class="tag amber">今週の重点練習</span> ${esc(a.training_theme)}</p>`:''}
+  </div>
+  <div class="go-wrap no-print"><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す（AIロープレ）</button></div>`;
+  const one=$('#cpOne'); if(one) one.onclick=()=>copy(`${a.decision_maker.onepager_title}\n\n${a.decision_maker.onepager}`);
+  $('#cpNA').onclick=()=>copy(chatworkNA(s));
+};
+function objCard(o){
+  return `<div class="obj">
+    <div class="obj-q"><small>${esc(o.category)}　${esc(o.timing||'')}　重要度 ${esc(o.severity||'')}</small>「${esc(o.quote)}」</div>
+    <div class="obj-body">
+      <div>
+        <h3>なぜ言われたか</h3>
+        <p class="small" style="margin:0 0 8px"><b>表面的理由</b>：${esc(o.surface)}<br><b>背景</b>：${esc(o.background)}<br><b>営業側の問題</b>：${esc(o.sales_issue)}</p>
+        <ul class="chain">${(o.cause_chain||[]).map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+        ${o.cause_point?`<div class="point"><b>原因地点</b>　${esc(o.cause_point)}</div>`:''}
+      </div>
+      <div>
+        <div class="fix q"><b>その前に聞くべきだった質問</b>${esc(o.prevention_question)}</div>
+        <div class="fix t"><b>反論される前の予防トーク</b>${esc(o.prevention_talk)}</div>
+        <div class="fix r"><b>言われた後の切り返し</b>${esc(o.rebuttal)}</div>
+      </div>
+    </div></div>`;
+}
+function chatworkNA(s){
+  const a=s.analysis||{};
+  const lines=[`[info][title]商談NEXT ACTION｜${s.customer}（担当：${s.rep}）[/title]`];
+  lines.push(`■商談結果\n${s.stage}／${s.result}　スコア【${s.total_score}点】`);
+  if(a.bottleneck) lines.push(`■転換率を落とした地点\n【${a.bottleneck.item}】${a.bottleneck.reason}`);
+  lines.push('[hr]');
+  (a.next_actions||[]).forEach(n=>lines.push(`■${n.when}\n・${n.what}（担当：${n.who}）${n.done?'\n　完了条件：'+n.done:''}`));
+  if(a.training_theme) lines.push(`[hr]■今週の重点練習\n【${a.training_theme}】`);
+  lines.push('[/info]');
+  return lines.join('\n');
+}
+
+/* ============ ③ 断り文句BANK ============ */
+function topCats(objs){
+  const m={}; objs.forEach(o=>{ const c=o.category||'その他'; (m[c]=m[c]||[]).push(o); });
+  return Object.entries(m).map(([cat,list])=>{
+    const sessIds=[...new Set(list.map(o=>o.session_id))];
+    const lost=sessIds.filter(id=>(DATA.s.find(s=>s.id===id)||{}).result==='失注').length;
+    return { cat, list, count:list.length, lossRate:pct(lost,sessIds.length) };
+  }).sort((a,b)=>b.count-a.count);
+}
+VIEWS.bank = (cat) => {
+  const prod = VIEWS.bank.prod || '';
+  const objs = DATA.o.filter(o=>!prod||o.product===prod);
+  const cats = topCats(objs);
+  if (cat){
+    const c = cats.find(x=>x.cat===cat) || { cat, list:[], count:0 };
+    const won = c.list.filter(o=>['前進','継続'].includes(o.result));
+    $('#main').innerHTML = `<button class="btn sm no-print" onclick="go('bank')">← BANK一覧</button>
+    <h1 style="margin-top:12px">「${esc(cat)}」</h1>
+    <p class="lead">発生 ${c.count}回　失注率 ${c.lossRate??'-'}%　${prod?esc(prod):'全商品'}</p>
+    <div class="row" style="margin-bottom:16px"><button class="btn red" onclick="startRoleplay(null,'${esc(cat)}')">▶ この断り文句でロープレ</button></div>
+    <div class="grid2">
+      <div class="panel"><h2>予防質問（断られる前に聞く）</h2><ul>${[...new Set(c.list.map(o=>o.detail?.prevention_question).filter(Boolean))].slice(0,10).map(q=>`<li>${esc(q)}</li>`).join('')||'<li class="muted">なし</li>'}</ul></div>
+      <div class="panel"><h2>前進した商談の切り返し</h2><ul>${won.map(o=>`<li>${esc(o.detail?.rebuttal)}<div class="small muted">${esc(o.customer)}／${esc(o.rep)}</div></li>`).join('')||'<li class="muted">まだ成功事例がありません</li>'}</ul></div>
+    </div>
+    <div class="panel"><h2>実際に言われた言葉と原因地点</h2>
+    <div class="scroll"><table><tr><th>日付</th><th>顧客／担当</th><th>発言</th><th>原因地点</th><th>結果</th></tr>
+    ${c.list.map(o=>{ const s=DATA.s.find(x=>x.id===o.session_id)||{}; return `<tr><td>${fmtDate(o.created_at)}</td><td>${esc(o.customer)}<div class="small muted">${esc(o.rep)}</div></td><td>「${esc(o.quote)}」</td><td class="small">${esc(o.detail?.cause_point)}</td><td><a href="#" onclick="go('karte','${o.session_id}');return false"><span class="tag ${s.result==='失注'?'red':''}">${esc(o.result)}</span></a></td></tr>`;}).join('')}</table></div></div>`;
+    return;
+  }
+  const max = Math.max(1,...cats.map(c=>c.count));
+  $('#main').innerHTML = `${banner()}<h1>断り文句BANK</h1>
+  <p class="lead">全社員の商談から自動で貯まる、アースコムの営業ナレッジです。</p>
+  <div class="row" style="margin-bottom:14px"><label class="small">商品で絞る</label><select id="bProd" style="width:auto"><option value="">全商品</option>${opts(PRODUCTS,prod)}</select></div>
+  <div class="panel">${cats.length?`<div class="scroll"><table><tr><th>断り文句</th><th>発生回数</th><th class="n">失注率</th><th>代表的な発言</th><th></th></tr>
+  ${cats.map(c=>`<tr><td><b>${esc(c.cat)}</b></td><td style="width:26%"><div class="track" style="height:10px;background:#E5EAE7;border-radius:5px"><div style="height:100%;width:${c.count/max*100}%;background:var(--red);border-radius:5px"></div></div><span class="small">${c.count}回</span></td><td class="n ${c.lossRate>=50?'ng':''}">${c.lossRate??'-'}%</td><td class="small">「${esc(c.list[0].quote)}」</td><td><button class="btn sm" data-c="${esc(c.cat)}">開く</button></td></tr>`).join('')}</table></div>`:'<div class="empty">商談を分析すると、ここに断り文句が貯まっていきます。</div>'}</div>`;
+  $('#bProd').onchange=e=>{ VIEWS.bank.prod=e.target.value; VIEWS.bank(); };
+  document.querySelectorAll('button[data-c]').forEach(b=>b.onclick=()=>go('bank',b.dataset.c));
+};
+
+/* ============ ④ AIロープレ ============ */
+let RP = null;
+function startRoleplay(sessionId, cat){
+  const s = sessionId ? DATA.s.find(x=>x.id===sessionId) : null;
+  let opening='', followups=[], category=cat||'', ctx='';
+  if (s){
+    const a=s.analysis||{}; opening=a.roleplay?.opening||(a.objections?.[0]?.quote)||''; followups=a.roleplay?.followups||[]; category=a.roleplay?.category||a.objections?.[0]?.category||'';
+    ctx=`${s.customer}（${s.industry||''}）の担当者。商品は${s.product}。実際の商談での懸念：${(a.objections||[]).map(o=>o.quote).join('／')}`;
+  } else if (cat){
+    const ex = DATA.o.filter(o=>o.category===cat); const pick = ex[0];
+    opening = pick?.quote || cat; ctx = pick ? `${pick.customer}のような顧客。商品は${pick.product}。` : 'アースコムの提案を受けている事業会社の担当者。';
+  }
+  RP = { sessionId, category, opening, followups, ctx, rep: ME.name || (s?.rep||''), log: opening?[{role:'assistant',content:opening}]:[], result:null };
+  go('roleplay');
+}
+VIEWS.roleplay = () => {
+  if (!RP || !RP.opening){
+    const cats = topCats(DATA.o);
+    $('#main').innerHTML = `<h1>AIロープレ</h1><p class="lead">AIがお客様役になります。合格（80点）するまで何度でもやり直せます。</p>
+    <div class="panel"><h2>断り文句を選んで始める</h2>
+    <div class="row">${(cats.length?cats.map(c=>c.cat):OBJ_CATS).map(c=>`<button class="btn" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <p class="small muted" style="margin-top:14px">育成カルテの「この商談をやり直す」から始めると、実際の商談の状況でロープレできます。</p></div>
+    ${myRpHistory()}`;
+    document.querySelectorAll('button[data-c]').forEach(b=>b.onclick=()=>startRoleplay(null,b.dataset.c));
+    return;
+  }
+  const speech = ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
+  $('#main').innerHTML = `<div class="row" style="justify-content:space-between"><h1>AIロープレ</h1><button class="btn sm" onclick="RP=null;go('roleplay')">断り文句を選び直す</button></div>
+  <p class="lead">テーマ：<span class="tag red">${esc(RP.category)}</span>　${RP.sessionId?'実商談の再現':'BANKから出題'}　お客様は簡単には納得しません。</p>
+  <div class="chat" id="chat"></div>
+  <div class="row" style="margin-top:10px;align-items:stretch">
+    <textarea id="rpIn" rows="3" style="flex:1;min-width:220px" placeholder="営業として回答（Ctrl+Enterで送信）"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${speech?'<button class="btn" id="mic">🎤 音声</button>':''}
+      <button class="btn primary" id="send">送信</button>
+    </div>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn go" id="grade">採点する</button><span class="small muted">2〜3往復したら採点してください</span></div>
+  <div id="rpResult"></div>`;
+  drawChat();
+  $('#send').onclick=rpSend;
+  $('#rpIn').addEventListener('keydown',e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)) rpSend(); });
+  $('#grade').onclick=rpGrade;
+  if (speech) setupMic();
+  if (RP.result) showRpResult(RP.result);
+};
+function drawChat(){
+  const c=$('#chat'); if(!c) return;
+  c.innerHTML = RP.log.map(m=>`<div class="msg ${m.role==='assistant'?'c':'s'}"><span class="who">${m.role==='assistant'?'お客様（AI）':'営業（あなた）'}</span>${esc(m.content)}</div>`).join('');
+  c.scrollTop=c.scrollHeight;
+}
+function rpSystem(){
+  return `${COMPANY}
+今からあなたは「お客様役」です。営業の練習相手として、リアルで少し手強いお客様を演じてください。
+設定：${RP.ctx}
+あなたの主な断り文句：「${RP.opening}」（分類：${RP.category}）
+追撃に使える疑問：${RP.followups.join('／')||'根拠・実績・費用対効果・社内決裁'}
+ルール：1回の発言は40〜120字の話し言葉。営業の回答が数字だけ・根拠が曖昧・押し売りなら追撃する。実績→技術的根拠→無料診断の順で筋の通った説明を受けたら、少しずつ態度を軟化させる。お客様として以外の発言（解説や採点）はしない。`;
+}
+async function rpSend(){
+  const v=$('#rpIn').value.trim(); if(!v) return;
+  RP.log.push({role:'user',content:v}); $('#rpIn').value=''; drawChat();
+  $('#send').disabled=true;
+  try{
+    const messages=[{role:'user',content:'（商談の場面です。お客様として最初の発言をしてください）'},...RP.log];
+    const reply=await callAI({ system:rpSystem(), messages, max_tokens:600 });
+    RP.log.push({role:'assistant',content:reply.trim()}); drawChat();
+  }catch(e){ alert('AIが応答できませんでした：'+e.message); RP.log.pop(); }
+  finally{ $('#send').disabled=false; }
+}
+async function rpGrade(){
+  if (RP.log.filter(m=>m.role==='user').length<1) return alert('まず1回以上回答してください。');
+  const convo = RP.log.map(m=>(m.role==='assistant'?'お客様：':'営業：')+m.content).join('\n');
+  const prompt = `以下は断り文句「${RP.opening}」（${RP.category}）へのロープレです。営業の対応を採点してください。
+評価観点：共感と受け止め／根拠の順序（実績→技術的根拠→無料診断）／経営・キャッシュフロー視点への転換／次の一歩（無料診断・現調・意思決定者同席）の提案／押し売りになっていないか。
+80点以上を合格。JSONのみで返す：
+{"score":0,"passed":false,"feedback":"一番直すべき点を1〜2文で具体的に","good":["良かった点"],"improve":["次に直す点"],"model_answer":"模範回答（話し言葉200字程度）"}
+${convo}`;
+  try{
+    loading(true,'採点しています');
+    const g=parseJSON(await callAI({ system:COMPANY, prompt, max_tokens:1500 }));
+    g.passed = (g.score||0)>=80;
+    RP.result=g;
+    await insert('r',{ rep:RP.rep||ME.name, rep_email:ME.email, session_id:RP.sessionId, category:RP.category, objection:RP.opening, score:g.score, passed:g.passed, feedback:g, log:RP.log });
+    showRpResult(g);
+  }catch(e){ alert('採点できませんでした：'+e.message); }
+  finally{ loading(false); }
+}
+function showRpResult(g){
+  $('#rpResult').innerHTML = `<div class="result-card">
+    <div class="row" style="justify-content:space-between"><div><span class="small muted">今回</span><div class="total" style="font-size:54px">${g.score}<small>点</small></div></div>
+    <span class="tag ${g.passed?'green':'red'}" style="font-size:16px;padding:4px 14px">${g.passed?'合格':'不合格（80点で合格）'}</span></div>
+    <p style="font-weight:700">${esc(g.feedback)}</p>
+    <div class="grid2"><div><h3>良かった点</h3><ul>${(g.good||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><h3>次に直す点</h3><ul>${(g.improve||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>
+    <div class="fix t"><b>模範回答</b>${esc(g.model_answer)}</div>
+    <div class="row">${g.passed?'':'<button class="btn red" id="retry">もう一度やる</button>'}<button class="btn" onclick="RP=null;go('roleplay')">別の断り文句で練習</button></div></div>`;
+  const r=$('#retry'); if(r) r.onclick=()=>{ RP.log=[{role:'assistant',content:RP.opening}]; RP.result=null; go('roleplay'); };
+}
+function myRpHistory(){
+  const rows = DATA.r.filter(r=>!ME.name||r.rep===ME.name).slice(0,15);
+  if(!rows.length) return '';
+  return `<div class="panel"><h2>あなたのロープレ履歴</h2><table><tr><th>日付</th><th>断り文句</th><th class="n">点数</th><th>判定</th></tr>${rows.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.category)}<div class="small muted">「${esc(r.objection)}」</div></td><td class="n">${r.score}</td><td><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span></td></tr>`).join('')}</table></div>`;
+}
+function setupMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; const rec=new SR(); rec.lang='ja-JP'; rec.interimResults=false; rec.continuous=true;
+  let on=false; const b=$('#mic');
+  rec.onresult=e=>{ for(let i=e.resultIndex;i<e.results.length;i++) if(e.results[i].isFinal) $('#rpIn').value+=e.results[i][0].transcript; };
+  rec.onend=()=>{ on=false; b.textContent='🎤 音声'; };
+  b.onclick=()=>{ if(on){ rec.stop(); } else { rec.start(); on=true; b.textContent='■ 停止'; } };
+}
+
+/* ============ ⑤ 商談前予測 ============ */
+VIEWS.predict = () => {
+  $('#main').innerHTML = `<h1>商談前予測</h1><p class="lead">過去の断り文句BANKから、今日の商談で出そうな断り文句と、商談前に潰すべき項目を出します。</p>
+  <div class="panel"><div class="grid3">
+    <div><label class="f">顧客名</label><input type="text" id="pCust"></div>
+    <div><label class="f">顧客属性</label><select id="pInd">${opts(['EPC・施工会社','一般事業会社','個人投資家','発電事業者（SPC等）','不動産・金融','その他'])}</select></div>
+    <div><label class="f">商品</label><select id="pProd">${opts(PRODUCTS)}</select></div>
+    <div><label class="f">今日の商談段階</label><select id="pStage">${opts(STAGES,'無料診断')}</select></div>
+    <div style="grid-column:span 2"><label class="f">事前情報（任意）</label><input type="text" id="pMemo" placeholder="例：系統用蓄電池で借入あり、担当は課長、FIT残り9年"></div>
+  </div><div class="go-wrap"><button class="btn go" id="pRun">断り文句を予測する</button></div></div>
+  <div id="pOut"></div>`;
+  $('#pRun').onclick = async ()=>{
+    const m={cust:$('#pCust').value.trim(),ind:$('#pInd').value,prod:$('#pProd').value,stage:$('#pStage').value,memo:$('#pMemo').value.trim()};
+    const same = DATA.o.filter(o=>o.product===m.prod);
+    const stats = topCats(same).slice(0,10).map(c=>`${c.cat}：${c.count}回・失注率${c.lossRate??'-'}%・例「${c.list[0].quote}」・予防質問「${c.list[0].detail?.prevention_question||''}」`).join('\n') || '（まだデータなし。業界知識から予測）';
+    const prompt = `これから行う商談の「出そうな断り文句TOP5」と「商談前に潰すべき5項目」を作ってください。
+顧客：${m.cust||'未入力'}（${m.ind}）／商品：${m.prod}／段階：${m.stage}／事前情報：${m.memo||'なし'}
+【過去の断り文句BANK（同商品）】
+${stats}
+JSONのみ：{"top5":[{"objection":"","probability":"高|中|低","why":"この顧客で出そうな理由"}],"preempt":[{"item":"潰す項目","question":"商談前半で聞く質問","talk":"予防トーク"}],"opening":"冒頭2分で言うべき一言","dm_plan":"意思決定者に届かせる工夫"}`;
+    try{
+      loading(true,'過去データから予測しています');
+      const p=parseJSON(await callAI({system:COMPANY,prompt,max_tokens:2500}));
+      $('#pOut').innerHTML = `<div class="grid2">
+        <div class="panel"><h2>出そうな断り文句 TOP5</h2><ol style="padding-left:20px;margin:0">${(p.top5||[]).map(t=>`<li style="margin-bottom:10px"><b>${esc(t.objection)}</b> <span class="tag ${t.probability==='高'?'red':t.probability==='中'?'amber':''}">${esc(t.probability)}</span><div class="small muted">${esc(t.why)}</div></li>`).join('')}</ol></div>
+        <div class="panel"><h2>今日の商談前に潰すべき5項目</h2>${(p.preempt||[]).map(x=>`<div style="margin-bottom:12px"><b>${esc(x.item)}</b><div class="fix q" style="margin:4px 0"><b>聞く</b>${esc(x.question)}</div><div class="fix t" style="margin:0"><b>先に言う</b>${esc(x.talk)}</div></div>`).join('')}</div></div>
+        <div class="panel"><h3>冒頭2分</h3><p>${esc(p.opening)}</p><h3>意思決定者に届かせる工夫</h3><p style="margin:0">${esc(p.dm_plan)}</p>
+        <div class="row" style="margin-top:14px">${(p.top5||[]).slice(0,3).map(t=>`<button class="btn red sm" data-o="${esc(t.objection)}">▶「${esc(t.objection)}」を事前ロープレ</button>`).join('')}</div></div>`;
+      document.querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ RP={sessionId:null,category:'商談前予測',opening:b.dataset.o,followups:[],ctx:`${m.cust||'顧客'}（${m.ind}）。商品は${m.prod}。${m.memo}`,rep:ME.name,log:[{role:'assistant',content:b.dataset.o}],result:null}; go('roleplay'); });
+    }catch(e){ alert('予測できませんでした：'+e.message); }
+    finally{ loading(false); }
+  };
+};
+
+/* ============ ⑥ 転換率ダッシュボード ============ */
+function funnel(sessions){
+  const by={}; sessions.forEach(s=>{ const k=(s.customer||'').trim(); if(!k) return; by[k]=Math.max(by[k]??-1, STAGES.indexOf(s.stage)); });
+  const v=Object.values(by); const c=i=>v.filter(x=>x>=i).length;
+  return { diag:c(1), gen:c(2), gou:c(4), kei:c(5) };
+}
+function avgScores(sessions){
+  const r={}; SCORE_ITEMS.forEach(it=>{ const vals=sessions.map(s=>(s.analysis?.scores||[]).find(x=>x.item===it)?.score).filter(v=>v!=null); r[it]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null; });
+  return r;
+}
+function weakest(avg){ return Object.entries(avg).filter(([,v])=>v!=null).sort((a,b)=>a[1]-b[1])[0]?.[0]; }
+VIEWS.dash = () => {
+  const f = VIEWS.dash.f || { rep:'', prod:'', month:'' };
+  const reps=[...new Set(DATA.s.map(s=>s.rep).filter(Boolean))];
+  const months=[...new Set(DATA.s.map(s=>(s.created_at||'').slice(0,7)))].sort().reverse();
+  const S = DATA.s.filter(s=>(!f.rep||s.rep===f.rep)&&(!f.prod||s.product===f.prod)&&(!f.month||(s.created_at||'').startsWith(f.month)));
+  const fn = funnel(S); const r1=pct(fn.gen,fn.diag), r2=pct(fn.gou,fn.gen), r3=pct(fn.kei,fn.gou);
+  const rate = (v,t)=> v==null?'<b>-</b>':`<b class="${v>=t?'ok':'ng'}">${v}%</b> <span class="muted">目標${t}%</span>`;
+  const w = n => Math.max(8, fn.diag? n/fn.diag*100 : 0);
+  const repRows = reps.filter(r=>!f.rep||r===f.rep).map(rep=>{
+    const rs=S.filter(s=>s.rep===rep); const x=funnel(rs); const av=avgScores(rs); const wk=weakest(av);
+    const topObj=topCats(DATA.o.filter(o=>o.rep===rep&&rs.some(s=>s.id===o.session_id)))[0];
+    return { rep, n:rs.length, a:pct(x.gen,x.diag), b:pct(x.gou,x.gen), avg:rs.length?Math.round(rs.reduce((t,s)=>t+(s.total_score||0),0)/rs.length):null, wk, topObj:topObj?.cat };
+  });
+  $('#main').innerHTML = `${banner()}<h1>転換率ダッシュボード</h1><p class="lead">件数ではなく転換率を見ます。数字 → 原因 → 育成テーマまでつなげます。</p>
+  <div class="row" style="margin-bottom:14px">
+    <select id="dRep" style="width:auto"><option value="">全担当</option>${opts(reps,f.rep)}</select>
+    <select id="dProd" style="width:auto"><option value="">全商品</option>${opts(PRODUCTS,f.prod)}</select>
+    <select id="dMon" style="width:auto"><option value="">全期間</option>${opts(months,f.month)}</select>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h2>ファネル（顧客単位）</h2><div class="funnel">
+      <div class="fstep"><span>無料診断</span><div class="fbar" style="width:${w(fn.diag)}%">${fn.diag}</div></div>
+      <div class="frate">→ 現調 ${rate(r1,70)}</div>
+      <div class="fstep"><span>現調</span><div class="fbar" style="width:${w(fn.gen)}%">${fn.gen}</div></div>
+      <div class="frate">→ 合意書 ${rate(r2,30)}</div>
+      <div class="fstep"><span>合意書</span><div class="fbar" style="width:${w(fn.gou)}%">${fn.gou}</div></div>
+      <div class="frate">→ 契約 ${r3==null?'<b>-</b>':`<b>${r3}%</b>`}</div>
+      <div class="fstep"><span>契約</span><div class="fbar" style="width:${w(fn.kei)}%;background:var(--green)">${fn.kei}</div></div>
+    </div><p class="small muted" style="margin-bottom:0">同じ顧客の商談は、到達した最も先の段階で1件と数えます。</p></div>
+    <div class="panel"><h2>営業品質の平均（全10項目）</h2><div class="bars">${Object.entries(avgScores(S)).map(([k,v])=>`<div class="bar"><span class="lbl">${esc(k)}</span><div class="track"><div class="fill" style="width:${v||0}%;background:${v>=70?'var(--green)':v>=50?'var(--amber)':'var(--red)'}"></div></div><span class="v">${v??'-'}</span></div>`).join('')}</div></div>
+  </div>
+  <div class="panel"><h2>担当者別：数字 → 原因 → 育成テーマ</h2><div class="scroll"><table>
+    <tr><th>担当</th><th class="n">商談</th><th class="n">現調率</th><th class="n">合意書率</th><th class="n">平均点</th><th>ボトルネック</th><th>今週の重点練習</th></tr>
+    ${repRows.map(r=>`<tr><td><b>${esc(r.rep)}</b></td><td class="n">${r.n}</td><td class="n ${r.a!=null&&r.a<70?'ng':'ok'}">${r.a??'-'}%</td><td class="n ${r.b!=null&&r.b<30?'ng':'ok'}">${r.b??'-'}%</td><td class="n">${r.avg??'-'}</td><td>${esc(r.wk||'-')}${r.topObj?`<div class="small muted">頻出：${esc(r.topObj)}</div>`:''}</td><td class="small">${esc(THEME_BY_ITEM[r.wk]||'-')}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">データがありません</td></tr>'}
+  </table></div></div>`;
+  const upd=()=>{ VIEWS.dash.f={rep:$('#dRep').value,prod:$('#dProd').value,month:$('#dMon').value}; VIEWS.dash(); };
+  ['#dRep','#dProd','#dMon'].forEach(s=>$(s).onchange=upd);
+};
+
+/* ============ ⑦ 社長画面 ============ */
+function weekRange(offset=0){ const d=new Date(); const day=(d.getDay()+6)%7; const st=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day+offset*7); const en=new Date(st); en.setDate(st.getDate()+7); return [st,en]; }
+const inRange=(x,[a,b])=>{ const t=new Date(x.created_at); return t>=a&&t<b; };
+VIEWS.ceo = () => {
+  const wk=weekRange(0), pw=weekRange(-1);
+  const S=DATA.s.filter(s=>inRange(s,wk)), P=DATA.s.filter(s=>inRange(s,pw));
+  const O=DATA.o.filter(o=>S.some(s=>s.id===o.session_id));
+  const cats=topCats(O);
+  const lostCats=topCats(O.filter(o=>o.result==='失注'));
+  const reps=[...new Set(S.map(s=>s.rep))];
+  const avg=a=>a.length?a.reduce((t,s)=>t+(s.total_score||0),0)/a.length:null;
+  const improved=reps.map(r=>{ const now=avg(S.filter(s=>s.rep===r)), prev=avg(P.filter(s=>s.rep===r)); return {r,d:(now!=null&&prev!=null)?Math.round(now-prev):null,now:Math.round(now||0)}; }).filter(x=>x.d!=null).sort((a,b)=>b.d-a.d)[0];
+  const weak=weakest(avgScores(S));
+  const theme = lostCats[0]?.cat ? `「${lostCats[0].cat}」への予防トーク` : (weak?THEME_BY_ITEM[weak]:'');
+  const rpWeek=DATA.r.filter(r=>inRange(r,wk));
+  VIEWS.ceo.stats={S,cats,lostCats,improved,weak,theme,rpWeek,wk};
+  $('#main').innerHTML = `${banner()}<h1>今週の営業AIレポート</h1>
+  <p class="lead">${wk[0].toLocaleDateString('ja-JP')}〜　録画を見なくても、全社の営業課題がここで分かります。</p>
+  <div class="grid3" style="margin-bottom:18px">
+    <div class="stat"><div class="small muted">分析した商談</div><div class="n">${S.length}<span class="small">件</span></div></div>
+    <div class="stat"><div class="small muted">抽出した断り文句</div><div class="n">${O.length}<span class="small">件</span></div></div>
+    <div class="stat"><div class="small muted">ロープレ合格</div><div class="n">${rpWeek.filter(r=>r.passed).length}<span class="small">／${rpWeek.length}回</span></div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h2>頻出断り文句</h2><ol style="margin:0;padding-left:20px">${cats.slice(0,5).map(c=>`<li><a href="#" onclick="go('bank','${esc(c.cat)}');return false">${esc(c.cat)}</a> <span class="muted small">${c.count}回</span></li>`).join('')||'<li class="muted">今週はまだありません</li>'}</ol></div>
+    <div class="panel"><h2>最も失注につながった断り文句</h2>${lostCats[0]?`<p style="font-size:20px;font-weight:900;margin:0">${esc(lostCats[0].cat)}</p><p class="small muted">失注商談で${lostCats[0].count}回。例「${esc(lostCats[0].list[0].quote)}」</p>`:'<p class="muted">今週の失注はありません</p>'}</div>
+    <div class="panel"><h2>最も改善した営業</h2>${improved?`<p style="font-size:20px;font-weight:900;margin:0">${esc(improved.r)}</p><p class="small muted">平均${improved.now}点（先週比 ${improved.d>=0?'+':''}${improved.d}点）</p>`:'<p class="muted">先週との比較データがまだありません</p>'}</div>
+    <div class="panel"><h2>全社員共通の弱点</h2>${weak?`<p style="font-size:20px;font-weight:900;margin:0">${esc(weak)}</p>`:'<p class="muted">-</p>'}<h3 style="margin-top:12px">来週全員でロープレすべきテーマ</h3><p style="margin:0"><span class="tag amber">${esc(theme||'-')}</span></p></div>
+  </div>
+  <div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">AI週次講評</h2><div class="row"><button class="btn go" id="ceoAi">AIに講評を書かせる</button><button class="btn" id="ceoCp" style="display:none">Chatwork用にコピー</button></div></div>
+  <div id="ceoText" class="onepager" style="margin-top:12px;display:none"></div></div>`;
+  $('#ceoAi').onclick=ceoReport;
+};
+async function ceoReport(){
+  const st=VIEWS.ceo.stats; if(!st.S.length) return alert('今週分析した商談がまだありません。');
+  const repLines=[...new Set(st.S.map(s=>s.rep))].map(r=>{ const rs=st.S.filter(s=>s.rep===r); return `${r}：${rs.length}件、平均${Math.round(rs.reduce((t,s)=>t+(s.total_score||0),0)/rs.length)}点、弱点${weakest(avgScores(rs))||'-'}、結果${rs.map(s=>s.result).join('/')}`; }).join('\n');
+  const prompt=`社長向けの今週の営業AIレポートを、Chatworkに貼る文章で作ってください。
+書式：HTMLタグ禁止。強調は【】、見出しは■、区切りは[hr]。先頭行だけ [info][title]今週の営業AIレポート[/title] とし、末尾を [/info] で閉じる。[title]は1回だけ。
+構成：■総括（3行）■数字 ■頻出断り文句と原因地点 ■最も失注につながった断り文句と全社の予防策 ■担当者別の一言（事実→不足→次週の行動） ■来週全員でやるロープレ（テーマ・回数・完了条件）。識学ベースで感情評価は入れない。
+【データ】商談${st.S.length}件
+頻出断り文句：${st.cats.slice(0,5).map(c=>`${c.cat}(${c.count})`).join('、')}
+失注につながった断り文句：${st.lostCats.slice(0,3).map(c=>`${c.cat}(${c.count})`).join('、')||'なし'}
+代表的な原因地点：${st.cats.slice(0,3).map(c=>c.list[0].detail?.cause_point).filter(Boolean).join('／')}
+担当者別：\n${repLines}
+全社共通の弱点：${st.weak}／提案テーマ：${st.theme}
+ロープレ：${st.rpWeek.length}回中${st.rpWeek.filter(r=>r.passed).length}回合格`;
+  try{
+    loading(true,'今週の講評を書いています');
+    const t=await callAI({system:COMPANY,prompt,max_tokens:2500});
+    $('#ceoText').style.display='block'; $('#ceoText').textContent=t.trim();
+    $('#ceoCp').style.display=''; $('#ceoCp').onclick=()=>copy(t.trim());
+  }catch(e){ alert('作成できませんでした：'+e.message); }
+  finally{ loading(false); }
+}
+
+/* ============ 起動 ============ */
+(async function boot(){
+  try{ if (window.EC?.guard) await EC.guard({ allow:['admin','manager','sales'] }); }catch(e){ console.warn(e); }
+  try{ sb = supabase.createClient(CFG.url, CFG.key); }catch(e){ console.warn(e); }
+  try{ const m = window.EC?.me ? await EC.me() : null; if (m){ ME.name=m.full_name||m.name||''; ME.email=m.email||''; } }catch(e){}
+  try{ if (window.EC?.mountBadge) EC.mountBadge(document.getElementById('badge')); }catch(e){}
+  await loadAll();
+  go('home');
+})();
+</script>
+</body>
+</html>
