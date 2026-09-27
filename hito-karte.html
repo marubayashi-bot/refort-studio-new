@@ -180,6 +180,53 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
 .bar i{display:block;height:100%;background:var(--sage)}
 .wrap-x{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
 
+/* charts */
+.viz{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.vcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.vcard.wide{grid-column:1/-1}
+.vcard h3{font-size:14.5px;margin-bottom:12px;display:flex;align-items:baseline;gap:8px}
+.vcard h3 small{font-weight:500;color:var(--muted);font-size:12px;font-family:"Noto Sans JP",sans-serif}
+.vcap{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+.nsrc{font-size:12px;color:var(--ink2);margin:12px 0 6px;font-weight:700}
+.nsrc:first-of-type{margin-top:0}
+.nrow{display:grid;grid-template-columns:130px minmax(0,1fr) 70px;gap:10px;align-items:center;margin-bottom:7px;font-size:13.5px}
+.nrow .nl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nbar{height:10px;background:#E7EBE5;border-radius:5px;overflow:hidden}
+.nbar i{display:block;height:100%;background:var(--fact);border-radius:5px}
+.nv{text-align:right;font-weight:700;color:var(--fact);white-space:nowrap}
+.nv small{font-weight:400;color:var(--muted);font-size:11px}
+.gscale{display:flex;gap:3px}
+.gscale span{flex:1;text-align:center;font-size:11.5px;border-radius:4px;background:#EEF1EC;color:#9AA3B2;line-height:20px}
+.gscale span.on{background:var(--fact);color:#fff;font-weight:700}
+.comp{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.clegend div{display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:5px}
+.clegend b{margin-left:auto;padding-left:10px}
+.swc{width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0}
+.stackrows{margin-top:14px}
+.srow{display:grid;grid-template-columns:150px minmax(0,1fr) 26px;gap:8px;align-items:center;font-size:12.5px;margin-bottom:6px}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#EEF1EC}
+.stack i{display:block;height:100%}
+.s-fact{background:var(--fact)} .s-statement{background:var(--stmt)}
+.s-interpretation{background:repeating-linear-gradient(45deg,#B08A3E 0 4px,#D2B477 4px 8px)}
+.tl{width:100%;height:auto;display:block}
+.tlwrap{overflow-x:auto}
+.tlwrap .tl{min-width:640px}
+.gscale span{white-space:nowrap;overflow:hidden}
+.tl text{font-family:"Noto Sans JP",sans-serif}
+.prog{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:10px}
+.prog .bar{flex:1;height:10px}
+.acts.chk{list-style:none;padding-left:0}
+.acts.chk li{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
+.acts.chk input{margin-top:6px}
+.acts .over{color:var(--alert);font-size:11.5px;margin-left:4px}
+.heat{border-collapse:collapse;font-size:12.5px;width:100%}
+.heat th{font-weight:500;color:var(--muted);padding:6px;text-align:center;white-space:nowrap}
+.heat th:first-child{text-align:left}
+.heat td{padding:3px}
+.heat td div{border-radius:5px;text-align:center;line-height:30px;font-weight:700;min-width:44px}
+.dgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;margin-top:16px}
+.dgrid .vcard.wide{grid-column:1/-1}
+
 /* modal & toast */
 .modal-bg{position:fixed;inset:0;background:rgba(30,41,64,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .modal{background:#fff;border-radius:12px;max-width:560px;width:100%;padding:22px;max-height:90vh;overflow:auto}
@@ -204,7 +251,10 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
   .viewas{overflow-x:auto;max-width:100%}
   .nav{white-space:nowrap;padding:6px 10px}
   .side .me{display:none}
-  .kgrid,.layers,.grid3,.kinds,.mgrid{grid-template-columns:1fr}
+  .kgrid,.layers,.grid3,.kinds,.mgrid,.viz,.dgrid{grid-template-columns:1fr}
+  .nrow{grid-template-columns:86px minmax(0,1fr) 50px}
+  .gscale span{font-size:10px}
+  .srow{grid-template-columns:96px minmax(0,1fr) 22px}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .prow{grid-template-columns:1fr 1fr}
   .prow.hd{display:none}
@@ -352,6 +402,8 @@ function makeDemoDB(){
   st.meetings.push({id:uid(),person_id:y.id,held_on:addDays(today(),-40),interviewer_email:'kacho@demo',focus:'',questions:[{q:'今期いちばん手応えがあった商談は？',basis:'',aim:'',answer:'越谷の高圧案件。現調前に資料を送ったのが効いた'}],try_actions:[],wish:'後輩の同行を増やしたい',next_actions:[{what:'週次で商談予定を共有する',who:'本人',due:addDays(today(),-26),done:false}],themes:['報連相','部下育成'],next_on:addDays(today(),5)});
   st.meetings.push({id:uid(),person_id:t.id,held_on:addDays(today(),-20),interviewer_email:'kacho@demo',questions:[],wish:'',next_actions:[],themes:['報連相','顧客折衝'],next_on:null});
   st.meetings.push({id:uid(),person_id:i.id,held_on:addDays(today(),-70),interviewer_email:'kacho@demo',questions:[],wish:'',next_actions:[],themes:['報連相','数値管理'],next_on:null});
+  [[y,-100,['顧客折衝','報連相']],[t,-75,['顧客折衝']],[i,-12,['顧客折衝','計画・段取り']],[t,-140,['計画・段取り']],[i,-160,['報連相']]].forEach(([pp,d,th])=>st.meetings.push({id:uid(),person_id:pp.id,held_on:addDays(today(),d),interviewer_email:'kacho@demo',questions:[],wish:'',next_actions:[],themes:th,next_on:null}));
+  st.meetings[0].next_actions.push({what:'後輩と同行する商談を1件決める',who:'上司',due:addDays(today(),10),done:false},{what:'現調前の資料送付をチームに共有',who:'本人',due:addDays(today(),-30),done:true});
   st.corrections.push({id:uid(),person_id:y.id,item_id:null,item_label:'処理速度',body:'受検時は体調が悪く、再受検を希望します',requester_email:'yamamoto@demo',status:'open',created_at:new Date().toISOString()});
   const C = o => JSON.parse(JSON.stringify(o));
   const vis = (it,r) => r==='hr' || (it.status==='active' && ((r==='manager'&&it.visible_to_manager)||(r==='self'&&it.visible_to_self)));
@@ -670,6 +722,108 @@ async function savePerson(btn,pid){
 /* =========================================================
    個人カルテ
    ========================================================= */
+/* =========================================================
+   図解ヘルパー（SVG・外部ライブラリなし）
+   ========================================================= */
+const LCOL = { fact:'#2F5E8E', statement:'#2F6B55', interpretation:'#B08A3E' };
+function parseScore(v){
+  const s = String(v||'').normalize('NFKC').trim();
+  let m = s.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+  if(m) return { type:'num', n:+m[1], max:+m[2] };
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*(%|点|pt)?$/i);
+  if(m){ const n=+m[1]; const max = m[2]==='%' ? 100 : n<=5 ? 5 : n<=10 ? 10 : n<=100 ? 100 : Math.ceil(n/100)*100; return { type:'num', n, max }; }
+  m = s.match(/^([SABCDE])[+\-]?$/i);
+  if(m) return { type:'grade', g:m[1].toUpperCase() };
+  const lv = ['低','やや低','中','やや高','高'];
+  if(lv.includes(s)) return { type:'level', g:s, lv };
+  return null;
+}
+function scoreRow(it){
+  const sc = parseScore(it.value);
+  if(!sc) return '';
+  let viz, val;
+  if(sc.type==='num'){ const w=Math.max(0,Math.min(100,sc.n/sc.max*100)); viz=`<div class="nbar"><i style="width:${w}%"></i></div>`; val=`${esc(it.value.replace(/\s*\/.*$/,''))}<small>/${sc.max}</small>`; }
+  else if(sc.type==='grade'){ const gs=(sc.g==='S'?['S']:[]).concat(['A','B','C','D','E']); viz=`<div class="gscale">${gs.map(g=>`<span class="${g===sc.g?'on':''}">${g}</span>`).join('')}</div>`; val=esc(it.value); }
+  else { viz=`<div class="gscale">${sc.lv.map(g=>`<span class="${g===sc.g?'on':''}">${g}</span>`).join('')}</div>`; val=esc(it.value); }
+  return `<div class="nrow" title="${esc((it.summary||'')+'　'+(KINDS[it.source_kind]?.short||'')+' '+(it.diagnosed_on||''))}"><span class="nl">${esc(it.label)}</span>${viz}<span class="nv">${val}</span></div>`;
+}
+function numericProfileHTML(items){
+  const facts = items.filter(i=>i.layer==='fact' && i.status!=='hidden' && parseScore(i.value));
+  if(!facts.length) return '';
+  const groups = {};
+  facts.forEach(i=>{ const k=`${KINDS[i.source_kind]?.short||'資料'}${i.diagnosed_on?'（'+i.diagnosed_on+'）':''}`; (groups[k] ||= []).push(i); });
+  return `<div class="vcard"><h3>数値プロフィール<small>資料に記載された数値・評価</small></h3>
+    ${Object.entries(groups).map(([k,xs])=>`<p class="nsrc">${esc(k)}</p>${xs.map(scoreRow).join('')}`).join('')}
+    <p class="vcap">目盛りは資料ごとに異なります。ほかの人や別の資料の数値とは並べて比べないでください。</p></div>`;
+}
+function donutSVG(segs, size=132, th=20, unit='件'){
+  const tot = segs.reduce((a,s)=>a+s.v,0);
+  const r=(size-th)/2, C=2*Math.PI*r, c=size/2; let off=0;
+  const arcs = tot ? segs.filter(s=>s.v>0).map(s=>{ const len=s.v/tot*C; const el=`<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${s.c}" stroke-width="${th}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${c} ${c})"/>`; off+=len; return el; }).join('') : `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#EEF1EC" stroke-width="${th}"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${segs.map(s=>s.l+' '+s.v+unit).join('、')}">${arcs}<text x="${c}" y="${c-6}" text-anchor="middle" font-size="24" font-weight="700" fill="#1E2940">${tot}</text><text x="${c}" y="${c+15}" text-anchor="middle" font-size="11" fill="#6B7488">${unit}</text></svg>`;
+}
+function compositionHTML(items){
+  const vis = items.filter(i=>i.status!=='hidden');
+  if(!vis.length) return '';
+  const cnt = k => vis.filter(i=>i.layer===k).length;
+  const segs = Object.keys(LAYERS).map(k=>({ l:LAYERS[k].label, v:cnt(k), c:LCOL[k], k }));
+  const cats = CATS.filter(c=>vis.some(i=>i.category===c));
+  const interpRate = Math.round(cnt('interpretation')/vis.length*100);
+  return `<div class="vcard"><h3>記載の内訳<small>何を根拠にしたカルテか</small></h3>
+    <div class="comp">${donutSVG(segs)}
+      <div class="clegend">${segs.map(s=>`<div><span class="swc s-${s.k}"></span>${s.l}<b>${s.v}</b></div>`).join('')}</div></div>
+    <div class="stackrows">${cats.map(c=>{ const xs=vis.filter(i=>i.category===c); return `<div class="srow"><span>${esc(c)}</span><div class="stack">${Object.keys(LAYERS).map(k=>{ const n=xs.filter(i=>i.layer===k).length; return n?`<i class="s-${k}" style="width:${n/xs.length*100}%" title="${LAYERS[k].label} ${n}件"></i>`:''; }).join('')}</div><span class="small muted">${xs.length}</span></div>`; }).join('')}</div>
+    <p class="vcap">${interpRate>=50?`記載の${interpRate}%が資料の解釈です。本人の実感と合っているか、1on1で確かめる余地が大きいカルテです。`:`数値と本人の発言・実績が中心のカルテです（解釈は${interpRate}%）。`}</p></div>`;
+}
+function timelineHTML(sources, items, meetings){
+  const ev = [];
+  const seen = new Set();
+  (sources.length ? sources.map(s=>({d:s.diagnosed_on||String(s.created_at||'').slice(0,10), k:s.kind})) : items.map(i=>({d:i.diagnosed_on, k:i.source_kind})))
+    .forEach(s=>{ if(!s.d) return; const key=s.k+s.d; if(seen.has(key)) return; seen.add(key); ev.push({d:s.d, t:'src', l:KINDS[s.k]?.short||'資料'}); });
+  meetings.forEach(m=>{ if(m.held_on) ev.push({d:m.held_on, t:'mtg', l:'1on1'}); });
+  const nextOn = meetings[0]?.next_on;
+  if(nextOn && nextOn>=today()) ev.push({d:nextOn, t:'plan', l:'次回予定'});
+  if(!ev.length) return '';
+  ev.sort((a,b)=>a.d.localeCompare(b.d));
+  const W=900, H=150, pad=60, y=78;
+  const t0 = new Date(ev[0].d).getTime(), tEnd = Math.max(new Date(ev[ev.length-1].d).getTime(), Date.now());
+  const span = Math.max(tEnd-t0, 864e5*30);
+  const X = d => pad + (new Date(d).getTime()-t0)/span*(W-pad*2);
+  const months = []; const m0=new Date(ev[0].d); m0.setDate(1);
+  for(let d=new Date(m0); d.getTime()<=t0+span; d.setMonth(d.getMonth()+1)){ if(d.getTime()>=t0-1) months.push(new Date(d)); }
+  const step = Math.ceil(months.length/8);
+  const tx = X(today());
+  const marks = ev.map((e,i)=>{
+    const x=X(e.d), up=i%2===0, ly=up?y-24:y+34;
+    const shape = e.t==='src' ? `<rect x="${x-6}" y="${y-6}" width="12" height="12" rx="2" fill="${LCOL.fact}"/>`
+      : e.t==='mtg' ? `<circle cx="${x}" cy="${y}" r="7" fill="${LCOL.statement}"/>`
+      : `<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="${LCOL.statement}" stroke-width="2" stroke-dasharray="3 2"/>`;
+    return `<line x1="${x}" x2="${x}" y1="${up?y-16:y+8}" y2="${up?y-8:y+20}" stroke="#C9D1C7"/>${shape}<text x="${x}" y="${ly}" text-anchor="middle" font-size="12" fill="#1E2940">${esc(e.l)}</text><text x="${x}" y="${ly+(up?-14:14)}" text-anchor="middle" font-size="10.5" fill="#6B7488">${esc(e.d.slice(5).replace('-','/'))}</text>`;
+  }).join('');
+  return `<div class="vcard wide"><h3>経過タイムライン<small>資料の診断日・1on1・次回予定</small></h3>
+    <div class="tlwrap"><svg class="tl" viewBox="0 0 ${W} ${H}" role="img" aria-label="経過タイムライン">
+      <line x1="${pad}" x2="${W-pad}" y1="${y}" y2="${y}" stroke="#C9D1C7" stroke-width="2"/>
+      ${months.filter((_,i)=>i%step===0).map(d=>{ const x=X(`${d.getFullYear()}-${z2(d.getMonth()+1)}-01`); return `<text x="${x}" y="${H-4}" text-anchor="middle" font-size="10.5" fill="#9AA3B2">${d.getFullYear()%100}/${d.getMonth()+1}</text><line x1="${x}" x2="${x}" y1="${H-18}" y2="${H-14}" stroke="#C9D1C7"/>`; }).join('')}
+      <line x1="${tx}" x2="${tx}" y1="${y-44}" y2="${y+44}" stroke="#A33B2B" stroke-dasharray="3 3"/><text x="${tx}" y="${y-48}" text-anchor="middle" font-size="10.5" fill="#A33B2B">今日</text>
+      ${marks}
+    </svg></div>
+    <div class="row small muted" style="gap:16px"><span class="row" style="gap:6px"><span class="swc s-fact"></span>資料</span><span class="row" style="gap:6px"><span class="swc" style="background:${LCOL.statement};border-radius:50%"></span>1on1</span><span class="row" style="gap:6px"><span class="swc" style="border:2px dashed ${LCOL.statement};border-radius:50%"></span>次回予定</span></div></div>`;
+}
+function actionProgressHTML(meetings, canCheck){
+  const all = []; meetings.forEach(m=>(m.next_actions||[]).forEach((a,i)=>all.push({...a, mid:m.id, i, held:m.held_on})));
+  if(!all.length) return '';
+  const done = all.filter(a=>a.done).length;
+  const open = all.filter(a=>!a.done);
+  return `<div class="vcard wide"><h3>次の行動の進み具合<small>1on1で決めたこと</small></h3>
+    <div class="prog"><div class="bar"><i style="width:${done/all.length*100}%"></i></div><b>${done}/${all.length}</b>完了</div>
+    ${open.length?`<ul class="acts chk">${open.slice(0,6).map(a=>`<li>${canCheck?`<input type="checkbox" aria-label="完了にする" onchange="toggleAction('${a.mid}',${a.i})">`:'<span>・</span>'}<span>${esc(a.what)}<span class="small muted">（${esc(a.who||'')}${a.due?'・'+esc(a.due):''}）</span>${a.due&&a.due<today()?'<span class="over">期限超過</span>':''}</span></li>`).join('')}</ul>`:'<p class="small muted">決めた行動はすべて完了しています。</p>'}</div>`;
+}
+async function toggleAction(mid, idx){
+  const m = (window._meetings||[]).find(x=>x.id===mid); if(!m) return;
+  const acts = (m.next_actions||[]).map((a,i)=> i===idx ? {...a, done:!a.done} : a);
+  try{ await DB.saveMeeting({ id:mid, next_actions:acts }); await DB.log('toggle_action','meeting',mid); toast('完了にしました'); viewKarte(); }catch(e){ toast(e.message,true); }
+}
+
 async function viewKarte(){
   const p = S.people.find(x=>x.id===S.pid);
   if(!p) { $('#main').innerHTML='<div class="empty">この社員のカルテを見る権限がありません。</div>'; return; }
@@ -700,6 +854,8 @@ async function viewKarte(){
   const byCat = c => vis.filter(i=>i.category===c);
   const others = vis.filter(i=>!KARTE_MAIN.includes(i.category));
   const lastM = meetings[0];
+  window._meetings = meetings;
+  const vizHTML = [numericProfileHTML(vis), compositionHTML(vis), actionProgressHTML(meetings, rel==='hr'||rel==='manager'), timelineHTML(rel==='hr'?sources:[], vis, meetings)].filter(Boolean);
   $('#main').innerHTML = `
     <div class="kh">
       <div>
@@ -721,7 +877,9 @@ async function viewKarte(){
     ${rel==='self'?`<div class="notice info" style="margin-top:16px">あなたについて確認済みの内容です。事実と違う点や古い情報があれば「訂正を依頼」から知らせてください。</div>`:''}
     ${rel==='manager'?`<div class="notice info" style="margin-top:16px">資料の解釈は確定した評価ではありません。1on1で本人に確かめる材料として使ってください。</div>`:''}
     <div class="legend">${Object.entries(LAYERS).map(([k,v])=>`<span><i class="sw ${k}"></i>${v.label}</span>`).join('')}</div>
+    ${vizHTML.length?`<div class="viz">${vizHTML.join('')}</div>`:''}
     ${vis.length ? `
+    <div class="sec-title"><h2>カルテの記載</h2></div>
     <div class="kgrid">${KARTE_MAIN.map(c=>`<section class="kblock"><h3>${c}<span class="n">${byCat(c).length}件</span></h3>${byCat(c).map(itemHTML).join('')||'<p class="small muted">記載はまだありません</p>'}</section>`).join('')}</div>
     ${others.length?`<div class="sec-title"><h2>そのほかの記載</h2></div>
     <div class="layers">${Object.entries(LAYERS).map(([k,v])=>{ const xs=others.filter(i=>i.layer===k); return `<div><h3>${v.label}</h3>${xs.map(i=>itemHTML(i).replace('<div><span class="lb">',`<div><span class="tag" style="margin-right:6px">${esc(i.category)}</span><span class="lb">`)).join('')||'<p class="small muted">なし</p>'}</div>`; }).join('')}</div>`:''}
@@ -1158,6 +1316,29 @@ async function viewDashboard(){
       <td>${topTh.map(([t,n])=>`<span class="tag sage">${esc(t)} ${n}</span>`).join(' ')||'<span class="small muted">集計対象なし</span>'}</td>
       <td>${topW.map(([t,n])=>`<span class="tag">${esc(t)} ${n}</span>`).join(' ')||'<span class="small muted">—</span>'}</td></tr>`;
   }).join('');
+  // 月別の1on1実施（直近6か月）
+  const months = []; { const d=new Date(); d.setDate(1); for(let i=5;i>=0;i--){ const x=new Date(d); x.setMonth(d.getMonth()-i); months.push(`${x.getFullYear()}-${z2(x.getMonth()+1)}`); } }
+  const byMonth = months.map(mk=>{ const ms=mtgs.filter(m=>ids.has(m.person_id)&&String(m.held_on).startsWith(mk)); return { mk, n:ms.length, ppl:new Set(ms.map(m=>m.person_id)).size }; });
+  const maxM = Math.max(1,...byMonth.map(x=>x.n));
+  const mW=560, mH=190, bw=46, gap=(mW-60-bw*6)/5;
+  const monthSVG = `<svg class="tl" viewBox="0 0 ${mW} ${mH}" role="img" aria-label="月別の1on1実施件数">
+    ${[0,0.5,1].map(f=>{ const yy=150-f*120; return `<line x1="30" x2="${mW-10}" y1="${yy}" y2="${yy}" stroke="#E4E9E2"/><text x="24" y="${yy+4}" text-anchor="end" font-size="10.5" fill="#9AA3B2">${Math.round(maxM*f)}</text>`; }).join('')}
+    ${byMonth.map((x,i)=>{ const bx=40+i*(bw+gap), bh=x.n/maxM*120; return `<rect x="${bx}" y="${150-bh}" width="${bw}" height="${bh}" rx="4" fill="${LCOL.statement}"><title>${x.mk}　${x.n}件（${x.ppl}人）</title></rect>${x.n?`<text x="${bx+bw/2}" y="${144-bh}" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2940">${x.n}</text>`:''}<text x="${bx+bw/2}" y="170" text-anchor="middle" font-size="11.5" fill="#46506A">${Number(x.mk.slice(5))}月</text>`; }).join('')}
+  </svg>`;
+  // 資料登録の状況
+  const kindCount = {}; meta.forEach(s=>{ (kindCount[s.person_id] ||= new Set()).add(s.kind); });
+  const full = people.filter(p=>(kindCount[p.id]||new Set()).size===3).length;
+  const part = people.filter(p=>{ const n=(kindCount[p.id]||new Set()).size; return n>0&&n<3; }).length;
+  const none = people.length-full-part;
+  const docSegs = [{l:'3種そろっている',v:full,c:LCOL.fact,k:'fact'},{l:'一部だけ',v:part,c:'#8FB0D3',k:'p'},{l:'未登録',v:none,c:'#DDE3DC',k:'n'}];
+  // 部署×育成テーマ
+  const heatDepts = Object.entries(depts).filter(([,ps])=>ps.length>=MIN);
+  const heatData = heatDepts.map(([d,ps])=>{ const s=new Set(ps.map(p=>p.id)); const c={}; mtgs.filter(m=>s.has(m.person_id)&&daysSince(m.held_on)<=180).forEach(m=>(m.themes||[]).forEach(t=>c[t]=(c[t]||0)+1)); return [d,c]; });
+  const heatMax = Math.max(1,...heatData.flatMap(([,c])=>Object.values(c)));
+  const heatHTML = heatDepts.length ? `<div class="wrap-x" style="border:0"><table class="heat"><thead><tr><th>部署</th>${THEMES.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>
+    ${heatData.map(([d,c])=>`<tr><th>${esc(d)}</th>${THEMES.map(t=>{ const n=c[t]||0; const show=n>=MIN; const a=show?0.15+0.85*n/heatMax:0; return `<td><div style="background:${show?`rgba(47,107,85,${a.toFixed(2)})`:'#F4F6F3'};color:${a>0.55?'#fff':show?'#1E2940':'#B6BEB4'}" title="${show?n+'件':MIN+'件未満は非表示'}">${show?n:'·'}</div></td>`; }).join('')}</tr>`).join('')}
+    </tbody></table></div><p class="vcap">色が濃いほど、その部署の1on1で多く挙がったテーマです（直近180日）。${MIN}件未満のマスは「·」で表示しています。</p>`
+    : `<p class="small muted">${MIN}人以上の部署ができると表示されます。</p>`;
   const thSorted = Object.entries(themeAll).filter(([,n])=>n>=MIN).sort((a,b)=>b[1]-a[1]);
   const maxT = Math.max(1,...thSorted.map(x=>x[1]));
   $('#main').innerHTML = `
@@ -1168,6 +1349,12 @@ async function viewDashboard(){
       <div class="kpi"><b>${rate}%</b><span>1on1実施率（直近90日）</span></div>
       <div class="kpi"><b>${corr.filter(c=>c.status==='open').length}</b><span>対応待ちの訂正依頼</span></div>
     </div>
+    <div class="dgrid">
+      <div class="vcard"><h3>1on1の実施件数<small>直近6か月・全社</small></h3>${monthSVG}</div>
+      <div class="vcard"><h3>資料の登録状況<small>マルコポーロ・ミルメ・トリセツ</small></h3><div class="comp">${donutSVG(docSegs,132,20,'人')}<div class="clegend">${docSegs.map(s=>`<div><span class="swc" style="background:${s.c}"></span>${s.l}<b>${s.v}人</b></div>`).join('')}</div></div></div>
+      <div class="vcard wide"><h3>部署別の育成テーマ<small>どの部署で何が課題になっているか</small></h3>${heatHTML}</div>
+    </div>
+    <div class="sec-title"><h2>部署別の状況</h2></div>
     <div class="wrap-x"><table class="dtbl"><thead><tr><th>部署</th><th>人数</th><th>1on1実施（90日）</th><th>資料登録</th><th>主な育成テーマ（180日）</th><th>希望職種</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="muted">社員が登録されていません</td></tr>'}</tbody></table></div>
     <div class="sec-title"><h2>全社の育成テーマ（直近180日の1on1）</h2></div>
     <div class="panel">${thSorted.length?thSorted.map(([t,n])=>`<div class="row" style="margin-bottom:8px;flex-wrap:nowrap"><span style="width:120px" class="small">${esc(t)}</span><div class="bar" style="flex:1;height:12px"><i style="width:${n/maxT*100}%"></i></div><span class="small" style="width:40px;text-align:right">${n}</span></div>`).join(''):'<p class="small muted">表示できる件数に達したテーマはまだありません。</p>'}</div>`;
