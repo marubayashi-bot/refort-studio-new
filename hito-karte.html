@@ -1173,7 +1173,7 @@ function compositionHTML(items){
     <div class="comp">${donutSVG(segs)}
       <div class="clegend">${segs.map(s=>`<div><span class="swc s-${s.k}"></span>${s.l}<b>${s.v}</b></div>`).join('')}</div></div>
     <div class="stackrows">${cats.map(c=>{ const xs=vis.filter(i=>i.category===c); return `<div class="srow"><span>${esc(c)}</span><div class="stack">${Object.keys(LAYERS).map(k=>{ const n=xs.filter(i=>i.layer===k).length; return n?`<i class="s-${k}" style="width:${n/xs.length*100}%" title="${LAYERS[k].label} ${n}件"></i>`:''; }).join('')}</div><span class="small muted">${xs.length}</span></div>`; }).join('')}</div>
-    <p class="vcap">${interpRate>=50?`記載の${interpRate}%が資料の解釈です。本人の実感と合っているか、1on1で確かめる余地が大きいカルテです。`:`数値と本人の発言・実績が中心のカルテです（解釈は${interpRate}%）。`}</p></div>`;
+    <p class="vcap">${interpRate>=50?`記載の${interpRate}%が資料の解釈です。本人の実感と合っているか、1on1で確かめる余地が大きいカルテです。`:`${cnt('statement')?'数値と本人の発言・実績':'資料の数値'}が中心のカルテです（解釈は${interpRate}%）。${cnt('statement')?'':'本人の発言や実績はまだ記録されていません。1on1で聞いた内容を残すと、カルテの根拠が厚くなります。'}`}</p></div>`;
 }
 function timelineHTML(sources, items, meetings){
   const ev = [];
