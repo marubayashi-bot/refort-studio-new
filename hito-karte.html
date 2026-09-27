@@ -1120,8 +1120,10 @@ function parseScore(v){
   const s = String(v||'').normalize('NFKC').trim();
   let m = s.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
   if(m) return { type:'num', n:+m[1], max:+m[2] };
-  m = s.match(/^(-?\d+(?:\.\d+)?)\s*(%|点|pt)?$/i);
-  if(m){ const n=+m[1]; const max = m[2]==='%' ? 100 : n<=5 ? 5 : n<=10 ? 10 : n<=100 ? 100 : Math.ceil(n/100)*100; return { type:'num', n, max }; }
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*%$/);
+  if(m) return { type:'num', n:+m[1], max:100 };
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*(点|pt|件|回|秒|個)?$/i);
+  if(m) return { type:'raw', n:+m[1] };   // 満点が資料に書かれていない数値は、目盛りを推測しない
   m = s.match(/^([SABCDE])[+\-]?$/i);
   if(m) return { type:'grade', g:m[1].toUpperCase() };
   const lv = ['低','やや低','中','やや高','高'];
@@ -1133,18 +1135,26 @@ function scoreRow(it){
   if(!sc) return '';
   let viz, val;
   if(sc.type==='num'){ const w=Math.max(0,Math.min(100,sc.n/sc.max*100)); viz=`<div class="nbar"><i style="width:${w}%"></i></div>`; val=`${esc(it.value.replace(/\s*\/.*$/,''))}<small>/${sc.max}</small>`; }
+  else if(sc.type==='raw'){ viz='<span></span>'; val=esc(it.value); }
   else if(sc.type==='grade'){ const gs=(sc.g==='S'?['S']:[]).concat(['A','B','C','D','E']); viz=`<div class="gscale">${gs.map(g=>`<span class="${g===sc.g?'on':''}">${g}</span>`).join('')}</div>`; val=esc(it.value); }
   else { viz=`<div class="gscale">${sc.lv.map(g=>`<span class="${g===sc.g?'on':''}">${g}</span>`).join('')}</div>`; val=esc(it.value); }
-  return `<div class="nrow" title="${esc((it.summary||'')+'　'+(KINDS[it.source_kind]?.short||'')+' '+(it.diagnosed_on||''))}"><span class="nl">${esc(it.label)}</span>${viz}<span class="nv">${val}</span></div>`;
+  const lbl = cleanLabel(it);
+  return `<div class="nrow" title="${esc((it.summary||'')+'　'+(KINDS[it.source_kind]?.short||'')+' '+(it.diagnosed_on||''))}"><span class="nl">${esc(lbl)}</span>${viz}<span class="nv">${val}</span></div>`;
+}
+function cleanLabel(it){
+  const l = String(it.label||''), v = String(it.value||'').trim();
+  if(v && l.endsWith(v)) return l.slice(0, -v.length).trim() || l;
+  return l.replace(/[\s:：]*-?\d+(\.\d+)?%?$/,'').trim() || l;
 }
 function numericProfileHTML(items){
   const facts = items.filter(i=>i.layer==='fact' && i.status!=='hidden' && parseScore(i.value));
   if(!facts.length) return '';
   const groups = {};
   facts.forEach(i=>{ const k=`${KINDS[i.source_kind]?.short||'資料'}${i.diagnosed_on?'（'+i.diagnosed_on+'）':''}`; (groups[k] ||= []).push(i); });
+  const anyRaw = facts.some(i=>parseScore(i.value).type==='raw');
   return `<div class="vcard"><h3>数値プロフィール<small>資料に記載された数値・評価</small></h3>
     ${Object.entries(groups).map(([k,xs])=>`<p class="nsrc">${esc(k)}</p>${xs.map(scoreRow).join('')}`).join('')}
-    <p class="vcap">目盛りは資料ごとに異なります。ほかの人や別の資料の数値とは並べて比べないでください。</p></div>`;
+    <p class="vcap">目盛りは資料ごとに異なります。${anyRaw?'満点が資料に書かれていない数値は、バーを描かずに数値だけ表示しています。':''}ほかの人や別の資料の数値とは並べて比べないでください。</p></div>`;
 }
 function donutSVG(segs, size=132, th=20, unit='件'){
   const tot = segs.reduce((a,s)=>a+s.v,0);
@@ -1402,7 +1412,7 @@ function extractPrompt(kind, text){
 }
 function prepItems(items, kind){
   return (items||[]).map(x=>{
-    const it = { layer: LAYERS[x.layer]?x.layer:'interpretation', category: CATS.includes(x.category)?x.category:'その他', label:String(x.label||'').slice(0,40), value:x.value||'', original:x.original||'', summary:x.summary||'', page:x.page||'', sensitive:!!x.sensitive, needs_check: kind==='milme' ? true : !!x.needs_check, exclude:false };
+    const it = { layer: LAYERS[x.layer]?x.layer:'interpretation', category: CATS.includes(x.category)?x.category:'その他', label:cleanLabel({label:String(x.label||'').slice(0,40), value:x.value||''}), value:x.value||'', original:x.original||'', summary:x.summary||'', page:x.page||'', sensitive:!!x.sensitive, needs_check: kind==='milme' ? true : !!x.needs_check, exclude:false };
     applyVisibilityDefaults(it); return it;
   });
 }
