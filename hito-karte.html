@@ -297,7 +297,7 @@ function makeSupabaseDB(){
     async token(){ const s=await this.session(); return s?.access_token; },
     async login(){ await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href.split('#')[0], queryParams:{ hd: CONFIG.ALLOWED_DOMAIN } } }); },
     async logout(){ await sb.auth.signOut(); },
-    async hrLevel(email){ const d=ok(await t('hr_access').select('level').eq('email',email).maybeSingle()); return d?d.level:null; },
+    async hrLevel(email){ const {data,error}=await t('hr_access').select('level').ilike('email',email).limit(1); if(error){ console.warn('hr_access',error); return null; } return data&&data[0]?data[0].level:null; },
     async people(){ return ok(await t('hr_people').select('*').order('department').order('full_name')); },
     async savePerson(p){ const {id,...rest}=p; rest.updated_at=now(); return id ? ok(await t('hr_people').update(rest).eq('id',id).select().single()) : ok(await t('hr_people').insert(rest).select().single()); },
     async sources(pid){ return ok(await t('hr_sources').select('id,person_id,kind,file_name,file_path,diagnosed_on,created_by,created_at').eq('person_id',pid).order('created_at',{ascending:false})); },
@@ -515,7 +515,7 @@ function render(){
   const mine = S.people.find(p=>lower(p.self_email)===lower(S.me.email));
   const hasReports = S.people.some(p=>relOf(p)==='manager');
   const nav = [];
-  if(S.hr || hasReports) nav.push(['people', S.hr?'社員一覧':'メンバー']);
+  if(S.hr || hasReports || !mine) nav.push(['people', S.hr?'社員一覧':'メンバー']);
   if(mine) nav.push(['mine','自分のカルテ']);
   if(S.hr){ nav.push(['import','資料を登録'],['dashboard','全社ダッシュボード'],['corrections','訂正依頼'],['audit','閲覧・操作履歴']); }
   const cur = S.view==='karte' && mine && S.pid===mine.id ? 'mine' : (S.view==='karte'||S.view==='meeting' ? 'people' : S.view);
@@ -536,23 +536,34 @@ function render(){
 /* =========================================================
    社員一覧
    ========================================================= */
+let PL = { kinds:{}, last:{} };
 async function viewPeople(){
+  // 権限未設定（人事登録なし・担当メンバーなし）の場合は案内を出す
+  if(!S.hr && !S.people.length && !DEMO){ viewNoAccess(); return; }
   const [meta, mtgs] = await Promise.all([ S.hr?DB.sourceMeta():Promise.resolve([]), DB.allMeetings().catch(()=>[]) ]);
-  const last = {}; mtgs.forEach(m=>{ if(!last[m.person_id] || m.held_on>last[m.person_id]) last[m.person_id]=m.held_on; });
-  const kinds = {}; meta.forEach(s=>{ (kinds[s.person_id] ||= new Set()).add(s.kind); });
+  PL.last = {}; mtgs.forEach(m=>{ if(!PL.last[m.person_id] || m.held_on>PL.last[m.person_id]) PL.last[m.person_id]=m.held_on; });
+  PL.kinds = {}; meta.forEach(s=>{ (PL.kinds[s.person_id] ||= new Set()).add(s.kind); });
   const depts = [...new Set(S.people.map(p=>p.department).filter(Boolean))];
   const f = S.filter;
-  const list = S.people.filter(p=>relOf(p) && relOf(p)!=='self' || S.hr).filter(p=>(!f.dept||p.department===f.dept) && (!f.q || norm(p.full_name+p.employee_no).includes(norm(f.q))));
   $('#main').innerHTML = `
     <div class="pagehead"><div><h1>${S.hr?'社員一覧':'メンバー'}</h1><p class="sub">${S.hr?'資料の登録状況と1on1の実施状況':'直属のメンバーのカルテと1on1'}</p></div>
       <div class="actions">${S.hr?`<button class="btn" onclick="editPerson()">社員を追加</button><button class="btn pri" onclick="go('import')">資料を登録</button>`:''}</div></div>
     <div class="toolbar">
-      <input class="inp" placeholder="氏名・社員番号で探す" value="${esc(f.q)}" oninput="S.filter.q=this.value;clearTimeout(window._qt);window._qt=setTimeout(()=>{viewPeople().then(()=>{const i=document.querySelector('.toolbar .inp');i.focus();i.setSelectionRange(i.value.length,i.value.length)})},250)">
-      <select class="inp" style="max-width:200px" onchange="S.filter.dept=this.value;viewPeople()"><option value="">すべての部署</option>${depts.map(d=>`<option ${d===f.dept?'selected':''}>${esc(d)}</option>`).join('')}</select>
+      <input class="inp" id="pq" type="search" placeholder="氏名・社員番号で探す" value="${esc(f.q)}"
+        oncompositionstart="this._ime=true" oncompositionend="this._ime=false;S.filter.q=this.value;renderPeopleList()"
+        oninput="if(this._ime||event.isComposing)return;S.filter.q=this.value;renderPeopleList()">
+      <select class="inp" style="max-width:200px" onchange="S.filter.dept=this.value;renderPeopleList()"><option value="">すべての部署</option>${depts.map(d=>`<option ${d===f.dept?'selected':''}>${esc(d)}</option>`).join('')}</select>
     </div>
-    ${list.length ? `<div class="plist">
+    <div id="plist"></div>`;
+  renderPeopleList();
+}
+function renderPeopleList(){
+  const box = $('#plist'); if(!box) return;
+  const f = S.filter;
+  const list = S.people.filter(p=>S.hr || (relOf(p) && relOf(p)!=='self')).filter(p=>(!f.dept||p.department===f.dept) && (!f.q || norm(p.full_name+(p.employee_no||'')).includes(norm(f.q))));
+  box.innerHTML = list.length ? `<div class="plist">
       <div class="prow hd"><span>氏名</span><span>部署・役職</span><span>${S.hr?'登録資料':'関係'}</span><span>最終1on1</span><span></span></div>
-      ${list.map(p=>{ const k=kinds[p.id]||new Set(); const l=last[p.id]; const stale=daysSince(l)>90;
+      ${list.map(p=>{ const k=PL.kinds[p.id]||new Set(); const l=PL.last[p.id]; const stale=daysSince(l)>90;
         return `<div class="prow" onclick="go('karte','${p.id}')" tabindex="0" onkeydown="if(event.key==='Enter')go('karte','${p.id}')">
           <div class="nm"><b>${esc(p.full_name)}</b><span>${esc(p.employee_no||'社員番号なし')}</span></div>
           <div>${esc(p.department||'—')}${p.position?`<span class="muted small">　${esc(p.position)}</span>`:''}</div>
@@ -560,7 +571,20 @@ async function viewPeople(){
           <div class="small">${l?esc(l):'<span class="muted">未実施</span>'} ${l&&stale?'<span class="tag alert">90日超</span>':''}</div>
           <div style="text-align:right"><span class="btn sm">カルテ</span></div>
         </div>`; }).join('')}
-    </div>` : `<div class="empty">${S.people.length?'条件に合う社員がいません。':'まだ社員が登録されていません。'}${S.hr&&!S.people.length?'<br><button class="btn pri" onclick="go(\'import\')">最初の資料を登録する</button>':''}</div>`}`;
+    </div>` : `<div class="empty">${S.people.length?'条件に合う社員がいません。':'まだ社員が登録されていません。'}${S.hr&&!S.people.length?'<br><button class="btn pri" onclick="go(\'import\')">最初の資料を登録する</button>':''}</div>`;
+}
+function viewNoAccess(){
+  const email = S.me.email;
+  const sql = `insert into hr_access (email, level) values ('${email}', 'exec');`;
+  $('#main').innerHTML = `
+    <div class="pagehead"><div><h1>閲覧権限がまだ設定されていません</h1><p class="sub">ログイン中：${esc(email)}</p></div></div>
+    <div class="panel">
+      <p>このアカウントは、人事・経営層（hr_access）に登録されておらず、担当メンバーや本人のカルテもまだありません。そのため画面が空になっています。</p>
+      <p style="margin-top:12px"><b>人事・経営層として使う場合</b>：Supabase の SQL Editor で次の1行を実行し、このページを再読み込みしてください。</p>
+      <pre style="background:#F6F7F5;border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;font-size:13px;margin-top:8px">${esc(sql)}</pre>
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(sql))}).then(()=>toast('コピーしました'))">SQLをコピー</button><button class="btn sm pri" onclick="location.reload()">再読み込み</button></div>
+      <p class="small muted" style="margin-top:14px">上司・本人として使う場合は、人事担当に社員登録（本人・直属上司のメールアドレス）を依頼してください。</p>
+    </div>`;
 }
 
 function editPerson(pid){
