@@ -384,7 +384,7 @@ function makeDemoDB(){
 /* =========================================================
    AI呼び出し（Edge Function ai 経由。APIキーはサーバー側）
    ========================================================= */
-async function callAI({ system, prompt, documents, max_tokens=4000, timeoutSec=180 }){
+async function callAI({ system, prompt, documents, images, max_tokens=4000, timeoutSec=180 }){
   if(DEMO) return mockAI(system, prompt);
   const token = await DB.token();
   if(!token) throw new Error('ログインの有効期限が切れています。ページを再読み込みしてログインし直してください。');
@@ -395,7 +395,7 @@ async function callAI({ system, prompt, documents, max_tokens=4000, timeoutSec=1
     res = await fetch(CONFIG.AI_URL, {
       method:'POST', signal: ctl.signal,
       headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey':CONFIG.SUPABASE_KEY },
-      body: JSON.stringify({ system, prompt, max_tokens, documents }),
+      body: JSON.stringify({ system, prompt, max_tokens, ...(documents?{documents}:{}), ...(images?{images}:{}) }),
     });
     raw = await res.text();
   }catch(e){
@@ -420,7 +420,7 @@ async function callAI({ system, prompt, documents, max_tokens=4000, timeoutSec=1
 function parseJSON(text){
   const s = String(text).replace(/```json|```/g,'');
   const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if(a<0) { console.error('AI raw', text); throw new Error('AIの応答に読み取り結果が含まれていませんでした。資料の種類が合っているか確認して、もう一度お試しください。'); }
+  if(a<0) { console.error('AI raw', text); const sn=String(text||'').replace(/\s+/g,' ').trim().slice(0,160); throw new Error(sn ? `AIが読み取り結果の形式で答えませんでした。AIの返答：「${sn}」` : 'AIから空の返答が返りました。もう一度お試しください。'); }
   try { return JSON.parse(s.slice(a,b+1)); } catch(e){
     // 出力が途中で切れた場合：最後の完全な項目までで閉じる
     const body = s.slice(a); const cut = body.lastIndexOf('},');
@@ -446,6 +446,7 @@ const SYS_EXTRACT = `あなたは人事資料の整理担当です。[EXTRACT]
 - 将来の予測、職位や役割への適否の断定、人格を否定する表現、健康・家族・私生活に関する記述は sensitive=true。
 - category は次から選ぶ: ${CATS.join('、')}
 - 読み違いの可能性がある項目は needs_check=true。
+読み取れない場合や資料が見えない場合も、文章で説明せず {"items":[],"error":"理由"} の形で返す。
 出力はJSONのみ（前置き・コードブロック不要）:
 {"subject_name":"資料上の氏名。不明なら空","employee_no":"資料上の社員番号。不明なら空","diagnosed_on":"YYYY-MM-DD。不明なら空","items":[{"layer":"fact","category":"","label":"20字以内","value":"","original":"","summary":"","sensitive":false,"needs_check":false,"page":""}]}`;
 
@@ -485,6 +486,35 @@ function mockAI(system){
       res(JSON.stringify({ subject_name: IMP.demoName||'', employee_no:'', diagnosed_on: today(), items: base }));
     }
   }, 700));
+}
+
+/* ---------- PDF → ページ画像＋文字（どのEdge Function版でも読めるよう画像で渡す） ---------- */
+const PDFJS_VER = '3.11.174';
+const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}`;
+async function loadPdfJs(){
+  if(window.pdfjsLib) return window.pdfjsLib;
+  await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=`${PDFJS_BASE}/pdf.min.js`; s.onload=res; s.onerror=()=>rej(new Error('PDFを開く部品を読み込めませんでした。ネット接続を確認してください。')); document.head.appendChild(s); });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.js`;
+  return window.pdfjsLib;
+}
+async function pdfToInputs(file, maxPages=6){
+  const lib = await loadPdfJs();
+  let pdf;
+  try{ pdf = await lib.getDocument({ data: await file.arrayBuffer(), cMapUrl:`${PDFJS_BASE}/cmaps/`, cMapPacked:true }).promise; }
+  catch(e){ throw new Error('PDFを開けませんでした。パスワード付きや破損したPDFでないか確認してください。'); }
+  const used = Math.min(pdf.numPages, maxPages);
+  const images = []; let text = '';
+  for(let i=1;i<=used;i++){
+    const page = await pdf.getPage(i);
+    try{ const tc = await page.getTextContent(); text += `\n--- ${i}ページ ---\n` + tc.items.map(t=>t.str+(t.hasEOL?'\n':'')).join(''); }catch{}
+    const vp0 = page.getViewport({scale:1});
+    const vp = page.getViewport({ scale: Math.min(2.2, 1500/vp0.width) });
+    const c = document.createElement('canvas'); c.width=Math.floor(vp.width); c.height=Math.floor(vp.height);
+    const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+    await page.render({ canvasContext:ctx, viewport:vp }).promise;
+    images.push({ media_type:'image/jpeg', data: c.toDataURL('image/jpeg',0.85).split(',')[1] });
+  }
+  return { text:text.trim(), images, pages:pdf.numPages, used };
 }
 
 /* =========================================================
@@ -846,9 +876,13 @@ async function runImport(btn){
     IMP.queue=[]; IMP.qi=0; IMP.filePath=null;
     const isPdf = IMP.file && /\.pdf$/i.test(IMP.file.name);
     if(k!=='torisetsu' || isPdf){
-      const b64 = await fileToBase64(IMP.file);
       if(DEMO){ const pp=S.people.find(p=>p.id===IMP.presetPid); IMP.demoName = pp?pp.full_name:''; }
-      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt:extractPrompt(k,''), documents:[{ media_type:'application/pdf', data:b64 }], max_tokens:8000 }));
+      const pin = DEMO ? {text:'',images:[],pages:1,used:1} : await pdfToInputs(IMP.file);
+      const hasText = pin.text.replace(/\s|-|\d|ページ/g,'').length > 40;
+      const prompt = `${KIND_HINT[k]}\n\n資料はPDFをページ画像にして添付しています（全${pin.pages}ページ中${pin.used}ページ）。`
+        + (hasText ? `\n参考として、PDFから取り出した文字も付けます。画像と食い違う場合は画像を優先してください。\n<PDFの文字>\n${pin.text.slice(0,20000)}\n</PDFの文字>` : '');
+      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt, images:pin.images, max_tokens:8000 }));
+      if((!out.items || !out.items.length) && out.error) throw new Error('AIが読み取れませんでした：' + out.error);
       const m = IMP.presetPid ? {id:IMP.presetPid, how:'登録時に指定'} : matchPerson(out.subject_name, out.employee_no);
       IMP.queue.push({ subject_name:out.subject_name||'', employee_no:out.employee_no||'', diagnosed_on: IMP.diagnosed_on || out.diagnosed_on || '', personId:m.id, how:m.how, raw_text:'', items:prepItems(out.items,k), checked:false });
       IMP.step='review';
