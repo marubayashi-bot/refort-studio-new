@@ -282,6 +282,56 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
 .mpctl button{all:unset;cursor:pointer;border:1px solid var(--line2);border-radius:12px;padding:0 10px;line-height:22px;background:#fff}
 .mpctl button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 
+/* v2: 次の一手・育成行動・確認事項・照合 */
+.nextcard{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--sage);border-radius:var(--r);padding:18px 20px}
+.nc-title{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.nc-title h2{font-size:18px}
+.nc-title .btn{margin-left:auto}
+.nc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.nc{background:#F7F9F6;border-radius:8px;padding:10px 12px;min-width:0}
+.nc.wide2{grid-column:1/-1}
+.nc b{display:block;font-size:15px}
+.nc p{font-size:14px;margin-top:2px}
+.nc-l{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.nc-l small{margin-left:6px}
+.un{display:inline-block;font-size:13px;color:#8A93A5;border:1px dashed #C9D1C7;border-radius:6px;padding:0 8px;font-weight:500}
+.nc-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:12px;margin-top:12px}
+.nc-act,.nc-cp{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.nc-act ul,.nc-cp ul{margin:2px 0 0;padding-left:18px;font-size:14px}
+.nc-act li{margin-bottom:4px}
+.nc-act li span{display:block;font-size:12.5px;color:var(--ink2)}
+.nc-act li em{font-style:normal;color:var(--alert);font-weight:700}
+.act{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--fact);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.act.done{border-left-color:var(--sage)} .act.stopped{border-left-color:#B6BEB4} .act.over{border-left-color:var(--alert)}
+.act-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.act-h b{font-size:15px}
+.act-m{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;margin-top:6px;color:var(--ink2)}
+.act-m i,.act-r i{font-style:normal;color:var(--muted);margin-right:6px}
+.act-r{margin-top:8px;background:#F7F9F6;border-radius:6px;padding:8px 10px;font-size:13px}
+.act-hist{margin-top:6px;font-size:12.5px}
+.act-hist summary{cursor:pointer;color:var(--fact)}
+.act-hist ol{margin:4px 0 0;padding-left:20px}
+.grp-l{font-size:12.5px;color:var(--muted);margin:10px 0 6px;font-weight:700}
+.grp-d{margin-top:8px}
+.grp-d summary{cursor:pointer;font-size:13px;color:var(--fact);margin-bottom:8px}
+.cp{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px}
+.cp.agreed,.cp.differs,.cp.partly,.cp.dropped{background:#FAFBF9}
+.sub-l{font-size:11.5px;color:var(--interp);margin:10px 0 6px;font-weight:700;border-top:1px dashed #D9C7A0;padding-top:8px}
+.detail-h{margin-top:40px;padding-top:18px;border-top:2px solid var(--line)}
+.orig{background:#F6F7F5;padding:6px 10px;border-radius:6px;color:var(--ink2);white-space:pre-wrap;margin-top:4px}
+.step{display:flex;align-items:center;gap:10px;margin:26px 0 10px;flex-wrap:wrap}
+.step h2{font-size:17px}
+.stepn{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+.rvc{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.rvc.over{border-left:4px solid var(--alert)}
+.draft{background:#FBFCFA;border:1px solid var(--line2);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.kpi.warn b{color:var(--alert)}
+.modal.wide{max-width:1000px}
+.pv-body{max-height:75vh;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#F6F7F5}
+.plc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.plc .panel+.panel{margin-top:0}
+.mpsum{white-space:pre-wrap;font-size:12px;background:#F6F7F5;padding:8px;border-radius:6px}
+
 /* modal & toast */
 .modal-bg{position:fixed;inset:0;background:rgba(30,41,64,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .modal{background:#fff;border-radius:12px;max-width:560px;width:100%;padding:22px;max-height:90vh;overflow:auto}
@@ -296,7 +346,9 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
 .login .panel{max-width:420px;text-align:center}
 
 @media (max-width:900px){
-  .shell{grid-template-columns:1fr}
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .main{min-width:0}
+  .kh .row{justify-content:flex-start!important}
   .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top,0px));overflow-x:auto;z-index:20}
   .brand{border:0;padding:0 10px 0 4px;margin:0}
   .brand small{display:none}
@@ -306,7 +358,9 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
   .viewas{overflow-x:auto;max-width:100%}
   .nav{white-space:nowrap;padding:6px 10px}
   .side .me{display:none}
-  .kgrid,.layers,.grid3,.kinds,.mgrid,.viz,.dgrid,.soc,.wv-read{grid-template-columns:1fr}
+  .kgrid,.layers,.grid3,.kinds,.mgrid,.viz,.dgrid,.soc,.wv-read,.nc-row,.plc{grid-template-columns:1fr}
+  .nc-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .nc-title .btn{margin-left:auto}
   .wave{grid-template-columns:repeat(5,minmax(52px,1fr));overflow-x:auto}
   .cul{grid-template-columns:78px minmax(0,1fr) 78px}
   .nrow{grid-template-columns:86px minmax(0,1fr) 50px}
@@ -423,6 +477,10 @@ function makeSupabaseDB(){
     async log(action,target_type,target_id,detail){ try{ await t('hr_audit').insert({actor_email:S.me.email,action,target_type,target_id:String(target_id||''),detail:detail||null}); }catch(e){ console.warn('audit',e); } },
     async upload(path,file){ const {error}=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined}); if(error) throw new Error('原本の保存に失敗しました: '+error.message); return path; },
     async signedUrl(path){ const {data,error}=await sb.storage.from(CONFIG.BUCKET).createSignedUrl(path,300); if(error) throw new Error(error.message); return data.signedUrl; },
+    async list(tb, eq={}){ let q=t(tb).select('*'); for(const [k,v] of Object.entries(eq)) q=q.eq(k,v); return ok(await q); },
+    async insert(tb,row){ return ok(await t(tb).insert(row).select().single()); },
+    async update(tb,id,patch){ patch.updated_at=now(); return ok(await t(tb).update(patch).eq('id',id).select().single()); },
+    async remove(tb,id){ ok(await t(tb).delete().eq('id',id)); },
   };
 }
 
@@ -434,6 +492,48 @@ const DEMO_USERS = {
   manager: { email:'kacho@demo',  name:'営業課長（上司として表示）', hr:null },
   self:    { email:'yamamoto@demo', name:'山本 健太（本人として表示）', hr:null },
 };
+/* ---------- デモ用サンプル（架空の社員・架空の数値。実在社員の診断結果は含まない） ---------- */
+function seedDemoV2(st, uid){
+  const now = new Date().toISOString();
+  const P = n => st.people.find(p=>p.full_name===n);
+  const y=P('山本 健太'), t=P('高橋 さくら'), i=P('伊藤 大輔'), n=P('中村 翔'), s=P('佐々木 美咲'), k=P('小林 由衣');
+  Object.assign(y,{ current_job:'法人営業（FS）主任　高圧ReFort担当', experience:'法人営業6年。高圧ReFortの現調・提案、後輩2名の同行指導' });
+  Object.assign(t,{ current_job:'営業（IS）　見込み客の育成とアポ獲得', experience:'IS 2年。架電とオンライン面談' });
+  Object.assign(n,{ current_job:'O&M　点検・保守', experience:'電気工事士。低圧発電所の点検' });
+  const R=(p,period,body,d)=>st.hr_results.push({id:uid(),person_id:p.id,period,body,created_by:'kacho@demo',created_at:addDays(today(),d)+'T09:00:00Z',updated_at:now});
+  st.hr_results=[]; R(y,'18期2Q','高圧ReFortの現調5件、うち合意書2件。紹介経由の案件が増えた',-20); R(y,'18期1Q','現調4件、合意書1件',-110); R(t,'2026年9月','アポ獲得14件（前月9件）',-5);
+  const m0 = st.meetings.find(m=>m.person_id===y.id && m.next_actions && m.next_actions.length);
+  const A=(p,o)=>{ const a=Object.assign({id:uid(),person_id:p.id,meeting_id:m0&&p===y?m0.id:null,owner:'本人',status:'planned',history:[{date:addDays(today(),-40),event:'created',by:'kacho@demo'}],ai_suggested:false,created_by:'kacho@demo',created_at:now,updated_at:now},o); st.hr_actions.push(a); return a; };
+  st.hr_actions=[];
+  A(y,{ issue:'商談の予定が事後報告になり、上司が支援に入れない', action:'毎週月曜に今週の商談予定をチャットで共有する', owner:'本人', theme:'報連相', start_on:addDays(today(),-40), due_on:addDays(today(),-26), metric:'事前に共有された商談の割合', baseline:'直近1か月 2/9件（本人の記録）', status:'doing' });
+  A(y,{ issue:'後輩の商談経験が少なく、現調の進め方が身についていない', action:'後輩と同行する商談を1件決め、事前に役割分担を話す', owner:'上司', theme:'部下育成', start_on:addDays(today(),-40), due_on:addDays(today(),10), metric:'同行した商談の件数', baseline:'0件', status:'planned' });
+  A(y,{ issue:'現調後に合意書へ進まない案件がある', action:'現調前に概算効果の資料をお客様へ送る', owner:'本人', theme:'顧客折衝', start_on:addDays(today(),-100), due_on:addDays(today(),-45), metric:'現調→合意書の転換', baseline:'1/4件', status:'done', result:'2/5件に改善。お客様から「事前に数字が分かって話が早い」と言われた', helpful:'yes', decision:'end', decision_note:'チームの標準手順にするため終了', decided_on:addDays(today(),-40),
+    history:[{date:addDays(today(),-100),event:'created',by:'kacho@demo'},{date:addDays(today(),-40),event:'review',status:'done',result:'2/5件に改善',helpful:'yes',decision:'end',by:'kacho@demo'}] });
+  A(t,{ issue:'アポ後の引き継ぎ情報が少なく、FSが聞き直している', action:'引き継ぎシートに「決裁者・時期・懸念」の3項目を必ず書く', owner:'本人', theme:'チーム連携', start_on:addDays(today(),-20), due_on:addDays(today(),-2), metric:'FSからの聞き直し件数', baseline:'本人に確認', status:'done' });
+  A(i,{ issue:'月末に数字の見通しが立たない', action:'週次で商談フェーズを更新し、見込み額を出す', owner:'本人', theme:'数値管理', start_on:addDays(today(),-12), due_on:addDays(today(),18), metric:'週次更新の実施回数', baseline:'月1回', status:'doing' });
+  st.hr_confirm_points=[
+    {id:uid(),person_id:y.id,topic:'裁量の持たせ方',detail:'トリセツでは「任せると成果が出やすい」と記載。マルコポーロでは計画・緻密さが本人の中で低め。どこまで任せると動きやすいかを本人と確認する',origin:'conflict',refs:[{type:'source',label:'トリセツ'},{type:'source',label:'マルコポーロ'}],status:'open',created_by:'shacho@demo',created_at:now,updated_at:now},
+    {id:uid(),person_id:y.id,topic:'希望する役割',detail:'「法人営業のリーダー」と登録されているが、人を率いる役割と大口顧客を担当する役割のどちらを指すか未確認',origin:'manual',refs:[],status:'open',created_by:'kacho@demo',created_at:now,updated_at:now},
+  ];
+  const itInterp = st.items.find(x=>x.person_id===y.id && x.label==='指示の出し方');
+  if(itInterp) st.hr_confirm_points.push({id:uid(),person_id:y.id,topic:'指示・報告の工夫：指示の出し方',detail:itInterp.summary,origin:'interpretation',refs:[{type:'item',id:itInterp.id,label:'トリセツ 2026-05-01'}],status:'agreed',answer:'結論から言ってもらえると助かる。背景は後でチャットでよい',answered_on:addDays(today(),-40),created_by:'kacho@demo',created_at:now,updated_at:now});
+  // 照合待ちの読取値（中村さんのミルメ）
+  const src={id:uid(),person_id:n.id,kind:'milme',file_name:'milme_nakamura.pdf',file_path:null,diagnosed_on:addDays(today(),-15),created_by:'shacho@demo',created_at:now}; st.sources.push(src);
+  [['基礎点数','204','1ページ'],['応用点数平均','171','1ページ'],['基礎安定度','22.4','1ページ'],['FP率平均','1.2%','2ページ']].forEach(([l,v,pg])=>st.items.push({id:uid(),person_id:n.id,source_id:src.id,source_kind:'milme',source_name:src.file_name,diagnosed_on:src.diagnosed_on,layer:'fact',category:'処理能力',label:l,value:v,original:`${l} ${v}`,summary:`${l}の値は${v}`,page:pg,sensitive:false,needs_check:true,verify_status:'pending',status:'active',visible_to_manager:true,visible_to_self:true,created_at:now}));
+  st.hr_jobs=[]; DEFAULT_JOBS.forEach((j,x)=>st.hr_jobs.push({...JSON.parse(JSON.stringify(j)),id:uid(),sort:x,created_at:now,updated_at:now}));
+  st.hr_placement_reviews=[];
+  const role={id:uid(),name:'法人営業（FS）',active:true,created_at:now,updated_at:now,criteria:[
+    {label:'顧客との関係づくり',behavior:'初回接点から継続的な関係を築き、決裁者までつなぐ',questions:['初対面のお客様と、2回目の面談につなげた具体的な場面を教えてください','決裁者に会えなかった案件で、どう動きましたか']},
+    {label:'目標への粘り強さ',behavior:'未達の見通しでも手を打ち続け、結果を出す',questions:['目標に届きそうになかった月に、何を変えましたか。結果はどうでしたか']},
+    {label:'社内連携',behavior:'必要な情報を関係部署へ期限内に渡す',questions:['他部署と情報の行き違いが起きたとき、どう対応しましたか']}]};
+  st.hr_recruit_roles=[role];
+  const cand={id:uid(),role_id:role.id,full_name:'応募者A（サンプル）',stage:'一次面接',memo:'住宅設備の訪問販売 4年',created_at:now,updated_at:now}; st.hr_candidates=[cand];
+  st.hr_interviews=[{id:uid(),candidate_id:cand.id,round:'一次面接',held_on:addDays(today(),-3),interviewer_email:'kacho@demo',created_at:now,updated_at:now,overall:'関係づくりは具体例が豊富。社内連携は追加確認が必要',
+    answers:[{criterion:'顧客との関係づくり',question:role.criteria[0].questions[0],answer:'点検の後に手書きのお礼状と写真を送り、翌月の追加工事につなげた',evidence:'行動と結果を具体的に説明できた',rating:3,followup:''},
+      {criterion:'目標への粘り強さ',question:role.criteria[1].questions[0],answer:'既存客への紹介依頼を1日5件に増やし、最終週に達成',evidence:'打ち手と数字が一致している',rating:3,followup:'達成できなかった月の話も聞く'},
+      {criterion:'社内連携',question:role.criteria[2].questions[0],answer:'（具体例が出なかった）',evidence:'場面を特定できず',rating:0,followup:'二次面接で工事部門とのやり取りを確認'}]}];
+}
+
 function makeDemoDB(){
   const st = { people:[], sources:[], items:[], meetings:[], corrections:[], audit:[] };
   const P = (full_name,employee_no,department,position,self_email,manager_email,desired_role)=>{ const p={id:uid(),full_name,employee_no,department,position,self_email,manager_email,desired_role,created_at:new Date().toISOString()}; st.people.push(p); return p; };
@@ -464,8 +564,11 @@ function makeDemoDB(){
   st.meetings[0].next_actions.push({what:'後輩と同行する商談を1件決める',who:'上司',due:addDays(today(),10),done:false},{what:'現調前の資料送付をチームに共有',who:'本人',due:addDays(today(),-30),done:true});
   st.corrections.push({id:uid(),person_id:y.id,item_id:null,item_label:'処理速度',body:'受検時は体調が悪く、再受検を希望します',requester_email:'yamamoto@demo',status:'open',created_at:new Date().toISOString()});
   const C = o => JSON.parse(JSON.stringify(o));
-  const vis = (it,r) => r==='hr' || (it.status==='active' && ((r==='manager'&&it.visible_to_manager)||(r==='self'&&it.visible_to_self)));
+  const vis = (it,r) => r==='hr' || (it.status==='active' && (it.verify_status||'confirmed')==='confirmed' && ((r==='manager'&&it.visible_to_manager)||(r==='self'&&it.visible_to_self)));
   const rel = pid => relOf(st.people.find(p=>p.id===pid));
+  const TBK = { hr_actions:'person', hr_results:'person', hr_confirm_points:'mgr' };
+  const demoCan = (tb,row,write) => { const k=TBK[tb]; if(!k) return !!S.hr; const r=rel(row.person_id); if(k==='mgr'||write) return r==='hr'||r==='manager'; return !!r; };
+  seedDemoV2(st, uid);
   return {
     async session(){ return {access_token:'demo'}; }, async token(){ return 'demo'; },
     async logout(){ location.search=''; },
@@ -488,6 +591,10 @@ function makeDemoDB(){
     async log(action,target_type,target_id,detail){ st.audit.unshift({id:uid(),actor_email:S.me.email,action,target_type,target_id,detail,at:new Date().toISOString()}); },
     async upload(path){ return path; },
     async signedUrl(){ throw new Error('デモでは原本ファイルを保存していません'); },
+    async list(tb, eq={}){ const arr = tb==='hr_items' ? (S.hr?st.items:[]) : (st[tb]||[]).filter(r=>demoCan(tb,r)); return C(arr.filter(r=>Object.entries(eq).every(([k,v])=>r[k]===v))); },
+    async insert(tb,row){ if(!demoCan(tb,row,true)) throw new Error('この操作の権限がありません'); const n={...row,id:uid(),created_at:new Date().toISOString(),updated_at:new Date().toISOString()}; (st[tb] ||= []).push(n); return C(n); },
+    async update(tb,id,patch){ const arr = tb==='hr_items'?st.items:(st[tb]||[]); const x=arr.find(r=>r.id===id); if(!x) throw new Error('対象が見つかりません'); if(tb!=='hr_items'&&!demoCan(tb,x,true)) throw new Error('この操作の権限がありません'); Object.assign(x,patch,{updated_at:new Date().toISOString()}); return C(x); },
+    async remove(tb,id){ st[tb]=(st[tb]||[]).filter(r=>r.id!==id); },
   };
 }
 
@@ -556,6 +663,7 @@ const SYS_EXTRACT = `あなたは人事資料の整理担当です。[EXTRACT]
 - 将来の予測、職位や役割への適否の断定、人格を否定する表現、健康・家族・私生活に関する記述は sensitive=true。
 - category は次から選ぶ: ${CATS.join('、')}
 - 読み違いの可能性がある項目は needs_check=true。
+- page は該当箇所のページ番号を「1ページ」の形で書く（分かれば見出しも続ける）。
 読み取れない場合や資料が見えない場合も、文章で説明せず {"items":[],"error":"理由"} の形で返す。
 出力はJSONのみ（前置き・コードブロック不要）:
 {"subject_name":"資料上の氏名。不明なら空","employee_no":"資料上の社員番号。不明なら空","diagnosed_on":"YYYY-MM-DD。不明なら空","items":[{"layer":"fact","category":"","label":"20字以内","value":"","original":"","summary":"","sensitive":false,"needs_check":false,"page":""}]}`;
@@ -610,20 +718,25 @@ const SYS_MP = `あなたは人事資料の整理担当です。[EXTRACT][MARCOP
 "mental_flag":null},
 "items":[{"layer":"interpretation","category":"強み","label":"","value":"","original":"","summary":"","sensitive":false,"needs_check":false,"page":""}]}`;
 const DEMO_MP = {version:'簡易版',reliability:{inconsistency:'問題ナシ',falsehood:'少し注意',extremity:'問題ナシ'},
-  fit:{job:[{model:'営業・販促',shokushitsu:40,fudo:48,sogo:45},{model:'商品企画・開発',shokushitsu:42,fudo:62,sogo:53}],hp:[{model:'企画営業系幹部',shokushitsu:44,fudo:44,sogo:44}]},
-  big5:[{factor:'外向性',score:46,subs:[{name:'チーム志向',score:48},{name:'気さくさ',score:53},{name:'フットワーク',score:36}]},{factor:'協調性',score:46,subs:[{name:'協調優先',score:48},{name:'多様性への対応',score:49},{name:'説得・交渉',score:40}]},{factor:'良識性',score:55,subs:[{name:'役割意識',score:51},{name:'誠実',score:60},{name:'完遂',score:53}]},{factor:'情緒安定性',score:52,subs:[{name:'安定性',score:46},{name:'回復力',score:56},{name:'配慮',score:53}]},{factor:'知的好奇心',score:39,subs:[{name:'情報欲',score:48},{name:'緻密性',score:36},{name:'論理性',score:34}]}],
-  bbig5:[{factor:'変革・創造',score:39,subs:[{name:'オリジナリティ',score:33},{name:'事業創造',score:39},{name:'挑戦心',score:44}]},{factor:'異文化適応',score:41,subs:[{name:'交流欲',score:48},{name:'移動容易性',score:33},{name:'順応性',score:42}]},{factor:'ストレス適応',score:55,subs:[{name:'批判耐性',score:63},{name:'負荷耐性',score:47},{name:'要求・指示耐性',score:54}]},{factor:'自己実現',score:51,subs:[{name:'自己理解',score:45},{name:'向上心',score:58},{name:'ポジティブさ',score:50}]},{factor:'社会的成功',score:42,subs:[{name:'一流志向',score:41},{name:'経済的成功志向',score:45},{name:'評価志向',score:40}]}],
-  motives:[{name:'達成動機',score:72},{name:'権力動機',score:61},{name:'親和動機',score:57},{name:'回避動機',score:42}],
-  executive:[{name:'状況を打開する突破力をもった人財',score:58},{name:'事業を合理的に管理する人財',score:44},{name:'社員の活力とやる気を引き出す人財',score:63},{name:'強い責任感と使命感を持って取り組む人財',score:61}],
-  cautions:[{name:'思い込みの強さ・頑固',score:59},{name:'不用意さ',score:48},{name:'自意識過剰',score:44}],
-  culture:[{axis:'A',company:62,person:40},{axis:'B',company:70,person:65},{axis:'C',company:68,person:72},{axis:'E',company:66,person:38}],
+  fit:{job:[{model:'法人営業',shokushitsu:52,fudo:57,sogo:55},{model:'商品企画',shokushitsu:44,fudo:61,sogo:52}],hp:[{model:'営業リーダー',shokushitsu:49,fudo:50,sogo:49}]},
+  big5:[{factor:'外向性',score:58,subs:[{name:'チーム志向',score:55},{name:'気さくさ',score:66},{name:'フットワーク',score:61}]},{factor:'協調性',score:50,subs:[{name:'協調優先',score:47},{name:'多様性への対応',score:52},{name:'説得・交渉',score:57}]},{factor:'良識性',score:53,subs:[{name:'役割意識',score:56},{name:'誠実',score:59},{name:'完遂',score:45}]},{factor:'情緒安定性',score:51,subs:[{name:'安定性',score:49},{name:'回復力',score:58},{name:'配慮',score:47}]},{factor:'知的好奇心',score:42,subs:[{name:'情報欲',score:50},{name:'緻密性',score:38},{name:'論理性',score:41}]}],
+  bbig5:[{factor:'変革・創造',score:47,subs:[{name:'オリジナリティ',score:44},{name:'事業創造',score:46},{name:'挑戦心',score:54}]},{factor:'異文化適応',score:49,subs:[{name:'交流欲',score:57},{name:'移動容易性',score:43},{name:'順応性',score:48}]},{factor:'ストレス適応',score:55,subs:[{name:'批判耐性',score:60},{name:'負荷耐性',score:51},{name:'要求・指示耐性',score:53}]},{factor:'自己実現',score:54,subs:[{name:'自己理解',score:48},{name:'向上心',score:62},{name:'ポジティブさ',score:55}]},{factor:'社会的成功',score:50,subs:[{name:'一流志向',score:52},{name:'経済的成功志向',score:55},{name:'評価志向',score:46}]}],
+  motives:[{name:'達成動機',score:68},{name:'権力動機',score:55},{name:'親和動機',score:60},{name:'回避動機',score:39}],
+  executive:[{name:'状況を打開する突破力をもった人財',score:61},{name:'事業を合理的に管理する人財',score:42},{name:'社員の活力とやる気を引き出す人財',score:59},{name:'強い責任感と使命感を持って取り組む人財',score:56}],
+  cautions:[{name:'不用意さ',score:55},{name:'思い込みの強さ・頑固',score:50},{name:'気分や行動上のムラ',score:46}],
+  culture:[{axis:'A',company:60,person:42},{axis:'B',company:68,person:63},{axis:'C',company:66,person:71},{axis:'F',company:62,person:38}],
   roles:[{name:'経営人財',left:'リーダーシップ',right:'マネジメント',result:'リーダーシップ寄り'},{name:'最適役割',left:'プランニング系',right:'デリバリー系',result:'デリバリー系寄り'}],
   type16:{code:'ERFA'},
-  social:{suppress:63,express:61,listen:54,assert:69,driver:70,analytical:56,expressive:69,amiable:53,cell:'エクスプレッシブ ドライバー'},mental_flag:0};
+  social:{suppress:52,express:64,listen:50,assert:62,driver:58,analytical:47,expressive:66,amiable:55,cell:'エクスプレッシブ ドライバー'},mental_flag:0};
 
 function mockAI(system){
   return new Promise(res => setTimeout(() => {
-    if(system.includes('[MARCOPOLO]')){
+    if(system.includes('[CONFLICT]')){ res(JSON.stringify({points:[{topic:'報告のタイミング',sources:['トリセツ','1on1記録'],detail:'トリセツでは報告が事後になりがちと記載。1on1では本人が週次で予定を共有していると回答している',question:'最近、事前に共有できている場面と、難しい場面はどんなときですか'}]})); }
+    else if(system.includes('[ACTIONS]')){ res(JSON.stringify({actions:[{issue:'週次共有が続かず、上司の支援が後手になる',action:'月曜朝の5分ミーティングで今週の商談を口頭で確認する',owner:'上司',theme:'報連相',metric:'事前に把握できた商談の割合',baseline:'本人に確認',due_in_days:21},{issue:'後輩の現調経験が少ない',action:'後輩に現調資料の下書きを任せ、本人がレビューする',owner:'本人',theme:'部下育成',metric:'後輩が作成した現調資料の件数',baseline:'0件',due_in_days:30}]})); }
+    else if(system.includes('[PLACEMENT]')){ res(JSON.stringify({check_points:[{requirement:'顧客との関係づくり',known:'紹介経由の案件が増えた（直近の成果）',unknown:'決裁者との関係づくりの具体例',question:'決裁者に会うまでに、どんな工夫をしていますか'},{requirement:'案件の前進管理',known:'週次共有の行動を実施中',unknown:'商談フェーズの記録状況',question:'今期の案件を、フェーズごとに説明できますか'}],plan:[{action:'商談フェーズの週次更新を上司と一緒に3か月続ける',why:'前進管理の事実を増やすため',owner:'本人',period:'3か月'}]})); }
+    else if(system.includes('[RECRUIT_CONVERT]')){ res(JSON.stringify({question:'前の職場で、仕事の進め方を変えたいと感じたとき、誰にどう相談し、結果はどうなりましたか',reason:''})); }
+    else if(system.includes('[RECRUIT]')){ res(JSON.stringify({criteria:[{label:'顧客との関係づくり',questions:['長く付き合っているお客様との関係は、どう始まりましたか']}]})); }
+    else if(system.includes('[MARCOPOLO]')){
       res(JSON.stringify({ subject_name: IMP.demoName||'', diagnosed_on: today(), mp: DEMO_MP, items:[{layer:'interpretation',category:'強み',label:'誠実さ',summary:'誠実に物事に取り組む傾向が本人の中で高いと回答'},{layer:'interpretation',category:'育成テーマ',label:'情報の整理',summary:'緻密さ・論理性が本人の中で低め。情報整理の手順を一緒に決めると力を出しやすい可能性'},{layer:'interpretation',category:'指示・報告の工夫',label:'伝え方',summary:'結論から短く伝え、選択肢を示すと動きやすい傾向'}] }));
     } else if(system.includes('[SPLIT]')){
       const lines = (IMP.text||'').split('\n').filter(l=>/^■/.test(l.trim()));
@@ -713,7 +826,8 @@ function renderLogin(msg){
 }
 async function reloadPeople(){
   S.people = await DB.people();
-  if(S.hr){ try{ S.openCorrections = (await DB.corrections()).filter(c=>c.status==='open').length; }catch{ S.openCorrections=0; } }
+  if(S.hr){ try{ S.openCorrections = (await DB.corrections()).filter(c=>c.status==='open').length; }catch{ S.openCorrections=0; }
+    try{ S.pendingCount = (await soft(DB.list('hr_items',{verify_status:'pending'}),[])).filter(i=>i.status==='active').length; }catch{ S.pendingCount=0; } }
 }
 function go(view, pid){ S.view=view; if(pid!==undefined) S.pid=pid; if(view==='karte' && !S.hr) S.viewAs=null; render(); window.scrollTo(0,0); }
 async function switchDemoUser(k){ S.me={...DEMO_USERS[k]}; S.hr=S.me.hr; S.viewAs='hr'; await reloadPeople(); const mine=S.people.find(p=>lower(p.self_email)===lower(S.me.email)); if(k==='self'&&mine){ S.view='karte'; S.pid=mine.id; } else S.view='people'; render(); }
@@ -727,26 +841,27 @@ function render(){
   const nav = [];
   if(S.hr || hasReports || !mine) nav.push(['people', S.hr?'社員一覧':'メンバー']);
   if(mine) nav.push(['mine','自分のカルテ']);
-  if(S.hr){ nav.push(['import','資料を登録'],['dashboard','全社ダッシュボード'],['corrections','訂正依頼'],['audit','閲覧・操作履歴']); }
+  if(S.hr){ nav.push(['import','資料を登録'],['verify','読取確認'],['placement','配置・育成検討'],['recruit','採用面接'],['dashboard','全社ダッシュボード'],['corrections','訂正依頼'],['audit','閲覧・操作履歴']); }
   const cur = S.view==='karte' && mine && S.pid===mine.id ? 'mine' : (S.view==='karte'||S.view==='meeting' ? 'people' : S.view);
   $('#app').innerHTML = `<div class="shell">
     <aside class="side">
       <div class="brand"><b>ひとカルテ</b><small>社員理解・育成支援</small></div>
-      ${nav.map(([k,l])=>`<button class="nav ${cur===k?'on':''}" onclick="${k==='mine'?`go('karte','${mine.id}')`:`go('${k}')`}">${l}${k==='corrections'&&S.openCorrections?`<span class="cnt">${S.openCorrections}</span>`:''}</button>`).join('')}
+      ${nav.map(([k,l])=>`<button class="nav ${cur===k?'on':''}" onclick="${k==='mine'?`go('karte','${mine.id}')`:`go('${k}')`}">${l}${k==='corrections'&&S.openCorrections?`<span class="cnt">${S.openCorrections}</span>`:''}${k==='verify'&&S.pendingCount?`<span class="cnt">${S.pendingCount}</span>`:''}</button>`).join('')}
       <div class="me"><b>${esc(S.me.name)}</b>${S.hr?REL_LABEL.hr:''}
         ${DEMO?`<div style="margin-top:8px">デモの閲覧者<select onchange="switchDemoUser(this.value)">${Object.entries(DEMO_USERS).map(([k,u])=>`<option value="${k}" ${u.email===S.me.email?'selected':''}>${esc(u.name)}</option>`).join('')}</select></div>`:`<button class="btn ghost small" style="color:#A9B3C6;padding:6px 0" onclick="DB.logout().then(()=>location.reload())">ログアウト</button>`}
       </div>
     </aside>
     <main class="main" id="main"><p class="muted"><span class="spin"></span>読み込み中</p></main>
   </div>`;
-  const views = { people:viewPeople, karte:viewKarte, import:viewImport, meeting:viewMeeting, dashboard:viewDashboard, corrections:viewCorrections, audit:viewAudit };
-  (views[S.view]||viewPeople)().catch(e=>{ console.error(e); $('#main').innerHTML=`<div class="notice alert">${esc(e.message)}</div>`; });
+  const views = { people:viewPeople, karte:viewKarte, import:viewImport, meeting:viewMeeting, dashboard:viewDashboard, corrections:viewCorrections, audit:viewAudit, verify:viewVerify, placement:viewPlacement, recruit:viewRecruit };
+  (views[S.view]||viewPeople)().then(()=>{ if(S.schemaWarn && !$('#schema-warn')) $('#main').insertAdjacentHTML('afterbegin', `<div class="notice alert" id="schema-warn">${SCHEMA_MSG}</div>`); }).catch(e=>{ console.error(e); $('#main').innerHTML=`<div class="notice alert">${esc(e.message)}</div>`; });
 }
 
 /* =========================================================
    社員一覧
    ========================================================= */
 let PL = { kinds:{}, last:{} };
+S.pendingCount = 0; S.schemaWarn = false;
 async function viewPeople(){
   // 権限未設定（人事登録なし・担当メンバーなし）の場合は案内を出す
   if(!S.hr && !S.people.length && !DEMO){ viewNoAccess(); return; }
@@ -808,7 +923,9 @@ function editPerson(pid){
       <label class="field">本人のログインメール<input id="pf_self" type="email" value="${esc(p.self_email)}" placeholder="name@${CONFIG.ALLOWED_DOMAIN}"></label>
       <label class="field">直属上司のログインメール<input id="pf_mgr" type="email" value="${esc(p.manager_email)}"></label>
     </div>
-    <label class="field" style="margin-top:12px">本人の希望職種<input id="pf_wish" value="${esc(p.desired_role)}" placeholder="本人から聞いた内容だけを記入"></label>
+    <label class="field" style="margin-top:12px">現在の役割<input id="pf_role" value="${esc(p.current_job)}" placeholder="例：法人営業（FS）主任　高圧ReFort担当"></label>
+    <label class="field" style="margin-top:12px">本人が希望する役割<input id="pf_wish" value="${esc(p.desired_role)}" placeholder="本人から聞いた内容だけを記入"></label>
+    <label class="field" style="margin-top:12px">経験・担当してきた業務<textarea id="pf_exp" rows="2" placeholder="配置・育成検討で使います">${esc(p.experience)}</textarea></label>
     <datalist id="deptlist">${DEPT_SUGGEST.map(d=>`<option value="${d}">`).join('')}</datalist>
     <p class="small muted" style="margin-top:10px">メールアドレスは閲覧権限に使います。上司には確認済みの項目だけ、本人には本人表示を許可した項目だけが表示されます。</p>
     <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="savePerson(this,'${pid||''}')">保存</button></div>`);
@@ -820,10 +937,10 @@ async function savePerson(btn,pid){
   if(no && S.people.some(p=>p.employee_no===no && p.id!==pid)) return toast('この社員番号はすでに登録されています', true);
   busy(btn,true,'保存中');
   try{
-    const p = await DB.savePerson({ ...(pid?{id:pid}:{}), full_name:v('pf_name'), employee_no:no||null, department:v('pf_dept')||null, position:v('pf_pos')||null, self_email:lower(v('pf_self'))||null, manager_email:lower(v('pf_mgr'))||null, desired_role:v('pf_wish')||null });
+    const p = await DB.savePerson({ ...(pid?{id:pid}:{}), full_name:v('pf_name'), employee_no:no||null, department:v('pf_dept')||null, position:v('pf_pos')||null, self_email:lower(v('pf_self'))||null, manager_email:lower(v('pf_mgr'))||null, desired_role:v('pf_wish')||null, current_job:v('pf_role')||null, experience:v('pf_exp')||null });
     await DB.log(pid?'edit_person':'add_person','person',p.id,{name:p.full_name});
     closeModal(); await reloadPeople(); toast('保存しました'); render();
-  }catch(e){ busy(btn,false); toast(e.message,true); }
+  }catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
 }
 
 /* =========================================================
@@ -1209,19 +1326,500 @@ function timelineHTML(sources, items, meetings){
     </svg></div>
     <div class="row small muted" style="gap:16px"><span class="row" style="gap:6px"><span class="swc s-fact"></span>資料</span><span class="row" style="gap:6px"><span class="swc" style="background:${LCOL.statement};border-radius:50%"></span>1on1</span><span class="row" style="gap:6px"><span class="swc" style="border:2px dashed ${LCOL.statement};border-radius:50%"></span>次回予定</span></div></div>`;
 }
-function actionProgressHTML(meetings, canCheck){
-  const all = []; meetings.forEach(m=>(m.next_actions||[]).forEach((a,i)=>all.push({...a, mid:m.id, i, held:m.held_on})));
-  if(!all.length) return '';
-  const done = all.filter(a=>a.done).length;
-  const open = all.filter(a=>!a.done);
-  return `<div class="vcard wide"><h3>次の行動の進み具合<small>1on1で決めたこと</small></h3>
-    <div class="prog"><div class="bar"><i style="width:${done/all.length*100}%"></i></div><b>${done}/${all.length}</b>完了</div>
-    ${open.length?`<ul class="acts chk">${open.slice(0,6).map(a=>`<li>${canCheck?`<input type="checkbox" aria-label="完了にする" onchange="toggleAction('${a.mid}',${a.i})">`:'<span>・</span>'}<span>${esc(a.what)}<span class="small muted">（${esc(a.who||'')}${a.due?'・'+esc(a.due):''}）</span>${a.due&&a.due<today()?'<span class="over">期限超過</span>':''}</span></li>`).join('')}</ul>`:'<p class="small muted">決めた行動はすべて完了しています。</p>'}</div>`;
+/* =========================================================
+   育成サイクル：次の一手・育成行動（仮説→実行→結果→判断）・本人確認事項
+   ========================================================= */
+const A_STATUS = { planned:'未着手', doing:'実施中', done:'実施した', stopped:'中止した' };
+const A_HELP = { yes:'役に立った', partly:'一部役に立った', no:'役に立たなかった', unknown:'まだ分からない' };
+const A_DEC = { continue:'継続', change:'変更', end:'終了' };
+const CP_STATUS = { open:'未確認', agreed:'本人も同じ認識', differs:'本人の認識と違う', partly:'一部違う', hold:'保留', dropped:'確認不要' };
+const OWNERS = ['本人','上司','人事'];
+const isActiveAction = a => (a.status==='planned'||a.status==='doing') && a.decision!=='end';
+const needsReview = a => a.status==='planned'||a.status==='doing'||((a.status==='done'||a.status==='stopped')&&!a.decision);
+const isConfirmedItem = i => (i.verify_status||'confirmed')==='confirmed';
+const fmtD = s => s ? String(s).slice(0,10) : '';
+const STRONG_WORDS = /向いていない|向かない|無理|ダメ|だめ|伸びない|一生|使えない|能力が低|価値がない|見込みがない|絶対に|劣っ|問題児/;
+const SCHEMA_MSG = '新機能用のデータベース更新（hito-karte-v2.sql）がまだ適用されていません。SupabaseのSQL Editorで実行してから再読み込みしてください。';
+function isSchemaErr(e){ return /does not exist|Could not find|schema cache|column .* of relation/i.test(String(e&&e.message||e)); }
+async function soft(p, fb){ try{ return await p; }catch(e){ if(isSchemaErr(e)){ S.schemaWarn=true; return fb; } throw e; } }
+function schemaError(e){ return isSchemaErr(e) ? new Error(SCHEMA_MSG) : e; }
+
+/* ---------- 次の一手カード ---------- */
+function nextStepHTML(p, ctx){
+  const { actions, results, points, meetings, rel, interpN } = ctx;
+  const canEdit = rel==='hr'||rel==='manager';
+  const act = actions.filter(isActiveAction).sort((a,b)=>String(a.due_on||'9999').localeCompare(String(b.due_on||'9999')));
+  const waiting = actions.filter(a=>(a.status==='done'||a.status==='stopped')&&!a.decision);
+  const lastM = meetings[0];
+  const themes = [...new Set(act.map(a=>a.theme).filter(Boolean))];
+  const themeSrc = themes.length ? themes : (lastM?.themes||[]);
+  const res = results[0];
+  const due = act.map(a=>a.due_on).filter(Boolean).sort()[0];
+  const nextOn = lastM?.next_on;
+  const openCp = points.filter(x=>x.status==='open');
+  const un = t => `<span class="un">${t}</span>`;
+  return `<section class="nextcard" aria-label="次の一手">
+    <div class="nc-title"><h2>次の一手</h2>${canEdit?`<button class="btn pri sm" onclick="startMeeting('${p.id}')">1on1を準備</button>`:''}</div>
+    <div class="nc-grid">
+      <div class="nc"><span class="nc-l">現在の役割</span><b>${p.current_job?esc(p.current_job):p.position?esc(p.position):un('未登録')}</b></div>
+      <div class="nc"><span class="nc-l">本人が希望する役割</span><b>${p.desired_role?esc(p.desired_role):un('本人に確認')}</b></div>
+      <div class="nc"><span class="nc-l">現在の育成テーマ</span>${themeSrc.length?`<div class="chips">${themeSrc.map(t=>`<span class="tag sage">${esc(t)}</span>`).join('')}</div>`:un('未設定')}</div>
+      <div class="nc"><span class="nc-l">次回の確認日</span><b>${nextOn?esc(nextOn):due?esc(due):un('未設定')}</b>${nextOn&&due&&due<nextOn?`<small class="muted">行動の期限 ${esc(due)}</small>`:''}</div>
+      <div class="nc wide2"><span class="nc-l">直近の仕事上の成果${res?`<small>${esc(res.period||'')}　${esc(fmtD(res.created_at))} 更新</small>`:''}</span>${res?`<p>${esc(res.body)}</p>`:un('未登録')}${canEdit?`<button class="btn ghost sm" onclick="editResult('${p.id}')">${res?'更新する':'入力する'}</button>`:''}</div>
+    </div>
+    <div class="nc-row">
+      <div class="nc-act"><span class="nc-l">次に試す行動・担当・期限</span>
+        ${act.length?`<ul>${act.slice(0,3).map(a=>`<li><b>${esc(a.action)}</b><span>${esc(a.owner||'担当未設定')}　${a.due_on?(a.due_on<today()?`<em>${esc(a.due_on)} 期限超過</em>`:esc(a.due_on)):'期限未設定'}</span></li>`).join('')}</ul>${act.length>3?`<span class="small muted">ほか${act.length-3}件</span>`:''}`:un('未設定（1on1で決めます）')}
+        ${waiting.length?`<p class="small" style="margin-top:6px"><span class="tag interp">結果の判断待ち ${waiting.length}件</span></p>`:''}</div>
+      ${rel!=='self'?`<div class="nc-cp"><span class="nc-l">本人に未確認の事項</span>
+        ${openCp.length?`<ul>${openCp.slice(0,3).map(x=>`<li>${esc(x.topic)}</li>`).join('')}</ul>${openCp.length>3?`<span class="small muted">ほか${openCp.length-3}件</span>`:''}`:''}
+        ${interpN?`<p class="small muted">資料の解釈 ${interpN}件は本人に未確認</p>`:''}${!openCp.length&&!interpN?'<p class="small muted">ありません</p>':''}</div>`:''}
+    </div>
+  </section>`;
 }
-async function toggleAction(mid, idx){
-  const m = (window._meetings||[]).find(x=>x.id===mid); if(!m) return;
-  const acts = (m.next_actions||[]).map((a,i)=> i===idx ? {...a, done:!a.done} : a);
-  try{ await DB.saveMeeting({ id:mid, next_actions:acts }); await DB.log('toggle_action','meeting',mid); toast('完了にしました'); viewKarte(); }catch(e){ toast(e.message,true); }
+function editResult(pid){
+  openModal(`<h2>直近の仕事上の成果</h2>
+    <label class="field">対象期間<input id="rs_period" placeholder="例：2026年9月、18期2Q"></label>
+    <label class="field" style="margin-top:10px">成果（事実を具体的に）<textarea id="rs_body" rows="4" placeholder="例：高圧ReFortの現調を3件実施し、1件を合意書まで進めた"></textarea></label>
+    <p class="small muted" style="margin-top:8px">過去の記録は残り、最新のものがカルテ冒頭に表示されます。本人も閲覧できます。</p>
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="saveResult(this,'${pid}')">保存</button></div>`);
+}
+async function saveResult(btn,pid){
+  const body=$('#rs_body').value.trim(); if(!body) return toast('成果を入力してください',true);
+  busy(btn,true,'保存中');
+  try{ const r=await DB.insert('hr_results',{person_id:pid, period:$('#rs_period').value.trim()||null, body, created_by:S.me.email}); await DB.log('add_result','person',pid); closeModal(); toast('保存しました'); viewKarte(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+
+/* ---------- 育成行動の一覧 ---------- */
+function actionCardHTML(a, canEdit){
+  const over = isActiveAction(a) && a.due_on && a.due_on<today();
+  const hist = (a.history||[]).filter(h=>h.event!=='created');
+  return `<div class="act ${a.status} ${over?'over':''}">
+    <div class="act-h"><b>${esc(a.action)}</b><span class="tag ${a.status==='done'?'sage':a.status==='stopped'?'':'fact'}">${A_STATUS[a.status]||a.status}</span>${over?'<span class="tag alert">期限超過</span>':''}${a.ai_suggested?'<span class="tag">AI提案から作成</span>':''}${a.decision?`<span class="tag ${a.decision==='end'?'':'interp'}">判断：${A_DEC[a.decision]}</span>`:''}
+      ${canEdit?`<button class="btn ghost sm" style="margin-left:auto" onclick="editAction('${a.id}')">記録・編集</button>`:''}</div>
+    <div class="act-m">
+      <span><i>課題</i>${esc(a.issue||'—')}</span><span><i>担当</i>${esc(a.owner||'—')}</span><span><i>期間</i>${esc(a.start_on||'—')} 〜 ${esc(a.due_on||'—')}</span>
+      <span><i>確認する指標</i>${esc(a.metric||'—')}</span><span><i>実施前</i>${esc(a.baseline||'—')}</span>${a.theme?`<span><i>テーマ</i>${esc(a.theme)}</span>`:''}
+    </div>
+    ${a.result||a.reaction||a.helpful?`<div class="act-r">${a.reaction?`<p><i>本人の反応</i>${esc(a.reaction)}</p>`:''}${a.result?`<p><i>実際の結果</i>${esc(a.result)}</p>`:''}${a.helpful?`<p><i>役に立ったか</i>${A_HELP[a.helpful]}</p>`:''}${a.decision_note?`<p><i>判断の理由</i>${esc(a.decision_note)}</p>`:''}</div>`:''}
+    ${hist.length?`<details class="act-hist"><summary>経過 ${hist.length}件</summary><ol>${hist.map(h=>`<li><b>${esc(h.date||'')}</b> ${A_STATUS[h.status]||''}${h.helpful?'・'+A_HELP[h.helpful]:''}${h.decision?'・'+A_DEC[h.decision]:''}${h.result?`<br><span class="muted">${esc(h.result)}</span>`:''}</li>`).join('')}</ol></details>`:''}
+  </div>`;
+}
+function actionsSectionHTML(actions, canEdit, pid){
+  const active = actions.filter(isActiveAction), waiting = actions.filter(a=>!isActiveAction(a)&&needsReview(a)), closed = actions.filter(a=>!isActiveAction(a)&&!needsReview(a));
+  return `<div class="sec-title"><h2>育成行動</h2><span class="small muted">仮説 → 実行 → 結果 → 次の判断</span>${canEdit?`<button class="btn sm" style="margin-left:auto" onclick="editAction('', '${pid}')">行動を追加</button>`:''}</div>
+    ${actions.length?`
+    ${active.length?`<p class="grp-l">進行中 ${active.length}件</p>${active.map(a=>actionCardHTML(a,canEdit)).join('')}`:''}
+    ${waiting.length?`<p class="grp-l">結果の判断待ち ${waiting.length}件</p>${waiting.map(a=>actionCardHTML(a,canEdit)).join('')}`:''}
+    ${closed.length?`<details class="grp-d"><summary>終了・判断済み ${closed.length}件</summary>${closed.map(a=>actionCardHTML(a,canEdit)).join('')}</details>`:''}`
+    :`<div class="empty">まだ育成行動がありません。1on1で「解決したい課題」と「試す行動」を決めると、ここで実行と結果を追えます。</div>`}`;
+}
+function actionFormHTML(a, pfx){
+  const f = (k,l,ph='',type='text') => `<label class="field">${l}<input type="${type}" id="${pfx}${k}" value="${esc(a[k]||'')}" placeholder="${esc(ph)}"></label>`;
+  return `<div class="grid2">
+    <label class="field" style="grid-column:1/-1">解決したい仕事上の課題<input id="${pfx}issue" value="${esc(a.issue||'')}" placeholder="例：現調後の合意書への転換が止まっている"></label>
+    <label class="field" style="grid-column:1/-1">試す行動<input id="${pfx}action" value="${esc(a.action||'')}" placeholder="例：現調の翌日までに概算効果を1枚で送る"></label>
+    <label class="field">実施担当者<select id="${pfx}owner">${OWNERS.map(o=>`<option ${o===(a.owner||'本人')?'selected':''}>${o}</option>`).join('')}</select></label>
+    <label class="field">育成テーマ<select id="${pfx}theme"><option value="">—</option>${THEMES.map(t=>`<option ${t===a.theme?'selected':''}>${t}</option>`).join('')}</select></label>
+    ${f('start_on','開始日','','date')}${f('due_on','確認期限','','date')}
+    ${f('metric','成果を確認する指標','例：現調→合意書の転換率')}${f('baseline','実施前の状態','例：直近3か月 1/8件')}
+  </div>`;
+}
+async function editAction(id, pid){
+  const a = id ? (window._actions||[]).find(x=>x.id===id) : { person_id:pid, owner:'本人', status:'planned', start_on:today(), due_on:addDays(today(),30) };
+  if(!a) return;
+  openModal(`<h2>${id?'育成行動の記録・編集':'育成行動を追加'}</h2>
+    ${actionFormHTML(a,'ae_')}
+    ${id?`<hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><div class="grid2">
+      <label class="field">実施状況<select id="ae_status">${Object.entries(A_STATUS).map(([k,v])=>`<option value="${k}" ${k===a.status?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="field">役に立ったか<select id="ae_helpful"><option value="">—</option>${Object.entries(A_HELP).map(([k,v])=>`<option value="${k}" ${k===a.helpful?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="field" style="grid-column:1/-1">本人の反応<textarea id="ae_reaction" rows="2">${esc(a.reaction||'')}</textarea></label>
+      <label class="field" style="grid-column:1/-1">実際の結果（指標の変化など事実）<textarea id="ae_result" rows="2">${esc(a.result||'')}</textarea></label>
+      <label class="field">次の判断<select id="ae_decision"><option value="">未判断</option>${Object.entries(A_DEC).map(([k,v])=>`<option value="${k}" ${k===a.decision?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="field">判断の理由<input id="ae_decision_note" value="${esc(a.decision_note||'')}"></label></div>`:''}
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="saveActionModal(this,'${id||''}','${a.person_id}')">保存</button></div>`);
+}
+function readActionForm(pfx){ const v=k=>{ const el=$('#'+pfx+k); return el?el.value.trim():undefined; }; const o={}; ['issue','action','owner','theme','start_on','due_on','metric','baseline','status','helpful','reaction','result','decision','decision_note'].forEach(k=>{ const x=v(k); if(x!==undefined) o[k]=x||null; }); return o; }
+async function saveActionModal(btn, id, pid){
+  const f = readActionForm('ae_');
+  if(!f.action) return toast('試す行動を入力してください',true);
+  busy(btn,true,'保存中');
+  try{
+    if(id){
+      const a=(window._actions||[]).find(x=>x.id===id);
+      const changed = ['status','helpful','result','decision','reaction'].some(k=>(f[k]||null)!==(a[k]||null));
+      if(f.decision && f.decision!==a.decision) f.decided_on = today();
+      if(changed) f.history = [...(a.history||[]), { date:today(), event:'update', status:f.status, reaction:f.reaction, result:f.result, helpful:f.helpful, decision:f.decision, decision_note:f.decision_note, by:S.me.email }];
+      await DB.update('hr_actions', id, f);
+    } else {
+      await DB.insert('hr_actions', { ...f, person_id:pid, status:'planned', history:[{date:today(),event:'created',by:S.me.email}], created_by:S.me.email });
+    }
+    await DB.log(id?'update_action':'add_action','person',pid); closeModal(); toast('保存しました'); viewKarte();
+  }catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+
+/* ---------- 本人に確認する事項 ---------- */
+function pointsSectionHTML(points, pid, canEdit){
+  const open = points.filter(x=>x.status==='open'), done = points.filter(x=>x.status!=='open');
+  const row = x => `<div class="cp ${x.status}"><div class="row" style="gap:8px"><span class="tag ${x.origin==='conflict'?'alert':x.origin==='interpretation'?'interp':''}">${x.origin==='conflict'?'資料間の食い違い':x.origin==='interpretation'?'資料の解釈':x.origin==='ai'?'AI提案':'追加'}</span><b>${esc(x.topic)}</b><span class="tag ${x.status==='open'?'':'sage'}">${CP_STATUS[x.status]}</span>${canEdit?`<button class="btn ghost sm" style="margin-left:auto" onclick="editPoint('${x.id}')">記録</button>`:''}</div>
+    ${x.detail?`<p class="small" style="margin-top:4px">${esc(x.detail)}</p>`:''}${(x.refs||[]).length?`<p class="small muted">根拠：${(x.refs||[]).map(r=>esc(r.label||'')).join('／')}</p>`:''}
+    ${x.answer?`<p class="small" style="margin-top:4px"><i class="muted">本人の回答（${esc(x.answered_on||'')}）</i> ${esc(x.answer)}</p>`:''}</div>`;
+  return `<div class="sec-title"><h2>本人に確認する事項</h2><span class="small muted">資料の解釈や食い違いは、どちらかを正解と決めずに本人と確かめます</span>
+      ${canEdit?`<button class="btn sm" style="margin-left:auto" onclick="editPoint('', '${pid}')">追加</button>${S.hr?`<button class="btn sm" onclick="detectConflicts(this,'${pid}')">資料間の食い違いを洗い出す</button>`:''}`:''}</div>
+    ${points.length?`${open.map(row).join('')}${done.length?`<details class="grp-d"><summary>確認済み ${done.length}件</summary>${done.map(row).join('')}</details>`:''}`:'<p class="small muted">登録された確認事項はありません。カルテの「資料の解釈」から「本人に確認」で追加できます。</p>'}`;
+}
+function editPoint(id, pid){
+  const x = id ? (window._points||[]).find(p=>p.id===id) : { person_id:pid, status:'open', origin:'manual' };
+  openModal(`<h2>${id?'確認事項を記録':'確認事項を追加'}</h2>
+    <label class="field">確認する論点<input id="cp_topic" value="${esc(x.topic||'')}"></label>
+    <label class="field" style="margin-top:10px">内容<textarea id="cp_detail" rows="2">${esc(x.detail||'')}</textarea></label>
+    ${id?`<div class="grid2" style="margin-top:10px"><label class="field">結果<select id="cp_status">${Object.entries(CP_STATUS).map(([k,v])=>`<option value="${k}" ${k===x.status?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="field">確認日<input type="date" id="cp_on" value="${esc(x.answered_on||today())}"></label>
+      <label class="field" style="grid-column:1/-1">本人の回答（本人の言葉で）<textarea id="cp_answer" rows="3">${esc(x.answer||'')}</textarea></label></div>`:''}
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="savePoint(this,'${id||''}','${x.person_id}')">保存</button></div>`);
+}
+async function savePoint(btn,id,pid){
+  const topic=$('#cp_topic').value.trim(); if(!topic) return toast('論点を入力してください',true);
+  const row={ topic, detail:$('#cp_detail').value.trim()||null };
+  if(id){ row.status=$('#cp_status').value; row.answer=$('#cp_answer').value.trim()||null; row.answered_on=row.status!=='open'?($('#cp_on').value||today()):null; }
+  busy(btn,true,'保存中');
+  try{ if(id) await DB.update('hr_confirm_points',id,row); else await DB.insert('hr_confirm_points',{...row, person_id:pid, status:'open', origin:'manual', refs:[], created_by:S.me.email}); await DB.log(id?'update_point':'add_point','person',pid); closeModal(); toast('保存しました'); viewKarte(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+async function pointFromItem(itemId){
+  const it=(window._items||[]).find(i=>i.id===itemId); if(!it) return;
+  const label=`${KINDS[it.source_kind]?.short||'資料'} ${it.diagnosed_on||''}${it.page?'／'+it.page:''}`;
+  try{ await DB.insert('hr_confirm_points',{ person_id:it.person_id, topic:`${it.category}：${it.label}`, detail:it.summary||null, origin:'interpretation', refs:[{type:'item',id:it.id,label}], status:'open', created_by:S.me.email }); toast('本人に確認する事項に追加しました'); viewKarte(); }
+  catch(e){ toast(schemaError(e).message,true); }
+}
+const SYS_CONFLICT = `[CONFLICT] 同じ社員について、複数の資料（マルコポーロ・ミルメバイタル・従業員トリセツなど）の要約が与えられます。
+資料どうしで食い違っている点、または同じ資料の中で矛盾している点を探し、本人や担当者に確認する論点にしてください。
+- どちらの資料が正しいかを決めない。「AではX、BではY」と両方を中立に書く。
+- 人物を評価・断定する言葉、傷つける表現は使わない。原文の強い言い回しを引用しない。
+- 食い違いがなければ空の配列を返す。最大5件。
+- question は本人に確かめるときの、やわらかい聞き方。
+出力はJSONのみ: {"points":[{"topic":"20字以内","sources":["マルコポーロ","トリセツ"],"detail":"","question":""}]}`;
+async function detectConflicts(btn, pid){
+  const items=(window._items||[]).filter(i=>i.status==='active'&&isConfirmedItem(i)&&i.category!==MP_CAT);
+  const by={}; items.forEach(i=>{ const k=KINDS[i.source_kind]?.short||'資料'; (by[k] ||= []).push(`- [${LAYERS[i.layer].label}／${i.category}] ${i.label}${i.value?'：'+i.value:''}　${i.summary||''}`); });
+  const mp=mpSummaryForAI((window._items||[]).filter(isConfirmedItem));
+  if(Object.keys(by).length + (mp?1:0) < 2) return toast('比べられる資料が2種類以上ありません',true);
+  const prompt = Object.entries(by).map(([k,v])=>`【${k}】\n${v.join('\n')}`).join('\n\n') + (mp?`\n\n【マルコポーロ（数値の要約）】\n${mp}`:'');
+  busy(btn,true,'確認中');
+  try{
+    const out=parseJSON(await callAI({system:SYS_CONFLICT, prompt, max_tokens:2000}));
+    busy(btn,false);
+    const pts=(out.points||[]).slice(0,5); window._conf=pts;
+    if(!pts.length) return toast('目立った食い違いは見つかりませんでした');
+    openModal(`<h2>資料間の食い違い（AIの提案）</h2><p class="small muted">どちらが正しいかは決めていません。本人・担当者に確認する論点として登録するものを選んでください。文章は登録前に直せます。</p>
+      ${pts.map((x,i)=>`<div class="cp" style="margin-top:10px"><label class="row" style="gap:6px"><input type="checkbox" id="cf_${i}" checked><b>${esc((x.sources||[]).join(' × '))}</b></label>
+        <input class="inp" id="cf_t_${i}" value="${esc(x.topic)}" style="margin-top:6px"><textarea class="inp" id="cf_d_${i}" rows="2" style="margin-top:6px">${esc(x.detail+(x.question?`\n聞き方の例：${x.question}`:''))}</textarea></div>`).join('')}
+      <div class="foot"><button class="btn" onclick="closeModal()">閉じる</button><button class="btn pri" onclick="saveConflicts(this,'${pid}')">選んだものを登録</button></div>`);
+  }catch(e){ busy(btn,false); toast(e.message,true); }
+}
+async function saveConflicts(btn,pid){
+  const rows=(window._conf||[]).map((x,i)=>({x,i})).filter(({i})=>$('#cf_'+i).checked).map(({x,i})=>({ person_id:pid, topic:$('#cf_t_'+i).value.trim()||x.topic, detail:$('#cf_d_'+i).value.trim(), origin:'conflict', refs:(x.sources||[]).map(s=>({type:'source',label:s})), status:'open', created_by:S.me.email }));
+  if(!rows.length) return closeModal();
+  busy(btn,true,'登録中');
+  try{ for(const r of rows) await DB.insert('hr_confirm_points',r); await DB.log('add_conflict_points','person',pid,{n:rows.length}); closeModal(); toast(`${rows.length}件を登録しました`); viewKarte(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+
+/* ---------- 原本ページの表示 ---------- */
+const PV = { pdf:null, page:1, sourceId:null, path:null };
+async function openPageViewer(sourceId, page){
+  const src = (window._sources||[]).find(s=>s.id===sourceId) || (window._vsources||[]).find(s=>s.id===sourceId);
+  PV.sourceId=sourceId; PV.page=Math.max(1, parseInt(String(page||'1').replace(/\D/g,''))||1); PV.pdf=null;
+  openModal(`<div class="pv"><div class="row" style="justify-content:space-between"><h2 style="margin:0">原本 ${esc(src?.file_name||'')}</h2><button class="btn sm" onclick="closeModal()">閉じる</button></div>
+    <div class="row" style="margin:8px 0"><button class="btn sm" onclick="pvGo(-1)">前のページ</button><span id="pv_n" class="small"></span><button class="btn sm" onclick="pvGo(1)">次のページ</button></div>
+    <div id="pv_body" class="pv-body"><p class="muted small"><span class="spin"></span>読み込み中</p></div></div>`);
+  document.querySelector('#modal .modal').classList.add('wide');
+  try{
+    if(!src?.file_path) throw new Error(DEMO?'デモでは原本ファイルを保存していません。実運用では、ここに該当ページの画像が表示されます。':'この資料の原本は保存されていません（貼り付け文章など）。');
+    if(!/\.pdf$/i.test(src.file_path)) { const url=await DB.signedUrl(src.file_path); $('#pv_body').innerHTML=`<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">原本を開く</a>`; return; }
+    const url = await DB.signedUrl(src.file_path); await DB.log('open_original','source',sourceId,{page:PV.page});
+    const lib = await loadPdfJs();
+    PV.pdf = await lib.getDocument({ url, cMapUrl:`${PDFJS_BASE}/cmaps/`, cMapPacked:true }).promise;
+    PV.page = Math.min(PV.page, PV.pdf.numPages); pvRender();
+  }catch(e){ $('#pv_body').innerHTML=`<div class="notice warn">${esc(e.message)}</div>`; }
+}
+async function pvRender(){
+  if(!PV.pdf) return;
+  const page = await PV.pdf.getPage(PV.page);
+  const vp0 = page.getViewport({scale:1}); const box=$('#pv_body'); const w=Math.min(1100, (box?.clientWidth||800));
+  const vp = page.getViewport({ scale: w/vp0.width * (window.devicePixelRatio||1) });
+  const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height; c.style.width='100%';
+  await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+  box.innerHTML=''; box.appendChild(c); $('#pv_n').textContent=`${PV.page} / ${PV.pdf.numPages} ページ`;
+}
+function pvGo(d){ if(!PV.pdf) return; PV.page=Math.max(1,Math.min(PV.pdf.numPages,PV.page+d)); pvRender(); }
+
+/* ---------- 読取確認（照合待ちの一覧） ---------- */
+async function viewVerify(){
+  if(!S.hr){ $('#main').innerHTML='<div class="empty">人事・経営層のみ利用できます。</div>'; return; }
+  const pend = await soft(DB.list('hr_items',{verify_status:'pending'}), []);
+  const srcIds=[...new Set(pend.map(i=>i.source_id))];
+  const srcs=[]; for(const pid of [...new Set(pend.map(i=>i.person_id))]) srcs.push(...(await DB.sources(pid)));
+  window._vsources = srcs; window._vitems = pend;
+  const name = pid => (S.people.find(p=>p.id===pid)||{}).full_name||'—';
+  const groups = srcIds.map(sid=>({ s:srcs.find(x=>x.id===sid)||{id:sid}, xs:pend.filter(i=>i.source_id===sid) }));
+  $('#main').innerHTML = `<div class="pagehead"><div><h1>読取確認</h1><p class="sub">AIが読み取った数値を原本と照合します。確定するまで、カルテのグラフ・AI分析・上司や本人の画面には出ません。</p></div></div>
+    ${groups.length?groups.map(g=>`<div class="panel vf">
+      <div class="row"><b>${esc(name(g.xs[0].person_id))}</b><span class="tag fact">${esc(KINDS[g.s.kind||g.xs[0].source_kind]?.short||'資料')}</span><span class="small">${esc(g.s.file_name||g.xs[0].source_name||'')}</span><span class="small muted">診断日 ${esc(g.xs[0].diagnosed_on||'不明')}</span>
+        <button class="btn sm" style="margin-left:auto" onclick="openPageViewer('${g.s.id}',1)">原本を表示</button><button class="btn sm pri" onclick="verifyGroup(this,'${g.s.id}')">この資料の値をすべて確定</button></div>
+      <div class="wrap-x" style="margin-top:10px"><table class="dtbl"><thead><tr><th>項目</th><th>読取値</th><th>確定する値</th><th>ページ</th><th></th></tr></thead><tbody>
+      ${g.xs.map(i=>`<tr><td><b>${esc(i.label)}</b><br><span class="small muted">${esc(i.category||'')}</span></td><td class="small">${esc(i.value||'—')}</td>
+        <td><input class="inp" style="max-width:140px" id="vf_${i.id}" value="${esc(i.value||'')}"></td>
+        <td><button class="btn ghost sm" onclick="openPageViewer('${g.s.id}','${esc(i.page||'1')}')">${esc(i.page||'1ページ')}</button></td>
+        <td style="white-space:nowrap"><button class="btn sm pri" onclick="verifyItem(this,'${i.id}','confirmed')">確定</button> <button class="btn sm" onclick="verifyItem(this,'${i.id}','rejected')">除外</button></td></tr>`).join('')}
+      </tbody></table></div></div>`).join('') : '<div class="empty">照合待ちの読取値はありません。</div>'}`;
+}
+async function verifyItem(btn, id, st){
+  const i=(window._vitems||[]).find(x=>x.id===id); const v=$('#vf_'+id)?.value.trim();
+  const patch = st==='confirmed' ? { verify_status:'confirmed', value:v||null, needs_check:false, verified_by:S.me.email, verified_at:new Date().toISOString(), summary: v&&i&&v!==i.value ? `${i.label}の値は${v}` : i?.summary } : { verify_status:'rejected', status:'hidden', verified_by:S.me.email, verified_at:new Date().toISOString() };
+  busy(btn,true,'');
+  try{ await DB.updateItem(id,patch); await DB.log(st==='confirmed'?'verify_item':'reject_item','item',id,{value:v}); await reloadPeople(); render(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+async function verifyGroup(btn, sid){
+  const xs=(window._vitems||[]).filter(i=>i.source_id===sid);
+  if(!confirm(`${xs.length}件の値を、入力欄の値で確定します。原本と照合済みですか？`)) return;
+  busy(btn,true,'確定中');
+  try{ for(const i of xs){ const v=$('#vf_'+i.id)?.value.trim(); await DB.updateItem(i.id,{ verify_status:'confirmed', value:v||null, needs_check:false, verified_by:S.me.email, verified_at:new Date().toISOString(), summary: v&&v!==i.value?`${i.label}の値は${v}`:i.summary }); } await DB.log('verify_source','source',sid,{n:xs.length}); toast(`${xs.length}件を確定しました`); await reloadPeople(); render(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+
+/* =========================================================
+   配置・育成検討（職務要件 × 本人の経験・実績・希望・面談）
+   診断点数だけで適職順位・異動・昇格を決める機能は持たない
+   ========================================================= */
+const DEFAULT_JOBS = [
+  { name:'FS（フィールドセールス）', department:'営業', summary:'訪問・現地調査を通じて提案し、合意・契約まで進める', requirements:[{label:'顧客との関係づくり',behavior:'初回訪問から次回の約束を取り付け、決裁者まで関係を広げる'},{label:'現地調査と提案',behavior:'現調の結果を数値にまとめ、顧客に分かる形で説明する'},{label:'案件の前進管理',behavior:'商談フェーズと次の一手を記録し、期限までに動かす'},{label:'社内連携',behavior:'工事・CSに必要な情報を漏れなく引き継ぐ'}], experience:'法人・個人への訪問営業、再エネ設備の基礎知識' },
+  { name:'IS（インサイドセールス）', department:'営業', summary:'電話・メール・オンラインで見込み客を育て、商談につなぐ', requirements:[{label:'架電・接触量の確保',behavior:'決めた接触数を毎日やり切り、記録を残す'},{label:'ヒアリング',behavior:'顧客の状況・課題・時期を短時間で聞き取る'},{label:'引き継ぎの質',behavior:'FSが商談で使える情報を整理して渡す'}], experience:'電話対応・CRM入力の経験' },
+  { name:'開発（商品企画・システム）', department:'開発', summary:'商品・サービスや社内の仕組みを企画し、形にする', requirements:[{label:'課題の把握',behavior:'現場や顧客の困りごとを具体的な要件にまとめる'},{label:'試作と改善',behavior:'小さく作って使ってもらい、反応をもとに直す'},{label:'関係者との調整',behavior:'営業・工事・CSと仕様や優先順位をすり合わせる'}], experience:'企画書・仕様書の作成、ツールやシステムの導入経験' },
+  { name:'CS（カスタマーサクセス）', department:'CS', summary:'契約後のお客様を支え、満足と継続・紹介につなぐ', requirements:[{label:'問い合わせ対応',behavior:'期限内に一次回答し、解決まで追いかける'},{label:'先回りの連絡',behavior:'工程や発電状況の変化をお客様より先に伝える'},{label:'記録と共有',behavior:'対応履歴を残し、再発防止を関係部署に共有する'}], experience:'顧客対応・クレーム対応の経験' },
+  { name:'O&M（運用・保守）', department:'O&M', summary:'発電所・蓄電池の点検・保守で、安全と発電量を守る', requirements:[{label:'安全な作業',behavior:'手順と安全確認を省かずに作業する'},{label:'異常の発見と報告',behavior:'点検で見つけた異常を写真と数値で当日中に報告する'},{label:'計画的な保守',behavior:'点検計画を守り、部材や人員を前もって手配する'}], experience:'電気工事・設備保守の経験、関連資格' },
+  { name:'エネルギーアセット', department:'エネルギーアセット', summary:'発電所・蓄電池などの資産を取得・運用し、価値を高める', requirements:[{label:'案件の目利き',behavior:'収支・リスク・権利関係を資料で確認し、論点を整理する'},{label:'数値での説明',behavior:'IRRやキャッシュフローを根拠とともに説明する'},{label:'関係者との交渉',behavior:'売主・金融機関・行政と条件をまとめる'}], experience:'不動産・金融・発電事業の実務経験' },
+];
+const SYS_PLACE = `[PLACEMENT] 人事が配置・育成を検討するための下書きを作ります。
+- 職務要件ごとに、本人について「分かっている事実（経験・実績・本人の発言）」と「まだ分からないこと」を分けて書く。
+- 事実が無い要件は、推測で埋めずに「確認すべき点」として質問にする。
+- 診断結果（マルコポーロなど）は、確認の観点として触れるだけにし、根拠の中心にしない。点数で向き不向きや順位を決めない。
+- 異動・昇格・適性の結論は出さない。
+- plan は、要件とのギャップを埋める育成案（具体的な行動・担当・期間）。本人の希望と食い違う場合は、まず本人と話す案にする。
+出力はJSONのみ: {"check_points":[{"requirement":"","known":"","unknown":"","question":""}],"plan":[{"action":"","why":"","owner":"本人|上司|人事","period":""}]}`;
+let PLC = { tab:'review', pid:'', jobId:'', draft:null };
+async function viewPlacement(){
+  if(!S.hr){ $('#main').innerHTML='<div class="empty">人事・経営層のみ利用できます。</div>'; return; }
+  const jobs = await soft(DB.list('hr_jobs',{}),[]); jobs.sort((a,b)=>(a.sort||0)-(b.sort||0)||String(a.name).localeCompare(b.name));
+  window._jobs = jobs;
+  const tabs = `<div class="viewas" style="margin-bottom:16px"><button class="${PLC.tab==='review'?'on':''}" onclick="PLC.tab='review';viewPlacement()">配置・育成の検討</button><button class="${PLC.tab==='jobs'?'on':''}" onclick="PLC.tab='jobs';viewPlacement()">職務要件の編集</button></div>`;
+  const head = `<div class="pagehead"><div><h1>配置・育成検討</h1><p class="sub">職務要件と、本人の経験・実績・希望・面談内容を並べて「確認すべき点」と「育成案」を整理します。</p></div></div>
+    <div class="notice info">診断点数だけで適職の順位付けや、異動・昇格の決定はしません。AIの出力は下書きです。人が確認・編集してから確定してください。</div>${tabs}`;
+  if(PLC.tab==='jobs'){
+    $('#main').innerHTML = head + `${jobs.length?'':`<div class="empty">職務要件がまだありません。<br><button class="btn pri" onclick="seedJobs(this)">標準の職種（FS・IS・開発・CS・O&M・エネルギーアセット）を読み込む</button></div>`}
+      ${jobs.map(j=>`<div class="panel"><div class="row"><h3>${esc(j.name)}</h3><span class="tag">${esc(j.department||'')}</span><button class="btn sm" style="margin-left:auto" onclick="editJob('${j.id}')">編集</button></div>
+        <p class="small muted" style="margin-top:4px">${esc(j.summary||'')}</p><ul class="acts">${(j.requirements||[]).map(r=>`<li><b>${esc(r.label)}</b>：${esc(r.behavior||'')}</li>`).join('')}</ul>${j.experience?`<p class="small" style="margin-top:6px"><span class="muted">あると望ましい経験</span>　${esc(j.experience)}</p>`:''}</div>`).join('')}
+      <button class="btn" style="margin-top:12px" onclick="editJob('')">職種を追加</button>`;
+    return;
+  }
+  const p = S.people.find(x=>x.id===PLC.pid); const j = jobs.find(x=>x.id===PLC.jobId);
+  let body = '';
+  if(p && j){
+    const [items, results, actions, meetings, reviews] = await Promise.all([ DB.items(p.id), soft(DB.list('hr_results',{person_id:p.id}),[]), soft(DB.list('hr_actions',{person_id:p.id}),[]), DB.meetings(p.id).catch(()=>[]), soft(DB.list('hr_placement_reviews',{person_id:p.id}),[]) ]);
+    const facts = items.filter(i=>i.status==='active'&&isConfirmedItem(i)&&i.category!==MP_CAT&&!i.sensitive);
+    PLC.ctx = { p, j, facts, results, actions, meetings, mp:mpSummaryForAI(items.filter(isConfirmedItem)) };
+    const d = PLC.draft;
+    body = `<div class="plc">
+      <div class="panel"><h3>${esc(j.name)} の職務要件</h3><ul class="acts">${(j.requirements||[]).map(r=>`<li><b>${esc(r.label)}</b>：${esc(r.behavior||'')}</li>`).join('')}</ul>${j.experience?`<p class="small" style="margin-top:6px"><span class="muted">望ましい経験</span>　${esc(j.experience)}</p>`:''}</div>
+      <div class="panel"><h3>${esc(p.full_name)} について分かっていること</h3>
+        <p class="small"><span class="muted">現在の役割</span>　${esc(p.current_job||p.position||'未登録')}　<span class="muted">希望</span>　${esc(p.desired_role||'本人に確認')}</p>
+        <p class="small" style="margin-top:4px"><span class="muted">経験</span>　${esc(p.experience||'未登録')}</p>
+        <p class="small" style="margin-top:4px"><span class="muted">成果</span>　${results.length?results.slice(0,3).map(r=>esc(`${r.period||fmtD(r.created_at)}：${r.body}`)).join('<br>'):'未登録'}</p>
+        <p class="small" style="margin-top:4px"><span class="muted">育成行動の結果</span>　${actions.filter(a=>a.result).slice(0,3).map(a=>esc(`${a.action} → ${a.result}${a.helpful?'（'+A_HELP[a.helpful]+'）':''}`)).join('<br>')||'記録なし'}</p>
+        <p class="small" style="margin-top:4px"><span class="muted">面談での本人の希望</span>　${meetings.filter(m=>m.wish).slice(0,2).map(m=>esc(`${m.held_on}：${m.wish}`)).join('<br>')||'記録なし'}</p>
+        <p class="small" style="margin-top:4px"><span class="muted">本人の発言・実績（資料）</span>　${facts.filter(i=>i.layer==='statement').slice(0,4).map(i=>esc(i.summary||i.label)).join('／')||'なし'}</p>
+        ${PLC.ctx.mp?`<details class="small" style="margin-top:6px"><summary>確認の観点（診断）</summary><pre class="mpsum">${esc(PLC.ctx.mp)}</pre></details>`:''}</div>
+    </div>
+    <div class="row" style="margin:14px 0"><button class="btn pri" onclick="genPlacement(this)">確認すべき点と育成案の下書きを作る（AI）</button>${d?'':'<span class="small muted">事実が少ない要件は「確認すべき点」になります。</span>'}</div>
+    ${d?placeDraftHTML(d):''}
+    ${reviews.length?`<div class="sec-title"><h2>保存した検討</h2></div>${reviews.sort((a,b)=>String(b.created_at).localeCompare(a.created_at)).map(r=>`<div class="panel"><div class="row"><b>${esc(r.job_name||'')}</b><span class="tag ${r.status==='confirmed'?'sage':''}">${r.status==='confirmed'?'確定':'下書き'}</span><span class="small muted">${esc(fmtDT(r.created_at))}　${esc(r.created_by||'')}</span></div>
+      <ul class="acts">${(r.check_points||[]).map(c=>`<li><b>${esc(c.requirement)}</b>：${esc(c.question||c.unknown||'')}</li>`).join('')}</ul>${(r.plan||[]).length?`<p class="small muted" style="margin-top:6px">育成案</p><ul class="acts">${r.plan.map(x=>`<li>${esc(x.action)}（${esc(x.owner||'')}・${esc(x.period||'')}）</li>`).join('')}</ul>`:''}${r.note?`<p class="small" style="margin-top:6px">${esc(r.note)}</p>`:''}</div>`).join('')}`:''}`;
+  }
+  $('#main').innerHTML = head + `<div class="panel"><div class="grid2">
+      <label class="field">社員<select onchange="PLC.pid=this.value;PLC.draft=null;viewPlacement()"><option value="">選んでください</option>${S.people.map(x=>`<option value="${x.id}" ${x.id===PLC.pid?'selected':''}>${esc(x.full_name)}（${esc(x.department||'')}）</option>`).join('')}</select></label>
+      <label class="field">検討する職種<select onchange="PLC.jobId=this.value;PLC.draft=null;viewPlacement()"><option value="">選んでください</option>${jobs.map(x=>`<option value="${x.id}" ${x.id===PLC.jobId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+      ${!jobs.length?'<p class="small muted" style="margin-top:8px">先に「職務要件の編集」で職種を登録してください。</p>':''}</div>${body}`;
+}
+function placeDraftHTML(d){
+  return `<div class="panel"><div class="row"><h3>下書き</h3><span class="tag interp">AIの提案・未確定</span></div>
+    <p class="small muted" style="margin:4px 0 10px">内容を直してから保存してください。</p>
+    ${d.check_points.map((c,i)=>`<div class="rvc"><b>${esc(c.requirement)}</b><div class="grid2" style="margin-top:6px">
+      <label class="field">分かっている事実<textarea class="inp" rows="2" onchange="PLC.draft.check_points[${i}].known=this.value">${esc(c.known||'')}</textarea></label>
+      <label class="field">まだ分からないこと<textarea class="inp" rows="2" onchange="PLC.draft.check_points[${i}].unknown=this.value">${esc(c.unknown||'')}</textarea></label>
+      <label class="field" style="grid-column:1/-1">確認すべき点（本人・上司への質問）<input class="inp" value="${esc(c.question||'')}" onchange="PLC.draft.check_points[${i}].question=this.value"></label></div></div>`).join('')}
+    <h3 style="margin-top:14px">育成案</h3>
+    ${d.plan.map((x,i)=>`<div class="rvc"><div class="grid2"><label class="field" style="grid-column:1/-1">行動<input class="inp" value="${esc(x.action)}" onchange="PLC.draft.plan[${i}].action=this.value"></label>
+      <label class="field">理由<input class="inp" value="${esc(x.why||'')}" onchange="PLC.draft.plan[${i}].why=this.value"></label>
+      <label class="field">担当・期間<input class="inp" value="${esc((x.owner||'')+(x.period?'・'+x.period:''))}" onchange="const v=this.value.split('・');PLC.draft.plan[${i}].owner=v[0];PLC.draft.plan[${i}].period=v.slice(1).join('・')"></label></div>
+      <button class="btn ghost sm" onclick="planToAction(this,${i})">育成行動として登録</button></div>`).join('')}
+    <label class="field" style="margin-top:10px">人事のメモ<textarea class="inp" rows="2" id="plc_note">${esc(d.note||'')}</textarea></label>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" onclick="savePlacement(this,'draft')">下書きとして保存</button><button class="btn pri" onclick="savePlacement(this,'confirmed')">確認して確定</button></div></div>`;
+}
+async function genPlacement(btn){
+  const c = PLC.ctx; busy(btn,true,'作成中');
+  try{
+    const prompt = `職種：${c.j.name}\n職務の概要：${c.j.summary||''}\n職務要件:\n${(c.j.requirements||[]).map(r=>`- ${r.label}：${r.behavior||''}`).join('\n')}\n望ましい経験：${c.j.experience||''}\n\n本人：${c.p.full_name}（${c.p.department||''}）\n現在の役割：${c.p.current_job||c.p.position||'未登録'}\n希望する役割：${c.p.desired_role||'未確認'}\n経験：${c.p.experience||'未登録'}\n成果：${c.results.map(r=>`${r.period||''} ${r.body}`).join('／')||'未登録'}\n育成行動の結果：${c.actions.filter(a=>a.result).map(a=>`${a.action}→${a.result}`).join('／')||'なし'}\n面談での本人の希望：${c.meetings.filter(m=>m.wish).map(m=>m.wish).join('／')||'なし'}\n本人の発言・実績（資料）：${c.facts.filter(i=>i.layer==='statement').map(i=>i.summary||i.label).join('／')||'なし'}\n資料の解釈（本人未確認）：${c.facts.filter(i=>i.layer==='interpretation').slice(0,8).map(i=>i.summary).join('／')||'なし'}\n${c.mp?'\n確認の観点（診断）:\n'+c.mp:''}`;
+    const out = parseJSON(await callAI({ system:SYS_PLACE, prompt, max_tokens:3000 }));
+    PLC.draft = { check_points:(out.check_points||[]).slice(0,8), plan:(out.plan||[]).slice(0,5), note:'' };
+    await DB.log('generate_placement','person',c.p.id,{job:c.j.name}); viewPlacement();
+  }catch(e){ busy(btn,false); toast(e.message,true); }
+}
+async function savePlacement(btn, status){
+  const c=PLC.ctx; PLC.draft.note=$('#plc_note').value.trim();
+  busy(btn,true,'保存中');
+  try{ await DB.insert('hr_placement_reviews',{ person_id:c.p.id, job_id:c.j.id, job_name:c.j.name, check_points:PLC.draft.check_points, plan:PLC.draft.plan, note:PLC.draft.note||null, status, created_by:S.me.email }); await DB.log('save_placement','person',c.p.id,{status}); PLC.draft=null; toast('保存しました'); viewPlacement(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+async function planToAction(btn,i){
+  const c=PLC.ctx, x=PLC.draft.plan[i];
+  if(!confirm('この育成案を、本人の育成行動（未着手）として登録します。上司・本人と合意できていますか？')) return;
+  busy(btn,true,'登録中');
+  try{ await DB.insert('hr_actions',{ person_id:c.p.id, issue:`${c.j.name}の要件に向けて：${x.why||''}`, action:x.action, owner:OWNERS.includes(x.owner)?x.owner:'本人', status:'planned', start_on:today(), due_on:addDays(today(),60), metric:null, baseline:'本人に確認', ai_suggested:true, history:[{date:today(),event:'created',by:S.me.email,from:'placement'}], created_by:S.me.email }); btn.textContent='登録しました'; }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+async function seedJobs(btn){ busy(btn,true,'読み込み中'); try{ let k=0; for(const j of DEFAULT_JOBS) await DB.insert('hr_jobs',{...j, sort:k++, updated_by:S.me.email}); viewPlacement(); }catch(e){ busy(btn,false); toast(schemaError(e).message,true); } }
+function editJob(id){
+  const j = id ? window._jobs.find(x=>x.id===id) : { name:'', requirements:[] };
+  openModal(`<h2>${id?'職務要件を編集':'職種を追加'}</h2>
+    <div class="grid2"><label class="field">職種名<input id="jb_name" value="${esc(j.name)}"></label><label class="field">部署<input id="jb_dept" value="${esc(j.department||'')}"></label></div>
+    <label class="field" style="margin-top:10px">職務の概要<input id="jb_sum" value="${esc(j.summary||'')}"></label>
+    <label class="field" style="margin-top:10px">職務要件（1行に1つ「要件：具体的な行動」）<textarea id="jb_req" rows="6">${esc((j.requirements||[]).map(r=>`${r.label}：${r.behavior||''}`).join('\n'))}</textarea></label>
+    <label class="field" style="margin-top:10px">あると望ましい経験<input id="jb_exp" value="${esc(j.experience||'')}"></label>
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="saveJob(this,'${id||''}')">保存</button></div>`);
+}
+async function saveJob(btn,id){
+  const row={ name:$('#jb_name').value.trim(), department:$('#jb_dept').value.trim()||null, summary:$('#jb_sum').value.trim()||null, experience:$('#jb_exp').value.trim()||null, updated_by:S.me.email,
+    requirements:$('#jb_req').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const k=l.search(/[:：]/); return k>0?{label:l.slice(0,k).trim(),behavior:l.slice(k+1).trim()}:{label:l,behavior:''}; }) };
+  if(!row.name) return toast('職種名を入力してください',true);
+  busy(btn,true,'保存中');
+  try{ if(id) await DB.update('hr_jobs',id,row); else await DB.insert('hr_jobs',row); await DB.log('save_job','job',id||row.name); closeModal(); viewPlacement(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+
+/* =========================================================
+   採用面接支援（共通の評価項目 × 質問 × 具体的な回答 × 根拠）
+   社員用トリセツ・社員カルテの情報は使わない
+   ========================================================= */
+const RATING = { 1:'期待を下回る', 2:'一部満たす', 3:'期待どおり', 4:'期待を上回る', 0:'判断できない' };
+const SYS_RQ = `[RECRUIT] 採用面接の質問案を作ります。
+- 各評価項目の「求める行動」について、過去の具体的な行動を聞く質問（いつ・何を・どうした・結果は）を2つずつ作る。
+- 性格や価値観を直接評価する質問、家族・出身・思想信条・健康など職務に関係のない質問は作らない。
+出力はJSONのみ: {"criteria":[{"label":"","questions":["",""]}]}`;
+const SYS_RQ_CONVERT = `[RECRUIT_CONVERT] 面接官の「気になる点」を、職務に関係する具体的な行動を尋ねる面接質問に変換します。
+- 過去の具体的な場面を聞く質問にする。性格の断定や、職務に関係しない事柄には触れない。
+- 気になる点が職務と関係しない場合は、質問を作らずその旨を reason に書く。
+出力はJSONのみ: {"question":"","reason":""}`;
+let RC = { roleId:'', candId:'', form:null };
+async function viewRecruit(){
+  if(!S.hr){ $('#main').innerHTML='<div class="empty">人事・経営層のみ利用できます。</div>'; return; }
+  const roles = await soft(DB.list('hr_recruit_roles',{}),[]);
+  const cands = await soft(DB.list('hr_candidates',{}),[]);
+  window._roles=roles; window._cands=cands;
+  const role = roles.find(r=>r.id===RC.roleId) || roles[0]; if(role) RC.roleId=role.id;
+  const cand = cands.find(c=>c.id===RC.candId);
+  let candHTML='';
+  if(cand){
+    const ivs = await soft(DB.list('hr_interviews',{candidate_id:cand.id}),[]); window._ivs=ivs;
+    const crit = (roles.find(r=>r.id===cand.role_id)||{criteria:[]}).criteria||[];
+    candHTML = `<div class="panel"><div class="row"><h3>${esc(cand.full_name)}</h3><span class="tag">${esc(cand.stage||'')}</span><button class="btn ghost sm" onclick="RC.candId='';viewRecruit()">一覧に戻る</button><button class="btn pri sm" style="margin-left:auto" onclick="newInterview()">面接を記録</button></div>
+      ${cand.memo?`<p class="small muted" style="margin-top:4px">${esc(cand.memo)}</p>`:''}
+      ${ivs.length?`<div class="wrap-x" style="margin-top:12px"><table class="dtbl"><thead><tr><th>評価項目</th>${ivs.map(v=>`<th>${esc(v.round||'')} ${esc(v.held_on||'')}<br><span class="muted">${esc(v.interviewer_email||'')}</span></th>`).join('')}</tr></thead><tbody>
+        ${crit.map(c=>`<tr><td><b>${esc(c.label)}</b></td>${ivs.map(v=>{ const a=(v.answers||[]).find(x=>x.criterion===c.label)||{}; return `<td class="small">${a.rating!=null&&a.rating!==''?`<span class="tag ${+a.rating>=3?'sage':+a.rating===0?'':'interp'}">${RATING[a.rating]}</span>`:'<span class="muted">—</span>'}${a.evidence?`<br>${esc(a.evidence)}`:''}${a.followup?`<br><span class="muted">追加確認：${esc(a.followup)}</span>`:''}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div><p class="vcap">合計点や順位は出しません。評価項目ごとの根拠を見て、面接官と人事が判断してください。</p>`:'<p class="small muted" style="margin-top:8px">まだ面接記録がありません。</p>'}</div>
+      ${RC.form?interviewFormHTML(crit):''}`;
+  }
+  $('#main').innerHTML = `<div class="pagehead"><div><h1>採用面接</h1><p class="sub">募集職種ごとの共通の評価項目で、質問・具体的な回答・評価根拠・追加確認事項を記録します。</p></div>
+      <div class="actions"><button class="btn" onclick="editRole('')">募集職種を追加</button></div></div>
+    <div class="notice info">社員用のトリセツや社員カルテの情報は、応募者の合否判断に使いません。すべての応募者に同じ評価項目を使います。</div>
+    ${roles.length?`<div class="viewas" style="margin-bottom:14px;flex-wrap:wrap">${roles.map(r=>`<button class="${r.id===RC.roleId?'on':''}" onclick="RC.roleId='${r.id}';RC.candId='';viewRecruit()">${esc(r.name)}</button>`).join('')}</div>`:'<div class="empty">まず「募集職種を追加」で評価項目を設定してください。</div>'}
+    ${cand?candHTML: role?`<div class="panel"><div class="row"><h3>${esc(role.name)} の評価項目</h3><button class="btn sm" style="margin-left:auto" onclick="editRole('${role.id}')">編集</button></div>
+        ${(role.criteria||[]).map(c=>`<div class="rvc"><b>${esc(c.label)}</b><p class="small muted">${esc(c.behavior||'')}</p>${(c.questions||[]).length?`<ul class="acts">${c.questions.map(q=>`<li>${esc(q)}</li>`).join('')}</ul>`:''}</div>`).join('')||'<p class="small muted">評価項目がありません。</p>'}</div>
+      <div class="sec-title"><h2>候補者</h2><button class="btn sm" style="margin-left:auto" onclick="addCandidate('${role.id}')">候補者を追加</button></div>
+      ${cands.filter(c=>c.role_id===role.id).map(c=>`<div class="panel row" style="cursor:pointer" onclick="RC.candId='${c.id}';RC.form=null;viewRecruit()"><b>${esc(c.full_name)}</b><span class="tag">${esc(c.stage||'')}</span><span class="small muted">${esc(fmtDT(c.created_at))}</span></div>`).join('')||'<p class="small muted">候補者はまだいません。</p>'}`:''}`;
+}
+function editRole(id){
+  const r = id ? window._roles.find(x=>x.id===id) : { name:'', criteria:[{label:'',behavior:'',questions:[]}] };
+  window._roleEdit = JSON.parse(JSON.stringify(r)); renderRoleModal();
+}
+function renderRoleModal(){
+  const r=window._roleEdit;
+  openModal(`<h2>${r.id?'募集職種を編集':'募集職種を追加'}</h2>
+    <label class="field">職種名<input id="rl_name" value="${esc(r.name)}" onchange="window._roleEdit.name=this.value"></label>
+    ${r.criteria.map((c,i)=>`<div class="rvc" style="margin-top:10px"><div class="grid2"><label class="field">評価項目<input value="${esc(c.label)}" onchange="window._roleEdit.criteria[${i}].label=this.value"></label>
+      <label class="field">求める行動<input value="${esc(c.behavior||'')}" onchange="window._roleEdit.criteria[${i}].behavior=this.value"></label></div>
+      <label class="field" style="margin-top:6px">質問（1行に1つ）<textarea rows="2" onchange="window._roleEdit.criteria[${i}].questions=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${esc((c.questions||[]).join('\n'))}</textarea></label>
+      <button class="btn ghost sm" onclick="window._roleEdit.criteria.splice(${i},1);renderRoleModal()">この項目を削除</button></div>`).join('')}
+    <div class="row" style="margin-top:10px"><button class="btn sm" onclick="window._roleEdit.criteria.push({label:'',behavior:'',questions:[]});renderRoleModal()">評価項目を追加</button><button class="btn sm" onclick="genRoleQuestions(this)">質問案を作る（AI）</button></div>
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="saveRole(this)">保存</button></div>`);
+}
+async function genRoleQuestions(btn){
+  const r=window._roleEdit; if(!r.criteria.some(c=>c.label)) return toast('先に評価項目を入力してください',true);
+  busy(btn,true,'作成中');
+  try{ const out=parseJSON(await callAI({system:SYS_RQ, prompt:`募集職種：${r.name}\n評価項目:\n${r.criteria.map(c=>`- ${c.label}：${c.behavior||''}`).join('\n')}`, max_tokens:2000}));
+    (out.criteria||[]).forEach(o=>{ const c=r.criteria.find(x=>norm(x.label)===norm(o.label)); if(c) c.questions=[...(c.questions||[]), ...(o.questions||[])].slice(0,5); });
+    renderRoleModal(); toast('質問案を追加しました。確認して直してください'); }catch(e){ busy(btn,false); toast(e.message,true); }
+}
+async function saveRole(btn){
+  const r=window._roleEdit; r.name=$('#rl_name').value.trim(); r.criteria=r.criteria.filter(c=>c.label&&c.label.trim());
+  if(!r.name||!r.criteria.length) return toast('職種名と評価項目を入力してください',true);
+  busy(btn,true,'保存中');
+  try{ const row={name:r.name, criteria:r.criteria, active:true}; if(r.id) await DB.update('hr_recruit_roles',r.id,row); else { const n=await DB.insert('hr_recruit_roles',{...row, created_by:S.me.email}); RC.roleId=n.id; } await DB.log('save_recruit_role','recruit',r.name); closeModal(); viewRecruit(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+function addCandidate(roleId){
+  openModal(`<h2>候補者を追加</h2><label class="field">氏名<input id="cd_name"></label><label class="field" style="margin-top:10px">選考段階<input id="cd_stage" value="一次面接"></label><label class="field" style="margin-top:10px">メモ（職務に関係する事実のみ）<textarea id="cd_memo" rows="2"></textarea></label>
+    <div class="foot"><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn pri" onclick="saveCandidate(this,'${roleId}')">保存</button></div>`);
+}
+async function saveCandidate(btn,roleId){
+  const n=$('#cd_name').value.trim(); if(!n) return toast('氏名を入力してください',true);
+  busy(btn,true,'保存中');
+  try{ const c=await DB.insert('hr_candidates',{role_id:roleId, full_name:n, stage:$('#cd_stage').value.trim()||null, memo:$('#cd_memo').value.trim()||null, created_by:S.me.email}); await DB.log('add_candidate','candidate',c.id); closeModal(); RC.candId=c.id; viewRecruit(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
+}
+function newInterview(){
+  const cand=window._cands.find(c=>c.id===RC.candId); const crit=(window._roles.find(r=>r.id===cand.role_id)||{criteria:[]}).criteria||[];
+  RC.form={ round:'一次面接', held_on:today(), answers:crit.map(c=>({criterion:c.label, question:(c.questions||[])[0]||'', answer:'', evidence:'', rating:'', followup:''})), overall:'', concern:'' };
+  viewRecruit();
+}
+function interviewFormHTML(crit){
+  const f=RC.form;
+  return `<div class="panel"><h3>面接を記録</h3>
+    <div class="grid3" style="margin-top:8px"><label class="field">面接の段階<input value="${esc(f.round)}" onchange="RC.form.round=this.value"></label><label class="field">実施日<input type="date" value="${esc(f.held_on)}" onchange="RC.form.held_on=this.value"></label></div>
+    ${f.answers.map((a,i)=>{ const c=crit.find(x=>x.label===a.criterion)||{}; return `<div class="rvc"><b>${esc(a.criterion)}</b><p class="small muted">${esc(c.behavior||'')}</p>
+      <label class="field" style="margin-top:6px">質問<input class="inp" list="ql_${i}" value="${esc(a.question)}" onchange="RC.form.answers[${i}].question=this.value"><datalist id="ql_${i}">${(c.questions||[]).map(q=>`<option value="${esc(q)}">`).join('')}</datalist></label>
+      <label class="field" style="margin-top:6px">候補者の具体的な回答（場面・行動・結果）<textarea class="inp" rows="2" onchange="RC.form.answers[${i}].answer=this.value">${esc(a.answer)}</textarea></label>
+      <div class="grid2" style="margin-top:6px"><label class="field">評価<select class="inp" onchange="RC.form.answers[${i}].rating=this.value"><option value="">—</option>${Object.entries(RATING).map(([k,v])=>`<option value="${k}" ${String(a.rating)===k?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="field">評価の根拠<input class="inp" value="${esc(a.evidence)}" onchange="RC.form.answers[${i}].evidence=this.value"></label>
+      <label class="field" style="grid-column:1/-1">追加で確認すること<input class="inp" value="${esc(a.followup)}" onchange="RC.form.answers[${i}].followup=this.value"></label></div></div>`; }).join('')}
+    <div class="rvc"><b>気になる点を面接質問に変換</b><p class="small muted">資料や印象で気になった点を、職務に関係する具体的な行動の質問に変えます（AIの案は確認してから使ってください）。</p>
+      <div class="row" style="margin-top:6px;flex-wrap:nowrap"><input class="inp" id="iv_concern" placeholder="例：前職を短期間で辞めている"><button class="btn sm" onclick="convertConcern(this)">質問にする</button></div><p id="iv_conv" class="small" style="margin-top:6px"></p></div>
+    <label class="field" style="margin-top:10px">総合メモ（根拠とともに）<textarea class="inp" rows="2" onchange="RC.form.overall=this.value">${esc(f.overall)}</textarea></label>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" onclick="RC.form=null;viewRecruit()">キャンセル</button><button class="btn pri" onclick="saveInterview(this)">保存</button></div></div>`;
+}
+async function convertConcern(btn){
+  const c=$('#iv_concern').value.trim(); if(!c) return;
+  const cand=window._cands.find(x=>x.id===RC.candId); const role=window._roles.find(r=>r.id===cand.role_id);
+  busy(btn,true,'');
+  try{ const out=parseJSON(await callAI({system:SYS_RQ_CONVERT, prompt:`募集職種：${role?.name||''}\n評価項目：${(role?.criteria||[]).map(x=>x.label).join('、')}\n気になる点：${c}`, max_tokens:600})); busy(btn,false);
+    $('#iv_conv').innerHTML = out.question ? `質問案：<b>${esc(out.question)}</b>　<button class="btn ghost sm" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(out.question))});toast('コピーしました')">コピー</button>` : `<span class="muted">${esc(out.reason||'職務に関係する質問にできませんでした')}</span>`; }
+  catch(e){ busy(btn,false); toast(e.message,true); }
+}
+async function saveInterview(btn){
+  const f=RC.form; busy(btn,true,'保存中');
+  try{ await DB.insert('hr_interviews',{ candidate_id:RC.candId, round:f.round, held_on:f.held_on, interviewer_email:S.me.email, answers:f.answers.map(a=>({...a, rating:a.rating===''?null:+a.rating})), overall:f.overall||null, created_by:S.me.email }); await DB.log('save_interview','candidate',RC.candId); RC.form=null; toast('保存しました'); viewRecruit(); }
+  catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
 }
 
 async function viewKarte(){
@@ -1229,49 +1827,67 @@ async function viewKarte(){
   if(!p) { $('#main').innerHTML='<div class="empty">この社員のカルテを見る権限がありません。</div>'; return; }
   const rel = relOf(p);
   const as = rel==='hr' ? (S.viewAs||'hr') : rel;
-  const [sources, items, meetings, corr] = await Promise.all([ rel==='hr'?DB.sources(p.id):[], DB.items(p.id), DB.meetings(p.id).catch(()=>[]), (rel==='hr'||rel==='self')?DB.corrections(p.id):[] ]);
+  const [sources, items, meetings, corr, actions, results, points] = await Promise.all([
+    rel==='hr'?DB.sources(p.id):[], DB.items(p.id), DB.meetings(p.id).catch(()=>[]), (rel==='hr'||rel==='self')?DB.corrections(p.id):[],
+    soft(DB.list('hr_actions',{person_id:p.id}),[]), soft(DB.list('hr_results',{person_id:p.id}),[]), (rel==='hr'||rel==='manager')?soft(DB.list('hr_confirm_points',{person_id:p.id}),[]):[] ]);
+  results.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  actions.sort((a,b)=>String(a.due_on||'9999').localeCompare(String(b.due_on||'9999')));
   DB.log('view_karte','person',p.id,{as:rel});
   const visAll = items.filter(it=>{
     if(as==='hr') return true;
-    if(it.status!=='active') return false;
+    if(it.status!=='active' || !isConfirmedItem(it)) return false;
     return as==='manager' ? it.visible_to_manager : it.visible_to_self;
   });
-  const vis = visAll.filter(i=>i.category!==MP_CAT);
-  const mpA = visAll.filter(i=>i.category===MP_CAT && i.label==='マルコポーロ分析' && i.data && i.status!=='hidden').sort((a,b)=>String(b.diagnosed_on||'').localeCompare(String(a.diagnosed_on||'')))[0];
+  const pending = rel==='hr' ? items.filter(i=>(i.verify_status||'confirmed')==='pending' && i.status==='active') : [];
+  const vis = visAll.filter(i=>i.category!==MP_CAT && isConfirmedItem(i));
+  const mpA = visAll.filter(i=>i.category===MP_CAT && i.label==='マルコポーロ分析' && i.data && i.status!=='hidden' && isConfirmedItem(i)).sort((a,b)=>String(b.diagnosed_on||'').localeCompare(String(a.diagnosed_on||'')))[0];
   const mpM = visAll.find(i=>i.category===MP_CAT && i.label==='メンタルフラグ' && i.data);
-  window._items = items;
+  window._items = items; window._sources = sources; window._actions = actions; window._points = points; window._meetings = meetings;
   const canEdit = rel==='hr' && as==='hr';
-  const txt = it => (canEdit && S.showOriginal && it.original) ? it.original : (it.summary || it.original || '');
+  const canAct = (rel==='hr'||rel==='manager') && as!=='self';
+  const resolved = new Set(points.filter(x=>x.status!=='open'&&x.status!=='hold').flatMap(x=>(x.refs||[]).filter(r=>r.type==='item').map(r=>r.id)));
+  const asked = new Set(points.flatMap(x=>(x.refs||[]).filter(r=>r.type==='item').map(r=>r.id)));
+  const interpN = vis.filter(i=>i.layer==='interpretation' && i.status==='active' && !resolved.has(i.id)).length;
+  // 共有用の文章：上司・本人には要約だけを見せ、原文へ自動で流用しない
+  const txt = it => (canEdit && S.showOriginal && it.original) ? it.original : (it.summary || (canEdit ? it.original : '') || '');
   const cite = it => `${esc(KINDS[it.source_kind]?.short||'資料')}${it.diagnosed_on?' '+esc(it.diagnosed_on):''}${it.page?'／'+esc(it.page):''}`;
+  const origin = it => it.layer!=='interpretation' ? '' : it.original ? '<span class="tag">資料の記載</span>' : '<span class="tag">AIの要約</span>';
   const itemHTML = it => `<div class="it ${it.layer} ${it.status==='hidden'?'hidden':''}">
       <div><span class="lb">${esc(it.label)}</span>${it.value?`<span class="vl">${esc(it.value)}</span>`:''}</div>
       ${txt(it)&&txt(it)!==it.label?`<div class="tx">${esc(txt(it))}</div>`:''}
-      <div class="ct"><span>${cite(it)}</span>${canEdit&&it.sensitive?'<span class="tag alert">要配慮</span>':''}${canEdit&&it.needs_check?'<span class="tag interp">読み取り値</span>':''}${canEdit&&it.status==='hidden'?'<span class="tag">非表示</span>':''}
+      <div class="ct"><span>${cite(it)}</span>${origin(it)}${it.layer==='interpretation'?(resolved.has(it.id)?'<span class="tag sage">本人確認済み</span>':asked.has(it.id)?'<span class="tag interp">確認予定</span>':''):''}
+        ${canEdit&&it.sensitive?'<span class="tag alert">要配慮</span>':''}${canEdit&&it.status==='hidden'?'<span class="tag">非表示</span>':''}
+        ${canEdit&&it.source_id&&(sources.find(s=>s.id===it.source_id)||{}).file_path?`<button class="btn ghost sm" onclick="openPageViewer('${it.source_id}','${esc(it.page||'1')}')">原本${it.page?'（'+esc(it.page)+'）':''}</button>`:''}
+        ${canEdit&&it.original&&!S.showOriginal?`<button class="btn ghost sm" onclick="this.closest('.it').querySelector('.orig-x').hidden=!this.closest('.it').querySelector('.orig-x').hidden">原文</button>`:''}
+        ${canAct&&it.layer==='interpretation'&&!asked.has(it.id)?`<button class="btn ghost sm" onclick="pointFromItem('${it.id}')">本人に確認</button>`:''}
         ${rel==='self'?`<button class="btn ghost sm" onclick="requestCorrection('${p.id}','${it.id}')">訂正を依頼</button>`:''}</div>
+      ${canEdit&&it.original?`<p class="orig orig-x small" hidden>原文：${esc(it.original)}</p>`:''}
       ${canEdit?`<div class="ctl">
         <button class="${it.visible_to_manager?'on':''}" onclick="toggleItem('${it.id}','visible_to_manager')">上司に表示</button>
         <button class="${it.visible_to_self?'on':''}" onclick="toggleItem('${it.id}','visible_to_self')">本人に表示</button>
         <button onclick="editItem('${it.id}')">修正</button>
         <button onclick="toggleItem('${it.id}','status')">${it.status==='hidden'?'再表示':'非表示にする'}</button></div>`:''}
     </div>`;
-  const byCat = c => vis.filter(i=>i.category===c);
+  const block = c => { const xs=vis.filter(i=>i.category===c); const f=xs.filter(i=>i.layer!=='interpretation'), t=xs.filter(i=>i.layer==='interpretation');
+    return `<section class="kblock"><h3>${c}<span class="n">${xs.length}件</span></h3>
+      ${f.length?f.map(itemHTML).join(''):'<p class="small muted">確認できる事実・本人の発言はまだありません</p>'}
+      ${t.length?`<p class="sub-l">資料の解釈（本人に確認する材料）</p>${t.map(itemHTML).join('')}`:''}</section>`; };
   const others = vis.filter(i=>!KARTE_MAIN.includes(i.category));
   const lastM = meetings[0];
-  window._meetings = meetings;
-  const vizHTML = [numericProfileHTML(vis), compositionHTML(vis), actionProgressHTML(meetings, rel==='hr'||rel==='manager'), timelineHTML(rel==='hr'?sources:[], vis, meetings)].filter(Boolean);
+  const vizHTML = [numericProfileHTML(vis), compositionHTML(vis), timelineHTML(rel==='hr'?sources:[], vis, meetings)].filter(Boolean);
   $('#main').innerHTML = `
     <div class="kh">
       <div>
         <p class="small muted"><a href="#" onclick="go('people');return false">${S.hr?'社員一覧':'メンバー'}</a></p>
         <h1>${esc(p.full_name)}</h1>
-        <div class="meta"><span>${esc(p.department||'部署未設定')}${p.position?'　'+esc(p.position):''}</span><span>${esc(p.employee_no||'')}</span>${p.desired_role?`<span>希望：${esc(p.desired_role)}</span>`:''}<span>最終1on1：${lastM?esc(lastM.held_on):'未実施'}</span></div>
+        <div class="meta"><span>${esc(p.department||'部署未設定')}${p.position?'　'+esc(p.position):''}</span><span>${esc(p.employee_no||'')}</span><span>最終1on1：${lastM?esc(lastM.held_on):'未実施'}</span></div>
       </div>
       <div class="row" style="justify-content:flex-end">
-        ${rel==='hr'||rel==='manager'?`<button class="btn pri" onclick="startMeeting('${p.id}')">1on1を準備</button>`:''}
         ${rel==='self'?`<button class="btn" onclick="requestCorrection('${p.id}','')">訂正を依頼</button>`:''}
         ${rel==='hr'?`<button class="btn" onclick="IMP.reset('${p.id}');go('import')">資料を追加</button><button class="btn" onclick="editPerson('${p.id}')">基本情報</button>`:''}
       </div>
     </div>
+    ${nextStepHTML(p, { actions, results, points, meetings, rel: as==='hr'?'hr':as, interpN })}
     ${rel==='hr'?`<div class="row" style="margin-top:16px">
       <span class="small muted">表示</span>
       <div class="viewas">${[['hr','人事（全項目）'],['manager','上司に見える内容'],['self','本人に見える内容']].map(([k,l])=>`<button class="${as===k?'on':''}" onclick="S.viewAs='${k}';viewKarte()">${l}</button>`).join('')}</div>
@@ -1279,6 +1895,12 @@ async function viewKarte(){
     </div>`:''}
     ${rel==='self'?`<div class="notice info" style="margin-top:16px">あなたについて確認済みの内容です。事実と違う点や古い情報があれば「訂正を依頼」から知らせてください。</div>`:''}
     ${rel==='manager'?`<div class="notice info" style="margin-top:16px">資料の解釈は確定した評価ではありません。1on1で本人に確かめる材料として使ってください。</div>`:''}
+
+    ${actionsSectionHTML(actions, canAct, p.id)}
+    ${(rel==='hr'||rel==='manager')&&as!=='self'?pointsSectionHTML(points, p.id, canAct):''}
+
+    <div class="sec-title detail-h"><h2>詳細：資料と診断</h2><span class="small muted">事実・本人の発言と、資料の解釈を分けて表示しています</span></div>
+    ${pending.length&&as==='hr'?`<div class="notice warn">原本との照合待ちの読取値が${pending.length}件あります。確定するまでグラフ・AI分析・上司や本人の画面には出ません。<button class="btn sm" style="margin-left:8px" onclick="go('verify')">読取確認へ</button></div>`:''}
     <div class="legend">${Object.entries(LAYERS).map(([k,v])=>`<span><i class="sw ${k}"></i>${v.label}</span>`).join('')}</div>
     ${vizHTML.length?`<div class="viz">${vizHTML.join('')}</div>`:''}
     ${mpA?mpPanelHTML(mpA, as):''}
@@ -1286,21 +1908,25 @@ async function viewKarte(){
     ${mpM&&as==='hr'?mpMentalHTML(mpM):''}
     ${vis.length ? `
     <div class="sec-title"><h2>カルテの記載</h2></div>
-    <div class="kgrid">${KARTE_MAIN.map(c=>`<section class="kblock"><h3>${c}<span class="n">${byCat(c).length}件</span></h3>${byCat(c).map(itemHTML).join('')||'<p class="small muted">記載はまだありません</p>'}</section>`).join('')}</div>
+    <div class="kgrid">${KARTE_MAIN.map(block).join('')}</div>
     ${others.length?`<div class="sec-title"><h2>そのほかの記載</h2></div>
     <div class="layers">${Object.entries(LAYERS).map(([k,v])=>{ const xs=others.filter(i=>i.layer===k); return `<div><h3>${v.label}</h3>${xs.map(i=>itemHTML(i).replace('<div><span class="lb">',`<div><span class="tag" style="margin-right:6px">${esc(i.category)}</span><span class="lb">`)).join('')||'<p class="small muted">なし</p>'}</div>`; }).join('')}</div>`:''}
-    ` : mpA ? '' : `<div class="empty" style="margin-top:14px">${rel==='hr'?'まだ資料が登録されていません。':'表示できる確認済みの記載はまだありません。'}${rel==='hr'?`<br><button class="btn pri" onclick="IMP.reset('${p.id}');go('import')">資料を登録する</button>`:''}</div>`}
+    ` : mpA ? '' : `<div class="empty" style="margin-top:14px">${rel==='hr'?'まだ確定した資料の記載がありません。':'表示できる確認済みの記載はまだありません。'}${rel==='hr'?`<br><button class="btn pri" onclick="IMP.reset('${p.id}');go('import')">資料を登録する</button>`:''}</div>`}
+
+    ${results.length>1?`<div class="sec-title"><h2>仕事上の成果の記録</h2></div><div class="panel">${results.map(r=>`<div class="mtg"><b class="small">${esc(r.period||'')}</b> <span class="small muted">${esc(fmtD(r.created_at))}　${esc(r.created_by||'')}</span><p class="small">${esc(r.body)}</p></div>`).join('')}</div>`:''}
 
     <div class="sec-title"><h2>1on1の記録</h2></div>
     <div class="panel">${meetings.length?meetings.map(m=>`<div class="mtg">
         <div class="row"><b>${esc(m.held_on)}</b><span class="small muted">${esc(m.interviewer_email||'')}</span>${(m.themes||[]).map(t=>`<span class="tag sage">${esc(t)}</span>`).join('')}
-          ${rel==='hr'||rel==='manager'?`<button class="btn ghost sm" style="margin-left:auto" onclick="startMeeting('${p.id}','${m.id}')">開く</button>`:''}</div>
+          ${canAct?`<button class="btn ghost sm" style="margin-left:auto" onclick="startMeeting('${p.id}','${m.id}')">開く</button>`:''}</div>
         ${m.wish?`<p class="small" style="margin-top:4px">本人の希望・気づき：${esc(m.wish)}</p>`:''}
-        ${(m.next_actions||[]).length?`<ul class="acts">${m.next_actions.map(a=>`<li>${a.done?'<s>':''}${esc(a.what)}（${esc(a.who||'')}${a.due?'・'+esc(a.due):''}）${a.done?'</s>':''}</li>`).join('')}</ul>`:''}
+        ${(m.reviews||[]).length?`<p class="small muted" style="margin-top:4px">振り返った行動</p><ul class="acts">${m.reviews.map(r=>`<li>${esc(r.action||'')} → ${esc(A_STATUS[r.status]||'')}${r.helpful?'・'+A_HELP[r.helpful]:''}${r.decision?'・判断：'+A_DEC[r.decision]:''}${r.result?`<br><span class="muted">${esc(r.result)}</span>`:''}</li>`).join('')}</ul>`:''}
+        ${(m.next_actions||[]).length?`<p class="small muted" style="margin-top:4px">決めた行動</p><ul class="acts">${m.next_actions.map(a=>`<li>${esc(a.what)}（${esc(a.who||'')}${a.due?'・'+esc(a.due):''}）</li>`).join('')}</ul>`:''}
+        ${(m.confirm_answers||[]).length&&as!=='self'?`<p class="small muted" style="margin-top:4px">本人に確認したこと</p><ul class="acts">${m.confirm_answers.map(c=>`<li>${esc(c.topic||'')}：${esc(CP_STATUS[c.status]||'')}${c.answer?`（${esc(c.answer)}）`:''}</li>`).join('')}</ul>`:''}
       </div>`).join(''):'<p class="muted small">まだ記録がありません。</p>'}</div>
 
     ${rel==='hr'?`<div class="sec-title"><h2>登録資料</h2></div>
-    <div class="panel srcs">${sources.length?sources.map(s=>`<div class="src"><span class="tag fact">${esc(KINDS[s.kind]?.short)}</span><b>${esc(s.file_name||'（貼り付け文章）')}</b><span class="small muted">診断日 ${esc(s.diagnosed_on||'不明')}　登録 ${esc(fmtDT(s.created_at))}</span>${s.file_path?`<button class="btn ghost sm" onclick="openOriginal('${s.id}','${esc(s.file_path)}')">原本を開く</button>`:''}</div>`).join(''):'<p class="muted small">登録資料はありません。</p>'}</div>`:''}
+    <div class="panel srcs">${sources.length?sources.map(s=>`<div class="src"><span class="tag fact">${esc(KINDS[s.kind]?.short)}</span><b>${esc(s.file_name||'（貼り付け文章）')}</b><span class="small muted">診断日 ${esc(s.diagnosed_on||'不明')}　登録 ${esc(fmtDT(s.created_at))}</span>${s.file_path?`<button class="btn ghost sm" onclick="openPageViewer('${s.id}',1)">原本を表示</button>`:''}</div>`).join(''):'<p class="muted small">登録資料はありません。</p>'}</div>`:''}
 
     ${corr.length?`<div class="sec-title"><h2>訂正依頼</h2></div><div class="panel">${corr.map(c=>`<div class="mtg"><div class="row"><span class="tag ${c.status==='open'?'alert':'sage'}">${c.status==='open'?'対応待ち':c.status==='done'?'反映済み':'見送り'}</span><b class="small">${esc(c.item_label||'全体')}</b><span class="small muted">${esc(fmtDT(c.created_at))}</span></div><p class="small" style="margin-top:4px">${esc(c.body)}</p>${c.response?`<p class="small muted">回答：${esc(c.response)}</p>`:''}</div>`).join('')}</div>`:''}
   `;
@@ -1412,7 +2038,8 @@ function extractPrompt(kind, text){
 }
 function prepItems(items, kind){
   return (items||[]).map(x=>{
-    const it = { layer: LAYERS[x.layer]?x.layer:'interpretation', category: CATS.includes(x.category)?x.category:'その他', label:cleanLabel({label:String(x.label||'').slice(0,40), value:x.value||''}), value:x.value||'', original:x.original||'', summary:x.summary||'', page:x.page||'', sensitive:!!x.sensitive, needs_check: kind==='milme' ? true : !!x.needs_check, exclude:false };
+    const strong = STRONG_WORDS.test(x.original||'') || STRONG_WORDS.test(x.summary||'');
+    const it = { layer: LAYERS[x.layer]?x.layer:'interpretation', category: CATS.includes(x.category)?x.category:'その他', label:cleanLabel({label:String(x.label||'').slice(0,40), value:x.value||''}), value:x.value||'', original:x.original||'', summary: STRONG_WORDS.test(x.summary||'') ? '' : (x.summary||''), page:x.page||'', sensitive:!!x.sensitive||strong, strong, needs_check: kind==='milme' ? (x.layer==='fact'||!!x.value) : !!x.needs_check, exclude:false };
     applyVisibilityDefaults(it); return it;
   });
 }
@@ -1547,16 +2174,16 @@ function importReviewHTML(){
   </div>
   <div class="notice info" style="margin-top:16px">初期設定：数値と本人の発言・実績は上司と本人に表示。資料の解釈は上司のみ。要配慮の記載はどちらにも表示しません。本人に見せる場合は、要約が本人に伝えてよい表現か確認してください。</div>
   ${nSens?`<div class="notice alert">要配慮の記載が${nSens}件あります。将来の断定や人格に関わる表現は、確定した人事情報として扱わないでください。</div>`:''}
-  ${nNeed?`<div class="notice warn">${c.mp?'マルコポーロの数値は画像から読み取っています。下の「マルコポーロの数値」を原本と照合してください。':`原本と照合が必要な読み取り値が${nNeed}件あります。`}</div>`:''}
+  ${nNeed?`<div class="notice warn">${c.mp?'マルコポーロの数値は画像から読み取っています。下の「マルコポーロの数値」を原本と照合してください。':`原本と照合が必要な読み取り値が${nNeed}件あります。この場で照合しない場合は「照合待ち」として登録され、「読取確認」画面で原本と見比べて確定できます。確定するまでグラフ・AI分析・上司や本人の画面には出ません。`}</div>`:''}
   <div class="legend">${Object.entries(LAYERS).map(([key,v])=>`<span><i class="sw ${key}"></i>${v.label}：${v.desc}</span>`).join('')}</div>
   <div style="margin-top:10px">${c.items.map(reviewRow).join('') || '<div class="empty">抽出された項目がありません。項目を追加するか、資料を確認してください。</div>'}</div>
   <button class="btn sm" onclick="R.add()">項目を追加</button>
   ${c.mp?mpEditorHTML(c):''}
   <div class="panel" style="margin-top:16px">
-    ${nNeed?`<label class="row small" style="gap:6px;margin-bottom:10px;cursor:pointer"><input type="checkbox" ${c.checked?'checked':''} onchange="R.cur().checked=this.checked;viewImport()">読み取った数値を原本と照合しました</label>`:''}
+    ${nNeed?`<label class="row small" style="gap:6px;margin-bottom:10px;cursor:pointer"><input type="checkbox" ${c.checked?'checked':''} onchange="R.cur().checked=this.checked;viewImport()">読み取った数値をすべて原本と照合しました${c.mp?'（マルコポーロは必須）':''}</label>`:''}
     <div class="row" style="justify-content:space-between">
       <button class="btn" onclick="skipCurrent()">${IMP.queue.length>1?'この人は登録しない':'やり直す'}</button>
-      <button class="btn pri" onclick="registerCurrent(this)" ${nNeed&&!c.checked?'disabled':''}>確認して登録</button>
+      <button class="btn pri" onclick="registerCurrent(this)" ${c.mp&&!c.checked?'disabled':''}>${nNeed&&!c.checked&&!c.mp?'登録（数値は照合待ち）':'確認して登録'}</button>
     </div></div>`;
 }
 function reviewRow(it,i){
@@ -1570,7 +2197,7 @@ function reviewRow(it,i){
     <textarea class="inp" rows="2" aria-label="表示用の要約" placeholder="表示用の要約（上司・本人に見える文章）" onchange="R.set(${i},'summary',this.value)">${esc(it.summary)}</textarea>
     ${it.original?`<details><summary>原文${it.page?'（'+esc(it.page)+'）':''}</summary><p class="orig">${esc(it.original)}</p></details>`:''}
     <div class="rv-flags">
-      ${it.needs_check?'<span class="tag interp">原本と照合</span>':''}
+      ${it.needs_check?'<span class="tag interp">原本と照合</span>':''}${it.strong?'<span class="tag alert">強い表現を含む原文（共有用の文章に流用しません）</span>':''}
       <label><input type="checkbox" ${it.sensitive?'checked':''} onchange="R.sens(${i},this.checked)">要配慮</label>
       <label><input type="checkbox" ${it.visible_to_manager?'checked':''} onchange="R.set(${i},'visible_to_manager',this.checked)">上司に表示</label>
       <label><input type="checkbox" ${it.visible_to_self?'checked':''} onchange="R.set(${i},'visible_to_self',this.checked)">本人に表示</label>
@@ -1599,17 +2226,17 @@ async function registerCurrent(btn){
       IMP.filePath = await DB.upload(`${IMP.kind}/${today()}_${uid()}.${ext}`, IMP.file);
     }
     const src = await DB.addSource({ person_id:pid, kind:IMP.kind, file_name:IMP.file?IMP.file.name:null, file_path:IMP.filePath, diagnosed_on:c.diagnosed_on||null, raw_text:c.raw_text||null, extracted:{ subject_name:c.subject_name, employee_no:c.employee_no, count:rows.length }, created_by:S.me.email });
-    await DB.addItems(rows.map(i=>({ person_id:pid, source_id:src.id, source_kind:IMP.kind, source_name:src.file_name, diagnosed_on:c.diagnosed_on||null, layer:i.layer, category:i.category, label:i.label, value:i.value||null, original:i.original||null, summary:i.summary||null, page:i.page||null, sensitive:i.sensitive, needs_check:false, status:'active', visible_to_manager:i.visible_to_manager, visible_to_self:i.visible_to_self, updated_by:S.me.email })));
+    await DB.addItems(rows.map(i=>({ person_id:pid, source_id:src.id, source_kind:IMP.kind, source_name:src.file_name, diagnosed_on:c.diagnosed_on||null, layer:i.layer, category:i.category, label:i.label, value:i.value||null, original:i.original||null, summary:i.summary||null, page:i.page||null, sensitive:i.sensitive, needs_check:!!(i.needs_check&&!c.checked), verify_status:(i.needs_check&&!c.checked)?'pending':'confirmed', status:'active', visible_to_manager:i.visible_to_manager, visible_to_self:i.visible_to_self, updated_by:S.me.email }))).catch(e=>{ throw schemaError(e); });
     if(c.mp){
       const { mental_flag, ...core } = c.mp;
-      const mpRows = [{ person_id:pid, source_id:src.id, source_kind:IMP.kind, source_name:src.file_name, diagnosed_on:c.diagnosed_on||null, layer:'fact', category:MP_CAT, label:'マルコポーロ分析', summary:'マルコポーロ面接シートの数値データ', data:core, sensitive:false, needs_check:false, status:'active', visible_to_manager:true, visible_to_self:false, updated_by:S.me.email }];
+      const mpRows = [{ person_id:pid, source_id:src.id, source_kind:IMP.kind, source_name:src.file_name, diagnosed_on:c.diagnosed_on||null, layer:'fact', category:MP_CAT, label:'マルコポーロ分析', summary:'マルコポーロ面接シートの数値データ', data:core, sensitive:false, needs_check:false, verify_status:'confirmed', status:'active', visible_to_manager:true, visible_to_self:false, updated_by:S.me.email }];
       if(c.saveMental && mental_flag!=null) mpRows.push({ person_id:pid, source_id:src.id, source_kind:IMP.kind, source_name:src.file_name, diagnosed_on:c.diagnosed_on||null, layer:'fact', category:MP_CAT, label:'メンタルフラグ', summary:'人事・経営層のみ', data:{mental_flag}, sensitive:true, needs_check:false, status:'active', visible_to_manager:false, visible_to_self:false, updated_by:S.me.email });
       try{ await DB.addItems(mpRows); }
       catch(e){ if(/data/.test(e.message)) throw new Error('マルコポーロの数値を保存する列がまだありません。Supabaseで「alter table hr_items add column if not exists data jsonb;」を実行してから、もう一度登録してください。'); throw e; }
     }
     await DB.log('import_source','source',src.id,{person_id:pid,kind:IMP.kind,items:rows.length});
     c.saved = true; c.savedPid = pid; c.savedName = (S.people.find(p=>p.id===pid)||{}).full_name || c.subject_name;
-    toast(`${c.savedName}さんのカルテに登録しました`);
+    toast(`${c.savedName}さんのカルテに登録しました`); await reloadPeople();
     nextInQueue();
   }catch(e){ busy(btn,false); toast(e.message,true); }
 }
@@ -1617,29 +2244,89 @@ async function registerCurrent(btn){
 /* =========================================================
    1on1支援
    ========================================================= */
+/* =========================================================
+   1on1支援：前回の行動の振り返り → 本人確認 → 対話 → 新しい行動（仮説）
+   ========================================================= */
 let M = null;
+const SYS_ACTIONS = `[ACTIONS] 1on1で決める「育成行動」の案を作ります。案は上司と本人が話し合って直す前提の下書きです。
+- 2〜3件。仕事上の具体的な課題に対して、次の確認日までに試せる小さな行動にする。
+- 性格を直す行動ではなく、行動・やり方・環境を変える内容にする。
+- metric は成果を確認する指標。baseline は与えられた事実から分かる実施前の状態。分からなければ「本人に確認」と書く。数値を作らない。
+- 前回の行動の結果がある場合は、それを踏まえる（役に立たなかったものは繰り返さない）。
+- 診断結果だけを根拠にしない。事実・本人の希望・前回の結果を優先する。
+出力はJSONのみ: {"actions":[{"issue":"","action":"","owner":"本人|上司|人事","theme":"","metric":"","baseline":"","due_in_days":30}]}`;
 async function startMeeting(pid, mid){
-  const meetings = await DB.meetings(pid).catch(()=>[]);
+  const [meetings, actions, points] = await Promise.all([ DB.meetings(pid).catch(()=>[]), soft(DB.list('hr_actions',{person_id:pid}),[]), soft(DB.list('hr_confirm_points',{person_id:pid}),[]) ]);
   const ex = mid ? meetings.find(m=>m.id===mid) : null;
-  const prev = meetings.find(m=>m.id!==mid);
-  M = ex ? { ...ex, questions:ex.questions||[], try_actions:ex.try_actions||[], next_actions:ex.next_actions||[], themes:ex.themes||[] }
-         : { person_id:pid, held_on:today(), interviewer_email:S.me.email, focus:'', questions:[], try_actions:[], wish:'', next_actions:[], themes:[], next_on:addDays(today(),30) };
-  M._prev = prev || null;
+  const prev = meetings.find(m=>m.id!==mid && (!ex || String(m.held_on)<=String(ex.held_on)));
+  M = ex ? { ...ex, questions:ex.questions||[], try_actions:ex.try_actions||[], themes:ex.themes||[] }
+         : { person_id:pid, held_on:today(), interviewer_email:S.me.email, focus:'', questions:[], try_actions:[], wish:'', themes:[], next_on:addDays(today(),30) };
+  // 振り返り対象：この面談で振り返った行動（既存）＋ まだ判断していない行動
+  const reviewedIds = new Set((ex?.reviews||[]).map(r=>r.action_id));
+  M._reviewList = actions.filter(a=> reviewedIds.has(a.id) || (!ex && needsReview(a) && a.meeting_id!==mid));
+  M._rv = {}; M._reviewList.forEach(a=>{ const r=(ex?.reviews||[]).find(x=>x.action_id===a.id)||{}; M._rv[a.id]={ status:r.status??a.status, reaction:r.reaction??(ex?a.reaction:''), result:r.result??(ex?a.result:''), helpful:r.helpful??(ex?a.helpful:''), decision:r.decision??(ex?a.decision:''), decision_note:r.decision_note??(ex?a.decision_note:''), next_check_on:r.next_check_on||'' }; });
+  const answered = new Set((ex?.confirm_answers||[]).map(c=>c.point_id));
+  M._cpList = points.filter(x=> answered.has(x.id) || (!ex && x.status==='open'));
+  M._cp = {}; M._cpList.forEach(x=>{ const c=(ex?.confirm_answers||[]).find(y=>y.point_id===x.id)||{}; M._cp[x.id]={ status:c.status??x.status, answer:c.answer??(x.answer||'') }; });
+  M._drafts = actions.filter(a=>ex && a.meeting_id===ex.id).map(a=>({...a, _existing:true}));
+  M._prev = prev||null; M._allActions = actions;
   go('meeting', pid);
+}
+function rvCardHTML(a){
+  const r = M._rv[a.id]; const over = a.due_on && a.due_on<M.held_on && (r.status==='planned'||r.status==='doing');
+  const sel=(k,obj,ph)=>`<select class="inp" onchange="M._rv['${a.id}'].${k}=this.value;${k==='decision'?'viewMeeting()':''}"><option value="">${ph}</option>${Object.entries(obj).map(([v,l])=>`<option value="${v}" ${v===r[k]?'selected':''}>${l}</option>`).join('')}</select>`;
+  return `<div class="rvc ${over?'over':''}">
+    <div class="act-h"><b>${esc(a.action)}</b>${over?'<span class="tag alert">期限超過</span>':''}<span class="small muted">${esc(a.owner||'')}　期限 ${esc(a.due_on||'未設定')}</span></div>
+    <div class="act-m"><span><i>課題</i>${esc(a.issue||'—')}</span><span><i>指標</i>${esc(a.metric||'—')}</span><span><i>実施前</i>${esc(a.baseline||'—')}</span></div>
+    <div class="grid3" style="margin-top:8px">
+      <label class="field">実施状況${sel('status',A_STATUS,'—')}</label>
+      <label class="field">役に立ったか${sel('helpful',A_HELP,'—')}</label>
+      <label class="field">次の判断${sel('decision',A_DEC,'未判断')}</label>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <label class="field">本人の反応<textarea class="inp" rows="2" onchange="M._rv['${a.id}'].reaction=this.value" placeholder="本人の言葉で">${esc(r.reaction||'')}</textarea></label>
+      <label class="field">実際の結果（指標の変化など）<textarea class="inp" rows="2" onchange="M._rv['${a.id}'].result=this.value" placeholder="実施前：${esc(a.baseline||'—')}">${esc(r.result||'')}</textarea></label>
+    </div>
+    ${r.decision?`<div class="grid2" style="margin-top:8px"><label class="field">判断の理由<input class="inp" value="${esc(r.decision_note||'')}" onchange="M._rv['${a.id}'].decision_note=this.value"></label>
+      ${r.decision==='continue'?`<label class="field">次の確認期限<input class="inp" type="date" value="${esc(r.next_check_on||'')}" onchange="M._rv['${a.id}'].next_check_on=this.value"></label>`:''}
+      ${r.decision==='change'?`<div class="field"><span>&nbsp;</span><button class="btn sm" onclick="draftFromChange('${a.id}')">変更後の行動を作る</button></div>`:''}</div>`:''}
+  </div>`;
+}
+function draftFromChange(aid){
+  const a=M._reviewList.find(x=>x.id===aid); const r=M._rv[aid];
+  M._drafts.push({ issue:a.issue||'', action:'', owner:a.owner||'本人', theme:a.theme||'', start_on:M.held_on, due_on:addDays(M.held_on,30), metric:a.metric||'', baseline:r.result||a.baseline||'', _from:aid });
+  viewMeeting(); setTimeout(()=>{ const el=document.querySelector('#drafts .draft:last-child input[data-k="action"]'); el&&el.focus(); },50);
+}
+function draftHTML(d,i){
+  const inp=(k,ph,type='text')=>`<input class="inp" data-k="${k}" type="${type}" value="${esc(d[k]||'')}" placeholder="${esc(ph)}" onchange="M._drafts[${i}].${k}=this.value">`;
+  return `<div class="draft">
+    <div class="row" style="gap:6px">${d.ai_suggested&&!d._edited?'<span class="tag interp">AIの提案（未確定）</span>':''}${d._from?'<span class="tag">前回の行動を変更</span>':''}${d._existing?'<span class="tag sage">保存済み</span>':''}${!d._existing?`<button class="btn ghost sm" style="margin-left:auto" onclick="M._drafts.splice(${i},1);viewMeeting()">削除</button>`:''}</div>
+    <div class="grid2" style="margin-top:6px">
+      <label class="field" style="grid-column:1/-1">解決したい仕事上の課題${inp('issue','例：現調後の合意書への転換が止まっている')}</label>
+      <label class="field" style="grid-column:1/-1">試す行動${inp('action','例：現調の翌日までに概算効果を1枚で送る')}</label>
+      <label class="field">実施担当者<select class="inp" onchange="M._drafts[${i}].owner=this.value">${OWNERS.map(o=>`<option ${o===d.owner?'selected':''}>${o}</option>`).join('')}</select></label>
+      <label class="field">育成テーマ<select class="inp" onchange="M._drafts[${i}].theme=this.value"><option value="">—</option>${THEMES.map(t=>`<option ${t===d.theme?'selected':''}>${t}</option>`).join('')}</select></label>
+      <label class="field">開始日${inp('start_on','','date')}</label><label class="field">確認期限${inp('due_on','','date')}</label>
+      <label class="field">成果を確認する指標${inp('metric','例：現調→合意書の転換率')}</label><label class="field">実施前の状態${inp('baseline','分からなければ「本人に確認」')}</label>
+    </div></div>`;
 }
 async function viewMeeting(){
   const p = S.people.find(x=>x.id===S.pid);
   const rel = relOf(p);
   if(!M || M.person_id!==S.pid || !(rel==='hr'||rel==='manager')){ $('#main').innerHTML='<div class="empty">1on1は人事・経営層または直属上司が記録できます。</div>'; return; }
-  const itemsAll = (await DB.items(p.id)).filter(i=>i.status==='active' && (rel==='hr' || i.visible_to_manager));
-  const items = itemsAll.filter(i=>i.category!==MP_CAT);
-  M._items = items; M._mp = itemsAll;
-  const mpIt = itemsAll.find(i=>i.category===MP_CAT && i.label==='マルコポーロ分析' && i.data);
+  if(!M._items){
+    const itemsAll = (await DB.items(p.id)).filter(i=>i.status==='active' && isConfirmedItem(i) && (rel==='hr' || i.visible_to_manager));
+    M._items = itemsAll.filter(i=>i.category!==MP_CAT && !i.sensitive); M._mp = itemsAll;
+    M._results = await soft(DB.list('hr_results',{person_id:p.id}),[]);
+    M._results.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  }
+  const items = M._items;
+  const mpIt = M._mp.find(i=>i.category===MP_CAT && i.label==='マルコポーロ分析' && i.data);
   const mStyle = mpIt ? mpMainStyle(normalizeMP(mpIt.data).social) : '';
   let myStyle = ''; try{ myStyle = localStorage.getItem('hk_my_style')||''; }catch{}
-  const prevActs = M._prev?.next_actions || [];
+  const overdue = M._reviewList.filter(a=>a.due_on && a.due_on<M.held_on && isActiveAction(a)).length;
   $('#main').innerHTML = `
-    <div class="pagehead"><div><p class="small muted"><a href="#" onclick="go('karte','${p.id}');return false">${esc(p.full_name)}のカルテ</a></p><h1>1on1　${esc(p.full_name)}</h1><p class="sub">カルテは確かめる材料です。本人の言葉で上書きしていきます。</p></div></div>
+    <div class="pagehead"><div><p class="small muted"><a href="#" onclick="go('karte','${p.id}');return false">${esc(p.full_name)}のカルテ</a></p><h1>1on1　${esc(p.full_name)}</h1><p class="sub">前回決めた行動の結果を確かめ、次の行動を本人と決めます。</p></div></div>
     <div class="mgrid">
       <aside class="panel ref">
         ${mStyle&&MPSTYLE[mStyle]?`<h3 style="margin-bottom:6px">接し方のヒント</h3>
@@ -1648,68 +2335,121 @@ async function viewMeeting(){
           <label class="field" style="margin-top:10px">あなた（面談者）のスタイル<select onchange="try{localStorage.setItem('hk_my_style',this.value)}catch{};viewMeeting()"><option value="">選ばない</option>${Object.keys(MPSTYLE).map(k=>`<option ${k===myStyle?'selected':''}>${k}</option>`).join('')}</select></label>
           ${myStyle&&MPPAIR[myStyle]?`<div class="notice info" style="margin:8px 0 0">${esc(myStyle)} → ${esc(mStyle)}：${esc(MPPAIR[myStyle][mStyle])}</div>`:''}
           <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">`:''}
-        <h3 style="margin-bottom:8px">カルテの要点</h3>
-        ${KARTE_MAIN.map(c=>{ const xs=items.filter(i=>i.category===c); return xs.length?`<p class="small muted" style="margin-top:10px">${c}</p>${xs.map(i=>`<div class="it ${i.layer}"><span class="lb">${esc(i.label)}</span>${i.value?`<span class="vl">${esc(i.value)}</span>`:''}<div class="tx small">${esc(i.summary||'')}</div></div>`).join('')}`:''; }).join('') || '<p class="small muted">確認済みの記載がありません。質問はテーマから作れます。</p>'}
-        ${prevActs.length?`<p class="small muted" style="margin-top:14px">前回（${esc(M._prev.held_on)}）決めた行動</p><ul class="acts">${prevActs.map(a=>`<li>${esc(a.what)}（${esc(a.who||'')}）</li>`).join('')}</ul>`:''}
-        ${M._prev?.wish?`<p class="small muted" style="margin-top:10px">前回の本人の希望</p><p class="small">${esc(M._prev.wish)}</p>`:''}
+        <h3 style="margin-bottom:6px">本人について分かっていること</h3>
+        <p class="small"><span class="muted">現在の役割</span>　${esc(p.current_job||p.position||'未登録')}<br><span class="muted">希望する役割</span>　${esc(p.desired_role||'本人に確認')}</p>
+        ${M._results[0]?`<p class="small" style="margin-top:6px"><span class="muted">直近の成果（${esc(M._results[0].period||fmtD(M._results[0].created_at))}）</span><br>${esc(M._results[0].body)}</p>`:''}
+        ${M._prev?.wish?`<p class="small" style="margin-top:6px"><span class="muted">前回の本人の希望</span><br>${esc(M._prev.wish)}</p>`:''}
+        <h3 style="margin:14px 0 6px">カルテの要点</h3>
+        ${KARTE_MAIN.map(c=>{ const xs=items.filter(i=>i.category===c); return xs.length?`<p class="small muted" style="margin-top:8px">${c}</p>${xs.map(i=>`<div class="it ${i.layer}"><span class="lb">${esc(i.label)}</span>${i.value?`<span class="vl">${esc(i.value)}</span>`:''}<div class="tx small">${esc(i.summary||'')}</div><div class="ct">${esc(KINDS[i.source_kind]?.short||'')} ${esc(i.diagnosed_on||'')}${i.layer==='interpretation'?'・本人に確認前':''}</div></div>`).join('')}`:''; }).join('') || '<p class="small muted">確認済みの記載がありません。</p>'}
       </aside>
       <div>
-        <div class="panel">
-          <div class="grid2"><label class="field">実施日<input type="date" value="${esc(M.held_on)}" onchange="M.held_on=this.value"></label>
-          <label class="field">今回話したいこと（任意）<input value="${esc(M.focus||'')}" placeholder="例：次期の担当エリア、後輩育成" onchange="M.focus=this.value"></label></div>
-          <div class="row" style="margin-top:12px"><button class="btn pri" onclick="genQuestions(this)">${M.questions.length?'質問を作り直す':'質問を提案'}</button><button class="btn" onclick="M.questions.push({q:'',basis:'自分で追加',aim:'',answer:''});viewMeeting()">質問を追加</button></div>
-        </div>
-        ${M.try_actions.length?`<div class="panel"><h3 style="margin-bottom:6px">次の面談までに試す関わり方</h3><ul class="acts">${M.try_actions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
-        ${M.questions.length?`<div style="margin-top:16px">${M.questions.map((q,i)=>`<div class="qcard">
+        <div class="panel"><div class="grid2"><label class="field">実施日<input type="date" value="${esc(M.held_on)}" onchange="M.held_on=this.value;viewMeeting()"></label>
+          <label class="field">今回話したいこと（任意）<input value="${esc(M.focus||'')}" placeholder="例：次期の担当エリア、後輩育成" onchange="M.focus=this.value"></label></div></div>
+
+        <div class="step"><span class="stepn">1</span><h2>前回決めた行動の振り返り</h2>${overdue?`<span class="tag alert">期限超過 ${overdue}件</span>`:''}</div>
+        ${M._reviewList.length?M._reviewList.map(rvCardHTML).join(''):'<p class="small muted">振り返る行動はありません。</p>'}
+
+        <div class="step"><span class="stepn">2</span><h2>本人に確認する事項</h2></div>
+        ${M._cpList.length?M._cpList.map(x=>`<div class="rvc"><div class="row" style="gap:8px"><span class="tag ${x.origin==='conflict'?'alert':'interp'}">${x.origin==='conflict'?'資料間の食い違い':x.origin==='interpretation'?'資料の解釈':'確認事項'}</span><b>${esc(x.topic)}</b></div>
+          ${x.detail?`<p class="small" style="margin-top:4px">${esc(x.detail)}</p>`:''}
+          <div class="grid2" style="margin-top:8px"><label class="field">結果<select class="inp" onchange="M._cp['${x.id}'].status=this.value">${Object.entries(CP_STATUS).map(([k,v])=>`<option value="${k}" ${k===M._cp[x.id].status?'selected':''}>${v}</option>`).join('')}</select></label>
+          <label class="field">本人の回答<textarea class="inp" rows="2" onchange="M._cp['${x.id}'].answer=this.value" placeholder="本人の言葉で">${esc(M._cp[x.id].answer||'')}</textarea></label></div></div>`).join(''):'<p class="small muted">未確認の事項はありません。</p>'}
+
+        <div class="step"><span class="stepn">3</span><h2>今日の対話</h2>
+          <button class="btn sm" style="margin-left:auto" onclick="genQuestions(this)">${M.questions.length?'質問を作り直す':'質問を提案（AI）'}</button><button class="btn sm" onclick="M.questions.push({q:'',basis:'自分で追加',aim:'',answer:''});viewMeeting()">質問を追加</button></div>
+        ${M.questions.length?M.questions.map((q,i)=>`<div class="qcard">
             <div class="row" style="align-items:flex-start;flex-wrap:nowrap"><textarea class="inp" rows="2" aria-label="質問" onchange="M.questions[${i}].q=this.value">${esc(q.q)}</textarea><button class="btn ghost sm" aria-label="削除" onclick="M.questions.splice(${i},1);viewMeeting()">削除</button></div>
             ${q.basis||q.aim?`<p class="basis">根拠：${esc(q.basis||'—')}${q.aim?'　ねらい：'+esc(q.aim):''}</p>`:''}
-            <textarea class="inp" rows="2" style="margin-top:6px" placeholder="本人の回答" onchange="M.questions[${i}].answer=this.value">${esc(q.answer||'')}</textarea>
-          </div>`).join('')}</div>`:''}
-        <div class="panel" style="margin-top:16px">
+            <textarea class="inp" rows="2" style="margin-top:6px" placeholder="本人の回答" onchange="M.questions[${i}].answer=this.value">${esc(q.answer||'')}</textarea></div>`).join(''):'<p class="small muted">質問はAIの提案を使うか、自分で追加できます。AIの質問は案なので、言い回しを直してから使ってください。</p>'}
+        ${M.try_actions.length?`<div class="panel" style="margin-top:10px"><h3 style="margin-bottom:6px">上司が試す関わり方（AIの提案）</h3>${M.try_actions.map((a,i)=>`<div class="row" style="gap:8px;margin-top:4px"><span class="small" style="flex:1">${esc(a)}</span><button class="btn ghost sm" onclick="M._drafts.push({issue:'',action:M.try_actions[${i}],owner:'上司',start_on:M.held_on,due_on:addDays(M.held_on,30),metric:'',baseline:'',ai_suggested:true});viewMeeting()">行動にする</button></div>`).join('')}</div>`:''}
+
+        <div class="step"><span class="stepn">4</span><h2>次に試す行動（仮説）</h2>
+          <button class="btn sm" style="margin-left:auto" onclick="genActionDrafts(this)">行動案を出す（AI）</button><button class="btn sm" onclick="M._drafts.push({issue:'',action:'',owner:'本人',start_on:M.held_on,due_on:addDays(M.held_on,30),metric:'',baseline:''});viewMeeting()">行動を追加</button></div>
+        <div id="drafts">${M._drafts.length?M._drafts.map(draftHTML).join(''):'<p class="small muted">この面談で新しく試す行動を、課題・指標・実施前の状態とセットで決めます。</p>'}</div>
+
+        <div class="step"><span class="stepn">5</span><h2>まとめ</h2></div>
+        <div class="panel">
           <label class="field">本人の希望・気づき<textarea rows="3" onchange="M.wish=this.value" placeholder="本人の言葉で記録">${esc(M.wish||'')}</textarea></label>
-          <p class="field" style="margin-top:14px">次の行動</p>
-          ${M.next_actions.map((a,i)=>`<div class="arow"><input class="inp" value="${esc(a.what)}" placeholder="何をするか" onchange="M.next_actions[${i}].what=this.value"><select class="inp" onchange="M.next_actions[${i}].who=this.value">${['本人','上司','人事'].map(w=>`<option ${w===a.who?'selected':''}>${w}</option>`).join('')}</select><input class="inp" type="date" value="${esc(a.due||'')}" onchange="M.next_actions[${i}].due=this.value"><button class="btn ghost sm" aria-label="削除" onclick="M.next_actions.splice(${i},1);viewMeeting()">×</button></div>`).join('')}
-          <button class="btn sm" onclick="M.next_actions.push({what:'',who:'本人',due:addDays(M.held_on||today(),14),done:false});viewMeeting()">行動を追加</button>
           <p class="field" style="margin-top:14px">育成テーマ（全社集計に使います）</p>
           <div class="chips">${THEMES.map(t=>`<button class="chip ${M.themes.includes(t)?'on':''}" onclick="M.themes.includes('${t}')?M.themes.splice(M.themes.indexOf('${t}'),1):M.themes.push('${t}');this.classList.toggle('on')">${t}</button>`).join('')}</div>
           <div class="grid2" style="margin-top:14px"><label class="field">次回の予定日<input type="date" value="${esc(M.next_on||'')}" onchange="M.next_on=this.value"></label>
-          <label class="field">本人の希望職種（カルテに反映）<input id="m_wish_role" value="${esc(p.desired_role||'')}" ${rel==='hr'?'':'disabled title="基本情報は人事が更新します"'}></label></div>
+          <label class="field">本人の希望する役割（カルテに反映）<input id="m_wish_role" value="${esc(p.desired_role||'')}" ${rel==='hr'?'':'disabled title="基本情報は人事が更新します。希望は「本人の希望・気づき」に記録してください"'}></label></div>
           <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" onclick="go('karte','${p.id}')">戻る</button><button class="btn pri" onclick="saveMeeting(this)">記録を保存</button></div>
         </div>
       </div>
     </div>`;
+  document.querySelectorAll('#drafts .draft input,#drafts .draft select').forEach(el=>el.addEventListener('input',()=>{ const d=el.closest('.draft'); const i=[...d.parentNode.children].indexOf(d); if(M._drafts[i]) M._drafts[i]._edited=true; }));
+}
+function meetingContext(p){
+  const lines = M._items.map(i=>`- [${LAYERS[i.layer].label}／${i.category}] ${i.label}${i.value?'：'+i.value:''}　${i.summary||''}（${KINDS[i.source_kind]?.short||''} ${i.diagnosed_on||''}）`).join('\n');
+  const rv = M._reviewList.map(a=>{ const r=M._rv[a.id]; return `- 行動「${a.action}」（課題：${a.issue||'—'}／指標：${a.metric||'—'}／実施前：${a.baseline||'—'}）状況：${A_STATUS[r.status]||'—'}、結果：${r.result||a.result||'未記録'}、役立ち：${A_HELP[r.helpful]||'未記録'}、判断：${A_DEC[r.decision]||'未判断'}`; }).join('\n');
+  const cp = M._cpList.map(x=>`- ${x.topic}：${x.detail||''}`).join('\n');
+  const mpSum = mpSummaryForAI(M._mp||[]);
+  let myStyle=''; try{ myStyle=localStorage.getItem('hk_my_style')||''; }catch{}
+  return `対象：${p.full_name}（${p.department||''}）\n現在の役割：${p.current_job||p.position||'未登録'}\n本人の希望する役割：${p.desired_role||'未確認'}\n直近の成果：${M._results[0]?.body||'未登録'}\n今回話したいこと：${M.focus||'特になし'}\n\nカルテ（確認済みの記載。解釈は本人未確認）:\n${lines||'（なし）'}\n\n${mpSum?mpSum+'\n\n':''}${myStyle?`面談者のソーシャルスタイル：${myStyle}\n\n`:''}前回からの育成行動:\n${rv||'（なし）'}\n\n本人に確認する事項:\n${cp||'（なし）'}\n\n前回の本人の希望：${M._prev?.wish||'記録なし'}`;
 }
 async function genQuestions(btn){
   const p = S.people.find(x=>x.id===S.pid);
-  const lines = M._items.map(i=>`- [${LAYERS[i.layer].label}／${i.category}] ${i.label}${i.value?'：'+i.value:''}　${i.summary||''}（${KINDS[i.source_kind]?.short||''} ${i.diagnosed_on||''}）`).join('\n');
-  const prev = M._prev ? `前回1on1（${M._prev.held_on}）\n本人の希望：${M._prev.wish||'なし'}\n決めた行動：${(M._prev.next_actions||[]).map(a=>a.what).join('／')||'なし'}` : '前回の1on1記録なし';
-  const mpSum = mpSummaryForAI(M._mp||[]);
-  let myStyle=''; try{ myStyle=localStorage.getItem('hk_my_style')||''; }catch{}
-  const prompt = `対象：${p.full_name}（${p.department||''} ${p.position||''}）\n本人の希望職種：${p.desired_role||'未確認'}\n今回話したいこと：${M.focus||'特になし'}\n\nカルテ（確認済みの記載）:\n${lines||'（なし）'}\n\n${mpSum?mpSum+'\n\n':''}${myStyle?`面談者のソーシャルスタイル：${myStyle}\n\n`:''}${prev}`;
   busy(btn,true,'作成中');
   try{
-    const out = parseJSON(await callAI({ system:SYS_QUESTIONS, prompt, max_tokens:2000 }));
+    const out = parseJSON(await callAI({ system:SYS_QUESTIONS, prompt:meetingContext(p), max_tokens:2000 }));
     M.questions = (out.questions||[]).slice(0,5).map(q=>({ q:q.q||'', basis:q.basis||'', aim:q.aim||'', answer:'' }));
     M.try_actions = (out.try_actions||[]).slice(0,3);
     await DB.log('generate_questions','person',p.id);
     viewMeeting();
   }catch(e){ busy(btn,false); toast(e.message,true); }
 }
+async function genActionDrafts(btn){
+  const p = S.people.find(x=>x.id===S.pid);
+  busy(btn,true,'作成中');
+  try{
+    const ans = M.questions.filter(q=>q.answer).map(q=>`Q:${q.q}\nA:${q.answer}`).join('\n');
+    const out = parseJSON(await callAI({ system:SYS_ACTIONS, prompt:meetingContext(p)+(ans?`\n\n今日の対話:\n${ans}`:'')+(M.wish?`\n本人の希望・気づき：${M.wish}`:''), max_tokens:2000 }));
+    (out.actions||[]).slice(0,3).forEach(a=>M._drafts.push({ issue:a.issue||'', action:a.action||'', owner:OWNERS.includes(a.owner)?a.owner:'本人', theme:THEMES.includes(a.theme)?a.theme:'', start_on:M.held_on, due_on:addDays(M.held_on, Math.min(90,Math.max(7,+a.due_in_days||30))), metric:a.metric||'', baseline:a.baseline||'本人に確認', ai_suggested:true }));
+    await DB.log('generate_actions','person',p.id);
+    viewMeeting();
+  }catch(e){ busy(btn,false); toast(e.message,true); }
+}
 async function saveMeeting(btn){
   const p = S.people.find(x=>x.id===S.pid);
   if(!M.held_on) return toast('実施日を入力してください', true);
+  const drafts = M._drafts.filter(d=>(d.action||'').trim());
+  if(M._drafts.some(d=>!(d.action||'').trim() && ((d.issue||'').trim()||(d.metric||'').trim()))) return toast('「試す行動」が空の行動案があります。入力するか削除してください', true);
+  const unconfirmedAI = drafts.filter(d=>d.ai_suggested && !d._edited && !d._existing);
+  if(unconfirmedAI.length && !confirm(`AIの提案のまま確定していない行動が${unconfirmedAI.length}件あります。この内容で本人と合意済みとして保存しますか？`)) return;
   busy(btn,true,'保存中');
   try{
-    const { _prev, _items, ...rec } = M;
-    rec.next_actions = rec.next_actions.filter(a=>a.what && a.what.trim());
-    rec.questions = rec.questions.filter(q=>q.q && q.q.trim());
-    const saved = await DB.saveMeeting(rec);
+    const reviews = M._reviewList.map(a=>({ action_id:a.id, action:a.action, ...M._rv[a.id] })).filter(r=>r.status||r.result||r.reaction||r.helpful||r.decision);
+    const confirm_answers = M._cpList.map(x=>({ point_id:x.id, topic:x.topic, ...M._cp[x.id] })).filter(c=>c.status!=='open'||c.answer);
+    const rec = { person_id:M.person_id, held_on:M.held_on, interviewer_email:M.interviewer_email||S.me.email, focus:M.focus||null, questions:M.questions.filter(q=>q.q&&q.q.trim()), try_actions:M.try_actions, wish:M.wish||null, themes:M.themes, next_on:M.next_on||null,
+      next_actions: drafts.map(d=>({ what:d.action, who:d.owner, due:d.due_on, done:false })), reviews, confirm_answers };
+    if(M.id) rec.id = M.id;
+    let saved;
+    try{ saved = await DB.saveMeeting(rec); }catch(e){ throw schemaError(e); }
     M.id = saved.id;
+    // 1) 振り返った行動を更新（経過を残す）
+    for(const r of reviews){
+      const a = M._reviewList.find(x=>x.id===r.action_id);
+      const hist = (a.history||[]).filter(h=>h.meeting_id!==saved.id);
+      hist.push({ meeting_id:saved.id, date:M.held_on, event:'review', status:r.status, reaction:r.reaction, result:r.result, helpful:r.helpful, decision:r.decision, decision_note:r.decision_note, by:S.me.email });
+      const patch = { status:r.status||a.status, reaction:r.reaction||null, result:r.result||null, helpful:r.helpful||null, decision:r.decision||null, decision_note:r.decision_note||null, history:hist };
+      if(r.decision) patch.decided_on = M.held_on;
+      if(r.decision==='continue'){ patch.decision=null; patch.decided_on=null; if(r.next_check_on) patch.due_on=r.next_check_on; if(patch.status==='done') patch.status='doing'; hist[hist.length-1].decision='continue'; }
+      await DB.update('hr_actions', a.id, patch);
+    }
+    // 2) 新しい行動（仮説）
+    for(const d of drafts){
+      const row = { issue:d.issue||null, action:d.action.trim(), owner:d.owner||'本人', theme:d.theme||null, start_on:d.start_on||M.held_on, due_on:d.due_on||null, metric:d.metric||null, baseline:d.baseline||null };
+      if(d._existing) await DB.update('hr_actions', d.id, row);
+      else await DB.insert('hr_actions', { ...row, person_id:M.person_id, meeting_id:saved.id, status:'planned', ai_suggested:!!d.ai_suggested, history:[{ meeting_id:saved.id, date:M.held_on, event:'created', by:S.me.email, from:d._from||null }], created_by:S.me.email });
+    }
+    // 3) 本人確認の結果
+    for(const c of confirm_answers) await DB.update('hr_confirm_points', c.point_id, { status:c.status, answer:c.answer||null, answered_on:c.status!=='open'?M.held_on:null, meeting_id:saved.id });
     const wr = $('#m_wish_role');
     if(relOf(p)==='hr' && wr && wr.value.trim() !== (p.desired_role||'')){ await DB.savePerson({ id:p.id, desired_role:wr.value.trim()||null }); await reloadPeople(); }
-    await DB.log('save_meeting','meeting',saved.id,{person_id:p.id});
-    toast('1on1の記録を保存しました'); go('karte', p.id);
-  }catch(e){ busy(btn,false); toast(e.message,true); }
+    await DB.log('save_meeting','meeting',saved.id,{person_id:p.id, reviews:reviews.length, new_actions:drafts.length});
+    M = null; toast('1on1の記録を保存しました'); go('karte', p.id);
+  }catch(e){ busy(btn,false); toast(schemaError(e).message,true); }
 }
 
 /* =========================================================
@@ -1717,7 +2457,9 @@ async function saveMeeting(btn){
    ========================================================= */
 async function viewDashboard(){
   if(!S.hr){ $('#main').innerHTML='<div class="empty">人事・経営層のみ閲覧できます。</div>'; return; }
-  const [meta, mtgs, corr] = await Promise.all([DB.sourceMeta(), DB.allMeetings(), DB.corrections()]);
+  const [meta, mtgs, corr, acts0] = await Promise.all([DB.sourceMeta(), DB.allMeetings(), DB.corrections(), soft(DB.list('hr_actions',{}),[])]);
+  const actStat = xs => { const t=xs.filter(a=>a.status!=='stopped'); const done=t.filter(a=>a.status==='done'||a.decision); const over=xs.filter(a=>isActiveAction(a)&&a.due_on&&a.due_on<today()); const checked=xs.filter(a=>a.helpful||a.decision||(a.history||[]).some(h=>h.event==='review'&&(h.result||h.helpful))); return { n:xs.length, rate:t.length?Math.round(done.length/t.length*100):0, over:over.length, checked:checked.length }; };
+  const AS = actStat(acts0);
   const people = S.people;
   const withDocs = new Set(meta.map(s=>s.person_id));
   const recent = {}; mtgs.forEach(m=>{ if(daysSince(m.held_on)<=90) recent[m.person_id]=true; });
@@ -1735,10 +2477,12 @@ async function viewDashboard(){
     const done = ps.filter(p=>recent[p.id]).length;
     const wishes = {}; ps.forEach(p=>{ if(p.desired_role) wishes[p.desired_role]=(wishes[p.desired_role]||0)+1; });
     const topW = Object.entries(wishes).filter(([,n])=>n>=MIN).sort((a,b)=>b[1]-a[1]).slice(0,2);
-    if(small) return `<tr><td><b>${esc(d)}</b></td><td>${ps.length}人</td><td colspan="4" class="muted small">${MIN}人未満のため、個人が推測されないよう集計を表示しません</td></tr>`;
+    const da = actStat(acts0.filter(a=>pidSet.has(a.person_id)));
+    if(small) return `<tr><td><b>${esc(d)}</b></td><td>${ps.length}人</td><td colspan="5" class="muted small">${MIN}人未満のため、個人が推測されないよう集計を表示しません</td></tr>`;
     return `<tr><td><b>${esc(d)}</b></td><td>${ps.length}人</td>
       <td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${Math.round(done/ps.length*100)}%"></i></div><span class="small">${Math.round(done/ps.length*100)}%</span></div></td>
       <td>${ps.filter(p=>withDocs.has(p.id)).length}人</td>
+      <td class="small">${da.n?`実施率 ${da.rate}%<br>期限超過 ${da.over}件<br>結果確認 ${da.checked}件`:'<span class="muted">—</span>'}</td>
       <td>${topTh.map(([t,n])=>`<span class="tag sage">${esc(t)} ${n}</span>`).join(' ')||'<span class="small muted">集計対象なし</span>'}</td>
       <td>${topW.map(([t,n])=>`<span class="tag">${esc(t)} ${n}</span>`).join(' ')||'<span class="small muted">—</span>'}</td></tr>`;
   }).join('');
@@ -1774,6 +2518,10 @@ async function viewDashboard(){
       <div class="kpi"><b>${withDocs.size}</b><span>資料登録済み</span></div>
       <div class="kpi"><b>${rate}%</b><span>1on1実施率（直近90日）</span></div>
       <div class="kpi"><b>${corr.filter(c=>c.status==='open').length}</b><span>対応待ちの訂正依頼</span></div>
+      <div class="kpi"><b>${AS.n}</b><span>育成行動（登録数）</span></div>
+      <div class="kpi"><b>${AS.rate}%</b><span>育成行動の実施率</span></div>
+      <div class="kpi ${AS.over?'warn':''}"><b>${AS.over}</b><span>期限超過の行動</span></div>
+      <div class="kpi"><b>${AS.checked}</b><span>結果を確認済みの行動</span></div>
     </div>
     <div class="dgrid">
       <div class="vcard"><h3>1on1の実施件数<small>直近6か月・全社</small></h3>${monthSVG}</div>
@@ -1781,7 +2529,7 @@ async function viewDashboard(){
       <div class="vcard wide"><h3>部署別の育成テーマ<small>どの部署で何が課題になっているか</small></h3>${heatHTML}</div>
     </div>
     <div class="sec-title"><h2>部署別の状況</h2></div>
-    <div class="wrap-x"><table class="dtbl"><thead><tr><th>部署</th><th>人数</th><th>1on1実施（90日）</th><th>資料登録</th><th>主な育成テーマ（180日）</th><th>希望職種</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="muted">社員が登録されていません</td></tr>'}</tbody></table></div>
+    <div class="wrap-x"><table class="dtbl"><thead><tr><th>部署</th><th>人数</th><th>1on1実施（90日）</th><th>資料登録</th><th>育成行動</th><th>主な育成テーマ（180日）</th><th>希望職種</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="muted">社員が登録されていません</td></tr>'}</tbody></table></div>
     <div class="sec-title"><h2>全社の育成テーマ（直近180日の1on1）</h2></div>
     <div class="panel">${thSorted.length?thSorted.map(([t,n])=>`<div class="row" style="margin-bottom:8px;flex-wrap:nowrap"><span style="width:120px" class="small">${esc(t)}</span><div class="bar" style="flex:1;height:12px"><i style="width:${n/maxT*100}%"></i></div><span class="small" style="width:40px;text-align:right">${n}</span></div>`).join(''):'<p class="small muted">表示できる件数に達したテーマはまだありません。</p>'}</div>`;
 }
