@@ -136,7 +136,7 @@ textarea{resize:vertical;min-height:64px;line-height:1.6}
 .kind.on{border-color:var(--sage);box-shadow:inset 0 0 0 1px var(--sage);background:#F6FAF7}
 .kind b{display:block;font-family:"Zen Kaku Gothic New",sans-serif;font-size:15px}
 .kind span{font-size:12.5px;color:var(--muted)}
-.drop{border:1.5px dashed var(--line2);border-radius:var(--r);padding:22px;text-align:center;background:#FAFBF9;cursor:pointer}
+.drop{display:block;border:1.5px dashed var(--line2);border-radius:var(--r);padding:22px;text-align:center;background:#FAFBF9;cursor:pointer}
 .drop.has{border-style:solid;border-color:var(--sage);background:#F6FAF7}
 .maptbl{width:100%;border-collapse:collapse;font-size:13.5px}
 .maptbl th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
@@ -384,16 +384,30 @@ function makeDemoDB(){
 /* =========================================================
    AI呼び出し（Edge Function ai 経由。APIキーはサーバー側）
    ========================================================= */
-async function callAI({ system, prompt, documents, max_tokens=4000 }){
+async function callAI({ system, prompt, documents, max_tokens=4000, timeoutSec=180 }){
   if(DEMO) return mockAI(system, prompt);
   const token = await DB.token();
-  const res = await fetch(CONFIG.AI_URL, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey':CONFIG.SUPABASE_KEY },
-    body: JSON.stringify({ system, prompt, max_tokens, documents }),
-  });
-  const raw = await res.text();
-  if(!res.ok) throw new Error(`AIの呼び出しに失敗しました（${res.status}）。${raw.slice(0,160)}`);
+  if(!token) throw new Error('ログインの有効期限が切れています。ページを再読み込みしてログインし直してください。');
+  const ctl = new AbortController();
+  const timer = setTimeout(()=>ctl.abort(), timeoutSec*1000);
+  let res, raw;
+  try{
+    res = await fetch(CONFIG.AI_URL, {
+      method:'POST', signal: ctl.signal,
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey':CONFIG.SUPABASE_KEY },
+      body: JSON.stringify({ system, prompt, max_tokens, documents }),
+    });
+    raw = await res.text();
+  }catch(e){
+    if(e.name==='AbortError') throw new Error(`AIの応答が${timeoutSec}秒以内に返ってきませんでした。ページ数の多いPDFは時間がかかります。もう一度お試しいただき、続く場合はPDFを必要なページだけにしてください。`);
+    throw new Error('AIに接続できませんでした（通信エラー）。ネット接続を確認して、もう一度お試しください。');
+  }finally{ clearTimeout(timer); }
+  if(!res.ok){
+    console.error('AI error', res.status, raw);
+    let msg = raw; try{ const j=JSON.parse(raw); msg = j.error?.error?.message || j.error?.message || (typeof j.error==='string'?j.error:'') || j.message || raw; }catch{}
+    const hint = res.status===401 ? '（ログインを確認してください）' : res.status===413 ? '（ファイルが大きすぎます）' : res.status===529||res.status===429 ? '（AIが混み合っています。少し待ってから再実行してください）' : res.status>=500 ? '（AI中継サーバーのエラー。SupabaseのEdge Function「ai」のLogsで詳細を確認できます）' : '';
+    throw new Error(`AIの呼び出しに失敗しました（${res.status}）${hint}　${String(msg).slice(0,200)}`);
+  }
   let j; try { j = JSON.parse(raw); } catch { return raw; }
   if(typeof j === 'string') return j;
   if(j.text) return j.text;
@@ -406,8 +420,14 @@ async function callAI({ system, prompt, documents, max_tokens=4000 }){
 function parseJSON(text){
   const s = String(text).replace(/```json|```/g,'');
   const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if(a<0 || b<0) throw new Error('AIの応答を読み取れませんでした。もう一度お試しください。');
-  return JSON.parse(s.slice(a,b+1));
+  if(a<0) { console.error('AI raw', text); throw new Error('AIの応答に読み取り結果が含まれていませんでした。資料の種類が合っているか確認して、もう一度お試しください。'); }
+  try { return JSON.parse(s.slice(a,b+1)); } catch(e){
+    // 出力が途中で切れた場合：最後の完全な項目までで閉じる
+    const body = s.slice(a); const cut = body.lastIndexOf('},');
+    if(cut>0){ for(const tail of [']}', '}]}']){ try{ return JSON.parse(body.slice(0,cut+1)+tail); }catch{} } }
+    console.error('AI raw', text);
+    throw new Error('AIの応答を読み取れませんでした。もう一度お試しください。');
+  }
 }
 
 const KIND_HINT = {
@@ -420,7 +440,8 @@ const SYS_EXTRACT = `あなたは人事資料の整理担当です。[EXTRACT]
 ルール:
 - layer は3種。fact=資料に記載された数値・診断結果。statement=本人の発言・記述・実績。interpretation=診断や作成者による解釈・評価・推測。
 - 資料にないことを補わない。数値は資料の表記どおりに写す。
-- original は資料の該当箇所をそのまま抜き出す（120字以内）。
+- original は資料の該当箇所をそのまま抜き出す（80字以内）。
+- 項目は重要なものから最大30件まで。同じ内容の重複は1件にまとめる。
 - summary は、本人や上司が読んでも差し支えない穏当な表現にする。断定を避け「〜の傾向があると記載」「〜という記載あり」の形にする。
 - 将来の予測、職位や役割への適否の断定、人格を否定する表現、健康・家族・私生活に関する記述は sensitive=true。
 - category は次から選ぶ: ${CATS.join('、')}
@@ -777,6 +798,7 @@ function importSelectHTML(){
       ${pdfOnly || IMP.method==='single' ? `<label class="field">対象の社員（空欄なら資料の氏名から候補を探します）<select onchange="IMP.presetPid=this.value"><option value="">資料の氏名から探す</option>${S.people.map(p=>`<option value="${p.id}" ${p.id===IMP.presetPid?'selected':''}>${esc(p.full_name)}（${esc(p.employee_no||'番号なし')}）</option>`).join('')}</select></label>`:''}
     </div>
     ${k==='milme'?'<div class="notice warn" style="margin-top:14px">ミルメバイタルは画像主体の資料です。読み取った数値は、次の画面で原本と照合してから登録してください。</div>':''}
+    <div id="imp_err"></div>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn pri" id="imp_go" onclick="runImport(this)">読み取る</button></div>
   </div>`;
 }
@@ -805,17 +827,28 @@ function applyVisibilityDefaults(it){
   it.visible_to_manager = true;
   it.visible_to_self = it.layer!=='interpretation';
 }
+function startTicker(btn, label){
+  const t0 = Date.now();
+  const tick = ()=>{ const s=Math.floor((Date.now()-t0)/1000); btn.innerHTML=`<span class="spin"></span>${label} ${s}秒${s>=20?'（画像のPDFは1〜2分かかります）':''}`; };
+  tick(); return setInterval(tick, 1000);
+}
+function showImportError(msg){
+  const el = $('#imp_err'); if(el){ el.innerHTML = `<div class="notice alert" style="margin-top:14px"><b>読み取れませんでした</b><br>${esc(msg)}</div>`; }
+  toast('読み取りに失敗しました', true);
+}
 async function runImport(btn){
   const k = IMP.kind;
   if(IMP.method==='paste' ? !IMP.text.trim() : !IMP.file) return toast(IMP.method==='paste'?'文章を貼り付けてください':'ファイルを選んでください', true);
+  const err = $('#imp_err'); if(err) err.innerHTML='';
   busy(btn,true,'読み取り中');
+  const ticker = startTicker(btn,'読み取り中');
   try{
     IMP.queue=[]; IMP.qi=0; IMP.filePath=null;
     const isPdf = IMP.file && /\.pdf$/i.test(IMP.file.name);
     if(k!=='torisetsu' || isPdf){
       const b64 = await fileToBase64(IMP.file);
       if(DEMO){ const pp=S.people.find(p=>p.id===IMP.presetPid); IMP.demoName = pp?pp.full_name:''; }
-      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt:extractPrompt(k,''), documents:[{ name:IMP.file.name, media_type:'application/pdf', data:b64 }], max_tokens:6000 }));
+      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt:extractPrompt(k,''), documents:[{ media_type:'application/pdf', data:b64 }], max_tokens:8000 }));
       const m = IMP.presetPid ? {id:IMP.presetPid, how:'登録時に指定'} : matchPerson(out.subject_name, out.employee_no);
       IMP.queue.push({ subject_name:out.subject_name||'', employee_no:out.employee_no||'', diagnosed_on: IMP.diagnosed_on || out.diagnosed_on || '', personId:m.id, how:m.how, raw_text:'', items:prepItems(out.items,k), checked:false });
       IMP.step='review';
@@ -833,8 +866,8 @@ async function runImport(btn){
       IMP.segments.forEach(s=>{ const m=matchPerson(s.name,s.employee_no); s.personId = m.id || (s.name?'__new':''); s.how=m.how; });
       IMP.step='map';
     }
-    viewImport();
-  }catch(e){ busy(btn,false); console.error(e); toast(e.message,true); }
+    clearInterval(ticker); viewImport();
+  }catch(e){ clearInterval(ticker); busy(btn,false); console.error(e); showImportError(e.message); }
 }
 function splitByAnchors(text, segs){
   const found = [];
@@ -886,7 +919,7 @@ async function extractSegments(btn){
       const s = targets[i];
       btn.innerHTML = `<span class="spin"></span>抽出中 ${i+1}/${targets.length}`;
       IMP.demoName = s.name;
-      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt:extractPrompt('torisetsu', s.text), max_tokens:6000 }));
+      const out = parseJSON(await callAI({ system:SYS_EXTRACT, prompt:extractPrompt('torisetsu', s.text), max_tokens:8000 }));
       IMP.queue.push({ subject_name:s.name, employee_no:s.employee_no, diagnosed_on: IMP.diagnosed_on || out.diagnosed_on || '', personId:s.personId, how:s.how, raw_text:s.text, items:prepItems(out.items,'torisetsu'), checked:false });
     }
     IMP.qi=0; IMP.step='review'; viewImport();
