@@ -267,6 +267,18 @@ th.n{font-family:inherit;font-size:12px}
 .stamp.big span{font-size:18px;bottom:14px}
 @keyframes stampIn{0%{transform:scale(2.4) rotate(10deg);opacity:0}100%{transform:scale(1) rotate(-12deg);opacity:1}}
 @media (prefers-reduced-motion:reduce){.stamp.big{animation:none}}
+.lr-banner{padding:14px 18px;border-left:6px solid var(--green)} .lr-banner.warn{border-left-color:var(--red)}
+.lr-rule{padding:12px 18px}
+.lmx td,.lmx th{white-space:nowrap}
+.lmx .lc{text-align:center;padding:6px 4px;position:relative}
+.dot{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2px solid #C4D4E4;background:#fff;font-size:11px;font-weight:700;font-family:var(--num);color:#fff;vertical-align:middle}
+.dot.ok{background:var(--green);border-color:var(--green)} .dot.doing{background:#2F5D8A;border-color:#2F5D8A}
+.cf{position:absolute;top:1px;right:2px;font-style:normal;font-size:11px;color:var(--amber)}
+.la{border-top:1px solid var(--line);padding:10px 0;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.la:first-of-type{border-top:0}
+.la b{flex-basis:100%;font-size:13.5px;display:flex;justify-content:space-between} .la b span{font-family:var(--num);font-size:16px}
+.la.red b span{color:var(--red)}
+.la a{font-weight:700}
 .stamp-modal{position:fixed;inset:0;z-index:70;background:rgba(8,24,48,.55);display:grid;place-items:center;backdrop-filter:blur(3px)}
 .stamp-box{background:#fff;border-radius:20px;padding:28px 34px;text-align:center;max-width:380px;box-shadow:var(--shadow)}
 .nav .new{margin-left:auto;font-size:10px;font-weight:900;letter-spacing:.06em;color:#0A1F3C;background:#6FF0D8;border-radius:999px;padding:1px 7px}
@@ -652,7 +664,7 @@ const ICON = {
 };
 
 const NAV = [['grp','営業担当'],['home','plus','商談をAI分析'],['karte','list','育成カルテ'],['bank','gem','断り文句BANK'],['cases','book','事例ライブラリ'],['roleplay','play','AIロープレ'],['course','trophy','学習コース'],['predict','target','商談前予測'],
-  ['grp','責任者・社長'],['dash','chart','転換率ダッシュボード'],['ceo','star','社長画面'],['kpi','gear','KPI設定'],['grp','ヘルプ'],['guide','help','使い方ガイド']];
+  ['grp','責任者・社長'],['dash','chart','転換率ダッシュボード'],['learn','bars','学習進捗ボード'],['ceo','star','社長画面'],['kpi','gear','KPI設定'],['grp','ヘルプ'],['guide','help','使い方ガイド']];
 document.getElementById('nav').innerHTML = NAV.map(n=>n[0]==='grp'?`<div class="grp">${n[1]}</div>`:`<button data-v="${n[0]}">${ICON[n[1]]}<span>${n[2]}</span></button>`).join('');
 const ROLE_JA = { admin:'管理者', manager:'マネージャー', sales:'営業', field:'現場', viewer:'閲覧のみ' };
 function renderMe(){
@@ -1260,6 +1272,238 @@ function learnPanel(sc, model, periods, curP, prevP, unit, repList){
   </div>`;
 }
 
+/* ============ ⑪ 学習進捗ボード（必須化・補習・評価・報奨） ============ */
+const LEARN_DEF = { course:'c1', start:'2026-10-01', mid:'2026-10-31', midCount:3, due:'2026-11-30', remedial:'12月第1週', exclude:[], stale:7,
+  points:{ c1:2, c2:4, c3:4, c4:5 }, rewards:{ practice:10000, master:30000, casePer:5000, caseCap:20000 } };
+const LR = () => { const x=CONF.learn||{}; return { ...LEARN_DEF, ...x, points:{...LEARN_DEF.points, ...(x.points||{})}, rewards:{...LEARN_DEF.rewards, ...(x.rewards||{})}, exclude:x.exclude||[] }; };
+const isLead = () => LOCAL || !window.EC || ['admin','manager'].includes(ME.role);
+const isCeo  = () => LOCAL || !window.EC || ME.role==='admin';
+/* 運用データ（同席確認・補習出席）は sales_coach_settings の learn_ops に保存 */
+const OPS_KEY = 'learn_ops';
+let OPS = { confirm:{}, remedial:{} };
+async function readOps(){
+  if (!LOCAL){ const { data, error } = await sb.from('sales_coach_settings').select('value').eq('key',OPS_KEY).maybeSingle(); if (error) throw error; return data?.value || {}; }
+  return JSON.parse(localStorage.getItem('scai_'+OPS_KEY)||'{}');
+}
+async function loadOps(){ try{ OPS = await readOps(); }catch(e){ console.warn('学習の運用データを読めませんでした', e); } OPS.confirm ||= {}; OPS.remedial ||= {}; }
+async function mutateOps(fn){
+  let cur = OPS; try{ cur = await readOps(); }catch(e){}
+  cur.confirm ||= {}; cur.remedial ||= {}; fn(cur);
+  if (!LOCAL){ const { error } = await sb.from('sales_coach_settings').upsert({ key:OPS_KEY, value:cur, updated_by:ME.email||ME.name, updated_at:new Date().toISOString() }); if (error) throw error; }
+  else localStorage.setItem('scai_'+OPS_KEY, JSON.stringify(cur));
+  OPS = cur;
+}
+const DAY = 864e5;
+const dOf = s => new Date(String(s)+'T00:00:00');
+const endOfDay = s => +dOf(s) + DAY - 1;
+const md = s => { const d=dOf(s); return `${d.getMonth()+1}/${d.getDate()}`; };
+const stampOf = (chId,r) => DATA.p.find(p=>p.rep===r && p.challenge_id===chId);
+const rpTries = (ch,r) => ch.type==='rp' ? DATA.r.filter(x=>x.rep===r && x.objection===ch.opening) : [];
+function courseDoneAt(c,r){ const s=c.ch.map(x=>stampOf(x.id,r)); return s.every(Boolean) ? Math.max(...s.map(x=>+new Date(x.created_at))) : null; }
+function learnTargets(scope){
+  const L=LR(); let reps;
+  if (scope && scope.startsWith('team:')) reps = CONF.teams.find(t=>t.id===scope.slice(5))?.members || [];
+  else reps = [...new Set([...CONF.teams.flatMap(t=>t.members), ...DATA.p.map(p=>p.rep), ...DATA.s.map(s=>s.rep)].filter(Boolean))];
+  return reps.filter(r=>!L.exclude.includes(r)).sort((a,b)=>a.localeCompare(b,'ja'));
+}
+function repLearn(r, c, L){
+  const now=Date.now(), n=c.ch.length, got=c.ch.filter(x=>stampOf(x.id,r)).length;
+  const acts=[...DATA.p, ...DATA.r, ...DATA.l].filter(a=>a.rep===r).map(a=>+new Date(a.created_at));
+  const last = acts.length ? Math.max(...acts) : null;
+  const idle = last==null ? null : Math.floor((now-last)/DAY);
+  const daysLeft = Math.ceil((endOfDay(L.due)-now)/DAY);
+  const recent = DATA.p.filter(p=>p.rep===r && c.ch.some(x=>x.id===p.challenge_id) && now-new Date(p.created_at)<=14*DAY).length;
+  let pace;
+  if (got===n) pace='done';
+  else if (now>endOfDay(L.due)) pace='remedial';
+  else if (!got && last==null) pace='none';
+  else pace = (recent/14)*Math.max(daysLeft,0) >= (n-got) ? 'ok' : 'late';
+  const midMiss = now>endOfDay(L.mid) && got<Math.min(L.midCount,n) && pace!=='done';
+  const rush = pace!=='done' && daysLeft>=0 && daysLeft<=14 && n-got>=3;
+  const pending = DATA.p.filter(p=>p.rep===r && p.course_id!=='c1' && findCh(p.challenge_id)?.type==='rp' && !OPS.confirm[p.id]);
+  return { r, n, got, last, idle, pace, midMiss, rush, daysLeft, pending, remedialDone: !!OPS.remedial[r] };
+}
+const PACE = { done:['修了','green'], ok:['間に合う',''], late:['遅れ','red'], none:['未着手','red'], remedial:['補習対象','red'] };
+function learnBanner(me){
+  const L=LR(); const c=COURSES.find(x=>x.id===L.course); if(!c || !me || !learnTargets('all').includes(me)) return '';
+  const s=repLearn(me,c,L); if (s.pace==='done') return `<div class="banner" style="background:var(--green-bg);border-color:#BFE2D1">「${esc(c.name)}」は修了済みです。次のコースにも挑戦しましょう。</div>`;
+  const now=Date.now(); const midLeft=Math.ceil((endOfDay(L.mid)-now)/DAY);
+  return `<div class="panel lr-banner ${s.pace==='late'||s.pace==='none'||s.pace==='remedial'?'warn':''}"><div class="row" style="justify-content:space-between">
+    <div><b>必須：「${esc(c.name)}」を ${md(L.due)} までに修了</b><div class="small">${s.daysLeft>=0?`期限まで <b>あと${s.daysLeft}日</b>`:'期限を過ぎています'}　残り <b>${s.n-s.got}</b> チャレンジ${midLeft>=0?`　／　中間期限 ${md(L.mid)} までに ${L.midCount}つ（現在 ${s.got}つ）`:''}</div>
+    ${s.pace==='remedial'?`<div class="small" style="color:var(--red)">未修了のため、補習勉強会（${esc(L.remedial)}）の対象です。</div>`:s.pace==='late'||s.pace==='none'?'<div class="small" style="color:var(--red)">今のペースでは期限に間に合いません。1日1チャレンジ（15分）を目安に進めましょう。</div>':'<div class="small" style="color:var(--green)">このペースなら期限に間に合います。</div>'}</div>
+    <span class="tag ${PACE[s.pace][1]}">${PACE[s.pace][0]}</span></div></div>`;
+}
+VIEWS.learn = () => {
+  const L=LR(), f=VIEWS.learn.f ||= { scope:'all', course:L.course, q:null };
+  const c=COURSES.find(x=>x.id===f.course)||COURSES[0];
+  if (!isLead()){ // 営業担当：自分の状況と全体の修了率だけ
+    const all=learnTargets('all'), done=all.filter(r=>courseDone(c,r)).length;
+    $('#main').innerHTML = `${banner()}<h1>学習進捗ボード</h1><p class="lead">自分の進み具合と、全体の修了率です（他の人の名前は表示しません）。</p>${learnBanner(ME.name)||''}
+      <div class="grid3"><div class="stat"><div class="small muted">全体の「${esc(c.name)}」修了率</div><div class="n">${pct(done,all.length)??'-'}<span class="small">%</span></div><div class="small">${done}/${all.length}人</div></div></div>`;
+    return;
+  }
+  const reps=learnTargets(f.scope), rows=reps.map(r=>repLearn(r,c,L)), now=Date.now();
+  const doneN=rows.filter(x=>x.pace==='done').length, afterMid=now>endOfDay(L.mid), afterDue=now>endOfDay(L.due);
+  const midOk=rows.filter(x=>x.got>=Math.min(L.midCount,x.n)).length;
+  const lateList=rows.filter(x=>x.pace==='late'||x.pace==='none'), remList=rows.filter(x=>x.pace==='remedial');
+  const staleList=rows.filter(x=>x.pace!=='done' && (x.idle==null || x.idle>=L.stale));
+  const pendAll=rows.flatMap(x=>x.pending.map(p=>({r:x.r,p})));
+  const daysLeft=Math.ceil((endOfDay(L.due)-now)/DAY);
+  // 週次の修了率推移
+  const wk=[]; { const st=dOf(L.start); const lim=Math.min(now, endOfDay(L.due)+14*DAY); for(let t=+st+6*DAY; t<lim-2*DAY && wk.length<20; t+=7*DAY) wk.push(t); if (lim>=+st) wk.push(lim); }
+  const span=endOfDay(L.due)-+dOf(L.start);
+  const trend = wk.length ? trendSVG([
+    { name:'修了率', color:c.color, target:null, values:wk.map(t=>pct(reps.filter(r=>{ const d=courseDoneAt(c,r); return d && d<=t; }).length, reps.length)) },
+    { name:'期限までの目標ライン', color:'#8A93A5', target:null, values:wk.map(t=>Math.min(100,Math.max(0,Math.round((t-+dOf(L.start))/span*100)))) }
+  ], wk.map(t=>{ const d=new Date(t); return `${d.getMonth()+1}/${d.getDate()}`; }), 200) : '<p class="small muted">開始日になると表示されます。</p>';
+  // 修了レベル別の転換率
+  const model=modelById('std')||CONF.models[0]; const k=(model.kpis||[]).find(x=>x.key)||(model.kpis||[])[0];
+  const lvl = r => courseDone(COURSES[1],r)?2:courseDone(COURSES[0],r)?1:0;
+  const lvGroups = k ? [['未修了',0],['初級修了',1],['中級以上',2]].map(([nm,v])=>{ const rs=reps.filter(r=>lvl(r)===v); const res=conv(custs(model,DATA.s.filter(s=>rs.includes(s.rep))), sIdx(model,k.from), sIdx(model,k.to), null); return { nm, n:rs.length, ...res }; }) : [];
+  const maxR=Math.max(1,...lvGroups.map(g=>g.rate||0));
+  const cell=(ch,r)=>{ const st=stampOf(ch.id,r), tr=rpTries(ch,r); const cf=st&&OPS.confirm[st.id];
+    if (st) return `<td class="lc"><span class="dot ok" title="${esc(ch.title)}：${fmtDate(st.created_at)}${st.score!=null?' '+st.score+'点':''}${tr.length?'（'+tr.length+'回目で合格）':''}">${st.score!=null?st.score:'✓'}</span>${cf?'<i class="cf" title="同席確認済み">✔</i>':''}</td>`;
+    if (tr.length) return `<td class="lc"><span class="dot doing" title="${esc(ch.title)}：挑戦中（${tr.length}回・最高${Math.max(...tr.map(x=>x.score||0))}点）">${tr.length}</span></td>`;
+    return `<td class="lc"><span class="dot" title="${esc(ch.title)}：未着手"></span></td>`; };
+  const alertBlock=(title,list,fmt,cls='')=>`<div class="la ${cls}"><b>${title}<span>${list.length}人</span></b>${list.length?list.slice(0,12).map(x=>`<a href="#" data-lrep="${esc(x.r)}">${esc(x.r)}</a>${fmt?`<span class="small muted">${fmt(x)}</span>`:''}`).join(''):'<span class="small muted">なし</span>'}</div>`;
+  $('#main').innerHTML = `${banner()}<h1>学習進捗ボード</h1>
+  <p class="lead">誰がどこまで進んでいるか、誰に声をかけるべきかを確認します。未達者の名前は責任者と社長だけに表示されます。</p>
+  <div class="row no-print" style="margin-bottom:14px">
+    <select id="lScope" style="width:auto"><option value="all">全社</option>${CONF.teams.map(t=>`<option value="team:${t.id}" ${f.scope==='team:'+t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+    <select id="lCourse" style="width:auto">${COURSES.map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name)}${x.id===L.course?'（必須）':''}</option>`).join('')}</select>
+    <button class="btn sm" id="lCwAll">全体向けにChatworkコピー</button><button class="btn sm" id="lCwLead">責任者向けにChatworkコピー</button>
+    ${canEditKPI()?'<button class="btn sm" id="lRule">ルール設定</button>':''}
+  </div>
+  <div class="panel lr-rule"><div class="row" style="gap:22px"><span><span class="lv" style="background:${COURSES.find(x=>x.id===L.course)?.color||c.color}">必須</span> 「${esc(COURSES.find(x=>x.id===L.course)?.name||'')}」</span>
+    <span class="small">期間 ${md(L.start)}〜${md(L.due)}</span><span class="small">中間期限 ${md(L.mid)}（${L.midCount}チャレンジ）</span><span class="small">補習勉強会 ${esc(L.remedial)}</span>
+    <span class="small"><b>${daysLeft>=0?`期限まであと${daysLeft}日`:'期限を過ぎました'}</b></span></div></div>
+  <div class="grid3 lr-kpi" style="margin-bottom:18px">
+    <div class="stat"><div class="small muted">「${esc(c.name)}」修了率</div><div class="n">${pct(doneN,reps.length)??'-'}<span class="small">%</span></div><div class="small">${doneN}/${reps.length}人</div><div class="track" style="height:8px;margin-top:6px"><div style="height:100%;width:${reps.length?doneN/reps.length*100:0}%;background:${c.color};border-radius:4px"></div></div></div>
+    <div class="stat"><div class="small muted">中間期限（${md(L.mid)}・${L.midCount}つ）${afterMid?'':'の見込み'}</div><div class="n ${afterMid&&midOk<reps.length?'ng':''}">${pct(midOk,reps.length)??'-'}<span class="small">%</span></div><div class="small">${midOk}/${reps.length}人が${L.midCount}つ以上</div></div>
+    <div class="stat"><div class="small muted">${afterDue?'補習の対象者':'このままだと補習（見込み）'}</div><div class="n ${(afterDue?remList:lateList).length?'ng':'ok'}">${(afterDue?remList:lateList).length}<span class="small">人</span></div><div class="small">${afterDue?`出席済み ${remList.filter(x=>x.remedialDone).length}人`:'直近14日のペースから判定'}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">メンバー別の進捗（${esc(c.name)}）</h2><span class="small muted">名前を押すと詳細</span></div>
+      <div class="scroll" style="margin-top:10px"><table class="lmx"><tr><th>担当</th>${c.ch.map((x,i)=>`<th class="lc" title="${esc(x.title)}">${i+1}</th>`).join('')}<th>見込み</th><th>最終学習</th></tr>
+      ${rows.map(x=>`<tr><td><a href="#" data-lrep="${esc(x.r)}"><b>${esc(x.r)}</b></a></td>${c.ch.map(ch=>cell(ch,x.r)).join('')}
+        <td><span class="tag ${PACE[x.pace][1]}">${PACE[x.pace][0]}</span>${x.midMiss?' <span class="tag red">中間未達</span>':''}</td>
+        <td class="small ${x.idle==null||x.idle>=L.stale?'ng':''}">${x.idle==null?'—':x.idle+'日前'}</td></tr>`).join('')||`<tr><td colspan="${c.ch.length+3}" class="empty">対象者がいません（KPI設定でチームを登録するか、学習の記録があると表示されます）</td></tr>`}</table></div>
+      <div class="row small muted" style="margin-top:8px;gap:14px"><span><span class="dot ok">✓</span> 済（数字は点数）</span><span><span class="dot doing">2</span> 挑戦中（数字は回数）</span><span><span class="dot"></span> 未着手</span><span><i class="cf" style="position:static">✔</i> 同席確認済み</span></div></div>
+    <div class="panel"><h2>要対応</h2>
+      ${alertBlock('中間期限の未達', rows.filter(x=>x.midMiss), x=>`${x.got}/${L.midCount}`, 'red')}
+      ${alertBlock(`${L.stale}日間 学習なし`, staleList, x=>x.idle==null?'未着手':x.idle+'日')}
+      ${alertBlock('期限14日前で残り3以上', rows.filter(x=>x.rush), x=>'残り'+(x.n-x.got))}
+      ${alertBlock(afterDue?'補習の対象':'このままだと補習', afterDue?remList:lateList, x=>afterDue?(x.remedialDone?'出席済み':'未出席'):`${x.got}/${x.n}`, 'red')}
+      ${alertBlock('同席確認が未実施（中級以上のロープレ）', [...new Map(pendAll.map(x=>[x.r,{r:x.r,cnt:pendAll.filter(y=>y.r===x.r).length}])).values()], x=>x.cnt+'件')}
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h2>修了率の推移（週次）</h2>${trend}</div>
+    <div class="panel"><h2>修了レベル別の転換率${k?`（${esc(k.name)}）`:''}</h2>
+      ${k&&lvGroups.some(g=>g.den)?lvGroups.map(g=>`<div class="row" style="flex-wrap:nowrap;margin-bottom:10px"><span style="min-width:84px">${g.nm}</span><div class="track" style="flex:1;height:14px"><div style="height:100%;width:${(g.rate||0)/maxR*100}%;background:var(--navy);border-radius:7px"></div></div><b style="min-width:62px;text-align:right">${g.rate??'-'}%</b><span class="small muted" style="min-width:110px">${g.num}/${g.den}社・${g.n}人</span></div>`).join('')+'<p class="small muted" style="margin:0">学習が成果につながっているかの目安です。人数や件数が少ないうちは偶然の差も大きく出ます。</p>':'<p class="small muted">重要KPIの商談データがまだありません。</p>'}</div>
+  </div>
+  ${isCeo()?rewardPanel(reps):''}`;
+  $('#lScope').onchange=e=>{ f.scope=e.target.value; VIEWS.learn(); };
+  $('#lCourse').onchange=e=>{ f.course=e.target.value; VIEWS.learn(); };
+  document.querySelectorAll('[data-lrep]').forEach(a=>a.onclick=e=>{ e.preventDefault(); learnRepModal(a.dataset.lrep); });
+  $('#lCwAll').onclick=()=>copy(learnChatwork(false, c, rows, L));
+  $('#lCwLead').onclick=()=>copy(learnChatwork(true, c, rows, L));
+  if ($('#lRule')) $('#lRule').onclick=learnRuleModal;
+  if ($('#lQ')) $('#lQ').onchange=e=>{ f.q=e.target.value; VIEWS.learn(); };
+  if ($('#lCsv')) $('#lCsv').onclick=()=>rewardCsv(reps);
+};
+/* 評価「学習と実践」と報奨の候補（社長のみ） */
+function evalRow(r, per, prev){
+  const L=LR(); const lvp = COURSES.every(c=>courseDone(c,r)) ? L.points.c4 : Math.max(0, ...COURSES.filter(c=>courseDone(c,r)).map(c=>L.points[c.id]||0));
+  const prac = Math.min(3, DATA.l.filter(l=>l.rep===r && l.action==='practiced' && inP(l,per)).length);
+  const avgS = a => a.length ? a.reduce((t,s)=>t+(s.total_score||0),0)/a.length : null;
+  const a=avgS(DATA.s.filter(s=>s.rep===r&&inP(s,per))), b=avgS(DATA.s.filter(s=>s.rep===r&&inP(s,prev)));
+  const imp = (a!=null&&b!=null&&a>b) ? 2 : 0;
+  const model=modelById('std')||CONF.models[0]; const keys=(model.kpis||[]).filter(k=>k.key);
+  const ks = keys.map(k=>{ const res=kpiConv(model, DATA.s.filter(s=>s.rep===r), k, [+per.st,+per.en]); const t=targetFor(r,model,k); return { name:k.name, rate:res.rate, t, met: t!=null && res.den>0 && res.rate>=t }; });
+  const c2=courseDone(COURSES[1],r), all=COURSES.every(c=>courseDone(c,r));
+  const master = all && ks.length>0 && ks.every(x=>x.met), practice = !master && c2 && ks.some(x=>x.met);
+  const mine = new Set(DATA.c.filter(x=>x.rep===r).map(x=>x.id));
+  const contrib = DATA.l.filter(l=>mine.has(l.case_id) && l.rep!==r && l.action==='practiced' && l.outcome==='うまくいった' && inP(l,per)).length;
+  const caseAmt = Math.min(L.rewards.caseCap, contrib*L.rewards.casePer);
+  const amt = (master?L.rewards.master:practice?L.rewards.practice:0) + caseAmt;
+  return { r, lvp, prac, imp, score: lvp+prac+imp, ks, master, practice, contrib, caseAmt, amt };
+}
+function rewardPanel(reps){
+  const qs=lastPeriods('q',4), f=VIEWS.learn.f; const per=qs.find(p=>p.label===f.q)||qs[qs.length-1]; const prev={ st:addPeriod(per.st,'q',-1), en:per.st };
+  const rows=reps.map(r=>evalRow(r,per,prev)); const L=LR(); const total=rows.reduce((t,x)=>t+x.amt,0);
+  const yen = v => v ? v.toLocaleString('ja-JP')+'円' : '—';
+  return `<div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">評価「学習と実践」と報奨の候補</h2>
+    <div class="row"><select id="lQ" style="width:auto">${qs.slice().reverse().map(p=>`<option ${p.label===per.label?'selected':''}>${esc(p.label)}</option>`).join('')}</select><button class="btn sm" id="lCsv">CSVで出力（評価シート用）</button></div></div>
+    <p class="small muted" style="margin:6px 0 10px">社長だけに表示しています。支給はこの一覧を確認して社長が確定します（アプリは候補を出すだけです）。修了レベル：初級${L.points.c1}点・中級${L.points.c2}点・全コース制覇${L.points.c4}点／実践：実践報告1件1点（上限3）＋育成カルテの平均点が前四半期より上がれば2点。</p>
+    <div class="scroll"><table><tr><th>担当</th><th class="n">修了レベル</th><th class="n">実践報告</th><th class="n">カルテ改善</th><th class="n">評価点(10)</th><th>重要KPI（この四半期）</th><th>報奨の候補</th><th class="n">事例貢献</th><th class="n">金額（案）</th></tr>
+    ${rows.map(x=>`<tr><td><b>${esc(x.r)}</b></td><td class="n">${x.lvp}</td><td class="n">${x.prac}</td><td class="n">${x.imp}</td><td class="n"><b>${x.score}</b></td>
+      <td class="small">${x.ks.map(k=>`${esc(k.name)} ${k.rate??'-'}%${k.t!=null?`／${k.t}%`:''} ${k.met?'<span class="tag green">達成</span>':''}`).join('<br>')||'—'}</td>
+      <td>${x.master?'<span class="tag amber">達人賞</span>':x.practice?'<span class="tag green">実践賞</span>':'<span class="small muted">—</span>'}</td>
+      <td class="n">${x.contrib?x.contrib+'件':'—'}</td><td class="n">${yen(x.amt)}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">対象者がいません</td></tr>'}
+    <tr><td colspan="8"><b>合計（${esc(per.label)}）</b></td><td class="n"><b>${yen(total)}</b></td></tr></table></div></div>`;
+}
+function rewardCsv(reps){
+  const qs=lastPeriods('q',4), f=VIEWS.learn.f; const per=qs.find(p=>p.label===f.q)||qs[qs.length-1]; const prev={ st:addPeriod(per.st,'q',-1), en:per.st };
+  const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const lines=[['担当','修了レベル点','実践報告点','カルテ改善点','評価点(10)','報奨の候補','事例貢献(件)','金額案(円)','重要KPI'].map(q).join(',')];
+  reps.map(r=>evalRow(r,per,prev)).forEach(x=>lines.push([x.r,x.lvp,x.prac,x.imp,x.score,x.master?'達人賞':x.practice?'実践賞':'',x.contrib,x.amt,x.ks.map(k=>`${k.name} ${k.rate??'-'}%`).join(' / ')].map(q).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`学習と実践_${per.label.replace(/[^\w〜/ ]/g,'').replace(/[\/ 〜]/g,'_')}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function learnChatwork(lead, c, rows, L){
+  const done=rows.filter(x=>x.pace==='done').length, dl=Math.ceil((endOfDay(L.due)-Date.now())/DAY);
+  const t=new Date(); const head=`[info][title]学習コース 進捗報告（${t.getMonth()+1}/${t.getDate()}時点）[/title]`;
+  const base=`■【${c.name}】修了率 ${pct(done,rows.length)??0}％（${done}/${rows.length}人）\n期限：${md(L.due)}（${dl>=0?'あと'+dl+'日':'期限超過'}）　中間期限：${md(L.mid)}までに${L.midCount}チャレンジ`;
+  if (!lead) return `${head}${base}\n[hr]■今週やること\n・残りのチャレンジを1つ以上進める（1チャレンジ15分が目安）\n・未修了のまま期限を過ぎると、補習勉強会（${L.remedial}）の対象になります[/info]`;
+  const nm = a => a.length ? a.map(x=>x.r).join('、') : 'なし';
+  return `${head}${base}\n[hr]■要対応（責任者向け）\n【中間期限の未達】${nm(rows.filter(x=>x.midMiss))}\n【${L.stale}日間 学習なし】${nm(rows.filter(x=>x.pace!=='done'&&(x.idle==null||x.idle>=L.stale)))}\n【このままだと補習】${nm(rows.filter(x=>x.pace==='late'||x.pace==='none'||x.pace==='remedial'))}\n【同席確認が未実施】${nm(rows.filter(x=>x.pending.length))}\n[hr]■お願い\n・該当者と1on1で完了日を決めてください[/info]`;
+}
+function learnRepModal(r){
+  const L=LR(); const el=document.createElement('div'); el.className='stamp-modal';
+  const lead=isLead(); const s=repLearn(r, COURSES.find(x=>x.id===L.course)||COURSES[0], L);
+  const rowsHTML = COURSES.map(c=>`<tr><th colspan="5" style="background:none;padding-top:12px"><span class="lv" style="background:${c.color}">${esc(c.name)}</span> ${c.ch.filter(x=>stampOf(x.id,r)).length}/${c.ch.length}</th></tr>
+    ${c.ch.map(ch=>{ const st=stampOf(ch.id,r), tr=rpTries(ch,r), cf=st&&OPS.confirm[st.id];
+      return `<tr><td class="small">${esc(ch.title)}</td><td class="small">${st?fmtDate(st.created_at):tr.length?'挑戦中':'—'}</td><td class="n">${st?.score??(tr.length?Math.max(...tr.map(x=>x.score||0)):'')}</td><td class="small">${tr.length?tr.length+'回':''}</td>
+      <td class="small">${ch.type==='rp'&&st&&c.id!=='c1'?(cf?`<span class="tag green">同席確認 ${esc(cf.by||'')}</span>`:lead?`<button class="btn sm" data-cf="${st.id}">同席で確認した</button>`:'<span class="muted">未確認</span>'):''}</td></tr>`; }).join('')}`).join('');
+  el.innerHTML=`<div class="stamp-box" style="max-width:720px;width:94vw;text-align:left;max-height:88vh;overflow:auto">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(r)}さんの学習状況</h2><button class="btn sm" id="lmClose">閉じる</button></div>
+    <p class="small" style="margin:6px 0">称号：<b>${esc(rankOf(r))}</b>　必須コース：<span class="tag ${PACE[s.pace][1]}">${PACE[s.pace][0]}</span>　最終学習：${s.idle==null?'—':s.idle+'日前'}</p>
+    ${s.pace==='remedial'&&lead?`<div class="row" style="margin:6px 0"><span class="small">補習勉強会：</span>${s.remedialDone?`<span class="tag green">出席済み（${fmtDate(OPS.remedial[r].at)}）</span>`:`<button class="btn sm" id="lmRem">出席を記録</button>`}</div>`:''}
+    <table>${rowsHTML}</table>
+    <p class="small muted">同席確認：中級以上のロープレは、責任者が同席して確認したものに印を付けます。点数だけで評価しないための仕組みです。</p></div>`;
+  document.body.appendChild(el);
+  el.onclick=e=>{ if(e.target===el) el.remove(); }; el.querySelector('#lmClose').onclick=()=>el.remove();
+  el.querySelectorAll('[data-cf]').forEach(b=>b.onclick=async()=>{ try{ await mutateOps(o=>{ o.confirm[b.dataset.cf]={ by:ME.name||ME.email, at:new Date().toISOString() }; }); toast('同席確認を記録しました'); el.remove(); learnRepModal(r); if(CURRENT.view==='learn') VIEWS.learn(); }catch(e){ alert('記録できませんでした：'+e.message); } });
+  const rb=el.querySelector('#lmRem'); if(rb) rb.onclick=async()=>{ try{ await mutateOps(o=>{ o.remedial[r]={ by:ME.name||ME.email, at:new Date().toISOString() }; }); toast('補習の出席を記録しました'); el.remove(); VIEWS.learn(); }catch(e){ alert('記録できませんでした：'+e.message); } };
+}
+function learnRuleModal(){
+  const L=LR(); const el=document.createElement('div'); el.className='stamp-modal';
+  const inp=(id,v,type='text',w='')=>`<input id="${id}" type="${type}" value="${esc(v)}" ${w?`style="width:${w}"`:''}>`;
+  el.innerHTML=`<div class="stamp-box" style="max-width:620px;width:94vw;text-align:left;max-height:88vh;overflow:auto">
+    <h2 style="margin:0 0 10px">学習ルールの設定</h2>
+    <div class="grid2" style="gap:10px">
+      <label class="small">必須コース<select id="rCourse">${COURSES.map(c=>`<option value="${c.id}" ${c.id===L.course?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label class="small">補習勉強会の日程${inp('rRem',L.remedial)}</label>
+      <label class="small">開始日${inp('rStart',L.start,'date')}</label><label class="small">最終期限${inp('rDue',L.due,'date')}</label>
+      <label class="small">中間期限${inp('rMid',L.mid,'date')}</label><label class="small">中間期限までのチャレンジ数${inp('rMidN',L.midCount,'number')}</label>
+      <label class="small">「学習なし」とみなす日数${inp('rStale',L.stale,'number')}</label>
+      <label class="small">対象外にする人（読点区切り）${inp('rEx',L.exclude.join('、'))}</label>
+    </div>
+    <h3 style="margin:14px 0 6px">評価の配点（修了レベル）</h3>
+    <div class="grid2" style="gap:10px"><label class="small">初級修了${inp('pC1',L.points.c1,'number')}</label><label class="small">中級修了${inp('pC2',L.points.c2,'number')}</label><label class="small">上級修了${inp('pC3',L.points.c3,'number')}</label><label class="small">全コース制覇${inp('pC4',L.points.c4,'number')}</label></div>
+    <h3 style="margin:14px 0 6px">報奨の金額（案）</h3>
+    <div class="grid2" style="gap:10px"><label class="small">実践賞${inp('wP',L.rewards.practice,'number')}</label><label class="small">達人賞${inp('wM',L.rewards.master,'number')}</label><label class="small">事例貢献 1件${inp('wC',L.rewards.casePer,'number')}</label><label class="small">事例貢献 四半期上限${inp('wCap',L.rewards.caseCap,'number')}</label></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="rCancel">キャンセル</button><button class="btn primary" id="rSave">保存</button></div></div>`;
+  document.body.appendChild(el); el.querySelector('#rCancel').onclick=()=>el.remove();
+  el.querySelector('#rSave').onclick=async()=>{
+    const v=id=>el.querySelector('#'+id).value, nv=id=>Number(v(id))||0;
+    if (!(v('rStart')<=v('rMid') && v('rMid')<=v('rDue'))) return alert('開始日 ≦ 中間期限 ≦ 最終期限 になるように入力してください。');
+    const next=clone(CONF); next.learn={ course:v('rCourse'), start:v('rStart'), mid:v('rMid'), midCount:nv('rMidN'), due:v('rDue'), remedial:v('rRem'), stale:nv('rStale')||7,
+      exclude:v('rEx').split(/[、,\s]+/).map(s=>s.trim()).filter(Boolean), points:{ c1:nv('pC1'), c2:nv('pC2'), c3:nv('pC3'), c4:nv('pC4') }, rewards:{ practice:nv('wP'), master:nv('wM'), casePer:nv('wC'), caseCap:nv('wCap') } };
+    try{ await saveConf(next); toast('学習ルールを保存しました'); el.remove(); VIEWS.learn.f.course=next.learn.course; VIEWS.learn(); }catch(e){ alert('保存できませんでした：'+e.message); }
+  };
+}
+
 /* ============ ⑦ 社長画面 ============ */
 function weekRange(offset=0){ const d=new Date(); const day=(d.getDay()+6)%7; const st=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day+offset*7); const en=new Date(st); en.setDate(st.getDate()+7); return [st,en]; }
 const inRange=(x,[a,b])=>{ const t=new Date(x.created_at); return t>=a&&t<b; };
@@ -1299,7 +1543,7 @@ VIEWS.ceo = () => {
 function renderCeoCourse(){
   const reps=[...new Set([...DATA.p.map(p=>p.rep),...DATA.s.map(s=>s.rep)].filter(Boolean))];
   const wk=weekRange(0); const el=document.createElement('div'); el.className='panel';
-  el.innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">学習コースの進捗</h2><button class="btn sm" onclick="go('course')">学習コース</button></div>
+  el.innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">学習コースの進捗</h2><div class="row"><button class="btn sm" onclick="go('learn')">学習進捗ボード</button><button class="btn sm" onclick="go('course')">学習コース</button></div></div>
   <div class="scroll" style="margin-top:10px"><table><tr><th>担当</th><th>称号</th>${COURSES.map(c=>`<th class="n">${esc(c.name)}</th>`).join('')}<th class="n">今週のスタンプ</th></tr>
   ${reps.map(r=>`<tr><td><b>${esc(r)}</b></td><td>${esc(rankOf(r))}</td>${COURSES.map(c=>{ const n=c.ch.filter(x=>hasStamp(x.id,r)).length; return `<td class="n ${n===c.ch.length?'ok':''}">${n}/${c.ch.length}</td>`; }).join('')}<td class="n">${DATA.p.filter(p=>p.rep===r&&inRange(p,wk)).length}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">まだ記録がありません</td></tr>'}</table></div>`;
   $('#main').appendChild(el);
@@ -1816,6 +2060,7 @@ VIEWS.course = (chId) => {
   $('#main').innerHTML = `${banner()}${LOCAL_P&&!LOCAL?'<div class="banner">学習コースのテーブルが未作成のため、このブラウザ内に保存しています。sales-coach-course.sql を実行すると全社共有になります。</div>':''}
   <h1>学習コース</h1>
   <p class="lead">レベル別のチャレンジをクリアしてスタンプを集めよう。コースを修了すると称号がもらえ、次のレベルが解放されます。</p>
+  ${learnBanner(me)}
   <div class="panel" style="display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center">
     <img src="${IMG.coach}" alt="AIコーチ" style="height:150px">
     <div>
@@ -1886,8 +2131,16 @@ async function autoStamps(){
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '2.0.0';
 const CHANGELOG = [
+  { v:'2.0.0', date:'2026-09-28', title:'学習進捗ボードを追加（学習コースの必須化）', items:[
+    '「学習進捗ボード」で、誰がどのチャレンジまで進んでいるかをメンバー×チャレンジの一覧で確認できます',
+    '直近14日のペースから「期限に間に合う／遅れ」を自動で判定し、中間期限の未達・学習が止まっている人・補習の対象を「要対応」にまとめます',
+    '中級以上のロープレは、責任者が同席して確認した印を付けられます。補習勉強会の出席も記録できます',
+    '修了率の週次推移（目標ライン付き）と、修了レベル別の転換率を表示します',
+    '社長向けに、評価「学習と実践」の点数と報奨の候補を四半期ごとに計算し、CSVで出力できます',
+    '学習コースの画面に、必須コースの期限と残りチャレンジ数を表示します',
+    '全体向け・責任者向けの進捗報告をChatworkにそのまま貼れる形でコピーできます' ]},
   { v:'1.9.1', date:'2026-09-25', title:'AI分析の安定性を改善', items:[
     '商談によってAI分析が「分析できませんでした」で止まることがある不具合を修正',
     'AIの回答の形式が崩れても自動で修復し、それでも読めない場合は1回自動でやり直します' ]},
@@ -1949,6 +2202,10 @@ const GUIDE = [
     what:'レベル別のチャレンジをクリアしてスタンプを集め、称号を獲得します。',
     steps:['「次のチャレンジ」の【挑戦する】を押す','ロープレ・クイズ・実践ミッションをクリアする','コースを修了したら「修了をChatworkで報告」'],
     tips:['実践ミッションは、アプリで行動すると自動でスタンプが押されます'] },
+  { id:'learn', who:'責任者', since:'2.0.0', when:'毎週月曜の朝・1on1の前',
+    what:'必須の学習コースについて、誰がどこまで進んでいるか、誰に声をかけるべきかを確認します。',
+    steps:['全社またはチームを選ぶ','「要対応」に出た人の名前を押して、進み具合を確認する','中級以上のロープレに同席したら【同席で確認した】を押す','【責任者向けにChatworkコピー】で要対応を共有する'],
+    tips:['期限・中間期限・補習の日程・報奨の金額は、管理者が【ルール設定】で変更できます','営業担当には自分の状況と全体の修了率だけが表示され、他の人の名前は出ません'] },
   { id:'predict', who:'営業', since:'1.0.0', when:'重要な商談の前日まで',
     what:'過去データから、今日出そうな断り文句TOP5と、事前に潰すべき5項目を出します。',
     steps:['顧客・属性・商品・段階・事前情報を入れる','【断り文句を予測する】を押す','上位の断り文句を事前ロープレする'],
@@ -2049,6 +2306,7 @@ function showWhatsNew(){
   await loadCases();
   await loadProgress();
   await loadConf();
+  await loadOps();
   go('home');
   markNavNew();
   showWhatsNew();
