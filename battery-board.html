@@ -483,7 +483,7 @@ const SEED_IMGS={1752451200000:{aerial:"data:image/jpeg;base64,/9j/4AAQSkZJRgABA
 const DEF={category:"自社開発",voltage:"低圧",name:"",address:"",pref:"",gridArea:"",mapUrl:"",area:null,owner:"",developer:"",
  landStatus:"",houseDist:"",access:"",phase:1,checks:{},connStatus:"未申請",burden:null,burdenPay:"未確定",codMonth:"",codNote:"",
  commercial:"",cancelGrace:"",battMaker:"",battKwh:null,pcsMaker:"",pcsKw:null,ems:"",aggregator:"",om:"",
- landPrice:null,fee:null,pq:null,mq:null,landPhase:"",powerPhase:"",status:"未着手",customer:"",memo:"",updated:"",updatedBy:"",lat:null,lng:null,deleted:false};
+ landPrice:null,fee:null,pq:null,mq:null,priceIn:null,priceEx:null,shikiri:null,feeIn:null,landPhase:"",powerPhase:"",status:"未着手",customer:"",memo:"",updated:"",updatedBy:"",lat:null,lng:null,deleted:false};
 function prefOf(addr){const a=(addr||"").replace(/〒?\d{3}[-−ー]?\d{4}\s*/,"").trim();return PREFS.find(p=>a.startsWith(p))||"";}
 function norm(r){
   const p={...DEF,...r,checks:{...(r.checks||{})}};
@@ -945,10 +945,14 @@ function drawEditor(){
   </div></div>
 
   <div class="ed-sec"><h3>金額（社内用・物件情報シートには載りません）</h3><div class="fg">
-    ${fld("landPrice","土地価格（円）","number")}
+    ${fld("landPrice","土地代金（円）","number")}
+    ${fld("priceIn","販売価格（税込）（円）","number")}
+    ${fld("priceEx","販売価格（税抜）（円）","number")}
+    ${fld("shikiri","仕切価格（税抜）（円）","number")}
+    ${fld("pq","土地込み税抜金額＝PQ（円）","number")}
+    ${fld("mq","手数料（税抜）＝MQ（円）","number")}
+    ${fld("feeIn","手数料（税込）（円）","number")}
     ${fld("fee","紹介手数料（円）","number")}
-    ${fld("pq","販売価格 PQ（円）","number")}
-    ${fld("mq","MQ（円）","number")}
   </div></div>
 
   <div class="ed-sec"><h3>商談</h3><div class="fg">
@@ -1162,10 +1166,10 @@ function importExcel(ev){
 
 /* ================= CSV書き出し ================= */
 function exportCSV(){
-  const H=["案件名","開発区分","開発会社","電圧","所在地","都道府県","電力エリア","担当","フェーズ","現フェーズ進捗","次の手","接続進捗","工事費負担金","負担金入金状況","連系予定","商業運転開始","契約解除猶予","面積㎡","土地状況","住宅までの距離","アクセス","蓄電池","容量kWh","PCS","出力kW","EMS","アグリゲーター","O&M電気保安","土地価格","紹介手数料","PQ","MQ","商談","顧客名","メモ","最終更新","地図URL"];
+  const H=["案件名","開発区分","開発会社","電圧","所在地","都道府県","電力エリア","担当","フェーズ","現フェーズ進捗","次の手","接続進捗","工事費負担金","負担金入金状況","連系予定","商業運転開始","契約解除猶予","面積㎡","土地状況","住宅までの距離","アクセス","蓄電池","容量kWh","PCS","出力kW","EMS","アグリゲーター","O&M電気保安","土地代金","紹介手数料","土地込み税抜金額(PQ)","手数料税抜(MQ)","販売価格(税込)","販売価格(税抜)","仕切価格(税抜)","手数料(税込)","商談","顧客名","メモ","最終更新","地図URL"];
   const rows=[H];
   filtered().forEach(p=>{const g=phaseProg(p,p.phase<6?p.phase:null),nt=nextTask(p);
-    rows.push([p.name,p.category,p.developer,p.voltage,p.address,p.pref,p.gridArea,p.owner,(p.phase<6?"P"+p.phase+" ":"")+phK(p.phase),`${g.d}/${g.n}`,nt?nt.t:"",p.connStatus,p.burden??"",p.burdenPay,codText(p),p.commercial,p.cancelGrace,p.area??"",p.landStatus,p.houseDist,p.access,p.battMaker,p.battKwh??"",p.pcsMaker,p.pcsKw??"",p.ems,p.aggregator,p.om,p.landPrice??"",p.fee??"",p.pq??"",p.mq??"",p.status,p.customer,p.memo,p.updated,p.mapUrl]);});
+    rows.push([p.name,p.category,p.developer,p.voltage,p.address,p.pref,p.gridArea,p.owner,(p.phase<6?"P"+p.phase+" ":"")+phK(p.phase),`${g.d}/${g.n}`,nt?nt.t:"",p.connStatus,p.burden??"",p.burdenPay,codText(p),p.commercial,p.cancelGrace,p.area??"",p.landStatus,p.houseDist,p.access,p.battMaker,p.battKwh??"",p.pcsMaker,p.pcsKw??"",p.ems,p.aggregator,p.om,p.landPrice??"",p.fee??"",p.pq??"",p.mq??"",p.priceIn??"",p.priceEx??"",p.shikiri??"",p.feeIn??"",p.status,p.customer,p.memo,p.updated,p.mapUrl]);});
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="系統用蓄電池_案件一覧_"+new Date().toISOString().slice(0,10)+".csv";a.click();
 }
@@ -1174,7 +1178,7 @@ function exportCSV(){
 const SHEET_URL="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit?gid=351466780#gid=351466780";
 const SHEET_SET_KEY="_sheet_settings", LS_GAS="battery_sheet_gas_v1";
 /* シートが正（マスタ）の項目：連動中の案件はボード側では編集不可 */
-const SHEET_LOCK=["name","owner","customer","status","pq","mq","landPrice"];
+const SHEET_LOCK=["name","owner","customer","status","pq","mq","landPrice","priceIn","priceEx","shikiri","feeIn"];
 const SHEET_STATUS={"失注":"見送り","見送り":"見送り","契約済":"成約","取次契約締結済":"成約","入金済":"成約","成約":"成約",
   "買付意向":"申込","申込":"申込","商談中":"商談中","紹介中":"紹介中","リリース前":"準備中","準備中":"準備中","案件待ち":"未着手","未着手":"未着手"};
 let gasUrl=localStorage.getItem(LS_GAS)||"", sheetBusy=false, sheetLast=null, sheetTimer=null;
@@ -1215,6 +1219,7 @@ function applySheetRow(p,r,isNew){
   p.pq=sheet.土地込み税抜??sheet.販売価格税抜??null;
   p.mq=sheet.手数料税抜??snum(sgv(r,"MQ","粗利"));
   p.landPrice=sheet.土地代金;
+  p.priceIn=sheet.販売価格税込; p.priceEx=sheet.販売価格税抜; p.shikiri=sheet.仕切価格; p.feeIn=sheet.手数料税込;
   if(sheet.売主)p.developer=String(sheet.売主);
   const cod=parseCod(sheet.COD);
   if(cod){p.codMonth=cod;}
@@ -1286,11 +1291,10 @@ function startSheetAuto(){
 function sheetInfoHtml(p){
   const s=p.sheet||{}; const y=v=>v==null||v===""?"─":(typeof v==="number"?nf(v)+" 円":esc(String(v)));
   const rows=[["案件ID",s.id],["シートのステータス",s.ステータス],["状況",s.状況],["容量",s.容量],["売主（EPC）",s.売主],["買主（投資家）",s.買主],
-    ["販売価格（税込）",s.販売価格税込],["販売価格（税抜）",s.販売価格税抜],["仕切価格（税抜）",s.仕切価格],["土地込み税抜金額",s.土地込み税抜],
-    ["手数料（税抜）",s.手数料税抜],["手数料（税込）",s.手数料税込],["契約日",s.契約日],["入金予定日",s.入金予定日],["手数料入金",s.手数料入金],
+    ["契約日",s.契約日],["入金予定日",s.入金予定日],["手数料入金",s.手数料入金],
     ["連系予定（COD）",s.COD],["進捗日",s.進捗日],["詳細",s.詳細],["備考",s.備考]];
   return `<div class="ed-sec sheet-sec"><h3>📗 スプレッドシート連動中 <a href="${SHEET_URL}" target="_blank" rel="noopener">シートを開く ↗</a></h3>
-    <div class="hint" style="font-size:.74rem;color:var(--ink-sub);margin-bottom:8px">案件名・担当・顧客名（買主）・商談ステータス・PQ（土地込み税抜）・MQ（手数料税抜）・土地価格・連系予定は<b>シートが正</b>です。変更はシートで行ってください（約1分でボードに反映）。${s.syncedAt?"　最終取込："+esc(s.syncedAt.slice(0,16).replace("T"," ")):""}</div>
+    <div class="hint" style="font-size:.74rem;color:var(--ink-sub);margin-bottom:8px">案件名・担当・顧客名（買主）・商談ステータス・金額（土地代金／販売価格／仕切価格／土地込み税抜／手数料）・連系予定は<b>シートが正</b>です。変更はシートで行ってください（約1分でボードに反映）。${s.syncedAt?"　最終取込："+esc(s.syncedAt.slice(0,16).replace("T"," ")):""}</div>
     <div class="sheet-grid">${rows.filter(r=>r[1]!=null&&r[1]!=="").map(r=>`<div><span>${r[0]}</span><b>${y(r[1])}</b></div>`).join("")}</div></div>`;
 }
 
