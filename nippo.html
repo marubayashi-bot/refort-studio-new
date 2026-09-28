@@ -662,6 +662,9 @@ document.addEventListener('input', e => {
   if (TAB !== 'write' || !ME) return;
   const id = e.target && e.target.id;
   if (!id) return;
+  if ((id.startsWith('mt_') || id === 'f_good') && String(e.target.value).trim() !== ''){
+    e.target.style.borderColor = ''; e.target.style.background = '';
+  }
   if (id.startsWith('mt_') || ['f_voice','f_rival','f_industry','f_thought'].includes(id)){
     const today = REPORTS.find(r => r.author_id === ME.id && r.report_date === TODAY);
     drawBubble(!!today, myStreak(), monthRate());
@@ -730,7 +733,7 @@ function vWrite(){
       return `<div><label>${esc(g.name)}（${esc(g.unit)}）
         ${g.kind === 'KGI' ? '<span class="pill">KGI</span>' : ''}　
         <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + tgt}</span></label>
-      <input type="number" step="any" id="mt_${g.metric_id}" value="${mv(g.metric_id)}" placeholder="0">
+      <input type="number" step="any" id="mt_${g.metric_id}" value="${mv(g.metric_id)}" placeholder="未入力（0件なら0）" required>
       ${zero
         ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
             ${sofar > 0
@@ -755,7 +758,7 @@ function vWrite(){
         const rate = goalRate(sofar, tgt);
         return `<div><label>${esc(m.name)}（${esc(m.unit)}）　
           <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + (m.target ?? '—')}</span></label>
-        <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="0">
+        <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="未入力（0件なら0）" required>
         ${zero
           ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
               ${sofar > 0 ? '今週すでに ' + Math.round(sofar*10)/10 + esc(m.unit) + ' 発生しています'
@@ -805,7 +808,9 @@ function vWrite(){
     <h3>今日いちばん重要な情報の扱い</h3>
     <select id="f_imp">${IMP.map(([v2,t]) =>
       `<option value="${v2}"${mine && mine.importance===v2 ? ' selected':''}>${t}</option>`).join('')}</select>
-    <p class="note" style="margin-top:8px">提出すると、直属上司（${esc(uname(ME.manager_id))}）の確認画面に届きます。</p>
+    ${ME.manager_id && USERS.some(u => u.id === ME.manager_id)
+      ? `<p class="note" style="margin-top:8px">提出すると、直属上司（<b>${esc(uname(ME.manager_id))}</b>）の確認画面に必ず届きます。</p>`
+      : `<p class="note" style="margin-top:8px;color:var(--warn)"><b>直属上司が設定されていないため、提出できません。</b>管理者に上司の設定を依頼してください。</p>`}
     <button class="act" style="margin-top:10px" id="submitBtn" onclick="submitReport()">提出する</button>
 
     <label style="margin-top:16px">時間を指定して提出（予約）</label>
@@ -886,6 +891,22 @@ async function submitReport(scheduled){
     status: scheduled ? 'scheduled' : 'submitted',
     publish_at: scheduled ? new Date(pub).toISOString() : null
   };
+  // 上司が未設定だと日報が誰にも届かないため、提出させない
+  if (!ME.manager_id || !USERS.some(u => u.id === ME.manager_id)){
+    toast('直属上司が設定されていないため提出できません。管理者に上司の設定を依頼してください'); return;
+  }
+  // 数値情報は全項目必須（実績がない日は 0 を入れる）
+  const emptyMt = [...document.querySelectorAll('#view input[id^="mt_"]')].filter(el => String(el.value).trim() === '');
+  if (emptyMt.length){
+    const names = emptyMt.map(el => {
+      const lb = el.closest('div') && el.closest('div').querySelector('label');
+      return lb ? lb.textContent.split('（')[0].trim() : '';
+    }).filter(Boolean);
+    emptyMt.forEach(el => { el.style.borderColor = 'var(--warn)'; el.style.background = 'var(--warn-soft)'; });
+    emptyMt[0].focus(); emptyMt[0].scrollIntoView({ block: 'center' });
+    toast('数値が未入力です：' + names.join('、') + '（実績がない日は 0 を入力）');
+    return;
+  }
   if (!body.voice && !body.thought){ toast('お客様の声か、自分の考えのどちらかは入力してください'); return; }
   if (isEmptyGood(body.good_news)){
     toast('グッドニュースを書いてください。「無し」では提出できません');
@@ -1354,6 +1375,8 @@ const CQ = {};                 // 日報id → [{key, label, text}]
 let LAST_SEL = null;           // 最後に選択された文字（スマホでボタンを押すと選択が消えるため）
 
 document.addEventListener('selectionchange', () => {
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')) return;   // 入力中は何もしない
   const sel = window.getSelection && window.getSelection();
   const t = sel ? String(sel).trim() : '';
   if (!t || !sel.rangeCount) return;
@@ -1379,7 +1402,6 @@ function quoteSec(rid, key){
   let text = fresh ? LAST_SEL.text : String(r[key] || '').trim();
   if (!fresh && text.length > 160) text = text.slice(0, 160) + '…';
   LAST_SEL = null;
-  if (window.getSelection) window.getSelection().removeAllRanges();
   CQ[rid] = CQ[rid] || [];
   if (!CQ[rid].some(x => x.key === key && x.text === text)) CQ[rid].push({ key, label: q[1], cls: q[2], text });
   openComment(rid, true);
@@ -1447,8 +1469,12 @@ function openComment(id, keep, initText){
      </div>`;
   drawQuotes(id);
   const ta = document.getElementById('ci_' + id);
-  ta.value = val; ta.focus();
-  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  ta.value = val;
+  box.scrollIntoView({ block: 'nearest' });
+  requestAnimationFrame(() => {
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  });
 }
 function editComment(rid, cid){
   const r = REPORTS.find(x => x.id === rid); if (!r) return;
