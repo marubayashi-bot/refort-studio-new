@@ -230,6 +230,23 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .qchips{display:flex;flex-direction:column;gap:6px;margin:6px 0}
 .qchip{display:flex;gap:8px;align-items:flex-start;padding:6px 9px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:0 8px 8px 0;font-size:12px}
 .qchip span{flex:1;word-break:break-word}
+/* 更新のお知らせ（アプリを開いたときに最初に確認） */
+.rel-bg{position:fixed;inset:0;z-index:200;background:rgba(11,37,62,.55);display:flex;align-items:center;justify-content:center;
+  padding:max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom))}
+.rel{background:#fff;border-radius:16px;width:min(640px,100%);max-height:100%;display:flex;flex-direction:column;
+  box-shadow:0 18px 48px rgba(11,37,62,.35);overflow:hidden}
+.rel-hd{background:#0B253E;color:#fff;padding:18px 22px}
+.rel-hd small{color:#9DB3CA;font-size:12px;letter-spacing:.08em}
+.rel-hd h2{margin:4px 0 0;font-size:19px;color:#fff}
+.rel-bd{padding:6px 22px 10px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.rel-bd h4{margin:16px 0 6px;font-size:14px;display:flex;gap:8px;align-items:center}
+.rel-bd h4 .tag{font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:700}
+.rel-bd h4 .tag.must{background:var(--warn-soft);color:var(--warn)}
+.rel-bd ul{margin:0;padding-left:1.2em}.rel-bd li{margin:3px 0;font-size:13.5px;line-height:1.7}
+.rel-ft{border-top:1px solid var(--line);padding:14px 22px;display:flex;flex-direction:column;gap:10px;background:#FAFBFC}
+.rel-ft label{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:700;cursor:pointer;margin:0;color:var(--ink)}
+.rel-ft input{width:20px;height:20px;accent-color:var(--accent)}
+.rel-ft button:disabled{opacity:.45;cursor:not-allowed}
 .cact{float:right;display:flex;gap:4px}
 .cact button{border:0;background:none;font:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
 .cact button:hover{background:#E8EDF3;color:var(--ink)}
@@ -336,6 +353,7 @@ button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 </div>
 <main id="view"><div class="empty">読み込み中</div></main>
 <div class="toast" id="toast"></div>
+<div id="relBox"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./ec-auth.js"></script>
@@ -462,6 +480,7 @@ async function boot(){
   if (OPEN_ID) TAB = 'feed';
   render();
   startSubWatch();
+  checkRelease();
 }
 
 async function loadReports(fromDate){
@@ -498,6 +517,99 @@ function render(){
     ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, result:vResult, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
   drawHeaderStats();   // ヘッダーのボタン・連続提出・達成率・吹き出しを更新
   updateAppBadge();
+}
+
+/* ================= 更新のお知らせ =================
+   新しい版を出したら、RELEASES の先頭に1件追加する（v は毎回変える）。
+   まだ確認していない人は、アプリを開くと最初にこの画面が出て、「確認しました」を押すまで使えない。
+   確認した記録は release_reads に残り、管理タブで誰が未確認か分かる。 */
+const RELEASES = [
+  { v: '2026-09-29', date: '2026年9月29日', title: '日報アプリを更新しました', sections: [
+    { h: '日報の提出ルール', must: true, items: [
+      '<b>数値（本日のKPI）は全項目入力が必須</b>です。実績がない日は「0」を入力してください。',
+      '<b>グッドニュースが必須</b>になりました。「無し」「特になし」では提出できません。お客様の一言、段取りがうまくいったことなど、小さな前進で構いません。',
+      '直属上司が設定されていない人は提出できません。表示が出たら管理部に連絡してください。' ]},
+    { h: 'Chatworkへの自動通知', must: true, items: [
+      '<b>20:00</b> 日報が未提出だと、本人と直属上司にTOが届きます。業務がない日は「日報を書く必要がない日」を押してください。',
+      '日報を提出すると、直属上司にTOで通知されます。',
+      '<b>毎朝9:00</b> 部下の日報を確認していない上司にTOが届きます。' ]},
+    { h: '上司の方へ', items: [
+      '部下の日報は「通知」タブ・メニューの件数・アプリのアイコンにも表示されます。「確認済みにする」を押すと消えます。',
+      '各欄の「引用してコメント」で、その欄を引用してコメントできます。文章の一部を選んでから押すと、その部分だけを引用できます。',
+      '自分のコメントは、右上の「編集」「削除」から直せます。' ]},
+    { h: '週次報告', items: [
+      '「今週の目標と結果」の数字を「数字を修正する」から直せます（理由の入力が必要。今週目標の修正は上司が行います）。',
+      '「報告書をPDFで保存」で、提出した時点の内容を保存できます。' ]},
+    { h: 'その他', items: [
+      '日報一覧の「CSVで出力」で、期間・部署・社員で絞り込んだ内容をExcelで開けます。',
+      '日報一覧は30件ずつ表示します。一番下の「さらに表示」で続きを見られます。' ]}
+  ]}
+];
+const REL_KEY = 'nippo_release_seen';
+
+async function checkRelease(force){
+  const rel = RELEASES[0]; if (!rel || !ME) return;
+  if (!force){
+    let local = ''; try { local = localStorage.getItem(REL_KEY + ':' + ME.id) || ''; } catch(e){}
+    if (local === rel.v) return;
+    const { data, error } = await EC.supabase.from('release_reads')
+      .select('version').eq('user_id', ME.id).eq('version', rel.v).limit(1);
+    if (!error && data && data.length){ try { localStorage.setItem(REL_KEY + ':' + ME.id, rel.v); } catch(e){} return; }
+  }
+  showRelease(rel, !!force);
+}
+
+function showRelease(rel, viewOnly){
+  const box = document.getElementById('relBox'); if (!box) return;
+  box.innerHTML = `<div class="rel-bg" role="dialog" aria-modal="true" aria-labelledby="relTitle">
+    <div class="rel">
+      <div class="rel-hd"><small>更新のお知らせ　${esc(rel.date)}</small><h2 id="relTitle">${esc(rel.title)}</h2></div>
+      <div class="rel-bd">
+        <p class="note" style="margin-top:12px">${viewOnly ? '' : 'アプリを使う前に、最後まで読んで「確認しました」を押してください。'}</p>
+        ${rel.sections.map(sc => `<h4>${esc(sc.h)}${sc.must ? '<span class="tag must">必ず確認</span>' : ''}</h4>
+          <ul>${sc.items.map(i => `<li>${i}</li>`).join('')}</ul>`).join('')}
+        <p class="note" style="margin:16px 0 4px">表示がおかしいときは、Ctrl＋Shift＋R（Macは Cmd＋Shift＋R）で再読み込みしてください。
+          この内容は「通知」タブの「更新のお知らせを見る」からいつでも見返せます。</p>
+      </div>
+      <div class="rel-ft">
+        ${viewOnly
+          ? `<button class="act" onclick="closeRelease()">閉じる</button>`
+          : `<label><input type="checkbox" id="relChk" onchange="document.getElementById('relOk').disabled=!this.checked">
+               内容を確認しました</label>
+             <button class="act" id="relOk" disabled onclick="confirmRelease('${rel.v}')">確認して日報を開く</button>`}
+      </div>
+    </div></div>`;
+  document.body.style.overflow = 'hidden';
+  const bd = box.querySelector('.rel-bd'); if (bd) bd.scrollTop = 0;
+}
+function closeRelease(){
+  const box = document.getElementById('relBox'); if (box) box.innerHTML = '';
+  document.body.style.overflow = '';
+}
+async function confirmRelease(v){
+  const btn = document.getElementById('relOk'); if (btn){ btn.disabled = true; btn.textContent = '記録中…'; }
+  const { error } = await EC.supabase.from('release_reads')
+    .upsert({ user_id: ME.id, version: v, read_at: new Date().toISOString() }, { onConflict: 'user_id,version' });
+  if (error) console.warn('release_reads', error.message);   // 記録できなくても使えるようにする
+  try { localStorage.setItem(REL_KEY + ':' + ME.id, v); } catch(e){}
+  closeRelease();
+  toast('確認ありがとうございます');
+}
+
+/* 管理タブ：お知らせの確認状況 */
+async function loadReleaseReads(){
+  const box = document.getElementById('relReads'); if (!box) return;
+  const rel = RELEASES[0];
+  const { data, error } = await EC.supabase.from('release_reads').select('user_id,read_at').eq('version', rel.v);
+  if (error){ box.innerHTML = '<p class="note" style="color:var(--warn)">確認状況の記録用テーブルがありません。管理者に SQL の実行を依頼してください。</p>'; return; }
+  const read = {}; (data || []).forEach(x => { read[x.user_id] = x.read_at; });
+  const targets = USERS.filter(u => u.department_id && u.is_active !== false);
+  const yet = targets.filter(u => !read[u.id]);
+  box.innerHTML = `<p style="margin:0 0 8px"><b>${targets.length - yet.length} / ${targets.length}人</b> が確認済み
+      <span class="note">（${esc(rel.date)}「${esc(rel.title)}」）</span></p>
+    ${yet.length ? `<div class="note">未確認：${yet.map(u => esc(u.full_name)).join('、')}</div>`
+      : '<div class="note" style="color:var(--accent)">全員が確認済みです。</div>'}
+    <button class="ghost" style="margin-top:10px" onclick="checkRelease(true)">お知らせの内容を見る</button>`;
 }
 
 /* ナビだけ描き直す（入力中の画面を壊さないため、定期チェックではこちらを使う） */
@@ -1205,7 +1317,8 @@ function vNotify(){
   const canPush = ('Notification' in window);
   const pushOn = canPush && Notification.permission === 'granted';
   return `<h2>通知</h2>
-  <p class="sub">部下から届いた日報、自分の日報についたコメント、部下からの返信が届きます。</p>
+  <p class="sub">部下から届いた日報、自分の日報についたコメント、部下からの返信が届きます。
+    <a href="#" onclick="checkRelease(true);return false" class="lnk" style="margin-left:6px">更新のお知らせを見る</a></p>
   ${canPush && !pushOn && mySubIds().length ? `<div class="card" style="background:#FBF3DE;border-color:#EBD9A6">
     <b>パソコン・スマホにも通知を出しますか？</b>
     <p class="note" style="margin:4px 0 8px">オンにすると、アプリを裏で開いている間に部下の日報が届いたとき、画面の隅に通知が出ます。</p>
@@ -2073,7 +2186,9 @@ function vAdmin(){
   if (canAdmin()) { setTimeout(loadDeptAdmin, 0); setTimeout(loadGradeAdmin, 0); }
   if (canAdmin()) setTimeout(loadHolidays, 0);
   if (canAdmin()) setTimeout(loadAiAccess, 0);
+  setTimeout(loadReleaseReads, 0);
   return `<h2>管理</h2>
+  <div class="card"><h3>更新のお知らせの確認状況</h3><div id="relReads" class="note">読み込み中…</div></div>
   <p class="sub">数値項目は1か所で管理します。項目ごとに、どこに出すかをチェックで切り替えてください。</p>
   <div class="card" style="background:#F7FAFC">
     <table>
