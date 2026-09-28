@@ -216,6 +216,20 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .line div{flex:1;text-align:center;border-top:3px solid #E8EDF3;padding-top:5px}
 .line div.done{border-top-color:var(--accent);color:var(--accent);font-weight:700}
 .cmt{background:#F6F9FB;border-radius:9px;padding:9px 11px;margin-top:9px;font-size:12.5px}
+/* 引用コメント */
+.sec .qbtn{float:right;font:inherit;font-size:11px;line-height:1;padding:5px 9px;border-radius:14px;cursor:pointer;
+  background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.sec .qbtn:hover{border-color:var(--ink-2)}
+.sec .qbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sec.qhit{background:#FFFBEA;transition:background .6s}
+.cq{margin:6px 0 4px;padding:5px 9px;border-left:3px solid #C9D3DE;background:#fff;border-radius:0 6px 6px 0;font-size:12px;color:var(--ink-2);cursor:pointer}
+.cq b{font-size:10.5px;display:block;color:var(--muted)}
+.cq.s-voice{border-left-color:#1F6B52}.cq.s-rival{border-left-color:#B4541F}.cq.s-ind{border-left-color:#2F6FA8}
+.cq.s-think{border-left-color:#8A5AB8}.cq.s-good{border-left-color:#C8901C}.cq.s-sub{border-left-color:#5C6D86}
+.qchips{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.qchip{display:flex;gap:8px;align-items:flex-start;padding:6px 9px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:0 8px 8px 0;font-size:12px}
+.qchip span{flex:1;word-break:break-word}
+.qchip button{border:0;background:none;color:var(--warn);cursor:pointer;font:inherit;font-size:12px;padding:0 2px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line);border-radius:10px}
 .note{color:var(--muted);font-size:11.5px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#fff;
@@ -770,9 +784,10 @@ function vWrite(){
   </div>
 
   <div class="card">
-    <h3><span class="eyebrow">任意</span>グッドニュース・部下情報</h3>
-    <label>グッドニュース</label>
-    <textarea id="f_good" style="min-height:56px">${v('good_news')}</textarea>
+    <h3><span class="eyebrow">必須 06</span>グッドニュース</h3>
+    <p class="note">今日あった良いことを1つ。受注や契約でなくても、お客様からの一言、段取りがうまくいったこと、仲間に助けられたことで構いません。<b>「無し」「特になし」では提出できません。</b></p>
+    <textarea id="f_good" style="min-height:56px" placeholder="例：A社の片倉常務から「説明が分かりやすい」と言われ、社長への同席を提案いただけた">${v('good_news')}</textarea>
+    <h3 style="margin-top:16px"><span class="eyebrow">任意</span>部下情報・添付</h3>
     ${ME.job_grade && ME.job_grade !== '一般' ? `
       <label>部下情報（管理職のみが閲覧します）</label>
       <textarea id="f_sub" style="min-height:56px">${v('subordinate')}</textarea>` : ''}
@@ -843,6 +858,14 @@ async function undoDayOff(id){
   await loadReports(); render(); toast('取り消しました');
 }
 
+/* グッドニュースが空・「無し」扱いか */
+function isEmptyGood(v){
+  const t = String(v || '').normalize('NFKC').toLowerCase()
+    .replace(/[\s。、．.，,！!？?・ー\-－―〜~…「」『』（）()]/g, '');
+  if (t.length < 4) return true;
+  return /^(特に|とくに)?(無し|なし|ナシ|無い|ない|無|ありません|有りません|ございません|該当なし|該当無し)(です|でした|ですね)?$/.test(t)
+    || /^(none|nothing|na|n\/a|nil)$/.test(t);
+}
 async function submitReport(scheduled){
   const btn = document.getElementById('submitBtn');
   const pub = scheduled ? (document.getElementById('f_publish') || {}).value : '';
@@ -859,6 +882,12 @@ async function submitReport(scheduled){
     publish_at: scheduled ? new Date(pub).toISOString() : null
   };
   if (!body.voice && !body.thought){ toast('お客様の声か、自分の考えのどちらかは入力してください'); return; }
+  if (isEmptyGood(body.good_news)){
+    toast('グッドニュースを書いてください。「無し」では提出できません');
+    const el = document.getElementById('f_good');
+    if (el){ el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.borderColor = 'var(--warn)'; }
+    return;
+  }
 
   btn.disabled = true; btn.textContent = '送信中';
   const { data, error } = await EC.supabase.from('daily_reports')
@@ -1183,12 +1212,8 @@ function card(r){
         onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
     </div>
     ${r.status === 'off' ? '' : kpiPanel(r, vals)}
-    ${r.voice ? `<div class="sec s-voice"><span class="lab">お客様の声</span><div>${linkify(r.voice)}</div></div>` : ''}
-    ${r.rival ? `<div class="sec s-rival"><span class="lab">ライバル</span><div>${linkify(r.rival)}</div></div>` : ''}
-    ${r.industry ? `<div class="sec s-ind"><span class="lab">本部・業界</span><div>${linkify(r.industry)}</div></div>` : ''}
-    ${r.thought ? `<div class="sec s-think"><span class="lab">本人の考え</span><div>${linkify(r.thought)}</div></div>` : ''}
-    ${r.good_news ? `<div class="sec s-good"><span class="lab">グッドニュース</span><div>${linkify(r.good_news)}</div></div>` : ''}
-    ${r.subordinate && ME.job_grade !== '一般' ? `<div class="sec s-sub"><span class="lab">部下情報</span><div>${linkify(r.subordinate)}</div></div>` : ''}
+    ${QSECS.filter(q => r[q[0]] && (q[0] !== 'subordinate' || ME.job_grade !== '一般'))
+      .map(q => secHtml(r, q, canAct || isMine)).join('')}
     ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${linkify(r.attachments[0])}</div></div>` : ''}
     <div class="line">
       <div class="done">提出</div>
@@ -1197,7 +1222,7 @@ function card(r){
       <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
     </div>
     ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
-      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')}
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span>${cmtBodyHtml(c.body, r.id)}</div>`).join('')}
     ${isMine ? `<div class="row" style="margin-top:12px">
       <button class="ghost" onclick="editReport('${r.id}')">この日報を編集</button>
       <button class="ghost" onclick="deleteReport('${r.id}','${r.report_date}')"
@@ -1308,18 +1333,112 @@ async function markSeen(id){
   if (error) { toast('記録できませんでした: ' + error.message); return; }
   await loadReports(); render(); toast('閲覧ログに記録しました');
 }
-function openComment(id){
-  document.getElementById('cbox_' + id).innerHTML =
-    `<label>コメント</label><textarea id="ci_${id}" style="min-height:64px"></textarea>
+/* ================= 引用コメント =================
+   日報のどの欄（お客様の声〜グッドニュース）の、どの部分へのコメントかを残す。
+   本文の先頭に「〔欄名〕＋＞ 引用文」の形で保存するので、Chatworkの通知でもそのまま読める。 */
+const QSECS = [
+  ['voice','お客様の声','s-voice'], ['rival','ライバル','s-rival'], ['industry','本部・業界','s-ind'],
+  ['thought','本人の考え','s-think'], ['good_news','グッドニュース','s-good'], ['subordinate','部下情報','s-sub']
+];
+const CQ = {};                 // 日報id → [{key, label, text}]
+let LAST_SEL = null;           // 最後に選択された文字（スマホでボタンを押すと選択が消えるため）
+
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection && window.getSelection();
+  const t = sel ? String(sel).trim() : '';
+  if (!t || !sel.rangeCount) return;
+  const node = sel.getRangeAt(0).commonAncestorContainer;
+  const el = (node.nodeType === 1 ? node : node.parentElement);
+  const sec = el && el.closest ? el.closest('.sec[data-q]') : null;
+  if (sec) LAST_SEL = { rid: sec.dataset.rid, key: sec.dataset.q, text: t, at: Date.now() };
+});
+
+function secHtml(r, q, canQuote){
+  return `<div class="sec ${q[2]}" data-q="${q[0]}" data-rid="${r.id}" id="sq_${r.id}_${q[0]}">
+    ${canQuote ? `<button class="qbtn" onclick="quoteSec('${r.id}','${q[0]}')"
+      title="文章の一部を選んでから押すと、その部分だけを引用します">引用してコメント</button>` : ''}
+    <span class="lab">${q[1]}</span><div>${linkify(r[q[0]])}</div></div>`;
+}
+
+function quoteSec(rid, key){
+  const r = REPORTS.find(x => x.id === rid); if (!r) return;
+  const q = QSECS.find(x => x[0] === key);
+  const fresh = LAST_SEL && LAST_SEL.rid === rid && LAST_SEL.key === key && Date.now() - LAST_SEL.at < 60000;
+  let text = fresh ? LAST_SEL.text : String(r[key] || '').trim();
+  if (!fresh && text.length > 160) text = text.slice(0, 160) + '…';
+  LAST_SEL = null;
+  if (window.getSelection) window.getSelection().removeAllRanges();
+  CQ[rid] = CQ[rid] || [];
+  if (!CQ[rid].some(x => x.key === key && x.text === text)) CQ[rid].push({ key, label: q[1], cls: q[2], text });
+  openComment(rid, true);
+}
+function unquote(rid, i){ (CQ[rid] || []).splice(i, 1); drawQuotes(rid); }
+function drawQuotes(rid){
+  const box = document.getElementById('cq_' + rid); if (!box) return;
+  const list = CQ[rid] || [];
+  box.innerHTML = list.length ? `<div class="qchips">${list.map((x, i) => `
+    <div class="qchip ${x.cls}">
+      <span><b style="font-size:10.5px;color:var(--muted)">${esc(x.label)}より引用</b><br>${esc(x.text)}</span>
+      <button onclick="unquote('${rid}',${i})" aria-label="引用を外す">外す</button></div>`).join('')}</div>`
+    : `<p class="note" style="margin:4px 0">各欄の「引用してコメント」を押すと、その欄を引用できます。
+       文章の一部を選択してから押すと、選んだ部分だけを引用します。</p>`;
+}
+
+/* 保存形式：〔欄名〕\n＞ 引用文\n（複数可）\n\nコメント本文 */
+function buildQuotedBody(rid, text){
+  const qs = CQ[rid] || [];
+  if (!qs.length) return text;
+  return qs.map(x => '〔' + x.label + '〕\n' + x.text.split(/\r?\n/).map(l => '＞ ' + l).join('\n')).join('\n')
+    + '\n\n' + text;
+}
+function parseQuotedBody(body){
+  const lines = String(body || '').split('\n');
+  const quotes = []; let i = 0;
+  while (i < lines.length){
+    const m = lines[i].match(/^〔(.+?)〕$/);
+    if (!m || !QSECS.some(q => q[1] === m[1]) || !(lines[i+1] || '').startsWith('＞')) break;
+    const q = QSECS.find(x => x[1] === m[1]); const t = [];
+    i++;
+    while (i < lines.length && lines[i].startsWith('＞')){ t.push(lines[i].replace(/^＞ ?/, '')); i++; }
+    quotes.push({ key: q[0], label: q[1], cls: q[2], text: t.join('\n') });
+  }
+  while (i < lines.length && lines[i].trim() === '') i++;
+  return { quotes, text: lines.slice(i).join('\n') };
+}
+function cmtBodyHtml(body, rid){
+  const p = parseQuotedBody(body);
+  return (p.quotes.length ? p.quotes.map(q => `<div class="cq ${q.cls}" onclick="flashSec('${rid}','${q.key}')"
+      title="元の欄を表示"><b>${esc(q.label)}より引用</b>${esc(q.text).replace(/\n/g,'<br>')}</div>`).join('') : '<br>')
+    + linkify(p.text);
+}
+function flashSec(rid, key){
+  const el = document.getElementById('sq_' + rid + '_' + key); if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('qhit'); setTimeout(() => el.classList.remove('qhit'), 1600);
+}
+
+function openComment(id, keep){
+  const box = document.getElementById('cbox_' + id); if (!box) return;
+  const cur = document.getElementById('ci_' + id);
+  const val = cur ? cur.value : '';
+  if (!keep) CQ[id] = CQ[id] || [];
+  box.innerHTML =
+    `<label>コメント</label><div id="cq_${id}"></div>
+     <textarea id="ci_${id}" style="min-height:64px"></textarea>
      <button class="act" style="margin-top:8px" onclick="addComment('${id}')">コメントを送る</button>`;
-  document.getElementById('ci_' + id).focus();
+  drawQuotes(id);
+  const ta = document.getElementById('ci_' + id);
+  ta.value = val; ta.focus();
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 async function addComment(id){
-  const body = document.getElementById('ci_' + id).value.trim();
-  if (!body){ toast('コメントを入力してください'); return; }
+  const text = document.getElementById('ci_' + id).value.trim();
+  if (!text){ toast('コメントを入力してください'); return; }
+  const body = buildQuotedBody(id, text);
   const { error } = await EC.supabase.from('report_comments')
     .insert({ report_id: id, author_id: ME.id, body });
   if (error){ toast('保存できませんでした: ' + error.message); return; }
+  delete CQ[id];
   await EC.supabase.from('report_views').insert({ report_id: id, viewer_id: ME.id });
   await loadReports(); render(); toast('コメントしました');
 }
