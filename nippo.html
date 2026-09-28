@@ -915,14 +915,82 @@ function sortFeed(list){
     b.report_date.localeCompare(a.report_date) ||
     (uname(a.author_id)).localeCompare(uname(b.author_id), 'ja'));
 }
-async function applyFeedRange(){
+async function readFeedRange(){
   FEED_FROM = (document.getElementById('ff_from')||{}).value || '';
   FEED_TO   = (document.getElementById('ff_to')||{}).value || '';
   FEED_DEPT = (document.getElementById('ff_dept')||{}).value || '';
   FEED_USER = (document.getElementById('ff_user')||{}).value || '';
-  OPEN_ID = ''; LEVEL_FILTER = 0;
+  if (FEED_FROM && FEED_TO && FEED_FROM > FEED_TO){ const x = FEED_FROM; FEED_FROM = FEED_TO; FEED_TO = x; }
   if (FEED_FROM && FEED_FROM < LOAD_FROM){ toast('過去の日報を読み込んでいます…'); await loadReports(FEED_FROM); }
+}
+async function applyFeedRange(){
+  await readFeedRange();
+  OPEN_ID = ''; LEVEL_FILTER = 0;
   render(); window.scrollTo(0,0);
+}
+
+/* ---------- 日報一覧のCSV出力 ----------
+   画面の絞り込み（開始日・終了日・部署・社員・上のボタン）と同じ条件で出力する。
+   Excelで文字化けしないよう、先頭にBOMを付ける。 */
+function csvCell(v){
+  const t = String(v === null || v === undefined ? '' : v);
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+async function exportFeedCsv(){
+  await readFeedRange();
+  OPEN_ID = '';
+  render();
+  const list = feedFilteredList()
+    .filter(r => r.status !== 'scheduled' || r.author_id === ME.id)
+    .slice().sort((a, b) => a.report_date.localeCompare(b.report_date)
+      || uname(a.author_id).localeCompare(uname(b.author_id), 'ja'));
+  if (!list.length){ toast('条件に合う日報がありません'); return; }
+
+  // 数値項目の列：出てきた項目を、設定の並び順で並べる
+  const used = {};
+  list.forEach(r => (r.report_metric_values || []).forEach(v => { used[v.metric_id] = true; }));
+  const mcols = METRICS_ALL.filter(m => used[m.id]).map(m => ({ id: m.id, label: m.name + (m.unit ? '（' + m.unit + '）' : '') }));
+  Object.keys(used).filter(id => !mcols.some(c => c.id === id))
+    .forEach(id => mcols.push({ id: id, label: '（停止中の項目）' + id.slice(0, 8) }));
+  const showSub = ME.job_grade !== '一般';
+
+  const head = ['日付','提出時刻','氏名','部署','役職','状態','重要度','昇格レベル']
+    .concat(mcols.map(c => c.label))
+    .concat(['お客様の声','ライバル情報','本部・業界情報','本人の考え','グッドニュース'])
+    .concat(showSub ? ['部下情報'] : [])
+    .concat(['添付','確認した人','コメント件数','コメント']);
+
+  const lines = [head.map(csvCell).join(',')];
+  list.forEach(r => {
+    const u = USERS.find(x => x.id === r.author_id) || {};
+    const vals = {};
+    (r.report_metric_values || []).forEach(v => { vals[v.metric_id] = (vals[v.metric_id] || 0) + (Number(v.value) || 0); });
+    const views = [...new Set((r.report_views || []).map(v => uname(v.viewer_id)))];
+    const cmts = (r.report_comments || []).map(c =>
+      uname(c.author_id) + '（' + String(c.created_at || '').slice(5,16).replace('T',' ') + '）' + String(c.body || '').replace(/\r?\n/g, ' '));
+    const row = [
+      r.report_date,
+      r.submitted_at ? hhmm(r.submitted_at) : '',
+      uname(r.author_id), udept(r.author_id), u.job_grade || '',
+      r.status === 'off' ? '休み' : r.status === 'scheduled' ? '予約中' : '提出',
+      r.status === 'off' ? '' : impMeta(r.importance)[1],
+      r.level ? LEVELS[r.level - 1] : ''
+    ].concat(mcols.map(c => vals[c.id] === undefined ? '' : vals[c.id]))
+     .concat([r.voice, r.rival, r.industry, r.thought, r.good_news])
+     .concat(showSub ? [r.subordinate] : [])
+     .concat([(r.attachments || []).join(' '), views.join('、'), cmts.length, cmts.join(' ／ ')]);
+    lines.push(row.map(csvCell).join(','));
+  });
+
+  const from = FEED_FROM || list[0].report_date, to = FEED_TO || list[list.length - 1].report_date;
+  const tag = [FEED_DEPT, FEED_USER ? uname(FEED_USER) : ''].filter(Boolean).join('_');
+  const name = '日報_' + from + '_' + to + (tag ? '_' + tag.replace(/[\\/:*?"<>|\s]/g, '') : '') + '.csv';
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(list.length + '件の日報をCSVで出力しました' + (FEED_FROM ? '' : '（開始日が空欄のため ' + LOAD_FROM + ' 以降）'));
 }
 function clearFeedRange(){
   FEED_FROM = FEED_TO = FEED_DEPT = FEED_USER = ''; FEED_FILTER = ''; render();
@@ -996,6 +1064,23 @@ async function markAllRead(){
 }
 
 /* ---------- 2. 日報一覧 ---------- */
+/* 日報一覧の絞り込み（画面表示とCSV出力で共通） */
+function feedFilteredList(){
+  let list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
+  if (FEED_FROM) list = list.filter(r => r.report_date >= FEED_FROM);
+  if (FEED_TO)   list = list.filter(r => r.report_date <= FEED_TO);
+  if (FEED_DEPT) list = list.filter(r => udept(r.author_id) === FEED_DEPT);
+  if (FEED_USER) list = list.filter(r => r.author_id === FEED_USER);
+  if (FEED_FILTER === 'direct')
+    list = list.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id));
+  else if (FEED_FILTER === 'unchecked')
+    list = list.filter(r => r.author_id !== ME.id
+      && !(r.report_views || []).some(v => v.viewer_id === ME.id));
+  else if (FEED_FILTER)
+    list = list.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === FEED_FILTER);
+  return sortFeed(list);
+}
+
 function vFeed(){
   if (OPEN_ID) {
     const one = REPORTS.find(r => r.id === OPEN_ID || r.id.slice(0,8) === OPEN_ID);
@@ -1009,19 +1094,7 @@ function vFeed(){
         閲覧できる範囲外か、30日より前の日報の可能性があります。</p>
         <button class="ghost" onclick="OPEN_ID='';render()">すべての日報を見る</button></div>`;
   }
-  let list = LEVEL_FILTER ? REPORTS.filter(r => r.level === LEVEL_FILTER) : REPORTS;
-  if (FEED_FROM) list = list.filter(r => r.report_date >= FEED_FROM);
-  if (FEED_TO)   list = list.filter(r => r.report_date <= FEED_TO);
-  if (FEED_DEPT) list = list.filter(r => udept(r.author_id) === FEED_DEPT);
-  if (FEED_USER) list = list.filter(r => r.author_id === FEED_USER);
-  if (FEED_FILTER === 'direct')
-    list = list.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id));
-  else if (FEED_FILTER === 'unchecked')
-    list = list.filter(r => r.author_id !== ME.id
-      && !(r.report_views || []).some(v => v.viewer_id === ME.id));
-  else if (FEED_FILTER)
-    list = list.filter(r => (USERS.find(u => u.id === r.author_id) || {}).job_grade === FEED_FILTER);
-  list = sortFeed(list);
+  const list = feedFilteredList();
 
   const nDirect = REPORTS.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
   const chip = (v, label, n) => `<button class="ghost${FEED_FILTER===v?' on':''}"
@@ -1055,6 +1128,7 @@ function vFeed(){
     <div class="row" style="margin-top:10px">
       <button class="act" style="padding:8px 16px;font-size:13px" onclick="applyFeedRange()">この条件で表示</button>
       <button class="ghost" onclick="clearFeedRange()">条件をクリア</button>
+      <button class="ghost" onclick="exportFeedCsv()" style="margin-left:auto">CSVで出力</button>
       ${(FEED_FROM||FEED_TO||FEED_USER||FEED_DEPT) ? `<span class="note">絞り込み中：
         ${FEED_FROM||'最古'}〜${FEED_TO||'最新'}${FEED_DEPT?'／'+esc(FEED_DEPT):''}${FEED_USER?'／'+esc(uname(FEED_USER)):''}</span>` : ''}
     </div></div>`;
@@ -2611,20 +2685,28 @@ async function setGoalActual(id, v){
 /* 週報に出す行を作る。四半期目標の有無に関係なく、週報にチェックした項目を出す */
 function weeklyRowsFor(uid, weekStart, goals, targets){
   const weekEnd = addDays(weekStart, 6);
+  // 部署共通の目標は複数人で同じ goal_id になるため、本人の行だけに絞る
+  const mine = (targets || []).filter(x => !x.user_id || x.user_id === uid);
   return metricsFor(uid, 'show_weekly').map(m => {
     const g = (goals || []).find(x => x.metric_id === m.id);
-    const t = g ? (targets || []).find(x => x.goal_id === g.id) : null;
-    const wTarget = t ? Number(t.target)
+    const t = g ? mine.find(x => x.goal_id === g.id) : null;
+    const autoTarget = t ? Number(t.target)
       : (g ? Math.round(Number(g.target) / (g.weeks || 13) * 10) / 10
            : Number(m.target) || 0);
-    // 手入力があればそれを、無ければ日報の自動集計を使う
-    const ov = (targets || []).find(x => x.metric_id === m.id
-      && x.actual_override !== null && x.actual_override !== undefined);
+    // 週次報告の画面で直した数字（weekly_result_edits）を最優先にする
+    const e = WEDITS[weKey(uid, weekStart, m.id)] || null;
+    const hasT = !!e && e.target_override !== null && e.target_override !== undefined;
+    const hasA = !!e && e.actual_override !== null && e.actual_override !== undefined;
+    // 旧方式の手入力（weekly_targets.actual_override）も残っていれば使う
+    const legacy = mine.find(x => x.metric_id === m.id
+      && x.actual_override !== null && x.actual_override !== undefined) || null;
     const auto = actualSum(m.id, weekStart, weekEnd, uid);
-    const week = ov ? Number(ov.actual_override) : auto;
-    return { m, g, name: m.name, unit: m.unit, wTarget: wTarget,
-             week: week, auto: auto, manual: !!ov, uid: uid, weekStart: weekStart,
-             wRate: goalRate(week, wTarget) };
+    const wTarget = hasT ? Number(e.target_override) : autoTarget;
+    const week = hasA ? Number(e.actual_override) : (legacy ? Number(legacy.actual_override) : auto);
+    return { m, g, name: m.name, unit: m.unit, wTarget: wTarget, autoTarget: autoTarget,
+             week: week, auto: auto, manual: hasA || !!legacy,
+             tEdited: hasT, aEdited: hasA || !!legacy, edit: e, legacy: legacy,
+             uid: uid, weekStart: weekStart, wRate: goalRate(week, wTarget) };
   });
 }
 
@@ -2639,6 +2721,346 @@ async function setWeekActual(uid, weekStart, metricId, v){
   if (error){ toast('保存できませんでした: ' + error.message); return; }
   toast(val === null ? '日報の自動集計に戻しました' : '今週の実績を更新しました');
   loadWeekly();
+}
+
+/* ================= 週次の「目標と結果」の修正 =================
+   日報の入力ミス・未提出の日があったとき、週次報告の側で週の数字を直す。
+   修正は weekly_result_edits に保存し、日報そのものは書き換えない。
+   日報の集計値と同じ数字に戻すか空欄にすると、修正は取り消される。 */
+const SELF_CAN_EDIT_TARGET = false;  // true にすると、本人も「今週目標」を直せる（false＝目標は上司が直す）
+let WEDITS = {};          // 'uid|週|項目id' → 修正行
+let WEDITS_READY = true;  // weekly_result_edits が無いと false
+let WK_EDIT = '';         // いま修正画面を開いている相手（uid）
+
+function weKey(uid, week, mid){ return uid + '|' + week + '|' + mid; }
+function fx1(v){ return Math.round(Number(v) * 10) / 10; }
+function canEditWeekTarget(uid){ return uid !== ME.id || SELF_CAN_EDIT_TARGET || isExec(); }
+
+async function loadWeekEdits(uids, week){
+  if (!uids || !uids.length) return;
+  const { data, error } = await EC.supabase.from('weekly_result_edits')
+    .select('*').in('user_id', uids).eq('week_start', week);
+  if (error){ WEDITS_READY = false; console.warn('weekly_result_edits', error.message); return; }
+  WEDITS_READY = true;
+  Object.keys(WEDITS).forEach(k => {
+    const [u, w] = k.split('|');
+    if (w === week && uids.indexOf(u) >= 0) delete WEDITS[k];
+  });
+  (data || []).forEach(e => { WEDITS[weKey(e.user_id, String(e.week_start).slice(0,10), e.metric_id)] = e; });
+}
+
+/* 画面を描き直しても、書きかけの文章が消えないようにする */
+async function keepWkDraft(fn){
+  const keep = {};
+  document.querySelectorAll('#wkBox textarea[id], #wkBox input[id], #wkTeam textarea[id], #wkTeam input[id]')
+    .forEach(el => { if (!/^we_/.test(el.id)) keep[el.id] = el.value; });
+  await fn();
+  Object.keys(keep).forEach(id => { const el = document.getElementById(id); if (el) el.value = keep[id]; });
+}
+function redrawWk(uid){
+  return keepWkDraft(() => uid === ME.id ? loadWeeklySelf() : loadWeeklyTeam());
+}
+function startWkEdit(uid){
+  if (!WEDITS_READY){ toast('修正用のテーブルがまだありません。管理者に SQL の実行を依頼してください'); return; }
+  WK_EDIT = uid; redrawWk(uid).then(() => {
+    const el = document.getElementById('wkRes_' + uid);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+function cancelWkEdit(uid){ WK_EDIT = ''; redrawWk(uid); }
+
+/* 「今週の目標と結果」カード（自分・部下で共通） */
+function wkResultCard(rows, uid, title){
+  if (!rows.length) return '';
+  const canT = canEditWeekTarget(uid);
+  const isMe = uid === ME.id;
+  const rep = isMe ? WREPORT : TEAMW.find(x => x.user_id === uid);
+
+  if (WK_EDIT === uid){
+    const reason = (rows.find(r => r.edit && r.edit.reason) || {}).edit;
+    return `<div class="card" id="wkRes_${uid}" style="border-color:#1F6B52;box-shadow:0 0 0 3px var(--accent-soft)">
+      <h3>${title}を修正する</h3>
+      <p class="note">日報の数字を間違えた・日報を出せなかった日がある場合に、ここで<b>週の数字</b>を直します。日報そのものは書き換わりません。<br>
+        日報の集計と同じ数字に戻すか空欄にすると、修正は取り消されて自動集計に戻ります。</p>
+      <div style="overflow-x:auto"><table>
+        <tr><th>項目</th><th>今週目標</th><th>実績</th><th>日報の集計</th></tr>
+        ${rows.map(r => `<tr>
+          <td>${esc(r.name)}</td>
+          <td>${canT
+            ? `<input type="number" step="any" inputmode="decimal" id="we_t_${r.m.id}" value="${fx1(r.wTarget)}"
+                 style="width:90px;padding:5px;font-weight:700">${esc(r.unit)}
+               ${r.tEdited ? `<div class="note" style="font-size:10.5px">承認時 ${fx1(r.autoTarget)}${esc(r.unit)}</div>` : ''}`
+            : `<span class="num">${fx1(r.wTarget)}${esc(r.unit)}</span>`}</td>
+          <td><input type="number" step="any" inputmode="decimal" id="we_a_${r.m.id}" value="${fx1(r.week)}"
+               style="width:90px;padding:5px;font-weight:700">${esc(r.unit)}</td>
+          <td class="num note">${fx1(r.auto)}${esc(r.unit)}</td></tr>`).join('')}
+      </table></div>
+      ${canT ? '' : '<p class="note" style="margin-top:6px">今週目標は上司が承認した数字のため、修正は上司が行います。</p>'}
+      <label style="margin-top:12px;display:block">修正の理由（必須）</label>
+      <input type="text" id="we_reason_${uid}" value="${esc(reason ? reason.reason : '')}"
+        placeholder="例：9/24の日報で架電数を5件のところ50件と入力していた／9/26は日報未提出だったため手入力">
+      ${rep ? `<p class="note" style="margin-top:8px;color:var(--warn)">提出済みの報告書（PDF）には、${isMe
+        ? '下の「更新する」で再提出したときに反映されます。' : '本人が再提出したときに反映されます。'}</p>` : ''}
+      <div class="row" style="margin-top:12px">
+        <button class="act" onclick="saveWkEdit('${uid}')">修正を保存する</button>
+        <button class="ghost" onclick="cancelWkEdit('${uid}')">キャンセル</button>
+      </div>
+    </div>`;
+  }
+
+  const edited = rows.filter(r => r.tEdited || r.aEdited);
+  const log = [];
+  edited.forEach(r => { if (r.edit && r.edit.reason){
+    const k = r.edit.reason + '|' + (r.edit.updated_by || '');
+    if (!log.some(x => x.k === k)) log.push({ k, e: r.edit });
+  }});
+  return `<div class="card" id="wkRes_${uid}">
+    <div class="row"><h3 style="border:0;padding:0;margin:0">${title}</h3>
+      <button class="ghost" style="margin-left:auto" onclick="startWkEdit('${uid}')">数字を修正する</button></div>
+    <div style="overflow-x:auto;margin-top:10px"><table>
+      <tr><th>項目</th><th>対象</th><th>今週目標</th><th>実績</th><th>過不足</th><th>達成率</th></tr>
+      ${rows.map(r => `<tr>
+        <td>${esc(r.name)}${(r.tEdited || r.aEdited) ? ' <span class="pill p4">修正</span>' : ''}</td>
+        <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
+        <td class="num">${fx1(r.wTarget)}${esc(r.unit)}${r.tEdited
+          ? `<div class="note" style="font-size:10.5px">承認時 ${fx1(r.autoTarget)}</div>` : ''}</td>
+        <td class="num"><b>${fx1(r.week)}</b>${esc(r.unit)}${r.aEdited
+          ? `<div class="note" style="font-size:10.5px">日報集計 ${fx1(r.auto)}</div>` : ''}</td>
+        <td class="num" style="color:${r.week >= r.wTarget ? 'var(--accent)' : 'var(--warn)'}">
+          ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(fx1(r.week - r.wTarget))}</td>
+        <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
+    </table></div>
+    ${log.length ? `<div class="sec s-rival" style="margin-top:10px"><span class="lab">修正の記録</span>
+      ${log.map(x => `<div>${esc(x.e.reason)}<span class="note">（${esc(uname(x.e.updated_by))}
+        ${String(x.e.updated_at || '').slice(5,16).replace('T',' ')}）</span></div>`).join('')}</div>` : ''}
+    <p class="note" style="margin-top:8px">実績は日報の数値から自動集計しています。日報の入力ミスや未提出の日がある場合は「数字を修正する」から直してください。<br>
+      ここに出す項目は、管理タブの「数値項目の設定」で<b>週報</b>にチェックを入れたものです。</p>
+  </div>`;
+}
+
+async function saveWkEdit(uid){
+  const isMe = uid === ME.id;
+  const rows = weeklyRowsFor(uid, WEEK_START, isMe ? QGOALS : goalsOf(uid), isMe ? WTARGETS : TEAM_WTARGETS);
+  const reasonEl = document.getElementById('we_reason_' + uid);
+  const reason = (reasonEl && reasonEl.value || '').trim();
+  const num = el => {
+    if (!el) return undefined;
+    const v = String(el.value).trim();
+    if (v === '') return null;
+    const n = Number(v); return Number.isNaN(n) ? NaN : n;
+  };
+  const up = [], del = [], legacy = [];
+  for (const r of rows){
+    const tEl = document.getElementById('we_t_' + r.m.id);
+    const aEl = document.getElementById('we_a_' + r.m.id);
+    const t = num(tEl), a = num(aEl);
+    if (Number.isNaN(t) || Number.isNaN(a)){ toast(r.name + ' に数字を入れてください'); return; }
+    const prevT = r.tEdited ? Number(r.edit.target_override) : null;
+    // 目標：入力欄が無い（本人で目標修正不可）ときは今の修正を維持
+    const tOv = tEl ? ((t === null || t === fx1(r.autoTarget)) ? null : t) : prevT;
+    const aOv = (a === null || a === fx1(r.auto)) ? null : a;
+    const prevA = r.aEdited ? fx1(r.week) : null;
+    if (r.legacy) legacy.push(r.legacy.id);
+    if (tOv === prevT && aOv === prevA && !r.legacy) continue;       // 変更なし
+    if (tOv === null && aOv === null){ if (r.edit) del.push(r.m.id); continue; }
+    up.push({ user_id: uid, week_start: WEEK_START, metric_id: r.m.id,
+              target_override: tOv, actual_override: aOv,
+              reason: reason, updated_by: ME.id, updated_at: new Date().toISOString() });
+  }
+  if (!up.length && !del.length && !legacy.length){ WK_EDIT = ''; redrawWk(uid); toast('変更はありませんでした'); return; }
+  if (up.length && !reason){ toast('修正の理由を入れてください'); if (reasonEl) reasonEl.focus(); return; }
+
+  if (up.length){
+    const { error } = await EC.supabase.from('weekly_result_edits')
+      .upsert(up, { onConflict: 'user_id,week_start,metric_id' });
+    if (error){ toast('保存できませんでした: ' + error.message); return; }
+  }
+  if (del.length){
+    const { error } = await EC.supabase.from('weekly_result_edits')
+      .delete().eq('user_id', uid).eq('week_start', WEEK_START).in('metric_id', del);
+    if (error){ toast('取り消しを保存できませんでした: ' + error.message); return; }
+  }
+  // 旧方式の手入力は新しい方式に移したので消す
+  if (legacy.length){
+    await EC.supabase.from('weekly_targets').update({ actual_override: null }).in('id', legacy);
+  }
+  WK_EDIT = '';
+  toast(up.length ? '今週の数字を修正しました' : '修正を取り消し、日報の集計に戻しました');
+  redrawWk(uid);
+}
+
+/* ================= 週次報告書（PDF） =================
+   提出した瞬間の数字と文章を weekly_reports.results._snapshot に固定して残す。
+   あとで日報や目標が変わっても、報告書は提出時点のまま出力される。 */
+function buildWkSnapshot(prev){
+  const weekEnd = addDays(WEEK_START, 6);
+  const val = id => ((document.getElementById(id) || {}).value || '').trim();
+  const wrows = weeklyRowsFor(ME.id, WEEK_START, QGOALS, WTARGETS);
+  const quarter = QGOALS.map(g => {
+    const total = quarterActual(g);
+    const left  = Math.max(1, Math.ceil((new Date(g.period_to) - new Date(TODAY)) / 604800000));
+    return { name: g.name, kind: g.kind || 'KPI', unit: g.unit || '', target: Number(g.target),
+             actual: fx1(total), rate: goalRate(total, g.target), left: left,
+             need: fx1(Math.max(0, (Number(g.target) - total) / left)),
+             from: g.period_from, to: g.period_to };
+  });
+  const next = QGOALS.filter(g => WT_SKIP.indexOf(g.id) < 0)
+    .map(g => ({ name: g.name, unit: g.unit || '', target: Number(val('wt_' + g.id)) || 0 }))
+    .filter(x => x.target > 0)
+    .concat(WT_EXTRA.filter(x => String(x.label||'').trim() !== '' && String(x.target).trim() !== '')
+      .map(x => ({ name: String(x.label).trim() + '（来週だけ）', unit: x.unit || '', target: Number(x.target) || 0 })));
+  const now = new Date().toISOString();
+  return {
+    v: 1, submitted_at: now,
+    first_submitted_at: (prev && prev.first_submitted_at) || now,
+    revision: ((prev && prev.revision) || 0) + 1,
+    user: { name: ME.full_name || ME.email, dept: ME.dept_name || '', grade: ME.job_grade || '' },
+    boss: ME.manager_id ? uname(ME.manager_id) : '',
+    week_start: WEEK_START, week_end: weekEnd,
+    weekly: wrows.map(r => ({ name: r.name, unit: r.unit || '', target: fx1(r.wTarget), actual: fx1(r.week),
+      auto: fx1(r.auto), rate: r.wRate, edited: !!(r.tEdited || r.aEdited),
+      reason: r.edit && r.edit.reason ? r.edit.reason : '' })),
+    quarter: quarter,
+    gap_cause: val('w_cause'), action_change: val('w_action'), consult: val('w_consult'),
+    next: next
+  };
+}
+
+function findWkReport(id){
+  return [WREPORT].concat(MYHIST || [], TEAMW || [], TEAMHIST || []).find(r => r && r.id === id);
+}
+function wkPdfBtn(r){
+  return r ? `<button class="ghost" onclick="printWeekly('${r.id}')">報告書をPDFで保存</button>` : '';
+}
+function wkSubmittedNote(r){
+  const sn = r && r.results && r.results._snapshot;
+  if (!sn) return '';
+  return `<p class="note" style="margin:8px 0 0">最終提出 ${jpDT(sn.submitted_at)}${sn.revision > 1 ? '（第' + sn.revision + '版）' : ''}。
+    報告書（PDF）は提出した時点の内容で出力されます。書き直したら「更新する」で再提出してください。</p>`;
+}
+function jpDT(ts){
+  if (!ts) return '';
+  const d = new Date(ts); if (isNaN(d)) return '';
+  return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' ' + hhmm(ts);
+}
+
+function printWeekly(id){
+  const r = findWkReport(id);
+  if (!r){ toast('報告書が見つかりません'); return; }
+  const w = window.open('', '_blank');
+  if (!w){ toast('ポップアップがブロックされました。ブラウザの設定で許可してください'); return; }
+  w.document.open(); w.document.write(wkPrintHtml(r)); w.document.close();
+}
+
+function wkPrintHtml(r){
+  const s = (r.results && r.results._snapshot) || null;
+  const u = USERS.find(x => x.id === r.user_id) || {};
+  const name  = s ? s.user.name  : (u.full_name || u.email || '');
+  const dept  = s ? s.user.dept  : (u.dept_name || '');
+  const grade = s ? s.user.grade : (u.job_grade || '');
+  const ws = r.week_start, we = addDays(r.week_start, 6);
+  const t = v => esc(v || '').replace(/\n/g, '<br>');
+  const text = s || r;
+  const cmts = (r.weekly_comments || []).slice().sort((a,b) => String(a.created_at).localeCompare(String(b.created_at)));
+  const fileName = '週次報告_' + name.replace(/\s/g,'') + '_' + ws;
+
+  const wTable = s && s.weekly.length ? `<table>
+      <tr><th>項目</th><th class="n">今週目標</th><th class="n">実績</th><th class="n">過不足</th><th class="n">達成率</th></tr>
+      ${s.weekly.map(x => `<tr><td>${esc(x.name)}${x.edited ? '<span class="mk">※</span>' : ''}</td>
+        <td class="n">${x.target}${esc(x.unit)}</td><td class="n"><b>${x.actual}</b>${esc(x.unit)}</td>
+        <td class="n ${x.actual >= x.target ? 'ok' : 'ng'}">${x.actual >= x.target ? '+' : '▲'}${Math.abs(fx1(x.actual - x.target))}</td>
+        <td class="n ${x.rate >= 100 ? 'ok' : 'ng'}">${x.rate}%</td></tr>`).join('')}
+    </table>
+    ${s.weekly.some(x => x.edited) ? `<p class="fn">※ 週次報告で数字を修正した項目（日報の集計：${s.weekly.filter(x => x.edited)
+        .map(x => esc(x.name) + ' ' + x.auto + esc(x.unit)).join('、')}）
+      ${[...new Set(s.weekly.filter(x => x.reason).map(x => x.reason))].map(x => '<br>理由：' + esc(x)).join('')}</p>` : ''}`
+    : `<p class="none">${s ? '週報の対象項目はありません。' : 'この週次報告は報告書機能の導入前に提出されたため、数値の記録はありません。'}</p>`;
+
+  const qTable = s && s.quarter.length ? `<table>
+      <tr><th>項目</th><th class="n">四半期目標</th><th class="n">実績</th><th class="n">達成率</th><th class="n">残り</th><th class="n">必要ペース／週</th></tr>
+      ${s.quarter.map(x => `<tr><td>${esc(x.name)}${x.kind === 'KGI' ? ' <span class="tag">KGI</span>' : ''}</td>
+        <td class="n">${x.target}${esc(x.unit)}</td><td class="n"><b>${x.actual}</b>${esc(x.unit)}</td>
+        <td class="n ${x.rate >= 100 ? 'ok' : x.rate >= 70 ? 'mid' : 'ng'}">${x.rate}%</td>
+        <td class="n">${x.left}週</td><td class="n">${x.need}${esc(x.unit)}</td></tr>`).join('')}
+    </table><p class="fn">対象期間 ${esc(s.quarter[0].from || '')} 〜 ${esc(s.quarter[0].to || '')}</p>` : '';
+
+  const nTable = s && s.next.length ? `<table>
+      <tr><th>項目</th><th class="n">次週の目標</th></tr>
+      ${s.next.map(x => `<tr><td>${esc(x.name)}</td><td class="n">${x.target}${esc(x.unit)}</td></tr>`).join('')}
+    </table>` : '<p class="none">記入なし</p>';
+
+  let n = 0; const H = x => `<h2><span>${++n}</span>${x}</h2>`;
+  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(fileName)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@page{size:A4;margin:14mm 13mm 16mm}
+*{box-sizing:border-box}
+body{margin:0;background:#E9EEF3;color:#0E1B2B;font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;font-size:10.5pt;line-height:1.65;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{position:sticky;top:0;background:#0B253E;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-size:13px}
+.bar button{background:#F26A21;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer}
+.bar span{color:#9DB3CA}
+.sheet{width:210mm;max-width:100%;margin:16px auto;background:#fff;padding:14mm 13mm;box-shadow:0 2px 12px rgba(14,27,43,.12)}
+.hd{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px solid #0B253E;padding-bottom:8px}
+.hd h1{font-size:20pt;margin:0;letter-spacing:.12em}
+.hd .co{text-align:right;font-size:8.5pt;color:#6B7C8F;line-height:1.4}
+.hd .co b{display:block;color:#0B253E;font-size:10pt;letter-spacing:.06em}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #C9D3DE;border-top:0;border-right:0;margin-bottom:6mm}
+.meta div{padding:5px 8px;border-top:1px solid #C9D3DE;border-right:1px solid #C9D3DE}
+.meta small{display:block;color:#6B7C8F;font-size:7.5pt}
+.meta b{font-size:10pt}
+.stamp{margin:0 0 6mm;padding:6px 10px;background:#E4EFEA;border-left:4px solid #1F6B52;font-size:8.5pt;color:#1F4A3B}
+h2{font-size:11.5pt;margin:6mm 0 2mm;display:flex;align-items:center;gap:8px;break-after:avoid}
+h2 span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#0B253E;color:#fff;font-size:9pt}
+table{width:100%;border-collapse:collapse;font-size:9.5pt;break-inside:avoid}
+th{background:#F1F4F8;text-align:left;font-weight:700;font-size:8.5pt;color:#2C3E52}
+th,td{border:1px solid #D5DDE6;padding:4px 7px}
+.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ok{color:#1F6B52;font-weight:700}.ng{color:#B4541F;font-weight:700}.mid{color:#A8770F;font-weight:700}
+.mk{color:#B4541F;font-weight:700;margin-left:2px}
+.tag{font-size:7.5pt;border:1px solid #6B7C8F;border-radius:3px;padding:0 3px;color:#2C3E52}
+.fn{font-size:8pt;color:#6B7C8F;margin:3px 0 0}
+.box{border:1px solid #D5DDE6;border-left:4px solid #2C3E52;padding:7px 10px;min-height:14mm;white-space:normal;break-inside:avoid}
+.box.cause{border-left-color:#B4541F}.box.act{border-left-color:#1F6B52}
+.none{color:#6B7C8F;font-size:9pt;margin:2px 0}
+.cm{border-bottom:1px dashed #D5DDE6;padding:5px 0}.cm small{color:#6B7C8F}
+.ft{margin-top:8mm;padding-top:4px;border-top:1px solid #C9D3DE;font-size:7.5pt;color:#6B7C8F;display:flex;justify-content:space-between}
+@media print{body{background:#fff}.bar{display:none}.sheet{margin:0;padding:0;width:auto;box-shadow:none}}
+@media (max-width:640px){.meta{grid-template-columns:repeat(2,1fr)}.sheet{padding:18px 14px}}
+</style></head><body>
+<div class="bar"><button onclick="window.print()">PDFとして保存・印刷</button>
+  <span>印刷画面の送信先で「PDFに保存」を選んでください</span></div>
+<div class="sheet">
+  <div class="hd"><h1>週次報告書</h1>
+    <div class="co"><b>EARTHCOM</b>NIPPO ONE</div></div>
+  <div class="meta">
+    <div><small>氏名</small><b>${esc(name)}</b></div>
+    <div><small>部署</small><b>${esc(dept) || '—'}</b></div>
+    <div><small>役職</small><b>${esc(grade) || '—'}</b></div>
+    <div><small>上司</small><b>${esc(s ? s.boss : (u.manager_id ? uname(u.manager_id) : '')) || '—'}</b></div>
+    <div style="grid-column:span 2"><small>対象週</small><b>${ws} 〜 ${we}</b></div>
+    <div><small>提出日時</small><b>${s ? jpDT(s.submitted_at) : (jpDT(r.updated_at || r.created_at) || '—')}</b></div>
+    <div><small>版</small><b>${s ? (s.revision > 1 ? '第' + s.revision + '版（初回 ' + jpDT(s.first_submitted_at) + '）' : '初版') : '—'}</b></div>
+  </div>
+  <div class="stamp">この報告書は${s ? ' ' + jpDT(s.submitted_at) + ' に提出された時点' : '提出された時点'}の内容です。提出後に日報や目標が変わっても、この数字は変わりません。</div>
+
+  ${H('今週の目標と結果')}${wTable}
+  ${qTable ? H('四半期の進捗') + qTable : ''}
+  ${H('未達要因')}<div class="box cause">${text.gap_cause ? t(text.gap_cause) : '<span class="none">記入なし</span>'}</div>
+  ${H('行動変化')}<div class="box act">${text.action_change ? t(text.action_change) : '<span class="none">記入なし</span>'}</div>
+  ${H('次週の目標')}${s ? nTable : '<p class="none">記録なし</p>'}
+  ${H('その他相談')}<div class="box">${text.consult ? t(text.consult) : '<span class="none">なし</span>'}</div>
+  ${H('上司コメント')}${cmts.length ? cmts.map(c => `<div class="cm"><b>${esc(uname(c.author_id))}</b>
+      <small>${jpDT(c.created_at)}</small><br>${t(c.body)}</div>`).join('') : '<p class="none">コメントなし</p>'}
+
+  <div class="ft"><span>NIPPO ONE ／ 株式会社アースコム</span><span>出力 ${jpDT(new Date().toISOString())}（コメントは出力時点）</span></div>
+</div>
+<script>
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 350));
+<\/script>
+</body></html>`;
 }
 
 function goalRate(total, target){
@@ -2665,7 +3087,8 @@ function vWeekly(){
   const members = weeklyMembers();
   setTimeout(loadWeekly, 0);
   return `<h2>週次報告</h2>
-  <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。</p>
+  <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。
+    日報の入力ミスや未提出の日があるときは「数字を修正する」で直せます。</p>
   ${members.length ? `<div class="row" style="margin-bottom:12px">
     <button class="ghost" onclick="jumpWk('wkBox')">自分の目標と週次報告</button>
     <button class="ghost" onclick="jumpWk('wkTeam')">部下の目標と週次報告（${members.length}名）</button>
@@ -2706,7 +3129,9 @@ async function loadWeeklySelf(){
   WREPORT = wr.data || null;
   WTARGETS = wt.data || [];
   MYHIST = hs.data || [];
-  WT_EXTRA = (ex.data || []).map(x => ({ label: x.label || '', unit: x.unit || '', target: x.target }));
+  WT_EXTRA = (ex.data || []).filter(x => !x.metric_id)
+    .map(x => ({ label: x.label || '', unit: x.unit || '', target: x.target }));
+  await loadWeekEdits([ME.id], WEEK_START);
 
   if (!QGOALS.length){
     const members = weeklyMembers();
@@ -2717,7 +3142,9 @@ async function loadWeeklySelf(){
         <b>${WEEK_START} 〜 ${weekEnd}</b>
         ${WEEK_START < mondayOf(new Date()) ? `<button class="ghost" onclick="moveWeek(7)">次の週 →</button>` : ''}
         <span class="pill ${WREPORT ? 'p2' : 'p4'}" style="margin-left:auto">${WREPORT ? '提出済み' : '未提出'}</span>
+        ${wkPdfBtn(WREPORT)}
       </div>
+      ${wkSubmittedNote(WREPORT)}
     </div>
 
     <div class="card" style="border-color:#E7C4A6">
@@ -2732,23 +3159,7 @@ async function loadWeeklySelf(){
       </div>
     </div>
 
-    ${(() => {
-      const wr = weeklyRowsFor(ME.id, WEEK_START, [], WTARGETS);
-      return wr.length ? `<div class="card"><h3>今週の目標と結果</h3>
-        <table><tr><th>項目</th><th>今週目標</th><th>実績</th><th>達成率</th></tr>
-        ${wr.map(r => `<tr><td>${esc(r.name)}</td>
-          <td class="num">${r.wTarget}${esc(r.unit)}</td>
-          <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
-               value="${Math.round(r.week*10)/10}"
-               onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">
-            <div class="note" style="font-size:10.5px">${r.manual
-              ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
-          <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
-        </table>
-        <p class="note" style="margin-top:8px">日報に入力された数値の合計です。
-          ここに出る項目は、管理タブの「数値項目の設定」で<b>週報</b>をオンにしたものです。</p>
-      </div>` : '';
-    })()}
+    ${wkResultCard(weeklyRowsFor(ME.id, WEEK_START, [], WTARGETS), ME.id, '今週の目標と結果')}
 
     ${wkFormHtml([])}
 
@@ -2791,7 +3202,9 @@ async function loadWeeklySelf(){
       ${WEEK_START < mondayOf(new Date()) ? `<button class="ghost" onclick="moveWeek(7)">次の週 →</button>` : ''}
       <span class="pill ${WREPORT ? 'p2' : 'p4'}" style="margin-left:auto">
         ${WREPORT ? '提出済み' : '未提出'}</span>
+      ${wkPdfBtn(WREPORT)}
     </div>
+    ${wkSubmittedNote(WREPORT)}
   </div>
 
   <div class="card"><h3>四半期の進捗</h3>
@@ -2820,25 +3233,7 @@ async function loadWeeklySelf(){
           : '<br>管理タブは上司・管理者の権限が必要です。直属の上司に依頼してください。'}</div></div>
   </div>
 
-  ${weeklyRows.length ? `<div class="card"><h3>今週の目標と結果</h3>
-    <table><tr><th>項目</th><th>対象</th><th>今週目標</th><th>実績</th><th>過不足</th><th>達成率</th></tr>
-    ${weeklyRows.map(r => `<tr>
-      <td>${esc(r.name)}</td>
-      <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
-      <td class="num">${r.wTarget}${esc(r.unit)}</td>
-      <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
-           value="${Math.round(r.week*10)/10}"
-           onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">
-        <div class="note" style="font-size:10.5px">${r.manual
-          ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
-      <td class="num" style="color:${r.week >= r.wTarget ? 'var(--accent)' : 'var(--warn)'}">
-        ${r.week >= r.wTarget ? '+' : '▲'}${Math.abs(Math.round((r.week - r.wTarget)*10)/10)}</td>
-      <td class="num" style="color:${r.wRate >= 100 ? 'var(--accent)' : 'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
-    </table>
-    <p class="note" style="margin-top:8px">実績は日報の数値から自動集計しています。
-      率や外部システムの数字など、足し算では出せない項目は直接入力してください。空にすると自動集計に戻ります。<br>
-      ここに出す項目は、管理タブの「数値項目の設定」で<b>週報</b>にチェックを入れたものです。</p>
-  </div>` : ''}
+  ${wkResultCard(weeklyRows, ME.id, '今週の目標と結果')}
 
   ${miss.length ? `<div class="card" style="border-color:#E7C4A6">
     <h3>未達の項目（${miss.length}）</h3>
@@ -2916,6 +3311,7 @@ function wkHistoryHtml(){
         <div><b>未達要因</b>：${r.gap_cause ? esc(r.gap_cause) : '記入なし'}</div>
         <div><b>行動変化</b>：${r.action_change ? esc(r.action_change) : '記入なし'}</div>
         ${r.consult ? `<div><b>相談</b>：${esc(r.consult)}</div>` : ''}
+        <div style="margin-top:6px">${wkPdfBtn(r)}</div>
         ${(r.weekly_comments||[]).map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b><br>${linkify(c.body)}</div>`).join('')}
       </div>`).join('')
       : '<div class="empty">まだ提出履歴がありません。</div>'}
@@ -2949,6 +3345,7 @@ async function loadWeeklyTeam(){
   const { data: twt } = await EC.supabase.from('weekly_targets')
     .select('*').in('user_id', ids).eq('week_start', WEEK_START);
   TEAM_WTARGETS = twt || [];
+  await loadWeekEdits(ids, WEEK_START);
 
   // 次週ぶんの承認済み件数
   APV_COUNT = {};
@@ -3013,7 +3410,8 @@ async function loadWeeklyTeam(){
         <td>${r.action_change ? esc(String(r.action_change).slice(0, 60)) + (String(r.action_change).length > 60 ? '…' : '') : '<span class="note">記入なし</span>'}</td>
         <td class="num">${(r.weekly_comments||[]).length ? (r.weekly_comments||[]).length + '件'
           : '<span style="color:var(--warn)">未</span>'}</td>
-        <td><button class="ghost" onclick="openWUser('${r.user_id}')">開く</button></td>
+        <td style="white-space:nowrap"><button class="ghost" onclick="openWUser('${r.user_id}')">開く</button>
+          <button class="ghost" onclick="printWeekly('${r.id}')">PDF</button></td>
       </tr>`).join('')}
       </table></div>
       <p class="note" style="margin-top:8px">コメント欄が「未」の行は、上司がまだ返していない週次報告です。</p>`
@@ -3061,33 +3459,16 @@ function wkMemberDetail(uid){
       : `<div class="empty">この方の四半期目標が登録されていません。</div>`}
   </div>
 
-  ${(() => {
-    const wr = weeklyRowsFor(uid, WEEK_START, gs, TEAM_WTARGETS);
-    return wr.length ? `<div class="card">
-      <h3>今週の実績（${WEEK_START} 〜 ${weekEnd}）</h3>
-      <table><tr><th>項目</th><th>対象</th><th>今週目標</th><th>今週実績</th><th>達成率</th></tr>
-        ${wr.map(r => `<tr>
-          <td>${esc(r.name)}</td>
-          <td class="note">${r.m.user_id ? '本人専用' : '部署共通'}</td>
-          <td class="num">${r.wTarget}${esc(r.unit)}</td>
-          <td><input type="number" step="any" style="width:90px;padding:5px;font-weight:700"
-               value="${Math.round(r.week*10)/10}"
-               onchange="setWeekActual('${r.uid}','${r.weekStart}','${r.m.id}',this.value)">${esc(r.unit)}
-            <div class="note" style="font-size:10.5px">${r.manual
-              ? '手入力（空にすると自動集計）' : '日報の自動集計'}</div></td>
-          <td class="num" style="color:${r.wRate>=100?'var(--accent)':'var(--warn)'}">${r.wRate}%</td></tr>`).join('')}
-      </table>
-      <p class="note" style="margin-top:8px">実績は日報の数値から自動集計しています。
-        足し算では出せない項目は、この欄に直接入力できます。空にすると自動集計に戻ります。<br>
-        ここに出る項目は、管理タブの「数値項目の設定」で<b>週報</b>をオンにしたものです。</p>
-    </div>` : '';
-  })()}
+  ${wkResultCard(weeklyRowsFor(uid, WEEK_START, gs, TEAM_WTARGETS), uid, '今週の目標と結果（' + WEEK_START + ' 〜 ' + weekEnd + '）')}
 
   <div class="card" id="apvBox_${uid}"><h3>次週の目標の承認</h3>
     <p class="note">承認した項目だけが、その人の日報の数値入力欄に出ます。承認前は入力欄が出ません。</p>
     <div class="empty">読み込み中…</div>
   </div>
   ${w ? `<div class="card">
+    <div class="row" style="margin-bottom:6px"><h3 style="border:0;padding:0;margin:0">提出された週次報告</h3>
+      <span style="margin-left:auto">${wkPdfBtn(w)}</span></div>
+    ${wkSubmittedNote(w)}
     <div class="sec s-rival"><span class="lab">未達要因</span><div>${w.gap_cause ? linkify(w.gap_cause) : '<span class="note">記入なし</span>'}</div></div>
     <div class="sec s-think"><span class="lab">行動変化</span><div>${w.action_change ? linkify(w.action_change) : '<span class="note">記入なし</span>'}</div></div>
     <div class="sec s-voice"><span class="lab">その他相談</span><div>${w.consult ? linkify(w.consult) : '<span class="note">なし</span>'}</div></div>
@@ -3108,6 +3489,7 @@ function wkMemberDetail(uid){
         <div><b>行動変化</b>：${r.action_change ? esc(r.action_change) : '記入なし'}</div>
         ${r.consult ? `<div><b>相談</b>：${esc(r.consult)}</div>` : ''}
         ${(r.weekly_comments||[]).length ? `<div class="note">上司コメント ${r.weekly_comments.length}件</div>` : ''}
+        <div style="margin-top:6px">${wkPdfBtn(r)}</div>
       </div>`).join('')
       : '<div class="empty">この期間の提出はありません。</div>'}
   </div>`;
@@ -3282,7 +3664,7 @@ function wkGuideHtml(){
       また、前週と同じ行動変化が並んでいたら、実行されなかった理由のほうを扱ってください。</div></div>`;
 }
 
-function moveWeek(n){ WEEK_START = addDays(WEEK_START, n); render(); }
+function moveWeek(n){ WEEK_START = addDays(WEEK_START, n); WK_EDIT = ''; render(); }
 
 /* 来週だけ追う自由項目 */
 let WT_EXTRA = [];   // [{label, unit, target}]
@@ -3290,11 +3672,11 @@ let WT_SKIP  = [];   // 今回の週は出さない四半期目標のid
 
 function skipWeeklyTarget(id){
   if (WT_SKIP.indexOf(id) < 0) WT_SKIP.push(id);
-  loadWeeklySelf();
+  keepWkDraft(loadWeeklySelf);
 }
 function unskipWeeklyTarget(id){
   WT_SKIP = WT_SKIP.filter(x => x !== id);
-  loadWeeklySelf();
+  keepWkDraft(loadWeeklySelf);
 }
 
 function drawExtraTargets(){
@@ -3322,6 +3704,8 @@ async function submitWeekly(){
   const weekEnd = addDays(WEEK_START, 6);
   const results = {};
   QGOALS.forEach(x => { results[x.name] = actualSum(x.metric_id, WEEK_START, weekEnd); });
+  // 報告書（PDF）用に、提出した時点の数字と文章を固定して残す
+  results._snapshot = buildWkSnapshot(WREPORT && WREPORT.results && WREPORT.results._snapshot);
 
   const { error } = await EC.supabase.from('weekly_reports').upsert({
     user_id: ME.id, week_start: WEEK_START, results: results,
