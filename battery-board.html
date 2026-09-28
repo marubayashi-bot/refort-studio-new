@@ -99,9 +99,18 @@ body.customer .internal{display:none !important}
 
 /* --- 一覧 --- */
 #listWrap{padding:16px 20px;overflow-x:auto}
-.list-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.list-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;align-content:flex-start;flex:0 0 auto}
 .tool-btn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:.82rem;font-weight:600;color:var(--ink)}
 .tool-btn:hover{border-color:var(--pine);color:var(--pine)}
+.gsb{cursor:pointer}
+.tool-btn.gs{border-color:#1E8E3E;color:#1E7A36}
+.sheet-tag{display:inline-block;font-size:.66rem;font-weight:700;color:#1E7A36;background:#E6F4EA;border-radius:4px;padding:1px 5px;vertical-align:middle}
+.sheet-sec{background:#F2FAF4;border:1px solid #CFE8D6;border-radius:10px;padding:12px}
+.sheet-sec h3 a{font-size:.74rem;font-weight:600;margin-left:8px;color:#1E7A36}
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 12px}
+.sheet-grid div{font-size:.78rem;display:flex;flex-direction:column;border-bottom:1px dashed #D5E6DA;padding-bottom:3px}
+.sheet-grid span{color:var(--ink-sub);font-size:.68rem}
+.fld.locked input,.fld.locked select,.fld.locked textarea{background:#EEF3F0;color:var(--ink);cursor:not-allowed}
 .tool-btn.pri{background:var(--pine);color:#fff;border-color:var(--pine)}
 table.lst{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 4px rgba(20,70,58,.07)}
 .lst th{background:var(--pine);color:#fff;font-size:.78rem;font-weight:600;padding:9px 10px;text-align:left;white-space:nowrap}
@@ -279,6 +288,7 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
     </div>
     <div class="hd-spacer"></div>
     <span class="sync-badge internal" id="syncBadge">☁ 接続中…</span>
+    <span class="sync-badge internal gsb" id="sheetBadge" onclick="gasUrl?sheetSync(true):openSheetSettings()" title="クリックでスプレッドシートと今すぐ連動">📗 シート：確認中…</span>
     <span id="userBadge"></span>
     <button class="hd-btn pri internal" onclick="openEditor(null)">＋ 新規案件</button>
     <button class="hd-btn" id="custToggle" onclick="toggleCustomer()"><span id="custLabel">👥 お客様表示に切替</span></button>
@@ -329,6 +339,9 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
         <button class="tool-btn pri" onclick="openEditor(null)">＋ 新規案件</button>
         <button class="tool-btn" onclick="openSheets(filtered().map(p=>p.id))">🗂 表示中の案件を物件情報シートで一括出力</button>
         <button class="tool-btn" onclick="cloudLoad()">↻ 最新を取得</button>
+        <button class="tool-btn gs" id="sheetBtn" onclick="sheetSync(true)">📗 シート連動</button>
+        <button class="tool-btn" onclick="openSheetSettings()">⚙ 連動設定</button>
+        <a class="tool-btn" href="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit?gid=351466780#gid=351466780" target="_blank" rel="noopener" style="text-decoration:none">📄 案件管理表を開く</a>
         <button class="tool-btn" onclick="exportCSV()">⬇ CSV書き出し</button>
         <button class="tool-btn" onclick="document.getElementById('impXlsx').click()">📊 物件Excel読み込み（低圧・自社）</button>
         <input type="file" id="impXlsx" accept=".xlsx,.xls,.xlsm" style="display:none" onchange="importExcel(event)">
@@ -514,6 +527,9 @@ async function boot(){
   cloudOn=true;
   await cloudLoad();
   geocodeAll();
+  await loadSheetSettings();
+  sheetSync(false);
+  startSheetAuto();
 }
 async function cloudLoad(){
   if(!cloudOn)return;
@@ -755,14 +771,14 @@ function drawTable(){
   t.innerHTML=`<tr><th>案件名／所在地</th><th>区分</th><th>担当</th><th>フェーズ</th><th>接続進捗／連系予定</th><th>容量</th><th>PQ</th><th>MQ</th><th>商談</th><th>資料</th></tr>`+
     (list.length?"":`<tr><td colspan="10" class="empty">条件に合う案件はありません。区分・フィルタを変えるか「＋ 新規案件」から登録してください。</td></tr>`)+
     list.map(p=>{const nt=nextTask(p);const id=JSON.stringify(p.id);return `<tr>
-      <td><span class="site-name" onclick="openEditor(${id})">${esc(p.name)}</span><br><span class="addr">${esc(p.address)}</span>${p.category==="他社開発"&&p.developer?`<br><span class="sub">開発：${esc(p.developer)}</span>`:""}</td>
+      <td><span class="site-name" onclick="openEditor(${id})">${esc(p.name)}</span>${p.sheetId?` <span class="sheet-tag" title="スプレッドシート連動（${esc(p.sheetId)}）">📗 ${esc(p.sheetId)}</span>`:""}<br><span class="addr">${esc(p.address)}</span>${p.category==="他社開発"&&p.developer?`<br><span class="sub">開発：${esc(p.developer)}</span>`:""}</td>
       <td>${catBdg(p)}<br>${voltBdg(p)}<br><span class="sub">${esc(p.gridArea)}</span></td>
       <td>${esc((p.owner||"").split(" ")[0])||"─"}</td>
       <td><select onchange="quickPhase(${id},+this.value)" style="color:${cssColor(phC(p.phase))}">${PHASES.map(x=>`<option value="${x.n}" ${x.n===p.phase?"selected":""}>${x.n<6?"P"+x.n+" ":""}${x.k}</option>`).join("")}</select>${progBar(p)}${nt?`<div class="sub" style="margin-top:3px">次：${esc(nt.t)}</div>`:""}</td>
       <td>${esc(p.connStatus)}<br><span class="sub">${esc(codText(p))||"連系予定 未定"}</span></td>
       <td class="num">${p.battKwh?nf(p.battKwh)+"kWh":"─"}<br><span class="sub">${p.pcsKw?nf(p.pcsKw,1)+"kW":""}</span></td>
       <td class="num">${man(p.pq)}</td><td class="num">${man(p.mq)}</td>
-      <td><select onchange="quickStatus(${id},this.value)" style="color:${cssColor(stColor(p.status))}">${STATUSES.map(x=>`<option ${x.k===p.status?"selected":""}>${x.k}</option>`).join("")}</select>${p.customer?`<div class="sub">${esc(p.customer)}</div>`:""}</td>
+      <td><select onchange="quickStatus(${id},this.value)" style="color:${cssColor(stColor(p.status))}" ${p.sheetId?'disabled title="シートで編集"':""}>${STATUSES.map(x=>`<option ${x.k===p.status?"selected":""}>${x.k}</option>`).join("")}</select>${p.customer?`<div class="sub">${esc(p.customer)}</div>`:""}</td>
       <td class="act-links"><a href="#" onclick="openEditor(${id});return false;">✏ 編集</a><a href="#" onclick="openSheets([${id}]);return false;">📄 物件情報</a>${!isHV(p)?`<a href="#" onclick="openSim(${id});return false;">📊 シミュ</a>`:""}${p.mapUrl?`<a href="${esc(p.mapUrl)}" target="_blank">G地図</a>`:""}</td></tr>`;}).join("");
 }
 function quickPhase(id,n){const p=byId(id);p.phase=n;saveProject(p);render();}
@@ -837,11 +853,14 @@ function drawDash(){
 let ed=null, edIsNew=false;
 function fld(k,label,type,opts={}){
   const v=ed[k]??"";
+  const lock=ed.sheetId&&(SHEET_LOCK.includes(k)||(k==="codMonth"&&ed.sheet&&parseCod(ed.sheet.COD)));
+  if(lock){opts={...opts,hint:"📗 シートで編集"+(opts.hint?"　"+opts.hint:"")};}
   let inp;
   if(type==="select") inp=`<select data-k="${k}" onchange="edChange('${k}',this.value)">${(opts.list||[]).map(o=>`<option ${String(o)===String(v)?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
   else if(type==="textarea") inp=`<textarea data-k="${k}" oninput="edChange('${k}',this.value)" placeholder="${esc(opts.ph||"")}">${esc(v)}</textarea>`;
   else inp=`<input type="${type}" data-k="${k}" value="${esc(v)}" placeholder="${esc(opts.ph||"")}" ${type==="number"?'step="any" inputmode="decimal"':""} oninput="edChange('${k}',this.value,'${type}')">`;
-  return `<div class="fld ${opts.w||""}" ${opts.id?`id="${opts.id}"`:""}><label>${label}</label>${inp}${opts.hint?`<div class="hint">${opts.hint}</div>`:""}</div>`;
+  if(lock)inp=inp.replace(/^<(select|textarea|input)/,"<$1 disabled");
+  return `<div class="fld ${opts.w||""} ${lock?"locked":""}" ${opts.id?`id="${opts.id}"`:""}><label>${label}</label>${inp}${opts.hint?`<div class="hint">${opts.hint}</div>`:""}</div>`;
 }
 function edChange(k,v,type){
   ed[k]=type==="number"?(v===""?null:+v):v;
@@ -878,7 +897,7 @@ function closeEditor(){document.getElementById("edOverlay").classList.remove("op
 function drawEditor(){
   const p=ed, hv=isHV(p), el=document.getElementById("edBody");
   const scroll=document.getElementById("edOverlay").scrollTop;
-  el.innerHTML=`
+  el.innerHTML=`${p.sheetId?sheetInfoHtml(p):""}
   <div class="ed-sec"><h3>基本情報</h3><div class="fg">
     ${fld("name","案件名（物件情報シートのタイトル）","text",{w:"w2",ph:"例：千葉県八千代市米本1600-1 蓄電所"})}
     ${fld("category","開発区分","select",{list:CATS})}
@@ -981,6 +1000,8 @@ async function saveEditor(thenSheet){
   if(!ed.name.trim()){alert("案件名を入力してください。");return;}
   const {_prefTouched,...rec}=ed; const p=norm(rec);
   const i=PROJECTS.findIndex(x=>x.id===p.id);
+  /* 編集中にシート連動で更新された値を優先（シートが正） */
+  if(i>=0&&PROJECTS[i].sheetId){const c=PROJECTS[i];[...SHEET_LOCK,"codMonth","codNote","developer","sheet","sheetId"].forEach(k=>{if(k!=="codMonth"||(c.sheet&&parseCod(c.sheet.COD)))p[k]=c[k];});}
   if(i>=0){
     if(PROJECTS[i].address!==p.address&&p.lat!=null&&confirm("所在地が変わりました。手動で修正したピン位置をリセットしますか？\n（キャンセルで位置を維持）")){p.lat=null;p.lng=null;}
     PROJECTS[i]=p;}
@@ -1147,6 +1168,130 @@ function exportCSV(){
     rows.push([p.name,p.category,p.developer,p.voltage,p.address,p.pref,p.gridArea,p.owner,(p.phase<6?"P"+p.phase+" ":"")+phK(p.phase),`${g.d}/${g.n}`,nt?nt.t:"",p.connStatus,p.burden??"",p.burdenPay,codText(p),p.commercial,p.cancelGrace,p.area??"",p.landStatus,p.houseDist,p.access,p.battMaker,p.battKwh??"",p.pcsMaker,p.pcsKw??"",p.ems,p.aggregator,p.om,p.landPrice??"",p.fee??"",p.pq??"",p.mq??"",p.status,p.customer,p.memo,p.updated,p.mapUrl]);});
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="系統用蓄電池_案件一覧_"+new Date().toISOString().slice(0,10)+".csv";a.click();
+}
+
+/* ================= スプレッドシート連動（蓄電池_案件管理表 → ボード） ================= */
+const SHEET_URL="https://docs.google.com/spreadsheets/d/12psipGRemGTS8cNz3_EUILDG4MtOTT2FoyBgP4m3eFc/edit?gid=351466780#gid=351466780";
+const SHEET_SET_KEY="_sheet_settings", LS_GAS="battery_sheet_gas_v1";
+/* シートが正（マスタ）の項目：連動中の案件はボード側では編集不可 */
+const SHEET_LOCK=["name","owner","customer","status","pq","mq","landPrice"];
+const SHEET_STATUS={"失注":"見送り","見送り":"見送り","契約済":"成約","取次契約締結済":"成約","入金済":"成約","成約":"成約",
+  "買付意向":"申込","申込":"申込","商談中":"商談中","紹介中":"紹介中","リリース前":"準備中","準備中":"準備中","案件待ち":"未着手","未着手":"未着手"};
+let gasUrl=localStorage.getItem(LS_GAS)||"", sheetBusy=false, sheetLast=null, sheetTimer=null;
+function setSheetBadge(t,cls){const b=document.getElementById("sheetBadge");if(b){b.textContent=t;b.className="sync-badge internal gsb "+(cls||"");}const k=document.getElementById("sheetBtn");if(k)k.textContent=t.replace("📗 シート：","📗 シート連動 ");}
+
+const sgv=(r,...keys)=>{for(const k of keys){const f=Object.keys(r).find(h=>h.replace(/\s/g,"").startsWith(k));if(f!=null&&r[f]!==""&&r[f]!=null)return r[f];}return "";};
+const snum=v=>{if(v===""||v==null)return null;if(typeof v==="number")return v;const n=+String(v).replace(/[,，円¥\s]/g,"");return isNaN(n)?null:n;};
+const nkey=s=>String(s||"").replace(/[\s　・．。…\.]/g,"").replace(/(蓄電所|発電所).*$/,"").toLowerCase();
+function parseCod(v){
+  const s=String(v||"").trim(); if(!s)return null;
+  let m=s.match(/(20\d{2})\s*[\/年\-.]\s*(\d{1,2})/); if(m)return m[1]+"-"+String(m[2]).padStart(2,"0");
+  return null;
+}
+function parseCap(v){
+  const s=String(v||"").replace(/\s/g,""); const o={};
+  const kw=s.match(/([\d.]+)(MW|kW|KW)(?!h)/i), kwh=s.match(/([\d.]+)(MWh|kWh)/i);
+  if(kw)o.pcsKw=+kw[1]*(/^MW$/i.test(kw[2])?1000:1);
+  if(kwh)o.battKwh=+kwh[1]*(/^MWh$/i.test(kwh[2])?1000:1);
+  return o;
+}
+function addrFromName(n){const s=String(n||"").trim();const p=prefOf(s);if(!p)return "";return s.replace(/\s*(蓄電所|発電所).*$/,"").trim();}
+
+/* シートの1行をボードの案件へ反映。変更があれば true */
+function applySheetRow(p,r,isNew){
+  const before=JSON.stringify(p);
+  const st=String(sgv(r,"ステータス"));
+  const sheet={id:r["案件ID"],tab:r._tab,row:r._row,状況:sgv(r,"状況"),ステータス:st,詳細:sgv(r,"詳細","所在地"),容量:sgv(r,"容量"),
+    売主:sgv(r,"売主"),買主:sgv(r,"買主"),販売価格税込:snum(sgv(r,"販売価格（税込）","販売価格(税込)")),販売価格税抜:snum(sgv(r,"販売価格（税抜）","販売価格(税抜)")),
+    仕切価格:snum(sgv(r,"仕切価格")),土地代金:snum(sgv(r,"土地代金")),土地込み税抜:snum(sgv(r,"土地込み税抜")),手数料税抜:snum(sgv(r,"手数料（税抜）","手数料(税抜)")),
+    手数料税込:snum(sgv(r,"税込")),契約日:sgv(r,"契約日"),入金予定日:sgv(r,"入金予定日"),手数料入金:sgv(r,"手数料入金"),
+    COD:sgv(r,"連系予定"),進捗日:sgv(r,"進捗日"),備考:sgv(r,"備考")};
+  p.sheetId=r["案件ID"];
+  /* ── シートが正の項目（毎回上書き） ── */
+  const nm=String(sgv(r,"案件名")).trim(); if(nm)p.name=nm;
+  p.owner=String(sgv(r,"担当者")||"");
+  p.customer=String(sheet.買主||"");
+  if(st)p.status=SHEET_STATUS[st]||p.status;
+  p.pq=sheet.土地込み税抜??sheet.販売価格税抜??null;
+  p.mq=sheet.手数料税抜??snum(sgv(r,"MQ","粗利"));
+  p.landPrice=sheet.土地代金;
+  if(sheet.売主)p.developer=String(sheet.売主);
+  const cod=parseCod(sheet.COD);
+  if(cod){p.codMonth=cod;}
+  else if(sheet.COD){p.codNote=String(sheet.COD);}
+  if(/稼働済|稼働すみ|稼働中/.test(sheet.状況+" "+sheet.COD)&&p.phase<6){p.phase=6;p.connStatus="連系済";}
+  /* ── ボードが空欄のときだけ補完（ボード側の詳細値を優先） ── */
+  if(!p.address){p.address=/[都道府県]/.test(sheet.詳細)&&prefOf(String(sheet.詳細))?String(sheet.詳細):addrFromName(nm);
+    if(p.address){p.pref=prefOf(p.address);p.gridArea=AREA_OF[p.pref]||p.gridArea;}}
+  const cap=parseCap(sheet.容量);
+  if(p.pcsKw==null&&cap.pcsKw)p.pcsKw=cap.pcsKw;
+  if(p.battKwh==null&&cap.battKwh)p.battKwh=cap.battKwh;
+  if(isNew){p.voltage=r._volt||"高圧";p.category=/アースコム/.test(sheet.売主)?"自社開発":"他社開発";}
+  /* 比較用に同期時刻を除いて判定 */
+  const {syncedAt:_old,...prevSheet}=p.sheet||{};
+  const changed=before!==JSON.stringify({...p,sheet:p.sheet})||JSON.stringify(prevSheet)!==JSON.stringify(sheet);
+  p.sheet={...sheet,syncedAt:new Date().toISOString()};
+  return changed;
+}
+
+async function sheetSync(manual){
+  if(!gasUrl){setSheetBadge("📗 シート：未設定（クリックで設定）","err");if(manual)openSheetSettings();return;}
+  if(sheetBusy)return; sheetBusy=true;
+  setSheetBadge("📗 シート：連動中…");
+  try{
+    const res=await fetch(gasUrl+(gasUrl.includes("?")?"&":"?")+"t="+Date.now());
+    const j=await res.json();
+    if(!j||!Array.isArray(j.rows))throw new Error("シートの応答が不正です");
+    const changed=[]; let added=0;
+    const used=new Set();
+    j.rows.forEach((r,i)=>{
+      const sid=String(r["案件ID"]||""); if(!sid)return;
+      let p=PROJECTS.find(x=>x.sheetId===sid);
+      if(!p){ /* 既存案件を案件名で照合（初回のみ） */
+        const k=nkey(sgv(r,"案件名"));
+        if(k.length>=3)p=PROJECTS.find(x=>!x.sheetId&&!used.has(x.id)&&(nkey(x.name)===k||(nkey(x.name).length>=6&&(nkey(x.name).startsWith(k)||k.startsWith(nkey(x.name))))));
+      }
+      if(p&&p.deleted)return;           /* ボードで削除済みは復活させない */
+      let isNew=false;
+      if(!p){p=norm({id:Date.now()+i,phase:1});PROJECTS.push(p);isNew=true;added++;}
+      used.add(p.id);
+      if(applySheetRow(p,r,isNew)){p.updated=new Date().toISOString().slice(0,10);p.updatedBy="シート連動";changed.push(p);}
+    });
+    if(changed.length){await saveMany(changed);initFilters();render();if(added)geocodeAll();}
+    sheetLast=new Date();
+    setSheetBadge("📗 シート：連動中 "+sheetLast.toTimeString().slice(0,5)+"（"+j.rows.length+"件）","ok");
+    if(manual)alert(`スプレッドシートと連動しました。\n取込 ${j.rows.length}件 ／ 更新 ${changed.length-added}件 ／ 新規 ${added}件`+(j.errors&&j.errors.length?"\n\n⚠ "+j.errors.join("\n"):""));
+  }catch(e){
+    console.error(e);
+    setSheetBadge("📗 シート：取得エラー（クリックで再試行）","err");
+    if(manual)alert("スプレッドシートの取得に失敗しました。\n連動設定のURL（GASウェブアプリの /exec）を確認してください。\n\n"+e.message);
+  }finally{sheetBusy=false;}
+}
+async function loadSheetSettings(){
+  try{const {data}=await sb.from(TBL).select("value").eq("key",SHEET_SET_KEY).maybeSingle();
+    if(data&&data.value&&data.value.gasUrl){gasUrl=data.value.gasUrl;localStorage.setItem(LS_GAS,gasUrl);}}catch(e){console.error(e);}
+}
+async function openSheetSettings(){
+  const v=prompt("スプレッドシート連動用のGASウェブアプリURL（…/exec）を貼り付けてください。\n※全員で共有されます。空欄で連動を停止します。",gasUrl||"");
+  if(v===null)return;
+  gasUrl=v.trim(); localStorage.setItem(LS_GAS,gasUrl);
+  if(cloudOn){const {error}=await sb.from(TBL).upsert([{key:SHEET_SET_KEY,value:{gasUrl},updated_at:new Date().toISOString(),updated_by:myName||"（未入力）"}]);if(error)alert("設定の保存に失敗しました："+error.message);}
+  if(gasUrl)sheetSync(true);
+}
+function startSheetAuto(){
+  if(sheetTimer)clearInterval(sheetTimer);
+  sheetTimer=setInterval(()=>{if(document.visibilityState==="visible"&&!ed)sheetSync(false);},60000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(!sheetLast||Date.now()-sheetLast>20000))sheetSync(false);});
+}
+function sheetInfoHtml(p){
+  const s=p.sheet||{}; const y=v=>v==null||v===""?"─":(typeof v==="number"?nf(v)+" 円":esc(String(v)));
+  const rows=[["案件ID",s.id],["シートのステータス",s.ステータス],["状況",s.状況],["容量",s.容量],["売主（EPC）",s.売主],["買主（投資家）",s.買主],
+    ["販売価格（税込）",s.販売価格税込],["販売価格（税抜）",s.販売価格税抜],["仕切価格（税抜）",s.仕切価格],["土地込み税抜金額",s.土地込み税抜],
+    ["手数料（税抜）",s.手数料税抜],["手数料（税込）",s.手数料税込],["契約日",s.契約日],["入金予定日",s.入金予定日],["手数料入金",s.手数料入金],
+    ["連系予定（COD）",s.COD],["進捗日",s.進捗日],["詳細",s.詳細],["備考",s.備考]];
+  return `<div class="ed-sec sheet-sec"><h3>📗 スプレッドシート連動中 <a href="${SHEET_URL}" target="_blank" rel="noopener">シートを開く ↗</a></h3>
+    <div class="hint" style="font-size:.74rem;color:var(--ink-sub);margin-bottom:8px">案件名・担当・顧客名（買主）・商談ステータス・PQ（土地込み税抜）・MQ（手数料税抜）・土地価格・連系予定は<b>シートが正</b>です。変更はシートで行ってください（約1分でボードに反映）。${s.syncedAt?"　最終取込："+esc(s.syncedAt.slice(0,16).replace("T"," ")):""}</div>
+    <div class="sheet-grid">${rows.filter(r=>r[1]!=null&&r[1]!=="").map(r=>`<div><span>${r[0]}</span><b>${y(r[1])}</b></div>`).join("")}</div></div>`;
 }
 
 /* ================= 描画 ================= */
