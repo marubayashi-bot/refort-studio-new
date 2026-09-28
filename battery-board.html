@@ -1186,7 +1186,11 @@ function setSheetBadge(t,cls){const b=document.getElementById("sheetBadge");if(b
 
 const sgv=(r,...keys)=>{for(const k of keys){const f=Object.keys(r).find(h=>h.replace(/\s/g,"").startsWith(k));if(f!=null&&r[f]!==""&&r[f]!=null)return r[f];}return "";};
 const snum=v=>{if(v===""||v==null)return null;if(typeof v==="number")return v;const n=+String(v).replace(/[,，円¥\s]/g,"");return isNaN(n)?null:n;};
-const nkey=s=>String(s||"").replace(/[\s　・．。…\.]/g,"").replace(/(蓄電所|発電所).*$/,"").toLowerCase();
+const nkey=s=>String(s||"").replace(/【[^】]*】|\[[^\]]*\]/g,"").replace(/[\s　・．。…\.、,，－ー−‐\-]/g,"").replace(/(蓄電所|発電所).*$/,"").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).toLowerCase();
+function sheetMatch(p,k){ /* 案件名 or 所在地で照合 */
+  if(k.length<4)return false;
+  return [nkey(p.name),nkey(p.address)].some(b=>b&&(b===k||(Math.min(b.length,k.length)>=6&&(b.startsWith(k)||k.startsWith(b)))));
+}
 function parseCod(v){
   const s=String(v||"").trim(); if(!s)return null;
   let m=s.match(/(20\d{2})\s*[\/年\-.]\s*(\d{1,2})/); if(m)return m[1]+"-"+String(m[2]).padStart(2,"0");
@@ -1244,8 +1248,12 @@ async function sheetSync(manual){
   if(sheetBusy)return; sheetBusy=true;
   setSheetBadge("📗 シート：連動中…");
   try{
-    const res=await fetch(gasUrl+(gasUrl.includes("?")?"&":"?")+"t="+Date.now());
-    const j=await res.json();
+    let res;
+    try{res=await fetch(gasUrl+(gasUrl.includes("?")?"&":"?")+"t="+Date.now());}
+    catch(e){throw new Error("GASに接続できません。デプロイの「アクセスできるユーザー」が【全員】になっているか確認してください（「Googleアカウントを持つ全員」だと取得できません）。");}
+    const txt=await res.text(); let j;
+    try{j=JSON.parse(txt);}catch(e){throw new Error("GASの応答がJSONではありません。URLが「…/exec」で終わっているか、アクセスが【全員】か確認してください。\n応答の先頭："+txt.slice(0,120));}
+    if(j.errors&&j.errors.length&&!j.rows.length)throw new Error(j.errors.join("\n"));
     if(!j||!Array.isArray(j.rows))throw new Error("シートの応答が不正です");
     const changed=[]; let added=0;
     const used=new Set();
@@ -1254,7 +1262,7 @@ async function sheetSync(manual){
       let p=PROJECTS.find(x=>x.sheetId===sid);
       if(!p){ /* 既存案件を案件名で照合（初回のみ） */
         const k=nkey(sgv(r,"案件名"));
-        if(k.length>=3)p=PROJECTS.find(x=>!x.sheetId&&!used.has(x.id)&&(nkey(x.name)===k||(nkey(x.name).length>=6&&(nkey(x.name).startsWith(k)||k.startsWith(nkey(x.name))))));
+        p=PROJECTS.find(x=>!x.deleted&&!x.sheetId&&!used.has(x.id)&&(x.voltage!=="低圧")===(r._volt!=="低圧")&&sheetMatch(x,k));
       }
       if(p&&p.deleted)return;           /* ボードで削除済みは復活させない */
       let isNew=false;
