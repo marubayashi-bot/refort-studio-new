@@ -287,7 +287,7 @@ table.sh-tbl{width:100%;border-collapse:collapse;font-size:8pt}
       </div>
     </div>
     <div class="hd-spacer"></div>
-    <span class="sync-badge internal" id="syncBadge">☁ 接続中…</span>
+    <span class="sync-badge internal" id="syncBadge" onclick="showSaveError()" style="cursor:pointer">☁ 接続中…</span>
     <span class="sync-badge internal gsb" id="sheetBadge" onclick="gasUrl?sheetSync(true):openSheetSettings()" title="クリックでスプレッドシートと今すぐ連動">📗 シート：確認中…</span>
     <span id="userBadge"></span>
     <button class="hd-btn pri internal" onclick="openEditor(null)">＋ 新規案件</button>
@@ -561,16 +561,31 @@ async function saveProject(p){
   const rows=[{key:"prj_"+p.id,value:recOf(p),updated_at:now,updated_by:myName||"（未入力）"}];
   /* 旧形式との互換（他アプリの取込用に商談ステータスも従来キーへ保存） */
   if(typeof p.id==="number"&&p.id<1e9) rows.push({key:"site_"+p.id,value:{status:p.status,customer:p.customer,memo:p.memo,updated:p.updated,lat:p.lat,lng:p.lng},updated_at:now,updated_by:myName||"（未入力）"});
-  const {error}=await sb.from(TBL).upsert(rows);
-  setBadge(error?"☁ 保存エラー":"☁ 共有中（保存済み）",error?"err":"ok");
-  if(error){console.error(error);alert("保存に失敗しました："+error.message);}
+  const {error}=await sb.from(TBL).upsert(rows,{onConflict:"key"});
+  if(error){pendingSave.set("prj_"+p.id,p);lastSaveErr=error.message||String(error);setBadge("☁ 保存エラー（クリックで詳細）","err");console.error(error);alert("保存に失敗しました：\n"+lastSaveErr);}
+  else{pendingSave.delete("prj_"+p.id);setBadge(pendingSave.size?"☁ 保存エラー（"+pendingSave.size+"件・クリックで詳細）":"☁ 共有中（保存済み）",pendingSave.size?"err":"ok");}
 }
+/* 一括保存：同じ案件の重複を除き、50件ずつ保存。失敗分は次回の連動時に自動で再保存 */
+let pendingSave=new Map(), lastSaveErr="";
 async function saveMany(list){
-  cacheLocal(); if(!cloudOn||!list.length)return;
+  if(!cloudOn){cacheLocal();return;}
+  list.forEach(p=>pendingSave.set("prj_"+p.id,p));
+  cacheLocal();
   setBadge("☁ 保存中…"); const now=new Date().toISOString();
-  const {error}=await sb.from(TBL).upsert(list.map(p=>({key:"prj_"+p.id,value:recOf(p),updated_at:now,updated_by:myName||"（未入力）"})));
-  setBadge(error?"☁ 保存エラー":"☁ 共有中（保存済み）",error?"err":"ok");
-  if(error)console.error(error);
+  const all=[...pendingSave.values()], failed=[]; let errMsg="";
+  for(let i=0;i<all.length;i+=50){
+    const chunk=all.slice(i,i+50);
+    const {error}=await sb.from(TBL).upsert(chunk.map(p=>({key:"prj_"+p.id,value:recOf(p),updated_at:now,updated_by:myName||"（未入力）"})),{onConflict:"key"});
+    if(error){console.error("保存エラー",error);errMsg=error.message||String(error);failed.push(...chunk);}
+  }
+  pendingSave=new Map(failed.map(p=>["prj_"+p.id,p]));
+  lastSaveErr=errMsg;
+  if(errMsg){setBadge("☁ 保存エラー（"+failed.length+"件・クリックで詳細）","err");}
+  else setBadge("☁ 共有中（保存済み）","ok");
+}
+function showSaveError(){
+  if(!lastSaveErr)return;
+  if(confirm("クラウドへの保存に失敗しています（"+pendingSave.size+"件）。\n\n内容："+lastSaveErr+"\n\n［OK］でもう一度保存します。"))saveMany([]);
 }
 async function loadImgs(id){
   if(imgs[id]&&imgs[id]._loaded)return imgs[id];
@@ -1277,9 +1292,11 @@ async function sheetSync(manual){
     if(j.errors&&j.errors.length&&!j.rows.length)throw new Error(j.errors.join("\n"));
     if(!j||!Array.isArray(j.rows))throw new Error("シートの応答が不正です");
     const changed=[]; let added=0;
-    const used=new Set();
+    const used=new Set(), seenSid=new Set(), dupSid=[];
     j.rows.forEach((r,i)=>{
       const sid=String(r["案件ID"]||""); if(!sid)return;
+      if(seenSid.has(sid)){dupSid.push(sid+"（"+(r._tab||"")+" "+(r._row||"")+"行目）");return;}
+      seenSid.add(sid);
       let p=PROJECTS.find(x=>x.sheetId===sid);
       if(!p){ /* 既存案件を案件名で照合（初回のみ） */
         const k=nkey(sgv(r,"案件名"));
@@ -1289,9 +1306,10 @@ async function sheetSync(manual){
       let isNew=false;
       if(!p){p=norm({id:Date.now()+i,phase:1});PROJECTS.push(p);isNew=true;added++;}
       used.add(p.id);
-      if(applySheetRow(p,r,isNew)){p.updated=new Date().toISOString().slice(0,10);p.updatedBy="シート連動";changed.push(p);}
+      if(applySheetRow(p,r,isNew)&&!changed.includes(p)){p.updated=new Date().toISOString().slice(0,10);p.updatedBy="シート連動";changed.push(p);}
     });
-    if(changed.length){await saveMany(changed);initFilters();render();if(added)geocodeAll();}
+    if(dupSid.length){console.warn("案件IDが重複しています",dupSid);if(manual)alert("⚠ シートで案件IDが重複している行があります（2行目以降は取り込みを飛ばしました）：\n"+dupSid.join("\n"));}
+    if(changed.length||pendingSave.size){await saveMany(changed);initFilters();render();if(added)geocodeAll();}
     sheetLast=new Date();
     setSheetBadge("📗 シート：連動中 "+sheetLast.toTimeString().slice(0,5)+"（"+j.rows.length+"件）","ok");
     if(manual)alert(`スプレッドシートと連動しました。\n取込 ${j.rows.length}件 ／ 更新 ${changed.length-added}件 ／ 新規 ${added}件`+(j.errors&&j.errors.length?"\n\n⚠ "+j.errors.join("\n"):""));
