@@ -229,6 +229,11 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .qchips{display:flex;flex-direction:column;gap:6px;margin:6px 0}
 .qchip{display:flex;gap:8px;align-items:flex-start;padding:6px 9px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:0 8px 8px 0;font-size:12px}
 .qchip span{flex:1;word-break:break-word}
+.cact{float:right;display:flex;gap:4px}
+.cact button{border:0;background:none;font:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
+.cact button:hover{background:#E8EDF3;color:var(--ink)}
+.cact button.del:hover{color:var(--warn)}
+.cmt.editing{outline:2px solid var(--accent);outline-offset:1px}
 .qchip button{border:0;background:none;color:var(--warn);cursor:pointer;font:inherit;font-size:12px;padding:0 2px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line);border-radius:10px}
 .note{color:var(--muted);font-size:11.5px}
@@ -465,7 +470,7 @@ async function loadReports(fromDate){
     LOAD_FROM = since.toISOString().slice(0,10);
   }
   const { data, error } = await EC.supabase.from('daily_reports')
-    .select('*, report_metric_values(metric_id,value), report_comments(id,author_id,body,created_at,read_at), report_views(viewer_id,viewed_at)')
+    .select('*, report_metric_values(metric_id,value), report_comments(*), report_views(viewer_id,viewed_at)')
     .gte('report_date', LOAD_FROM)
     .order('report_date', { ascending: false });
   if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
@@ -1221,8 +1226,13 @@ function card(r){
       <div class="${cmts.length ? 'done' : ''}">コメント ${cmts.length ? '済' : '未'}</div>
       <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
     </div>
-    ${cmts.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
-      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span>${cmtBodyHtml(c.body, r.id)}</div>`).join('')}
+    ${cmts.map(c => `<div class="cmt${EDIT_CMT[r.id] === c.id ? ' editing' : ''}" id="cm_${c.id}">
+      ${c.author_id === ME.id ? `<span class="cact">
+        <button onclick="editComment('${r.id}','${c.id}')">編集</button>
+        <button class="del" onclick="deleteComment('${c.id}')">削除</button></span>` : ''}
+      <b>${esc(uname(c.author_id))}</b>
+      <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}${c.edited_at
+        ? '（編集 ' + String(c.edited_at).slice(5,16).replace('T',' ') + '）' : ''}</span>${cmtBodyHtml(c.body, r.id)}</div>`).join('')}
     ${isMine ? `<div class="row" style="margin-top:12px">
       <button class="ghost" onclick="editReport('${r.id}')">この日報を編集</button>
       <button class="ghost" onclick="deleteReport('${r.id}','${r.report_date}')"
@@ -1362,8 +1372,10 @@ function secHtml(r, q, canQuote){
 
 function quoteSec(rid, key){
   const r = REPORTS.find(x => x.id === rid); if (!r) return;
-  const q = QSECS.find(x => x[0] === key);
-  const fresh = LAST_SEL && LAST_SEL.rid === rid && LAST_SEL.key === key && Date.now() - LAST_SEL.at < 60000;
+  let q;
+  const fresh = LAST_SEL && LAST_SEL.rid === rid && Date.now() - LAST_SEL.at < 60000;
+  if (fresh) key = LAST_SEL.key;          // 文字を選んでいれば、その文字がある欄を引用する
+  q = QSECS.find(x => x[0] === key);
   let text = fresh ? LAST_SEL.text : String(r[key] || '').trim();
   if (!fresh && text.length > 160) text = text.slice(0, 160) + '…';
   LAST_SEL = null;
@@ -1417,24 +1429,71 @@ function flashSec(rid, key){
   el.classList.add('qhit'); setTimeout(() => el.classList.remove('qhit'), 1600);
 }
 
-function openComment(id, keep){
+const EDIT_CMT = {};   // 日報id → 編集中のコメントid
+
+function openComment(id, keep, initText){
   const box = document.getElementById('cbox_' + id); if (!box) return;
   const cur = document.getElementById('ci_' + id);
-  const val = cur ? cur.value : '';
-  if (!keep) CQ[id] = CQ[id] || [];
+  const val = initText !== undefined ? initText : (cur ? cur.value : '');
+  if (!keep){ CQ[id] = CQ[id] || []; if (initText === undefined) delete EDIT_CMT[id]; }
+  const ed = EDIT_CMT[id];
   box.innerHTML =
-    `<label>コメント</label><div id="cq_${id}"></div>
+    `<label>${ed ? 'コメントを編集' : 'コメント'}</label><div id="cq_${id}"></div>
      <textarea id="ci_${id}" style="min-height:64px"></textarea>
-     <button class="act" style="margin-top:8px" onclick="addComment('${id}')">コメントを送る</button>`;
+     <div class="row" style="margin-top:8px">
+       <button class="act" onclick="addComment('${id}')">${ed ? '修正を保存する' : 'コメントを送る'}</button>
+       ${ed ? `<button class="ghost" onclick="cancelEditComment('${id}')">キャンセル</button>
+         <span class="note">編集してもChatworkへの再通知はされません</span>` : ''}
+     </div>`;
   drawQuotes(id);
   const ta = document.getElementById('ci_' + id);
   ta.value = val; ta.focus();
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+function editComment(rid, cid){
+  const r = REPORTS.find(x => x.id === rid); if (!r) return;
+  const c = (r.report_comments || []).find(x => x.id === cid); if (!c) return;
+  const p = parseQuotedBody(c.body);
+  CQ[rid] = p.quotes.map(q => ({ key: q.key, label: q.label, cls: q.cls, text: q.text }));
+  EDIT_CMT[rid] = cid;
+  document.querySelectorAll('.cmt.editing').forEach(el => el.classList.remove('editing'));
+  const el = document.getElementById('cm_' + cid); if (el) el.classList.add('editing');
+  openComment(rid, true, p.text);
+}
+function cancelEditComment(rid){
+  delete EDIT_CMT[rid]; delete CQ[rid];
+  const el = document.querySelector('.cmt.editing'); if (el) el.classList.remove('editing');
+  const box = document.getElementById('cbox_' + rid); if (box) box.innerHTML = '';
+}
+async function deleteComment(cid){
+  if (!confirm('このコメントを削除します。元に戻せません。よろしいですか。')) return;
+  const { data, error } = await EC.supabase.from('report_comments').delete().eq('id', cid).select('id');
+  if (error){ toast('削除できませんでした: ' + error.message); return; }
+  if (!data || !data.length){ toast('削除の権限がありません（管理者に SQL の実行を依頼してください）'); return; }
+  await loadReports(); render(); toast('コメントを削除しました');
+}
+async function saveEditedComment(rid, cid, body){
+  const now = new Date().toISOString();
+  let res = await EC.supabase.from('report_comments')
+    .update({ body: body, edited_at: now }).eq('id', cid).eq('author_id', ME.id).select('id');
+  if (res.error && /edited_at/.test(res.error.message))      // 列がまだ無い場合は本文だけ更新
+    res = await EC.supabase.from('report_comments')
+      .update({ body: body }).eq('id', cid).eq('author_id', ME.id).select('id');
+  if (res.error){ toast('保存できませんでした: ' + res.error.message); return false; }
+  if (!res.data || !res.data.length){ toast('編集できませんでした（自分のコメントのみ編集できます）'); return false; }
+  return true;
+}
 async function addComment(id){
   const text = document.getElementById('ci_' + id).value.trim();
   if (!text){ toast('コメントを入力してください'); return; }
   const body = buildQuotedBody(id, text);
+  if (EDIT_CMT[id]){
+    const ok = await saveEditedComment(id, EDIT_CMT[id], body);
+    if (!ok) return;
+    delete EDIT_CMT[id]; delete CQ[id];
+    await loadReports(); render(); toast('コメントを修正しました');
+    return;
+  }
   const { error } = await EC.supabase.from('report_comments')
     .insert({ report_id: id, author_id: ME.id, body });
   if (error){ toast('保存できませんでした: ' + error.message); return; }
