@@ -207,7 +207,8 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .bar{height:6px;background:#E8EDF3;border-radius:99px;overflow:hidden;min-width:70px;flex:1}
 .bar i{display:block;height:100%;background:var(--accent)}
 .bar.warn i{background:var(--warn)}
-.rep{border:1px solid var(--line);border-radius:12px;background:#fff;padding:15px;margin-bottom:12px}
+.rep{border:1px solid var(--line);border-radius:12px;background:#fff;padding:15px;margin-bottom:12px;
+  content-visibility:auto;contain-intrinsic-size:auto 480px}
 .rep .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .rep .nm{font-weight:700}
 .sec{margin-top:10px;padding-left:11px;border-left:3px solid #E8EDF3}
@@ -460,6 +461,7 @@ async function boot(){
   await loadReports();
   if (OPEN_ID) TAB = 'feed';
   render();
+  startSubWatch();
 }
 
 async function loadReports(fromDate){
@@ -481,7 +483,7 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 
 /* ---------- 画面枠 ---------- */
 function render(){
-  const nUnread = myNotifs().length;
+  const nUnread = myNotifs().length + subNotifs().length;
   // 日報を書くのは上のオレンジのボタンに集約したので、ナビからは外す
   TABS = [['weekly','週次報告を書く'],['feed','日報一覧']]
     .concat([
@@ -495,6 +497,127 @@ function render(){
   document.getElementById('view').innerHTML =
     ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, result:vResult, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
   drawHeaderStats();   // ヘッダーのボタン・連続提出・達成率・吹き出しを更新
+  updateAppBadge();
+}
+
+/* ナビだけ描き直す（入力中の画面を壊さないため、定期チェックではこちらを使う） */
+function drawNav(){
+  const nav = document.getElementById('nav'); if (!nav || !ME) return;
+  const n = myNotifs().length + subNotifs().length;
+  const b = nav.querySelector('button[onclick="go(\'notify\')"]');
+  if (!b) return;
+  const dot = b.querySelector('.navdot');
+  if (n){ if (dot) dot.textContent = n; else b.insertAdjacentHTML('beforeend', ' <span class="navdot">' + n + '</span>'); }
+  else if (dot) dot.remove();
+}
+
+/* ================= 部下の日報が届いたときの通知 =================
+   直属の部下が日報を提出したら、上司に「通知」タブ・ナビの件数・アプリのアイコン・ブラウザのタブで知らせる。
+   上司が「確認済みにする」を押すまで通知は消えない。 */
+const SUB_DAYS = 14;            // 何日前までの未確認を通知に出すか
+let SUB_POLL = {};              // 定期チェックで取った部下の日報（id → 行）
+let SUB_KNOWN = null;           // すでに知っている日報id（新着の判定用）
+let SUB_TIMER = null;
+
+function mySubIds(){ return USERS.filter(u => u.manager_id === ME.id).map(u => u.id); }
+
+function subNotifs(){
+  if (!ME) return [];
+  const subs = mySubIds(); if (!subs.length) return [];
+  const since = addDays(TODAY, -SUB_DAYS);
+  const map = {};
+  Object.values(SUB_POLL).concat(REPORTS).forEach(r => {
+    if (!r || subs.indexOf(r.author_id) < 0 || r.status !== 'submitted' || r.report_date < since) return;
+    const seen = (r.report_views || []).some(v => v.viewer_id === ME.id);
+    const prev = map[r.id];
+    map[r.id] = { r: prev && prev.r.voice !== undefined ? prev.r : r, seen: seen || (prev && prev.seen) };
+  });
+  return Object.values(map).filter(x => !x.seen).map(x => x.r)
+    .sort((a,b) => String(b.submitted_at || b.report_date).localeCompare(String(a.submitted_at || a.report_date)));
+}
+
+async function pollSubReports(){
+  if (!ME) return;
+  const subs = mySubIds(); if (!subs.length) return;
+  const { data, error } = await EC.supabase.from('daily_reports')
+    .select('id,author_id,report_date,status,submitted_at,importance,report_views(viewer_id)')
+    .in('author_id', subs).eq('status', 'submitted').gte('report_date', addDays(TODAY, -SUB_DAYS));
+  if (error){ console.warn('pollSubReports', error.message); return; }
+  SUB_POLL = {}; (data || []).forEach(r => { SUB_POLL[r.id] = r; });
+  const list = subNotifs();
+  if (SUB_KNOWN){
+    const fresh = list.filter(r => !SUB_KNOWN[r.id]);
+    if (fresh.length){
+      toast(fresh.map(r => uname(r.author_id)).join('、') + 'さんの日報が届きました');
+      desktopNotify(fresh);
+      if (TAB === 'notify' && !document.querySelector('#view textarea:focus, #view input:focus')) render();
+    }
+  }
+  SUB_KNOWN = SUB_KNOWN || {};
+  list.forEach(r => { SUB_KNOWN[r.id] = true });
+  drawNav(); updateAppBadge();
+}
+
+function startSubWatch(){
+  if (SUB_TIMER || !mySubIds().length) { updateAppBadge(); return; }
+  pollSubReports();
+  SUB_TIMER = setInterval(() => { if (document.visibilityState === 'visible') pollSubReports(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollSubReports(); });
+}
+
+/* アプリのアイコン（ホーム画面・タスクバー）とブラウザのタブに件数を出す */
+let FAV_ORIG = null, FAV_IMG = null;
+function updateAppBadge(){
+  if (!ME) return;
+  const n = myNotifs().length + subNotifs().length;
+  try {
+    if (navigator.setAppBadge){ n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); }
+  } catch(e){}
+  const base = document.title.replace(/^\(\d+\)\s*/, '');
+  document.title = n ? '(' + n + ') ' + base : base;
+  drawFavBadge(n);
+}
+function drawFavBadge(n){
+  const link = document.querySelector('link[rel="icon"]'); if (!link) return;
+  if (!FAV_ORIG) FAV_ORIG = link.href;
+  if (!n){ link.href = FAV_ORIG; return; }
+  const paint = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const x = c.getContext('2d');
+    try { x.drawImage(FAV_IMG, 0, 0, 32, 32); } catch(e){}
+    x.fillStyle = '#E0431B'; x.beginPath(); x.arc(22, 10, 10, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#fff'; x.font = 'bold 14px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(n > 9 ? '9+' : String(n), 22, 11);
+    try { link.href = c.toDataURL('image/png'); } catch(e){}
+  };
+  if (FAV_IMG && FAV_IMG.complete) return paint();
+  FAV_IMG = new Image(); FAV_IMG.onload = paint; FAV_IMG.onerror = paint; FAV_IMG.src = FAV_ORIG;
+}
+
+/* パソコン・スマホの通知（アプリを開いている間、または裏に置いている間に届く） */
+function desktopNotify(list){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  list.slice(0, 3).forEach(r => {
+    try {
+      const d = new Date(r.report_date);
+      const nt = new Notification('部下の日報が届きました', {
+        body: uname(r.author_id) + 'さん　' + (d.getMonth()+1) + '/' + d.getDate() + 'の日報' + (r.importance >= 4 ? '【要判断】' : ''),
+        icon: FAV_ORIG || './favicon-32.png', tag: 'nippo-' + r.id
+      });
+      nt.onclick = () => { window.focus(); openSubNotif(r.id); nt.close(); };
+    } catch(e){}
+  });
+}
+async function enableDesktopNotify(){
+  if (!('Notification' in window)){ toast('このブラウザは通知に対応していません'); return; }
+  const p = await Notification.requestPermission();
+  toast(p === 'granted' ? '通知をオンにしました' : '通知が許可されませんでした（ブラウザの設定から許可できます）');
+  render();
+}
+async function openSubNotif(reportId){
+  if (!REPORTS.some(r => r.id === reportId)) await loadReports();
+  OPEN_ID = reportId; LEVEL_FILTER = 0; FEED_FILTER = ''; TAB = 'feed';
+  render(); window.scrollTo(0,0);
 }
 
 /* ---------- ナビのアイコン ---------- */
@@ -1078,8 +1201,26 @@ function vNotify(){
     .map(c => ({ c: c, r: r })))
     .sort((a,b) => String(b.c.created_at).localeCompare(String(a.c.created_at))).slice(0, 10);
 
+  const subs = subNotifs();
+  const canPush = ('Notification' in window);
+  const pushOn = canPush && Notification.permission === 'granted';
   return `<h2>通知</h2>
-  <p class="sub">自分の日報についたコメントと、部下からの返信が届きます。</p>
+  <p class="sub">部下から届いた日報、自分の日報についたコメント、部下からの返信が届きます。</p>
+  ${canPush && !pushOn && mySubIds().length ? `<div class="card" style="background:#FBF3DE;border-color:#EBD9A6">
+    <b>パソコン・スマホにも通知を出しますか？</b>
+    <p class="note" style="margin:4px 0 8px">オンにすると、アプリを裏で開いている間に部下の日報が届いたとき、画面の隅に通知が出ます。</p>
+    <button class="ghost" onclick="enableDesktopNotify()">通知をオンにする</button></div>` : ''}
+  ${mySubIds().length ? `<div class="card"><h3>部下の日報（未確認）${subs.length}件</h3>
+    ${subs.length ? subs.map(r => `<div class="hotrow" onclick="openSubNotif('${r.id}')">
+      <div class="row" style="gap:7px">
+        <span class="pill p4">未確認</span>
+        <b>${esc(uname(r.author_id))}</b>
+        <span class="note">${r.report_date} の日報が届きました</span>
+        ${r.importance >= 4 ? '<span class="pill p5">要判断</span>' : ''}
+        <span class="note num" style="margin-left:auto">${r.submitted_at ? String(r.submitted_at).slice(5,16).replace('T',' ') : ''}</span>
+      </div></div>`).join('')
+      : '<div class="empty">未確認の日報はありません。</div>'}
+    <p class="note" style="margin-top:8px">日報を開いて「確認済みにする」を押すと、この一覧から消えます。</p></div>` : ''}
   ${list.length ? `<div class="row" style="margin-bottom:12px">
       <button class="ghost" onclick="markAllRead()">すべて既読にする</button></div>` : ''}
   <div class="card"><h3>未読 ${list.length}件</h3>
@@ -1195,7 +1336,27 @@ function vFeed(){
         <button class="ghost" style="margin-left:auto" onclick="clearLevel()">絞り込みを解除</button></div></div>`
     : `<p class="sub">直近30日／直属部下を先頭に表示しています</p>`);
   if (!list.length) return head + '<div class="empty">該当する日報がありません。</div>';
-  return head + list.map(card).join('');
+  const key = [FEED_FROM, FEED_TO, FEED_DEPT, FEED_USER, FEED_FILTER, LEVEL_FILTER].join('|');
+  if (key !== FEED_KEY){ FEED_KEY = key; FEED_SHOW = FEED_STEP; }
+  return head + `<div id="feedList">${list.slice(0, FEED_SHOW).map(card).join('')}</div>` + feedMoreHtml(list.length);
+}
+
+/* ---------- 一覧は30件ずつ表示 ----------
+   日報を全件いっぺんに描くとページが非常に重くなり、コメント入力（特に日本語入力）が遅れるため。 */
+const FEED_STEP = 30;
+let FEED_SHOW = FEED_STEP, FEED_KEY = '';
+function feedMoreHtml(total){
+  const rest = total - FEED_SHOW;
+  return rest > 0 ? `<div id="feedMore" style="text-align:center;margin:6px 0 24px">
+      <button class="ghost" onclick="feedMore()">さらに${Math.min(FEED_STEP, rest)}件を表示（残り${rest}件）</button></div>`
+    : '<div id="feedMore"></div>';
+}
+function feedMore(){
+  const list = feedFilteredList();
+  const box = document.getElementById('feedList'); if (!box) return;
+  box.insertAdjacentHTML('beforeend', list.slice(FEED_SHOW, FEED_SHOW + FEED_STEP).map(card).join(''));
+  FEED_SHOW += FEED_STEP;
+  document.getElementById('feedMore').outerHTML = feedMoreHtml(list.length);
 }
 
 function card(r){
@@ -1461,7 +1622,7 @@ function openComment(id, keep, initText){
   const ed = EDIT_CMT[id];
   box.innerHTML =
     `<label>${ed ? 'コメントを編集' : 'コメント'}</label><div id="cq_${id}"></div>
-     <textarea id="ci_${id}" style="min-height:64px"></textarea>
+     <textarea id="ci_${id}" style="min-height:64px" spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
      <div class="row" style="margin-top:8px">
        <button class="act" onclick="addComment('${id}')">${ed ? '修正を保存する' : 'コメントを送る'}</button>
        ${ed ? `<button class="ghost" onclick="cancelEditComment('${id}')">キャンセル</button>
