@@ -477,8 +477,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.29b";
+const APP_VERSION = "ver.2026.09.29c";
 const CHANGELOG = [
+  ["ver.2026.09.29c","発電所の詳細画面に【お客様用レポート（PDF）】を追加。A4一枚の概算シミュレーションを表示し、印刷・PDF保存してお客様に渡せます（社内判定の高・中・低は載せません）。"],
   ["ver.2026.09.29b","再取込時、同じ発電所は新しいファイルの内容で丸ごと置き換えるよう変更（以前の取込で入った誤ったFIT単価「2012」などが残る不具合を修正）。手入力した単価は引き継ぎ。"],
   ["ver.2026.09.29","運転開始日を「運転開始報告年月」から取り込むよう修正（これまで空欄の多い「運転開始予定日」を読んでいた）。「2014年11月」形式の年月を読めるようにし、運転開始報告年月＋FIT期間20年から本日時点の残FIT年数とFIT終了月を自動計算。再取込は空欄だけでなく最新値で上書きし、手入力した単価は残す。Shift_JISのCSVに対応。表記「連系出力／交流出力」を「発電出力」に統一。"],
   ["ver.2026.09.15b","企業一覧の画面でCSV出力が直前の会社の件数しか出力されない不具合を修正。検索結果の全社・全発電所が出力されるようにし、ボタンに出力件数を表示。"],
@@ -1050,7 +1051,8 @@ function openDetail(id){
     </div>
   </div>
   <div class="actions">
-    <button id="copyChatwork">Chatwork用にコピー</button>
+    <button id="custReport">お客様用レポート（PDF）</button>
+    <button class="ghost" id="copyChatwork">Chatwork用にコピー</button>
     <button class="ghost" id="copyTalk">お客様提示用の文章をコピー</button>
     <button class="ghost" data-goto2="config">計算の前提を見る</button>
   </div>`;
@@ -1058,6 +1060,7 @@ function openDetail(id){
   document.getElementById('detailBody').innerHTML = head + body;
   bindFitOverride(p);
   document.getElementById('copyChatwork').onclick = ()=>copyText(chatworkText(p,r),'Chatwork用の文章をコピーしました');
+  document.getElementById('custReport').onclick = ()=>customerReport(p,r);
   document.getElementById('copyTalk').onclick = ()=>copyText(talkText(p,r),'提示用の文章をコピーしました');
   document.querySelector('[data-goto2]').onclick = ()=>{
     document.querySelector('nav.tabs button[data-tab="config"]').click();
@@ -1229,6 +1232,120 @@ function talkText(p,r){
   `工事費用は約${man(r.cost)}万円、回収までが約${f1(r.payback)}年。`+
   `残りのFIT期間が${r.remain}年ですので、回収後も約${r.surplus!=null?f1(r.surplus):'—'}年間はそのまま利益として残る計算です。`;
 }
+/* ---------- お客様用レポート（A4・PDF保存） ---------- */
+function customerReport(p,r){
+  const logo = new URL('earthcom-logo.png', location.href).href;
+  const today = new Date();
+  const d = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const nowInc = (r.genKwh!=null && r.fit) ? r.genKwh*r.fit : null;
+  const afterInc = nowInc!=null && r.addIncome!=null ? nowInc + r.addIncome : null;
+  const pct = afterInc ? Math.round(nowInc/afterInc*100) : 0;
+  const addr = [p.pref, p.city].filter(Boolean).join(' ');
+  const row = (k,v,s)=>`<tr><th>${k}</th><td>${v}${s?`<small>${s}</small>`:''}</td></tr>`;
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReFort概算試算_${esc(p.company||'')}_${today.toISOString().slice(0,10)}</title>
+<style>
+@page{size:A4;margin:12mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;color:#10243a;background:#e9eef3}
+.sheet{width:210mm;min-height:297mm;margin:10px auto;background:#fff;padding:14mm 14mm 12mm}
+@media print{body{background:#fff}.sheet{margin:0;width:auto;min-height:auto;padding:0}.bar-tool{display:none}}
+.bar-tool{max-width:210mm;margin:10px auto 0;display:flex;gap:8px;justify-content:flex-end}
+.bar-tool button{font:inherit;font-weight:700;padding:10px 18px;border-radius:10px;border:0;background:#0E3355;color:#fff;cursor:pointer}
+header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0E3355;padding-bottom:10px}
+header h1{font-size:20px;margin:0 0 4px}
+header .sub{font-size:11px;color:#5a6b7c}
+header img{height:34px}
+.to{display:flex;justify-content:space-between;align-items:flex-end;margin:14px 0 12px}
+.to .name{font-size:18px;font-weight:700;border-bottom:1px solid #10243a;padding:0 6px 3px}
+.to .meta{font-size:11px;text-align:right;color:#5a6b7c;line-height:1.7}
+h2{font-size:13px;background:#0E3355;color:#fff;padding:6px 10px;margin:16px 0 8px;border-radius:4px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{border:1px solid #d5dde6;border-radius:8px;padding:10px 12px}
+.kpi .l{font-size:11px;color:#5a6b7c}
+.kpi .v{font-size:22px;font-weight:800;margin-top:2px}
+.kpi .v small{font-size:12px;font-weight:700;margin-left:2px}
+.kpi.hl{background:#fff5ea;border-color:#f3b36b}.kpi.hl .v{color:#e2760e}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border-bottom:1px solid #e3e8ee;padding:6px 8px;text-align:left;vertical-align:top}
+th{width:34%;color:#5a6b7c;font-weight:600}
+td{font-weight:700}
+td small{display:block;font-weight:400;color:#7a8896;font-size:10px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bars{font-size:12px}
+.bars .b{margin:6px 0}
+.bars .t{display:flex;justify-content:space-between;margin-bottom:3px}
+.bars .track{height:18px;background:#eef2f6;border-radius:4px;overflow:hidden;display:flex}
+.bars .now{background:#0E3355}.bars .add{background:#f28c1b}
+.note{font-size:10px;color:#5a6b7c;line-height:1.7;margin-top:14px;border-top:1px solid #d5dde6;padding-top:8px}
+footer{display:flex;justify-content:space-between;font-size:10px;color:#5a6b7c;margin-top:10px}
+</style></head><body>
+<div class="bar-tool"><button onclick="window.print()">印刷・PDFで保存</button></div>
+<div class="sheet">
+<header>
+  <div><h1>ReFort 発電量改善 概算シミュレーション</h1>
+  <div class="sub">既設太陽光発電所の再資産化（リパワリング）による売電収入増加の目安</div></div>
+  <img src="${logo}" alt="株式会社アースコム" onerror="this.style.display='none'">
+</header>
+<div class="to">
+  <div class="name">${esc(p.company||'')}　御中</div>
+  <div class="meta">作成日：${d}<br>株式会社アースコム<br>担当：＿＿＿＿＿＿＿＿</div>
+</div>
+
+<h2>試算結果（年間・概算）</h2>
+<div class="kpis">
+  <div class="kpi hl"><div class="l">増加売電収入</div><div class="v">+${man(r.addIncome)}<small>万円/年</small></div></div>
+  <div class="kpi"><div class="l">工事費用（概算）</div><div class="v">${man(r.cost)}<small>万円</small></div></div>
+  <div class="kpi"><div class="l">費用回収年数</div><div class="v">${f1(r.payback)}<small>年</small></div></div>
+  <div class="kpi"><div class="l">残りFIT期間</div><div class="v">${r.remain!=null?r.remain:'—'}<small>年</small></div></div>
+  <div class="kpi"><div class="l">残りFIT期間の増収合計</div><div class="v">${man(r.totalGain)}<small>万円</small></div></div>
+  <div class="kpi hl"><div class="l">工事費を差し引いた純増</div><div class="v">${r.netGain!=null?(r.netGain>=0?'+':'')+man(r.netGain):'—'}<small>万円</small></div></div>
+</div>
+
+<div class="cols">
+  <div>
+    <h2>発電所の概要</h2>
+    <table>
+      ${row('所在地', esc(addr||'—'))}
+      ${row('パネル容量', r.panelKw?f1(r.panelKw)+' kW':'—')}
+      ${row('発電出力（PCS）', r.pcsKw?f1(r.pcsKw)+' kW':'—')}
+      ${row('過積載率', r.overload!=null?f2(r.overload):'—')}
+      ${row('認定年度・FIT単価', `${r.certYear!=null?r.certYear+'年度':'—'}・${r.fit?r.fit+' 円/kWh':'—'}`)}
+      ${row('運転開始', p.startDate?fmtYM(p.startDate):'—')}
+      ${row('FIT終了（見込み）', r.fitEnd?fmtYM(r.fitEnd)+'末':'—', r.fitEnd?`本日時点で残り約${f1(Math.max(0,r.remainRaw))}年`:'')}
+    </table>
+  </div>
+  <div>
+    <h2>売電収入の変化（年間）</h2>
+    <div class="bars">
+      <div class="b"><div class="t"><span>現状</span><b>${man(nowInc)} 万円/年</b></div>
+        <div class="track"><div class="now" style="width:${pct}%"></div></div></div>
+      <div class="b"><div class="t"><span>ReFort実施後</span><b>${man(afterInc)} 万円/年</b></div>
+        <div class="track"><div class="now" style="width:${pct}%"></div><div class="add" style="width:${100-pct}%"></div></div></div>
+    </div>
+    <table style="margin-top:10px">
+      ${row('現状の年間発電量', yen(r.genKwh)+' kWh')}
+      ${row('発電量改善率', CFG.improveRate+' %')}
+      ${row('増加発電量', yen(r.addKwh)+' kWh/年')}
+      ${row('回収後に利益となる期間', r.surplus!=null?'約'+f1(Math.max(0,r.surplus))+' 年':'—')}
+    </table>
+  </div>
+</div>
+
+<div class="note">
+  ※本資料は、公表されている発電設備の認定情報をもとにした概算です。実際の発電量・工事費用・効果は、現地調査と設備の状態により確定します。<br>
+  ※現状の年間発電量はパネル容量1kWあたり${CFG.panelYield.toLocaleString()}kWh/年、工事費用はパネル容量1kWあたり${yen(CFG.costPerKw)}円で算出しています。<br>
+  ※FIT単価は認定年度の調達価格、残りFIT期間は運転開始年月から${CFG.fitTerm}年で算出しています。<br>
+  ※増加売電収入・増収合計は、改善後の発電量が残りFIT期間中一定と仮定した目安です。
+</div>
+<footer><span>株式会社アースコム　ReFort（リフォート）</span><span>${APP_VERSION}</span></footer>
+</div></body></html>`;
+  const w = window.open('', '_blank');
+  if(!w){ toast('ポップアップがブロックされました。許可してからもう一度押してください'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
 function copyText(t,msg){
   navigator.clipboard.writeText(t).then(()=>toast(msg))
     .catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(msg); });
@@ -1629,7 +1746,8 @@ function buildManual(){
       2. 発電所一覧から、判定と増加売電収入を見て提案する発電所を選ぶ<br>
       3. 詳細画面の数字をお客様に見せながら説明する<br>
       4. 「お客様提示用の文章をコピー」で読み上げ文が取れます<br>
-      5. 商談後は「Chatwork用にコピー」でそのまま社内共有できます`],
+      5. 「お客様用レポート（PDF）」でA4一枚の資料が開きます。【印刷・PDFで保存】からPDFにしてお渡しください（iPadは共有ボタン→プリント→ピンチで拡大→共有でPDF保存）<br>
+      6. 商談後は「Chatwork用にコピー」でそのまま社内共有できます`],
     ['判定の意味',
      `【高】回収余剰${CFG.judgeHigh}年以上。回収後も長く利益が残るため最優先で現調へ。<br>
       【中】${CFG.judgeMid}〜${CFG.judgeHigh}年。条件を詰めれば十分成立します。<br>
