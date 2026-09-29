@@ -161,6 +161,10 @@ th.n{font-family:inherit;font-size:12px}
 .chain li:last-child{font-weight:700;color:var(--red)}
 .point{background:var(--amber-bg);border-radius:10px;padding:8px 12px;font-size:13px;margin-top:6px}
 .fix{border-radius:12px;padding:10px 14px;margin-bottom:10px}
+.cm-item{border-top:1px solid var(--line);padding:12px 0}.cm-item>summary{cursor:pointer;list-style:none}.cm-item>summary::-webkit-details-marker{display:none}
+.cm-row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;border-top:1px solid var(--line);padding:12px 0}.cm-row.off{opacity:.55}
+.cb{display:inline-flex;align-items:center;gap:5px;margin:0 14px 6px 0;font-size:13.5px;cursor:pointer}
+.stamp-box.cm-edit{max-width:680px;width:94vw;text-align:left;max-height:90vh;overflow:auto}
 .fix.q{background:#E8F2FC} .fix.t{background:var(--green-bg)} .fix.r{background:#F2F5F8}
 .fix b{display:block;font-size:12px;color:var(--muted)}
 .ladder{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -232,7 +236,7 @@ th.n{font-family:inherit;font-size:12px}
 .think .cloud span:nth-child(2){animation-delay:.2s}.think .cloud span:nth-child(3){animation-delay:.4s}
 @keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-5px);opacity:1}}
 @keyframes pop{0%{transform:scale(.6);opacity:0}12%,85%{transform:scale(1);opacity:1}100%{transform:scale(.9);opacity:0}}
-.q{position:absolute;font-weight:900;color:#3FA9F5;font-size:22px;opacity:0;text-shadow:0 2px 6px rgba(63,169,245,.3)}
+.coach-stage .q{position:absolute;font-weight:900;color:#3FA9F5;font-size:22px;opacity:0;text-shadow:0 2px 6px rgba(63,169,245,.3)}
 .q1{left:36px;top:26px;animation:qpop 3.2s .3s infinite}.q2{left:18px;top:56px;font-size:16px;animation:qpop 3.2s 1.9s infinite}
 @keyframes qpop{0%{opacity:0;transform:translateY(8px) scale(.6) rotate(-10deg)}15%,45%{opacity:1;transform:translateY(0) scale(1) rotate(8deg)}60%,100%{opacity:0;transform:translateY(-8px) scale(.8) rotate(0)}}
 .tw{position:absolute;color:#F5B82E;font-size:16px;animation:twinkle 1.8s ease-in-out infinite}
@@ -248,7 +252,7 @@ th.n{font-family:inherit;font-size:12px}
 .coach-stage.eureka .bulb{animation:bulb .6s ease-out both}
 @keyframes jump{0%{transform:translateY(0) scale(1,1)}30%{transform:translateY(4px) scale(1.06,.92)}60%{transform:translateY(-22px) scale(.96,1.05)}100%{transform:translateY(0) scale(1,1)}}
 @keyframes bulb{0%{opacity:0;transform:scale(.3) translateY(10px)}60%{opacity:1;transform:scale(1.25) translateY(-4px)}100%{opacity:1;transform:scale(1) translateY(0)}}
-@media (prefers-reduced-motion:reduce){.coach-body,.coach-body img,.shadow,.think *,.think .cloud,.q,.tw,.coach-stage.eureka .coach-body,.coach-stage.eureka .bulb{animation:none!important}.q{display:none}.coach-stage.eureka .bulb{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.coach-body,.coach-body img,.shadow,.think *,.think .cloud,.coach-stage .q,.tw,.coach-stage.eureka .coach-body,.coach-stage.eureka .bulb{animation:none!important}.coach-stage .q{display:none}.coach-stage.eureka .bulb{opacity:1;transform:none}}
 .tdots{display:inline-flex;gap:4px;padding:4px 2px}.tdots i{width:7px;height:7px;border-radius:50%;background:#8FA9C4;animation:dot 1.2s infinite}.tdots i:nth-child(2){animation-delay:.2s}.tdots i:nth-child(3){animation-delay:.4s}
 .lv{display:inline-block;color:#fff;font-weight:900;font-size:13px;padding:2px 12px;border-radius:999px;letter-spacing:.06em}
 .stamp-card{border-top:5px solid var(--sc)}
@@ -663,7 +667,7 @@ const ICON = {
   cloud: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FA0F2"/><stop offset="1" stop-color="#1459B8"/></linearGradient></defs><path d="M18 50h30a12 12 0 0 0 1.5-23.9A17 17 0 0 0 16.4 29 10.5 10.5 0 0 0 18 50z" fill="url(#cg)"/><path d="M32 44V29m-7 6.5 7-7 7 7" stroke="#fff" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 };
 
-const NAV = [['grp','営業担当'],['home','plus','商談をAI分析'],['karte','list','育成カルテ'],['bank','gem','断り文句BANK'],['cases','book','事例ライブラリ'],['roleplay','play','AIロープレ'],['course','trophy','学習コース'],['predict','target','商談前予測'],
+const NAV = [['grp','営業担当'],['home','plus','商談をAI分析'],['karte','list','育成カルテ'],['bank','gem','断り文句BANK'],['cases','book','事例ライブラリ'],['roleplay','play','AIロープレ'],['course','trophy','学習コース'],['predict','target','商談前予測'],['common','bulb','よくある断り文句'],
   ['grp','責任者・社長'],['dash','chart','転換率ダッシュボード'],['learn','bars','学習進捗ボード'],['ceo','star','社長画面'],['kpi','gear','KPI設定'],['grp','ヘルプ'],['guide','help','使い方ガイド']];
 document.getElementById('nav').innerHTML = NAV.map(n=>n[0]==='grp'?`<div class="grp">${n[1]}</div>`:`<button data-v="${n[0]}">${ICON[n[1]]}<span>${n[2]}</span></button>`).join('');
 const ROLE_JA = { admin:'管理者', manager:'マネージャー', sales:'営業', field:'現場', viewer:'閲覧のみ' };
@@ -1067,41 +1071,245 @@ function setupMic(){
 }
 
 /* ============ ⑤ 商談前予測 ============ */
+/* よくある断り文句（事前登録）：sales_coach_settings の common_objections に保存 */
+const COMMON_KEY = 'common_objections';
+const PHASES = ['序盤','中盤','終盤'];
+const PHASE_HINT = { '序盤':'初回商談〜無料診断・要件整理', '中盤':'現調・提案・稟議', '終盤':'見積確定・合意・契約' };
+const IND_LIST = ['EPC・施工会社','一般事業会社','個人投資家','発電事業者（SPC等）','不動産・金融','その他'];
+const LEVELS = ['高','中','低'];
+const RF = ['ReFort（高圧）','ReFort（低圧）'];
+const cm = (id,objection,category,level,cond,question,talk,rebuttal) => ({ id, objection, category, level, products:cond.p||[], industries:cond.i||[], phases:cond.ph||[], keywords:cond.k||[], need_kw:!!cond.need, question, talk, rebuttal, active:true });
+const DEFAULT_COMMON = [
+  cm('d01','今の発電所で、特に困っていない','今のままで困っていない','高',{ph:['序盤'],k:['順調','問題ない','困っていない']},
+    '直近3年の発電量は、当初のシミュレーションと比べてどうですか？',
+    '困っていない発電所ほど、劣化が数字に表れる前に一度確認しておく価値があります。今日は現状を一緒に確認するだけです。',
+    'ありがとうございます。では「困っていない」を数字で裏付けるために、無料診断で現状を確認させてください。問題がなければ安心材料になります。'),
+  cm('d02','FITの残りが短いので、今から投資しても回収できない','FIT残存期間が短い','高',{p:RF,k:['FIT残り','残り','卒FIT','FIT終了']},
+    'FIT終了後、この発電所はどうされる予定ですか？（売電継続・自家消費・売却）',
+    '回収はFIT期間だけでなく、FIT終了後の売電や売却時の評価まで含めて考えるのがポイントです。',
+    'おっしゃる通り、FIT期間だけで見ると短く見えます。FIT後の運用と売却時の評価まで含めた収支で、一度比較させてください。'),
+  cm('d03','費用が高い','価格が高い','高',{ph:['中盤','終盤'],k:['高い','コスト','費用']},
+    '今回の投資は、何年で回収できれば「やる」と判断されますか？',
+    '金額だけでなく、何もしない場合の発電ロスと並べてご説明します。',
+    '金額だけ見ると高く感じますよね。何もしなかった場合に失う売電収入と並べて、どちらが得か一緒に確認させてください。'),
+  cm('d04','借入の返済中なので、追加の投資は難しい','今は投資できない','中',{k:['借入','融資','返済','ローン','リース'],need:true},
+    '現在の借入の返済は、発電所の売電収入から充てていますか？',
+    '発電量が落ちると返済の原資も減ります。返済中の発電所ほど、発電量の維持が大切です。',
+    '返済中だからこそ、売電収入を落とさないことが大切です。返済計画に無理のない進め方も含めて、ご提案させてください。'),
+  cm('d05','自社（グループ会社）で施工・メンテナンスできる','自社で施工できる','高',{i:['EPC・施工会社'],k:['自社施工','施工部隊','自社で']},
+    '過去に、自社でリパワリングや機器交換をされたことはありますか？',
+    '施工力をお持ちの会社様とは、診断・設計の部分からご一緒する形も含めてご相談しています。',
+    '施工力をお持ちなのは強みですね。診断・設計の部分だけご一緒する形も含めて、役割分担でご検討いただけませんか。'),
+  cm('d06','本当に発電量が上がるのか疑問','改善効果への疑問','高',{p:RF,ph:['序盤','中盤'],k:['劣化','発電量','効果']},
+    'どんなデータがあれば、効果を判断できそうですか？',
+    '効果は推測ではなく、現地調査と実測データをもとにお示しします。',
+    'ごもっともです。だからこそ無料診断で、この発電所の実測データから改善見込みを出します。数字を見てからご判断ください。'),
+  cm('d07','他社にも見積を取って比較したい','他社にも見積を取る','中',{ph:['中盤','終盤'],k:['相見積','他社','比較']},
+    '比較されるとき、金額以外に重視されるポイントは何ですか？',
+    '比較の際は、保証内容と施工後の保守体制も同じ条件で並べてご覧ください。',
+    'ぜひ比較してください。同じ条件で比べられるように、比較表の項目を先にお渡ししてもよろしいですか。'),
+  cm('d08','上（社長）に相談してから決めます','社長に相談します','高',{ph:['中盤','終盤'],k:['担当','課長','部長','係長']},
+    '最終的にご判断されるのはどなたですか？ その方は何を一番気にされますか？',
+    '社長様にご説明しやすいよう、要点を1枚の資料にまとめてお渡しします。',
+    'もちろんです。社長様へのご説明の場に、私も同席させていただけませんか。ご質問にその場でお答えできます。'),
+  cm('d09','今期は予算がない','今期予算がない','中',{i:['一般事業会社','不動産・金融'],k:['予算','決算','来期','期末']},
+    '来期の予算は、いつ頃どのように決まりますか？',
+    '来期の予算に間に合うよう、今のうちに判断材料をそろえておきましょう。',
+    '承知しました。来期の予算取りに間に合うよう、判断材料だけ先にそろえておきませんか。'),
+  cm('d10','O&M業者に任せているので大丈夫','今のままで困っていない','中',{k:['O&M','保守','メンテ','点検'],need:true},
+    '今のO&Mの報告書で、発電量が下がっている原因まで分かりますか？',
+    'O&Mは「止めないため」、診断は「増やすため」の視点です。役割が違います。',
+    'O&Mがしっかりしているのは安心ですね。そのうえで、発電量を増やせる余地があるかは別の視点なので、診断で確認させてください。'),
+  cm('d11','一度、検討します','検討します','中',{},
+    '検討されるとき、判断のポイントになるのはどこですか？',
+    '今日の最後に、次に何を決めるかを一緒に整理させてください。',
+    'ありがとうございます。何がそろえば判断できそうですか？ 次回の日程も、今決めておきましょう。'),
+  cm('d12','制度がまだ不透明なので、様子を見たい','今は投資できない','中',{p:['系統蓄電池','産業用蓄電池'],k:['制度','市場','補助金','様子見']},
+    'どの制度や条件がはっきりすれば、前向きに検討できますか？',
+    '制度の動きと、今決めた場合・待った場合の違いを整理してお持ちしました。',
+    '慎重なご判断は大切です。待った場合に何が変わるのかを比べられる資料をお出しするので、判断材料にしてください。'),
+  cm('d13','利回りが合わない','価格が高い','高',{p:['セカンダリー太陽光'],k:['利回り','IRR','価格']},
+    '目標にされている利回りと、重視する条件（残りのFIT期間・地域など）を教えてください。',
+    '表面利回りだけでなく、修繕履歴や発電実績も含めてご提示します。',
+    '利回りの条件、承知しました。条件に合う物件が出たら優先してご案内できるよう、ご希望を詳しく伺えますか。'),
+  cm('d14','無料診断と言っても、後で売り込まれそう','その他','中',{ph:['序盤'],k:['無料','売り込み','営業']},
+    '無料診断の結果が、どんな内容なら役に立ちそうですか？',
+    '診断は現状を知るためのものです。結果を見てから、必要かどうかをご判断ください。',
+    'そう思われますよね。まずは現状を知るための診断なので、結果を見て必要ないと思われたら、そこで終わりで大丈夫です。')
+];
+let COMMON = null;                      // null＝まだ保存していない（初期セットを使う）
+const commonList = () => COMMON || DEFAULT_COMMON;
+const canEditCommon = () => isLead();
+async function loadCommon(){
+  try{
+    let v=null;
+    if (!LOCAL){ const { data, error } = await sb.from('sales_coach_settings').select('value').eq('key',COMMON_KEY).maybeSingle(); if (error) throw error; v=data?.value; }
+    else v = JSON.parse(localStorage.getItem('scai_'+COMMON_KEY)||'null');
+    COMMON = Array.isArray(v?.items) ? v.items : null;
+  }catch(e){ console.warn('よくある断り文句の読込失敗（初期セットを使用）', e); }
+}
+async function saveCommon(items){
+  const value = { items, updated_at:new Date().toISOString(), updated_by:ME.name||ME.email };
+  if (!LOCAL){ const { error } = await sb.from('sales_coach_settings').upsert({ key:COMMON_KEY, value, updated_by:ME.email||ME.name, updated_at:value.updated_at }); if (error) throw error; }
+  else localStorage.setItem('scai_'+COMMON_KEY, JSON.stringify(value));
+  COMMON = clone(items);
+}
+/* 商談段階を「序盤・中盤・終盤」に換算（ビジネスモデルごとに段階数が違っても同じ基準で当てる） */
+function phaseOf(model, stageId){
+  const i=model.stages.findIndex(s=>s.id===stageId), n=model.stages.length;
+  if (i<0) return ''; if (n<2) return '序盤';
+  const r=i/(n-1); return r<0.34?'序盤':r<0.67?'中盤':'終盤';
+}
+/* 入力情報と事前登録の断り文句を照合し、出やすい順に並べる */
+function matchCommon(m){
+  const text = ((m.memo||'')+' '+(m.cust||'')).toLowerCase();
+  return commonList().filter(c=>c.active!==false && c.objection).map(c=>{
+    const why=[]; let sc = ({ '高':3, '中':2, '低':1 })[c.level] || 2;
+    if (c.products?.length){ if (!c.products.includes(m.prod)) return null; sc+=3; why.push('商品'); }
+    if (c.industries?.length){ if (!c.industries.includes(m.ind)) return null; sc+=2; why.push('顧客属性'); }
+    if (c.phases?.length){ if (!c.phases.includes(m.phase)) return null; sc+=2; why.push('商談段階'); }
+    let hits = (c.keywords||[]).filter(k=>k && text.includes(String(k).toLowerCase()));
+    hits = hits.filter(k=>!hits.some(o=>o!==k && o.includes(k)));   // 「FIT残り」と「残り」のような重複は長い方だけ数える
+    if (c.need_kw && !hits.length) return null;
+    if (hits.length){ sc += 5 + Math.min(hits.length-1,2); why.push('事前情報「'+hits.join('・')+'」'); }
+    const bank = c.category && c.category!=='その他' ? DATA.o.filter(o=>o.product===m.prod && o.category===c.category).length : 0;
+    if (bank){ sc += Math.min(3, Math.ceil(bank/2)); why.push('BANKで'+bank+'回'); }
+    return { ...c, score:sc, why, prob: sc>=10?'高':sc>=7?'中':'低' };
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+}
+function commonCard(c,open){
+  return `<details class="cm-item" ${open?'open':''}><summary><b>「${esc(c.objection)}」</b> <span class="tag ${c.prob==='高'?'red':c.prob==='中'?'amber':''}">出やすさ ${esc(c.prob)}</span> <span class="tag">${esc(c.category||'その他')}</span>
+    <div class="small muted" style="margin-top:3px">${c.why.length?'一致：'+esc(c.why.join('／')):'すべての商談で出やすい断り文句'}</div></summary>
+    <div style="margin-top:8px">${c.question?`<div class="fix q"><b>先に聞く</b>${esc(c.question)}</div>`:''}${c.talk?`<div class="fix t"><b>予防トーク</b>${esc(c.talk)}</div>`:''}${c.rebuttal?`<div class="fix r"><b>言われたら</b>${esc(c.rebuttal)}</div>`:''}
+    <button class="btn red sm" data-o="${esc(c.objection)}">▶ この断り文句で事前ロープレ</button></div></details>`;
+}
 VIEWS.predict = () => {
-  $('#main').innerHTML = `<h1>商談前予測</h1><p class="lead">過去の断り文句BANKから、今日の商談で出そうな断り文句と、商談前に潰すべき項目を出します。</p>
+  const n = commonList().filter(c=>c.active!==false).length;
+  $('#main').innerHTML = `<h1>商談前予測</h1><p class="lead">入力した情報と「よくある断り文句」の事前登録・過去の断り文句BANKから、今日の商談で出そうな断り文句と、商談前に潰すべき項目を出します。</p>
   <div class="panel"><div class="grid3">
     <div><label class="f">顧客名</label><input type="text" id="pCust"></div>
-    <div><label class="f">顧客属性</label><select id="pInd">${opts(['EPC・施工会社','一般事業会社','個人投資家','発電事業者（SPC等）','不動産・金融','その他'])}</select></div>
+    <div><label class="f">顧客属性</label><select id="pInd">${opts(IND_LIST)}</select></div>
     <div><label class="f">商品</label><select id="pProd">${opts(PRODUCTS)}</select></div>
     <div><label class="f">今日の商談段階 <span class="small muted" id="pModel"></span></label><select id="pStage"></select></div>
-    <div style="grid-column:span 2"><label class="f">事前情報（任意）</label><input type="text" id="pMemo" placeholder="例：系統用蓄電池で借入あり、担当は課長、FIT残り9年"></div>
-  </div><div class="go-wrap"><button class="btn go" id="pRun">断り文句を予測する</button></div></div>
-  <div id="pOut"></div>`;
+    <div style="grid-column:span 2"><label class="f">事前情報（任意）</label><input type="text" id="pMemo" placeholder="例：系統用蓄電池で借入あり、担当は課長、FIT残り9年"><div class="small muted" style="margin-top:4px">借入・FIT残り・課長・O&M・相見積 などの言葉を入れると、それに合う断り文句が出ます</div></div>
+  </div>
+  <div class="row" style="justify-content:space-between;margin-top:12px"><label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="pUseAi" checked> AIでも予測する（30秒ほどかかります）</label>
+    <span class="small muted">よくある断り文句：${n}件登録済み　<button class="btn sm" onclick="go('common')">登録・編集</button></span></div>
+  <div class="go-wrap"><button class="btn go" id="pRun">断り文句を予測する</button></div></div>
+  <div id="pCommon"></div><div id="pOut"></div>`;
   bindStageSelect('#pProd','#pStage','#pModel');
+  const bindRp = (root,m) => root.querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ RP={product:m.prod,sessionId:null,category:'商談前予測',opening:b.dataset.o,followups:[],ctx:`${m.cust||'顧客'}（${m.ind}）。商品は${m.prod}。${m.memo}`,rep:ME.name,log:[{role:'assistant',content:b.dataset.o}],result:null}; go('roleplay'); });
   $('#pRun').onclick = async ()=>{
+    const model = modelForProduct($('#pProd').value);
     const m={cust:$('#pCust').value.trim(),ind:$('#pInd').value,prod:$('#pProd').value,stage:$('#pStage').selectedOptions[0]?.textContent||'',memo:$('#pMemo').value.trim()};
+    m.phase = phaseOf(model, $('#pStage').value);
+    /* ① 事前登録の断り文句：AIを待たずにすぐ表示 */
+    const hit = matchCommon(m).slice(0,8);
+    $('#pCommon').innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">よくある断り文句（事前登録から）</h2><span class="small muted">段階：${esc(m.stage)}（${esc(m.phase)}）</span></div>
+      <p class="small muted" style="margin:6px 0 4px">商品・顧客属性・商談段階・事前情報に一致した順に並べています。上位3件は商談前に必ず準備しましょう。</p>
+      ${hit.length?hit.map((c,i)=>commonCard(c,i<3)).join(''):'<p class="muted">一致する登録がありません。【登録・編集】から追加できます。</p>'}</div>`;
+    bindRp($('#pCommon'),m);
+    $('#pOut').innerHTML='';
+    if (!$('#pUseAi').checked){ $('#pCommon').scrollIntoView({behavior:'smooth',block:'start'}); return; }
+    /* ② AI予測：事前登録と過去BANKの両方を渡す */
     const same = DATA.o.filter(o=>o.product===m.prod);
-    const stats = topCats(same).slice(0,10).map(c=>`${c.cat}：${c.count}回・失注率${c.lossRate??'-'}%・例「${c.list[0].quote}」・予防質問「${c.list[0].detail?.prevention_question||''}」`).join('\n') || '（まだデータなし。業界知識から予測）';
+    const stats = topCats(same).slice(0,10).map(c=>`${c.cat}：${c.count}回・失注率${c.lossRate??'-'}%・例「${c.list[0].quote}」・予防質問「${c.list[0].detail?.prevention_question||''}」`).join('\n') || '（まだデータなし）';
+    const reg = hit.map(c=>`「${c.objection}」（${c.category}／一致度${c.prob}／先に聞く：${c.question||'-'}）`).join('\n') || '（一致なし）';
     const prompt = `これから行う商談の「出そうな断り文句TOP5」と「商談前に潰すべき5項目」を作ってください。
-顧客：${m.cust||'未入力'}（${m.ind}）／商品：${m.prod}／段階：${m.stage}／事前情報：${m.memo||'なし'}
+顧客：${m.cust||'未入力'}（${m.ind}）／商品：${m.prod}／段階：${m.stage}（${m.phase}）／事前情報：${m.memo||'なし'}
+【会社が事前登録した、よくある断り文句（入力情報と一致した順）】
+${reg}
 【過去の断り文句BANK（同商品）】
 ${stats}
+事前登録の断り文句は、会社が確認済みの頻出パターンです。一致度が高いものはTOP5に優先して入れ、事前情報から読み取れる、この顧客ならではの断り文句も加えてください。
 JSONのみ：{"top5":[{"objection":"","probability":"高|中|低","why":"この顧客で出そうな理由"}],"preempt":[{"item":"潰す項目","question":"商談前半で聞く質問","talk":"予防トーク"}],"opening":"冒頭2分で言うべき一言","dm_plan":"意思決定者に届かせる工夫"}`;
     try{
       loading(true,'過去データから予測しています');
       const p=await aiJSON({system:companyFor(m.prod),prompt,max_tokens:2500});
       $('#pOut').innerHTML = `<div class="grid2">
-        <div class="panel"><h2>出そうな断り文句 TOP5</h2><ol style="padding-left:20px;margin:0">${(p.top5||[]).map(t=>`<li style="margin-bottom:10px"><b>${esc(t.objection)}</b> <span class="tag ${t.probability==='高'?'red':t.probability==='中'?'amber':''}">${esc(t.probability)}</span><div class="small muted">${esc(t.why)}</div></li>`).join('')}</ol></div>
+        <div class="panel"><h2>AI予測：出そうな断り文句 TOP5</h2><ol style="padding-left:20px;margin:0">${(p.top5||[]).map(t=>`<li style="margin-bottom:10px"><b>${esc(t.objection)}</b> <span class="tag ${t.probability==='高'?'red':t.probability==='中'?'amber':''}">${esc(t.probability)}</span><div class="small muted">${esc(t.why)}</div></li>`).join('')}</ol></div>
         <div class="panel"><h2>今日の商談前に潰すべき5項目</h2>${(p.preempt||[]).map(x=>`<div style="margin-bottom:12px"><b>${esc(x.item)}</b><div class="fix q" style="margin:4px 0"><b>聞く</b>${esc(x.question)}</div><div class="fix t" style="margin:0"><b>先に言う</b>${esc(x.talk)}</div></div>`).join('')}</div></div>
         <div class="panel">${coachSay('商談前のひと言アドバイス', `<b>冒頭2分：</b>${esc(p.opening)}<br><b>意思決定者に届かせる工夫：</b>${esc(p.dm_plan)}`)}
         <div class="row" style="margin-top:14px">${(p.top5||[]).slice(0,3).map(t=>`<button class="btn red sm" data-o="${esc(t.objection)}">▶「${esc(t.objection)}」を事前ロープレ</button>`).join('')}</div></div>
         ${(()=>{ const rc=relatedCases({ product:m.prod, type:'win' },5); const lc=relatedCases({ product:m.prod, type:'lose' },3); return (rc.length||lc.length)?`<div class="panel"><h2>商談前に読む：${esc(m.prod)}の事例</h2>${rc.map(caseCard).join('')}${lc.map(caseCard).join('')}</div>`:''; })()}`;
       bindCaseCards($('#pOut'));
-      document.querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ RP={product:m.prod,sessionId:null,category:'商談前予測',opening:b.dataset.o,followups:[],ctx:`${m.cust||'顧客'}（${m.ind}）。商品は${m.prod}。${m.memo}`,rep:ME.name,log:[{role:'assistant',content:b.dataset.o}],result:null}; go('roleplay'); });
-    }catch(e){ alert('予測できませんでした：'+e.message); }
+      bindRp($('#pOut'),m);
+    }catch(e){ $('#pOut').innerHTML = `<div class="panel">${coachSay('AI予測', 'AIの予測はできませんでしたが、上の「よくある断り文句」で準備はできます。（'+esc(e.message)+'）')}</div>`; }
     finally{ loading(false); }
   };
 };
+
+/* ============ ⑤-2 よくある断り文句（事前登録・編集） ============ */
+const chks = (name,arr,sel) => arr.map(v=>`<label class="cb"><input type="checkbox" name="${name}" value="${esc(v)}" ${(sel||[]).includes(v)?'checked':''}>${esc(v)}</label>`).join('');
+const chkv = (root,name) => [...root.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+const condLine = c => [c.products?.length?'商品：'+c.products.join('・'):'', c.industries?.length?'属性：'+c.industries.join('・'):'', c.phases?.length?'段階：'+c.phases.join('・'):'', c.keywords?.length?(c.need_kw?'必須キーワード：':'キーワード：')+c.keywords.join('・'):''].filter(Boolean).join('　') || '条件なし（すべての商談）';
+VIEWS.common = () => {
+  const edit = canEditCommon(), f = VIEWS.common.f || { prod:'', q:'' };
+  const list = commonList().filter(c=>(!f.prod || !c.products?.length || c.products.includes(f.prod)) && (!f.q || (c.objection+(c.keywords||[]).join(' ')+(c.category||'')).includes(f.q)));
+  $('#main').innerHTML = `<h1>よくある断り文句</h1><p class="lead">よく出る断り文句と、先に聞く質問・予防トーク・切り返しを登録します。商談前予測で、入力した商品・顧客属性・段階・事前情報に合うものが自動で出ます。</p>
+  ${COMMON?'':`<div class="panel">${coachSay('初期セットを表示中', 'いまは初期セット（例）を表示しています。自社の言い回しに直して【保存】すると、全社で使われます。')}</div>`}
+  <div class="panel"><div class="row" style="justify-content:space-between">
+    <div class="row"><select id="cmProd" style="width:auto"><option value="">すべての商品</option>${opts(PRODUCTS,f.prod)}</select><input type="text" id="cmQ" placeholder="言葉で絞り込み" value="${esc(f.q)}" style="width:200px"></div>
+    ${edit?`<div class="row"><button class="btn primary" id="cmNew">＋ 新しく登録</button><button class="btn" id="cmImport">断り文句BANKから取り込む</button><button class="btn sm" id="cmReset">初期セットに戻す</button></div>`:'<span class="tag">閲覧のみ（登録・編集は責任者）</span>'}
+  </div>
+  <p class="small muted" style="margin:10px 0 0">段階は、ビジネスモデルごとの段階を「序盤（${PHASE_HINT['序盤']}）／中盤（${PHASE_HINT['中盤']}）／終盤（${PHASE_HINT['終盤']}）」に換算して当てます。</p></div>
+  <div class="panel"><h2>登録一覧 <span class="small muted">${list.length}件</span></h2>
+  ${list.map(c=>`<div class="cm-row ${c.active===false?'off':''}"><div style="flex:1;min-width:240px"><b>「${esc(c.objection)}」</b> <span class="tag ${c.level==='高'?'red':c.level==='中'?'amber':''}">${esc(c.level||'中')}</span> <span class="tag">${esc(c.category||'その他')}</span>${c.active===false?' <span class="tag">停止中</span>':''}
+    <div class="small muted" style="margin-top:3px">${esc(condLine(c))}</div>${c.rebuttal?`<div class="small" style="margin-top:4px">切り返し：${esc(c.rebuttal)}</div>`:''}</div>
+    ${edit?`<div class="row"><button class="btn sm" data-ed="${esc(c.id)}">編集</button><button class="btn sm" data-tg="${esc(c.id)}">${c.active===false?'再開':'停止'}</button><button class="btn sm" data-del="${esc(c.id)}">削除</button></div>`:''}</div>`).join('') || '<p class="muted">該当する登録がありません。</p>'}</div>`;
+  $('#cmProd').onchange=e=>{ VIEWS.common.f={...f,prod:e.target.value}; VIEWS.common(); };
+  $('#cmQ').onchange=e=>{ VIEWS.common.f={...f,q:e.target.value.trim()}; VIEWS.common(); };
+  if (!edit) return;
+  const save = async items => { try{ await saveCommon(items); toast('保存しました'); VIEWS.common(); }catch(e){ alert('保存できませんでした：'+e.message); } };
+  $('#cmNew').onclick=()=>commonEditor(null, save);
+  $('#cmReset').onclick=()=>{ if(confirm('登録内容を初期セットに戻します。よろしいですか？')) save(clone(DEFAULT_COMMON)); };
+  $('#cmImport').onclick=()=>{
+    const cur = clone(commonList()), add=[];
+    PRODUCTS.forEach(p=>topCats(DATA.o.filter(o=>o.product===p)).filter(c=>c.cat!=='その他').slice(0,3).forEach(c=>{
+      if (cur.concat(add).some(x=>x.category===c.cat && (x.products||[]).includes(p))) return;
+      const won = c.list.find(o=>(DATA.s.find(s=>s.id===o.session_id)||{}).result==='前進' && o.detail?.rebuttal);
+      const d = c.list[0].detail||{};
+      add.push({ id:uid(), objection:c.list[0].quote||c.cat, category:c.cat, level:c.count>=5?'高':c.count>=2?'中':'低', products:[p], industries:[], phases:[], keywords:[], need_kw:false,
+        question:d.prevention_question||'', talk:d.prevention_talk||'', rebuttal:(won?.detail?.rebuttal)||d.rebuttal||'', active:true });
+    }));
+    if (!add.length) return alert('新しく取り込める断り文句はありませんでした（商品ごとの上位3分類は登録済みです）。');
+    if (confirm(`断り文句BANKの商品別・上位の分類から ${add.length}件を取り込みます。取り込んだ後に、言い回しを確認・修正してください。`)) save(cur.concat(add));
+  };
+  $('#main').onclick = e => {
+    const b=e.target.closest('button'); if(!b) return;
+    const cur = clone(commonList());
+    if (b.dataset.ed) commonEditor(cur.find(x=>x.id===b.dataset.ed), save);
+    if (b.dataset.tg){ const x=cur.find(x=>x.id===b.dataset.tg); x.active = x.active===false; save(cur); }
+    if (b.dataset.del && confirm('この断り文句を削除しますか？')) save(cur.filter(x=>x.id!==b.dataset.del));
+  };
+};
+function commonEditor(c, save){
+  const x = c || { id:uid(), objection:'', category:OBJ_CATS[0], level:'中', products:[], industries:[], phases:[], keywords:[], need_kw:false, question:'', talk:'', rebuttal:'', active:true };
+  const el=document.createElement('div'); el.className='stamp-modal';
+  el.innerHTML=`<div class="stamp-box cm-edit"><h2>${c?'断り文句を編集':'断り文句を登録'}</h2>
+    <label class="f">断り文句（お客様の言い方で）</label><input type="text" id="eObj" value="${esc(x.objection)}" placeholder="例：FITの残りが短いので、今から投資しても回収できない">
+    <div class="grid2" style="gap:12px;margin-top:10px"><div><label class="f">分類</label><select id="eCat">${opts(OBJ_CATS,x.category)}</select></div><div><label class="f">出やすさ</label><select id="eLv">${opts(LEVELS,x.level)}</select></div></div>
+    <label class="f" style="margin-top:12px">出やすい商品 <span class="small muted">（空欄＝すべて）</span></label><div>${chks('eP',PRODUCTS,x.products)}</div>
+    <label class="f" style="margin-top:8px">出やすい顧客属性 <span class="small muted">（空欄＝すべて）</span></label><div>${chks('eI',IND_LIST,x.industries)}</div>
+    <label class="f" style="margin-top:8px">出やすい商談段階 <span class="small muted">（空欄＝すべて）</span></label><div>${PHASES.map(p=>`<label class="cb"><input type="checkbox" name="ePh" value="${p}" ${(x.phases||[]).includes(p)?'checked':''}>${p}<span class="small muted">（${PHASE_HINT[p]}）</span></label>`).join('')}</div>
+    <label class="f" style="margin-top:8px">キーワード <span class="small muted">（事前情報にこの言葉があると一致。読点かカンマ区切り）</span></label><input type="text" id="eKw" value="${esc((x.keywords||[]).join('、'))}" placeholder="例：借入、融資、返済">
+    <label class="small" style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="eNeed" ${x.need_kw?'checked':''}> キーワードがあるときだけ表示する</label>
+    <label class="f" style="margin-top:12px">先に聞く質問（予防質問）</label><textarea id="eQ" rows="2">${esc(x.question)}</textarea>
+    <label class="f" style="margin-top:8px">予防トーク（言われる前に伝える）</label><textarea id="eT" rows="2">${esc(x.talk)}</textarea>
+    <label class="f" style="margin-top:8px">切り返し（言われた後）</label><textarea id="eR" rows="3">${esc(x.rebuttal)}</textarea>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="eNo">キャンセル</button><button class="btn primary" id="eOk">保存</button></div></div>`;
+  document.body.appendChild(el);
+  el.querySelector('#eNo').onclick=()=>el.remove();
+  el.querySelector('#eOk').onclick=()=>{
+    const q=s=>el.querySelector(s);
+    const obj=q('#eObj').value.trim(); if(!obj) return alert('断り文句を入力してください');
+    const y={ ...x, objection:obj, category:q('#eCat').value, level:q('#eLv').value, products:chkv(el,'eP'), industries:chkv(el,'eI'), phases:chkv(el,'ePh'),
+      keywords:q('#eKw').value.split(/[、,，\s]+/).map(s=>s.trim()).filter(Boolean), need_kw:q('#eNeed').checked, question:q('#eQ').value.trim(), talk:q('#eT').value.trim(), rebuttal:q('#eR').value.trim() };
+    if (y.need_kw && !y.keywords.length) return alert('「キーワードがあるときだけ表示」にする場合は、キーワードを入れてください');
+    const cur=clone(commonList()); const i=cur.findIndex(z=>z.id===y.id); if(i>=0) cur[i]=y; else cur.unshift(y);
+    el.remove(); save(cur);
+  };
+}
 
 /* ============ ⑥ 転換率ダッシュボード（モデル別・チーム／個人・成長率） ============ */
 function avgScores(sessions){
@@ -2131,8 +2339,15 @@ async function autoStamps(){
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const CHANGELOG = [
+  { v:'2.1.0', date:'2026-09-29', title:'よくある断り文句を事前登録して、商談前予測に自動で出す', items:[
+    '「よくある断り文句」画面で、断り文句と「先に聞く質問・予防トーク・切り返し」を登録できます（登録・編集は責任者）',
+    '断り文句ごとに、出やすい商品・顧客属性・商談段階・キーワード（借入、FIT残り、課長など）を設定できます',
+    '商談前予測で入力した情報に一致する断り文句が、AIを待たずにすぐ一致順で表示されます',
+    'AI予測は、事前登録の断り文句と過去の断り文句BANKの両方をもとに、TOP5を出すようになりました',
+    '断り文句BANKから、商品別に多い断り文句をまとめて取り込めます。初期セット（14件）も用意しています',
+    '育成カルテなどで「先に聞く質問」の欄が表示されていなかった不具合を修正' ]},
   { v:'2.0.0', date:'2026-09-28', title:'学習進捗ボードを追加（学習コースの必須化）', items:[
     '「学習進捗ボード」で、誰がどのチャレンジまで進んでいるかをメンバー×チャレンジの一覧で確認できます',
     '直近14日のペースから「期限に間に合う／遅れ」を自動で判定し、中間期限の未達・学習が止まっている人・補習の対象を「要対応」にまとめます',
@@ -2208,8 +2423,12 @@ const GUIDE = [
     tips:['期限・中間期限・補習の日程・報奨の金額は、管理者が【ルール設定】で変更できます','営業担当には自分の状況と全体の修了率だけが表示され、他の人の名前は出ません'] },
   { id:'predict', who:'営業', since:'1.0.0', when:'重要な商談の前日まで',
     what:'過去データから、今日出そうな断り文句TOP5と、事前に潰すべき5項目を出します。',
-    steps:['顧客・属性・商品・段階・事前情報を入れる','【断り文句を予測する】を押す','上位の断り文句を事前ロープレする'],
-    tips:['下に表示される同じ商品の事例も、商談前に読んでおきましょう'] },
+    steps:['顧客・属性・商品・段階・事前情報を入れる','【断り文句を予測する】を押す','まず「よくある断り文句（事前登録から）」の上位3件を確認する','AI予測のTOP5と、潰すべき5項目を確認し、上位の断り文句を事前ロープレする'],
+    tips:['事前情報に「借入」「FIT残り」「課長」などを入れると、それに合う断り文句が出ます','急ぐときは「AIでも予測する」を外すと、事前登録の断り文句だけすぐに出ます','下に表示される同じ商品の事例も、商談前に読んでおきましょう'] },
+  { id:'common', who:'責任者', since:'2.1.0', when:'よく出る断り文句が増えたとき・月1回の見直し',
+    what:'よくある断り文句と、先に聞く質問・予防トーク・切り返しを登録します。商談前予測で、入力した情報に合うものが自動で出ます。',
+    steps:['【＋ 新しく登録】を押す','断り文句と、出やすい商品・顧客属性・商談段階・キーワードを入れる','先に聞く質問・予防トーク・切り返しを入れて【保存】','【断り文句BANKから取り込む】で、過去の商談に多い断り文句をまとめて追加することもできます'],
+    tips:['条件を空欄にすると、すべての商談が対象になります','「キーワードがあるときだけ表示」にすると、事前情報にその言葉があるときだけ出ます（借入・O&Mなど）','使わなくなったものは削除せず【停止】にしておくと、あとで戻せます'] },
   { id:'dash', who:'責任者', since:'1.8.0', when:'毎週の営業会議・1on1の前',
     what:'ビジネスモデル別に、全社・チーム・個人の転換率と成長率、ボトルネックと重点練習テーマ、学習コースの進捗を見ます。',
     steps:['モデル・対象（全社／チーム／個人）・期間を選ぶ','目標未達（赤）のKPIとボトルネックを確認する','「学習コースの進捗」で学習が止まっている人とロープレ点の伸びを確認する','担当者ごとの「重点練習」と学習状況を週次報告のフィードバックに入れる'],
@@ -2307,6 +2526,7 @@ function showWhatsNew(){
   await loadProgress();
   await loadConf();
   await loadOps();
+  await loadCommon();
   go('home');
   markNavNew();
   showWhatsNew();
