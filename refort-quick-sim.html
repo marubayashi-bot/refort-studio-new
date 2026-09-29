@@ -477,8 +477,11 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.29d";
+const APP_VERSION = "ver.2026.09.29g";
 const CHANGELOG = [
+  ["ver.2026.09.29g","【無料診断のご案内】の最後の一文を「3営業日以降、実際の発電所の詳細シミュレーションをご案内できます。」に変更。"],
+  ["ver.2026.09.29f","お客様用レポートに【無料診断のご案内】を追加。必要資料（レイアウト図・単線結線図・直近3年間の発電量）と、3営業日以降に詳細シミュレーションをご案内する旨を記載。"],
+  ["ver.2026.09.29e","お客様用レポートの【印刷・PDFで保存】ボタンが印刷結果やPDFに写り込んでいた不具合を修正。画面上には残り、出力からは消えます。"],
   ["ver.2026.09.29d","お客様用レポートの備考から、1kWあたりの発電量と工事費用の単価を記した1行を削除。"],
   ["ver.2026.09.29c","発電所の詳細画面に【お客様用レポート（PDF）】を追加。A4一枚の概算シミュレーションを表示し、印刷・PDF保存してお客様に渡せます（社内判定の高・中・低は載せません）。"],
   ["ver.2026.09.29b","再取込時、同じ発電所は新しいファイルの内容で丸ごと置き換えるよう変更（以前の取込で入った誤ったFIT単価「2012」などが残る不具合を修正）。手入力した単価は引き継ぎ。"],
@@ -1254,6 +1257,7 @@ body{margin:0;font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
 @media print{body{background:#fff}.sheet{margin:0;width:auto;min-height:auto;padding:0}.bar-tool{display:none}}
 .bar-tool{max-width:210mm;margin:10px auto 0;display:flex;gap:8px;justify-content:flex-end}
 .bar-tool button{font:inherit;font-weight:700;padding:10px 18px;border-radius:10px;border:0;background:#0E3355;color:#fff;cursor:pointer}
+@media print{.bar-tool{display:none !important}}
 header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0E3355;padding-bottom:10px}
 header h1{font-size:20px;margin:0 0 4px}
 header .sub{font-size:11px;color:#5a6b7c}
@@ -1279,6 +1283,13 @@ td small{display:block;font-weight:400;color:#7a8896;font-size:10px}
 .bars .t{display:flex;justify-content:space-between;margin-bottom:3px}
 .bars .track{height:18px;background:#eef2f6;border-radius:4px;overflow:hidden;display:flex}
 .bars .now{background:#0E3355}.bars .add{background:#f28c1b}
+.offer{margin-top:16px;border:1.5px solid #0E3355;border-radius:8px;overflow:hidden}
+.offer .oh{background:#0E3355;color:#fff;font-size:13px;font-weight:700;padding:7px 12px}
+.offer .ob{padding:10px 14px;display:grid;grid-template-columns:auto 1fr;gap:10px 18px;align-items:start}
+.offer .lbl{font-size:11px;color:#5a6b7c;font-weight:700;white-space:nowrap;padding-top:2px}
+.offer ul{margin:0;padding-left:18px;font-size:12px;font-weight:700;line-height:1.9}
+.offer .lead{grid-column:1/-1;font-size:12px;line-height:1.8;margin:0}
+.offer .fin{grid-column:1/-1;font-size:12px;font-weight:700;color:#e2760e;border-top:1px dashed #d5dde6;padding-top:8px;margin:0}
 .note{font-size:10px;color:#5a6b7c;line-height:1.7;margin-top:14px;border-top:1px solid #d5dde6;padding-top:8px}
 footer{display:flex;justify-content:space-between;font-size:10px;color:#5a6b7c;margin-top:10px}
 </style></head><body>
@@ -1334,6 +1345,19 @@ footer{display:flex;justify-content:space-between;font-size:10px;color:#5a6b7c;m
   </div>
 </div>
 
+<div class="offer">
+  <div class="oh">無料診断のご案内</div>
+  <div class="ob">
+    <p class="lead">本資料は公表情報からの概算です。下記の資料をご提供いただければ、<b>無料</b>で実際の発電所に基づいた詳細シミュレーションを作成いたします。</p>
+    <div class="lbl">ご用意いただく資料</div>
+    <ul>
+      <li>レイアウト図</li>
+      <li>単線結線図</li>
+      <li>直近3年間の発電量</li>
+    </ul>
+    <p class="fin">3営業日以降、実際の発電所の詳細シミュレーションをご案内できます。</p>
+  </div>
+</div>
 <div class="note">
   ※本資料は、公表されている発電設備の認定情報をもとにした概算です。実際の発電量・工事費用・効果は、現地調査と設備の状態により確定します。<br>
   ※FIT単価は認定年度の調達価格、残りFIT期間は運転開始年月から${CFG.fitTerm}年で算出しています。<br>
