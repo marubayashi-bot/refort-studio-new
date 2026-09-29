@@ -477,8 +477,9 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.29";
+const APP_VERSION = "ver.2026.09.29b";
 const CHANGELOG = [
+  ["ver.2026.09.29b","再取込時、同じ発電所は新しいファイルの内容で丸ごと置き換えるよう変更（以前の取込で入った誤ったFIT単価「2012」などが残る不具合を修正）。手入力した単価は引き継ぎ。"],
   ["ver.2026.09.29","運転開始日を「運転開始報告年月」から取り込むよう修正（これまで空欄の多い「運転開始予定日」を読んでいた）。「2014年11月」形式の年月を読めるようにし、運転開始報告年月＋FIT期間20年から本日時点の残FIT年数とFIT終了月を自動計算。再取込は空欄だけでなく最新値で上書きし、手入力した単価は残す。Shift_JISのCSVに対応。表記「連系出力／交流出力」を「発電出力」に統一。"],
   ["ver.2026.09.15b","企業一覧の画面でCSV出力が直前の会社の件数しか出力されない不具合を修正。検索結果の全社・全発電所が出力されるようにし、ボタンに出力件数を表示。"],
   ["ver.2026.09.15","確定ロジックを改善率50%・工事費82,000円/kW・最低工事費なしに統一。端末ごとに保存された古い設定を起動時に自動で確定値へ更新し、設定タブに【確定値に戻す】を追加。"],
@@ -1475,16 +1476,15 @@ document.getElementById('doImport').onclick = async ()=>{
       `OKを押すと2つを入れ替えて取り込みます。キャンセルするとこのまま取り込みます。`);
     if(ok) out.forEach(p=>{ const t = p.panelKw; p.panelKw = p.pcsKw; p.pcsKw = t; });
   }
-  // 同じ発電所（設備ID）は新しい値で上書き。新ファイルが空欄の項目と、手入力した単価は既存の値を残す
-  const prev = new Map(PLANTS.map(p=>[p.id,p]));
+    const prev = new Map(PLANTS.map(p=>[p.id,p]));
   let filled = 0;
+  // 同じ発電所は新しいファイルの内容で丸ごと置き換える（古い取込の誤った値を残さない）。手入力した単価だけ引き継ぐ
   const merged = out.map(p=>{
     const o = prev.get(p.id);
     if(!o) return p;
-    const m = Object.assign({}, o);
-    Object.keys(p).forEach(k=>{ if(p[k]!=null && p[k]!=='') m[k] = p[k]; });
-    if(!o.startDate && m.startDate) filled++;
-    return m;
+    if(o.fitOverride!=null) p.fitOverride = o.fitOverride;
+    if(!o.startDate && p.startDate) filled++;
+    return p;
   });
   const startFilled = out.filter(p=>p.startDate).length;
   await DB.putMany(merged);
