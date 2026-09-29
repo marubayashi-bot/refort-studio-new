@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>EARTHCOM ORG DESIGN</title>
+<!--
+  EARTHCOM ORG DESIGN Ver.1
+  ・組織図／社員カード／ドラッグ＆ドロップ異動（PC:ドラッグ、スマホ・タブレット:長押し→移動）
+  ・正式組織は「下書き→承認→反映」、シナリオ（未来組織）は自由に組替え
+  ・異動履歴（監査ログ）／異動CARE（7日・30日・90日フォロー）／組織診断（ルール＋AI）
+  ・表・Excelの貼り付け取込、JSONバックアップ、PDF出力（印刷）
+  保存先: Supabase テーブル org_design_state（id='main' の1行にJSONで保存）
+  認証: ec-auth.js（会社Googleアカウント）。読込めない環境ではプレビューモードで動作（保存されません）
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="ec-auth.js" onerror="void 0"></script>
+<style>
+:root{
+  --ink:#12233A;        /* パネルの濃紺（ソーラーパネルの枠） */
+  --cell:#1F4E79;       /* セルの青 */
+  --sky:#EEF3F8;        /* 図面の地 */
+  --grid:#D9E3EE;       /* 方眼 */
+  --paper:#FFFFFF;
+  --sun:#E3A23B;        /* 日射のアンバー（アクセントはここだけ） */
+  --leaf:#2F8A5B;
+  --warn:#C4533A;
+  --muted:#5E7188;
+  --line:#8FA6BF;
+  --r-s:6px; --r-m:10px;
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;color:var(--ink);background:var(--sky)}
+body{display:grid;grid-template-rows:auto auto auto 1fr auto;grid-template-columns:minmax(0,1fr);height:100dvh;overflow:hidden;font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ヘッダー */
+header{background:var(--ink);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.1;margin-right:8px}
+.brand b{font-weight:900;font-size:18px;letter-spacing:.04em}
+.brand small{font-size:11px;color:#AFC2D6}
+.hsp{flex:1}
+.hbtn{background:transparent;border:1px solid #3C5675;color:#fff;border-radius:var(--r-s);padding:6px 12px;white-space:nowrap}
+.hbtn:hover{background:#1C3452}
+.hbtn.ai{border-color:var(--sun);color:var(--sun)}
+.search{background:#1C3452;border:1px solid #3C5675;border-radius:var(--r-s);color:#fff;padding:6px 10px;width:180px}
+.search::placeholder{color:#8FA6BF}
+.scnsel{background:#1C3452;border:1px solid #3C5675;color:#fff;border-radius:var(--r-s);padding:6px 8px;max-width:230px}
+.me{font-size:12px;color:#AFC2D6}
+
+/* 指標帯 */
+.stats{display:flex;gap:0;background:var(--paper);border-bottom:1px solid var(--grid);overflow-x:auto}
+.st{padding:8px 18px;border-right:1px solid var(--grid);min-width:112px}
+.st span{display:block;font-size:11px;color:var(--muted)}
+.st b{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.st i{font-style:normal;font-size:12px;margin-left:4px}
+.st i.up{color:var(--leaf)} .st i.dn{color:var(--warn)}
+.scnbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:#FFF7E8;border-bottom:1px solid #F0D9AE;flex-wrap:wrap;font-size:13px}
+.scnbar b{font-weight:700}
+.sample{padding:8px 16px;background:#FFF7E8;border-bottom:1px solid #F0D9AE;font-size:13px}
+
+/* 本体 */
+main{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0;min-width:0}
+aside{background:var(--paper);border-right:1px solid var(--grid);display:flex;flex-direction:column;min-height:0}
+.aside-h{padding:12px 14px 6px;font-weight:700;font-size:13px;color:var(--muted)}
+.dlist{overflow:auto;flex:1;padding:0 6px 8px}
+.dlist button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:5px 8px;border-radius:var(--r-s)}
+.dlist button:hover{background:var(--sky)}
+.dlist button em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+.tray{border-top:1px solid var(--grid);padding:10px;max-height:40%;overflow:auto;min-height:92px}
+.tray.over{background:#FFF3DC}
+.tray .card{width:100%}
+
+.work{display:flex;flex-direction:column;min-height:0;min-width:0}
+.tabs{display:flex;gap:2px;padding:8px 12px 0;overflow-x:auto;flex-shrink:0;background:var(--sky);border-bottom:1px solid var(--grid)}
+.tabs button{white-space:nowrap;flex-shrink:0;border:1px solid transparent;border-bottom:0;background:none;padding:7px 14px;border-radius:var(--r-s) var(--r-s) 0 0;color:var(--muted)}
+.tabs button[aria-selected=true]{background:var(--paper);border-color:var(--grid);color:var(--ink);font-weight:700;margin-bottom:-1px}
+.tabs .cnt{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--sun);color:var(--ink);font-size:11px;font-weight:700}
+.tabs .zoom{margin-left:auto;display:flex;gap:4px;align-items:center;padding-bottom:6px}
+.tabs .zoom button{border:1px solid var(--grid);background:var(--paper);border-radius:var(--r-s);padding:2px 10px;color:var(--ink)}
+.pane{flex:1;min-height:0;overflow:auto}
+
+/* 組織図（方眼の設計図） */
+.canvas{background-color:var(--sky);background-image:
+  linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;padding:28px 28px 80px;min-width:max-content;min-height:100%}
+.tree ul{display:flex;justify-content:center;padding:24px 0 0;margin:0;position:relative}
+.tree>ul{padding-top:0}
+.tree li{list-style:none;position:relative;padding:24px 8px 0;display:flex;flex-direction:column;align-items:center}
+.tree>ul>li{padding-top:0}
+.tree li::before,.tree li::after{content:"";position:absolute;top:0;right:50%;width:50%;height:24px;border-top:2px solid var(--line)}
+.tree li::after{right:auto;left:50%;border-left:2px solid var(--line)}
+.tree li:only-child::before,.tree li:only-child::after{display:none}
+.tree li:only-child{padding-top:0}
+.tree li:first-child::before,.tree li:last-child::after{border:0}
+.tree li:last-child::before{border-right:2px solid var(--line);border-radius:0 6px 0 0}
+.tree li:first-child::after{border-radius:6px 0 0 0}
+.tree ul ul::before{content:"";position:absolute;top:0;left:50%;height:24px;border-left:2px solid var(--line)}
+.tree>ul>li::before,.tree>ul>li::after{display:none}
+
+.dept{background:var(--paper);border:1px solid #C6D4E3;border-top:4px solid var(--hue);border-radius:var(--r-s);width:210px;box-shadow:0 1px 0 #C6D4E3;transition:box-shadow .12s,border-color .12s}
+.dept.over{border-color:var(--sun);box-shadow:0 0 0 3px var(--sun)}
+.dept.flash{animation:flash 1.2s}
+@keyframes flash{0%,60%{box-shadow:0 0 0 4px var(--sun)}100%{box-shadow:0 1px 0 #C6D4E3}}
+.dh{display:flex;align-items:center;gap:6px;padding:8px 8px 6px 10px}
+.dn{font-weight:700;flex:1;font-size:14px}
+.dc{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dm{border:0;background:none;padding:0 6px;border-radius:4px;color:var(--muted);font-weight:900}
+.dm:hover{background:var(--sky)}
+.dbody{padding:0 8px 8px;display:flex;flex-direction:column;gap:6px;min-height:40px}
+.empty{font-size:12px;color:var(--muted);border:1px dashed #C6D4E3;border-radius:var(--r-s);padding:10px;text-align:center}
+
+.card{background:#F7FAFD;border:1px solid #D5E0EB;border-radius:var(--r-s);padding:7px 9px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.card:hover{border-color:var(--cell)}
+.card.lead{background:#fff;border-left:3px solid var(--cell)}
+.cn{font-weight:700;font-size:14px}
+.cm{font-size:12px;color:var(--muted)}
+.cm .head{font-weight:700;color:var(--cell)}
+.cs{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--leaf)}
+.dot.s-off{background:#A0AEBD}.dot.s-new{background:var(--sun)}.dot.s-slot{background:transparent;border:1.5px dashed var(--muted)}
+.tag{color:#8A5A0B}
+.card.slot{background:transparent;border:1.5px dashed #9FB3C8}
+.card.slot .cn{color:var(--muted);font-weight:500}
+.card.pend{border-color:var(--sun);background:#FFF9EE}
+.pb{font-size:11px;font-weight:700;color:#8A5A0B;margin-top:3px}
+.card.dim{opacity:.28}
+.card.hit{box-shadow:0 0 0 2px var(--sun)}
+.card.lifted{opacity:.35}
+.ro .card{cursor:pointer}
+.ghost{position:fixed;z-index:90;pointer-events:none;width:190px;transform:rotate(-2deg);box-shadow:0 10px 24px rgba(18,35,58,.25);opacity:.95}
+
+/* 一覧系ペイン */
+.sheet{padding:20px 24px 80px;max-width:1080px}
+.sheet h2{font-size:18px;margin:0 0 4px}
+.sheet p.lead{color:var(--muted);margin:0 0 16px}
+table{border-collapse:collapse;width:100%;background:var(--paper);border:1px solid var(--grid)}
+th,td{padding:8px 10px;border-bottom:1px solid var(--grid);text-align:left;vertical-align:top;font-size:13px}
+th{background:#F3F7FB;font-weight:700;color:var(--muted);white-space:nowrap}
+.arrow{color:var(--muted);padding:0 4px}
+.nodata{padding:28px;background:var(--paper);border:1px dashed #C6D4E3;border-radius:var(--r-m);color:var(--muted);text-align:center}
+.carewrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.care{background:var(--paper);border:1px solid var(--grid);border-radius:var(--r-m);padding:14px}
+.care h4{margin:0;font-size:15px}
+.care .sub{font-size:12px;color:var(--muted);margin-bottom:8px}
+.bar{height:6px;background:var(--grid);border-radius:3px;overflow:hidden;margin:6px 0 10px}
+.bar i{display:block;height:100%;background:var(--leaf)}
+.care label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:13px}
+.care label small{margin-left:auto;color:var(--muted);white-space:nowrap}
+.care label.late small{color:var(--warn);font-weight:700}
+.care label.done span{color:var(--muted);text-decoration:line-through}
+.diag{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.dg{background:var(--paper);border:1px solid var(--grid);border-left:4px solid var(--sun);border-radius:var(--r-s);padding:10px 14px}
+.dg.info{border-left-color:var(--cell)}
+.dg b{display:block}
+.dg span{font-size:13px;color:var(--muted)}
+.aiout{background:var(--paper);border:1px solid var(--grid);border-radius:var(--r-m);padding:16px 18px;white-space:pre-wrap;line-height:1.8;max-width:78ch}
+.note{font-size:12px;color:var(--muted)}
+
+/* ボタン */
+.btn{border:1px solid #C6D4E3;background:var(--paper);border-radius:var(--r-s);padding:7px 14px}
+.btn:hover{border-color:var(--cell)}
+.btn.pri{background:var(--cell);border-color:var(--cell);color:#fff}
+.btn.sun{background:var(--sun);border-color:var(--sun);color:var(--ink);font-weight:700}
+.btn.del{color:var(--warn);border-color:#E8BDB3}
+.btn.sm{padding:3px 10px;font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* フッター */
+footer{background:var(--paper);border-top:1px solid var(--grid);display:flex;align-items:center;gap:16px;padding:8px 16px;font-size:13px;flex-wrap:wrap}
+footer .sp{flex:1}
+footer .save{color:var(--muted);font-size:12px}
+footer .save.err{color:var(--warn);font-weight:700}
+
+/* 詳細パネル */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--paper);box-shadow:-8px 0 30px rgba(18,35,58,.18);z-index:60;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s,visibility .2s;visibility:hidden}
+.drawer.open{transform:none;visibility:visible}
+.drawer header{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--grid)}
+.drawer .body{overflow:auto;padding:4px 18px 30px;flex:1}
+.drawer h5{font-size:12px;color:var(--muted);margin:18px 0 6px;font-weight:700;border-bottom:1px solid var(--grid);padding-bottom:4px}
+.fg{display:grid;grid-template-columns:96px 1fr;gap:6px 10px;align-items:center}
+.fg label{font-size:12px;color:var(--muted)}
+.fg input,.fg select,.fg textarea,.mbody input,.mbody select,.mbody textarea{width:100%;border:1px solid #C6D4E3;border-radius:var(--r-s);padding:6px 8px;background:#fff}
+.fg textarea{min-height:56px;resize:vertical}
+.fg .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+.fg .chk input{width:auto}
+.mini{font-size:13px;padding-left:1em;margin:4px 0}
+.secret{background:#FBF4F2;border-radius:var(--r-s);padding:8px}
+
+/* モーダル */
+.modal{position:fixed;inset:0;background:rgba(18,35,58,.45);z-index:80;display:grid;place-items:center;padding:16px}
+.mbox{background:var(--paper);border-radius:var(--r-m);width:min(520px,100%);max-height:90dvh;overflow:auto;padding:20px 22px}
+.mbox h3{margin:0 0 12px;font-size:17px}
+.mbody{display:flex;flex-direction:column;gap:10px;font-size:14px}
+.mbody label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.mbody textarea{min-height:140px;font-size:12px}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+.movebox{font-size:16px;background:var(--sky);border-radius:var(--r-s);padding:12px 14px}
+.movebox b{font-weight:700}
+.toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:var(--r-s);z-index:95;font-size:13px}
+.menubtn{display:none}
+
+@media (max-width:820px){
+  main{grid-template-columns:minmax(0,1fr)}
+  aside{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:55;transform:translateX(-100%);transition:transform .2s;box-shadow:8px 0 30px rgba(18,35,58,.18)}
+  aside.open{transform:none}
+  .menubtn{display:inline-block}
+  .search{width:130px}
+  .st{min-width:96px;padding:6px 12px}
+  .st b{font-size:17px}
+  .hide-sm{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  @page{size:A3 landscape;margin:10mm}
+  body{display:block;height:auto;overflow:visible;background:#fff}
+  header,.stats,.scnbar,.sample,aside,.tabs,footer,.drawer,.modal,.toast{display:none!important}
+  main{display:block}.pane{overflow:visible}
+  .canvas{background:#fff;padding:0;zoom:1!important}
+  .printhead{display:block!important;font-size:14px;margin-bottom:12px}
+  .dm{display:none}.card{break-inside:avoid}
+}
+.printhead{display:none}
+</style>
+</head>
+<body>
+<header>
+  <button class="hbtn menubtn" id="menuBtn" aria-label="組織一覧を開く">☰</button>
+  <div class="brand"><b>EARTHCOM ORG DESIGN</b><small>組織を、動かして、強くする。</small></div>
+  <select class="scnsel" id="scnSel" aria-label="表示する組織"></select>
+  <button class="hbtn" id="newScn">＋シナリオ</button>
+  <span class="hsp"></span>
+  <input class="search" id="q" type="search" placeholder="社員検索" aria-label="社員検索">
+  <button class="hbtn edit-only" id="addPerson">＋社員</button>
+  <button class="hbtn edit-only hide-sm" id="addDept">＋部署</button>
+  <button class="hbtn edit-only hide-sm" id="importBtn">取込</button>
+  <button class="hbtn ai" id="aiBtn">AI組織診断</button>
+  <span class="me" id="me"></span>
+</header>
+<div class="stats" id="stats"></div>
+<div id="banner"></div>
+<main>
+  <aside id="aside">
+    <div class="aside-h">組織一覧</div>
+    <nav class="dlist" id="dlist" aria-label="部署一覧"></nav>
+    <div class="tray" id="tray" data-drop="__none">
+      <div class="aside-h" style="padding:0 0 6px">未配置</div>
+      <div id="trayBody" class="dbody" style="padding:0"></div>
+    </div>
+  </aside>
+  <section class="work">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="chart" aria-selected="true">組織図</button>
+      <button role="tab" data-tab="pending">異動予定<span class="cnt" id="cPend" hidden></span></button>
+      <button role="tab" data-tab="history">異動履歴</button>
+      <button role="tab" data-tab="care">異動CARE<span class="cnt" id="cCare" hidden></span></button>
+      <button role="tab" data-tab="diag">組織診断</button>
+      <div class="zoom" id="zoomBox">
+        <button id="zOut" aria-label="縮小">−</button>
+        <button id="zReset">100%</button>
+        <button id="zIn" aria-label="拡大">＋</button>
+      </div>
+    </div>
+    <div class="pane" id="pane"></div>
+  </section>
+</main>
+<footer>
+  <span id="fStats"></span>
+  <span class="sp"></span>
+  <span class="save" id="saveState"></span>
+  <button class="btn sm edit-only" id="saveBtn">保存</button>
+  <button class="btn sm" id="pdfBtn">PDF出力</button>
+  <button class="btn sm hide-sm" id="backupBtn">バックアップ</button>
+</footer>
+<div class="drawer" id="drawer" aria-hidden="true"></div>
+<div class="modal" id="modal" hidden></div>
+
+<script>
+/* ========== 設定 ========== */
+const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const AI_URL=SB_URL+'/functions/v1/ai';
+const TABLE='org_design_state', ROW='main';
+const TITLES=['一般','主任','係長','課長','次長','部長','役員・経営'];
+const MGR=new Set(['課長','次長','部長','役員・経営']);
+const STATUS=['在籍','休職','内定','採用予定'];
+const STATUS_KEY={'在籍':'on','休職':'off','内定':'new','採用予定':'slot'};
+const HUES=['#1F4E79','#2F8A5B','#B7791F','#7B4F9E','#2B7A8C','#A8453A','#4A6A2F','#5A6B7D','#9C5B2E','#3B5BA5'];
+const CARE_TPL=[['本人面談',-7],['旧上司から引継ぎ',0],['新上司との1on1',0],['KPI設定',7],['必要研修',14],['7日後フォロー',7],['30日後1on1',30],['90日後レビュー',90]];
+const SPAN_LIMIT=8;
+
+/* ========== 状態 ========== */
+let sb=null, mode='preview', me={email:'preview',name:'プレビュー',role:'admin'};
+let D=null;
+const V={scn:'official',tab:'chart',zoom:1,q:'',sel:null,aiText:''};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=p=>(p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date().toISOString().slice(0,10);
+const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const fmtMD=d=>d?`${+d.slice(5,7)}/${+d.slice(8,10)}`:'';
+const nextMonth1=()=>{const x=new Date();x.setMonth(x.getMonth()+1,1);return x.toISOString().slice(0,10)};
+const canEdit=()=>['admin','manager'].includes(me.role);
+const canApprove=()=>me.role==='admin';
+const seeSecret=()=>me.role==='admin';
+
+/* ========== サンプル ========== */
+function sample(){
+  const d=(id,name,parentId,hue)=>({id,name,parentId,hue});
+  const depts=[d('top','代表取締役',null,0),d('eig','営業部','top',1),d('ekk','営業企画部','top',2),d('dev','開発部','top',3),
+    d('cs','CS部','top',4),d('prd','生産管理部','top',5),d('ych','用地部','top',6),d('qa','品質管理部','top',7),
+    d('eak','エネルギーアセット関東','top',8),d('eat','エネルギーアセット東北','top',9)];
+  const P=(name,deptId,title,o={})=>({id:uid('p'),name,deptId,title,isHead:false,roleName:'',status:'在籍',joined:'',location:'越谷本社',empType:'正社員',tags:[],skills:'',growth:'',career:'',concurrent:'',secret:'',...o});
+  const people=[
+    P('丸林 信宏','top','役員・経営',{roleName:'代表取締役',isHead:true}),
+    P('佐藤 健','eig','部長',{isHead:true}),P('鈴木 大輔','eig','課長'),P('高橋 翔','eig','係長'),P('田中 美咲','eig','主任'),
+    P('伊藤 拓海','eig','一般'),P('渡辺 陽菜','eig','一般'),P('山本 蓮','eig','一般'),P('中村 颯','eig','一般'),P('小林 結衣','eig','一般'),
+    P('加藤 湊','eig','一般',{status:'内定'}),
+    P('大河原 天音','ekk','課長',{isHead:true,tags:['次世代幹部']}),P('吉田 優斗','ekk','一般'),
+    P('山田 蒼','dev','次長',{isHead:true}),P('松本 葵','dev','主任'),P('井上 大和','dev','一般'),
+    P('木村 凛','cs','係長',{isHead:true}),P('林 芽依','cs','一般'),
+    P('清水 誠','prd','課長',{isHead:true}),P('山口 悠真','prd','一般'),P('森 詩','prd','一般'),
+    P('池田 樹','ych','係長',{isHead:true}),
+    P('橋本 楓','qa','主任',{isHead:true}),
+    P('阿部 陸','eak','課長',{isHead:true}),P('石川 七海','eak','一般'),
+    P('前田 隼','eat','部長',{isHead:true,location:'東北'}),
+    P('（営業 採用予定）','eig','一般',{status:'採用予定'}),
+  ];
+  return {isSample:true,official:{depts,people},scenarios:[],pending:[],history:[],care:[]};
+}
+
+/* ========== データ操作 ========== */
+const org=()=>V.scn==='official'?D.official:(D.scenarios.find(s=>s.id===V.scn)||D.official);
+const isOfficial=()=>V.scn==='official'||!D.scenarios.find(s=>s.id===V.scn);
+const deptById=(id,o=org())=>o.depts.find(d=>d.id===id);
+const deptName=(id,o=org())=>id?(deptById(id,o)?.name||'（削除済み部署）'):'未配置';
+const person=id=>org().people.find(p=>p.id===id);
+const children=(id,o=org())=>o.depts.filter(d=>d.parentId===id);
+const roots=(o=org())=>o.depts.filter(d=>!d.parentId||!o.depts.find(x=>x.id===d.parentId));
+const descendants=id=>{const out=[];const walk=x=>children(x).forEach(c=>{out.push(c.id);walk(c.id)});walk(id);return out};
+const rank=t=>TITLES.indexOf(t);
+const sortPeople=(a,b)=>(b.isHead-a.isHead)||((a.status==='採用予定')-(b.status==='採用予定'))||(rank(b.title)-rank(a.title))||a.name.localeCompare(b.name,'ja');
+const isActive=p=>p.status==='在籍'||p.status==='休職';
+const pendingOf=pid=>isOfficial()?D.pending.find(x=>x.personId===pid):null;
+
+function stats(o){
+  const act=o.people.filter(isActive);
+  const mgr=act.filter(p=>MGR.has(p.title)).length;
+  let spans=[];
+  o.depts.forEach(d=>{const mem=o.people.filter(p=>p.deptId===d.id&&isActive(p));const heads=mem.filter(p=>p.isHead);
+    if(heads.length){const sub=mem.length-heads.length+children(d.id,o).length;spans.push(sub)}});
+  return {head:act.length,mgr,span:spans.length?(spans.reduce((a,b)=>a+b,0)/spans.length):0,depts:o.depts.length,
+    hire:o.people.filter(p=>p.status==='採用予定'||p.status==='内定').length,
+    unassigned:o.people.filter(p=>!p.deptId||!deptById(p.deptId,o)).length};
+}
+
+/* ========== 描画 ========== */
+function render(){
+  renderHeader();renderStats();renderBanner();renderSide();renderPane();
+  document.body.classList.toggle('ro',!canEdit());
+  document.querySelectorAll('.edit-only').forEach(b=>b.hidden=!canEdit());
+  const cp=$('#cPend'),cc=$('#cCare');
+  cp.hidden=!D.pending.length;cp.textContent=D.pending.length;
+  const openCare=D.care.filter(c=>c.items.some(i=>!i.done)).length;cc.hidden=!openCare;cc.textContent=openCare;
+  document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===V.tab));
+  $('#zoomBox').style.visibility=V.tab==='chart'?'visible':'hidden';
+  if(V.sel)renderDrawer();
+}
+function renderHeader(){
+  $('#scnSel').innerHTML=`<option value="official">正式組織（現在）</option>`+D.scenarios.map(s=>`<option value="${s.id}">シナリオ：${esc(s.name)}</option>`).join('');
+  $('#scnSel').value=V.scn;
+  $('#me').textContent=mode==='preview'?'プレビュー':(me.name||me.email);
+}
+function renderStats(){
+  const s=stats(org()),b=isOfficial()?null:stats(D.official);
+  const delta=(k,f=0)=>{if(!b)return'';const d=+(s[k]-b[k]).toFixed(f);return d?`<i class="${d>0?'up':'dn'}">${d>0?'+':''}${d}</i>`:''};
+  const items=[['社員数',s.head+'名',delta('head')],['管理職数',s.mgr+'名',delta('mgr')],['平均スパン',s.span.toFixed(1)+'名',delta('span',1)],
+    ['部署数',s.depts,delta('depts')],['採用予定・内定',s.hire+'名',delta('hire')],['異動予定',isOfficial()?D.pending.length+'名':'—',''],['未配置',s.unassigned+'名',delta('unassigned')]];
+  $('#stats').innerHTML=items.map(([l,v,dl])=>`<div class="st"><span>${l}</span><b>${v}</b>${dl}</div>`).join('');
+  $('#fStats').textContent=`現在 ${s.head}名 ｜ 異動予定 ${D.pending.length}名 ｜ 未配置 ${s.unassigned}名`;
+}
+function renderBanner(){
+  let h='';
+  if(!isOfficial()){
+    const sc=org(),s=stats(sc);
+    const need=sc.target?Math.max(0,sc.target-(s.head+s.hire)):null;
+    h+=`<div class="scnbar"><b>シナリオ：${esc(sc.name)}</b>${sc.when?`<span>対象時期 ${esc(sc.when)}</span>`:''}
+      ${sc.target?`<span>目標 ${sc.target}名 ／ 在籍＋採用予定 ${s.head+s.hire}名 ／ <b>追加採用が必要 ${need}名</b></span>`:''}
+      <span class="note">正式組織には影響しません</span><span style="flex:1"></span>
+      ${canEdit()?`<button class="btn sm" data-act="scnEdit">設定</button><button class="btn sm del" data-act="scnDel">削除</button>`:''}
+      ${canApprove()?`<button class="btn sm sun" data-act="scnAdopt">この案を正式組織にする</button>`:''}</div>`;
+  }
+  if(D.isSample)h+=`<div class="sample">表示中の社員はサンプルです。「取込」から役割定義シートなどを貼り付けると、実データに置き換わります。</div>`;
+  $('#banner').innerHTML=h;
+}
+function renderSide(){
+  const o=org();
+  const walk=(d,lv)=>{const n=o.people.filter(p=>p.deptId===d.id&&isActive(p)).length;
+    return `<button data-go="${d.id}" style="padding-left:${8+lv*14}px"><span>${lv?'└ ':''}${esc(d.name)}</span><em>${n}</em></button>`+children(d.id).map(c=>walk(c,lv+1)).join('')};
+  $('#dlist').innerHTML=roots().map(r=>walk(r,0)).join('');
+  const un=o.people.filter(p=>!p.deptId||!deptById(p.deptId)).sort(sortPeople);
+  $('#trayBody').innerHTML=un.map(card).join('')||`<div class="empty">ここへドラッグで配置を外す</div>`;
+}
+function card(p){
+  const pend=pendingOf(p.id);
+  const q=V.q.trim();
+  const hit=q&&(p.name+p.roleName+p.title+p.skills+p.tags.join('')).includes(q);
+  const cls=['card',p.isHead?'lead':'',p.status==='採用予定'?'slot':'',pend?'pend':'',q?(hit?'hit':'dim'):''].join(' ');
+  return `<div class="${cls}" data-pid="${p.id}" tabindex="0" role="button" aria-label="${esc(p.name)}の詳細">
+    <div class="cn">${esc(p.name)}</div>
+    <div class="cm">${esc(p.title)}${p.isHead?' ｜ <span class="head">部門長</span>':''}${p.roleName?' ｜ '+esc(p.roleName):''}</div>
+    <div class="cs"><i class="dot s-${STATUS_KEY[p.status]||'on'}"></i>${esc(p.status)}${(p.tags||[]).map(t=>`<span class="tag">★ ${esc(t)}</span>`).join('')}</div>
+    ${pend?`<div class="pb">→ ${esc(deptName(pend.to))}へ ${fmtMD(pend.date)} 異動予定</div>`:''}</div>`;
+}
+function deptNode(d){
+  const o=org();const mem=o.people.filter(p=>p.deptId===d.id).sort(sortPeople);const kids=children(d.id);
+  return `<li><div class="dept" data-drop="${d.id}" id="dept-${d.id}" style="--hue:${HUES[(d.hue||0)%HUES.length]}">
+    <div class="dh"><span class="dn">${esc(d.name)}</span><span class="dc">${mem.filter(isActive).length}名</span>${canEdit()?`<button class="dm" data-act="deptMenu" data-id="${d.id}" aria-label="${esc(d.name)}の設定">⋯</button>`:''}</div>
+    <div class="dbody">${mem.map(card).join('')||`<div class="empty">ここへドラッグで配置</div>`}</div></div>
+    ${kids.length?`<ul>${kids.map(deptNode).join('')}</ul>`:''}</li>`;
+}
+function renderPane(){
+  const pane=$('#pane');
+  if(V.tab==='chart'){
+    const sc=isOfficial()?'正式組織':'シナリオ：'+org().name;
+    pane.innerHTML=`<div class="canvas" style="zoom:${V.zoom}"><div class="printhead">EARTHCOM 組織図 ／ ${esc(sc)} ／ ${today()} 出力</div>
+      <div class="tree"><ul>${roots().map(deptNode).join('')}</ul></div></div>`;
+    $('#zReset').textContent=Math.round(V.zoom*100)+'%';
+    if(!V.centered){V.centered=true;requestAnimationFrame(()=>{pane.scrollLeft=(pane.scrollWidth-pane.clientWidth)/2})}
+  }else if(V.tab==='pending')pane.innerHTML=pendingView();
+  else if(V.tab==='history')pane.innerHTML=historyView();
+  else if(V.tab==='care')pane.innerHTML=careView();
+  else if(V.tab==='diag')pane.innerHTML=diagView();
+}
+function pendingView(){
+  const rows=D.pending.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(x=>{const p=D.official.people.find(y=>y.id===x.personId);
+    return `<tr><td>${esc(x.date)}</td><td><b>${esc(p?.name||'（削除済み）')}</b></td><td>${esc(deptName(x.from,D.official))}<span class="arrow">→</span><b>${esc(deptName(x.to,D.official))}</b></td>
+    <td>${esc(x.reason||'')}</td><td class="note">${esc(x.by||'')}</td>
+    <td class="row">${canApprove()?`<button class="btn sm pri" data-act="approve" data-id="${x.id}">承認して反映</button>`:''}${canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:''}</td></tr>`}).join('');
+  return `<div class="sheet"><h2>異動予定（下書き）</h2><p class="lead">正式組織でカードを動かすと、ここに下書きとして入ります。承認すると組織図に反映され、異動履歴と異動CAREが自動で作られます。</p>
+    ${rows?`${canApprove()&&D.pending.length>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="approveAll">すべて承認して反映</button></div>`:''}
+    <table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>起票</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグすると下書きが作れます。</div>`}</div>`;
+}
+function historyView(){
+  const rows=D.history.slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b></td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
+  return `<div class="sheet"><h2>異動履歴</h2><p class="lead">正式組織に反映された異動を自動で記録しています。誰が・いつ・どこからどこへ動いたかの監査ログです。</p>
+    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="histCsv">CSVで書き出す</button></div><table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table>`
+    :`<div class="nodata">まだ異動の記録はありません。</div>`}</div>`;
+}
+function careView(){
+  const t=today();
+  const list=D.care.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>{
+    const done=c.items.filter(i=>i.done).length,pct=Math.round(done/c.items.length*100);
+    return `<div class="care"><h4>${esc(c.name)}</h4><div class="sub">${esc(c.from)} → ${esc(c.to)}　異動日 ${esc(c.date)}</div>
+      <div class="row" style="justify-content:space-between;font-size:12px"><span>進捗</span><b>${pct}%</b></div><div class="bar"><i style="width:${pct}%"></i></div>
+      ${c.items.map((i,k)=>{const late=!i.done&&i.due<t;return `<label class="${i.done?'done':''} ${late?'late':''}"><input type="checkbox" data-care="${c.id}" data-k="${k}" ${i.done?'checked':''} ${canEdit()?'':'disabled'}><span>${esc(i.label)}</span><small>${late?'期限超過 ':''}${fmtMD(i.due)}</small></label>`}).join('')}</div>`}).join('');
+  return `<div class="sheet"><h2>異動CARE</h2><p class="lead">異動を反映すると、異動前から90日後までのフォロー項目が自動で作られます。配置して終わりにせず、定着まで追いかけます。</p>
+    ${list?`<div class="carewrap">${list}</div>`:`<div class="nodata">フォロー中の異動はありません。</div>`}</div>`;
+}
+
+/* ========== 組織診断（ルール） ========== */
+function diagnose(o=org()){
+  const out=[];
+  o.depts.forEach(d=>{
+    const mem=o.people.filter(p=>p.deptId===d.id&&isActive(p));const heads=mem.filter(p=>p.isHead);const kids=children(d.id,o).length;
+    const sub=mem.length-heads.length+kids;
+    if(heads.length&&sub>SPAN_LIMIT)out.push({lv:'warn',t:`${d.name}：部門長1名に対して直属${sub}名`,s:'マネジメント負荷が高い可能性があります。チーム分割や係長・主任の配置を検討できます。'});
+    if(!heads.length&&mem.length)out.push({lv:'warn',t:`${d.name}：部門長が未設定`,s:'結果責任を持つ人が組織図上で決まっていません。'});
+    if(mem.length===1&&!kids)out.push({lv:'warn',t:`${d.name}：1名体制`,s:'キーパーソン依存度が高く、休職・退職時に機能が止まるリスクがあります。'});
+    if(!mem.length&&!kids)out.push({lv:'info',t:`${d.name}：在籍者なし`,s:'採用予定枠や兼務での手当てが必要か確認してください。'});
+    const hire=o.people.filter(p=>p.deptId===d.id&&p.status==='採用予定').length;
+    if(hire)out.push({lv:'info',t:`${d.name}：採用予定枠 ${hire}名`,s:'採用計画と入社時期の確認対象です。'});
+  });
+  const un=o.people.filter(p=>!p.deptId||!deptById(p.deptId,o)).length;
+  if(un)out.push({lv:'warn',t:`未配置 ${un}名`,s:'所属部署が決まっていない社員がいます。'});
+  const s=stats(o);
+  if(s.head&&s.mgr/s.head<0.1)out.push({lv:'info',t:`管理職比率 ${Math.round(s.mgr/s.head*100)}%`,s:'今後の人数増に対して、課長以上の育成・登用計画が必要になる水準です。'});
+  return out;
+}
+function diagView(){
+  const list=diagnose();
+  return `<div class="sheet"><h2>組織診断${isOfficial()?'（正式組織）':'（シナリオ：'+esc(org().name)+'）'}</h2>
+    <p class="lead">配置から読み取れる組織構造上の論点です。評価や昇格・降格を決めるものではなく、経営判断の材料として使います。</p>
+    <div class="diag">${list.map(x=>`<div class="dg ${x.lv==='info'?'info':''}"><b>${x.lv==='warn'?'⚠ ':''}${esc(x.t)}</b><span>${esc(x.s)}</span></div>`).join('')||'<div class="nodata">構造上の目立った論点は見つかりませんでした。</div>'}</div>
+    <div class="row" style="margin-bottom:12px"><button class="btn sun" data-act="aiRun">AIに改善案を出してもらう</button><span class="note">部署構成と人数・役職のみを送ります（機密メモは送りません）</span></div>
+    ${V.aiText?`<div class="aiout">${esc(V.aiText)}</div>`:''}</div>`;
+}
+async function runAI(){
+  const o=org();
+  const summary=o.depts.map(d=>{const mem=o.people.filter(p=>p.deptId===d.id);
+    return {部署:d.name,上位部署:deptName(d.parentId,o),在籍:mem.filter(isActive).length,部門長:mem.filter(p=>p.isHead).map(p=>p.title).join('/')||'なし',
+      役職構成:TITLES.map(t=>`${t}${mem.filter(p=>p.title===t&&isActive(p)).length}`).filter(x=>!x.endsWith('0')).join(' '),採用予定:mem.filter(p=>p.status==='採用予定').length}});
+  const sc=isOfficial()?null:o;
+  const system='あなたは再生可能エネルギー企業「株式会社アースコム」の組織設計アドバイザーです。識学の考え方（責任と権限の明確化、1上司1部下の指揮系統、部門長の結果責任）を前提に、組織構造上の論点と改善案を日本語で示します。個人の評価・昇格・降格は判断しません。';
+  const prompt=`以下の組織データを診断し、次の構成でプレーンテキスト（Markdown記号・HTMLタグは使わない）で回答してください。\n■ 全体所見（3行以内）\n■ 優先度の高い論点（最大4つ。各「論点／理由／打ち手」）\n■ 組織案の提案（1〜2案）\n${sc?`\nシナリオ名：${sc.name}／対象時期：${sc.when||'未設定'}／目標人数：${sc.target||'未設定'}`:''}\nルール診断の結果：${JSON.stringify(diagnose().map(x=>x.t))}\n組織データ：${JSON.stringify(summary)}`;
+  V.aiText='AIが診断しています…';renderPane();
+  try{V.aiText=await callAI(prompt,system)}catch(e){V.aiText='AIに接続できませんでした（'+e.message+'）。ログイン状態とネットワークを確認して、もう一度実行してください。'}
+  renderPane();
+}
+async function callAI(prompt,system){
+  if(sb&&mode==='live'){
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+(session?.access_token||SB_KEY)},body:JSON.stringify({prompt,system,max_tokens:2000})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    return j.text||j.content?.map?.(c=>c.text||'').join('')||j.result||j.output||JSON.stringify(j);
+  }
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system,messages:[{role:'user',content:prompt}]})});
+  const j=await r.json();
+  return (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n')||'応答が空でした。';
+}
+
+/* ========== 詳細パネル ========== */
+function renderDrawer(){
+  const p=person(V.sel);const dr=$('#drawer');
+  if(!p){closeDrawer();return}
+  const o=org();const ro=canEdit()?'':'disabled';
+  const opt=(arr,v)=>arr.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+  const deptOpts=`<option value="">未配置</option>`+o.depts.map(d=>`<option value="${d.id}" ${d.id===p.deptId?'selected':''}>${esc(d.name)}</option>`).join('');
+  const conc=`<option value="">なし</option>`+o.depts.map(d=>`<option value="${d.id}" ${d.id===p.concurrent?'selected':''}>${esc(d.name)}</option>`).join('');
+  const boss=findBoss(p);
+  const subs=p.isHead?[...o.people.filter(x=>x.deptId===p.deptId&&x.id!==p.id&&!x.isHead&&isActive(x)),...children(p.deptId).flatMap(c=>o.people.filter(x=>x.deptId===c.id&&x.isHead))]:[];
+  const hist=D.history.filter(h=>h.personId===p.id);
+  const pend=pendingOf(p.id);
+  dr.innerHTML=`<header><b style="flex:1;font-size:17px">${esc(p.name)}</b><button class="btn sm" data-act="closeDrawer">閉じる</button></header>
+  <div class="body">
+    ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>異動予定タブで承認すると反映されます</span></div>`:''}
+    <h5>基本情報</h5>
+    <div class="fg">
+      <label>氏名</label><input data-f="name" value="${esc(p.name)}" ${ro}>
+      <label>所属</label><select data-f="deptId" ${ro}>${deptOpts}</select>
+      <label>役職</label><select data-f="title" ${ro}>${opt(TITLES,p.title)}</select>
+      <label>部門長</label><label class="chk"><input type="checkbox" data-f="isHead" ${p.isHead?'checked':''} ${ro}>この部署の部門長（役割）</label>
+      <label>役割名</label><input data-f="roleName" value="${esc(p.roleName)}" placeholder="例：営業推進責任者" ${ro}>
+      <label>上司</label><span>${boss?esc(boss.name)+'（'+esc(deptName(boss.deptId))+'）':'—'}</span>
+      <label>入社年月</label><input data-f="joined" type="month" value="${esc(p.joined)}" ${ro}>
+      <label>勤務地</label><input data-f="location" value="${esc(p.location)}" ${ro}>
+      <label>雇用区分</label><select data-f="empType" ${ro}>${opt(['正社員','契約社員','パート・アルバイト','業務委託','役員'],p.empType)}</select>
+      <label>在籍状況</label><select data-f="status" ${ro}>${opt(STATUS,p.status)}</select>
+    </div>
+    <h5>組織情報</h5>
+    <div class="fg">
+      <label>兼務部署</label><select data-f="concurrent" ${ro}>${conc}</select>
+      <label>直属部下</label><span>${subs.length?subs.map(x=>esc(x.name)).join('、'):'—'}</span>
+    </div>
+    <div class="note" style="margin-top:8px">異動履歴</div>
+    ${hist.length?`<ul class="mini">${hist.map(h=>`<li>${esc(h.date)}　${esc(h.from)} → ${esc(h.to)}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
+    <h5>人材情報</h5>
+    <div class="fg">
+      <label>タグ</label><input data-f="tags" value="${esc((p.tags||[]).join('、'))}" placeholder="例：次世代幹部、宅建" ${ro}>
+      <label>スキル・資格</label><textarea data-f="skills" ${ro}>${esc(p.skills)}</textarea>
+      <label>育成テーマ</label><textarea data-f="growth" ${ro}>${esc(p.growth)}</textarea>
+      <label>キャリア希望</label><textarea data-f="career" ${ro}>${esc(p.career)}</textarea>
+    </div>
+    ${seeSecret()?`<h5>機密メモ（管理者のみ表示）</h5><div class="secret"><textarea data-f="secret" style="width:100%;min-height:70px;border:1px solid #E8BDB3;border-radius:6px;padding:6px 8px" placeholder="評価・処遇など">${esc(p.secret)}</textarea></div>`:''}
+    ${canEdit()?`<div class="row" style="margin-top:22px"><button class="btn del" data-act="delPerson">この社員を削除</button></div>`:''}
+  </div>`;
+  dr.classList.add('open');dr.setAttribute('aria-hidden','false');
+}
+function findBoss(p){
+  const o=org();let d=deptById(p.deptId);
+  if(!d)return null;
+  if(!p.isHead){const h=o.people.find(x=>x.deptId===d.id&&x.isHead&&x.id!==p.id);if(h)return h}
+  let pd=deptById(d.parentId);
+  while(pd){const h=o.people.find(x=>x.deptId===pd.id&&x.isHead);if(h)return h;pd=deptById(pd.parentId)}
+  return null;
+}
+function closeDrawer(){V.sel=null;const dr=$('#drawer');dr.classList.remove('open');dr.setAttribute('aria-hidden','true')}
+$('#drawer').addEventListener('change',e=>{
+  const f=e.target.dataset.f;if(!f)return;const p=person(V.sel);if(!p)return;
+  if(f==='deptId'){const to=e.target.value||null;e.target.value=p.deptId||'';requestMove(p.id,to);return}
+  let v=e.target.type==='checkbox'?e.target.checked:e.target.value;
+  if(f==='tags')v=v.split(/[、,，\s]+/).filter(Boolean);
+  p[f]=v;dirty();render();
+});
+
+/* ========== 異動 ========== */
+async function requestMove(pid,to){
+  const p=person(pid);if(!p||(p.deptId||null)===(to||null)||!canEdit())return;
+  const off=isOfficial();const from=p.deptId;
+  const body=`<div class="movebox"><b>${esc(p.name)}</b>さんを<br>${esc(deptName(from))} → <b>${esc(deptName(to))}</b> へ${off?'異動しますか？':'移動しますか？'}</div>
+    ${off?`<label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>理由・メモ（任意）<input name="reason" placeholder="例：東京支社立上げのため"></label>`:''}
+    ${p.isHead?`<div class="note">部門長のため、異動後は部門長の設定が外れます。</div>`:''}`;
+  const acts=off?[{label:'やめる',key:null},...(canApprove()?[{label:'承認して今すぐ反映',key:'now'}]:[]),{label:'下書きに追加',key:'draft',kind:'pri'}]
+               :[{label:'やめる',key:null},{label:'移動する',key:'move',kind:'pri'}];
+  const r=await modal({title:off?'異動の確認':'シナリオ内で移動',body,actions:acts});
+  if(!r.key)return;
+  if(r.key==='move'){p.deptId=to;p.isHead=false}
+  else if(r.key==='draft'){
+    D.pending=D.pending.filter(x=>x.personId!==pid);
+    D.pending.push({id:uid('m'),personId:pid,from,to,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString()});
+    toast('異動予定（下書き）に追加しました');
+  }else if(r.key==='now'){applyMove(pid,to,r.form.date||today(),r.form.reason);toast('組織図に反映しました')}
+  dirty();render();
+}
+function applyMove(pid,to,date,reason,o=D.official){
+  const p=o.people.find(x=>x.id===pid);if(!p)return;
+  const from=p.deptId;const fromN=deptName(from,o),toN=deptName(to,o);
+  p.deptId=to;p.isHead=false;
+  D.pending=D.pending.filter(x=>x.personId!==pid);
+  D.history.push({id:uid('h'),personId:pid,name:p.name,from:fromN,to:toN,date,reason:reason||'',by:me.name||me.email,at:new Date().toISOString()});
+  if(p.status!=='採用予定')D.care.push({id:uid('c'),personId:pid,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))});
+}
+
+/* ========== ドラッグ＆ドロップ（マウス／タッチ長押し） ========== */
+let drag=null;
+document.addEventListener('pointerdown',e=>{
+  const c=e.target.closest('.card');if(!c||e.button>0)return;
+  drag={pid:c.dataset.pid,el:c,x:e.clientX,y:e.clientY,type:e.pointerType,on:false,moved:false,timer:null};
+  if(canEdit()&&e.pointerType!=='mouse')drag.timer=setTimeout(()=>startDrag(e.clientX,e.clientY),420);
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y,dist=Math.hypot(dx,dy);
+  if(!drag.on){
+    if(dist>8){drag.moved=true;clearTimeout(drag.timer);if(drag.type==='mouse'&&canEdit())startDrag(e.clientX,e.clientY);else if(drag.type!=='mouse')drag=null}
+    return;
+  }
+  moveGhost(e.clientX,e.clientY);
+});
+document.addEventListener('pointerup',e=>{
+  if(!drag)return;clearTimeout(drag.timer);const d=drag;drag=null;
+  if(d.on){endDrag(e.clientX,e.clientY,d);return}
+  if(!d.moved){V.sel=d.pid;renderDrawer()}
+});
+document.addEventListener('pointercancel',()=>{if(drag&&!drag.on){clearTimeout(drag.timer);drag=null}});
+document.addEventListener('touchmove',e=>{if(drag&&drag.on)e.preventDefault()},{passive:false});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.card'))e.preventDefault()});
+function startDrag(x,y){
+  if(!drag)return;drag.on=true;drag.moved=true;
+  const g=drag.el.cloneNode(true);g.classList.add('ghost');g.classList.remove('dim','hit');document.body.appendChild(g);drag.ghost=g;
+  drag.el.classList.add('lifted');if(navigator.vibrate)navigator.vibrate(15);moveGhost(x,y);
+}
+function moveGhost(x,y){
+  drag.ghost.style.left=(x-95)+'px';drag.ghost.style.top=(y-20)+'px';
+  document.querySelectorAll('.over').forEach(n=>n.classList.remove('over'));
+  const t=document.elementFromPoint(x,y)?.closest('[data-drop]');if(t)t.classList.add('over');drag.target=t?.dataset.drop;
+  const pane=$('#pane'),r=pane.getBoundingClientRect(),m=50;
+  if(x>r.right-m)pane.scrollLeft+=14;else if(x<r.left+m&&x>r.left)pane.scrollLeft-=14;
+  if(y>r.bottom-m)pane.scrollTop+=14;else if(y<r.top+m&&y>r.top)pane.scrollTop-=14;
+}
+function endDrag(x,y,d){
+  d.ghost?.remove();d.el.classList.remove('lifted');
+  document.querySelectorAll('.over').forEach(n=>n.classList.remove('over'));
+  const t=document.elementFromPoint(x,y)?.closest('[data-drop]');
+  if(t)requestMove(d.pid,t.dataset.drop==='__none'?null:t.dataset.drop);
+}
+document.addEventListener('keydown',e=>{
+  const c=e.target.closest?.('.card');
+  if(c&&(e.key==='Enter'||e.key===' ')){e.preventDefault();V.sel=c.dataset.pid;renderDrawer()}
+  if(e.key==='Escape'&&V.sel&&$('#modal').hidden)closeDrawer();
+});
+
+/* ========== 部署・社員の追加／編集 ========== */
+function deptOptions(sel,excl=[]){return `<option value="">（最上位）</option>`+org().depts.filter(d=>!excl.includes(d.id)).map(d=>`<option value="${d.id}" ${d.id===sel?'selected':''}>${esc(d.name)}</option>`).join('')}
+async function addDept(parentId='top'){
+  const r=await modal({title:'部署を追加',body:`<label>部署名<input name="name" placeholder="例：東京支社"></label><label>上位部署<select name="parent">${deptOptions(deptById(parentId)?parentId:'')}</select></label>`,
+    actions:[{label:'やめる',key:null},{label:'追加する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
+  if(!r.key)return;const o=org();
+  const d={id:uid('d'),name:r.form.name.trim(),parentId:r.form.parent||null,hue:o.depts.length};o.depts.push(d);
+  dirty();render();flashDept(d.id);
+}
+async function deptMenu(id){
+  const d=deptById(id);if(!d)return;
+  const r=await modal({title:'部署の設定',body:`<label>部署名<input name="name" value="${esc(d.name)}"></label>
+    <label>上位部署<select name="parent">${deptOptions(d.parentId,[id,...descendants(id)])}</select></label>
+    <label>色<select name="hue">${HUES.map((h,i)=>`<option value="${i}" ${i===(d.hue%HUES.length)?'selected':''}>色${i+1}</option>`).join('')}</select></label>`,
+    actions:[{label:'削除',key:'del',kind:'del'},{label:'下位部署を追加',key:'child'},{label:'採用予定枠を追加',key:'slot'},{label:'保存',key:'ok',kind:'pri'}]});
+  if(r.key==='ok'){d.name=r.form.name.trim()||d.name;d.parentId=r.form.parent||null;d.hue=+r.form.hue}
+  else if(r.key==='child'){return addDept(id)}
+  else if(r.key==='slot'){org().people.push(newPerson({name:`（${d.name} 採用予定）`,deptId:id,status:'採用予定'}));toast('採用予定枠を追加しました')}
+  else if(r.key==='del'){
+    const o=org();const n=o.people.filter(p=>p.deptId===id).length;
+    const c=await modal({title:'部署を削除',body:`<div>「${esc(d.name)}」を削除します。所属の${n}名は未配置に、下位部署は一つ上の部署へ移ります。</div>`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
+    if(!c.key)return;
+    o.people.forEach(p=>{if(p.deptId===id){p.deptId=null;p.isHead=false}});
+    children(id).forEach(ch=>ch.parentId=d.parentId);
+    o.depts=o.depts.filter(x=>x.id!==id);
+    D.pending=D.pending.filter(x=>x.to!==id);
+  }else return;
+  dirty();render();
+}
+function newPerson(o){return {id:uid('p'),name:'',deptId:null,title:'一般',isHead:false,roleName:'',status:'在籍',joined:'',location:'越谷本社',empType:'正社員',tags:[],skills:'',growth:'',career:'',concurrent:'',secret:'',...o}}
+async function addPerson(){
+  const o=org();
+  const r=await modal({title:'社員を追加',body:`<label>氏名<input name="name" placeholder="例：山田 太郎"></label>
+    <label>所属<select name="dept"><option value="">未配置</option>${o.depts.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></label>
+    <label>役職<select name="title">${TITLES.map(t=>`<option>${t}</option>`).join('')}</select></label>
+    <label>在籍状況<select name="status">${STATUS.map(t=>`<option>${t}</option>`).join('')}</select></label>`,
+    actions:[{label:'やめる',key:null},{label:'追加する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
+  if(!r.key)return;
+  const p=newPerson({name:r.form.name.trim(),deptId:r.form.dept||null,title:r.form.title,status:r.form.status});
+  o.people.push(p);dirty();V.sel=p.id;render();
+}
+
+/* ========== 取込（表の貼り付け） ========== */
+async function importTable(){
+  const r=await modal({title:'社員データを取込',body:`<div class="note">スプレッドシート・Excelの表を、見出し行ごとコピーして貼り付けてください。<br>使う列：部署（所属）・氏名・役職・役割・上位部署・入社・勤務地。役割定義シートのように1人が複数行ある表でも、氏名ごとに1人にまとめます。役割に「部門長」を含む人は部門長になります。</div>
+    <textarea name="txt" placeholder="部署&#9;役職&#9;氏名&#9;役割"></textarea>
+    <label>取込み方<select name="how"><option value="replace">今の組織を置き換える</option><option value="add">今の組織に追加する</option></select></label>
+    <div class="note">取込先：${isOfficial()?'正式組織':'シナリオ「'+esc(org().name)+'」'}</div>`,
+    actions:[{label:'やめる',key:null},{label:'取り込む',key:'ok',kind:'pri'}]});
+  if(!r.key||!r.form.txt.trim())return;
+  const rows=r.form.txt.trim().split(/\r?\n/).map(l=>{const sep=l.includes('\t')?'\t':',';return l.split(sep).map(s=>s.trim().replace(/^"|"$/g,''))});
+  const H=rows.shift();const col=re=>H.findIndex(h=>re.test(h));
+  const ci={dept:col(/部署|所属|部門/),name:col(/氏名|名前|社員名/),title:col(/役職/),role:col(/^役割$|役割名/),parent:col(/上位|親部署/),joined:col(/入社/),loc:col(/勤務地|拠点/)};
+  if(ci.name<0){toast('「氏名」の列が見つかりません。見出し行も一緒に貼り付けてください');return}
+  const o=org();
+  if(r.form.how==='replace'){o.depts=[{id:'top',name:'代表取締役',parentId:null,hue:0}];o.people=[];D.pending=isOfficial()?[]:D.pending}
+  const byName=new Map(o.depts.map(d=>[d.name,d]));const seen=new Map(o.people.map(p=>[p.name,p]));
+  const getDept=(name,parent)=>{if(!name)return null;if(byName.has(name))return byName.get(name).id;
+    let pid='top';if(parent){pid=getDept(parent,null)}if(!deptById(pid,o))pid=roots(o)[0]?.id||null;
+    const d={id:uid('d'),name,parentId:pid,hue:o.depts.length};o.depts.push(d);byName.set(name,d);return d.id};
+  let lastDept='',added=0;
+  rows.forEach(c=>{
+    const g=i=>i>=0?(c[i]||'').trim():'';
+    const dn=g(ci.dept)||lastDept;lastDept=dn;const nm=g(ci.name);if(!nm)return;
+    const role=g(ci.role);
+    if(seen.has(nm)){const p=seen.get(nm);if(/部門長/.test(role))p.isHead=true;return}
+    const t=TITLES.find(x=>g(ci.title).includes(x))||(g(ci.title).includes('リーダー')?'係長':'一般');
+    const p=newPerson({name:nm,deptId:dn==='代表取締役'?'top':getDept(dn,g(ci.parent)),title:t,isHead:/部門長/.test(role),roleName:role&&!/部門長/.test(role)&&role.length<20?role:'',joined:g(ci.joined),location:g(ci.loc)||'越谷本社'});
+    o.people.push(p);seen.set(nm,p);added++;
+  });
+  D.isSample=false;dirty();render();toast(`${added}名を取り込みました`);
+}
+
+/* ========== シナリオ ========== */
+async function scnForm(sc){
+  const r=await modal({title:sc?'シナリオの設定':'シナリオを作成',body:`<label>シナリオ名<input name="name" value="${esc(sc?.name||'')}" placeholder="例：2027年4月・60名体制"></label>
+    <label>対象時期<input name="when" value="${esc(sc?.when||'')}" placeholder="例：2027年4月"></label>
+    <label>目標人数（任意）<input name="target" type="number" min="0" value="${sc?.target||''}"></label>
+    ${sc?'':`<label>元にする組織<select name="base"><option value="official">正式組織（現在）</option>${D.scenarios.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>`}`,
+    actions:[{label:'やめる',key:null},{label:sc?'保存':'作成する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
+  if(!r.key)return;
+  if(sc){Object.assign(sc,{name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0})}
+  else{const base=r.form.base==='official'?D.official:D.scenarios.find(s=>s.id===r.form.base);
+    const s={id:uid('s'),name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0,...JSON.parse(JSON.stringify({depts:base.depts,people:base.people}))};
+    D.scenarios.push(s);V.scn=s.id;V.tab='chart'}
+  dirty();render();
+}
+async function adoptScenario(){
+  const sc=org();const moves=sc.people.filter(p=>{const o=D.official.people.find(x=>x.id===p.id);return o&&o.deptId!==p.deptId});
+  const r=await modal({title:'シナリオを正式組織にする',body:`<div>「${esc(sc.name)}」の組織を正式組織として反映します。所属が変わる${moves.length}名は異動履歴と異動CAREに記録されます。今の正式組織は上書きされます。</div><label>異動日<input name="date" type="date" value="${nextMonth1()}"></label>`,
+    actions:[{label:'やめる',key:null},{label:'正式組織にする',key:'ok',kind:'sun'}]});
+  if(!r.key)return;const date=r.form.date||today();
+  const nextDepts=JSON.parse(JSON.stringify(sc.depts)),nextPeople=JSON.parse(JSON.stringify(sc.people));
+  moves.forEach(p=>{const fromN=deptName(D.official.people.find(x=>x.id===p.id).deptId,D.official),toN=deptName(p.deptId,sc);
+    D.history.push({id:uid('h'),personId:p.id,name:p.name,from:fromN,to:toN,date,reason:'シナリオ「'+sc.name+'」を採用',by:me.name||me.email,at:new Date().toISOString()});
+    if(p.status!=='採用予定')D.care.push({id:uid('c'),personId:p.id,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))})});
+  D.official={depts:nextDepts,people:nextPeople};D.pending=[];V.scn='official';
+  dirty();render();toast('正式組織に反映しました');
+}
+
+/* ========== 共通UI ========== */
+function modal({title,body,actions}){
+  return new Promise(res=>{
+    const m=$('#modal');const prev=document.activeElement;
+    m.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mt"><h3 id="mt">${title}</h3><div class="mbody">${body}</div>
+      <div class="mact">${actions.map((a,i)=>`<button class="btn ${a.kind||''}" data-i="${i}">${a.label}</button>`).join('')}</div></div>`;
+    m.hidden=false;(m.querySelector('input,select,textarea')||m.querySelector('.mact .pri')||m.querySelector('button')).focus();
+    const done=v=>{m.hidden=true;m.onclick=m.onkeydown=null;prev?.focus?.();res(v)};
+    m.onclick=e=>{const b=e.target.closest('[data-i]');
+      if(b){const a=actions[+b.dataset.i];if(a.key&&a.validate&&!a.validate(m)){m.querySelector('input')?.focus();return}
+        const form={};m.querySelectorAll('[name]').forEach(el=>form[el.name]=el.type==='checkbox'?el.checked:el.value);done({key:a.key,form})}
+      else if(e.target===m)done({key:null})};
+    m.onkeydown=e=>{if(e.key==='Escape')done({key:null});if(e.key==='Enter'&&e.target.tagName==='INPUT'){m.querySelector('.mact .pri')?.click()}};
+  });
+}
+let toastT;function toast(t){document.querySelector('.toast')?.remove();const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=t;document.body.appendChild(d);clearTimeout(toastT);toastT=setTimeout(()=>d.remove(),2600)}
+function flashDept(id){V.tab='chart';renderPane();requestAnimationFrame(()=>{const n=$('#dept-'+id);if(!n)return;n.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});n.classList.remove('flash');void n.offsetWidth;n.classList.add('flash')})}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+/* ========== イベント ========== */
+document.addEventListener('click',async e=>{
+  const go=e.target.closest('[data-go]');if(go){if(innerWidth<=820)$('#aside').classList.remove('open');flashDept(go.dataset.go);document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab==='chart'));return}
+  const tab=e.target.closest('[data-tab]');if(tab){V.tab=tab.dataset.tab;render();return}
+  const cb=e.target.closest('[data-care]');if(cb){const c=D.care.find(x=>x.id===cb.dataset.care);if(c){c.items[+cb.dataset.k].done=cb.checked;dirty();renderPane();render()}return}
+  const a=e.target.closest('[data-act]');if(!a)return;const id=a.dataset.id;
+  switch(a.dataset.act){
+    case 'deptMenu':deptMenu(id);break;
+    case 'closeDrawer':closeDrawer();break;
+    case 'delPerson':{const p=person(V.sel);const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
+      if(r.key){const o=org();o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
+    case 'approve':{const x=D.pending.find(y=>y.id===id);if(x){applyMove(x.personId,x.to,x.date,x.reason);dirty();render();toast('承認して反映しました')}break}
+    case 'approveAll':D.pending.slice().forEach(x=>applyMove(x.personId,x.to,x.date,x.reason));dirty();render();toast('すべて反映しました');break;
+    case 'cancelPend':D.pending=D.pending.filter(y=>y.id!==id);dirty();render();break;
+    case 'histCsv':{const lines=[['異動日','氏名','異動元','異動先','理由','記録者','記録日時'],...D.history.map(h=>[h.date,h.name,h.from,h.to,h.reason,h.by,h.at])];
+      download(`異動履歴_${today()}.csv`,'\ufeff'+lines.map(l=>l.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');break}
+    case 'aiRun':runAI();break;
+    case 'scnEdit':scnForm(org());break;
+    case 'scnDel':{const r=await modal({title:'シナリオを削除',body:`<div>「${esc(org().name)}」を削除します。正式組織には影響しません。</div>`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
+      if(r.key){D.scenarios=D.scenarios.filter(s=>s.id!==V.scn);V.scn='official';dirty();render()}break}
+    case 'scnAdopt':adoptScenario();break;
+  }
+});
+$('#scnSel').onchange=e=>{V.scn=e.target.value;closeDrawer();V.aiText='';render()};
+$('#newScn').onclick=()=>scnForm(null);
+$('#addPerson').onclick=addPerson;
+$('#addDept').onclick=()=>addDept('top');
+$('#importBtn').onclick=importTable;
+$('#aiBtn').onclick=()=>{V.tab='diag';render()};
+$('#menuBtn').onclick=()=>$('#aside').classList.toggle('open');
+$('#q').oninput=e=>{V.q=e.target.value;V.tab='chart';render();const h=document.querySelector('.card.hit');h&&h.scrollIntoView({behavior:'smooth',block:'center',inline:'center'})};
+$('#zIn').onclick=()=>{V.zoom=Math.min(1.6,+(V.zoom+.1).toFixed(1));renderPane()};
+$('#zOut').onclick=()=>{V.zoom=Math.max(.4,+(V.zoom-.1).toFixed(1));renderPane()};
+$('#zReset').onclick=()=>{V.zoom=1;renderPane()};
+$('#pdfBtn').onclick=()=>{V.tab='chart';render();setTimeout(()=>window.print(),150)};
+$('#saveBtn').onclick=()=>save(true);
+$('#backupBtn').onclick=async()=>{
+  const r=await modal({title:'バックアップ',body:`<div class="note">全データ（正式組織・シナリオ・異動予定・履歴・CARE）をJSONファイルで書き出し／読み込みできます。</div>${canEdit()?`<label>読み込むファイル<input name="file" type="file" accept=".json"></label>`:''}`,
+    actions:[{label:'閉じる',key:null},...(canEdit()?[{label:'読み込む',key:'in'}]:[]),{label:'書き出す',key:'out',kind:'pri'}]});
+  if(r.key==='out')download(`org-design_${today()}.json`,JSON.stringify(D,null,1),'application/json');
+  if(r.key==='in'){const f=$('#modal [name=file]')?.files?.[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.official)throw 0;D=j;V.scn='official';dirty();render();toast('読み込みました')}catch{toast('このファイルは読み込めません。書き出したJSONを選んでください')}}
+};
+
+/* ========== 保存（Supabase） ========== */
+let saveT=null,saving=false;
+function dirty(){setSave('未保存の変更があります');clearTimeout(saveT);saveT=setTimeout(()=>save(),1500)}
+function setSave(t,err){const s=$('#saveState');s.textContent=t;s.classList.toggle('err',!!err)}
+async function save(manual){
+  clearTimeout(saveT);
+  if(mode!=='live'){setSave('プレビュー表示（保存されません）');if(manual)toast('プレビューでは保存されません。公開URLから開いてください');return}
+  if(saving){saveT=setTimeout(()=>save(),800);return}
+  saving=true;setSave('保存中…');
+  const {error}=await sb.from(TABLE).upsert({id:ROW,data:D,updated_at:new Date().toISOString(),updated_by:me.email});
+  saving=false;
+  if(error)setSave('保存できませんでした：'+error.message,true);
+  else{setSave('保存済み '+new Date().toTimeString().slice(0,5));if(manual)toast('保存しました')}
+}
+async function boot(){
+  try{
+    if(window.EC&&window.supabase){
+      if(EC.guard)await EC.guard({allow:['admin','manager','sales','field','viewer']});
+      const m=typeof EC.me==='function'?await EC.me():EC.me;
+      if(m)me={email:m.email,name:m.full_name||m.name||m.email,role:m.role||'viewer'};
+      sb=EC.sb||EC.client||window.supabase.createClient(SB_URL,SB_KEY);
+      const {data,error}=await sb.from(TABLE).select('data').eq('id',ROW).maybeSingle();
+      if(error)throw error;
+      D=data?.data||sample();mode='live';
+      setSave(data?'保存済み':'サンプルを表示中（まだ保存されていません）');
+    }else throw new Error('preview');
+  }catch(e){
+    D=D||sample();mode='preview';setSave(e.message==='preview'?'プレビュー表示（保存されません）':'データを読み込めませんでした：'+e.message,e.message!=='preview');
+  }
+  ['scenarios','pending','history','care'].forEach(k=>D[k]=D[k]||[]);
+  render();
+}
+boot();
+</script>
+</body>
+</html>
