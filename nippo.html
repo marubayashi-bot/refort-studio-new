@@ -247,6 +247,15 @@ th{color:var(--muted);font-size:11px;font-weight:700}
 .rel-ft label{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:700;cursor:pointer;margin:0;color:var(--ink)}
 .rel-ft input{width:20px;height:20px;accent-color:var(--accent)}
 .rel-ft button:disabled{opacity:.45;cursor:not-allowed}
+/* CC */
+.ccchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.ccchip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 11px;border-radius:16px;background:#E7F0F8;color:#245A8C;font-size:13px;font-weight:700}
+.ccchip button{border:0;background:rgba(36,90,140,.12);color:#245A8C;width:20px;height:20px;border-radius:50%;cursor:pointer;font:inherit;font-size:12px;line-height:1;padding:0}
+.ccsug{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.ccsug button{border:1px dashed #9DB3CA;background:#fff;border-radius:16px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+.ccsug button:hover{border-style:solid;border-color:#245A8C;color:#245A8C}
+.ccline{margin:2px 0 6px;font-size:12px;color:var(--muted)}
+.ccline b{color:#245A8C;font-weight:700}
 .cact{float:right;display:flex;gap:4px}
 .cact button{border:0;background:none;font:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
 .cact button:hover{background:#E8EDF3;color:var(--ink)}
@@ -496,13 +505,14 @@ async function loadReports(fromDate){
     .order('report_date', { ascending: false });
   if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
   REPORTS = data || [];
+  await loadCc();
 }
 
 function fail(msg){ document.getElementById('view').innerHTML = `<div class="empty">${esc(msg)}</div>`; }
 
 /* ---------- 画面枠 ---------- */
 function render(){
-  const nUnread = myNotifs().length + subNotifs().length;
+  const nUnread = notifCount();
   // 日報を書くのは上のオレンジのボタンに集約したので、ナビからは外す
   TABS = [['weekly','週次報告を書く'],['feed','日報一覧']]
     .concat([
@@ -519,6 +529,134 @@ function render(){
   updateAppBadge();
 }
 
+/* ================= CC（上司以外にも日報を共有） =================
+   日報を書くときに共有したい人を選ぶと、その人の「通知」とChatwork（GAS）に届く。
+   選んだ人は次回の日報にも自動で引き継がれる。記録は report_cc テーブル。 */
+let CCMAP = {};          // 日報id → [{user_id, read_at}]
+let CC_READY = true;     // report_cc が無いと false
+let CC_SEL = null, CC_SEL_DAY = '';
+let CC_POLL = [];        // 定期チェックで取った「自分宛てで未読のCC」
+
+function notifCount(){ return myNotifs().length + subNotifs().length + ccNotifs().length; }
+
+async function loadCc(){
+  const { data, error } = await EC.supabase.from('report_cc')
+    .select('report_id,user_id,read_at,daily_reports!inner(report_date)')
+    .gte('daily_reports.report_date', LOAD_FROM);
+  if (error){ CC_READY = false; console.warn('report_cc', error.message); return; }
+  CC_READY = true; CCMAP = {};
+  (data || []).forEach(c => { (CCMAP[c.report_id] = CCMAP[c.report_id] || []).push(c); });
+}
+
+function ccCandidates(){
+  return USERS.filter(u => u.id !== ME.id && u.id !== ME.manager_id && u.is_active !== false && u.full_name);
+}
+function initCcSel(day){
+  if (CC_SEL && CC_SEL_DAY === day) return;
+  CC_SEL_DAY = day;
+  const same = REPORTS.find(r => r.author_id === ME.id && r.report_date === day);
+  if (same && CCMAP[same.id]) { CC_SEL = CCMAP[same.id].map(c => c.user_id); return; }
+  // 前回の日報のCCを引き継ぐ
+  const last = REPORTS.filter(r => r.author_id === ME.id && r.status !== 'off' && CCMAP[r.id])
+    .sort((a,b) => b.report_date.localeCompare(a.report_date))[0];
+  CC_SEL = last ? CCMAP[last.id].map(c => c.user_id).filter(id => ccCandidates().some(u => u.id === id)) : [];
+}
+function ccPickerHtml(day){
+  initCcSel(day);
+  if (!CC_READY) return '<p class="note" style="margin-top:14px">CC機能は準備中です（管理者に SQL の実行を依頼してください）。</p>';
+  return `<label style="margin-top:14px">CC（上司以外にも共有する人）<span class="note" style="font-weight:400">任意</span></label>
+    <div class="ccchips" id="ccChips">${ccChipsHtml()}</div>
+    <input type="text" id="ccFind" placeholder="名前・部署で検索して追加" autocomplete="off" oninput="ccSuggest(this.value)" onfocus="ccSuggest(this.value)">
+    <div class="ccsug" id="ccSug"></div>
+    <p class="note" style="margin-top:6px">選んだ人の「通知」タブとChatworkに届きます。次回の日報にも同じ人が自動で入ります。</p>`;
+}
+function ccChipsHtml(){
+  return (CC_SEL || []).length ? CC_SEL.map(id => `<span class="ccchip">${esc(uname(id))}
+      <button onclick="removeCc('${id}')" aria-label="${esc(uname(id))}をCCから外す">×</button></span>`).join('')
+    : '<span class="note">CCなし（直属上司のみに届きます）</span>';
+}
+function ccSuggest(q){
+  const box = document.getElementById('ccSug'); if (!box) return;
+  const t = String(q || '').replace(/\s/g, '');
+  const list = ccCandidates().filter(u => (CC_SEL || []).indexOf(u.id) < 0)
+    .filter(u => !t || (u.full_name + (u.dept_name || '') + (u.job_grade || '')).replace(/\s/g, '').indexOf(t) >= 0)
+    .slice(0, t ? 12 : 8);
+  box.innerHTML = list.map(u => `<button onclick="addCc('${u.id}')">＋ ${esc(u.full_name)}
+    <span class="note">${esc(u.dept_name || '')}</span></button>`).join('')
+    || (t ? '<span class="note">見つかりません</span>' : '');
+}
+function addCc(id){
+  CC_SEL = CC_SEL || []; if (CC_SEL.indexOf(id) < 0) CC_SEL.push(id);
+  document.getElementById('ccChips').innerHTML = ccChipsHtml();
+  const f = document.getElementById('ccFind'); if (f){ f.value = ''; f.focus(); }
+  ccSuggest('');
+}
+function removeCc(id){
+  CC_SEL = (CC_SEL || []).filter(x => x !== id);
+  document.getElementById('ccChips').innerHTML = ccChipsHtml();
+  ccSuggest((document.getElementById('ccFind') || {}).value || '');
+}
+async function saveCc(reportId){
+  if (!CC_READY) return;
+  const want = CC_SEL || [];
+  const have = (CCMAP[reportId] || []).map(c => c.user_id);
+  const del = have.filter(id => want.indexOf(id) < 0);
+  const add = want.filter(id => have.indexOf(id) < 0);
+  if (del.length) await EC.supabase.from('report_cc').delete().eq('report_id', reportId).in('user_id', del);
+  if (add.length){
+    const { error } = await EC.supabase.from('report_cc')
+      .insert(add.map(id => ({ report_id: reportId, user_id: id, added_by: ME.id })));
+    if (error) toast('CCを保存できませんでした: ' + error.message);
+  }
+}
+function ccLine(r){
+  const cc = CCMAP[r.id] || []; if (!cc.length) return '';
+  return `<div class="ccline">CC：${cc.map(c => `<b>${esc(uname(c.user_id))}</b>${c.read_at ? '<span title="既読">✓</span>' : ''}`).join('、')}</div>`;
+}
+
+/* 自分宛てのCC（未読） */
+function ccNotifs(){
+  if (!ME) return [];
+  const map = {};
+  Object.keys(CCMAP).forEach(rid => (CCMAP[rid] || []).forEach(c => {
+    if (c.user_id !== ME.id || c.read_at) return;
+    const r = REPORTS.find(x => x.id === rid);
+    if (r && r.status === 'submitted') map[rid] = r;
+  }));
+  CC_POLL.forEach(c => {
+    const r = c.daily_reports; if (!r || r.status !== 'submitted') return;
+    const done = (CCMAP[c.report_id] || []).some(x => x.user_id === ME.id && x.read_at);
+    if (!done && !map[c.report_id]) map[c.report_id] = Object.assign({ id: c.report_id }, r);
+  });
+  return Object.values(map).sort((a,b) => String(b.submitted_at || b.report_date).localeCompare(String(a.submitted_at || a.report_date)));
+}
+async function pollCc(){
+  if (!CC_READY || !ME) return [];
+  const { data, error } = await EC.supabase.from('report_cc')
+    .select('report_id,read_at,daily_reports!inner(author_id,report_date,status,importance,submitted_at)')
+    .eq('user_id', ME.id).is('read_at', null);
+  if (error) return [];
+  CC_POLL = data || [];
+  return CC_POLL;
+}
+async function openCcNotif(reportId){
+  const now = new Date().toISOString();
+  await EC.supabase.from('report_cc').update({ read_at: now }).eq('report_id', reportId).eq('user_id', ME.id);
+  (CCMAP[reportId] || []).forEach(c => { if (c.user_id === ME.id) c.read_at = now; });
+  CC_POLL = CC_POLL.filter(c => c.report_id !== reportId);
+  if (!REPORTS.some(r => r.id === reportId)) await loadReports();
+  OPEN_ID = reportId; LEVEL_FILTER = 0; FEED_FILTER = ''; TAB = 'feed';
+  render(); window.scrollTo(0,0);
+}
+async function readAllCc(){
+  const ids = ccNotifs().map(r => r.id); if (!ids.length) return;
+  const now = new Date().toISOString();
+  await EC.supabase.from('report_cc').update({ read_at: now }).eq('user_id', ME.id).in('report_id', ids);
+  ids.forEach(id => (CCMAP[id] || []).forEach(c => { if (c.user_id === ME.id) c.read_at = now; }));
+  CC_POLL = [];
+  render(); toast('CCの日報をすべて既読にしました');
+}
+
 /* ================= 更新のお知らせ =================
    新しい版を出したら、RELEASES の先頭に1件追加する（v は毎回変える）。
    まだ確認していない人は、アプリを開くと最初にこの画面が出て、「確認しました」を押すまで使えない。
@@ -533,6 +671,9 @@ const RELEASES = [
       '<b>20:00</b> 日報が未提出だと、本人と直属上司にTOが届きます。業務がない日は「日報を書く必要がない日」を押してください。',
       '日報を提出すると、直属上司にTOで通知されます。',
       '<b>毎朝9:00</b> 部下の日報を確認していない上司にTOが届きます。' ]},
+    { h: 'CC（上司以外にも共有）', items: [
+      '日報を書く画面の「CC」で、上司以外にも日報を共有したい人を選べます。選んだ人の「通知」タブとChatworkに届きます。',
+      '選んだ人は次回の日報にも自動で入ります。不要になったら「×」で外してください。' ]},
     { h: '上司の方へ', items: [
       '部下の日報は「通知」タブ・メニューの件数・アプリのアイコンにも表示されます。「確認済みにする」を押すと消えます。',
       '各欄の「引用してコメント」で、その欄を引用してコメントできます。文章の一部を選んでから押すと、その部分だけを引用できます。',
@@ -615,7 +756,7 @@ async function loadReleaseReads(){
 /* ナビだけ描き直す（入力中の画面を壊さないため、定期チェックではこちらを使う） */
 function drawNav(){
   const nav = document.getElementById('nav'); if (!nav || !ME) return;
-  const n = myNotifs().length + subNotifs().length;
+  const n = notifCount();
   const b = nav.querySelector('button[onclick="go(\'notify\')"]');
   if (!b) return;
   const dot = b.querySelector('.navdot');
@@ -650,13 +791,16 @@ function subNotifs(){
 
 async function pollSubReports(){
   if (!ME) return;
-  const subs = mySubIds(); if (!subs.length) return;
-  const { data, error } = await EC.supabase.from('daily_reports')
-    .select('id,author_id,report_date,status,submitted_at,importance,report_views(viewer_id)')
-    .in('author_id', subs).eq('status', 'submitted').gte('report_date', addDays(TODAY, -SUB_DAYS));
-  if (error){ console.warn('pollSubReports', error.message); return; }
-  SUB_POLL = {}; (data || []).forEach(r => { SUB_POLL[r.id] = r; });
-  const list = subNotifs();
+  const subs = mySubIds();
+  if (subs.length){
+    const { data, error } = await EC.supabase.from('daily_reports')
+      .select('id,author_id,report_date,status,submitted_at,importance,report_views(viewer_id)')
+      .in('author_id', subs).eq('status', 'submitted').gte('report_date', addDays(TODAY, -SUB_DAYS));
+    if (error){ console.warn('pollSubReports', error.message); return; }
+    SUB_POLL = {}; (data || []).forEach(r => { SUB_POLL[r.id] = r; });
+  }
+  await pollCc();
+  const list = subNotifs().concat(ccNotifs());
   if (SUB_KNOWN){
     const fresh = list.filter(r => !SUB_KNOWN[r.id]);
     if (fresh.length){
@@ -671,7 +815,7 @@ async function pollSubReports(){
 }
 
 function startSubWatch(){
-  if (SUB_TIMER || !mySubIds().length) { updateAppBadge(); return; }
+  if (SUB_TIMER) { updateAppBadge(); return; }
   pollSubReports();
   SUB_TIMER = setInterval(() => { if (document.visibilityState === 'visible') pollSubReports(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollSubReports(); });
@@ -681,7 +825,7 @@ function startSubWatch(){
 let FAV_ORIG = null, FAV_IMG = null;
 function updateAppBadge(){
   if (!ME) return;
-  const n = myNotifs().length + subNotifs().length;
+  const n = notifCount();
   try {
     if (navigator.setAppBadge){ n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); }
   } catch(e){}
@@ -713,10 +857,11 @@ function desktopNotify(list){
     try {
       const d = new Date(r.report_date);
       const nt = new Notification('部下の日報が届きました', {
-        body: uname(r.author_id) + 'さん　' + (d.getMonth()+1) + '/' + d.getDate() + 'の日報' + (r.importance >= 4 ? '【要判断】' : ''),
+        body: uname(r.author_id) + 'さん　' + (d.getMonth()+1) + '/' + d.getDate() + 'の日報' + (r.importance >= 4 ? '【要判断】' : '')
+          + (mySubIds().indexOf(r.author_id) < 0 ? '（CC）' : ''),
         icon: FAV_ORIG || './favicon-32.png', tag: 'nippo-' + r.id
       });
-      nt.onclick = () => { window.focus(); openSubNotif(r.id); nt.close(); };
+      nt.onclick = () => { window.focus(); (mySubIds().indexOf(r.author_id) < 0 ? openCcNotif : openSubNotif)(r.id); nt.close(); };
     } catch(e){}
   });
 }
@@ -1043,6 +1188,7 @@ function vWrite(){
     <h3>今日いちばん重要な情報の扱い</h3>
     <select id="f_imp">${IMP.map(([v2,t]) =>
       `<option value="${v2}"${mine && mine.importance===v2 ? ' selected':''}>${t}</option>`).join('')}</select>
+    ${ccPickerHtml(EDIT_DATE || TODAY)}
     ${ME.manager_id && USERS.some(u => u.id === ME.manager_id)
       ? `<p class="note" style="margin-top:8px">提出すると、直属上司（<b>${esc(uname(ME.manager_id))}</b>）の確認画面に必ず届きます。</p>`
       : `<p class="note" style="margin-top:8px;color:var(--warn)"><b>直属上司が設定されていないため、提出できません。</b>管理者に上司の設定を依頼してください。</p>`}
@@ -1163,11 +1309,12 @@ async function submitReport(scheduled){
       && document.getElementById('mt_' + x.metric_id)
       && document.getElementById('mt_' + x.metric_id).value !== '');
   if (vals.length) await EC.supabase.from('report_metric_values').upsert(vals);
+  await saveCc(data.id);
 
   await loadReports();
   toast(scheduled ? '予約しました。指定時刻に自動で提出されます'
                   : (EDIT_DATE ? '更新しました' : '提出しました'));
-  EDIT_DATE = null; LOAD_SAVED = false;
+  EDIT_DATE = null; LOAD_SAVED = false; CC_SEL = null;
   go('feed');
 }
 
@@ -1323,6 +1470,15 @@ function vNotify(){
     <b>パソコン・スマホにも通知を出しますか？</b>
     <p class="note" style="margin:4px 0 8px">オンにすると、アプリを裏で開いている間に部下の日報が届いたとき、画面の隅に通知が出ます。</p>
     <button class="ghost" onclick="enableDesktopNotify()">通知をオンにする</button></div>` : ''}
+  ${(() => { const cc = ccNotifs(); return cc.length ? `<div class="card"><div class="row">
+      <h3 style="border:0;padding:0;margin:0">CCで共有された日報（未読）${cc.length}件</h3>
+      <button class="ghost" style="margin-left:auto" onclick="readAllCc()">すべて既読にする</button></div>
+    ${cc.map(r => `<div class="hotrow" onclick="openCcNotif('${r.id}')">
+      <div class="row" style="gap:7px"><span class="pill" style="background:#E7F0F8;color:#245A8C">CC</span>
+        <b>${esc(uname(r.author_id))}</b><span class="note">${r.report_date} の日報が共有されました</span>
+        ${r.importance >= 4 ? '<span class="pill p5">要判断</span>' : ''}
+        <span class="note num" style="margin-left:auto">${r.submitted_at ? String(r.submitted_at).slice(5,16).replace('T',' ') : ''}</span>
+      </div></div>`).join('')}</div>` : ''; })()}
   ${mySubIds().length ? `<div class="card"><h3>部下の日報（未確認）${subs.length}件</h3>
     ${subs.length ? subs.map(r => `<div class="hotrow" onclick="openSubNotif('${r.id}')">
       <div class="row" style="gap:7px">
@@ -1511,6 +1667,7 @@ function card(r){
       ${r.level > 1 ? `<span class="pill p5" style="cursor:pointer"
         onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
     </div>
+    ${ccLine(r)}
     ${r.status === 'off' ? '' : kpiPanel(r, vals)}
     ${QSECS.filter(q => r[q[0]] && (q[0] !== 'subordinate' || ME.job_grade !== '一般'))
       .map(q => secHtml(r, q, canAct || isMine)).join('')}
