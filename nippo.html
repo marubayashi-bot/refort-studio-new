@@ -334,6 +334,63 @@ button.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .pcard{display:inline-flex;flex-direction:column;gap:1px;border:1px solid var(--line);background:#fff;
   border-radius:8px;padding:6px 10px;line-height:1.4}
 .pcard.me{border-color:var(--accent);background:var(--accent-soft)}
+/* ===== 会議資料（実行計画達成状況報告書） ===== */
+.mttag{font-size:10px;font-weight:700;padding:1px 8px;border-radius:20px;letter-spacing:.04em}
+.mttag.in{background:#FFF1E6;color:#C4561A;border:1px solid #F6C7A6}
+.mttag.ai{background:var(--accent-soft);color:var(--accent);border:1px solid #BFDCCF}
+.mtgrid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 12px}
+.mtgrid2{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+.mtsub{font-size:12px;font-weight:700;margin:14px 0 6px;color:var(--ink-2)}
+.mtscroll{overflow-x:auto}
+.mttab{width:100%;border-collapse:collapse;min-width:520px}
+.mttab th,.mttab td{border:1px solid var(--line);padding:5px 6px;font-size:12px;text-align:center}
+.mttab th{background:#F1F4F8;color:var(--ink-2);font-weight:700;white-space:nowrap}
+.mttab td input,.mttab td select{padding:6px 7px}
+.mtnum{text-align:right}
+.mtc{display:block;text-align:right;font-weight:700}
+.mtc.neg,.mtc .neg{color:#C0141B}
+.mtbig{font-size:22px;font-weight:800;padding:2px 0}
+.mtgrade{display:inline-block;font-size:15px;font-weight:800;padding:2px 12px;border-radius:8px;background:#F1F4F8}
+.mtgrade.gS,.mtgrade.gA{background:var(--accent-soft);color:var(--accent)}
+.mtgrade.gB{background:#FFF6DD;color:#8A6410}
+.mtgrade.gC,.mtgrade.gD{background:#FBE3E3;color:#C0141B}
+.mtdet{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.mtdet summary{cursor:pointer;font-size:12.5px;font-weight:700}
+.mtdept{margin-top:6px}
+.mtchk{display:inline-flex !important;align-items:center;gap:5px;margin:2px 10px 2px 0 !important;font-weight:400 !important;color:var(--ink) !important;font-size:12.5px !important}
+.mtchk input{width:auto}
+.mtgen{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.mtgen .act{margin:0}
+.mtsec{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.mtsech{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.mtitem{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;border:1px solid var(--line);border-left:5px solid #C9D3DE;border-radius:10px;padding:10px 12px;margin-top:10px;background:#fff}
+.mtitem.plus{border-left-color:#3D85C6}
+.mtitem.plus .mtcol:first-child textarea{background:#CFE2F3}
+.mtitem.minus{border-left-color:#CC4125}
+.mtitem.minus .mtcol:first-child textarea{background:#F4CCCC}
+.mtcol label{margin-top:6px}
+.mtcol textarea{min-height:0}
+.mtlab{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:4px}
+.mtsg{font:inherit;font-size:10.5px;padding:2px 8px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
+.mtsg.on.plus{background:#3D85C6;border-color:#3D85C6;color:#fff}
+.mtsg.on.minus{background:#CC4125;border-color:#CC4125;color:#fff}
+.mtsg.on.none{background:var(--ink-2);border-color:var(--ink-2);color:#fff}
+.mtrefs{margin-top:5px;font-size:11px;color:var(--muted)}
+.mthint{background:#FFFBEA;border:1px solid #F1E3A8;border-radius:8px;padding:6px 8px;font-size:12px}
+button.mts{padding:3px 8px;font-size:11px}
+button.mtx{padding:3px 9px;color:var(--warn)}
+.mtbar{position:sticky;bottom:0;z-index:20;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;
+  background:rgba(244,247,250,.96);backdrop-filter:blur(4px);border-top:1px solid var(--line);padding:10px 4px;margin-top:4px}
+.mtbar #mtSaved{margin-right:auto}
+.mtlist{display:flex;flex-direction:column;gap:6px}
+.mtli{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.mtli.on{border-color:var(--accent);background:var(--accent-soft)}
+@media (max-width:760px){
+  .mtgrid4{grid-template-columns:1fr 1fr}
+  .mtgrid4>div[style*="span 3"]{grid-column:span 2 !important}
+  .mtitem{grid-template-columns:1fr}
+  .mtli{flex-direction:column;align-items:flex-start}
+}
 </style>
 </head>
 <body>
@@ -2189,46 +2246,668 @@ JSONのみ: {"answer":"回答（箇条書き可・400字以内）","who":["根�
       ${j.who.map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>` : ''}</div>`;
 }
 
-/* ---------- 7. 会議資料 ---------- */
+/* ---------- 7. 会議資料（実行計画達成状況報告書） ----------
+   期間と対象社員を選ぶ → 日報からAIが「３ 結果（総括）」の【事実】を組み立てる。
+   １ 成果A・２ 成果B と、要因・分析・改善・実行フェーズ（自分の考え）は本人が入力する。
+   すべての欄は編集できる。保存先は meeting_reports（テーブルが無ければこの端末に保存）。 */
+const MT_SECS = [
+  ['A','A 数値報告','売上・件数などの数字の結果。不足は ▲ で記載'],
+  ['B','B 方針（商品・サービス）より','商品・サービス・運用の改善や開発、方針に沿った取り組み'],
+  ['C','C お客様の声','お客様の発言は「」で記載'],
+  ['D','D 従業員の声','スタッフ・社員の発言は「」で記載'],
+  ['E','E ライバル・業界・取引先情報','競合・業界・本部・取引先の動き']
+];
+const MT_NUMS = '❶❷❸❹❺❻❼❽❾❿';
+const MT_GRADES = [['S','超最良部門','〜59'],['A','優良部門','60〜79'],['B','普通部門','80〜89'],['C','危険水域','90〜99'],['D','赤字部門','100〜']];
+const MT_LOCAL = 'nippo_meeting_reports';
+let MT = null;         // 編集中の報告書
+let MT_LIST = null;    // 保存済みの一覧
+let MT_DB = true;      // meeting_reports テーブルが使えるか
+let MT_BUSY = '';      // AI生成中の区分（'all' / 'A'〜'E'）
+let MT_DIRTY = false;
+let MT_DRAFT_T = null;
+
+function mtPad(n){ return String(n).padStart(2, '0'); }
+function mtPrevMonth(){
+  const [y, m] = TODAY.split('-').map(Number);
+  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+  return { from: `${py}-${mtPad(pm)}-01`, to: addDays(`${y}-${mtPad(m)}-01`, -1), label: pm + '月度' };
+}
+function mtEmptyItem(){ return { fact:'', sign:'', refs:[], hint:'', cause:'', analysis:'', improve:'', action:'', who:'', due:'' }; }
+function mtBlank(){
+  const pm = mtPrevMonth();
+  const nr = () => ({ act:'', prev:'', goal:'' });
+  return {
+    v: 1, id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('mt' + Date.now()),
+    created_by: ME.id, kind: '部門長会議',
+    dept: ME.dept_name || '', title_note: pm.label,
+    meeting_date: TODAY, duration: '', members: ME.full_name || '',
+    period_from: pm.from, period_to: pm.to, authors: null,
+    a: { mq: { cur: nr(), cum: nr() }, g: { cur: nr(), cum: nr() },
+         fm: { f:'', mq:'', goal:'', grade:'', memo:'' } },
+    b: { rows: [0,1,2].map(() => ({ name:'', act:'', goal:'', score:'' })) },
+    s: { A:[], B:[], C:[], D:[], E:[] },
+    consult: '', generated_at: null, report_count: 0
+  };
+}
+function mtNormalize(d){
+  const b = mtBlank();
+  const m = Object.assign(b, d || {});
+  m.a = Object.assign(b.a, (d && d.a) || {});
+  m.s = Object.assign({ A:[], B:[], C:[], D:[], E:[] }, (d && d.s) || {});
+  MT_SECS.forEach(([k]) => { m.s[k] = (m.s[k] || []).map(x => Object.assign(mtEmptyItem(), x)); });
+  if (!m.b || !Array.isArray(m.b.rows)) m.b = b.b;
+  return m;
+}
+
+/* ---- 数値の計算 ---- */
+function mtN(v){ const s = String(v ?? '').replace(/[,，\s]/g, '').replace(/^▲/, '-'); if (s === '') return null; const n = Number(s); return Number.isNaN(n) ? null : n; }
+function mtFmt(n){ if (n === null || n === undefined) return ''; const r = Math.round(n * 10) / 10; return r < 0 ? '▲' + Math.abs(r).toLocaleString() : r.toLocaleString(); }
+function mtDiff(a, b){ const x = mtN(a), y = mtN(b); return (x === null || y === null) ? null : x - y; }
+function mtFm(){
+  const f = mtN(MT.a.fm.f), mq = mtN(MT.a.fm.mq);
+  return (f === null || !mq) ? null : Math.round(f / mq * 100);
+}
+function mtGradeOf(p){ if (p === null) return ''; return p < 60 ? 'S' : p < 80 ? 'A' : p < 90 ? 'B' : p < 100 ? 'C' : 'D'; }
+function mtGrade(){ return MT.a.fm.grade || mtGradeOf(mtFm()); }
+function mtRate(a, g){ const x = mtN(a), y = mtN(g); return (x === null || !y) ? null : Math.round(x / y * 100); }
+function mtPlan(){
+  const rows = MT.b.rows.filter(r => String(r.name).trim() !== '');
+  const sc = rows.map(r => mtN(r.score)).filter(x => x !== null);
+  if (!rows.length || !sc.length) return null;
+  return { total: sc.reduce((a, b) => a + b, 0), n: rows.length, rate: Math.round(sc.reduce((a, b) => a + b, 0) / (rows.length * 5) * 100) };
+}
+
+/* ---- 対象社員・対象日報 ---- */
+function mtAuthors(){
+  if (Array.isArray(MT.authors)) return MT.authors;
+  const mine = USERS.filter(u => u.id === ME.id || (ME.dept_name && u.dept_name === ME.dept_name)).map(u => u.id);
+  return mine.length ? mine : [ME.id];
+}
+function mtScope(){
+  const ids = mtAuthors();
+  return REPORTS.filter(r => ids.includes(r.author_id) && r.status !== 'off' && r.status !== 'scheduled'
+    && r.report_date >= MT.period_from && r.report_date <= MT.period_to);
+}
+function mtPickAuthors(mode){
+  if (mode === 'me') MT.authors = [ME.id];
+  if (mode === 'dept') MT.authors = null;
+  if (mode === 'subs') MT.authors = [ME.id].concat(USERS.filter(u => u.manager_id === ME.id).map(u => u.id));
+  if (mode === 'none') MT.authors = [];
+  mtTouch(); mtDraw();
+}
+function mtToggleAuthor(id, on){
+  const cur = mtAuthors().slice();
+  MT.authors = on ? Array.from(new Set(cur.concat(id))) : cur.filter(x => x !== id);
+  mtTouch(); mtRefreshCount();
+}
+async function mtSetPeriod(mode){
+  if (mode === 'prev'){ const p = mtPrevMonth(); MT.period_from = p.from; MT.period_to = p.to; }
+  if (mode === 'this'){ MT.period_from = TODAY.slice(0, 8) + '01'; MT.period_to = TODAY; }
+  if (mode === '30'){ MT.period_from = addDays(TODAY, -30); MT.period_to = TODAY; }
+  if (mode === 'q'){ const [y, m] = TODAY.split('-').map(Number); const qm = m - ((m - 1) % 3); MT.period_from = `${y}-${mtPad(qm)}-01`; MT.period_to = TODAY; }
+  mtTouch();
+  if (MT.period_from && MT.period_from < LOAD_FROM){ toast('期間の日報を読み込んでいます…'); await loadReports(MT.period_from); }
+  mtDraw();
+}
+function mtRefreshCount(){
+  const el = document.getElementById('mtCount'); if (!el) return;
+  const list = mtScope();
+  el.textContent = `対象の日報 ${list.length}件／${new Set(list.map(r => r.author_id)).size}名`;
+  const ac = document.getElementById('mtAuthN'); if (ac) ac.textContent = mtAuthors().length;
+}
+
+/* ---- 入力の反映 ---- */
+function mtSetPath(path, val){
+  const ks = path.split('.'); let o = MT;
+  for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
+  o[ks[ks.length - 1]] = val;
+}
+function mtSet(el){
+  mtSetPath(el.dataset.p, el.value);
+  mtTouch();
+  if (/^(a|b)\./.test(el.dataset.p)) mtCalc();
+  if (el.dataset.p === 'period_from' || el.dataset.p === 'period_to'){
+    if (MT.period_from && MT.period_from < LOAD_FROM) loadReports(MT.period_from).then(mtRefreshCount);
+    mtRefreshCount();
+  }
+}
+function mtTouch(){
+  MT_DIRTY = true;
+  clearTimeout(MT_DRAFT_T);
+  MT_DRAFT_T = setTimeout(() => { try { localStorage.setItem(MT_LOCAL + ':draft:' + ME.id, JSON.stringify(MT)); } catch(e){} }, 600);
+  const s = document.getElementById('mtSaved'); if (s) s.textContent = '未保存の変更があります';
+}
+function mtCalc(){
+  const put = (id, n, suffix) => { const el = document.getElementById(id); if (!el) return;
+    el.textContent = n === null ? '—' : mtFmt(n) + (suffix || ''); el.className = 'mtc num' + (n !== null && n < 0 ? ' neg' : ''); };
+  ['mq','g'].forEach(k => ['cur','cum'].forEach(p => {
+    const r = MT.a[k][p];
+    put(`mt_${k}_${p}_d1`, mtDiff(r.act, r.prev)); put(`mt_${k}_${p}_d2`, mtDiff(r.act, r.goal));
+  }));
+  const fm = mtFm();
+  const fe = document.getElementById('mt_fm'); if (fe) fe.textContent = fm === null ? '—' : fm + '%';
+  const ge = document.getElementById('mt_grade'); if (ge){ const g = mtGrade(); ge.textContent = g ? g + ' ' + ((MT_GRADES.find(x => x[0] === g) || [])[1] || '') : '—'; ge.className = 'mtgrade g' + (g || 'x'); }
+  MT.b.rows.forEach((r, i) => { const el = document.getElementById('mt_br_' + i); if (el){ const v = mtRate(r.act, r.goal); el.textContent = v === null ? '—' : v + '%'; } });
+  const pl = mtPlan(); const pe = document.getElementById('mt_plan');
+  if (pe) pe.innerHTML = pl ? `<b>${pl.rate}%</b><span class="note">（合計評価点 ${pl.total} ÷ 施策数 ${pl.n} × 5点）</span>` : '<span class="note">施策名と評価点を入れると計算します</span>';
+}
+
+/* ---- 画面 ---- */
 function vMeeting(){
-  return `<h2>会議資料</h2><p class="sub">資料を作る作業をなくす。日報を書いていれば原案ができている状態にします。</p>
-  <div class="card"><h3>生成する会議</h3>
-    <select id="mtype">
-      <option>部署会議</option><option>部門長会議</option><option>経営会議</option></select>
-    <label>対象期間</label>
-    <select id="mdays"><option value="7">直近7日</option><option value="14" selected>直近14日</option>
-      <option value="30">直近30日</option></select>
-    <button class="act" style="margin-top:12px" onclick="genMeeting()">資料を生成する</button>
-  </div><div id="mres"></div>`;
+  if (!MT){
+    let draft = null; try { draft = JSON.parse(localStorage.getItem(MT_LOCAL + ':draft:' + ME.id) || 'null'); } catch(e){}
+    MT = mtNormalize(draft);
+  }
+  if (MT_LIST === null) setTimeout(mtLoadList, 0);
+  if (MT.period_from < LOAD_FROM) setTimeout(() => loadReports(MT.period_from).then(mtRefreshCount), 0);
+  return `<h2>会議資料</h2>
+  <p class="sub">実行計画達成状況報告書を日報から作ります。期間を選ぶと「３ 結果（総括）」の事実をAIがまとめます。１・２の数字と、要因・分析・改善などの自分の考えは入力してください。</p>
+  <div class="card"><h3>保存した資料</h3><div id="mtList"><div class="note">読み込んでいます…</div></div></div>
+  <div id="mtBody">${mtBodyHtml()}</div>`;
 }
-async function genMeeting(){
-  const type = document.getElementById('mtype').value;
-  const days = Number(document.getElementById('mdays').value);
-  const box = document.getElementById('mres');
-  box.innerHTML = '<div class="empty">日報から資料を組み立てています…</div>';
-  const scope = type === '部署会議' ? REPORTS.filter(r => udept(r.author_id) === ME.dept_name) : REPORTS;
-  const data = packReports(scope, days);
-  if (!data.length){ box.innerHTML = '<div class="empty">対象の日報がありません。</div>'; return; }
-  const r = await callAI(`${type}の資料原案を日報から作ります。JSONのみ、日本語で簡潔に。
-{"good":["グッドニュース"],"issues":["課題"],"repeat":["繰り返し発生している問題"],"voice":["お客様の声の要点"],"rival":["ライバル情報"],"industry":["業界情報"],"cross":["部署横断の課題"],"signal":["AIが見つけた兆候"],"decide":["この会議で決めること"]}
-各配列は2〜3件、1件50字以内。
-日報: ${JSON.stringify(data)}`, 2500);
-  if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
-  const j = parseJSON(r.text) || {};
-  const L = (t, a) => a && a.length
-    ? `<div class="sec"><span class="lab">${t}</span><ul style="margin:4px 0;padding-left:18px">
-       ${a.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
-  const people = new Set(data.map(d => d.who));
-  box.innerHTML = `<div class="card" id="mdoc"><h3>${type} 資料原案　<span class="note num">${TODAY}</span></h3>
-    <p class="note">対象：直近${days}日／日報${data.length}件／${people.size}名</p>
-    ${L('グッドニュース', j.good)}${L('課題', j.issues)}${L('繰り返し発生している問題', j.repeat)}
-    ${L('お客様の声', j.voice)}${L('ライバル情報', j.rival)}${L('業界情報', j.industry)}
-    ${L('部署横断の課題', j.cross)}${L('AIが見つけた兆候', j.signal)}${L('この会議で決めること', j.decide)}
-    <button class="ghost" style="margin-top:14px" onclick="copyDoc()">本文をコピー</button></div>`;
+function mtDraw(){
+  const b = document.getElementById('mtBody'); if (!b){ render(); return; }
+  const y = window.scrollY; b.innerHTML = mtBodyHtml(); mtCalc(); window.scrollTo(0, y);
 }
-function copyDoc(){
-  const t = document.getElementById('mdoc').innerText;
-  navigator.clipboard.writeText(t).then(() => toast('コピーしました'), () => toast('コピーできませんでした'));
+function mtIn(p, v, ph, cls){ return `<input type="text" class="${cls || ''}" data-p="${p}" value="${esc(v)}" placeholder="${esc(ph || '')}" oninput="mtSet(this)">`; }
+function mtTa(p, v, ph, rows){ return `<textarea data-p="${p}" rows="${rows || 3}" placeholder="${esc(ph || '')}" oninput="mtSet(this)">${esc(v)}</textarea>`; }
+function mtNumIn(p, v){ return `<input type="text" inputmode="decimal" class="num mtnum" data-p="${p}" value="${esc(v)}" oninput="mtSet(this)">`; }
+
+function mtBodyHtml(){
+  const m = MT;
+  const ids = mtAuthors();
+  const people = USERS.slice().sort((a, b) => String(a.dept_name || '').localeCompare(String(b.dept_name || '')) || lineRank(a.id) - lineRank(b.id));
+  const byDept = {};
+  people.forEach(u => { (byDept[u.dept_name || '部署未設定'] = byDept[u.dept_name || '部署未設定'] || []).push(u); });
+  const list = mtScope();
+  const aRow = (k, p, label) => { const r = m.a[k][p]; return `<tr><th>${label}</th>
+    <td>${mtNumIn(`a.${k}.${p}.act`, r.act)}</td><td>${mtNumIn(`a.${k}.${p}.prev`, r.prev)}</td>
+    <td><span id="mt_${k}_${p}_d1" class="mtc num">—</span></td>
+    <td>${mtNumIn(`a.${k}.${p}.goal`, r.goal)}</td><td><span id="mt_${k}_${p}_d2" class="mtc num">—</span></td></tr>`; };
+  const aTable = (k, label) => `<div class="mtsub">${label}</div><div class="mtscroll"><table class="mttab">
+      <tr><th></th><th>実績(ア)</th><th>前年(イ)</th><th>差(ア-イ)</th><th>目標(ウ)</th><th>差(ア-ウ)</th></tr>
+      ${aRow(k, 'cur', '当月')}${aRow(k, 'cum', '累計')}</table></div>`;
+
+  return `
+  <div class="card">
+    <h3>基本情報と対象期間</h3>
+    <div class="mtgrid4">
+      <div><label>会議</label><select data-p="kind" onchange="mtSet(this)">${['部門長会議','部署会議','経営会議'].map(x => `<option${m.kind === x ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div><label>事業部名</label>${mtIn('dept', m.dept, '例：FC事業部ミルクドドレイク埼玉岩槻店')}</div>
+      <div><label>報告書名の（　）</label>${mtIn('title_note', m.title_note, '例：8月度')}</div>
+      <div><label>日時</label><input type="date" data-p="meeting_date" value="${esc(m.meeting_date)}" oninput="mtSet(this)"></div>
+      <div><label>時間</label>${mtIn('duration', m.duration, '例：2h')}</div>
+      <div style="grid-column:span 3"><label>参加者</label>${mtIn('members', m.members, '例：金子雪之')}</div>
+    </div>
+    <label>日報を集める期間</label>
+    <div class="row">
+      <input type="date" style="width:auto" data-p="period_from" value="${esc(m.period_from)}" onchange="mtSet(this)">
+      <span>〜</span>
+      <input type="date" style="width:auto" data-p="period_to" value="${esc(m.period_to)}" onchange="mtSet(this)">
+      <button class="ghost" onclick="mtSetPeriod('prev')">先月</button>
+      <button class="ghost" onclick="mtSetPeriod('this')">今月</button>
+      <button class="ghost" onclick="mtSetPeriod('30')">直近30日</button>
+      <button class="ghost" onclick="mtSetPeriod('q')">今四半期</button>
+    </div>
+    <details class="mtdet"><summary>対象の社員（<span id="mtAuthN">${ids.length}</span>名）を選ぶ</summary>
+      <div class="row" style="margin:8px 0">
+        <button class="ghost" onclick="mtPickAuthors('dept')">自部署</button>
+        <button class="ghost" onclick="mtPickAuthors('subs')">自分＋直属部下</button>
+        <button class="ghost" onclick="mtPickAuthors('me')">自分だけ</button>
+        <button class="ghost" onclick="mtPickAuthors('none')">すべて外す</button>
+      </div>
+      ${Object.keys(byDept).map(d => `<div class="mtdept"><span class="note">${esc(d)}</span><div class="row">
+        ${byDept[d].map(u => `<label class="mtchk"><input type="checkbox" ${ids.includes(u.id) ? 'checked' : ''}
+          onchange="mtToggleAuthor('${u.id}', this.checked)">${esc(u.full_name || u.email)}</label>`).join('')}</div></div>`).join('')}
+    </details>
+    <div class="mtgen">
+      <span id="mtCount" class="note">対象の日報 ${list.length}件／${new Set(list.map(r => r.author_id)).size}名</span>
+      <button class="act" ${MT_BUSY ? 'disabled' : ''} onclick="mtGenerate('all')">${MT_BUSY === 'all' ? '日報を読んでまとめています…' : '日報から「３ 結果（総括）」を作る'}</button>
+    </div>
+    ${m.generated_at ? `<p class="note">前回の自動作成：${jpDT(m.generated_at)}（日報 ${m.report_count}件から）</p>` : ''}
+  </div>
+
+  <div class="card">
+    <h3>１ 成果A（計数）（万円）<span class="mttag in">入力</span></h3>
+    ${aTable('mq', '① MQ')}
+    ${aTable('g', '② G')}
+    <div class="mtsub">③ FM比率（F ÷ MQ × 100）当月</div>
+    <div class="mtgrid4">
+      <div><label>F</label>${mtNumIn('a.fm.f', m.a.fm.f)}</div>
+      <div><label>MQ</label>${mtNumIn('a.fm.mq', m.a.fm.mq)}</div>
+      <div><label>実績（％）</label><div class="mtbig num" id="mt_fm">—</div></div>
+      <div><label>目標（％）</label>${mtNumIn('a.fm.goal', m.a.fm.goal)}</div>
+      <div><label>評価</label><div id="mt_grade" class="mtgrade">—</div>
+        <select data-p="a.fm.grade" onchange="mtSet(this)" style="margin-top:6px">
+          <option value="">自動で判定</option>${MT_GRADES.map(g => `<option value="${g[0]}"${m.a.fm.grade === g[0] ? ' selected' : ''}>${g[0]} ${g[1]}</option>`).join('')}</select></div>
+      <div style="grid-column:span 3"><label>メモ</label>${mtIn('a.fm.memo', m.a.fm.memo, '例：平均 143% → 108%')}</div>
+    </div>
+    <p class="note" style="margin-top:8px">評価基準：${MT_GRADES.map(g => `${g[0]} ${g[2]} ${g[1]}`).join('／')}</p>
+  </div>
+
+  <div class="card">
+    <h3>２ 成果B（実行計画達成率）<span class="mttag in">入力</span></h3>
+    <div class="mtscroll"><table class="mttab">
+      <tr><th style="min-width:180px">重点施策</th><th>実績</th><th>目標</th><th>達成率</th><th>評価点（1〜5）</th><th></th></tr>
+      ${m.b.rows.map((r, i) => `<tr>
+        <td>${mtIn(`b.rows.${i}.name`, r.name, '施策名')}</td>
+        <td>${mtNumIn(`b.rows.${i}.act`, r.act)}</td><td>${mtNumIn(`b.rows.${i}.goal`, r.goal)}</td>
+        <td><span id="mt_br_${i}" class="mtc num">—</span></td>
+        <td><select data-p="b.rows.${i}.score" onchange="mtSet(this)"><option value="">—</option>
+          ${[5,4,3,2,1].map(n => `<option${String(r.score) === String(n) ? ' selected' : ''}>${n}</option>`).join('')}</select></td>
+        <td><button class="ghost mtx" title="削除" onclick="mtRowDel(${i})">×</button></td></tr>`).join('')}
+    </table></div>
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <button class="ghost" onclick="mtRowAdd()">＋ 施策を追加</button>
+      <div>実行計画達成率 <span id="mt_plan"></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>３ 結果（総括）<span class="mttag ai">事実はAI</span><span class="mttag in">考えは入力</span></h3>
+    <p class="note">「事実」は日報から自動で作ります（直せます）。要因・分析・改善と実行フェーズは、あなたの考えを入力してください。プラス要因は青、マイナス要因は赤で資料に出ます。</p>
+    ${MT_SECS.map(([k, t, d]) => mtSecHtml(k, t, d)).join('')}
+  </div>
+
+  <div class="card">
+    <h3>【相談】<span class="mttag in">入力</span></h3>
+    ${mtTa('consult', m.consult, '権限・判断の相談があれば記入（なければ「ナシ」）', 2)}
+  </div>
+
+  <div class="mtbar">
+    <span id="mtSaved" class="note">${MT_DIRTY ? '未保存の変更があります' : ''}</span>
+    <button class="ghost" onclick="mtNew()">新しく作る</button>
+    <button class="ghost" onclick="mtToTasks()">実行フェーズをタスクへ</button>
+    <button class="ghost" onclick="mtCopyChatwork()">Chatwork用にコピー</button>
+    <button class="ghost" onclick="mtPrint()">PDFで出力</button>
+    <button class="act" style="width:auto;margin:0" onclick="mtSave()">保存する</button>
+  </div>`;
+}
+
+function mtSecHtml(k, title, desc){
+  const items = MT.s[k];
+  const busy = MT_BUSY === k || MT_BUSY === 'all';
+  return `<div class="mtsec">
+    <div class="mtsech"><div><b>${title}</b> <span class="note">${desc}</span></div>
+      <button class="ghost" ${MT_BUSY ? 'disabled' : ''} onclick="mtGenerate('${k}')">${busy ? 'まとめています…' : 'この区分だけ作り直す'}</button></div>
+    ${items.length ? items.map((it, i) => mtItemHtml(k, i, it)).join('') : `<div class="empty" style="padding:14px">${busy ? '日報を読んでいます…' : 'まだありません。上のボタンで日報から作るか、手で追加してください。'}</div>`}
+    <button class="ghost" style="margin-top:8px" onclick="mtItemAdd('${k}')">＋ 項目を追加</button>
+  </div>`;
+}
+function mtItemHtml(k, i, it){
+  const p = `s.${k}.${i}`;
+  const sg = (v, t) => `<button class="mtsg${it.sign === v ? ' on ' + (v || 'none') : ''}" onclick="mtSign('${k}',${i},'${v}')">${t}</button>`;
+  return `<div class="mtitem ${it.sign || ''}">
+    <div class="mtcol">
+      <div class="mtlab"><span>${MT_NUMS[i] || (i + 1)} 事実（空）</span>
+        <span class="row" style="gap:4px">${sg('plus','プラス')}${sg('minus','マイナス')}${sg('','—')}</span></div>
+      ${mtTa(p + '.fact', it.fact, '日報に書かれた事実。声は「」で', 5)}
+      ${(it.refs || []).length ? `<div class="mtrefs">根拠：${it.refs.map(r => `<span class="pill">${esc(r)}</span>`).join(' ')}</div>` : ''}
+    </div>
+    <div class="mtcol">
+      <div class="mtlab"><span>要因と行動変化・見解（雨・傘）</span><span class="mttag in">入力</span></div>
+      ${it.hint ? `<div class="mthint"><span class="note">日報にあった考え（参考）</span><div>${esc(it.hint)}</div>
+        <div class="row" style="gap:4px;margin-top:4px">
+          <button class="ghost mts" onclick="mtUseHint('${k}',${i},'cause')">要因へ</button>
+          <button class="ghost mts" onclick="mtUseHint('${k}',${i},'analysis')">分析へ</button>
+          <button class="ghost mts" onclick="mtUseHint('${k}',${i},'improve')">改善へ</button></div></div>` : ''}
+      <label>要因</label>${mtTa(p + '.cause', it.cause, 'なぜそうなったか', 2)}
+      <label>分析</label>${mtTa(p + '.analysis', it.analysis, '何が効いた／足りなかったか', 2)}
+      <label>改善</label>${mtTa(p + '.improve', it.improve, '次にどう変えるか', 2)}
+    </div>
+    <div class="mtcol">
+      <div class="mtlab"><span>実行フェーズ（誰が・いつまでに・どこまで）</span>
+        <button class="ghost mtx" title="この項目を削除" onclick="mtItemDel('${k}',${i})">×</button></div>
+      <label>何をどこまで</label>${mtTa(p + '.action', it.action, '例：本部へアイスサンド再販要請を提出', 2)}
+      <div class="mtgrid2">
+        <div><label>担当</label>${mtIn(p + '.who', it.who, '例：金子')}</div>
+        <div><label>期日</label>${mtIn(p + '.due', it.due, '例：10/15、毎月試作日')}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function mtSign(k, i, v){ MT.s[k][i].sign = v; mtTouch(); mtDraw(); }
+function mtItemAdd(k){ MT.s[k].push(mtEmptyItem()); mtTouch(); mtDraw(); }
+function mtItemDel(k, i){
+  const it = MT.s[k][i];
+  if ((it.fact || it.cause || it.analysis || it.improve || it.action) && !confirm('この項目を削除します。よろしいですか。')) return;
+  MT.s[k].splice(i, 1); mtTouch(); mtDraw();
+}
+function mtUseHint(k, i, f){
+  const it = MT.s[k][i];
+  it[f] = it[f] ? it[f] + '\n' + it.hint : it.hint;
+  mtTouch(); mtDraw();
+}
+function mtRowAdd(){ MT.b.rows.push({ name:'', act:'', goal:'', score:'' }); mtTouch(); mtDraw(); }
+function mtRowDel(i){ MT.b.rows.splice(i, 1); if (!MT.b.rows.length) MT.b.rows.push({ name:'', act:'', goal:'', score:'' }); mtTouch(); mtDraw(); }
+
+/* ---- AIで「事実」を作る ---- */
+function mtMetricSummary(list){
+  const agg = {};
+  list.forEach(r => (r.report_metric_values || []).forEach(v => {
+    const m = METRICS_ALL.find(x => x.id === v.metric_id); if (!m) return;
+    const key = r.author_id + '|' + m.id;
+    agg[key] = agg[key] || { who: uname(r.author_id), item: m.name, unit: m.unit || '', total: 0, days: 0 };
+    agg[key].total += Number(v.value) || 0; agg[key].days++;
+  }));
+  return Object.values(agg).map(x => ({ who: x.who, item: x.item, total: fx1(x.total), unit: x.unit, days: x.days })).slice(0, 80);
+}
+async function mtGenerate(only){
+  if (MT_BUSY) return;
+  if (!MT.period_from || !MT.period_to || MT.period_from > MT.period_to){ toast('期間を正しく選んでください'); return; }
+  if (MT.period_from < LOAD_FROM){ toast('期間の日報を読み込んでいます…'); await loadReports(MT.period_from); }
+  const list = mtScope();
+  if (!list.length){ toast('この期間・対象の日報がありません'); return; }
+  const keys = only === 'all' ? MT_SECS.map(s => s[0]) : [only];
+  const typed = keys.some(k => MT.s[k].some(it => it.cause || it.analysis || it.improve || it.action || it.who));
+  if (typed && !confirm((only === 'all' ? '「３ 結果（総括）」全体' : 'この区分') + 'を作り直します。入力した要因・分析・改善・実行フェーズも消えます。よろしいですか。')) return;
+
+  MT_BUSY = only; mtDraw();
+  const n = list.length, len = n > 150 ? 110 : n > 80 ? 170 : n > 40 ? 250 : 380;
+  const data = list.slice(0, 220).map(r => ({
+    who: uname(r.author_id), date: r.report_date.slice(5).replace('-', '/'),
+    voice: cut(r.voice, len), rival: cut(r.rival, len), industry: cut(r.industry, len),
+    thought: cut(r.thought, len), good: cut(r.good_news, Math.min(len, 160)), sub: cut(r.subordinate, Math.min(len, 160)),
+    imp: r.importance
+  }));
+  const secDesc = {
+    A: 'A 数値報告：数値集計と日報内の数字・グッドニュース。売上・件数など成果の結果',
+    B: 'B 方針（商品・サービス）より：商品・サービス・運用の改善、新商品や企画、方針に沿った取り組み',
+    C: 'C お客様の声：voice 欄のお客様の発言',
+    D: 'D 従業員の声：thought・sub 欄に出てくる社員・スタッフの発言や提案',
+    E: 'E ライバル・業界・取引先情報：rival・industry 欄（競合・業界・本部・取引先）'
+  };
+  const shape = '{' + keys.map(k => `"${k}":[{"fact":"","sign":"","refs":[],"hint":""}]`).join(',') + '}';
+  const prompt = `株式会社アースコムの「実行計画達成状況報告書」の「３ 結果（総括）」のうち【事実】欄を、日報データから作成します。
+ルール：
+- 書くのは日報に書かれている事実だけ。要因・分析・改善・見解・提案は書かない（本人が入力する）。推測や創作はしない。
+- お客様・スタッフの発言は「」で原文に近い形にし、発言者を先頭に書く（例：ご来店のお客様「…」、吉田さん「…」）。
+- 数字は具体的に。目標に対する不足は ▲ を付ける（例：目標291万円 実績148万円 ▲143万円）。
+- 各区分は最大3件。材料があれば3件、無ければ少なくてよい（作らない）。重要度(imp)が高いもの・複数人に共通するものを優先。同じ話は1件にまとめる。
+- sign：成果にプラスの事実は "plus"、マイナスの事実は "minus"、どちらとも言えなければ ""。
+- refs：根拠の日報を「氏名 月/日」で最大3つ。
+- hint：その事実について日報に書かれていた本人やスタッフの考え・改善案を80字以内で要約。日報に無ければ空文字。AI自身の意見は書かない。
+- fact は1件200字以内。
+対象の区分：
+${keys.map(k => secDesc[k]).join('\n')}
+JSONのみで返答：${shape}
+期間：${MT.period_from}〜${MT.period_to}／会議：${MT.kind}／事業部：${MT.dept || '—'}
+数値集計（期間合計）：${JSON.stringify(mtMetricSummary(list))}
+日報（${n}件）：${JSON.stringify(data)}`;
+
+  const r = await callAI(prompt, only === 'all' ? 6000 : 2500);
+  MT_BUSY = '';
+  if (r.error){ mtDraw(); toast('作成できませんでした：' + r.error); return; }
+  const j = parseJSON(r.text);
+  if (!j){ mtDraw(); toast('AIの回答を読み取れませんでした。もう一度お試しください'); return; }
+  keys.forEach(k => {
+    const arr = Array.isArray(j[k]) ? j[k] : [];
+    MT.s[k] = arr.slice(0, 5).map(x => Object.assign(mtEmptyItem(), {
+      fact: String(x.fact || ''), sign: ['plus','minus'].includes(x.sign) ? x.sign : '',
+      refs: Array.isArray(x.refs) ? x.refs.slice(0, 3).map(String) : [], hint: String(x.hint || '')
+    }));
+  });
+  MT.generated_at = new Date().toISOString(); MT.report_count = n;
+  mtTouch(); mtDraw();
+  toast('日報 ' + n + '件から作りました。内容を確認して、考えを入力してください');
+}
+
+/* ---- 保存・一覧 ---- */
+function mtTitle(){ return '実行計画達成状況報告書（' + (MT.title_note || '') + '）' + (MT.dept ? '　' + MT.dept : ''); }
+function mtLocalAll(){ try { return JSON.parse(localStorage.getItem(MT_LOCAL + ':' + ME.id) || '[]'); } catch(e){ return []; } }
+function mtMissing(err){ return err && /relation|does not exist|schema cache|not find the table/i.test(err.message || ''); }
+async function mtSave(){
+  MT.updated_at = new Date().toISOString();
+  const row = { id: MT.id, created_by: MT.created_by || ME.id, kind: MT.kind, dept_name: MT.dept, title: mtTitle(),
+    meeting_date: MT.meeting_date || null, period_from: MT.period_from || null, period_to: MT.period_to || null,
+    doc: MT, updated_by: ME.id, updated_at: MT.updated_at };
+  if (MT_DB){
+    const { error } = await EC.supabase.from('meeting_reports').upsert(row);
+    if (!error){ mtSavedDone('保存しました'); return; }
+    if (!mtMissing(error)){ toast('保存できませんでした：' + error.message); return; }
+    MT_DB = false;
+  }
+  const all = mtLocalAll().filter(x => x.id !== MT.id); all.unshift(row);
+  try { localStorage.setItem(MT_LOCAL + ':' + ME.id, JSON.stringify(all.slice(0, 30))); } catch(e){ toast('保存できませんでした（端末の容量不足）'); return; }
+  mtSavedDone('この端末に保存しました（全社で共有するには meeting_reports テーブルの作成が必要です）');
+}
+function mtSavedDone(msg){
+  MT_DIRTY = false;
+  try { localStorage.removeItem(MT_LOCAL + ':draft:' + ME.id); } catch(e){}
+  const s = document.getElementById('mtSaved'); if (s) s.textContent = '保存済み ' + jpDT(MT.updated_at);
+  toast(msg); mtLoadList();
+}
+async function mtLoadList(){
+  let rows = [];
+  if (MT_DB){
+    const { data, error } = await EC.supabase.from('meeting_reports')
+      .select('id,title,kind,dept_name,meeting_date,period_from,period_to,created_by,updated_at')
+      .order('updated_at', { ascending: false }).limit(40);
+    if (error){ if (mtMissing(error)) MT_DB = false; else { MT_LIST = []; mtDrawList('読み込めませんでした：' + error.message); return; } }
+    else rows = data || [];
+  }
+  if (!MT_DB) rows = mtLocalAll();
+  MT_LIST = rows; mtDrawList();
+}
+function mtDrawList(err){
+  const box = document.getElementById('mtList'); if (!box) return;
+  if (err){ box.innerHTML = `<div class="note">${esc(err)}</div>`; return; }
+  const rows = MT_LIST || [];
+  box.innerHTML = (MT_DB ? '' : `<p class="note" style="color:var(--warn)">共有用のテーブル（meeting_reports）がまだ無いため、この端末だけに保存しています。</p>`)
+    + (rows.length ? `<div class="mtlist">${rows.map(r => `<div class="mtli${MT && r.id === MT.id ? ' on' : ''}">
+        <div><b>${esc(r.title || '（無題）')}</b><br><span class="note">${esc(r.kind || '')}／会議日 ${esc(r.meeting_date || '—')}／期間 ${esc(r.period_from || '')}〜${esc(r.period_to || '')}／${esc(uname(r.created_by))}／更新 ${jpDT(r.updated_at)}</span></div>
+        <div class="row" style="gap:6px;flex-wrap:nowrap">
+          <button class="ghost" onclick="mtOpen('${r.id}')">開く</button>
+          <button class="ghost" onclick="mtOpen('${r.id}', true)" title="数字と考えを引き継いで次回分を作る">複製</button>
+          ${r.created_by === ME.id || ME.role === 'admin' ? `<button class="ghost mtx" onclick="mtDelete('${r.id}')">削除</button>` : ''}
+        </div></div>`).join('')}</div>`
+      : '<div class="note">まだ保存した資料はありません。下で作って「保存する」を押してください。</div>');
+}
+async function mtOpen(id, copy){
+  if (MT_DIRTY && !confirm('編集中の内容は保存されていません。開いてよろしいですか。')) return;
+  let doc = null;
+  if (MT_DB){
+    const { data, error } = await EC.supabase.from('meeting_reports').select('doc').eq('id', id).single();
+    if (error){ toast('開けませんでした：' + error.message); return; }
+    doc = data && data.doc;
+  } else { const r = mtLocalAll().find(x => x.id === id); doc = r && r.doc; }
+  if (!doc){ toast('資料が見つかりません'); return; }
+  MT = mtNormalize(doc);
+  if (copy){
+    const pm = mtPrevMonth();
+    Object.assign(MT, { id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('mt' + Date.now()),
+      created_by: ME.id, meeting_date: TODAY, title_note: pm.label, period_from: pm.from, period_to: pm.to,
+      s: { A:[], B:[], C:[], D:[], E:[] }, consult: '', generated_at: null, report_count: 0 });
+    MT_DIRTY = true; toast('複製しました。期間を確認して「３ 結果（総括）」を作ってください');
+  } else MT_DIRTY = false;
+  if (MT.period_from < LOAD_FROM) await loadReports(MT.period_from);
+  mtDraw(); mtDrawList();
+  const b = document.getElementById('mtBody'); if (b) b.scrollIntoView({ behavior: 'smooth' });
+}
+async function mtDelete(id){
+  if (!confirm('この資料を削除します。元に戻せません。よろしいですか。')) return;
+  if (MT_DB){
+    const { error } = await EC.supabase.from('meeting_reports').delete().eq('id', id);
+    if (error){ toast('削除できませんでした：' + error.message); return; }
+  } else {
+    try { localStorage.setItem(MT_LOCAL + ':' + ME.id, JSON.stringify(mtLocalAll().filter(x => x.id !== id))); } catch(e){}
+  }
+  if (MT && MT.id === id){ MT = mtNormalize(null); MT_DIRTY = false; mtDraw(); }
+  toast('削除しました'); mtLoadList();
+}
+function mtNew(){
+  if (MT_DIRTY && !confirm('編集中の内容は保存されていません。新しく作ってよろしいですか。')) return;
+  MT = mtNormalize(null); MT_DIRTY = false;
+  try { localStorage.removeItem(MT_LOCAL + ':draft:' + ME.id); } catch(e){}
+  mtDraw(); mtDrawList();
+}
+
+/* ---- 実行フェーズをタスクへ ---- */
+async function mtToTasks(){
+  const rows = [];
+  MT_SECS.forEach(([k]) => MT.s[k].forEach(it => {
+    if (!String(it.action).trim()) return;
+    const u = USERS.find(x => it.who && (x.full_name || '').replace(/\s/g, '').includes(String(it.who).replace(/\s|さん/g, '')));
+    rows.push({ title: (it.action + (it.due ? '（期日：' + it.due + '）' : '') + (it.who && !u ? '［担当：' + it.who + '］' : '')).slice(0, 200),
+      owner_id: u ? u.id : ME.id, created_by: ME.id, source: 'meeting' });
+  }));
+  if (!rows.length){ toast('実行フェーズの「何をどこまで」が入力された項目がありません'); return; }
+  if (!confirm(rows.length + '件を「実行管理」のタスクに登録します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('report_tasks').insert(rows);
+  if (error){ toast('登録できませんでした：' + error.message); return; }
+  toast(rows.length + '件をタスクに登録しました。「実行管理」タブで確認できます');
+}
+
+/* ---- Chatwork用テキスト ---- */
+function mtCopyChatwork(){
+  const m = MT, L = [];
+  const v = x => (x === null || x === undefined || x === '') ? '—' : x;
+  const aLine = (k, p, lab) => { const r = m.a[k][p];
+    return `${lab}：実績 ${v(r.act)}／前年 ${v(r.prev)}（差 ${v(mtFmt(mtDiff(r.act, r.prev)))}）／目標 ${v(r.goal)}（差 ${v(mtFmt(mtDiff(r.act, r.goal)))}）`; };
+  L.push(`[info][title]${mtTitle()}[/title]`);
+  L.push(`会議：${m.kind}　日時：${m.meeting_date || '—'}　時間：${m.duration || '—'}`);
+  L.push(`参加者：${m.members || '—'}`);
+  L.push(`対象期間：${m.period_from}〜${m.period_to}`);
+  L.push('[hr]■１ 成果A（計数）（万円）');
+  L.push('【MQ】'); L.push(aLine('mq', 'cur', '当月')); L.push(aLine('mq', 'cum', '累計'));
+  L.push('【G】'); L.push(aLine('g', 'cur', '当月')); L.push(aLine('g', 'cum', '累計'));
+  const fm = mtFm();
+  L.push(`【FM比率】当月 ${fm === null ? '—' : fm + '%'}（F ${v(m.a.fm.f)} ÷ MQ ${v(m.a.fm.mq)}）　目標 ${v(m.a.fm.goal)}%　評価 ${v(mtGrade())}${m.a.fm.memo ? '　' + m.a.fm.memo : ''}`);
+  L.push('[hr]■２ 成果B（実行計画達成率）');
+  const pl = mtPlan();
+  m.b.rows.filter(r => String(r.name).trim()).forEach((r, i) => {
+    const rt = mtRate(r.act, r.goal);
+    L.push(`${MT_NUMS[i] || i + 1} ${r.name}：実績 ${v(r.act)}／目標 ${v(r.goal)}${rt === null ? '' : '（' + rt + '%）'}　評価点 ${v(r.score)}`);
+  });
+  L.push(`実行計画達成率：${pl ? pl.rate + '%（合計評価点 ' + pl.total + ' ÷ ' + pl.n + '施策 × 5点）' : '—'}`);
+  L.push('[hr]■３ 結果（総括）');
+  MT_SECS.forEach(([k, t]) => {
+    L.push(`【${t}】`);
+    if (!m.s[k].length){ L.push('なし'); return; }
+    m.s[k].forEach((it, i) => {
+      L.push(`${MT_NUMS[i] || i + 1}${it.sign === 'plus' ? '（プラス要因）' : it.sign === 'minus' ? '（マイナス要因）' : ''} ${it.fact}`);
+      if (it.cause) L.push('　要因：' + it.cause.replace(/\n/g, ' '));
+      if (it.analysis) L.push('　分析：' + it.analysis.replace(/\n/g, ' '));
+      if (it.improve) L.push('　改善：' + it.improve.replace(/\n/g, ' '));
+      if (it.action || it.who || it.due) L.push(`　実行：${it.action ? it.action.replace(/\n/g, ' ') : '—'}／担当：${it.who || '—'}／期日：${it.due || '—'}`);
+    });
+  });
+  L.push('[hr]■【相談】'); L.push(m.consult || 'ナシ');
+  L.push('[/info]');
+  navigator.clipboard.writeText(L.join('\n')).then(() => toast('Chatwork用の文章をコピーしました'), () => toast('コピーできませんでした'));
+}
+
+/* ---- PDF（印刷）---- */
+function mtPrint(){
+  const w = window.open('', '_blank');
+  if (!w){ toast('ポップアップがブロックされました。ブラウザの設定で許可してください'); return; }
+  w.document.open(); w.document.write(mtPrintHtml()); w.document.close();
+}
+function mtPrintHtml(){
+  const m = MT;
+  const t = s => esc(s || '').replace(/\n/g, '<br>');
+  const red = s => t(s).replace(/(▲\s?[\d,，.．]+[^\s　、。，,）)／/]*)/g, '<span class="ng">$1</span>');
+  const nv = x => { const n = mtN(x); return n === null ? '' : `<span class="${n < 0 ? 'ng' : ''}">${mtFmt(n)}</span>`; };
+  const dv = n => n === null ? '' : `<span class="${n < 0 ? 'ng' : ''}">${mtFmt(n)}</span>`;
+  const aRows = (k, lab) => ['cur','cum'].map((p, i) => { const r = m.a[k][p];
+    return `<tr>${i === 0 ? `<th rowspan="2" class="c">${lab}</th>` : ''}<th class="c">${p === 'cur' ? '当月' : '累計'}</th>
+      <td class="n">${nv(r.act)}</td><td class="n">${nv(r.prev)}</td><td class="n">${dv(mtDiff(r.act, r.prev))}</td>
+      <td class="n">${nv(r.goal)}</td><td class="n">${dv(mtDiff(r.act, r.goal))}</td></tr>`; }).join('');
+  const fm = mtFm(), g = mtGrade(), pl = mtPlan();
+  const brows = m.b.rows.filter(r => String(r.name).trim());
+  const secRows = MT_SECS.map(([k, title]) => {
+    const items = m.s[k].length ? m.s[k] : [mtEmptyItem()];
+    return items.map((it, i) => `<tr>
+      ${i === 0 ? `<th rowspan="${items.length}" class="sec"><span>${k}</span>${esc(title.replace(/^[A-E]\s/, ''))}</th>` : ''}
+      <td class="fact ${it.sign}">${it.fact ? `<b class="no">${MT_NUMS[i] || i + 1}</b>${red(it.fact)}` : '<span class="none">なし</span>'}</td>
+      <td>${it.cause ? `<div><b>要因：</b>${red(it.cause)}</div>` : ''}${it.analysis ? `<div><b>分析：</b>${red(it.analysis)}</div>` : ''}${it.improve ? `<div><b>改善：</b>${red(it.improve)}</div>` : ''}</td>
+      <td>${it.action ? `<div>${t(it.action)}</div>` : ''}${it.who ? `<div><b>担当：</b>${esc(it.who)}</div>` : ''}${it.due ? `<div><b>期日：</b>${esc(it.due)}</div>` : ''}</td>
+    </tr>`).join('');
+  }).join('');
+  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(mtTitle().replace(/\s/g, '_'))}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@page{size:A4 landscape;margin:9mm 9mm 10mm}
+*{box-sizing:border-box}
+body{margin:0;background:#E9EEF3;color:#0E1B2B;font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;font-size:8.6pt;line-height:1.55;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{position:sticky;top:0;background:#0B253E;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-size:13px;z-index:2}
+.bar button{background:#F26A21;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer}
+.bar span{color:#9DB3CA}
+.sheet{width:297mm;max-width:100%;margin:16px auto;background:#fff;padding:9mm;box-shadow:0 2px 12px rgba(14,27,43,.12)}
+h1{font-size:14pt;margin:0 0 2mm;letter-spacing:.08em}
+.purpose{font-size:8pt;color:#44566B;margin-bottom:2mm}
+table{width:100%;border-collapse:collapse;margin-bottom:3mm}
+th,td{border:1px solid #9AA9BA;padding:3px 5px;vertical-align:top}
+th{background:#EEF2F6;font-weight:700;text-align:left}
+th.c{text-align:center;vertical-align:middle;white-space:nowrap}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ng{color:#C0141B;font-weight:700}
+h2{font-size:10pt;margin:3mm 0 1.5mm;padding-left:6px;border-left:4px solid #0B253E}
+.flex{display:flex;gap:4mm;align-items:flex-start}
+.flex>div{flex:1}
+.grade{font-size:13pt;font-weight:700}
+.legend{font-size:7.5pt;color:#44566B}
+th.sec{width:18mm;text-align:center;vertical-align:middle;background:#0B253E;color:#fff;font-size:8pt;line-height:1.35}
+th.sec span{display:block;font-size:13pt}
+td.fact{width:38%}
+td.fact.plus{background:#CFE2F3}
+td.fact.minus{background:#F4CCCC}
+.no{margin-right:3px}
+.none{color:#9AA9BA}
+.hd3 th{background:#0B253E;color:#fff;text-align:center}
+tr{break-inside:avoid}
+.ft{margin-top:3mm;font-size:7pt;color:#6B7C8F;display:flex;justify-content:space-between}
+@media print{body{background:#fff}.bar{display:none}.sheet{margin:0;padding:0;width:auto;box-shadow:none}}
+</style></head><body>
+<div class="bar"><button onclick="window.print()">PDFとして保存・印刷</button><span>印刷画面の送信先で「PDFに保存」を選んでください（A4横）</span></div>
+<div class="sheet">
+  <h1>実行計画達成状況報告書（${esc(m.title_note || '　　')}）</h1>
+  <div class="purpose">目的：仕事の質の改善を目指してＰＤＣＡサイクルを効率的に回す仕組みつくり</div>
+  <table><tr><th class="c">事業部名</th><td>${esc(m.dept)}</td><th class="c">日時</th><td>${esc(m.meeting_date)}</td>
+    <th class="c">時間</th><td>${esc(m.duration)}</td><th class="c">参加者</th><td>${esc(m.members)}</td>
+    <th class="c">対象期間</th><td>${esc(m.period_from)}〜${esc(m.period_to)}</td></tr></table>
+
+  <div class="flex">
+    <div>
+      <h2>１ 成果Ａ（計数）（万円）</h2>
+      <table><tr><th></th><th></th><th class="c">実績(ア)</th><th class="c">前年(イ)</th><th class="c">差(ア-イ)</th><th class="c">目標(ウ)</th><th class="c">差(ア-ウ)</th></tr>
+        ${aRows('mq', '① MQ')}${aRows('g', '② G')}</table>
+    </div>
+    <div style="flex:.7">
+      <h2>③ ＦＭ比率（F/MQ×100）</h2>
+      <table><tr><th class="c">当月</th><th class="c">F</th><th class="c">MQ</th><th class="c">実績(%)</th><th class="c">目標(%)</th><th class="c">評価</th></tr>
+        <tr><td></td><td class="n">${nv(m.a.fm.f)}</td><td class="n">${nv(m.a.fm.mq)}</td><td class="n">${fm === null ? '' : fm + '%'}</td>
+        <td class="n">${m.a.fm.goal ? esc(m.a.fm.goal) + '%' : ''}</td><td class="c grade">${esc(g)}</td></tr>
+        ${m.a.fm.memo ? `<tr><td colspan="6">${esc(m.a.fm.memo)}</td></tr>` : ''}</table>
+      <div class="legend">評価基準：${MT_GRADES.map(x => `${x[0]} ${x[2]} ${x[1]}`).join('／')}</div>
+    </div>
+  </div>
+
+  ${brows.length ? `<h2>２ 成果Ｂ（実行計画達成率）　${pl ? pl.rate + '%' : ''}</h2>
+  <table><tr><th>重点施策</th><th class="c">実績</th><th class="c">目標</th><th class="c">達成率</th><th class="c">評価点</th></tr>
+    ${brows.map((r, i) => { const rt = mtRate(r.act, r.goal); return `<tr><td>${MT_NUMS[i] || i + 1} ${esc(r.name)}</td><td class="n">${nv(r.act)}</td><td class="n">${nv(r.goal)}</td>
+      <td class="n">${rt === null ? '' : rt + '%'}</td><td class="n">${esc(r.score)}</td></tr>`; }).join('')}
+    ${pl ? `<tr><th colspan="4" style="text-align:right">実行計画達成率（合計評価点 ${pl.total} ÷ 施策数 ${pl.n} × 5点）</th><td class="n"><b>${pl.rate}%</b></td></tr>` : ''}
+  </table>` : ''}
+
+  <h2>３ 結果（総括）</h2>
+  <table>
+    <tr class="hd3"><th></th><th>事実（空）</th><th>要因と行動変化（完全結果・期限＋状態）、見解・提案（雨・傘）</th><th>実行フェーズ管理（誰が・いつまでに・どこまでやるのか）</th></tr>
+    ${secRows}
+  </table>
+
+  <h2>【相談】</h2>
+  <table><tr><td>${t(m.consult) || 'ナシ'}</td></tr></table>
+  <div class="ft"><span>NIPPO ONE ／ 株式会社アースコム　※事実は日報（${m.report_count || 0}件）から自動作成し、編集したものです</span><span>出力 ${jpDT(new Date().toISOString())}</span></div>
+</div>
+<script>
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 350));
+<\/script>
+</body></html>`;
 }
 
 
@@ -2263,7 +2942,7 @@ async function loadTodos(){
     ${open.length ? open.map(x => `<div style="border-bottom:1px solid var(--line);padding:9px 0;font-size:13px">
       <label style="display:flex;gap:9px;align-items:flex-start;margin:0;color:var(--ink);font-weight:400;font-size:13px">
         <input type="checkbox" style="width:auto;margin-top:4px" onchange="doneTask('${x.id}')">
-        <span>${esc(x.title)}<br><span class="note">${x.source === 'ai' ? 'AI提案' : '日報'}／${uname(x.owner_id)}／${(x.created_at||'').slice(0,10)}</span></span>
+        <span>${esc(x.title)}<br><span class="note">${x.source === 'ai' ? 'AI提案' : x.source === 'meeting' ? '会議資料' : '日報'}／${uname(x.owner_id)}／${(x.created_at||'').slice(0,10)}</span></span>
       </label></div>`).join('') : '<div class="empty">未完了のタスクはありません。</div>'}
     ${done.length ? `<p class="note" style="margin-top:12px">完了済み ${done.length}件</p>` : ''}
   </div>
