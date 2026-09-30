@@ -120,6 +120,27 @@ iframe.looker{width:100%;height:540px;border:1px solid var(--line);border-radius
 .syncBadge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#10294b;border:1px solid #2c4a74;color:#9fd3b5}
 .btn-logout{font:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;border:1px solid #2c4a74;background:#10294b;color:#fff;cursor:pointer}
 .btn-logout:hover{background:#163763}
+.btn-news{position:relative;font:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;border:1px solid #c9a227;background:transparent;color:#e8c34a;cursor:pointer}
+.btn-news:hover{background:rgba(201,162,39,.15)}
+.btn-news .dot{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#d23b3b;border:2px solid #0f2747;display:none}
+.btn-news.unread .dot{display:block}
+.wn-ov{position:fixed;inset:0;background:rgba(10,22,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.wn-ov.open{display:flex}
+.wn-box{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.wn-hd{background:linear-gradient(135deg,#0f2747,#1b3a64);color:#fff;padding:18px 22px}
+.wn-hd .k{font-size:11px;letter-spacing:.12em;color:#e8c34a;font-weight:800}
+.wn-hd h3{margin:4px 0 0;font-size:19px;color:#fff}
+.wn-bd{padding:16px 22px;overflow:auto}
+.wn-rel{margin-bottom:16px}
+.wn-rel .v{font-weight:800;color:#0f2747;font-size:14px;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.wn-rel .v .new{background:#d23b3b;color:#fff;font-size:10px;padding:2px 7px;border-radius:99px}
+.wn-it{display:flex;gap:10px;align-items:flex-start;border:1px solid #e3e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.wn-it .tg{flex:none;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;background:#fdf4dd;color:#8a6a00;white-space:nowrap}
+.wn-it .tx{flex:1;font-size:13px;line-height:1.6;color:#152238}
+.wn-it .by{font-size:11px;color:#647089}
+.wn-it button{flex:none;font:inherit;font-size:11px;font-weight:700;border:1px solid #1b3a64;background:#fff;color:#1b3a64;border-radius:7px;padding:4px 9px;cursor:pointer}
+.wn-ft{padding:12px 22px;border-top:1px solid #e3e8f0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wn-ft .ok{font:inherit;font-weight:800;background:#c9a227;color:#0f2747;border:0;border-radius:9px;padding:9px 18px;cursor:pointer}
 /* karte / CRM */
 .karte-sel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
@@ -251,7 +272,15 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
   <div class="userBox" id="userBox">
     <span class="syncBadge" id="syncBadge">クラウド接続</span>
     <span id="userEmail"></span>
+    <button class="btn-news" id="newsBtn" onclick="openNews(true)" title="アップデート情報">お知らせ<span class="dot"></span></button>
     <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+  </div>
+  <div class="wn-ov" id="wnOv" onclick="if(event.target===this)closeNews()">
+    <div class="wn-box" role="dialog" aria-modal="true" aria-labelledby="wnTitle">
+      <div class="wn-hd"><div class="k">WHAT'S NEW</div><h3 id="wnTitle">アプリが更新されました</h3></div>
+      <div class="wn-bd" id="wnBody"></div>
+      <div class="wn-ft"><span class="muted small" id="wnVer"></span><button class="ok" onclick="closeNews()">確認しました</button></div>
+    </div>
   </div>
 </header>
 <div class="shell">
@@ -404,12 +433,23 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
       <div class="funnel" id="funnel"></div>
     </div>
 
+    <div class="card"><h3>月別 PH推移（スプレッドシート連動） <span class="tag" id="mphTag"></span></h3>
+      <p class="hint">「【新卒採用】学生管理」の <b id="mphSheet">年代シート</b> を読み込み、各PH（説明会・面談・内定・承諾）の人数を<b>月ごと</b>に集計します。月は各PHの実施日（内定は内定日、承諾は承諾月）で振り分けます。読み込むと上の「選考状況」の数値もスプレッドシートの最新値に置き換わります。</p>
+      <div class="row" style="margin-bottom:10px;gap:8px;align-items:center">
+        <button class="btn gold sm" onclick="syncRecruit()">↻ スプレッドシートから更新</button>
+        <label class="btn ghost sm" style="cursor:pointer">CSVを取り込む<input type="file" accept=".csv,text/csv" hidden onchange="importRecruitCSV(event)"></label>
+        <span class="muted small" id="mphStatus"></span>
+      </div>
+      <div style="overflow:auto"><table id="mphTbl"></table></div>
+    </div>
+
     <div class="card"><h3>目標達成までの人数・進捗率</h3>
       <p class="hint">各ステージの<b>目標数</b>を入力すると、「残り（目標−実数）」と「進捗率（実数÷目標）」を自動計算します。残りがマイナス＝超過達成。</p>
       <div class="tgt" id="tgtRest"></div>
     </div>
 
     <div class="card"><h3>採用コスト <span class="tag" id="costYearTag"></span></h3>
+      <div class="fselect" id="costYearTabs" style="margin-bottom:10px"></div>
       <p class="hint"><b>採用経費</b>＝紹介料・成功報酬など内定に直接ひもづく費用。<b>採用活動費用</b>＝媒体・イベントなどの活動費。1人あたりコストは 経費総額 ÷ 内定者数 で自動計算します。</p>
       <div class="grid kpis" id="costKpis" style="margin-bottom:12px"></div>
       <div class="row" style="margin-bottom:8px;align-items:center;gap:8px">
@@ -419,6 +459,8 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
         <span class="muted small">名</span>
       </div>
       <div style="overflow:auto"><table id="costTbl"></table></div>
+      <h4 style="margin:16px 0 6px;font-size:13px;color:var(--navy)">年代比較（27卒・28卒）</h4>
+      <div style="overflow:auto"><table id="costCmp"></table></div>
     </div>
 
     <div class="card"><h3>Looker Studio レポート（埋め込み）</h3>
@@ -513,6 +555,32 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
         <p class="hint">既定：危険75点以上＝本日中に電話・面談／注意50点以上＝3日以内に接点。</p>
       </div>
     </div>
+    <div class="card"><h3>スプレッドシート連携（Google Apps Script）</h3>
+      <p class="hint">社内限定のスプレッドシートをアプリから読むための中継です。下の「連携用スクリプト」をGoogle Apps Scriptに貼り付けて<b>ウェブアプリとしてデプロイ</b>し、発行されたURLを入力してください（氏名・電話・メール等の個人情報列は中継側で除外して送ります）。</p>
+      <div class="kgrid">
+        <div class="kfield"><label>ウェブアプリURL（…/exec）</label><input class="in" id="slUrl" onchange="setSL('url',this.value.trim())"></div>
+        <div class="kfield"><label>トークン（スクリプトのTOKENと同じ文字列）</label><input class="in" id="slToken" onchange="setSL('token',this.value.trim())"></div>
+        <div class="kfield"><label>採用管理スプレッドシートID（【新卒採用】学生管理）</label><input class="in" id="slRecruitId" onchange="setSL('recruitId',this.value.trim())"></div>
+        <div class="kfield"><label>アルバイト回数スプレッドシートID（内定者データ）</label><input class="in" id="slArbeitId" onchange="setSL('arbeitId',this.value.trim())"></div>
+        <div class="kfield"><label>27卒 アルバイト回数シート gid</label><input class="in" id="slGid27" onchange="setSLgid('27',this.value.trim())"></div>
+        <div class="kfield"><label>28卒 アルバイト回数シート gid（シート作成後に入力）</label><input class="in" id="slGid28" onchange="setSLgid('28',this.value.trim())"></div>
+        <div class="kfield"><label>アルバイト 月間目標回数（エンゲージ算出用）</label><input class="in" type="number" min="1" id="slTarget" onchange="setSL('arbeitTarget',+this.value||4)"></div>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <button class="btn" onclick="testSL()">接続テスト</button>
+        <button class="btn ghost" onclick="copyGas()">連携用スクリプトをコピー</button>
+        <span class="muted small" id="slMsg"></span>
+      </div>
+      <details style="margin-top:10px"><summary class="small" style="cursor:pointer">設置手順と連携用スクリプトを表示</summary>
+        <ol class="small" style="line-height:1.8;margin:8px 0 8px 18px">
+          <li>script.google.com で「新しいプロジェクト」を作成し、下のスクリプトを全文貼り付けて保存</li>
+          <li>「デプロイ」→「新しいデプロイ」→ 種類「ウェブアプリ」／実行ユーザー「自分」／アクセス「全員」でデプロイ（初回は権限の承認が必要）</li>
+          <li>発行されたURLを上の「ウェブアプリURL」に貼り付け、「接続テスト」で確認</li>
+        </ol>
+        <textarea class="in" id="gasCodeBox" readonly style="width:100%;height:260px;font-family:monospace;font-size:11px"></textarea>
+      </details>
+    </div>
+
     <div class="card"><h3>データ管理</h3>
       <div class="row">
         <button class="btn ghost" onclick="exportJSON()">JSONバックアップ書き出し</button>
@@ -526,6 +594,43 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
 </main>
 </div>
 
+<script type="text/plain" id="gasTpl">/* 内定者オンボーディング管理 ⇄ スプレッドシート中継（読み取り専用） */
+const TOKEN = '__TOKEN__';
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.token !== TOKEN) return out({ ok: false, error: 'token' });
+  try {
+    const ss = SpreadsheetApp.openById(p.id);
+    const sheets = ss.getSheets();
+    let sh = null;
+    if (p.gid) sh = sheets.find(s => String(s.getSheetId()) === String(p.gid));
+    else if (p.sheet) sh = sheets.find(s => s.getName().trim() === String(p.sheet).trim());
+    if (!sh) return out({ ok: false, error: 'シートが見つかりません' });
+    const tz = ss.getSpreadsheetTimeZone();
+    const fmt = v => (v instanceof Date) ? Utilities.formatDate(v, tz, 'yyyy/MM/dd') : v;
+    const vals = sh.getDataRange().getValues();
+    if (p.action === 'arbeit') {            /* 日付・氏名・回数 の3列 */
+      const rows = vals.slice(1).filter(r => String(r[1]).trim() !== '')
+        .map(r => [fmt(r[0]), String(r[1]).trim(), r[2] === '' ? 1 : r[2]]);
+      return out({ ok: true, sheet: sh.getName(), rows: rows });
+    }
+    /* 採用管理：個人情報の列は送らない */
+    const head = vals[0].map(h => String(h));
+    const NG = /氏名|フリガナ|ﾌﾘｶﾞﾅ|電話|メール|大学|性別|辞退理|選考に|追加/;
+    const keep = head.map((h, i) => NG.test(h) ? -1 : i).filter(i => i >= 0);
+    const year = String(p.year || '').trim();
+    const rows = vals.slice(1)
+      .filter(r => String(r[0]).trim() !== '' && (!year || String(r[0]).trim() === year))
+      .map(r => keep.map(i => fmt(r[i])));
+    return out({ ok: true, sheet: sh.getName(), header: keep.map(i => head[i]), rows: rows });
+  } catch (err) {
+    return out({ ok: false, error: String(err) });
+  }
+}
+function out(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ---------- Supabase (login + cloud sync) ---------- */
@@ -541,7 +646,7 @@ function stateToRows(){return{
   funnel:S.funnel, retention:S.retention,
   tl:{meetings:S.meetings},            /* 旧TOPLIVE列を採用会議データに転用 */
   gosetsu:{library:S.library},         /* 旧合説列を資料ライブラリに転用 */
-  settings:{baseDate:S.baseDate,cohort:S.cohort,weights:S.weights,thresholds:S.thresholds,lookerUrl:S.lookerUrl,curYear:S.curYear}
+  settings:{baseDate:S.baseDate,cohort:S.cohort,weights:S.weights,thresholds:S.thresholds,lookerUrl:S.lookerUrl,curYear:S.curYear,costYear:S.costYear,sheetLink:S.sheetLink}
 };}
 function applyRows(r){
   if(r.cohort_28)S.cohorts['28']=r.cohort_28;
@@ -554,7 +659,8 @@ function applyRows(r){
     if(t.baseDate)S.baseDate=t.baseDate; if(t.cohort)S.cohort=t.cohort;
     S.weights=Object.assign({...DEFAULT_WEIGHTS},t.weights||{});
     S.thresholds=Object.assign({danger:75,warn:50},t.thresholds||{});
-    if(t.lookerUrl)S.lookerUrl=t.lookerUrl; if(t.curYear)S.curYear=t.curYear;}
+    if(t.lookerUrl)S.lookerUrl=t.lookerUrl; if(t.curYear)S.curYear=t.curYear;
+    if(t.costYear)S.costYear=t.costYear; if(t.sheetLink)S.sheetLink=Object.assign(defaultSheetLink(),t.sheetLink);}
 }
 function setSync(t,cls){const b=document.getElementById('syncBadge');if(b){b.textContent=t;b.style.color=cls==='err'?'#f1b0b0':cls==='go'?'#9fd3b5':'#cdd8ec';}}
 async function cloudLoad(){
@@ -593,7 +699,42 @@ async function afterLogin(){
   document.getElementById('userEmail').textContent=userEmail;
   await cloudLoad();
   initHeader();renderAll();renderLooker();
+  checkNews();
 }
+/* ==================================================================
+   更新のお知らせ（アップデートのたびに先頭へ1件追加する）
+   ================================================================== */
+const CHANGELOG=[
+  {ver:'2.2',date:'2026-09-30',items:[
+    {tag:'全体',text:'アップデート時に、開いた最初の画面で更新内容をお知らせするようにしました。右上の「お知らせ」からいつでも見返せます。',by:'丸林'},
+  ]},
+  {ver:'2.1',date:'2026-09-30',items:[
+    {tag:'新卒採用進捗',tab:'p-recruit',text:'採用コストに28卒の入力欄を追加しました。「28卒を入力／27卒を入力」で切り替え、下の年代比較で27卒・28卒を並べて確認できます。',by:'東田'},
+    {tag:'新卒採用進捗',tab:'p-recruit',text:'「月別 PH推移」を追加しました。【新卒採用】学生管理（27卒・28卒シート）を読み込み、各PHの人数を月ごとに表示します。',by:'東田'},
+    {tag:'内定者カルテ',tab:'p-karte',text:'「アルバイト参加率」を「アルバイト回数」に変更しました。内定者データ（27アルバイト数）のスプレッドシートから回数を自動集計します。',by:'東田'},
+  ]},
+  {ver:'2.0',date:'2026-09',items:[
+    {tag:'全体',text:'社長AI採用マネージャー・採用会議・資料／ツール・次回アクション必須化・採用コスト・ブランドデザインを追加しました。'},
+  ]},
+];
+const NEWS_LATEST=CHANGELOG[0].ver;
+function newsKey(){return 'naiteisha_news_seen_'+(userEmail||'local');}
+function vnum(v){return String(v||'0').split('.').map(Number).reduce((a,x)=>a*1000+(x||0),0);}
+function newsSeen(){try{return localStorage.getItem(newsKey())||'';}catch(e){return '';}}
+function checkNews(){const seen=newsSeen();
+  document.getElementById('newsBtn').classList.toggle('unread',vnum(seen)<vnum(NEWS_LATEST));
+  if(vnum(seen)<vnum(NEWS_LATEST))openNews(false);}
+function openNews(all){const seen=newsSeen();
+  let list=all?CHANGELOG:CHANGELOG.filter(r=>vnum(r.ver)>vnum(seen));
+  if(!seen&&!all)list=CHANGELOG.slice(0,2);  /* 初回は直近2回分のみ */
+  document.getElementById('wnTitle').textContent=all?'アップデート履歴':'アプリが更新されました';
+  document.getElementById('wnVer').textContent='最新バージョン v'+NEWS_LATEST;
+  document.getElementById('wnBody').innerHTML=list.map(r=>`<div class="wn-rel"><div class="v">v${esc(r.ver)}<span class="muted small" style="font-weight:400">${esc(r.date)}</span>${vnum(r.ver)>vnum(seen)?'<span class="new">NEW</span>':''}</div>
+    ${r.items.map(it=>`<div class="wn-it"><span class="tg">${esc(it.tag)}</span><div class="tx">${esc(it.text)}${it.by?`<div class="by">要望：${esc(it.by)}さん</div>`:''}</div>${it.tab?`<button onclick="closeNews();show('${it.tab}')">開く</button>`:''}</div>`).join('')}</div>`).join('');
+  document.getElementById('wnOv').classList.add('open');}
+function closeNews(){document.getElementById('wnOv').classList.remove('open');
+  try{localStorage.setItem(newsKey(),NEWS_LATEST);}catch(e){}
+  document.getElementById('newsBtn').classList.remove('unread');}
 /* doLogin は廃止。会社のGoogleアカウントでログインします（ec-auth.js） */
 async function doLogout(){ EC.signOut(); }
 async function pushLocalToCloud(){if(!sb){alert('接続できていません。ページを再読み込みしてください。');return;}if(!confirm('このPCの現在の入力内容をクラウドへ保存（上書き）します。よろしいですか？'))return;await cloudSync(true);alert('クラウドへ保存しました。');}
@@ -715,6 +856,7 @@ function mergeFunnel(old){
     if(o.target)f.years[y].target=o.target;
     if(o.rate)f.years[y].rate=o.rate;
     if(o.cost&&o.cost.items&&o.cost.items.length)f.years[y].cost=o.cost;
+    if(o.monthly){f.years[y].monthly=o.monthly; if(o.src)f.years[y].src=o.src; if(o.monthly.synced){f.years[y].v=o.v; if(o.route)f.years[y].route=o.route;}}
   });
   Object.keys(old.years).forEach(y=>{ if(!f.years[y]) f.years[y]=old.years[y]; });
   return f;
@@ -761,7 +903,7 @@ function freshState(){
     weights:{...DEFAULT_WEIGHTS},thresholds:{danger:75,warn:50},
     lookerUrl:'https://datastudio.google.com/u/0/reporting/a2dabfa6-afc8-429f-a775-c34c6a702b04/page/hnigD',
     cohorts:{'28':seedCohort28(),'27':emptyCohort()},
-    funnel:seedFunnel(), curYear:'27卒',
+    funnel:seedFunnel(), curYear:'27卒', costYear:'28卒', sheetLink:defaultSheetLink(),
     meetings:[], curMtg:'', library:seedLibrary(),
     retention:freshRetention()};
 }
@@ -772,7 +914,11 @@ function migrate(o){const f=freshState();const m=Object.assign(f,o,{weights:Obje
   if(!m.library||!m.library.cats)m.library=seedLibrary();
   if(!Array.isArray(m.library.tools))m.library.tools=seedLibrary().tools;
   if(!m.funnel.years[m.curYear])m.curYear='27卒';
+  m.sheetLink=Object.assign(defaultSheetLink(),o.sheetLink||{}); m.sheetLink.arbeitGid=Object.assign({'27':'1273432843','28':''},(o.sheetLink||{}).arbeitGid||{});
+  if(!m.costYear||!m.funnel.years[m.costYear])m.costYear='28卒';
+  ['27卒','28卒'].forEach(y=>{if(m.funnel.years[y])ensureCost(m.funnel.years[y]);});
   return m;}
+function defaultSheetLink(){return{url:'',token:'',recruitId:'1_VoANpU0844FjuCZ1QNmQUs8pbO0rxRbqjo5SK6f7ik',recruitSheet:{'28卒':'28卒学生管理','27卒':'27卒学生管理'},arbeitId:'1O98rVTZlJIKSyzUA5RlxPb8syK32zKHIrTG6ZLH4yyw',arbeitGid:{'27':'1273432843','28':''},arbeitTarget:4};}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}if(session)scheduleSync();}
 function cur(){return S.cohorts[S.cohort];}
 
@@ -819,7 +965,7 @@ const NAVGROUPS=[
   ['管理',[['p-guide','使い方'],['p-settings','設定']]],
 ];
 const TABS=NAVGROUPS.flatMap(g=>g[1]);
-const APP_VERSION='2026.09 v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
+const APP_VERSION='2026.09 v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';let first=true;
   NAVGROUPS.forEach(g=>{const h=document.createElement('div');h.className='navgrp';h.textContent=g[0];n.appendChild(h);
     g[1].forEach(t=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(first){b.classList.add('active');first=false;}b.dataset.id=t[0];n.appendChild(b);});});}
@@ -1304,7 +1450,7 @@ function renderRecruit(){
   tabs.innerHTML=Object.keys(F.years).map(y=>`<button class="yr ${y===S.curYear?'active':''}" onclick="setYear('${y}')">${y}</button>`).join('');
   const Y=F.years[S.curYear];const v=Y.v;
   document.getElementById('entryTag').textContent=`年代 ${S.curYear} / エントリー合計 ${v.エントリー?.合計??0}`;
-  document.getElementById('funnelNote').textContent=(FUNNEL_SRC[S.curYear]||'');
+  document.getElementById('funnelNote').textContent=(Y.src||FUNNEL_SRC[S.curYear]||'');
   // rates（年代ごとに存在するステージだけを表示）
   const mid=Y.order.filter(st=>['一次面談','二次面接','キャリア面談','社長面接','インターン','最終面談'].includes(st));
   const rlab={一次面談:'合格率（一次）',二次面接:'二次合格率',キャリア面談:'キャリア面談 合格率',社長面接:'社長面接 合格率',インターン:'インターン合格率',最終面談:'最終合格率'};
@@ -1335,6 +1481,7 @@ function renderRecruit(){
       <input class="in" type="number" min="0" placeholder="目標数を入力" style="margin-top:4px;font-size:12px;text-align:center" value="${tg??''}" onchange="setTarget('${st}',this.value)">
       <div class="small" style="margin-top:4px"><b>${pct==null?'—':pct+'%'}</b><span class="muted"> 達成</span></div>
     </div>`;}).join('');
+  renderMonthlyPH();
   renderCost();
   document.getElementById('lookerInput').value=S.lookerUrl||'';
 }
@@ -1342,15 +1489,16 @@ const MAINKEY={エントリー:'合計',TOPLIVE:'出席',一次面談:'合格',�
 /* ---------- 採用コスト ---------- */
 const COST_KINDS=['採用経費','採用活動費用'];
 function yen(n){return (n||0).toLocaleString('ja-JP')+'円';}
+function costYear(){if(!S.costYear||!S.funnel.years[S.costYear])S.costYear='28卒';return S.costYear;}
+function costSum(Y){const C=ensureCost(Y);const keihi=C.items.filter(x=>x.kind!=='採用活動費用').reduce((a,b)=>a+(+b.amount||0),0);
+  const katsudo=C.items.filter(x=>x.kind==='採用活動費用').reduce((a,b)=>a+(+b.amount||0),0);const head=+C.headcount||0;
+  return{keihi,katsudo,total:keihi+katsudo,head,per:head>0?Math.floor(keihi/head):null,perAll:head>0?Math.floor((keihi+katsudo)/head):null};}
+function setCostYear(y){S.costYear=y;save();renderCost();}
 function renderCost(){
-  const Y=S.funnel.years[S.curYear];const C=ensureCost(Y);
-  const keihi=C.items.filter(x=>x.kind!=='採用活動費用').reduce((a,b)=>a+(+b.amount||0),0);
-  const katsudo=C.items.filter(x=>x.kind==='採用活動費用').reduce((a,b)=>a+(+b.amount||0),0);
-  const total=keihi+katsudo;
-  const head=+C.headcount||0;
-  const per=head>0?Math.floor(keihi/head):null;
-  const perAll=head>0?Math.floor(total/head):null;
-  document.getElementById('costYearTag').textContent=S.curYear;
+  const CY=costYear();const Y=S.funnel.years[CY];const C=ensureCost(Y);
+  document.getElementById('costYearTabs').innerHTML=['28卒','27卒'].filter(y=>S.funnel.years[y]).map(y=>`<button class="yr ${y===CY?'active':''}" onclick="setCostYear('${y}')">${y} を入力</button>`).join('');
+  const {keihi,katsudo,total,head,per,perAll}=costSum(Y);
+  document.getElementById('costYearTag').textContent=CY;
   document.getElementById('costHead').value=C.headcount??0;
   document.getElementById('costKpis').innerHTML=[
     kpi('経費総額（採用経費）',yen(keihi)),
@@ -1369,17 +1517,183 @@ function renderCost(){
     <td><button class="btn ghost sm" onclick="delCost('${x.id}')">削除</button></td></tr>`).join('')
    :'<tr><td colspan="5" class="muted small">費目が未登録です。「＋ 費目を追加」から入力してください。</td></tr>')
   +`<tr><td></td><td><b>合計</b></td><td style="text-align:right"><b>${yen(total)}</b></td><td class="small muted">採用経費 ${yen(keihi)}／活動費用 ${yen(katsudo)}</td><td></td></tr></tbody>`;
+  const cmp=['27卒','28卒'].filter(y=>S.funnel.years[y]).map(y=>[y,costSum(S.funnel.years[y])]);
+  document.getElementById('costCmp').innerHTML=`<thead><tr><th>年代</th><th style="text-align:right">採用経費</th><th style="text-align:right">採用活動費用</th><th style="text-align:right">総投資額</th><th style="text-align:right">内定者数</th><th style="text-align:right">1人あたり（経費）</th><th style="text-align:right">1人あたり（総投資）</th></tr></thead><tbody>`+
+    cmp.map(([y,c])=>`<tr ${y===CY?'style="background:#fbf6e6"':''}><td><b>${y}</b></td><td style="text-align:right">${yen(c.keihi)}</td><td style="text-align:right">${yen(c.katsudo)}</td><td style="text-align:right"><b>${yen(c.total)}</b></td><td style="text-align:right">${c.head}名</td><td style="text-align:right">${c.per==null?'—':yen(c.per)}</td><td style="text-align:right">${c.perAll==null?'—':yen(c.perAll)}</td></tr>`).join('')+`</tbody>`;
 }
-function addCost(){const C=ensureCost(S.funnel.years[S.curYear]);C.items.push({id:uid('c'),kind:'採用経費',name:'新規費目',amount:0,note:''});save();renderCost();}
-function updCost(id,f,v){const C=ensureCost(S.funnel.years[S.curYear]);const o=C.items.find(x=>x.id===id);if(o){o[f]=v;save();renderCost();}}
-function delCost(id){if(!confirm('削除しますか？'))return;const C=ensureCost(S.funnel.years[S.curYear]);C.items=C.items.filter(x=>x.id!==id);save();renderCost();}
-function setCostHead(v){const C=ensureCost(S.funnel.years[S.curYear]);C.headcount=(v===''?0:+v);save();renderCost();}
+function addCost(){const C=ensureCost(S.funnel.years[costYear()]);C.items.push({id:uid('c'),kind:'採用経費',name:'新規費目',amount:0,note:''});save();renderCost();}
+function updCost(id,f,v){const C=ensureCost(S.funnel.years[costYear()]);const o=C.items.find(x=>x.id===id);if(o){o[f]=v;save();renderCost();}}
+function delCost(id){if(!confirm('削除しますか？'))return;const C=ensureCost(S.funnel.years[costYear()]);C.items=C.items.filter(x=>x.id!==id);save();renderCost();}
+function setCostHead(v){const C=ensureCost(S.funnel.years[costYear()]);C.headcount=(v===''?0:+v);save();renderCost();}
+/* ==================================================================
+   スプレッドシート連携（Google Apps Script 中継）
+   ・月別PH推移：【新卒採用】学生管理（27卒学生管理／28卒学生管理）
+   ・アルバイト回数：内定者データ（27アルバイト数 など）
+   ================================================================== */
+function SL(){if(!S.sheetLink)S.sheetLink=defaultSheetLink();return S.sheetLink;}
+function setSL(k,v){SL()[k]=v;save();renderSL();}
+function setSLgid(c,v){const L=SL();L.arbeitGid=L.arbeitGid||{};L.arbeitGid[c]=v;save();}
+function gasCode(){const t=document.getElementById('gasTpl');return t?t.textContent.replace('__TOKEN__',SL().token||'ここにトークン'):'';}
+function renderSL(){const L=SL();
+  if(!L.token){L.token='ec-'+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);save();}
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=(v==null?'':v);};
+  set('slUrl',L.url);set('slToken',L.token);set('slRecruitId',L.recruitId);set('slArbeitId',L.arbeitId);
+  set('slGid27',(L.arbeitGid||{})['27']);set('slGid28',(L.arbeitGid||{})['28']);set('slTarget',L.arbeitTarget||4);
+  const b=document.getElementById('gasCodeBox');if(b)b.value=gasCode();}
+function copyGas(){const t=gasCode();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{document.getElementById('slMsg').textContent='スクリプトをコピーしました（トークン入り）';}).catch(()=>{const b=document.getElementById('gasCodeBox');if(b){b.select();document.execCommand('copy');}});}
+async function gasGet(params){const L=SL();
+  if(!L.url)throw new Error('「設定」タブでウェブアプリURLを登録してください');
+  const q=new URLSearchParams(Object.assign({token:L.token||''},params)).toString();
+  const r=await fetch(L.url+(L.url.includes('?')?'&':'?')+q,{method:'GET',redirect:'follow'});
+  let j;try{j=await r.json();}catch(e){throw new Error('応答を読めませんでした（デプロイのアクセス権が「全員」か確認）');}
+  if(!j.ok)throw new Error(j.error==='token'?'トークンが一致しません':(j.error||'取得に失敗しました'));
+  return j;}
+async function testSL(){const m=document.getElementById('slMsg');m.textContent='接続中…';const L=SL();
+  try{const j=await gasGet({action:'recruit',id:L.recruitId,sheet:L.recruitSheet['28卒'],year:'28卒'});
+    let a='';const g=(L.arbeitGid||{})['27'];if(g){try{const k=await gasGet({action:'arbeit',id:L.arbeitId,gid:g});a=`／${k.sheet} ${k.rows.length}行`;}catch(e){a='／アルバイト：'+e.message;}}
+    m.textContent=`接続OK：${j.sheet}（28卒 ${j.rows.length}件）${a}`;}
+  catch(e){m.textContent='接続NG：'+e.message;}}
+function fmtDT(iso){if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleString('ja-JP',{year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function parseCSV(text){const rows=[];let row=[],f='',q=false;text=text.replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+    else if(c==='"')q=true;else if(c===','){row.push(f);f='';}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f='';}
+    else f+=c;}
+  if(f!==''||row.length){row.push(f);rows.push(row);}return rows;}
+/* 日付・「8月」表記 → YYYY-MM（「N月」は卒年から年度を推定：4〜12月＝卒年の2年前、1〜3月＝1年前） */
+function ymOf(v,year){if(v==null)return null;const s=String(v).trim();if(!s)return null;
+  let m=s.match(/^(\d{4})[\/\-.年](\d{1,2})/);if(m)return m[1]+'-'+String(+m[2]).padStart(2,'0');
+  m=s.match(/^(\d{1,2})(?:月|\/\d{1,2}$)/);
+  if(m){const mo=+m[1],yy=parseInt(year)||0;if(!yy||mo<1||mo>12)return null;return (2000+yy-(mo>=4?2:1))+'-'+String(mo).padStart(2,'0');}
+  return null;}
+function ymLabel(k){if(k==='日付不明')return k;const [y,m]=k.split('-');return `${y}年${+m}月`;}
+
+/* ---------- 月別 PH推移 ---------- */
+const PH_SRC={
+  TOPLIVE:{d:[/^説明会/],r:/^状況/},
+  一次面談:{d:[/^一次日/,/^1次選考日/,/^一次面/]},
+  二次面接:{d:[/^二次日/,/^2次選考日/,/^二次面/]},
+  キャリア面談:{d:[/^キャリア面談日/,/^キャリ/]},
+  社長面接:{d:[/^社長面接日/,/^社長面/]},
+  インターン:{d:[/^インターン日/,/^インタ/]},
+  最終面談:{d:[/^最終日/,/^最終面/]},
+  かばん持ち:{d:[/^かばん持ち日/,/^かばん/]},
+};
+function clsTop(v){return /出席/.test(v)?'出席':/欠席/.test(v)?'欠席':/辞退|キャンセル|不参加/.test(v)?'辞退':'予約';}
+function clsPH(v){return /不合格|見送|NG/.test(v)?'不合格':/合格|通過|内定|OK/.test(v)?'合格':/辞退|欠席|キャンセル|音信/.test(v)?'辞退':'予約';}
+function aggRecruit(year,header,rows,srcName){
+  const F=S.funnel,Y=F.years[year];if(!Y)throw new Error(year+'のファネルがありません');
+  const H=header.map(h=>String(h==null?'':h).replace(/\s/g,''));
+  const idx=re=>H.findIndex(h=>re.test(h));
+  const col={};Y.order.forEach(st=>{const sp=PH_SRC[st];if(!sp)return;let d=-1;for(const re of sp.d){d=idx(re);if(d>=0)break;}col[st]={d,r:-1};});
+  const iNaitei=idx(/^内定月|^内定日/),iShodaku=idx(/^承諾月|^承諾日/),iKekka=idx(/^結果/),iShokai=idx(/^紹介日/),iOubo=idx(/^応募月/),iRoute=idx(/^紹介会/),iYear=idx(/^年代/);
+  const bounds=[...Object.values(col).map(c=>c.d),iNaitei].filter(d=>d>=0).sort((a,b)=>a-b);
+  Object.entries(col).forEach(([st,c])=>{if(c.d<0)return;const nxt=bounds.find(b=>b>c.d)??H.length;const re=PH_SRC[st].r||/PH|結果|状況/;
+    for(let i=c.d+1;i<nxt;i++){if(re.test(H[i])){c.r=i;break;}}});
+  const missing=Object.entries(col).filter(([st,c])=>c.d<0).map(([st])=>st);
+  const months={},tot={},route={};let n=0;
+  const bump=(m,st,k)=>{m=m||'日付不明';months[m]=months[m]||{};months[m][st]=months[m][st]||{};months[m][st][k]=(months[m][st][k]||0)+1;tot[st]=tot[st]||{};tot[st][k]=(tot[st][k]||0)+1;};
+  rows.forEach(r=>{
+    const g=i=>i>=0&&r[i]!=null?String(r[i]).trim():'';
+    if(iYear>=0&&g(iYear)!==year)return;
+    if(!r.some(x=>String(x==null?'':x).trim()!==''))return;
+    n++;
+    bump(ymOf(g(iShokai),year)||ymOf(g(iOubo),year),'エントリー','合計');
+    if(g(iRoute))route[g(iRoute)]=(route[g(iRoute)]||0)+1;
+    Object.entries(col).forEach(([st,c])=>{if(c.d<0)return;const dv=g(c.d),rv=c.r>=0?g(c.r):'';if(!dv&&!rv)return;
+      bump(ymOf(dv,year),st,st==='TOPLIVE'?clsTop(rv):clsPH(rv));});
+    const kk=g(iKekka),nd=g(iNaitei);
+    if(Y.order.includes('内定')&&nd){const m=ymOf(nd,year);bump(m,'内定','通知');if(/辞退/.test(kk)&&!/承諾後|入社前/.test(kk))bump(m,'内定','辞退');}
+    if(Y.order.includes('内定承諾')&&/承諾/.test(kk)){bump(ymOf(g(iShodaku),year)||ymOf(nd,year),'内定承諾',/辞退/.test(kk)?'辞退':'承諾');}
+  });
+  const v={};Y.order.forEach(st=>{v[st]={};(F.mk[st]||[]).forEach(k=>{v[st][k]=(tot[st]&&tot[st][k])||0;});});
+  Y.v=v;
+  const rt=Object.entries(route).sort((a,b)=>b[1]-a[1]);if(rt.length)Y.route=rt.slice(0,6);
+  const now=new Date().toISOString();
+  Y.monthly={months,synced:now,rows:n,missing};
+  Y.src=`出典：${srcName||'採用管理スプレッドシート'}（${year}）${fmtDT(now)}に自動反映／${n}件`;
+  return n;}
+function renderMonthlyPH(){
+  const tb=document.getElementById('mphTbl');if(!tb)return;
+  const Y=S.funnel.years[S.curYear];const sheet=(SL().recruitSheet||{})[S.curYear];
+  const st=document.getElementById('mphStatus');
+  document.getElementById('mphTag').textContent=S.curYear;
+  document.getElementById('mphSheet').textContent=sheet?`「${sheet}」シート`:'年代シート';
+  if(!sheet){tb.innerHTML='<tbody><tr><td class="muted small">この年代はスプレッドシート連動の対象外です（27卒・28卒で利用できます）。</td></tr></tbody>';st.textContent='';return;}
+  const M=Y.monthly;
+  if(!M||!M.months){tb.innerHTML='<tbody><tr><td class="muted small">まだ読み込まれていません。「スプレッドシートから更新」を押してください。</td></tr></tbody>';st.textContent='';return;}
+  st.textContent=`最終更新 ${fmtDT(M.synced)}／${M.rows}件`+(M.missing&&M.missing.length?`／列が見つからないPH：${M.missing.join('・')}`:'');
+  const ms=Object.keys(M.months).sort((a,b)=>a==='日付不明'?1:b==='日付不明'?-1:a.localeCompare(b));
+  const cell=(c,stg)=>{c=c||{};const main=c[MAINKEY[stg]]||0;const all=Object.values(c).reduce((a,b)=>a+b,0);
+    if(!all)return '<td style="text-align:center;color:#b8c0cc">·</td>';
+    const sub=Object.entries(c).filter(([k,x])=>k!==MAINKEY[stg]&&x>0).map(([k,x])=>`${k}${x}`).join(' ');
+    return `<td style="text-align:center" title="${esc(sub)}"><b style="font-size:15px;color:var(--navy)">${main}</b>${sub?`<div class="muted" style="font-size:10px;white-space:nowrap">${esc(sub)}</div>`:''}</td>`;};
+  tb.innerHTML=`<thead><tr><th style="white-space:nowrap">月</th>${Y.order.map(s=>`<th style="text-align:center;white-space:nowrap">${s}<div class="muted" style="font-size:10px;font-weight:400">${MAINKEY[s]}</div></th>`).join('')}</tr></thead><tbody>`+
+    ms.map(m=>`<tr><td style="white-space:nowrap"><b>${ymLabel(m)}</b></td>${Y.order.map(s=>cell(M.months[m][s],s)).join('')}</tr>`).join('')+
+    `<tr style="background:#f1f4f9"><td><b>合計</b></td>${Y.order.map(s=>cell(Y.v[s],s)).join('')}</tr></tbody>`;
+}
+async function syncRecruit(){
+  const y=S.curYear,L=SL(),sheet=(L.recruitSheet||{})[y];
+  if(!sheet){alert('スプレッドシート連動は27卒・28卒で利用できます。');return;}
+  const st=document.getElementById('mphStatus');st.textContent='読み込み中…';
+  try{const j=await gasGet({action:'recruit',id:L.recruitId,sheet,year:y});aggRecruit(y,j.header,j.rows,j.sheet);save();renderRecruit();}
+  catch(e){st.textContent='';alert('読み込みに失敗しました：'+e.message+'\n\n「設定」タブのスプレッドシート連携をご確認ください。\n連携前でも、該当シートを「ファイル → ダウンロード → CSV」で保存し「CSVを取り込む」から反映できます。');}
+}
+function importRecruitCSV(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const rows=parseCSV(r.result);const hi=rows.findIndex(x=>x.some(c=>String(c).trim()==='年代'));
+      if(hi<0)throw new Error('「年代」列が見つかりません');const n=aggRecruit(S.curYear,rows[hi],rows.slice(hi+1),f.name.replace(/\.csv$/i,''));
+      save();renderRecruit();alert(`${S.curYear}：${n}件を反映しました。`);}catch(e){alert('取り込みに失敗しました：'+e.message);}
+    ev.target.value='';};
+  r.readAsText(f,'utf-8');}
+
+/* ---------- アルバイト回数 ---------- */
+function normName(s){return String(s||'').replace(/[\s\u3000]/g,'').replace(/さん$/,'')
+  .replace(/[邉邊]/g,'辺').replace(/舘/g,'館').replace(/髙/g,'高').replace(/[﨑嵜]/g,'崎').replace(/[齋齊斉]/g,'斎').replace(/濵/g,'浜');}
+function ymList(n){const b=new Date(S.baseDate||Date.now());const out=[];for(let i=0;i<n;i++){const d=new Date(b.getFullYear(),b.getMonth()-i,1);out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}return out;}
+function arbeitInfo(p){
+  const a=p.arbeitCnt||{},bm=a.byMonth||{},tgt=+(SL().arbeitTarget)||4;
+  if(Object.keys(bm).length){const total=Object.values(bm).reduce((x,y)=>x+y,0);const recent=ymList(3).reduce((s,k)=>s+(bm[k]||0),0);
+    return{rate:Math.min(1,recent/(tgt*3)),label:total+'回',total,recent,src:'sheet'};}
+  if(a.manual!=null&&a.manual!==''){const total=+a.manual||0;return{rate:Math.min(1,total/(tgt*3)),label:total+'回',total,recent:null,src:'manual'};}
+  return{rate:evRateTypes(p.id,['アルバイト']),label:'—',total:0,recent:null,src:''};}
+function arbeitSec(p){
+  const a=p.arbeitCnt||{},bm=a.byMonth||{},ai=arbeitInfo(p),tgt=+(SL().arbeitTarget)||4;
+  const ks=Object.keys(bm).sort().slice(-6);
+  const rc=ai.recent==null?'':`<span class="pill ${ai.recent>=tgt*3?'ok':ai.recent>=tgt*1.5?'warn':'danger'}">直近3ヶ月 ${ai.recent}回</span>`;
+  return `<div class="k-sec"><h4><span class="no">④</span>アルバイト回数 ${ai.src?`<span class="pill gray">累計 ${ai.total}回</span>`:''}${rc}</h4>
+    <p class="hint" style="margin:-4px 0 10px">「内定者データ」スプレッドシート（${esc(S.cohort)}アルバイト数）の記録から、本人の回数を月ごとに自動集計します。${ai.src==='sheet'?'最終更新 '+fmtDT(a.synced):ai.src==='manual'?'手入力の値を使用中':'未連携'}／月間目標 ${tgt}回（エンゲージの「アルバイト回数」は直近3ヶ月の回数÷目標で算出）</p>
+    ${ks.length?`<div class="engbar">${ks.map(k=>`<div class="c">${+k.slice(5)}月<b>${bm[k]}回</b></div>`).join('')}</div>`:''}
+    <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+      <button class="btn gold sm" onclick="syncArbeit()">↻ スプレッドシートから更新</button>
+      <label class="btn ghost sm" style="cursor:pointer">CSVを取り込む<input type="file" accept=".csv,text/csv" hidden onchange="importArbeitCSV(event)"></label>
+      ${ks.length?'':`<span class="muted small">未連携時の手入力（累計回数）</span><input class="in" type="number" min="0" style="width:90px" value="${a.manual??''}" onchange="setArbeitManual('${p.id}',this.value)">`}
+    </div></div>`;}
+function setArbeitManual(pid,v){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.arbeitCnt=p.arbeitCnt||{};p.arbeitCnt.manual=(v===''?null:+v);save();renderAll();}
+function applyArbeit(rows,src){
+  const agg={};
+  rows.forEach(r=>{if(!r)return;const nm=normName(r[1]);if(!nm||nm==='氏名')return;const m=ymOf(r[0],'');if(!m)return;
+    const n=(r[2]===''||r[2]==null)?1:(+r[2]||0);agg[nm]=agg[nm]||{};agg[nm][m]=(agg[nm][m]||0)+n;});
+  const ppl=cur().people,now=new Date().toISOString(),hit=[],miss=[];
+  ppl.forEach(p=>{const bm=agg[normName(p.name)];if(bm){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:bm,synced:now,src:src||''});hit.push(p.name);}});
+  Object.keys(agg).forEach(nm=>{if(!ppl.some(p=>normName(p.name)===nm))miss.push(nm);});
+  save();renderAll();
+  alert(`アルバイト回数を反映しました（${src||''}）\n一致：${hit.length}名`+(miss.length?`\nカルテに該当者なし：${miss.join('、')}\n（氏名の表記がカルテと違う場合は、カルテ側の氏名をスプレッドシートに合わせてください）`:''));}
+async function syncArbeit(){
+  const L=SL(),c=S.cohort,gid=(L.arbeitGid||{})[c];
+  if(!gid){alert(`${c}卒のアルバイト回数シートのgidが未設定です。「設定」タブのスプレッドシート連携で入力してください。`);return;}
+  try{const j=await gasGet({action:'arbeit',id:L.arbeitId,gid});applyArbeit(j.rows,j.sheet);}
+  catch(e){alert('読み込みに失敗しました：'+e.message+'\n\n連携前でも、該当シートを「ファイル → ダウンロード → CSV」で保存し「CSVを取り込む」から反映できます。');}}
+function importArbeitCSV(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{applyArbeit(parseCSV(r.result).map(x=>[x[0],x[1],x[2]]),f.name.replace(/\.csv$/i,''));}catch(e){alert('取り込みに失敗しました：'+e.message);}ev.target.value='';};
+  r.readAsText(f,'utf-8');}
 function rate(cls,l,v){return `<div class="rate ${cls}"><div class="l">${l}</div><div class="v">${Math.round(v*100)/100}%</div></div>`;}
 function renderSettings(){
   const w=document.getElementById('weightWrap');
   w.innerHTML=Object.keys(DEFAULT_WEIGHTS).map(k=>`<div class="row" style="margin:6px 0"><span style="flex:1">${WLAB[k]}</span><input class="in" type="number" style="width:90px" value="${S.weights[k]}" onchange="setWeight('${k}',+this.value)"></div>`).join('');
   document.getElementById('thDanger').value=S.thresholds.danger;
   document.getElementById('thWarn').value=S.thresholds.warn;
+  renderSL();
 }
 
 /* ---------- actions ---------- */
@@ -1466,9 +1780,10 @@ function evRateTypes(pid,types){let p=0,t=0;cur().events.forEach(e=>{if(types.in
 function kadaiRate(p){if(p.kadai&&p.kadai.length){let s=0;p.kadai.forEach(k=>{s+=k.submit==='○'?1:k.submit==='△'?0.5:0;});return s/p.kadai.length;}return taskRate(p.id);}
 function mendanRate(p){const target=3;const n=(p.mendan?p.mendan.length:0);return Math.min(1,n/target);}
 function engagement(p){
-  const comps=[['研修参加率',evRateTypes(p.id,['研修'])],['イベント参加率',evRateTypes(p.id,['会社イベント','勉強会'])],['アルバイト参加率',evRateTypes(p.id,['アルバイト'])],['課題提出率',kadaiRate(p)],['面談実施率',mendanRate(p)]];
+  const ac=arbeitInfo(p);
+  const comps=[['研修参加率',evRateTypes(p.id,['研修'])],['イベント参加率',evRateTypes(p.id,['会社イベント','勉強会'])],['アルバイト回数',ac.rate,ac.label],['課題提出率',kadaiRate(p)],['面談実施率',mendanRate(p)]];
   let active=0,sum=0;const detail=[];
-  comps.forEach(([lab,r])=>{if(r!=null){active++;sum+=r;detail.push([lab,Math.round(r*100)]);}else detail.push([lab,null]);});
+  comps.forEach(([lab,r,disp])=>{if(r!=null){active++;sum+=r;detail.push([lab,Math.round(r*100),disp]);}else detail.push([lab,null,disp]);});
   const score=active?Math.round(sum/active*100):0;
   const lv=score>=80?'安心':score>=60?'注意':'幹部面談';
   return{score,lv,detail,active};
@@ -1499,7 +1814,7 @@ function timeline(p){
   done['面接']=!!p.offerDate||(p.intern&&p.intern.count>0)||(p.kobetsu&&p.kobetsu.count>0);
   done['内定']=!!p.offerDate;
   done['課題']=(p.kadai||[]).some(k=>k.submit==='○');
-  done['アルバイト']=!!(p.arbeit&&(p.arbeit.start||p.arbeit.hours>0))||evRateTypes(p.id,['アルバイト'])>0;
+  done['アルバイト']=!!(p.arbeit&&(p.arbeit.start||p.arbeit.hours>0))||evRateTypes(p.id,['アルバイト'])>0||(arbeitInfo(p).total>0);
   done['研修']=evRateTypes(p.id,['研修'])>0||(p.kanbujuku&&/参加|済|出席/.test(p.kanbujuku.status||''));
   done['入社式']=!!(p.joinDate&&new Date(p.joinDate)<=new Date(S.baseDate));
   let next=TL_STAGES.find(s=>!done[s]);
@@ -1535,7 +1850,7 @@ function renderKarte(){
         ${fit.score==null?'<div class="ring" style="background:#eef1f6"><div class="inner"><b style="color:#8b96a8;font-size:13px">未評価</b><span>人物像</span></div></div>':ringHtml(fit.score,'人物像','%')}
       </div>
     </div>
-    <div class="engbar">${eng.detail.map(d=>`<div class="c">${d[0]}<b>${d[1]==null?'—':d[1]+'%'}</b></div>`).join('')}</div>
+    <div class="engbar">${eng.detail.map(d=>`<div class="c">${d[0]}<b>${d[2]!=null?d[2]:(d[1]==null?'—':d[1]+'%')}</b></div>`).join('')}</div>
     <div class="row small" style="margin-top:8px"><span class="pill ${engLvCls}">エンゲージ判定：${eng.lv}${eng.score<60?'（幹部面談実施）':''}</span><span class="muted">※入社確率・活躍確率はAIによる暫定自動判定（温度感・参加・課題・評価・辞退リスクから算出）</span></div>
   </div>
 
@@ -1553,6 +1868,8 @@ function renderKarte(){
       ${kf(p.id,'kanbujuku.status','幹部塾 参加状況',p.kanbujuku.status)}
     </div>
   </div>
+
+  ${arbeitSec(p)}
 
   <div class="k-sec"><h4><span class="no">⑤</span>内定者課題</h4>
     <table><thead><tr><th>項目</th><th style="width:90px">提出</th><th style="width:90px">評価</th><th style="width:60px"></th></tr></thead><tbody>
@@ -1825,7 +2142,8 @@ function renderGuide(){
   ${g('10','新卒採用進捗タブ',
     ul(['年代（24〜28卒）を切り替えて選考ファネルを管理。合格率は自動計算。',
         '「目標達成までの人数・進捗率」は<b>目標数を入力するだけ</b>で、残り人数と進捗率（実数÷目標）を自動計算。',
-        '「採用コスト」は年代ごとに費目を登録。<b>採用経費</b>（紹介料・成功報酬など）と<b>採用活動費用</b>（媒体・イベント費）を分けて集計し、<b>1人あたりコスト＝経費総額÷内定者数</b>を自動表示。'])
+        '「月別 PH推移」は【新卒採用】学生管理（27卒・28卒シート）を読み込み、各PHの人数を月ごとに集計。読み込むと選考状況の数値も最新化されます（連携設定は「設定」タブ）。',
+        '「採用コスト」は上部の「27卒を入力／28卒を入力」で年代を切り替えて費目を登録し、下の年代比較で27卒・28卒を並べて確認できます。<b>採用経費</b>（紹介料・成功報酬など）と<b>採用活動費用</b>（媒体・イベント費）を分けて集計し、<b>1人あたりコスト＝経費総額÷内定者数</b>を自動表示。'])
   )}
 
   ${g('10-2','社長AI（アースコムの社内AI）',
