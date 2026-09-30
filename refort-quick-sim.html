@@ -272,6 +272,23 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
   .pcard .figure{grid-area:f;text-align:left;padding-top:8px;border-top:1px solid var(--paper)}
   .heronums div .val{font-size:30px}
 }
+
+/* 更新のお知らせ */
+.wn-back{position:fixed;inset:0;background:rgba(6,25,44,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.wn{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.wn-h{background:var(--navy-2);color:#fff;padding:16px 20px}
+.wn-h .t{font-size:17px;font-weight:800}
+.wn-h .s{font-size:12px;opacity:.8;margin-top:2px}
+.wn-b{padding:6px 20px;overflow:auto}
+.wn-i{padding:12px 0;border-bottom:1px solid var(--line)}
+.wn-i:last-child{border-bottom:0}
+.wn-v{display:inline-block;font-size:11px;font-weight:800;color:var(--sun);background:var(--sun-soft);border-radius:6px;padding:2px 8px;margin-bottom:5px}
+.wn-v.new{color:#fff;background:var(--sun)}
+.wn-x{font-size:14px;line-height:1.75;color:var(--text)}
+.wn-f{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.wn-f a{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline}
+.wn-f button{font:inherit;font-weight:800;border:0;border-radius:10px;background:var(--navy-2);color:#fff;padding:10px 22px;cursor:pointer}
+#verTag{cursor:pointer}
 </style>
 </head>
 <body>
@@ -477,9 +494,10 @@ details.manual .body{font-size:14px;line-height:1.9;color:var(--text);padding-to
 /* ==========================================================
    ReFort クイック試算
    ========================================================== */
-const APP_VERSION = "ver.2026.09.30";
+const APP_VERSION = "ver.2026.09.30b";
 const CHANGELOG = [
-  ["ver.2026.09.30","元データの出力の桁ずれ（kWの欄にWで入っている等）を自動補正。パネル容量と発電出力の比が1,000倍前後ずれている場合は1/1,000にして計算し、画面に注記を表示。補正できないほど食い違う場合は試算を止めて確認を促す。"],
+  ["ver.2026.09.30b","アプリが更新されたとき、開いた画面に「更新のお知らせ」を表示するようにしました。前回開いたとき以降の変更点がまとめて確認できます。【確認しました】を押すと、次の更新まで表示されません。画面上部のバージョン表示を押すと、いつでも更新履歴を見られます。"],
+  ["ver.2026.09.30","元データでパネル容量や発電出力が1,000倍の数字で登録されている発電所（kWの欄にWの数字が入っている入力ミス）を、自動で補正して計算するようにしました。補正した発電所には画面に注記が出ます。お客様に出す前に、実際の容量を必ず確認してください。"],
   ["ver.2026.09.29h","お客様用レポートをPDF化したときに2ページ目にはみ出す不具合を修正。A4一枚に収まるよう余白と行間を詰め、はみ出す場合は自動で縮小。見出しの紺色や棒グラフの色がPDFでも出るように変更。"],
   ["ver.2026.09.29g","【無料診断のご案内】の最後の一文を「3営業日以降、実際の発電所の詳細シミュレーションをご案内できます。」に変更。"],
   ["ver.2026.09.29f","お客様用レポートに【無料診断のご案内】を追加。必要資料（レイアウト図・単線結線図・直近3年間の発電量）と、3営業日以降に詳細シミュレーションをご案内する旨を記載。"],
@@ -1852,6 +1870,40 @@ function buildManual(){
 }
 
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+
+/* ---------- 更新のお知らせ（新しいバージョンを初めて開いたときに表示） ---------- */
+function showWhatsNew(all){
+  const KEY = 'rfqs.seenVer';
+  let seen = null;
+  try{ seen = localStorage.getItem(KEY); }catch(e){}
+  if(!all && seen === APP_VERSION) return;
+  let items;
+  if(all){ items = CHANGELOG; }
+  else{
+    const idx = seen ? CHANGELOG.findIndex(([v])=>v===seen) : -1;
+    items = idx > 0 ? CHANGELOG.slice(0, idx) : CHANGELOG.slice(0, seen ? 3 : 1);
+    items = items.slice(0, 8);
+  }
+  if(!items.length){ try{ localStorage.setItem(KEY, APP_VERSION); }catch(e){} return; }
+  const back = document.createElement('div');
+  back.className = 'wn-back';
+  back.innerHTML = `<div class="wn" role="dialog" aria-modal="true">
+    <div class="wn-h"><div class="t">${all ? '更新履歴' : 'アプリが更新されました'}</div>
+      <div class="s">現在のバージョン：${APP_VERSION}${!all && seen ? `（前回ご利用：${esc(seen)}）` : ''}</div></div>
+    <div class="wn-b">${items.map(([v,t],i)=>`<div class="wn-i"><span class="wn-v ${i===0&&!all?'new':''}">${esc(v)}</span><div class="wn-x">${esc(t)}</div></div>`).join('')}</div>
+    <div class="wn-f"><a id="wnAll">${all ? '' : 'すべての更新履歴を見る'}</a><button id="wnOk">確認しました</button></div>
+  </div>`;
+  document.body.appendChild(back);
+  const close = ()=>{ try{ localStorage.setItem(KEY, APP_VERSION); }catch(e){} back.remove(); };
+  back.querySelector('#wnOk').onclick = close;
+  back.onclick = e=>{ if(e.target===back) close(); };
+  const a = back.querySelector('#wnAll');
+  if(!all) a.onclick = ()=>{ close(); showWhatsNew(true); };
+}
+document.getElementById('verTag').title = 'タップで更新履歴を表示';
+document.getElementById('verTag').onclick = ()=>showWhatsNew(true);
+setTimeout(()=>showWhatsNew(false), 600);
 
 boot();
 </script>
