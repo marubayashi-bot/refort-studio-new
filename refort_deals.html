@@ -307,6 +307,36 @@ table.grid .lnk:hover{color:var(--gold);text-decoration:underline}
 
 .sec-title{font-size:13px;font-weight:700;color:var(--navy);margin:18px 0 9px;display:flex;align-items:center;gap:8px}
 .sec-title::before{content:"";width:4px;height:15px;background:var(--gold);border-radius:2px}
+/* 発電性能診断 */
+.pd-lead{background:var(--surface2);border-left:3px solid var(--navy);border-radius:6px;padding:9px 12px;font-size:12.5px;line-height:1.7;margin-bottom:12px;color:var(--ink)}
+.pd-stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:6px}
+.pd-stat>div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pd-stat .l{font-size:12px;font-weight:700;color:var(--navy2)}
+.pd-st{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.pd-st.ok{background:var(--go-bg);color:var(--go)}
+.pd-st.part{background:var(--gold-soft);color:#7a5b12}
+.pd-st.ng{background:var(--stop-bg);color:var(--stop)}
+.pd-st.off{background:var(--surface2);color:var(--muted)}
+table.pd-tbl{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--surface)}
+table.pd-tbl th{background:var(--navy);color:#fff;font-weight:600;text-align:left;padding:7px 9px;white-space:nowrap}
+table.pd-tbl td{border-bottom:1px solid var(--line);padding:7px 9px;vertical-align:top;line-height:1.55}
+table.pd-tbl td.pd-k{font-weight:700;color:var(--navy);white-space:nowrap}
+table.pd-tbl td.pd-s{white-space:nowrap}
+table.pd-tbl code{font-size:11.5px;background:var(--surface2);padding:1px 5px;border-radius:4px}
+.pd-src{font-size:11.5px;color:var(--muted)}
+.pd-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:3px}
+.pd-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.7}
+.pd-box p{margin:6px 0 0}
+.pd-kv{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.pd-kv>span:first-child{min-width:170px;color:var(--navy2);font-weight:600}
+.pd-f{display:inline-block;background:var(--gold-soft);border-radius:5px;padding:2px 8px;margin:4px 0;font-weight:700;color:var(--navy)}
+.pd-future{border-style:dashed;border-color:var(--gold)}
+.pd-meta{font-size:12px;color:var(--navy2);margin-bottom:8px;line-height:1.6}
+.pd-det{margin-top:14px;font-size:12.5px}
+.pd-det summary{cursor:pointer;font-weight:700;color:var(--navy2);padding:6px 0}
+.pd-act{margin:10px 0 4px}
+.pd-fac{margin-bottom:14px}
+@media (max-width:640px){table.pd-tbl td.pd-k,table.pd-tbl td.pd-s{white-space:normal}.pd-kv>span:first-child{min-width:0}}
 .table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow)}
 table.sim{border-collapse:collapse;font-size:11.5px;width:100%;min-width:max-content}
 table.sim th,table.sim td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -3240,7 +3270,7 @@ function recompute(){
 /* ----- RESULTS ----- */
 function renderResults(){
   const col=$('#resCol'); if(!col)return;
-  const tabs=[['judge','一次判定'],['m1','① セカンダリー'],['m2','② セカンダリーRF'],['m3','③ リフォートのみ'],['cmp','3シナリオ比較']];
+  const tabs=[['judge','一次判定'],['m1','① セカンダリー'],['m2','② セカンダリーRF'],['m3','③ リフォートのみ'],['cmp','3シナリオ比較'],['perf','発電性能診断']];
   let html=`<div class="res-tabs">${tabs.map(([k,t])=>`<button data-rt="${k}" class="${resTab===k?'on':''}">${t}</button>`).join('')}</div>`;
   html+=`<div id="resBody"></div>`;
   col.innerHTML=html;
@@ -3250,6 +3280,7 @@ function renderResults(){
   else if(resTab==='m1')body.innerHTML=m1HTML();
   else if(resTab==='m2')body.innerHTML=m2HTML();
   else if(resTab==='m3')body.innerHTML=m3HTML();
+  else if(resTab==='perf'){ body.innerHTML=perfHTML(); wirePerf(); }
   else body.innerHTML=cmpHTML();
 }
 
@@ -4882,6 +4913,7 @@ function importExcelNew(file){
     if(isLedgerWB(wb)){ const added=importLedgerRows(wb); saveDB(DB); nav('ledger'); renderLedger(); toast('案件管理台帳から '+added+' 件を取込みました'); return; }
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
     const d={id:uid(),name:name||'(無題案件)',stage:'ph03',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
+    try{ d.perfDiag=scanPerfWorkbook(wb,file&&file.name); }catch(e){ console.warn('[refort] 発電性能診断スキャン失敗',e); }  /* 診断用（計算には不使用） */
     DB.deals.unshift(d);saveDB(DB,d);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
     const ddn=dd?Object.keys(dd).length:0;
     toast('Excelから新規案件を取込みました（'+count+'項目'+(ddn?'／DD '+ddn+'件':'')+'）');
@@ -4915,7 +4947,8 @@ function importExcelCur(file){
       merged[k]=v; applied++;
     });
     curDeal.inputs=merged;
-    lastImportUndo={id:curDeal.id,inputs:before};
+    lastImportUndo={id:curDeal.id,inputs:before,perfDiag:curDeal.perfDiag||null};
+    try{ curDeal.perfDiag=scanPerfWorkbook(wb,file&&file.name); }catch(e){ console.warn('[refort] 発電性能診断スキャン失敗',e); }  /* 診断用（計算には不使用） */
     if(dd&&Object.keys(dd).length)curDeal.dd=Object.assign(curDeal.dd||{},dd);
     if(!curDeal.name||curDeal.name==='(無題案件)')curDeal.name=name;
     markDirty();renderDeal();
@@ -4925,10 +4958,230 @@ function importExcelCur(file){
 /* 直前の取込を取り消す（保存前・保存後どちらでも、この画面を開いている間は戻せる） */
 function undoLastImport(){
   if(!lastImportUndo||!curDeal||lastImportUndo.id!==curDeal.id){ toast('取り消せる取込がありません'); return; }
-  curDeal.inputs=lastImportUndo.inputs; lastImportUndo=null;
+  curDeal.inputs=lastImportUndo.inputs;
+  if('perfDiag' in lastImportUndo){ if(lastImportUndo.perfDiag)curDeal.perfDiag=lastImportUndo.perfDiag; else delete curDeal.perfDiag; }
+  lastImportUndo=null;
   markDirty(); renderDeal(); toast('取込前の内容に戻しました（保存を押すと確定します）');
 }
 window.undoLastImport=undoLastImport;
+
+
+/* ==================== 発電性能診断（STEP1：日射補正の診断基盤） ====================
+   ▼このブロックの約束（STEP1）
+   ・既存の計算（derive / simSecondary / simSecondaryRF / simRefortOnly / 提案書）には一切つながない。
+     ここで読んだ・表示した値を inputs に書き戻さない。
+   ・Excelの中身は「スキャンして候補を一覧にする」だけ。年度・当初シミュ値などを推測して埋めない。
+   ・スキャン結果は案件の perfDiag に保存する（inputs とは別。計算は perfDiag を参照しない）。
+   ▼将来の拡張（STEP2以降・未実装）で使う予定の置き場所
+     deal.perf = {
+       irradiance:{ source, station, lat, lng, period:{from,to}, annual, monthly:[] },  // STEP2 日射関連データ
+       expected:{ annual, monthly:[] },        // STEP3 日射補正後期待発電量
+       index:null,                              // STEP3 設備性能指数（実績÷日射補正後期待）
+       pr:null,                                 // PR（日射データ・温度補正等の条件確定後）
+       factors:{ weather:null, curtailment:null, equipment:null, outage:null }  // STEP4 要因分解
+     }
+   ======================================================================== */
+const PERF_SCAN_VER=1;
+/* 取込テンプレートごとに、診断に関係する項目をどのセルから読んでいるか（parseTemplateA/B/C と同じ番地） */
+const PERF_SRC={
+  A:{label:'01_物件情報（ReFort Vr19/Vr20）',cells:{location:'C9',mapUrl:'C10',gridDate:'C14',actualGen:'C33',degExist:'C34',rfGenAfter:'C44',degRF:'C46'}},
+  B:{label:'入力（VQ／セカンダリー）',cells:{location:'C3',gridDate:'C5',actualGen:'C57',degExist:'C42'}},
+  C:{label:'ヒアリング（DDチェックリスト）',cells:{location:'D11',mapUrl:'D12',gridDate:'D14',actualGen:'D21'}},
+};
+const PERF_CAT=[
+  ['act','実績',/実績|実発電|発電実績/],
+  ['sim','シミュ・想定',/シミュ|想定発電|計画発電|当初|予想発電|予測発電|設計発電/],
+  ['yr','年度',/年度/],
+  ['geo','緯度経度',/緯度|経度/],
+  ['date','運転開始・連系',/運転開始|連系/],
+  ['deg','劣化',/劣化/],
+  ['irr','日射',/日射/],
+  ['cur','出力制御',/出力制御|出力抑制/],
+];
+function perfCellText(c){ if(!c||c.v==null)return ''; if(c.w!=null&&c.w!=='')return String(c.w).trim();
+  const v=c.v; if(v&&typeof v.getFullYear==='function')return v.getFullYear()+'/'+(v.getMonth()+1)+'/'+v.getDate();
+  return String(v).trim(); }
+/* Excelの中を見て、実績・年度・緯度経度などの「候補」を番地つきで集める（値は推測しない） */
+function scanPerfWorkbook(wb,fileName){
+  const X=window.XLSX, names=wb.SheetNames||[];
+  const out={ver:PERF_SCAN_VER,scannedAt:Date.now(),fileName:fileName||'',sheets:names.slice(0,60),
+    template:null,read:{},hits:[],months:[],years:[]};
+  if(names.some(n=>n==='01_物件情報'||/物件情報/.test(n)))out.template='A';
+  else if(names.includes('入力'))out.template='B';
+  else if(names.some(n=>/ヒアリング/.test(n)))out.template='C';
+  /* アプリが実際に読んでいるセルの、Excel上の生の値を控える（出どころの確認用） */
+  if(out.template&&X){
+    const sn=out.template==='A'?(names.find(n=>n==='01_物件情報')||names.find(n=>/物件情報/.test(n)))
+      :out.template==='B'?'入力':names.find(n=>/ヒアリング/.test(n));
+    const ws=wb.Sheets[sn]; out.readSheet=sn;
+    if(ws)Object.entries(PERF_SRC[out.template].cells).forEach(([k,a])=>{out.read[k]={a,v:perfCellText(ws[a])};});
+  }
+  if(!X)return out;
+  names.forEach(sn=>{
+    const ws=wb.Sheets[sn]; if(!ws||!ws['!ref'])return;
+    let rg; try{rg=X.utils.decode_range(ws['!ref']);}catch(e){return;}
+    const r1=Math.min(rg.e.r,rg.s.r+400), c1=Math.min(rg.e.c,rg.s.c+60);
+    const mon={}, yrs=[]; let nHit=0;
+    for(let r=rg.s.r;r<=r1;r++)for(let c=rg.s.c;c<=c1;c++){
+      const a=X.utils.encode_cell({r,c}), cell=ws[a]; if(!cell||cell.v==null||cell.v==='')continue;
+      const t=perfCellText(cell);
+      const mm=t.match(/^(1[0-2]|[1-9])\s*月$/); if(mm){ if(!mon[mm[1]])mon[mm[1]]=a; continue; }
+      if((typeof cell.v==='number'&&Number.isInteger(cell.v)&&cell.v>=2000&&cell.v<=2045&&!cell.z)
+        ||(typeof cell.v==='string'&&/^(20[0-4]\d)\s*(年度|年)?$/.test(t))){ if(yrs.length<12)yrs.push({a,t}); }
+      if(typeof cell.v!=='string'||t.length>40||nHit>=25||out.hits.length>=150)continue;
+      const cat=PERF_CAT.find(x=>x[2].test(t)); if(!cat)continue;
+      /* 同じ行の右側（6列まで）→ 1つ下 の順で、最初に値が入っているセルを「隣の値」として控える */
+      let nv='',na='';
+      for(let k=1;k<=6&&!nv;k++){const b=X.utils.encode_cell({r,c:c+k});const s=perfCellText(ws[b]);if(s){nv=s;na=b;}}
+      if(!nv){const b=X.utils.encode_cell({r:r+1,c});const s=perfCellText(ws[b]);if(s){nv=s;na=b;}}
+      out.hits.push({s:sn,a,cat:cat[0],label:t,v:nv.slice(0,40),va:na}); nHit++;
+    }
+    const mk=Object.keys(mon); if(mk.length>=12)out.months.push({s:sn,a:mon['1'],to:mon['12']});
+    if(yrs.length>=2)out.years.push({s:sn,list:yrs});
+  });
+  return out;
+}
+/* 所在地の文字列から都道府県・市区町村を「書いてあるとおりに」切り出す（推測・補完はしない） */
+function perfSplitAddr(loc){
+  const s=String(loc||'').replace(/\s+/g,'');
+  const pref=prefOf(s);
+  let city=null;
+  if(pref){
+    const rest=s.startsWith(pref)?s.slice(pref.length):s.slice(pref.replace(/[都道府県]$/,'').length);
+    const m=rest.match(/^(.+?郡.+?[町村]|.+?市.+?区|.+?[市区町村])/);
+    if(m)city=m[1];
+  }
+  return {pref,city};
+}
+function perfSt(k){ const m={ok:['取得済','ok'],ng:['データ不足','ng'],off:['未連携','off'],calc:['未計算','off'],part:['一部取得','part']}[k];
+  return `<span class="pd-st ${m[1]}">${m[0]}</span>`; }
+function perfRow(item,val,src,st,note){
+  return `<tr><td class="pd-k">${item}</td><td class="pd-v">${val}${note?`<div class="pd-note">${note}</div>`:''}</td><td class="pd-src">${src}</td><td class="pd-s">${st}</td></tr>`; }
+function perfHTML(){
+  const inp=I(), dg=(curDeal&&curDeal.perfDiag)||null;
+  const T=dg&&dg.template?PERF_SRC[dg.template]:null;
+  const cellOf=k=>T&&T.cells[k]?`Excel「${esc(dg.readSheet||T.label)}」${T.cells[k]}`:'';
+  const srcTxt=(k,alt)=>cellOf(k)||alt||'案件データ（Excel取込・手入力・シート連携のいずれか）';
+  const gen=n(inp.actualGen), deg=n(inp.degExist);
+  const ad=perfSplitAddr(inp.location);
+  const la=parseFloat(inp.siteLat), ln=parseFloat(inp.siteLng);
+  const uc=coordsFromUrl(inp.mapUrl);
+  let geoVal,geoSrc,geoSt;
+  if(isFinite(la)&&isFinite(ln)){geoVal=la.toFixed(5)+', '+ln.toFixed(5);geoSrc='地図機能で取得済の値（位置URLまたは住所検索）';geoSt=perfSt('ok');}
+  else if(uc){geoVal=uc.lat.toFixed(5)+', '+uc.lng.toFixed(5);geoSrc='位置URLに含まれる座標'+(cellOf('mapUrl')?'（'+cellOf('mapUrl')+'）':'');geoSt=perfSt('ok');}
+  else{geoVal='—';geoSrc='位置URLに座標がなく、地図機能でも未取得';geoSt=perfSt('ng');}
+  /* アプリが既に読んでいるセル（例：RF後想定発電量C44）は「当初シミュ」の候補から外す */
+  const known=new Set(dg&&dg.read?Object.values(dg.read).map(o=>(dg.readSheet||'')+'!'+o.a):[]);
+  const isKnown=x=>known.has(x.s+'!'+x.va);
+  const simHits=dg?dg.hits.filter(h=>h.cat==='sim'&&!isKnown(h)):[];
+  let h=`<div class="pd-lead"><b>確認専用の画面です。</b>ここに表示する内容は、発電量・売電収入・回収年数・IRR・キャッシュフロー・提案書の計算には使っていません（既存のシミュレーション結果は変わりません）。</div>`;
+  h+=`<div class="pd-stat">
+    <div><span class="l">日射データ</span>${perfSt('off')}</div>
+    <div><span class="l">日射補正</span>${perfSt('calc')}</div>
+    <div><span class="l">設備性能診断</span>${perfSt('calc')}</div>
+    <div><span class="l">Excel詳細スキャン</span>${dg?`<span class="pd-st ok">実施済</span>`:`<span class="pd-st off">未実施</span>`}</div></div>`;
+
+  /* ---- 現在取得できている情報 ---- */
+  h+=`<div class="sec-title">現在取得できている情報</div><div class="table-scroll"><table class="pd-tbl"><thead><tr><th>項目</th><th>値</th><th>取得元</th><th>状態</th></tr></thead><tbody>`;
+  h+=perfRow('発電所所在地',inp.location?esc(inp.location):'—',srcTxt('location'),inp.location?perfSt('ok'):perfSt('ng'));
+  h+=perfRow('都道府県',ad.pref?esc(ad.pref):'—','所在地の文字列から切り出し',ad.pref?perfSt('ok'):perfSt('ng'),ad.pref?'':'所在地に都道府県名が書かれていないため特定できません');
+  h+=perfRow('市区町村',ad.city?esc(ad.city):'—','所在地の文字列から切り出し',ad.city?perfSt('ok'):perfSt('ng'),ad.city?'':'所在地の書き方から市区町村を特定できません');
+  h+=perfRow('緯度・経度',geoVal,geoSrc,geoSt);
+  h+=perfRow('連系日',inp.gridDate?esc(String(inp.gridDate).replace(/-/g,'/')):'—',srcTxt('gridDate'),inp.gridDate?perfSt('ok'):perfSt('ng'),
+    inp.gridDate?'運転開始日として別に管理している項目はありません（連系日のみ）':'');
+  h+=perfRow('当初シミュレーション年間発電量','—','アプリの取込項目にありません',perfSt('ng'),
+    simHits.length?'Excel内に「シミュ・想定」の文字を含む項目が'+simHits.length+'件あります（下の「Excelスキャン結果」で番地を確認してください。自動では採用していません）'
+      :'当初（設計時）のシミュレーション発電量を読み込む項目がありません');
+  h+=perfRow('実発電量',gen>0?kwh(gen)+' kWh/年':'—',srcTxt('actualGen'),gen>0?perfSt('ok'):perfSt('ng'),
+    gen>0?'1年分の年間値として保存されています':'');
+  h+=perfRow('実績対象年度','—','—',perfSt('ng'),'実発電量の対象年度を特定できません（年度を持つ項目がありません）');
+  h+=perfRow('過去実績（年度別）',gen>0?'1年分（年度不明）':'なし','—',gen>0?perfSt('part'):perfSt('ng'),
+    gen>0?'現在のExcelから取得できる実績は1年分です。過去3年分などの年度別実績を読み込む項目はありません':'取得できる実績はありません');
+  h+=perfRow('月別実績','—','—',perfSt('ng'),'月別の実績を読み込む項目はありません。「⑩ 月別 予測発電量」は年間値を標準的な日射の形で割り振った予測値で、実績ではありません');
+  h+=perfRow('日射データ','未連携','—',perfSt('off'));
+  h+=`</tbody></table></div>`;
+
+  /* ---- 現在の劣化率 ---- */
+  const y10=gen>0?gen*Math.pow(1-deg,9):null;
+  h+=`<div class="sec-title">現在の劣化率の算出根拠</div><div class="pd-box">
+    <div class="pd-kv"><span>既存パネル劣化率</span><b>${pct(deg,2)}／年</b><span class="pd-src">${srcTxt('degExist','案件データ（未入力なら初期値0.50%）')}</span></div>
+    <div class="pd-kv"><span>RF後パネル劣化率</span><b>${pct(n(inp.degRF),2)}／年</b><span class="pd-src">${srcTxt('degRF','案件データ（未入力なら初期値0.20%）')}</span></div>
+    <p><b>計算方法：</b>劣化率はアプリ内で算出していません。Excel（または手入力）の値をそのまま使い、年ごとの発電量を<br>
+    <span class="pd-f">t年目の発電量 ＝ 実績発電量 × (1 − 劣化率)<sup>t−1</sup></span> として減らしています（①②の既存設備・③の現状側・放置リスク比較の現状維持）。</p>
+    ${y10!=null?`<p class="pd-note">例：実績 ${kwh(gen)} kWh → 10年目 ${kwh(y10)} kWh</p>`:''}
+    <p><b>注意：</b>「当初シミュレーション ÷ 実績」から劣化率を求める計算は、現在のアプリにはありません。また、実績発電量はその年の日射・天候の影響を含んだままの値です。</p></div>`;
+
+  /* ---- データの流れ ---- */
+  const fl=[
+    ['location','所在地','location','地図のピン・提案書の表示'],
+    ['mapUrl','位置URL','mapUrl','緯度経度（地図）'],
+    ['gridDate','連系日','gridDate','FIT残・FIT最終日・経過年数・残耐用年数'],
+    ['actualGen','実績発電量','actualGen','設備利用率／①②③の年別売電量・売電収入・IRR・回収年数／RF後発電量率（(RF後−実績)÷実績）／撤去費積立／参考相場／放置リスク比較'],
+    ['degExist','既存パネル劣化率','degExist','既存設備の年別発電量（上の式）'],
+    ['rfGenAfter','RF後想定発電量','rfGenAfter','②③のRF後売電量・発電量UP率・月別予測'],
+    ['degRF','RF後パネル劣化率','degRF','RF後の年別発電量'],
+  ];
+  h+=`<details class="pd-det"><summary>Excel → アプリのデータの流れ（診断に関係する項目）</summary><div class="table-scroll"><table class="pd-tbl"><thead><tr><th>Excelのセル</th><th>項目</th><th>アプリの変数</th><th>使われている計算</th></tr></thead><tbody>`;
+  fl.forEach(([k,lab,v,use])=>{
+    const cA=PERF_SRC.A.cells[k]?'01_物件情報 '+PERF_SRC.A.cells[k]:'—';
+    h+=`<tr><td>${cA}</td><td>${lab}</td><td><code>inputs.${v}</code></td><td>${use}</td></tr>`;});
+  h+=`</tbody></table></div><p class="pd-note">01_物件情報（ReFort Vr19/Vr20）の番地です。「入力」テンプレートは所在地C3・連系日C5・実発電量C57・劣化率C42、ヒアリングシートは所在地D11・連系日D14・実発電量D21 から読みます。RFSK連携（GAS）では所在地・連系日・実績発電量なども同期されます。「09_APP連動」シートは現在のアプリでは読み込んでいません。</p></details>`;
+
+  /* ---- Excelスキャン結果 ---- */
+  h+=`<div class="sec-title">Excelスキャン結果（候補の一覧・計算未使用）</div>`;
+  if(!dg){
+    h+=`<div class="pd-box">この案件はまだスキャンしていません。Excelを選ぶと、中身を読み取って「実績・年度・緯度経度・当初シミュ・月別表」などの候補を番地つきで一覧にします。<b>案件の数値は変更しません。</b></div>`;
+  }else{
+    const dt=new Date(dg.scannedAt);
+    h+=`<div class="pd-meta">${esc(dg.fileName||'（ファイル名なし）')}／${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}／取込形式：${dg.template?esc(PERF_SRC[dg.template].label):'該当なし'}<br>シート：${(dg.sheets||[]).map(esc).join('、')||'—'}</div>`;
+    if(dg.read&&Object.keys(dg.read).length){
+      h+=`<div class="table-scroll"><table class="pd-tbl"><thead><tr><th>アプリが読むセル</th><th>Excel上の値</th></tr></thead><tbody>`;
+      Object.entries(dg.read).forEach(([k,o])=>{h+=`<tr><td>${esc(o.a)}（${esc(k)}）</td><td>${o.v?esc(o.v):'<span class="pd-note">空欄</span>'}</td></tr>`;});
+      h+=`</tbody></table></div>`;
+    }
+    h+=`<p class="pd-note">月（1月〜12月）が並ぶ表：${dg.months.length?dg.months.map(m=>`「${esc(m.s)}」${esc(m.a)}〜${esc(m.to)}`).join('、'):'見つかりません'}<br>
+      年の見出しらしいセル：${dg.years.length?dg.years.map(y=>`「${esc(y.s)}」${y.list.map(x=>esc(x.a)+'='+esc(x.t)).join(' ')}`).join('／'):'見つかりません'}<br>
+      ※実績の表か予測の表かは、シート名と中身で判断してください（アプリは判断していません）。</p>`;
+    const catName=Object.fromEntries(PERF_CAT.map(c=>[c[0],c[1]]));
+    if(dg.hits.length){
+      h+=`<div class="table-scroll"><table class="pd-tbl"><thead><tr><th>分類</th><th>シート／セル</th><th>見出しの文字</th><th>隣の値</th></tr></thead><tbody>`;
+      dg.hits.forEach(x=>{h+=`<tr><td>${esc(catName[x.cat]||x.cat)}</td><td>${esc(x.s)}／${esc(x.a)}</td><td>${esc(x.label)}</td><td>${x.v?esc(x.v)+' <span class="pd-note">('+esc(x.va)+(isKnown(x)?'・アプリ取込済':'')+')</span>':'—'}</td></tr>`;});
+      h+=`</tbody></table></div>`;
+    }else h+=`<div class="pd-box">実績・年度・緯度経度などの見出しは見つかりませんでした。</div>`;
+  }
+  h+=`<div class="pd-act"><button class="btn btn-line" id="perfScanBtn">Excelをスキャンする（数値は変更しません）</button><input type="file" id="perfScanFile" accept=".xlsx,.xlsm,.xls" style="display:none"></div>`;
+
+  /* ---- 日射補正分析（枠のみ） ---- */
+  h+=`<div class="sec-title">日射補正分析</div><div class="pd-box pd-future">
+    <div class="pd-kv"><span>日射データ</span><b>未連携</b></div>
+    <div class="pd-kv"><span>観測地点</span><b>―</b></div>
+    <div class="pd-kv"><span>対象期間</span><b>―</b></div>
+    <div class="pd-kv"><span>日射補正後期待発電量</span><b>―</b></div>
+    <div class="pd-kv"><span>設備性能指数</span><b>―</b></div>
+    <div class="pd-kv"><span>日射補正後 設備性能低下率</span><b>―</b></div>
+    <p>次の開発段階で、発電所所在地と実発電量の対象期間に対応した日射関連データを取得し、天候条件を補正した設備性能分析を行います。</p>
+    <p class="pd-note">差が出ても「パネル劣化率」とは表示しません。パネル劣化・PCS変換ロス・ストリング異常・配線損失・汚れ・影・植生・設備停止・出力制御などが含まれるためです。PR（Performance Ratio）は、日射データの種類・観測地点・温度補正などの条件を決めてから計算します。</p></div>`;
+  h+=`<div class="sec-title">将来の要因分解（未計算）</div><div class="pd-stat pd-fac">
+    <div><span class="l">① 日射・気象要因</span>${perfSt('calc')}</div>
+    <div><span class="l">② 出力制御要因</span>${perfSt('calc')}</div>
+    <div><span class="l">③ 設備性能要因</span>${perfSt('calc')}</div>
+    <div><span class="l">④ 設備停止・その他</span>${perfSt('calc')}</div></div>`;
+  return h;
+}
+function wirePerf(){
+  const b=$('#perfScanBtn'), f=$('#perfScanFile'); if(!b||!f)return;
+  b.onclick=()=>f.click();
+  f.onchange=e=>{ const file=e.target.files[0]; e.target.value=''; if(!file||!curDeal)return;
+    const deal=curDeal;
+    readExcelFile(file).then(wb=>{
+      deal.perfDiag=scanPerfWorkbook(wb,file.name);
+      /* 診断用のスキャン結果だけを保存する（inputs には触れない） */
+      if(!dirty){ deal.updatedAt=Date.now(); saveDB(DB,deal); } else markDirty();
+      if(curDeal===deal){ resTab='perf'; renderResults(); }
+      toast('Excelをスキャンしました（候補'+deal.perfDiag.hits.length+'件）'+(dirty?'※保存で確定':''));
+    }).catch(err=>toast('スキャン失敗：'+(err.message||'Excel形式をご確認ください')));
+  };
+}
 
 
 /* ==================== マップ（日本地図＋ピン） ==================== */
@@ -5736,9 +5989,15 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.09.29';
+const APP_VERSION = '2026.10.01';
 
 const CHANGELOG = [
+  ['2026.10.01', [
+    '<b>案件画面の結果タブに「発電性能診断」を追加しました（STEP1：日射補正の準備）。</b>所在地・都道府県／市区町村・緯度経度・連系日・実発電量・実績年度・過去実績が、今のExcelからどこまで取れているかを「取得済／データ不足」で一覧表示します',
+    '現在の劣化率が「Excel（または手入力）の値をそのまま使っている」ことと、その計算式を画面で確認できます。当初シミュレーション÷実績のような比較は現在ありません',
+    'Excelを取り込むと、中身を自動でスキャンし、実績・年度・緯度経度・当初シミュ・月別表らしい項目を番地つきで一覧にします。既存案件は、診断タブの「Excelをスキャンする」で数値を変えずにスキャンできます',
+    '日射補正分析のカードは枠だけです（日射データ未連携・未計算）。<b>この機能の内容は、売電収入・回収年数・IRR・提案書などの計算には一切使っていません</b>',
+  ]],
   ['2026.09.29', [
     '<b>リフォート提案を「FIT残期間」と「20年（卒FIT含む）」の2ページに分けました。</b>提案シートのタブ・リフォート提案（一括）のどちらでも、それぞれ単独で出力できます',
     '<b>③-1 FIT残期間</b>：年別表はFIT期間の年数だけ（例：残9年なら1〜9年目）を表示し、合計欄もFIT期間の合計です。上部の数字は リフォート費用／投資回収／IRR（FIT期間内）／純利益（FIT期間内）／発電量アップ率／FIT期間の売電収益増加／年平均の増加／投資後残FIT。卒FIT後の売電は一切含めていません',
