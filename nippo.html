@@ -391,6 +391,8 @@ button.mtx{padding:3px 9px;color:var(--warn)}
   .mtitem{grid-template-columns:1fr}
   .mtli{flex-direction:column;align-items:flex-start}
 }
+.ndbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:#FFFBEA;border:1px solid #F1E3A8;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px}
 </style>
 </head>
 <body>
@@ -543,6 +545,7 @@ async function boot(){
   await loadGoals();
   await loadApprovedTargets();
   await loadReports();
+  await loadNippoMode();
   if (OPEN_ID) TAB = 'feed';
   render();
   startSubWatch();
@@ -569,6 +572,8 @@ function fail(msg){ document.getElementById('view').innerHTML = `<div class="emp
 
 /* ---------- 画面枠 ---------- */
 function render(){
+  if (!ND_SKIP) ndSave();   // 描き直す前に入力途中の内容を一時保存
+  ND_SKIP = false; ND_ANCHOR = null; ND_CUR = null;
   const nUnread = notifCount();
   // 日報を書くのは上のオレンジのボタンに集約したので、ナビからは外す
   TABS = [['weekly','週次報告を書く'],['feed','日報一覧']]
@@ -719,6 +724,20 @@ async function readAllCc(){
    まだ確認していない人は、アプリを開くと最初にこの画面が出て、「確認しました」を押すまで使えない。
    確認した記録は release_reads に残り、管理タブで誰が未確認か分かる。 */
 const RELEASES = [
+  { v: '2026-09-30', date: '2026年9月30日', title: '日報アプリを更新しました', sections: [
+    { h: '金曜は週次報告の日', must: true, items: [
+      '<b>金曜は日報ではなく、週次報告を提出する日</b>になりました。金曜の日報は提出不要です（残したいことがある日は任意で書けます）。',
+      '金曜の20:00時点で今週の週次報告が未提出だと、本人と直属上司にTOが届きます。',
+      '金曜は連続提出・提出率の計算から外れます。日報を出さなくても連続記録は途切れません。' ]},
+    { h: '上司の方へ：日報の確認期限', must: true, items: [
+      '部下の日報の<b>確認期限は翌日9:30</b>になりました（当日中の確認は不要です）。翌日が土日のときは月曜9:30です。',
+      '期限を過ぎても確認していない日報は「期限切れ」と表示され、9:30以降にChatworkでTOが届きます。' ]},
+    { h: '入力途中の自動保存', items: [
+      '日報・週次報告は、入力するたびにこの端末へ<b>自動で一時保存</b>されます。お客様対応などで中断して画面が閉じても、同じ日の日報を開くと続きから書けます。',
+      '「提出する」の横の「一時保存」ボタンでも保存できます。提出すると一時保存は消えます。' ]},
+    { h: '会議資料（次長・部門長・役員）', items: [
+      '「会議資料」タブで、期間を選ぶと日報から<b>実行計画達成状況報告書</b>の「結果（総括）」をAIが作ります。数字と自分の考えは入力、PDF出力・Chatwork用コピーもできます。' ]}
+  ]},
   { v: '2026-09-29', date: '2026年9月29日', title: '日報アプリを更新しました', sections: [
     { h: '日報の提出ルール', must: true, items: [
       '<b>数値（本日のKPI）は全項目入力が必須</b>です。実績がない日は「0」を入力してください。',
@@ -726,8 +745,9 @@ const RELEASES = [
       '直属上司が設定されていない人は提出できません。表示が出たら管理部に連絡してください。' ]},
     { h: 'Chatworkへの自動通知', must: true, items: [
       '<b>20:00</b> 日報が未提出だと、本人と直属上司にTOが届きます。業務がない日は「日報を書く必要がない日」を押してください。',
+      '<b>金曜は週次報告の日</b>です。日報の提出は不要で、20:00時点で今週の週次報告が未提出だとTOが届きます。',
       '日報を提出すると、直属上司にTOで通知されます。',
-      '<b>毎朝9:00</b> 部下の日報を確認していない上司にTOが届きます。' ]},
+      '部下の日報の<b>上司確認の期限は翌日9:30</b>です。期限を過ぎても確認していない上司には、9:30以降にTOが届きます。' ]},
     { h: 'CC（上司以外にも共有）', items: [
       '日報を書く画面の「CC」で、上司以外にも日報を共有したい人を選べます。選んだ人の「通知」タブとChatworkに届きます。',
       '選んだ人は次回の日報にも自動で入ります。不要になったら「×」で外してください。' ]},
@@ -744,6 +764,37 @@ const RELEASES = [
   ]}
 ];
 const REL_KEY = 'nippo_release_seen';
+
+/* ================= 新しい版の検知 =================
+   アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
+   公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
+   ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
+const BUILD = '2026-09-30a';
+let BUILD_LAST = 0;
+async function checkBuild(){
+  if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
+  BUILD_LAST = Date.now();
+  try {
+    const res = await fetch(location.pathname + '?build=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const m = (await res.text()).match(/const BUILD = '([^']+)'/);
+    if (m && m[1] !== BUILD) showBuildBar();
+  } catch(e){}
+}
+function showBuildBar(){
+  if (document.getElementById('buildBar')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div id="buildBar" style="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+    z-index:9999;background:#0E1B2B;color:#fff;border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:center;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13.5px;max-width:92vw">
+    <span>アプリが新しくなりました。</span>
+    <button onclick="reloadForBuild()" style="background:#F26A21;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;font-family:inherit;cursor:pointer">今すぐ更新</button></div>`);
+}
+function reloadForBuild(){
+  try { if (typeof ndSave === 'function') ndSave(); } catch(e){}   // 入力途中の内容は一時保存してから
+  const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkBuild(); });
+setInterval(() => { if (document.visibilityState === 'visible') checkBuild(); }, 30 * 60000);
 
 async function checkRelease(force){
   const rel = RELEASES[0]; if (!rel || !ME) return;
@@ -955,6 +1006,31 @@ function icon(k){
   return `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${paths[k] || paths.feed}</svg>`;
 }
 
+/* ---------- 金曜は週次報告の日 ----------
+   金曜は日報ではなく週次報告を提出する日。日報は任意（書いてもよい）。
+   連続提出・提出率・未提出の判定から金曜を外し、代わりに週次報告の提出を見る。
+   管理タブ「提出不要日」で切り替えられる（nippo_settings.friday_weekly）。 */
+let FRIDAY_WEEKLY = true;
+let MY_WEEKLY_DONE = null;   // 今週の自分の週次報告が提出済みか
+let STATUS_WK = null;        // 提出・確認状況タブ用：今週の週次報告を出した人
+function dowOf(ymd){ return new Date(ymd + 'T12:00:00+09:00').getUTCDay(); }
+function isWeeklyDay(ymd){ return FRIDAY_WEEKLY && dowOf(ymd) === 5; }
+async function loadNippoMode(){
+  try {
+    const st = await EC.supabase.from('nippo_settings').select('key,value').eq('key', 'friday_weekly');
+    if (!st.error && st.data && st.data[0]) FRIDAY_WEEKLY = st.data[0].value !== 'false';
+    const w = await EC.supabase.from('weekly_reports').select('id')
+      .eq('user_id', ME.id).eq('week_start', mondayOf(new Date())).limit(1);
+    MY_WEEKLY_DONE = !w.error && (w.data || []).length > 0;
+  } catch(e){}
+}
+async function loadStatusWeekly(){
+  const wk = mondayOf(new Date());
+  const { data, error } = await EC.supabase.from('weekly_reports').select('user_id').eq('week_start', wk);
+  STATUS_WK = { week: wk, ids: error ? null : (data || []).map(x => x.user_id) };
+  if (TAB === 'status') render();
+}
+
 /* ---------- ヘッダーの数値（連続提出・今月の提出率） ---------- */
 function myStreak(){
   const mine = {};
@@ -965,7 +1041,7 @@ function myStreak(){
     const key = d.toISOString().slice(0,10);
     const dow = d.getDay();
     const st = mine[key];
-    if (st === 'off' || dow === 0 || dow === 6){ d.setDate(d.getDate() - 1); continue; }  // 休みと土日は飛ばす
+    if (st === 'off' || dow === 0 || dow === 6 || isWeeklyDay(key)){ d.setDate(d.getDate() - 1); continue; }  // 休み・土日・金曜（週次の日）は飛ばす
     if (st){ n++; d.setDate(d.getDate() - 1); continue; }
     if (key === TODAY){ d.setDate(d.getDate() - 1); continue; }  // 今日はまだ未提出でも切らない
     break;
@@ -980,7 +1056,7 @@ function monthRate(){
   REPORTS.forEach(r => { if (r.author_id === ME.id) mine[r.report_date] = r.status; });
   while (d <= end){
     const key = d.toISOString().slice(0,10), dow = d.getDay();
-    if (dow !== 0 && dow !== 6 && mine[key] !== 'off'){
+    if (dow !== 0 && dow !== 6 && !isWeeklyDay(key) && mine[key] !== 'off'){
       target++; if (mine[key]) done++;
     }
     d.setDate(d.getDate() + 1);
@@ -1025,7 +1101,13 @@ function drawHeaderStats(){
   const c = 2 * Math.PI * 21, off = c * (1 - Q.pct / 100);
   const goal = `${Q.end.getMonth() + 1}/${Q.end.getDate()}`;
   box.innerHTML = `
-    ${today
+    ${isWeeklyDay(TODAY) && !today
+      ? `<button class="cta${MY_WEEKLY_DONE ? ' done' : ''}" onclick="go('weekly')">
+           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+           ${MY_WEEKLY_DONE ? '今週の週次報告を見る' : '今週の週次報告を書く'}</button>`
+      : today
       ? `<button class="cta done" onclick="go('feed')">
            <svg viewBox="0 0 24 24" width="19" height="19" fill="none"><path d="M5 12.5l4.5 4.5L19 7"
              stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1068,13 +1150,19 @@ function drawBubble(done, streak, rate){
   const unseen = REPORTS.filter(r => r.author_id !== ME.id
     && !(r.report_views||[]).some(v => v.viewer_id === ME.id)
     && USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
+  const overdue = REPORTS.filter(r => r.status === 'submitted' && r.author_id !== ME.id
+    && !(r.report_views||[]).some(v => v.viewer_id === ME.id)
+    && USERS.some(u => u.id === r.author_id && u.manager_id === ME.id) && isOverdue(r)).length;
   const rest = done ? 0 : remainingCoreCount();   // 入力途中なら残りの必須項目数
   let msg;
-  if (!done && rest === 0 && TAB === 'write') msg = 'あと少し！提出ボタンまで進みましょう';
+  if (isWeeklyDay(TODAY) && !done && TAB !== 'write')
+    msg = MY_WEEKLY_DONE ? '今週の週次報告は提出済みです。お疲れさまでした' : '金曜は週次報告の日です。今週の振り返りを提出しましょう';
+  else if (!done && rest === 0 && TAB === 'write') msg = 'あと少し！提出ボタンまで進みましょう';
   else if (!done && rest > 0 && rest < 5)     msg = 'あと' + rest + '項目で完成！';
   else if (!done)                             msg = 'まずは今日の成果から書こう！';
   else if (streak && streak % 10 === 0)       msg = streak + '日連続達成！次は' + (streak + 10) + '日へ！';
-  else if (unseen)                            msg = '部下の日報が' + unseen + '件、未確認です';
+  else if (unseen)                            msg = overdue ? '部下の日報' + overdue + '件が確認期限（翌日9:30）を過ぎています'
+                                                            : '部下の日報が' + unseen + '件、確認待ちです（期限は翌日9:30）';
   else if (streak >= 5)                       msg = streak + '日連続、いい流れです！';
   else if (rate >= 90)                        msg = '今月の提出率' + rate + '％。お見事です';
   else                                        msg = '今日も前進！お疲れさまでした';
@@ -1143,13 +1231,19 @@ function vWrite(){
     const f = (mine.report_metric_values||[]).find(x => x.metric_id === id); return f ? f.value : ''; };
   return `
   <h2>${esc(ME.full_name)} さんの日報</h2>
-  <p class="sub">${day}　${esc(ME.dept_name||'')}　${saved ? (saved.status === 'off' ? '休みとして登録済み' : '提出済み') : '未提出'}</p>
+  <p class="sub">${day}　${esc(ME.dept_name||'')}　${saved ? (saved.status === 'off' ? '休みとして登録済み' : '提出済み') : (isWeeklyDay(day) ? '金曜（週次報告の日）' : '未提出')}</p>
+  ${isWeeklyDay(day) && !saved ? `<div class="card" style="background:#EAF3FB;border-color:#BCD6EE">
+    <b>金曜は週次報告の日です。日報の提出は不要です。</b>
+    <p class="note" style="margin-top:4px">今週の振り返りと来週の目標を週次報告で提出してください。
+      お客様の声など、日報として残したいことがある日は、このまま書いて提出することもできます。</p>
+    <div class="row" style="margin-top:8px">
+      <button class="act" style="width:auto;margin:0" onclick="go('weekly')">${MY_WEEKLY_DONE ? '今週の週次報告を見る' : '週次報告を書く'}</button></div></div>` : ''}
   ${saved && !mine && saved.status !== 'off' ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
     <b>この日はすでに提出済みです</b>
     <p class="note" style="margin-top:4px">このまま書いて提出すると、提出済みの内容は新しい内容に置き換わります。
       前の内容を直したい場合は、読み込んでから修正してください。</p>
     <div class="row" style="margin-top:8px">
-      <button class="ghost" onclick="LOAD_SAVED=true;render()">提出済みの内容を読み込む</button>
+      <button class="ghost" onclick="ndLoadSaved()">提出済みの内容を読み込む</button>
       <button class="ghost" onclick="go('feed')">提出済みの日報を見る</button>
     </div></div>` : ''}
   ${EDIT_DATE ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
@@ -1249,7 +1343,11 @@ function vWrite(){
     ${ME.manager_id && USERS.some(u => u.id === ME.manager_id)
       ? `<p class="note" style="margin-top:8px">提出すると、直属上司（<b>${esc(uname(ME.manager_id))}</b>）の確認画面に必ず届きます。</p>`
       : `<p class="note" style="margin-top:8px;color:var(--warn)"><b>直属上司が設定されていないため、提出できません。</b>管理者に上司の設定を依頼してください。</p>`}
-    <button class="act" style="margin-top:10px" id="submitBtn" onclick="submitReport()">提出する</button>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <button class="act" style="margin:0" id="submitBtn" onclick="submitReport()">提出する</button>
+      <button class="ghost" onclick="ndSave(true)">一時保存</button>
+      <span id="ndState" class="note"></span></div>
+    <p class="note" style="margin-top:6px">書いた内容は入力するたびにこの端末へ自動で一時保存されます。途中で閉じても、同じ日の日報を開くと続きから書けます。</p>
 
     <label style="margin-top:16px">時間を指定して提出（予約）</label>
     <div class="row">
@@ -1298,6 +1396,7 @@ async function markDayOff(){
     { author_id: ME.id, report_date: day, status: 'off', importance: 2 },
     { onConflict: 'author_id,report_date' });
   if (error){ toast('登録できませんでした: ' + error.message); return; }
+  ndClearDaily(day); ND_CUR = null; ND_SKIP = true;
   await loadReports(); EDIT_DATE = null; toast('休みとして登録しました'); go('feed');
 }
 async function undoDayOff(id){
@@ -1371,7 +1470,8 @@ async function submitReport(scheduled){
   await loadReports();
   toast(scheduled ? '予約しました。指定時刻に自動で提出されます'
                   : (EDIT_DATE ? '更新しました' : '提出しました'));
-  EDIT_DATE = null; LOAD_SAVED = false; CC_SEL = null;
+  ndClearDaily(day); ND_SKIP = true;
+  EDIT_DATE = null; LOAD_SAVED = false; CC_SEL = null; ND_ANCHOR = null; ND_CUR = null;
   go('feed');
 }
 
@@ -1539,14 +1639,14 @@ function vNotify(){
   ${mySubIds().length ? `<div class="card"><h3>部下の日報（未確認）${subs.length}件</h3>
     ${subs.length ? subs.map(r => `<div class="hotrow" onclick="openSubNotif('${r.id}')">
       <div class="row" style="gap:7px">
-        <span class="pill p4">未確認</span>
+        ${duePill(r)}
         <b>${esc(uname(r.author_id))}</b>
         <span class="note">${r.report_date} の日報が届きました</span>
         ${r.importance >= 4 ? '<span class="pill p5">要判断</span>' : ''}
         <span class="note num" style="margin-left:auto">${r.submitted_at ? String(r.submitted_at).slice(5,16).replace('T',' ') : ''}</span>
       </div></div>`).join('')
       : '<div class="empty">未確認の日報はありません。</div>'}
-    <p class="note" style="margin-top:8px">日報を開いて「確認済みにする」を押すと、この一覧から消えます。</p></div>` : ''}
+    <p class="note" style="margin-top:8px">確認期限は日報の翌日 9:30 です。日報を開いて「確認済みにする」を押すと、この一覧から消えます。</p></div>` : ''}
   ${list.length ? `<div class="row" style="margin-bottom:12px">
       <button class="ghost" onclick="markAllRead()">すべて既読にする</button></div>` : ''}
   <div class="card"><h3>未読 ${list.length}件</h3>
@@ -1715,7 +1815,7 @@ function card(r){
   </div>`;
   return `<div class="rep i${r.importance}${needCheck ? ' unseen' : ''}" id="rep_${r.id}">
     <div class="head">
-      ${needCheck ? `<span class="pill p4">${isDirect ? '直属部下・未確認' : '未確認'}</span>` : ''}
+      ${needCheck ? `<span class="pill p4">${isDirect ? '直属部下・未確認' : '未確認'}</span>${isDirect ? duePill(r) : ''}` : ''}
       <span class="avatar">${esc(who.slice(0,1))}</span>
       <span class="nm">${esc(who)}</span>
       <span class="pill">${esc(udept(r.author_id))}</span>
@@ -1731,7 +1831,7 @@ function card(r){
     ${(r.attachments||[]).length ? `<div class="sec s-num"><span class="lab">添付</span><div>${linkify(r.attachments[0])}</div></div>` : ''}
     <div class="line">
       <div class="done">提出</div>
-      <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未'}${iSaw ? '' : (canAct ? '（自分は未確認）' : '')}</div>
+      <div class="${seen ? 'done' : ''}">上司確認 ${seen ? '済' : '未（期限 ' + dueLabel(r) + '）'}${iSaw ? '' : (canAct ? '（自分は未確認）' : '')}</div>
       <div class="${cmts.length ? 'done' : ''}">コメント ${cmts.length ? '済' : '未'}</div>
       <div class="${r.level >= 3 ? 'done' : ''}">${r.level >= 3 ? LEVELS[r.level-1].slice(0,6) : '昇格 —'}</div>
     </div>
@@ -2023,42 +2123,102 @@ async function escalate(id, level){
 }
 
 /* ---------- 3. 提出・確認状況 ---------- */
+/* ================= 上司確認の期限 =================
+   部下の日報は「日報の日付の翌日 9:30（日本時間）」までに直属上司が確認する。
+   例：9/30の日報 → 10/1 9:30 が期限。当日中の確認は求めない。翌日が土日なら月曜 9:30。 */
+const CHECK_DUE_HM = '09:30';
+function dueYmd(r){ let d = addDays(r.report_date, 1); while ([0, 6].includes(dowOf(d))) d = addDays(d, 1); return d; }  // 土日なら月曜
+function checkDue(r){ return new Date(dueYmd(r) + 'T' + CHECK_DUE_HM + ':00+09:00'); }
+function dueLabel(r){ const d = dueYmd(r); return Number(d.slice(5,7)) + '/' + Number(d.slice(8,10)) + ' ' + CHECK_DUE_HM.replace(/^0/, ''); }
+function isOverdue(r){ return Date.now() > checkDue(r).getTime(); }
+function bossOfUser(uid){ return (USERS.find(u => u.id === uid) || {}).manager_id || null; }
+/* 直属上司が確認した日時（上司がいない人は、誰かが確認した最初の日時） */
+function bossSeenAt(r){
+  const vs = r.report_views || [];
+  const b = bossOfUser(r.author_id);
+  const v = b ? vs.find(x => x.viewer_id === b) : vs.slice().sort((x, y) => String(x.viewed_at).localeCompare(String(y.viewed_at)))[0];
+  return v ? (v.viewed_at || 'seen') : null;
+}
+function duePill(r){
+  return isOverdue(r) ? `<span class="pill p5">期限切れ（${dueLabel(r)}）</span>`
+                      : `<span class="pill p4">確認期限 ${dueLabel(r)}</span>`;
+}
+function checkCell(r){
+  if (!r) return '—';
+  if (r.status === 'off') return '<span class="pill p2">休み</span>';
+  const at = bossSeenAt(r);
+  if (at){
+    const late = at !== 'seen' && new Date(at) > checkDue(r);
+    return `<span class="pill ${late ? 'p3' : 'p2'}">${late ? '期限後に確認' : '確認済'}</span>` +
+      (at !== 'seen' ? `<br><span class="note num">${jpDT(at)}</span>` : '');
+  }
+  return isOverdue(r) ? `<span class="pill p5">期限切れ</span><br><span class="note num">期限 ${dueLabel(r)}</span>`
+                      : `<span class="pill p4">確認待ち</span><br><span class="note num">期限 ${dueLabel(r)}</span>`;
+}
+
 function vStatus(){
   const targets = USERS.filter(u => u.department_id && u.job_grade !== '役員・経営');
+  const since = addDays(TODAY, -7);
   const todays = REPORTS.filter(r => r.report_date === TODAY);
+  const prevOf = uid => REPORTS.filter(r => r.author_id === uid && r.report_date < TODAY && r.report_date >= since
+    && r.status === 'submitted').sort((a, b) => b.report_date.localeCompare(a.report_date))[0];
+
+  const wkDay = isWeeklyDay(TODAY);
+  if (wkDay && (!STATUS_WK || STATUS_WK.week !== mondayOf(new Date()))){ STATUS_WK = { week: mondayOf(new Date()), ids: undefined }; setTimeout(loadStatusWeekly, 0); }
+  const wkDone = uid => STATUS_WK && Array.isArray(STATUS_WK.ids) ? STATUS_WK.ids.includes(uid) : null;
   const rows = targets.map(u => {
     const r = todays.find(x => x.author_id === u.id);
-    if (r && r.status === 'off') return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
-      <td><span class="pill p2">休み</span></td><td>—</td><td>—</td><td>—</td></tr>`;
-    const seen = r && (r.report_views||[]).length;
-    const cmt  = r && (r.report_comments||[]).length;
-    const need = r && r.importance >= 4 && !cmt;
+    const pv = prevOf(u.id);
+    if (wkDay){
+      const w = wkDone(u.id);
+      const cell = r && r.status === 'off' ? '<span class="pill p2">休み</span>'
+        : w === null ? '<span class="note">読み込み中…</span>'
+        : (w ? '<span class="pill p2">週次 提出</span>' : '<span class="pill p5">週次 未提出</span>') + (r ? '<br><span class="note">日報も提出</span>' : '');
+      return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
+        <td>${cell}</td>
+        <td>${pv ? `<span class="note num">${pv.report_date.slice(5).replace('-','/')}分</span><br>${checkCell(pv)}` : '—'}</td>
+        <td>${r && r.status !== 'off' ? checkCell(r) : '—'}</td><td>—</td></tr>`;
+    }
+    const need = r && r.status !== 'off' && r.importance >= 4 && !(r.report_comments || []).length;
     return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
-      <td>${r ? '<span class="pill p2">提出</span>' : '<span class="pill p5">未提出</span>'}</td>
-      <td>${seen ? '<span class="pill p2">確認済</span>' : (r ? '<span class="pill p4">未確認</span>' : '—')}</td>
-      <td>${cmt ? '済' : '—'}</td>
+      <td>${r ? (r.status === 'off' ? '<span class="pill p2">休み</span>' : '<span class="pill p2">提出</span>') : '<span class="pill p5">未提出</span>'}</td>
+      <td>${pv ? `<span class="note num">${pv.report_date.slice(5).replace('-','/')}分</span><br>${checkCell(pv)}` : '—'}</td>
+      <td>${r && r.status !== 'off' ? checkCell(r) : '—'}</td>
       <td>${need ? '<span class="pill p5">要対応</span>' : '—'}</td></tr>`;
   }).join('');
 
+  // 管理職別：直近7日で確認期限を過ぎた日報について、期限内に確認できたか
   const bosses = USERS.filter(u => USERS.some(x => x.manager_id === u.id));
   const bossRows = bosses.map(b => {
     const offIds = todays.filter(r => r.status === 'off').map(r => r.author_id);
-    const subs = USERS.filter(x => x.manager_id === b.id && !offIds.includes(x.id));
-    const rs = todays.filter(r => subs.some(s => s.id === r.author_id) && r.status !== 'off');
-    const sub = subs.length ? Math.round(rs.length / subs.length * 100) : 0;
-    const seen = rs.length ? Math.round(rs.filter(r => (r.report_views||[]).some(v=>v.viewer_id===b.id)).length / rs.length * 100) : 0;
-    const cmt  = rs.length ? Math.round(rs.filter(r => (r.report_comments||[]).some(c=>c.author_id===b.id)).length / rs.length * 100) : 0;
+    const subs = USERS.filter(x => x.manager_id === b.id);
+    const subsToday = subs.filter(x => !offIds.includes(x.id));
+    const nToday = wkDay
+      ? subsToday.filter(x => wkDone(x.id)).length
+      : todays.filter(r => subsToday.some(s => s.id === r.author_id) && r.status !== 'off').length;
+    const subRate = subsToday.length ? Math.round(nToday / subsToday.length * 100) : 0;
+    const due = REPORTS.filter(r => subs.some(s => s.id === r.author_id) && r.status === 'submitted'
+      && r.report_date >= since && isOverdue(r));
+    const ok = due.filter(r => { const v = (r.report_views || []).find(x => x.viewer_id === b.id);
+      return v && (!v.viewed_at || new Date(v.viewed_at) <= checkDue(r)); }).length;
+    const miss = due.filter(r => !(r.report_views || []).some(x => x.viewer_id === b.id)).length;
+    const cmt = due.length ? Math.round(due.filter(r => (r.report_comments||[]).some(c => c.author_id === b.id)).length / due.length * 100) : 0;
     return `<tr><td>${esc(b.full_name)}<br><span class="note">部下${subs.length}名</span></td>
-      <td>${bar(sub)}</td><td>${bar(seen)}</td><td>${bar(cmt)}</td></tr>`;
+      <td>${bar(subRate)}</td>
+      <td>${due.length ? bar(Math.round(ok / due.length * 100)) : '<span class="note">対象なし</span>'}</td>
+      <td>${miss ? `<span class="pill p5">${miss}件</span>` : '<span class="note">0件</span>'}</td>
+      <td>${due.length ? bar(cmt) : '—'}</td></tr>`;
   }).join('');
 
   return `<h2>提出・確認状況</h2>
-  <p class="sub">見るのは「誰が書いていないか」だけではなく「どの上司が読んでいないか」。</p>
-  <div class="card"><h3>本日（${TODAY}）の社員別</h3>
-    <table><tr><th>社員</th><th>日報</th><th>上司確認</th><th>コメント</th><th>要対応</th></tr>${rows}</table></div>
-  <div class="card"><h3>管理職別の確認品質</h3>
-    <table><tr><th>上司</th><th>部下提出率</th><th>確認率</th><th>コメント率</th></tr>${bossRows}</table>
-    <p class="note" style="margin-top:8px">確認率が低い管理職は、部下の日報が「提出されただけ」で止まっています。</p></div>`;
+  <p class="sub">見るのは「誰が書いていないか」だけではなく「どの上司が読んでいないか」。上司確認の期限は<b>日報の翌日 9:30</b>（土日をはさむときは月曜 9:30）です。金曜は週次報告の日です。</p>
+  <div class="card"><h3>社員別（${TODAY}）</h3>
+    <table><tr><th>社員</th><th>${wkDay ? '今週の週次報告（金曜）' : '本日の日報'}</th><th>前回分の上司確認</th><th>本日分の上司確認</th><th>要対応</th></tr>${rows}</table>
+    ${wkDay ? '<p class="note" style="margin-top:8px">金曜は週次報告の日です。日報ではなく、今週の週次報告の提出を表示しています。</p>' : ''}
+    <p class="note" style="margin-top:8px">「確認待ち」は期限前なので問題ありません。「期限切れ」は翌日9:30を過ぎても直属上司が確認していない日報です。</p></div>
+  <div class="card"><h3>管理職別の確認品質（直近7日）</h3>
+    <table><tr><th>上司</th><th>${wkDay ? '部下の週次提出率' : '本日の部下提出率'}</th><th>期限内確認率</th><th>期限切れ（未確認）</th><th>コメント率</th></tr>${bossRows}</table>
+    <p class="note" style="margin-top:8px">期限内確認率＝確認期限（翌日9:30）を過ぎた部下の日報のうち、期限までに確認済みにした割合です。</p></div>`;
 }
 function bar(p){ return `<div class="row"><div class="bar ${p<70?'warn':''}"><i style="width:${p}%"></i></div>
   <span class="num" style="font-size:11px">${p}%</span></div>`; }
@@ -2245,6 +2405,108 @@ JSONのみ: {"answer":"回答（箇条書き可・400字以内）","who":["根�
     ${(j.who||[]).length ? `<div style="margin-top:12px"><span class="eyebrow">根拠</span><br>
       ${j.who.map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>` : ''}</div>`;
 }
+
+/* ================= 一時保存（日報・週次報告） =================
+   入力するたびに、この端末（ブラウザ）に自動で一時保存する。
+   お客様対応で中断して画面が閉じた・再読み込みされた・別タブに移った・ログインし直した場合も、
+   同じ日（週）の画面を開くと入力途中の内容が戻る。提出に成功すると一時保存は消える。 */
+const ND_PREFIX = 'nippo_draft';
+const ND_FORMS = {
+  write:  { anchor: 'f_voice', re: /^(f_voice|f_rival|f_industry|f_thought|f_good|f_sub|f_attach|f_imp|mt_.+)$/,
+            key: () => 'd:' + (EDIT_DATE || TODAY),
+            serverAt: () => { const r = REPORTS.find(x => x.author_id === ME.id && x.report_date === (EDIT_DATE || TODAY));
+                              return r && r.status !== 'off' ? (r.updated_at || r.created_at || '') : ''; } },
+  weekly: { anchor: 'w_cause', re: /^(w_cause|w_action|w_consult|wt_.+)$/,
+            key: () => 'w:' + (typeof WEEK_START !== 'undefined' ? WEEK_START : ''),
+            serverAt: () => (typeof WREPORT !== 'undefined' && WREPORT) ? (WREPORT.updated_at || WREPORT.created_at || '') : '' }
+};
+let ND_ANCHOR = null;   // 最後に復元した入力欄（画面が描き直されたかの判定用）
+let ND_CUR = null;      // 今表示している下書きのキー
+let ND_SKIP = false;    // 次の描き直しでは保存しない（提出・破棄の直後）
+
+function ndForm(){
+  for (const k in ND_FORMS){ if (document.getElementById(ND_FORMS[k].anchor)) return ND_FORMS[k]; }
+  return null;
+}
+function ndStoreKey(k){ return ND_PREFIX + ':' + (ME ? ME.id : '') + ':' + k; }
+function ndRead(k){ try { return JSON.parse(localStorage.getItem(ndStoreKey(k)) || 'null'); } catch(e){ return null; } }
+function ndClear(k){ try { localStorage.removeItem(ndStoreKey(k)); } catch(e){} }
+function ndClearDaily(day){ ndClear('d:' + day); }
+function ndClearWeekly(ws){ ndClear('w:' + ws); }
+
+/* 入力欄の中身を集めて保存（中身が全部空なら下書きを消す） */
+function ndSave(manual){
+  const f = ndForm(); if (!f || !ME || (ND_SKIP && !manual)) return false;
+  const k = ND_CUR || f.key();
+  const vals = {}; let any = false;
+  document.querySelectorAll('#view input[id], #view textarea[id], #view select[id]').forEach(el => {
+    if (!f.re.test(el.id)) return;
+    vals[el.id] = el.value;
+    if (el.tagName !== 'SELECT' && String(el.value).trim() !== '') any = true;
+  });
+  if (!any){ ndClear(k); ndBadge(''); return false; }
+  const at = new Date().toISOString();
+  try { localStorage.setItem(ndStoreKey(k), JSON.stringify({ at, vals })); }
+  catch(e){ if (manual) toast('一時保存できませんでした（端末の空き容量を確認してください）'); return false; }
+  ndBadge(at);
+  if (manual) toast('一時保存しました。画面を閉じても、次に開いたときに続きから書けます');
+  return true;
+}
+function ndBadge(at){
+  const el = document.getElementById('ndState'); if (!el) return;
+  el.textContent = at ? '一時保存済み ' + hhmm(at) : '';
+}
+
+/* 画面が描かれたら、下書きがあれば入力欄に戻す */
+function ndRestore(){
+  const f = ndForm(); if (!f || !ME) return;
+  const anchor = document.getElementById(f.anchor);
+  if (anchor === ND_ANCHOR) return;             // 同じ画面のまま
+  ND_ANCHOR = anchor;
+  ND_SKIP = false;                               // 新しい画面になったら保存を再開
+  const k = f.key(); ND_CUR = k;
+  const d = ndRead(k);
+  ndBar(null);
+  if (!d || !d.vals) return;
+  const sv = f.serverAt();
+  if (sv && sv > d.at){ ndClear(k); return; }   // 提出済みの方が新しい
+  let n = 0;
+  Object.keys(d.vals).forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value !== d.vals[id]){ el.value = d.vals[id]; n++; }
+  });
+  ndBadge(d.at);
+  if (n) ndBar(d.at);
+}
+function ndBar(at){
+  const old = document.getElementById('ndBar'); if (old) old.remove();
+  if (!at) return;
+  const view = document.getElementById('view'); if (!view) return;
+  view.insertAdjacentHTML('afterbegin', `<div id="ndBar" class="ndbar">
+    <span>📝 途中まで書いた内容を戻しました（${esc(jpDT(at))} に一時保存）</span>
+    <button class="ghost" onclick="ndDiscard()">破棄して最初から</button></div>`);
+}
+function ndDiscard(){
+  if (!confirm('一時保存した内容を破棄します。よろしいですか。')) return;
+  const f = ndForm(); const k = ND_CUR || (f && f.key());
+  if (k) ndClear(k);
+  ND_ANCHOR = null; ND_CUR = null; ND_SKIP = true;
+  render(); toast('一時保存した内容を破棄しました');
+}
+/* 提出済みの日報を読み込むときは、入力途中の下書きを捨ててから読む */
+function ndLoadSaved(){
+  const k = 'd:' + (EDIT_DATE || TODAY);
+  if (ndRead(k) && !confirm('入力途中（一時保存）の内容は破棄され、提出済みの内容に置き換わります。よろしいですか。')) return;
+  ndClear(k); ND_ANCHOR = null; ND_SKIP = true; LOAD_SAVED = true; render();
+}
+
+/* 入力のたびに保存。画面を離れる・アプリを切り替えるときも保存 */
+document.addEventListener('input', e => { const t = e.target; if (t && t.id && ndForm() && ndForm().re.test(t.id)) ndSave(); });
+document.addEventListener('change', e => { const t = e.target; if (t && t.id && ndForm() && ndForm().re.test(t.id)) ndSave(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') ndSave(); });
+window.addEventListener('pagehide', () => ndSave());
+window.addEventListener('beforeunload', () => ndSave());
+new MutationObserver(() => ndRestore()).observe(document.documentElement, { childList: true, subtree: true });
 
 /* ---------- 7. 会議資料（実行計画達成状況報告書） ----------
    期間と対象社員を選ぶ → 日報からAIが「３ 結果（総括）」の【事実】を組み立てる。
@@ -3878,6 +4140,9 @@ async function loadHolidays(){
       <label style="display:flex;align-items:center;gap:6px;margin:0 0 0 16px;font-size:13px;color:var(--ink)">
         <input type="checkbox" style="width:auto" ${NSET.skip_sunday !== 'false' ? 'checked' : ''}
           onchange="setNSet('skip_sunday', this.checked)"> 日曜は提出不要</label>
+      <label style="display:flex;align-items:center;gap:6px;margin:0 0 0 16px;font-size:13px;color:var(--ink)">
+        <input type="checkbox" style="width:auto" ${NSET.friday_weekly !== 'false' ? 'checked' : ''}
+          onchange="setNSet('friday_weekly', this.checked)"> 金曜は週次報告の日（日報は提出不要）</label>
     </div>
     <div class="row" style="margin-top:14px">
       <div style="flex:1;min-width:150px"><label>日付を追加</label><input type="date" id="hol_date"></div>
@@ -3894,6 +4159,7 @@ async function setNSet(key, on){
   const { error } = await EC.supabase.from('nippo_settings')
     .upsert({ key: key, value: on ? 'true' : 'false' }, { onConflict: 'key' });
   toast(error ? '変更できませんでした' : '設定を変更しました');
+  if (!error && key === 'friday_weekly'){ FRIDAY_WEEKLY = on; drawHeaderStats(); }
   loadHolidays();
 }
 async function addHoliday(){
@@ -4613,8 +4879,11 @@ function wkFormHtml(rows){
     <p class="note">自分では決められないこと、上司に判断してほしいことを書きます。なければ空欄で構いません。</p>
     <textarea id="w_consult" style="min-height:56px" placeholder="例：A社の値引き要請について、どこまで対応してよいか判断をお願いしたい">${esc(WREPORT ? WREPORT.consult : '')}</textarea>
 
-    <button class="act" style="margin-top:14px" onclick="submitWeekly()">
-      ${WREPORT ? '更新する' : '提出する'}</button>
+    <div class="row" style="margin-top:14px;align-items:center">
+      <button class="act" style="margin:0" onclick="submitWeekly()">${WREPORT ? '更新する' : '提出する'}</button>
+      <button class="ghost" onclick="ndSave(true)">一時保存</button>
+      <span id="ndState" class="note"></span></div>
+    <p class="note" style="margin-top:6px">入力するたびにこの端末へ自動で一時保存されます。</p>
   </div>`;
 }
 
@@ -5061,6 +5330,8 @@ async function submitWeekly(){
     if (r2.error) toast('追加項目を保存できませんでした: ' + r2.error.message);
   }
 
+  ndClearWeekly(WEEK_START); ND_ANCHOR = null; ND_CUR = null; ND_SKIP = true;
+  if (WEEK_START === mondayOf(new Date())){ MY_WEEKLY_DONE = true; drawHeaderStats(); }
   toast('週次報告を提出しました');
   loadWeekly();
 }
@@ -5714,7 +5985,7 @@ function vDash(){
 
   return `<h2>ダッシュボード</h2><p class="sub">${esc(ME.full_name)}／${esc(ME.dept_name||'')}／${TODAY}</p>
   <div class="grid">
-    <div class="kpi"><div class="v num">${rate}%</div><div class="l">本日の提出率（見える範囲）</div></div>
+    <div class="kpi"><div class="v num">${rate}%</div><div class="l">${isWeeklyDay(TODAY) ? '本日の日報提出率（金曜は週次報告の日・日報は任意）' : '本日の提出率（見える範囲）'}</div></div>
     <div class="kpi"><div class="v num">${submitted.length}</div><div class="l">本日の日報${offIds.length ? `（休み${offIds.length}名）` : ''}</div></div>
     <div class="kpi${unhandled.length ? ' alert' : ''}"><div class="v num" style="color:var(--warn)">${unhandled.length}</div><div class="l">未対応の重要情報</div></div>
     <div class="kpi"><div class="v num">${REPORTS.length}</div><div class="l">直近30日の日報</div></div>
