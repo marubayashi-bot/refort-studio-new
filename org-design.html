@@ -203,6 +203,14 @@ footer .save.err{color:var(--warn);font-weight:700}
 .mact{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
 .movebox{font-size:16px;background:var(--sky);border-radius:var(--r-s);padding:12px 14px}
 .movebox b{font-weight:700}
+.clwrap{max-height:46vh;overflow:auto}
+.cl{padding:10px 0;border-bottom:1px solid #E3EAF2}
+.cl:last-child{border-bottom:0}
+.clv{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
+.clv b{font-size:14px}
+.clv span{font-size:11px;color:var(--muted)}
+.cl ul{margin:0;padding-left:18px}
+.cl li{font-size:13px;line-height:1.85;margin-bottom:3px}
 .toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:var(--r-s);z-index:95;font-size:13px}
 .menubtn{display:none}
 
@@ -241,6 +249,7 @@ footer .save.err{color:var(--warn);font-weight:700}
   <button class="hbtn edit-only hide-sm" id="addDept">＋部署</button>
   <button class="hbtn edit-only hide-sm" id="importBtn">取込</button>
   <button class="hbtn ai" id="aiBtn">AI組織診断</button>
+  <button class="hbtn hide-sm" id="whatsNew" title="更新履歴">更新履歴</button>
   <span class="me" id="me"></span>
 </header>
 <div class="stats" id="stats"></div>
@@ -296,6 +305,20 @@ const CARE_TPL=[['本人面談',-7],['旧上司から引継ぎ',0],['新上司�
 const SPAN_LIMIT=8;
 
 /* ========== 状態 ========== */
+/* ========== バージョンと更新履歴 ========== */
+const APP_VERSION='ver.2026.09.30a';
+const SEEN_KEY='orgdesign_seen_version';
+/* 新しいものを上に。[版, 日付, [変更点...]] */
+const CHANGELOG=[
+  ['ver.2026.09.30a','2026/09/30',[
+    '社員カードをドロップしたときの確認画面を分かりやすく変更。【今すぐ組織図に反映】を主ボタンにし、【異動予定に登録（組織図はまだ動かない）】と並べて、それぞれ何が起きるかを画面に明記しました。',
+    '閲覧のみの権限でカードを動かそうとしたとき、これまで何も起きず理由が分かりませんでした。「閲覧のみの権限のため、配置を変更できません」と表示するようにしました。',
+    'アプリを開いたときに、この更新履歴を表示するようにしました。ヘッダーの【更新履歴】からいつでも見られます。'
+  ]],
+  ['ver.2026.09.29a','2026/09/29',[
+    '初版を公開。組織図・異動予定・異動履歴・異動CARE・組織診断、シナリオ比較、AI組織診断、PDF出力を搭載。'
+  ]]
+];
 let sb=null, mode='preview', me={email:'preview',name:'プレビュー',role:'admin'};
 let D=null;
 const V={scn:'official',tab:'chart',zoom:1,q:'',sel:null,aiText:''};
@@ -583,13 +606,22 @@ $('#drawer').addEventListener('change',e=>{
 });
 
 /* ========== 異動 ========== */
+let roWarned=false;
+function warnReadOnly(){
+  if(roWarned)return;roWarned=true;
+  toast('閲覧のみの権限のため、配置を変更できません（編集には管理者・マネージャー権限が必要です）');
+}
 async function requestMove(pid,to){
-  const p=person(pid);if(!p||(p.deptId||null)===(to||null)||!canEdit())return;
+  const p=person(pid);if(!p||(p.deptId||null)===(to||null))return;
+  if(!canEdit()){warnReadOnly();return}
   const off=isOfficial();const from=p.deptId;
   const body=`<div class="movebox"><b>${esc(p.name)}</b>さんを<br>${esc(deptName(from))} → <b>${esc(deptName(to))}</b> へ${off?'異動しますか？':'移動しますか？'}</div>
     ${off?`<label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>理由・メモ（任意）<input name="reason" placeholder="例：東京支社立上げのため"></label>`:''}
-    ${p.isHead?`<div class="note">部門長のため、異動後は部門長の設定が外れます。</div>`:''}`;
-  const acts=off?[{label:'やめる',key:null},...(canApprove()?[{label:'承認して今すぐ反映',key:'now'}]:[]),{label:'下書きに追加',key:'draft',kind:'pri'}]
+    ${p.isHead?`<div class="note">部門長のため、異動後は部門長の設定が外れます。</div>`:''}
+    ${off?`<div class="note">【今すぐ組織図に反映】カードがその場で移動し、異動履歴と異動CAREに記録されます。<br>【異動予定に登録】組織図は変わりません。異動予定タブに下書きとして残り、あとで承認すると反映されます。</div>`:''}`;
+  const acts=off?[{label:'やめる',key:null},
+                  {label:'異動予定に登録（組織図はまだ動かない）',key:'draft',kind:canApprove()?null:'pri'},
+                  ...(canApprove()?[{label:'今すぐ組織図に反映',key:'now',kind:'pri'}]:[])]
                :[{label:'やめる',key:null},{label:'移動する',key:'move',kind:'pri'}];
   const r=await modal({title:off?'異動の確認':'シナリオ内で移動',body,actions:acts});
   if(!r.key)return;
@@ -620,7 +652,9 @@ document.addEventListener('pointerdown',e=>{
 document.addEventListener('pointermove',e=>{
   if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y,dist=Math.hypot(dx,dy);
   if(!drag.on){
-    if(dist>8){drag.moved=true;clearTimeout(drag.timer);if(drag.type==='mouse'&&canEdit())startDrag(e.clientX,e.clientY);else if(drag.type!=='mouse')drag=null}
+    if(dist>8){drag.moved=true;clearTimeout(drag.timer);
+      if(drag.type==='mouse'){ if(canEdit())startDrag(e.clientX,e.clientY); else {warnReadOnly();drag=null} }
+      else if(drag.type!=='mouse'){ if(!canEdit())warnReadOnly(); drag=null } }
     return;
   }
   moveGhost(e.clientX,e.clientY);
@@ -777,6 +811,27 @@ let toastT;function toast(t){document.querySelector('.toast')?.remove();const d=
 function flashDept(id){V.tab='chart';renderPane();requestAnimationFrame(()=>{const n=$('#dept-'+id);if(!n)return;n.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});n.classList.remove('flash');void n.offsetWidth;n.classList.add('flash')})}
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
+/* ========== 更新履歴（開いたときに新版だけ案内） ========== */
+function seenVersion(){try{return localStorage.getItem(SEEN_KEY)||''}catch(e){return ''}}
+function markSeen(){try{localStorage.setItem(SEEN_KEY,APP_VERSION)}catch(e){}}
+function changelogHTML(list){
+  return list.map(([v,d,items])=>`<div class="cl">
+    <div class="clv"><b>${esc(v)}</b><span>${esc(d)}</span></div>
+    <ul>${items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('');
+}
+async function showWhatsNew(onlyNew){
+  const seen=seenVersion();
+  const list=onlyNew?CHANGELOG.slice(0,Math.max(1,CHANGELOG.findIndex(c=>c[0]===seen))):CHANGELOG;
+  if(onlyNew&&seen===APP_VERSION)return;
+  await modal({
+    title:onlyNew?'アプリが新しくなりました':'更新履歴',
+    body:`<div class="clwrap">${changelogHTML(list)}</div>
+      <div class="note">現在のバージョン ${esc(APP_VERSION)}${onlyNew?'　／　ヘッダーの【更新履歴】からいつでも見られます':''}</div>`,
+    actions:[{label:onlyNew?'確認しました':'閉じる',key:'ok',kind:'pri'}]});
+  markSeen();
+}
+$('#whatsNew').onclick=()=>showWhatsNew(false);
+
 /* ========== イベント ========== */
 document.addEventListener('click',async e=>{
   const go=e.target.closest('[data-go]');if(go){if(innerWidth<=820)$('#aside').classList.remove('open');flashDept(go.dataset.go);document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab==='chart'));return}
@@ -851,6 +906,7 @@ async function boot(){
   }
   ['scenarios','pending','history','care'].forEach(k=>D[k]=D[k]||[]);
   render();
+  setTimeout(()=>showWhatsNew(true),350);
 }
 boot();
 </script>
