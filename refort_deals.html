@@ -4991,7 +4991,7 @@ const PERF_SRC={
 const PERF_CAT=[
   ['act','実績',/実績|実発電|発電実績/],
   ['sim','シミュ・想定',/シミュ|想定発電|計画発電|当初|予想発電|予測発電|設計発電/],
-  ['yr','年度',/年度/],
+  ['yr','年度',/(^|[^初])年度/],
   ['geo','緯度経度',/緯度|経度/],
   ['date','運転開始・連系',/運転開始|連系/],
   ['deg','劣化',/劣化/],
@@ -5028,13 +5028,15 @@ function scanPerfWorkbook(wb,fileName){
       const mm=t.match(/^(1[0-2]|[1-9])\s*月$/); if(mm){ if(!mon[mm[1]])mon[mm[1]]=a; continue; }
       if((typeof cell.v==='number'&&Number.isInteger(cell.v)&&cell.v>=2000&&cell.v<=2045&&!cell.z)
         ||(typeof cell.v==='string'&&/^(20[0-4]\d)\s*(年度|年)?$/.test(t))){ if(yrs.length<12)yrs.push({a,t}); }
-      if(typeof cell.v!=='string'||t.length>40||nHit>=25||out.hits.length>=150)continue;
+      if(typeof cell.v!=='string'||t.length>30||/^[※＊*]/.test(t)||nHit>=25||out.hits.length>=150)continue;
       const cat=PERF_CAT.find(x=>x[2].test(t)); if(!cat)continue;
       /* 同じ行の右側（6列まで）→ 1つ下 の順で、最初に値が入っているセルを「隣の値」として控える */
       let nv='',na='';
       for(let k=1;k<=6&&!nv;k++){const b=X.utils.encode_cell({r,c:c+k});const s=perfCellText(ws[b]);if(s){nv=s;na=b;}}
       if(!nv){const b=X.utils.encode_cell({r:r+1,c});const s=perfCellText(ws[b]);if(s){nv=s;na=b;}}
-      out.hits.push({s:sn,a,cat:cat[0],label:t,v:nv.slice(0,40),va:na}); nHit++;
+      /* 隣の値が数式なら控える（例：08シートの「実績発電量(kWh/月)」は年間実績C33を日射比率で割り振った数式で、実測ではない） */
+      const nf=na&&ws[na]&&ws[na].f?String(ws[na].f).slice(0,120):'';
+      out.hits.push({s:sn,a,cat:cat[0],label:t,v:nv.slice(0,40),va:na,f:nf}); nHit++;
     }
     const mk=Object.keys(mon); if(mk.length>=12)out.months.push({s:sn,a:mon['1'],to:mon['12']});
     if(yrs.length>=2)out.years.push({s:sn,list:yrs});
@@ -5066,14 +5068,20 @@ function perfHTML(){
   const ad=perfSplitAddr(inp.location);
   const la=parseFloat(inp.siteLat), ln=parseFloat(inp.siteLng);
   const uc=coordsFromUrl(inp.mapUrl);
+  const shortUrl=/maps\.app\.goo\.gl|goo\.gl\//.test(String(inp.mapUrl||''));
   let geoVal,geoSrc,geoSt;
   if(isFinite(la)&&isFinite(ln)){geoVal=la.toFixed(5)+', '+ln.toFixed(5);geoSrc='地図機能で取得済の値（位置URLまたは住所検索）';geoSt=perfSt('ok');}
   else if(uc){geoVal=uc.lat.toFixed(5)+', '+uc.lng.toFixed(5);geoSrc='位置URLに含まれる座標'+(cellOf('mapUrl')?'（'+cellOf('mapUrl')+'）':'');geoSt=perfSt('ok');}
   else{geoVal='—';geoSrc='位置URLに座標がなく、地図機能でも未取得';geoSt=perfSt('ng');}
+  const geoNote=(!(isFinite(la)&&isFinite(ln))&&!uc&&shortUrl)?'位置URLが短縮リンク（maps.app.goo.gl）のため座標を読み取れません。マップ画面の住所検索で取得できます':'';
   /* アプリが既に読んでいるセル（例：RF後想定発電量C44）は「当初シミュ」の候補から外す */
   const known=new Set(dg&&dg.read?Object.values(dg.read).map(o=>(dg.readSheet||'')+'!'+o.a):[]);
   const isKnown=x=>known.has(x.s+'!'+x.va);
-  const simHits=dg?dg.hits.filter(h=>h.cat==='sim'&&!isKnown(h)):[];
+  /* RF後の想定・予測・表題（収支シミュレーション…）は当初シミュではないので数えない */
+  const SIM_NOISE=/RF前|RF後|リフォート後|予測|予想|収支|年数|保証|考慮/;
+  const simHits=dg?dg.hits.filter(h=>h.cat==='sim'&&!isKnown(h)&&!SIM_NOISE.test(h.label)):[];
+  /* 実績という名前でも、中身が年間実績から計算した数式のもの（実測ではない） */
+  const fakeAct=dg?dg.hits.filter(h=>h.cat==='act'&&h.f&&/C33/.test(h.f)&&/SUM\(/i.test(h.f)):[];
   let h=`<div class="pd-lead"><b>確認専用の画面です。</b>ここに表示する内容は、発電量・売電収入・回収年数・IRR・キャッシュフロー・提案書の計算には使っていません（既存のシミュレーション結果は変わりません）。</div>`;
   h+=`<div class="pd-stat">
     <div><span class="l">日射データ</span>${perfSt('off')}</div>
@@ -5086,18 +5094,19 @@ function perfHTML(){
   h+=perfRow('発電所所在地',inp.location?esc(inp.location):'—',srcTxt('location'),inp.location?perfSt('ok'):perfSt('ng'));
   h+=perfRow('都道府県',ad.pref?esc(ad.pref):'—','所在地の文字列から切り出し',ad.pref?perfSt('ok'):perfSt('ng'),ad.pref?'':'所在地に都道府県名が書かれていないため特定できません');
   h+=perfRow('市区町村',ad.city?esc(ad.city):'—','所在地の文字列から切り出し',ad.city?perfSt('ok'):perfSt('ng'),ad.city?'':'所在地の書き方から市区町村を特定できません');
-  h+=perfRow('緯度・経度',geoVal,geoSrc,geoSt);
+  h+=perfRow('緯度・経度',geoVal,geoSrc,geoSt,geoNote);
   h+=perfRow('連系日',inp.gridDate?esc(String(inp.gridDate).replace(/-/g,'/')):'—',srcTxt('gridDate'),inp.gridDate?perfSt('ok'):perfSt('ng'),
     inp.gridDate?'運転開始日として別に管理している項目はありません（連系日のみ）':'');
   h+=perfRow('当初シミュレーション年間発電量','—','アプリの取込項目にありません',perfSt('ng'),
-    simHits.length?'Excel内に「シミュ・想定」の文字を含む項目が'+simHits.length+'件あります（下の「Excelスキャン結果」で番地を確認してください。自動では採用していません）'
-      :'当初（設計時）のシミュレーション発電量を読み込む項目がありません');
+    (simHits.length?'Excel内に当初シミュの可能性がある項目が'+simHits.length+'件あります（下の「Excelスキャン結果」で番地を確認してください。自動では採用していません）。'
+      :'Excel内に当初（販売時）のシミュレーション発電量はありません。')+'当時の販売会社の提案書シミュレーション（ソーラープロ等）から転記する欄を、次の段階で追加予定です');
   h+=perfRow('実発電量',gen>0?kwh(gen)+' kWh/年':'—',srcTxt('actualGen'),gen>0?perfSt('ok'):perfSt('ng'),
     gen>0?'1年分の年間値として保存されています':'');
   h+=perfRow('実績対象年度','—','—',perfSt('ng'),'実発電量の対象年度を特定できません（年度を持つ項目がありません）');
   h+=perfRow('過去実績（年度別）',gen>0?'1年分（年度不明）':'なし','—',gen>0?perfSt('part'):perfSt('ng'),
-    gen>0?'現在のExcelから取得できる実績は1年分です。過去3年分などの年度別実績を読み込む項目はありません':'取得できる実績はありません');
-  h+=perfRow('月別実績','—','—',perfSt('ng'),'月別の実績を読み込む項目はありません。「⑩ 月別 予測発電量」は年間値を標準的な日射の形で割り振った予測値で、実績ではありません');
+    (gen>0?'現在のExcelから取得できる実績は1年分です。過去3年分などの年度別実績を読み込む項目はありません。':'取得できる実績はありません。')+'実際の電力明細（検針期間ごとの売電量）を入力する欄を、次の段階で追加予定です');
+  h+=perfRow('月別実績','—','—',perfSt('ng'),'月別の実績を読み込む項目はありません。「⑩ 月別 予測発電量」は年間値を標準的な日射の形で割り振った予測値で、実績ではありません'
+    +(fakeAct.length?'。<b>Excelの'+fakeAct.map(x=>'「'+esc(x.s)+'」'+esc(x.a)+'「'+esc(x.label)+'」').join('、')+'も、年間実績（01_物件情報 C33）を月別日射量の比率で割り振った数式で、実測の月別実績ではありません</b>':''));
   h+=perfRow('日射データ','未連携','—',perfSt('off'));
   h+=`</tbody></table></div>`;
 
@@ -5145,7 +5154,7 @@ function perfHTML(){
     const catName=Object.fromEntries(PERF_CAT.map(c=>[c[0],c[1]]));
     if(dg.hits.length){
       h+=`<div class="table-scroll"><table class="pd-tbl"><thead><tr><th>分類</th><th>シート／セル</th><th>見出しの文字</th><th>隣の値</th></tr></thead><tbody>`;
-      dg.hits.forEach(x=>{h+=`<tr><td>${esc(catName[x.cat]||x.cat)}</td><td>${esc(x.s)}／${esc(x.a)}</td><td>${esc(x.label)}</td><td>${x.v?esc(x.v)+' <span class="pd-note">('+esc(x.va)+(isKnown(x)?'・アプリ取込済':'')+')</span>':'—'}</td></tr>`;});
+      dg.hits.forEach(x=>{h+=`<tr><td>${esc(catName[x.cat]||x.cat)}</td><td>${esc(x.s)}／${esc(x.a)}</td><td>${esc(x.label)}</td><td>${x.v?esc(x.v)+' <span class="pd-note">('+esc(x.va)+(isKnown(x)?'・アプリ取込済':'')+(x.f?'・数式':'')+')</span>':'—'}${x.f&&/C33/.test(x.f)?'<div class="pd-note">'+(/SUM\(/i.test(x.f)?'年間実績C33を月別日射量の比率で割り振った値（実測の月別実績ではありません）':'01_物件情報 C33（年間実績）の写し')+'</div>':''}</td></tr>`;});
       h+=`</tbody></table></div>`;
     }else h+=`<div class="pd-box">実績・年度・緯度経度などの見出しは見つかりませんでした。</div>`;
   }
@@ -5989,9 +5998,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.10.01';
+const APP_VERSION = '2026.10.01b';
 
 const CHANGELOG = [
+  ['2026.10.01b', [
+    '<b>発電性能診断の表示を正確にしました。</b>08シートの「実績発電量(kWh/月)」は、年間実績（01_物件情報 C33）を月別日射量（MONSOLA）の比率で割り振った数式で、実測の月別実績ではないことを明示します',
+    '「当初シミュレーション」の候補から、RF後想定・予測・シート表題・注記（※…）などの関係ない項目を外しました。スキャン結果の「隣の値」が数式の場合は「数式」と表示します',
+    '位置URLが短縮リンク（maps.app.goo.gl）で座標が読めない場合に、その旨と取得方法を表示します。計算結果への影響はありません',
+  ]],
   ['2026.10.01', [
     '<b>案件画面の結果タブに「発電性能診断」を追加しました（STEP1：日射補正の準備）。</b>所在地・都道府県／市区町村・緯度経度・連系日・実発電量・実績年度・過去実績が、今のExcelからどこまで取れているかを「取得済／データ不足」で一覧表示します',
     '現在の劣化率が「Excel（または手入力）の値をそのまま使っている」ことと、その計算式を画面で確認できます。当初シミュレーション÷実績のような比較は現在ありません',
