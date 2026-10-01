@@ -239,6 +239,38 @@ pre{
   transition:opacity .2s;pointer-events:none;
 }
 .toast.on{opacity:1}
+/* ---------- お気に入り・お知らせ ---------- */
+.star{flex:none;width:30px;height:30px;margin:-4px -6px 0 0;border:0;background:none;cursor:pointer;
+  font-size:19px;line-height:1;color:#C4D3D1;border-radius:8px;transition:color .15s,transform .15s}
+.star:hover{color:var(--amber);background:#FBF1E3}
+.star.on{color:var(--amber)}
+.star.pop{transform:scale(1.35)}
+.card.isnew{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,166,160,.18),var(--shadow)}
+.newchip{position:absolute;top:-9px;left:12px;font-size:10px;font-weight:800;letter-spacing:.12em;
+  background:var(--accent);color:#fff;padding:1px 8px;border-radius:999px;box-shadow:0 2px 6px rgba(0,166,160,.35)}
+.stage.fav .stagenum{background:var(--amber)}
+.stage.fav h2{color:#8A5A12}
+.favempty{font-size:13px;color:var(--muted);background:rgba(255,255,255,.8);border:1px dashed #E0C08C;border-radius:var(--r);padding:12px 14px}
+.rail a.favlink b{color:var(--amber)}
+.bell{position:relative}
+.bell .badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;
+  background:var(--amber);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;display:none}
+.bell.has .badge{display:block}
+.newsbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#E8F7F6;border:1px solid #9FD9D6;
+  border-left:4px solid var(--accent);border-radius:var(--r);padding:10px 14px;margin-bottom:18px;font-size:13px}
+.newsbar b{color:var(--ink)}
+.newsbar .sp{margin-left:auto;display:flex;gap:8px}
+.newsbar button{padding:6px 12px;border-radius:7px;border:1px solid #9FD9D6;background:#fff;cursor:pointer;font-size:12px}
+.newsbar button.go{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.nitem{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line-2)}
+.nitem:last-child{border-bottom:0}
+.nitem .nt{flex:1;min-width:0}
+.nitem h5{margin:0 0 2px;font-size:14px;cursor:pointer}
+.nitem h5:hover{color:var(--accent)}
+.nitem p{margin:0;font-size:12px;color:var(--muted)}
+.nitem .nb{display:flex;gap:6px;flex:none}
+.nitem .nb button{padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12px}
+.nitem.read{opacity:.55}
 @media(max-width:860px){
   body{font-size:15px}
   .hwrap{padding:8px 12px;gap:8px}
@@ -247,6 +279,7 @@ pre{
   .search{order:10;flex:1 0 100%;min-width:0}
   .hbtn{padding:8px 11px;font-size:13px;flex:none}
   .who{display:none}
+  .bell .bl{display:none}
   .fwrap{padding:8px 12px;gap:6px;overflow-x:auto;flex-wrap:nowrap}
   .fwrap select,.toggle{flex:none;font-size:13px;white-space:nowrap}
   .count{display:none}
@@ -278,6 +311,7 @@ pre{
     <button class="hbtn" id="btnSync" title="スプレッドシートから今すぐ読み込む">↻ 更新</button>
     <button class="hbtn" id="btnImport">取込</button>
     <button class="hbtn primary" id="btnAdd">＋ 追加</button>
+    <button class="hbtn bell" id="btnBell" title="新しく追加されたツール">🔔<span class="bl"> お知らせ</span><span class="badge" id="bellN"></span></button>
     <button class="hbtn" id="btnHelp" title="活用マニュアル">使い方</button>
     <button class="hbtn" id="btnSet">設定</button>
     <span class="who" id="who"></span>
@@ -289,6 +323,7 @@ pre{
     <select id="fBiz"><option value="">事業：すべて</option></select>
     <select id="fKind"><option value="">種別：すべて</option></select>
     <select id="fAud"><option value="">対象者：すべて</option></select>
+    <div class="toggle" id="tgFav">★ お気に入りだけ</div>
     <div class="toggle on" id="tgLatest">最新版のみ</div>
     <div class="toggle" id="tgOut">お客様に出せるものだけ</div>
     <div class="toggle" id="tgCare">要メンテナンス</div>
@@ -423,6 +458,15 @@ pre{
     <p style="margin:0 0 14px"><b>カードの名前か用途の文をクリック</b>すると、右側に中身が開きます。スライドはその場でめくれ、動画は再生でき、PDFも読めます。別タブで開いて戻る手間が要りません。<br>
     そのまま使うと決めたら、右下の「別タブで開く」を押してください。</p>
 
+    <h4 style="margin:0 0 6px;font-size:13px">1-3. よく使うものは★でお気に入りに</h4>
+    <p style="margin:0 0 14px">カード右上の<b>☆を押すと★になり、棚の一番上「お気に入り」の段</b>に並びます。もう一度押すと外れます。<br>
+    お気に入りは<b>自分専用</b>です（他の社員の画面には影響しません）。PCとスマホで同じ会社アカウントでログインしていれば、どちらにも同じものが出ます。<br>
+    上の<b>「★ お気に入りだけ」</b>を押すと、お気に入り以外を隠せます。</p>
+
+    <h4 style="margin:0 0 6px;font-size:13px">1-4. 新しいツールのお知らせ</h4>
+    <p style="margin:0 0 14px">誰かが棚に新しいツールを追加すると、次に開いたときに<b>上部の「🔔 お知らせ」に件数</b>が付き、カードに<span class="newchip" style="position:static;display:inline-block">NEW</span>が付きます。<br>
+    開いて中身を見るか、お知らせ画面で「確認済み」を押すと消えます。自分が追加したものには付きません。</p>
+
     <h4 style="margin:0 0 6px;font-size:13px">2. お客様の前で開くとき</h4>
     <p style="margin:0 0 14px">上の<b>「お客様に出せるものだけ」</b>を押してください。社内限定の資料が非表示になります。<br>
     <span class="pill vis-out">社外提示OK</span> そのまま見せてよい　
@@ -447,6 +491,12 @@ pre{
     <b>開いて使うもの（ファイル・URL）はこの棚、読んで理解するもの（制度の解説・用語）はナレッジ</b>、で使い分けてください。</p>
   </div>
   <div class="mfoot"><button class="btn primary" data-close>閉じる</button></div>
+</div></div>
+
+<div class="mask" id="mNews"><div class="modal">
+  <div class="mhead"><h3>お知らせ：新しく追加されたツール</h3><button data-close>×</button></div>
+  <div class="mbody" id="newsBody"></div>
+  <div class="mfoot"><button class="btn" data-close>閉じる</button><button class="btn primary" id="btnReadAll">すべて確認済みにする</button></div>
 </div></div>
 
 <div class="dback" id="dback"></div>
@@ -547,11 +597,120 @@ alter table public.app_settings enable row level security;
 drop policy if exists "settings read"  on public.app_settings;
 drop policy if exists "settings write" on public.app_settings;
 create policy "settings read"  on public.app_settings for select using (true);
-create policy "settings write" on public.app_settings for all    using (true) with check (true);`;
+create policy "settings write" on public.app_settings for all    using (true) with check (true);
+
+-- お気に入り・既読（社員ごと）
+create table if not exists public.tool_prefs (
+  email      text primary key,
+  favorites  jsonb default '[]'::jsonb,
+  seen       jsonb,
+  updated_at timestamptz default now()
+);
+alter table public.tool_prefs enable row level security;
+drop policy if exists "prefs read"  on public.tool_prefs;
+drop policy if exists "prefs write" on public.tool_prefs;
+create policy "prefs read"  on public.tool_prefs for select using (true);
+create policy "prefs write" on public.tool_prefs for all    using (true) with check (true);`;
 
 /* ===================== 起動 ===================== */
 const sb = supabase.createClient(SB_URL, SB_KEY);
 let TOOLS = [], ME = null;
+
+/* ===================== お気に入り・お知らせ（社員ごと） ===================== */
+// favorites: お気に入りのツールID / seen: 確認済みのツールID（null＝初回）
+let PREF = { favorites: [], seen: null };
+let PREF_REMOTE = false;          // Supabase の tool_prefs に保存できるか
+let NEW_IDS = new Set();
+const prefKey = () => "ec_tools_pref_" + (ME?.email || "local");
+
+async function loadPrefs(){
+  try{
+    const raw = localStorage.getItem(prefKey());
+    if(raw){ const p = JSON.parse(raw); PREF.favorites = p.favorites||[]; PREF.seen = p.seen ?? null; }
+  }catch(e){}
+  if(!ME?.email) return;
+  try{
+    const {data,error} = await sb.from("tool_prefs").select("favorites,seen").eq("email",ME.email).maybeSingle();
+    if(error) return;                       // テーブル未作成 → この端末だけで動かす
+    PREF_REMOTE = true;
+    if(data){
+      PREF.favorites = Array.isArray(data.favorites) ? data.favorites : [];
+      PREF.seen = Array.isArray(data.seen) ? data.seen : PREF.seen;
+    }
+  }catch(e){}
+}
+let _prefTimer = null;
+function savePrefs(){
+  try{ localStorage.setItem(prefKey(), JSON.stringify(PREF)); }catch(e){}
+  if(!PREF_REMOTE || !ME?.email) return;
+  clearTimeout(_prefTimer);
+  _prefTimer = setTimeout(async ()=>{
+    try{ await sb.from("tool_prefs").upsert({email:ME.email, favorites:PREF.favorites, seen:PREF.seen, updated_at:new Date().toISOString()}); }catch(e){}
+  }, 400);
+}
+const isActive = t => t.status!=="旧版（アーカイブ）" && t.status!=="廃止候補";
+const isFav = t => PREF.favorites.includes(t.id);
+const isNew = t => NEW_IDS.has(t.id);
+
+function computeNew(){
+  // 初めて開いた人には、今ある棚を「確認済み」として扱う（全件NEWにならないように）
+  if(PREF.seen === null){ PREF.seen = TOOLS.map(t=>t.id); savePrefs(); }
+  const seen = new Set(PREF.seen);
+  NEW_IDS = new Set(TOOLS.filter(t=>isActive(t) && !seen.has(t.id)).map(t=>t.id));
+  // 消えたツールのIDを掃除
+  const ids = new Set(TOOLS.map(t=>t.id));
+  const fav2 = PREF.favorites.filter(id=>ids.has(id));
+  if(fav2.length!==PREF.favorites.length){ PREF.favorites = fav2; savePrefs(); }
+  updateBell();
+}
+function markSeen(ids){
+  ids = [].concat(ids).filter(Boolean);
+  let changed = false;
+  ids.forEach(id=>{
+    if(!PREF.seen) PREF.seen = [];
+    if(!PREF.seen.includes(id)){ PREF.seen.push(id); changed = true; }
+    if(NEW_IDS.delete(id)) changed = true;
+  });
+  if(changed){ savePrefs(); updateBell(); }
+  return changed;
+}
+function toggleFav(t, btn){
+  const i = PREF.favorites.indexOf(t.id);
+  if(i>=0){ PREF.favorites.splice(i,1); toast("お気に入りから外しました"); }
+  else { PREF.favorites.push(t.id); toast("★ お気に入りに追加しました"); }
+  savePrefs();
+  if(btn){ btn.classList.add("pop"); setTimeout(()=>render(),160); } else render();
+}
+function updateBell(){
+  const n = NEW_IDS.size;
+  $("#bellN").textContent = n>99 ? "99+" : n;
+  $("#btnBell").classList.toggle("has", n>0);
+}
+function openNews(){
+  const body = $("#newsBody"); body.innerHTML = "";
+  const list = TOOLS.filter(isNew).sort((a,b)=>(b.updated_at||"").localeCompare(a.updated_at||""));
+  if(!list.length){
+    body.innerHTML = '<p style="margin:0;color:var(--muted)">新しく追加されたツールはありません。追加されると、ここと上の🔔に件数が出ます。</p>';
+    $("#btnReadAll").style.display = "none";
+  }else{
+    $("#btnReadAll").style.display = "";
+    list.forEach(t=>{
+      const row = el("div","nitem");
+      const tx = el("div","nt");
+      const h = el("h5",null,t.name); h.onclick=()=>{ $("#mNews").classList.remove("on"); openPreview(t); markSeen(t.id); render(); };
+      tx.appendChild(h);
+      tx.appendChild(el("p",null,[t.stage, t.kind, t.biz, t.owner?("担当 "+t.owner):""].filter(Boolean).join("　／　")));
+      if(t.purpose) tx.appendChild(el("p",null,t.purpose));
+      row.appendChild(tx);
+      const nb = el("div","nb");
+      const op = el("button",null,"見る"); op.onclick = h.onclick;
+      const ok = el("button",null,"確認済み"); ok.onclick=()=>{ markSeen(t.id); row.classList.add("read"); ok.disabled=true; render(); };
+      nb.appendChild(op); nb.appendChild(ok); row.appendChild(nb);
+      body.appendChild(row);
+    });
+  }
+  $("#mNews").classList.add("on");
+}
 
 const $ = s => document.querySelector(s);
 const el = (t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;};
@@ -569,8 +728,10 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");
   if(ME && ME.email && !$("#who").textContent) $("#who").textContent = ME.email;
 
   await loadCfg();
+  await loadPrefs();
   fillSelects();
   await load();
+  if(NEW_IDS.size) toast(`🔔 新しいツールが ${NEW_IDS.size} 件追加されています`);
 })();
 
 function fillSelects(){
@@ -600,6 +761,7 @@ async function load(){
   }
   $("#conn").innerHTML = "✅ Supabase に接続できています。";
   TOOLS = data || [];
+  computeNew();
   render(TOOLS);
 }
 
@@ -631,6 +793,7 @@ function filtered(){
     if(fb && t.biz!==fb) return false;
     if(fk && t.kind!==fk) return false;
     if(fa && t.audience && t.audience!==fa && t.audience!=="全社") return false;
+    if($("#tgFav").classList.contains("on") && !isFav(t)) return false;
     if(latest && (t.status==="旧版（アーカイブ）"||t.status==="廃止候補")) return false;
     if(outOnly && t.visibility!=="社外提示OK") return false;
     if($("#tgCare").classList.contains("on") && !needsCare(t)) return false;
@@ -648,6 +811,13 @@ function render(){
 
   // 左レール
   const rail = $("#rail"); rail.innerHTML="";
+  {
+    const nf = list.filter(isFav).length;
+    const a = document.createElement("a");
+    a.href = "#st-fav"; a.className = "favlink" + (nf?" has":"");
+    a.innerHTML = `<b>★</b><i>お気に入り</i><em>${nf||""}</em>`;
+    rail.appendChild(a);
+  }
   rail.appendChild(el("div","railhead","営業プロセス"));
   STAGES.forEach(s=>{
     const n = list.filter(t=>t.stage===s).length;
@@ -679,6 +849,38 @@ function render(){
     shelf.innerHTML = `<div class="empty"><h3>条件に合うツールがありません</h3><p>検索語やフィルタを外してみてください。</p></div>`;
     return;
   }
+  // お知らせバー
+  if(NEW_IDS.size){
+    const nb = el("div","newsbar");
+    nb.innerHTML = `<span>🆕</span><span><b>新しいツールが ${NEW_IDS.size} 件追加されています。</b>カードに NEW が付いています。</span>`;
+    const sp = el("div","sp");
+    const go = el("button","go","一覧を見る"); go.onclick = openNews;
+    const ok = el("button",null,"すべて確認済み"); ok.onclick = ()=>{ markSeen([...NEW_IDS]); render(); toast("確認済みにしました"); };
+    sp.appendChild(go); sp.appendChild(ok); nb.appendChild(sp);
+    shelf.appendChild(nb);
+  }
+  // お気に入りの段（一番上）
+  {
+    const favs = list.filter(isFav);
+    const sec = el("section","stage fav"); sec.id = "st-fav";
+    const h = el("div","stagehead");
+    h.appendChild(el("span","stagenum","★"));
+    const h2=document.createElement("h2"); h2.textContent="お気に入り"; h.appendChild(h2);
+    h.appendChild(document.createElement("hr"));
+    sec.appendChild(h);
+    if(favs.length){
+      const g = el("div","grid");
+      favs.forEach(t=>g.appendChild(card(t)));
+      sec.appendChild(g);
+    }else{
+      sec.appendChild(el("div","favempty", PREF.favorites.length
+        ? "この条件に合うお気に入りはありません。"
+        : "よく使うツールのカード右上の ☆ を押すと、ここに並びます。いつも使う資料を3〜5個入れておくと、毎回探さずに済みます。"));
+    }
+    shelf.appendChild(sec);
+  }
+  if($("#tgFav").classList.contains("on")) return;
+
   STAGES.forEach((s,i)=>{
     const items = list.filter(t=>t.stage===s);
     if(!items.length) return;
@@ -701,12 +903,17 @@ function card(t){
     const f = el("div","flag "+(t.status==="更新必要"?"need":t.status==="廃止候補"?"kill":"old"), t.status.replace("（アーカイブ）",""));
     c.appendChild(f);
   }
+  if(isNew(t)){ c.classList.add("isnew"); c.appendChild(el("span","newchip","NEW")); }
   const top = el("div","ctop");
   if(t.kind) top.appendChild(el("span","kind",t.kind));
-  const nm = el("h3","cname",t.name); nm.title="中身をプレビューする"; nm.onclick=()=>openPreview(t); top.appendChild(nm);
+  const nm = el("h3","cname",t.name); nm.title="中身をプレビューする"; nm.onclick=()=>{openPreview(t); if(markSeen(t.id)) render();}; top.appendChild(nm);
+  const st = el("button","star"+(isFav(t)?" on":""), isFav(t)?"★":"☆");
+  st.title = isFav(t) ? "お気に入りから外す" : "お気に入りに追加";
+  st.onclick = e=>{ e.stopPropagation(); toggleFav(t, st); };
+  top.appendChild(st);
   c.appendChild(top);
 
-  if(t.purpose){ const pp=el("p","purpose",t.purpose); pp.onclick=()=>openPreview(t); c.appendChild(pp); }
+  if(t.purpose){ const pp=el("p","purpose",t.purpose); pp.onclick=()=>{openPreview(t); if(markSeen(t.id)) render();}; c.appendChild(pp); }
   else c.appendChild(el("p","purpose empty","用途が未記入です — 誰が・いつ・何のために使うかを追記してください"));
 
   const m = el("div","meta");
@@ -742,7 +949,7 @@ function card(t){
   a.className = "open"+(t.url?"":" disabled");
   a.textContent = t.url ? "開く" : "URL未登録";
   a.href = t.url||"#"; a.target="_blank"; a.rel="noopener";
-  a.onclick = ()=>logClick(t.id);
+  a.onclick = ()=>{ logClick(t.id); if(markSeen(t.id)) setTimeout(render,0); };
   bot.appendChild(a);
   if(t.edit_url){
     const e2=document.createElement("a"); e2.className="icobtn"; e2.href=t.edit_url; e2.target="_blank"; e2.rel="noopener";
@@ -884,6 +1091,7 @@ $("#btnSave").onclick = async ()=>{
   if(!rec.url){ toast("閲覧用URLを入れてください"); return; }
   const {error} = await sb.from("tools").upsert(rec);
   if(error){ toast("保存できませんでした："+error.message); return; }
+  markSeen(rec.id);
   $("#mEdit").classList.remove("on");
   toast("保存しました");
   await load();
@@ -1093,6 +1301,7 @@ $("#btnCommit").onclick = async ()=>{
   if(!PENDING.length) return;
   const {error} = await sb.from("tools").upsert(PENDING);
   if(error){ toast("反映できませんでした："+error.message); return; }
+  markSeen(PENDING.map(r=>r.id));
   $("#mImport").classList.remove("on");
   toast(`${PENDING.length} 件を棚に反映しました`);
   PENDING=[]; $("#prevWrap").innerHTML=""; $("#btnCommit").disabled=true;
@@ -1184,6 +1393,9 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
 $("#q").oninput = render;
 $("#tgLatest").onclick = e=>{e.target.classList.toggle("on");render()};
 $("#tgOut").onclick = e=>{e.target.classList.toggle("on");render()};
+$("#tgFav").onclick = e=>{e.target.classList.toggle("on");render(); window.scrollTo({top:0,behavior:"smooth"});};
+$("#btnBell").onclick = openNews;
+$("#btnReadAll").onclick = ()=>{ markSeen([...NEW_IDS]); $("#mNews").classList.remove("on"); render(); toast("すべて確認済みにしました"); };
 $("#tgCare").onclick = e=>{e.target.classList.toggle("on");render()};
 </script>
 </body>
