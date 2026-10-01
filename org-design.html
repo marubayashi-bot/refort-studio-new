@@ -129,7 +129,7 @@ aside{background:var(--paper);border-right:1px solid var(--grid);display:flex;fl
 .cm .head{font-weight:700;color:var(--cell)}
 .cs{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--leaf)}
-.dot.s-off{background:#A0AEBD}.dot.s-new{background:var(--sun)}.dot.s-slot{background:transparent;border:1.5px dashed var(--muted)}
+.dot.s-off{background:#A0AEBD}.dot.s-ret{background:#D5DCE4}.dot.s-new{background:var(--sun)}.dot.s-slot{background:transparent;border:1.5px dashed var(--muted)}
 .tag{color:#8A5A0B}
 .card.slot{background:transparent;border:1.5px dashed #9FB3C8}
 .card.slot .cn{color:var(--muted);font-weight:500}
@@ -196,6 +196,18 @@ footer .save.err{color:var(--warn);font-weight:700}
 .fg .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
 .fg .chk input{width:auto}
 .mini{font-size:13px;padding-left:1em;margin:4px 0}
+.pst{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pst.wait{background:#FFF3D6;color:#8A5A0B}
+.pst.ok{background:#E3F2E8;color:#2F6B47}
+.pst.done{background:#E6ECF3;color:#1F4E79}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.cboss{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bpick{display:flex;flex-direction:column;gap:4px}
+.bpick .bsq{font-size:12px}
+.plink{background:none;border:0;padding:2px 0;color:#1F4E79;font-weight:700;text-decoration:underline;cursor:pointer;text-align:left;font-size:13px}
+.plist{display:flex;flex-direction:column;gap:2px}
+.plist small{color:var(--muted);font-weight:400;margin-left:6px}
+.bwarn{background:#FFF4F1;border:1px solid #E8BDB3;border-radius:6px;padding:8px 10px;font-size:13px;margin-top:8px}
 .secret{background:#FBF4F2;border-radius:var(--r-s);padding:8px}
 
 /* モーダル */
@@ -304,8 +316,8 @@ const AI_URL=SB_URL+'/functions/v1/ai';
 const TABLE='org_design_state', ROW='main';
 const TITLES=['一般','主任','係長','課長','次長','部長','役員・経営'];
 const MGR=new Set(['課長','次長','部長','役員・経営']);
-const STATUS=['在籍','休職','内定','採用予定'];
-const STATUS_KEY={'在籍':'on','休職':'off','内定':'new','採用予定':'slot'};
+const STATUS=['在籍','休職','内定','採用予定','退職'];
+const STATUS_KEY={'在籍':'on','休職':'off','内定':'new','採用予定':'slot','退職':'ret'};
 const HUES=['#1F4E79','#2F8A5B','#B7791F','#7B4F9E','#2B7A8C','#A8453A','#4A6A2F','#5A6B7D','#9C5B2E','#3B5BA5'];
 const CARE_TPL=[['本人面談',-7],['旧上司から引継ぎ',0],['新上司との1on1',0],['KPI設定',7],['必要研修',14],['7日後フォロー',7],['30日後1on1',30],['90日後レビュー',90]];
 const SPAN_LIMIT=8;
@@ -317,10 +329,15 @@ const SEEN_KEY='orgdesign_seen_version';
 /* 新しいものを上に。[版, 日付, [変更点...]] */
 const CHANGELOG=[
   ['ver.2026.10.01b','2026/10/01',[
-    '閲覧できる範囲を役職に応じて分けました。一般社員と部門長は【組織図】のみ、役員は全画面を閲覧できます。',
-    '発表前の人事が社員に見えないようにしました。異動予定・異動履歴・異動CARE・組織診断の各タブと、カード上の異動予定の表示は役員のみになります。',
-    '社員の育成テーマ・キャリア希望・タグも役員のみの表示に変更しました。',
-    '採用予定・内定の人数は、これまで通り全社員が見られます。'
+    '社員に「直属上司」を設定できるようにしました。登録済みの社員から、氏名・役職・所属部署で検索して選べます（自分自身や自分の部下は選べません。未設定も可）。',
+    '社員カードに「上司：氏名」を表示します。社員の詳細では直属上司と直属の部下を表示し、名前を押すとその人の詳細へ移動します。',
+    '上司の変更は「上司変更履歴」として記録し、社員の詳細と異動履歴タブで確認できます。上司が異動しても部下との関係はそのまま残ります。',
+    '上司に部下がいる状態で、その社員を削除したり在籍状況を「退職」にしたりすると、部下の名前を示して警告します（在籍状況に「退職」を追加）。',
+    '異動の登録画面に「異動後の直属上司」を追加しました。承認すると所属部署と直属上司を同時に更新します。',
+    '「異動予定」画面の各社員に【承認】ボタンを追加しました。管理者・マネージャー権限で操作できます。',
+    '承認したとき、異動日が今日以前ならその場で組織図に反映し（未配置の社員も対象部署へ移動）、未来日なら「承認済み」として保持して異動日に自動で反映します。',
+    '承認した時点で「異動履歴」と「異動CARE」に自動で記録します。異動履歴には「承認」「反映」などの区分を表示します。',
+    '日付の判定を日本時間に修正しました（朝9時前に前日扱いになる・CAREの期日が1日ずれる不具合）。'
   ]],
   ['ver.2026.10.01a','2026/10/01',[
     '組織図の背景を、太陽光・風力・街並みを描いたアースコムらしい風景に変更しました。',
@@ -341,16 +358,14 @@ const V={scn:'official',tab:'chart',zoom:1,q:'',sel:null,aiText:''};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=p=>(p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const today=()=>new Date().toISOString().slice(0,10);
-const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+const today=()=>ymd(new Date());
+const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return ymd(x)};
 const fmtMD=d=>d?`${+d.slice(5,7)}/${+d.slice(8,10)}`:'';
-const nextMonth1=()=>{const x=new Date();x.setMonth(x.getMonth()+1,1);return x.toISOString().slice(0,10)};
+const nextMonth1=()=>{const x=new Date();x.setMonth(x.getMonth()+1,1);return ymd(x)};
 const canEdit=()=>['admin','manager'].includes(me.role);
-const canApprove=()=>me.role==='admin';
+const canApprove=()=>['admin','manager'].includes(me.role);
 const seeSecret=()=>me.role==='admin';
-/* 区分B・C（異動予定／履歴／CARE／組織診断／人材情報／シナリオ）を見られるか＝役員以上 */
-const seeHR=()=>['admin','manager'].includes(me.role);
-const HR_TABS=['pending','history','care','diag'];
 
 /* ========== サンプル ========== */
 function sample(){
@@ -404,22 +419,13 @@ function stats(o){
 
 /* ========== 描画 ========== */
 function render(){
-  if(!seeHR()){ if(HR_TABS.includes(V.tab))V.tab='chart'; if(V.scn!=='official')V.scn='official'; }
   renderHeader();renderStats();renderBanner();renderSide();renderPane();
   document.body.classList.toggle('ro',!canEdit());
   document.querySelectorAll('.edit-only').forEach(b=>b.hidden=!canEdit());
   const cp=$('#cPend'),cc=$('#cCare');
   cp.hidden=!D.pending.length;cp.textContent=D.pending.length;
   const openCare=D.care.filter(c=>c.items.some(i=>!i.done)).length;cc.hidden=!openCare;cc.textContent=openCare;
-  const hr=seeHR();
-  document.querySelectorAll('.tabs [data-tab]').forEach(b=>{
-    b.hidden=!hr&&HR_TABS.includes(b.dataset.tab);
-    b.setAttribute('aria-selected',b.dataset.tab===V.tab);
-  });
-  $('#scnSel').hidden=!hr;
-  $('#backupBtn').hidden=!hr;
-  $('#newScn').hidden=!hr;
-  $('#aiBtn').hidden=!hr;
+  document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===V.tab));
   $('#zoomBox').style.visibility=V.tab==='chart'?'visible':'hidden';
   if(V.sel)renderDrawer();
 }
@@ -432,13 +438,9 @@ function renderStats(){
   const s=stats(org()),b=isOfficial()?null:stats(D.official);
   const delta=(k,f=0)=>{if(!b)return'';const d=+(s[k]-b[k]).toFixed(f);return d?`<i class="${d>0?'up':'dn'}">${d>0?'+':''}${d}</i>`:''};
   const items=[['社員数',s.head+'名',delta('head')],['管理職数',s.mgr+'名',delta('mgr')],['平均スパン',s.span.toFixed(1)+'名',delta('span',1)],
-    ['部署数',s.depts,delta('depts')],['採用予定・内定',s.hire+'名',delta('hire')],
-    ...(seeHR()?[['異動予定',isOfficial()?D.pending.length+'名':'—','']]:[]),
-    ['未配置',s.unassigned+'名',delta('unassigned')]];
+    ['部署数',s.depts,delta('depts')],['採用予定・内定',s.hire+'名',delta('hire')],['異動予定',isOfficial()?D.pending.length+'名':'—',''],['未配置',s.unassigned+'名',delta('unassigned')]];
   $('#stats').innerHTML=items.map(([l,v,dl])=>`<div class="st"><span>${l}</span><b>${v}</b>${dl}</div>`).join('');
-  $('#fStats').textContent=seeHR()
-    ?`現在 ${s.head}名 ｜ 異動予定 ${D.pending.length}名 ｜ 未配置 ${s.unassigned}名`
-    :`現在 ${s.head}名 ｜ 未配置 ${s.unassigned}名`;
+  $('#fStats').textContent=`現在 ${s.head}名 ｜ 異動予定 ${D.pending.length}名 ｜ 未配置 ${s.unassigned}名`;
 }
 function renderBanner(){
   let h='';
@@ -463,15 +465,16 @@ function renderSide(){
   $('#trayBody').innerHTML=un.map(card).join('')||`<div class="empty">ここへドラッグで配置を外す</div>`;
 }
 function card(p){
-  const pend=seeHR()?pendingOf(p.id):null;
+  const pend=pendingOf(p.id);
   const q=V.q.trim();
   const hit=q&&(p.name+p.roleName+p.title+p.skills+p.tags.join('')).includes(q);
   const cls=['card',p.isHead?'lead':'',p.status==='採用予定'?'slot':'',pend?'pend':'',q?(hit?'hit':'dim'):''].join(' ');
   return `<div class="${cls}" data-pid="${p.id}" tabindex="0" role="button" aria-label="${esc(p.name)}の詳細">
     <div class="cn">${esc(p.name)}</div>
     <div class="cm">${esc(p.title)}${p.isHead?' ｜ <span class="head">部門長</span>':''}${p.roleName?' ｜ '+esc(p.roleName):''}</div>
-    <div class="cs"><i class="dot s-${STATUS_KEY[p.status]||'on'}"></i>${esc(p.status)}${seeHR()?(p.tags||[]).map(t=>`<span class="tag">★ ${esc(t)}</span>`).join(''):''}</div>
-    ${pend?`<div class="pb">→ ${esc(deptName(pend.to))}へ ${fmtMD(pend.date)} 異動予定</div>`:''}</div>`;
+    ${(()=>{const b=bossOf(p);return b?`<div class="cboss">上司：${esc(b.name)}</div>`:''})()}
+    <div class="cs"><i class="dot s-${STATUS_KEY[p.status]||'on'}"></i>${esc(p.status)}${(p.tags||[]).map(t=>`<span class="tag">★ ${esc(t)}</span>`).join('')}</div>
+    ${pend?`<div class="pb">→ ${esc(deptName(pend.to))}へ ${fmtMD(pend.date)} ${pend.status==='approved'?'異動（承認済）':'異動予定（未承認）'}</div>`:''}</div>`;
 }
 function deptNode(d){
   const o=org();const mem=o.people.filter(p=>p.deptId===d.id).sort(sortPeople);const kids=children(d.id);
@@ -494,26 +497,40 @@ function renderPane(){
   else if(V.tab==='diag')pane.innerHTML=diagView();
 }
 function pendingView(){
+  const t=today();
   const rows=D.pending.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(x=>{const p=D.official.people.find(y=>y.id===x.personId);
-    return `<tr><td>${esc(x.date)}</td><td><b>${esc(p?.name||'（削除済み）')}</b></td><td>${esc(deptName(x.from,D.official))}<span class="arrow">→</span><b>${esc(deptName(x.to,D.official))}</b></td>
-    <td>${esc(x.reason||'')}</td><td class="note">${esc(x.by||'')}</td>
-    <td class="row">${canApprove()?`<button class="btn sm pri" data-act="approve" data-id="${x.id}">承認して反映</button>`:''}${canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:''}</td></tr>`}).join('');
-  return `<div class="sheet"><h2>異動予定（下書き）</h2><p class="lead">正式組織でカードを動かすと、ここに下書きとして入ります。承認すると組織図に反映され、異動履歴と異動CAREが自動で作られます。</p>
-    ${rows?`${canApprove()&&D.pending.length>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="approveAll">すべて承認して反映</button></div>`:''}
-    <table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>起票</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-    :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグすると下書きが作れます。</div>`}</div>`;
+    const ok=x.status==='approved';
+    const st=ok?`<span class="pst ok">承認済み</span><div class="note">${esc(x.date)} に自動反映<br>${esc(x.approvedBy||'')}</div>`
+               :`<span class="pst wait">承認待ち</span>${x.date<=t?'<div class="note">承認すると即時反映</div>':'<div class="note">承認後、異動日に反映</div>'}`;
+    const btn=ok?(canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:'')
+      :(canApprove()?`<button class="btn sm pri" data-act="approve" data-id="${x.id}">承認</button>`:`<button class="btn sm" disabled title="承認には管理者・マネージャー権限が必要です">承認</button>`)+(canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:'');
+    return `<tr><td>${esc(x.date)}</td><td><b>${esc(p?.name||'（削除済み）')}</b></td><td>${esc(deptName(x.from,D.official))}<span class="arrow">→</span><b>${esc(deptName(x.to,D.official))}</b>${bossChangeText(x,p)}</td>
+    <td>${esc(x.reason||'')}</td><td class="note">${esc(x.by||'')}</td><td>${st}</td>
+    <td class="row">${btn}</td></tr>`}).join('');
+  const waiting=D.pending.filter(x=>x.status!=='approved').length;
+  return `<div class="sheet"><h2>異動予定</h2><p class="lead">正式組織でカードを動かして「異動予定に登録」すると、ここに承認待ちとして入ります。【承認】を押すと、異動日が今日以前ならその場で組織図に反映し、未来日なら異動日に自動で反映します。所属部署と直属上司を同時に更新し、承認した時点で異動履歴と異動CAREに記録されます。</p>
+    ${rows?`${canApprove()&&waiting>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="approveAll">承認待ち ${waiting}件をすべて承認</button></div>`:''}
+    ${canApprove()?'':`<div class="note" style="margin-bottom:10px">承認は管理者・マネージャー権限で行えます。</div>`}
+    <div style="overflow-x:auto"><table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>起票</th><th>状態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグし「異動予定に登録」を選ぶと作れます。</div>`}</div>`;
 }
 function historyView(){
-  const rows=D.history.slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b></td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
+  const rows=D.history.slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td>${h.kind?`<span class="pst ${h.kind==='承認'?'ok':h.kind==='取消'?'wait':'done'}">${esc(h.kind)}</span>`:''}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b>${h.boss?`<div class="note">直属上司：${esc(h.boss)}</div>`:''}</td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
   return `<div class="sheet"><h2>異動履歴</h2><p class="lead">正式組織に反映された異動を自動で記録しています。誰が・いつ・どこからどこへ動いたかの監査ログです。</p>
-    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="histCsv">CSVで書き出す</button></div><table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table>`
-    :`<div class="nodata">まだ異動の記録はありません。</div>`}</div>`;
+    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="histCsv">CSVで書き出す</button></div><table><thead><tr><th>異動日</th><th>区分</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table>`
+    :`<div class="nodata">まだ異動の記録はありません。</div>`}</div>${bossHistView()}`;
+}
+function bossHistView(){
+  const rows=(D.bossHistory||[]).slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b></td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
+  return `<div class="sheet" style="margin-top:16px"><h2>上司変更履歴</h2><p class="lead">直属上司の設定・変更・解除を記録しています。</p>
+    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="bossCsv">CSVで書き出す</button></div><div style="overflow-x:auto"><table><thead><tr><th>変更日</th><th>氏名</th><th>直属上司</th><th>理由</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    :`<div class="nodata">まだ上司変更の記録はありません。</div>`}</div>`;
 }
 function careView(){
   const t=today();
   const list=D.care.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>{
     const done=c.items.filter(i=>i.done).length,pct=Math.round(done/c.items.length*100);
-    return `<div class="care"><h4>${esc(c.name)}</h4><div class="sub">${esc(c.from)} → ${esc(c.to)}　異動日 ${esc(c.date)}</div>
+    return `<div class="care"><h4>${esc(c.name)}</h4><div class="sub">${esc(c.from)} → ${esc(c.to)}　異動日 ${esc(c.date)}${c.date>t?' <b>（反映前）</b>':''}${c.boss?`<br>新しい直属上司：${esc(c.boss)}`:''}</div>
       <div class="row" style="justify-content:space-between;font-size:12px"><span>進捗</span><b>${pct}%</b></div><div class="bar"><i style="width:${pct}%"></i></div>
       ${c.items.map((i,k)=>{const late=!i.done&&i.due<t;return `<label class="${i.done?'done':''} ${late?'late':''}"><input type="checkbox" data-care="${c.id}" data-k="${k}" ${i.done?'checked':''} ${canEdit()?'':'disabled'}><span>${esc(i.label)}</span><small>${late?'期限超過 ':''}${fmtMD(i.due)}</small></label>`}).join('')}</div>`}).join('');
   return `<div class="sheet"><h2>異動CARE</h2><p class="lead">異動を反映すると、異動前から90日後までのフォロー項目が自動で作られます。配置して終わりにせず、定着まで追いかけます。</p>
@@ -581,14 +598,20 @@ function renderDrawer(){
   const opt=(arr,v)=>arr.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
   const deptOpts=`<option value="">未配置</option>`+o.depts.map(d=>`<option value="${d.id}" ${d.id===p.deptId?'selected':''}>${esc(d.name)}</option>`).join('');
   const conc=`<option value="">なし</option>`+o.depts.map(d=>`<option value="${d.id}" ${d.id===p.concurrent?'selected':''}>${esc(d.name)}</option>`).join('');
-  const boss=findBoss(p);
-  const subs=p.isHead?[...o.people.filter(x=>x.deptId===p.deptId&&x.id!==p.id&&!x.isHead&&isActive(x)),...children(p.deptId).flatMap(c=>o.people.filter(x=>x.deptId===c.id&&x.isHead))]:[];
+  const boss=bossOf(p),auto=boss?null:findBoss(p);
+  const subs=subsOf(p.id).sort(sortPeople);
+  const bh=isOfficial()?(D.bossHistory||[]).filter(h=>h.personId===p.id).sort((a,b)=>(b.at||'').localeCompare(a.at||'')):[];
+  const plink=x=>`<button class="plink" data-act="openPerson" data-id="${x.id}">${esc(x.name)}</button><small>${esc(x.title)}｜${esc(deptName(x.deptId))}${x.status==='退職'?'｜退職':''}</small>`;
   const hist=D.history.filter(h=>h.personId===p.id);
-  const pend=seeHR()?pendingOf(p.id):null;
-  const hr=seeHR();
+  const pend=pendingOf(p.id);
   dr.innerHTML=`<header><b style="flex:1;font-size:17px">${esc(p.name)}</b><button class="btn sm" data-act="closeDrawer">閉じる</button></header>
   <div class="body">
-    ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>異動予定タブで承認すると反映されます</span></div>`:''}
+    ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>${pend.status==='approved'?'承認済み。異動日に自動で反映されます':'異動予定タブで【承認】すると反映されます'}</span></div>`:''}
+    <h5>上司・部下</h5>
+    <div class="fg">
+      <label>直属上司</label><div class="plist">${boss?`<div>${plink(boss)}</div>`:`<span>未設定${auto?`<small>（部署上の上位者：${esc(auto.name)}）</small>`:''}</span>`}</div>
+      <label>直属の部下</label><div class="plist">${subs.length?subs.map(x=>`<div>${plink(x)}</div>`).join(''):'—'}</div>
+    </div>
     <h5>基本情報</h5>
     <div class="fg">
       <label>氏名</label><input data-f="name" value="${esc(p.name)}" ${ro}>
@@ -596,7 +619,7 @@ function renderDrawer(){
       <label>役職</label><select data-f="title" ${ro}>${opt(TITLES,p.title)}</select>
       <label>部門長</label><label class="chk"><input type="checkbox" data-f="isHead" ${p.isHead?'checked':''} ${ro}>この部署の部門長（役割）</label>
       <label>役割名</label><input data-f="roleName" value="${esc(p.roleName)}" placeholder="例：営業推進責任者" ${ro}>
-      <label>上司</label><span>${boss?esc(boss.name)+'（'+esc(deptName(boss.deptId))+'）':'—'}</span>
+      <label>直属上司</label>${bossPicker({self:p.id,sel:p.bossId||'',attr:`data-f="bossId" ${ro}`})}
       <label>入社年月</label><input data-f="joined" type="month" value="${esc(p.joined)}" ${ro}>
       <label>勤務地</label><input data-f="location" value="${esc(p.location)}" ${ro}>
       <label>雇用区分</label><select data-f="empType" ${ro}>${opt(['正社員','契約社員','パート・アルバイト','業務委託','役員'],p.empType)}</select>
@@ -605,17 +628,18 @@ function renderDrawer(){
     <h5>組織情報</h5>
     <div class="fg">
       <label>兼務部署</label><select data-f="concurrent" ${ro}>${conc}</select>
-      <label>直属部下</label><span>${subs.length?subs.map(x=>esc(x.name)).join('、'):'—'}</span>
     </div>
-    ${hr?`<div class="note" style="margin-top:8px">異動履歴</div>
-    ${hist.length?`<ul class="mini">${hist.map(h=>`<li>${esc(h.date)}　${esc(h.from)} → ${esc(h.to)}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
+    <div class="note" style="margin-top:8px">異動履歴</div>
+    ${hist.length?`<ul class="mini">${hist.map(h=>`<li>${esc(h.date)}　${h.kind?esc(h.kind)+'：':''}${esc(h.from)} → ${esc(h.to)}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
+    <div class="note" style="margin-top:8px">上司変更履歴</div>
+    ${bh.length?`<ul class="mini">${bh.map(h=>`<li>${esc(h.date)}　${esc(h.from)} → ${esc(h.to)}${h.reason?`<span class="note">（${esc(h.reason)}）</span>`:''}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
     <h5>人材情報</h5>
     <div class="fg">
       <label>タグ</label><input data-f="tags" value="${esc((p.tags||[]).join('、'))}" placeholder="例：次世代幹部、宅建" ${ro}>
       <label>スキル・資格</label><textarea data-f="skills" ${ro}>${esc(p.skills)}</textarea>
       <label>育成テーマ</label><textarea data-f="growth" ${ro}>${esc(p.growth)}</textarea>
       <label>キャリア希望</label><textarea data-f="career" ${ro}>${esc(p.career)}</textarea>
-    </div>`:''}
+    </div>
     ${seeSecret()?`<h5>機密メモ（管理者のみ表示）</h5><div class="secret"><textarea data-f="secret" style="width:100%;min-height:70px;border:1px solid #E8BDB3;border-radius:6px;padding:6px 8px" placeholder="評価・処遇など">${esc(p.secret)}</textarea></div>`:''}
     ${canEdit()?`<div class="row" style="margin-top:22px"><button class="btn del" data-act="delPerson">この社員を削除</button></div>`:''}
   </div>`;
@@ -629,10 +653,56 @@ function findBoss(p){
   while(pd){const h=o.people.find(x=>x.deptId===pd.id&&x.isHead);if(h)return h;pd=deptById(pd.parentId)}
   return null;
 }
+/* ========== 直属上司 ========== */
+const bossOf=(p,o=org())=>p&&p.bossId?o.people.find(x=>x.id===p.bossId)||null:null;
+const subsOf=(id,o=org())=>o.people.filter(x=>x.bossId===id&&x.id!==id);
+function subTree(id,o=org()){const out=new Set(),st=[id];while(st.length){const c=st.pop();o.people.forEach(x=>{if(x.bossId===c&&!out.has(x.id)){out.add(x.id);st.push(x.id)}})}return out}
+const pLabel=(x,o=org())=>`${x.name}｜${x.title}${x.roleName?'・'+x.roleName:''}｜${deptName(x.deptId,o)}`;
+/* 検索つきプルダウン（自分自身と自分の部下は候補に出さない） */
+function bossPicker({self,sel,attr,o=org(),extra=''}){
+  const ex=self?subTree(self,o):new Set();
+  const list=o.people.filter(x=>x.id!==self&&!ex.has(x.id)&&((x.status!=='採用予定'&&x.status!=='退職')||x.id===sel))
+    .sort((a,b)=>(rank(b.title)-rank(a.title))||a.name.localeCompare(b.name,'ja'));
+  const opts=`<option value="" ${sel===''?'selected':''}>未設定</option>${extra}`+list.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(pLabel(x,o))}</option>`).join('');
+  return `<div class="bpick"><input class="bsq" type="search" placeholder="氏名・役職・部署で絞り込み" aria-label="上司候補を絞り込み" ${/disabled/.test(attr)?'disabled':''}><select ${attr}>${opts}</select></div>`;
+}
+document.addEventListener('input',e=>{
+  const q=e.target.closest('.bsq');if(!q)return;const sel=q.parentNode.querySelector('select');if(!sel)return;
+  if(!sel._all)sel._all=[...sel.options].map(o=>({v:o.value,t:o.textContent}));
+  const k=q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);const cur=sel.value;
+  sel.innerHTML=sel._all.filter(o=>o.v===''||o.v==='__keep'||o.v===cur||k.every(w=>o.t.toLowerCase().includes(w)))
+    .map(o=>`<option value="${esc(o.v)}" ${o.v===cur?'selected':''}>${esc(o.t)}</option>`).join('');
+});
+/* 上司の変更（正式組織では上司変更履歴に記録） */
+function setBoss(p,newId,reason,opt={}){
+  const o=opt.o||org();newId=newId||null;
+  if(newId&&!o.people.find(x=>x.id===newId))newId=null;
+  if((p.bossId||null)===newId)return '';
+  if(newId&&(newId===p.id||subTree(p.id,o).has(newId))){toast('自分自身や自分の部下は上司に設定できません');return ''}
+  const nm=id=>id?(o.people.find(x=>x.id===id)?.name||'（削除済み）'):'未設定';
+  const from=nm(p.bossId),to=nm(newId);p.bossId=newId;
+  if(o===D.official)(D.bossHistory=D.bossHistory||[]).push({id:uid('b'),personId:p.id,name:p.name,from,to,date:opt.date||today(),reason:reason||'',by:opt.by||me.name||me.email,at:new Date().toISOString()});
+  return `${from} → ${to}`;
+}
+const bossChanges=x=>x&&x.bossTo!==undefined&&x.bossTo!=='__keep';
+function bossChangeText(x,p){
+  if(!bossChanges(x))return '';const o=D.official;
+  const cur=bossOf(p,o)?.name||'未設定',nx=x.bossTo?(o.people.find(y=>y.id===x.bossTo)?.name||'（削除済み）'):'未設定';
+  return cur===nx?'':`<div class="note">直属上司：${esc(cur)} → <b>${esc(nx)}</b></div>`;
+}
+async function warnSubs(p,what){
+  const subs=subsOf(p.id);if(!subs.length)return true;
+  const r=await modal({title:'直属の部下がいます',body:`<div class="bwarn"><b>${esc(p.name)}</b>さんには直属の部下が${subs.length}名います。<br>${subs.map(x=>esc(x.name)).join('、')}</div><div class="note" style="margin-top:8px">${what}</div>`,
+    actions:[{label:'やめる',key:null},{label:'このまま進める',key:'ok',kind:'del'}]});
+  return !!r.key;
+}
 function closeDrawer(){V.sel=null;const dr=$('#drawer');dr.classList.remove('open');dr.setAttribute('aria-hidden','true')}
 $('#drawer').addEventListener('change',e=>{
   const f=e.target.dataset.f;if(!f)return;const p=person(V.sel);if(!p)return;
   if(f==='deptId'){const to=e.target.value||null;e.target.value=p.deptId||'';requestMove(p.id,to);return}
+  if(f==='bossId'){if(!canEdit())return;const ch=setBoss(p,e.target.value||null,'社員情報の編集');if(ch){dirty();toast('直属上司を変更しました：'+ch)}render();renderDrawer();return}
+  if(f==='status'&&e.target.value==='退職'&&p.status!=='退職'){const v=e.target.value;e.target.value=p.status;
+    warnSubs(p,'退職にしても部下の直属上司は自動では外れません。部下の詳細から新しい上司を設定してください。').then(ok=>{if(!ok)return;p.status=v;dirty();render();renderDrawer()});return}
   let v=e.target.type==='checkbox'?e.target.checked:e.target.value;
   if(f==='tags')v=v.split(/[、,，\s]+/).filter(Boolean);
   p[f]=v;dirty();render();
@@ -650,30 +720,60 @@ async function requestMove(pid,to){
   const off=isOfficial();const from=p.deptId;
   const body=`<div class="movebox"><b>${esc(p.name)}</b>さんを<br>${esc(deptName(from))} → <b>${esc(deptName(to))}</b> へ${off?'異動しますか？':'移動しますか？'}</div>
     ${off?`<label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>理由・メモ（任意）<input name="reason" placeholder="例：東京支社立上げのため"></label>`:''}
+    <label>異動後の直属上司</label>${bossPicker({self:p.id,sel:'__keep',attr:'name="bossTo"',extra:`<option value="__keep" selected>変更しない（現在：${esc(bossOf(p)?.name||'未設定')}）</option>`})}
     ${p.isHead?`<div class="note">部門長のため、異動後は部門長の設定が外れます。</div>`:''}
-    ${off?`<div class="note">【今すぐ組織図に反映】カードがその場で移動し、異動履歴と異動CAREに記録されます。<br>【異動予定に登録】組織図は変わりません。異動予定タブに下書きとして残り、あとで承認すると反映されます。</div>`:''}`;
+    ${off?`<div class="note">【承認して反映】異動日が今日以前ならカードがその場で移動、未来日なら異動日に自動で反映されます（所属部署と直属上司を同時に更新）。異動履歴と異動CAREに記録されます。<br>【異動予定に登録】組織図は変わりません。異動予定タブに承認待ちとして残り、あとで【承認】できます。</div>`:''}`;
   const acts=off?[{label:'やめる',key:null},
                   {label:'異動予定に登録（組織図はまだ動かない）',key:'draft',kind:canApprove()?null:'pri'},
-                  ...(canApprove()?[{label:'今すぐ組織図に反映',key:'now',kind:'pri'}]:[])]
+                  ...(canApprove()?[{label:'承認して反映',key:'now',kind:'pri'}]:[])]
                :[{label:'やめる',key:null},{label:'移動する',key:'move',kind:'pri'}];
   const r=await modal({title:off?'異動の確認':'シナリオ内で移動',body,actions:acts});
   if(!r.key)return;
-  if(r.key==='move'){p.deptId=to;p.isHead=false}
+  const bossTo=r.form.bossTo??'__keep';
+  if(r.key==='move'){p.deptId=to;p.isHead=false;if(bossTo!=='__keep')setBoss(p,bossTo,'シナリオ内の移動')}
   else if(r.key==='draft'){
     D.pending=D.pending.filter(x=>x.personId!==pid);
-    D.pending.push({id:uid('m'),personId:pid,from,to,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString()});
+    D.pending.push({id:uid('m'),personId:pid,from,to,bossTo,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString(),status:'draft'});
     toast('異動予定（下書き）に追加しました');
-  }else if(r.key==='now'){applyMove(pid,to,r.form.date||today(),r.form.reason);toast('組織図に反映しました')}
+  }else if(r.key==='now'){
+    const x={id:uid('m'),personId:pid,from,to,bossTo,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString(),status:'draft'};
+    D.pending=D.pending.filter(y=>y.personId!==pid);D.pending.push(x);
+    toast(approvePending(x)==='now'?'承認して組織図に反映しました':`承認しました。${fmtMD(x.date)}に組織図へ反映します`)}
   dirty();render();
 }
-function applyMove(pid,to,date,reason,o=D.official){
+function applyMove(pid,to,date,reason,o=D.official,opt={}){
   const p=o.people.find(x=>x.id===pid);if(!p)return;
   const from=p.deptId;const fromN=deptName(from,o),toN=deptName(to,o);
-  p.deptId=to;p.isHead=false;
+  p.deptId=to||null;p.isHead=false;
+  const by=opt.by||me.name||me.email;
+  const bc=bossChanges(opt)?setBoss(p,opt.bossTo,'異動に伴う変更',{o,date,by}):'';
   D.pending=D.pending.filter(x=>x.personId!==pid);
-  D.history.push({id:uid('h'),personId:pid,name:p.name,from:fromN,to:toN,date,reason:reason||'',by:me.name||me.email,at:new Date().toISOString()});
-  if(p.status!=='採用予定')D.care.push({id:uid('c'),personId:pid,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))});
+  D.history.push({id:uid('h'),personId:pid,name:p.name,from:fromN,to:toN,boss:bc,date,reason:reason||'',kind:opt.kind||'反映',by,at:new Date().toISOString()});
+  if(!opt.noCare&&p.status!=='採用予定')D.care.push({id:uid('c'),personId:pid,name:p.name,from:fromN,to:toN,boss:bossOf(p,o)?.name||'',date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))});
 }
+/* 承認：異動日が今日以前→即時反映／未来日→承認済みとして保持し異動日に自動反映。履歴・CAREは承認時点で記録 */
+function approvePending(x){
+  if(!x||x.status==='approved')return null;
+  const o=D.official;const p=o.people.find(y=>y.id===x.personId);
+  if(!p){D.pending=D.pending.filter(y=>y.id!==x.id);return null}
+  const by=me.name||me.email;
+  if(x.date<=today()){applyMove(x.personId,x.to,x.date,x.reason,o,{kind:'承認・反映',by,bossTo:x.bossTo});return 'now'}
+  const fromN=deptName(p.deptId,o),toN=deptName(x.to,o);
+  const curB=bossOf(p,o)?.name||'未設定',nxB=bossChanges(x)?(x.bossTo?(o.people.find(y=>y.id===x.bossTo)?.name||'未設定'):'未設定'):curB;
+  x.status='approved';x.approvedBy=by;x.approvedAt=new Date().toISOString();x.from=p.deptId||null;
+  D.history.push({id:uid('h'),personId:p.id,name:p.name,from:fromN,to:toN,boss:curB!==nxB?`${curB} → ${nxB}`:'',date:x.date,reason:x.reason||'',kind:'承認',by,at:x.approvedAt});
+  if(p.status!=='採用予定'){D.care=D.care.filter(c=>c.pendingId!==x.id);
+    D.care.push({id:uid('c'),pendingId:x.id,personId:p.id,name:p.name,from:fromN,to:toN,boss:nxB==='未設定'?'':nxB,date:x.date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(x.date,off),done:false}))})}
+  return 'later';
+}
+/* 異動日を迎えた承認済みの異動を組織図へ反映（CAREは承認時に作成済み） */
+function applyDueMoves(){
+  const t=today();const due=D.pending.filter(x=>x.status==='approved'&&x.date<=t);
+  due.forEach(x=>{if(!D.official.people.find(y=>y.id===x.personId)){D.pending=D.pending.filter(y=>y.id!==x.id);return}
+    applyMove(x.personId,x.to,x.date,x.reason,D.official,{kind:'反映',by:'自動反映（承認：'+(x.approvedBy||'')+'）',noCare:true,bossTo:x.bossTo})});
+  return due.length;
+}
+function runDue(){if(!D)return;const n=applyDueMoves();if(n){if(canEdit())dirty();render();toast(`異動日を迎えた${n}件を組織図に反映しました`)}}
 
 /* ========== ドラッグ＆ドロップ（マウス／タッチ長押し） ========== */
 let drag=null;
@@ -754,22 +854,23 @@ async function deptMenu(id){
   }else return;
   dirty();render();
 }
-function newPerson(o){return {id:uid('p'),name:'',deptId:null,title:'一般',isHead:false,roleName:'',status:'在籍',joined:'',location:'越谷本社',empType:'正社員',tags:[],skills:'',growth:'',career:'',concurrent:'',secret:'',...o}}
+function newPerson(o){return {id:uid('p'),name:'',deptId:null,title:'一般',isHead:false,roleName:'',status:'在籍',joined:'',location:'越谷本社',empType:'正社員',tags:[],skills:'',growth:'',career:'',concurrent:'',secret:'',bossId:null,...o}}
 async function addPerson(){
   const o=org();
   const r=await modal({title:'社員を追加',body:`<label>氏名<input name="name" placeholder="例：山田 太郎"></label>
     <label>所属<select name="dept"><option value="">未配置</option>${o.depts.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></label>
     <label>役職<select name="title">${TITLES.map(t=>`<option>${t}</option>`).join('')}</select></label>
-    <label>在籍状況<select name="status">${STATUS.map(t=>`<option>${t}</option>`).join('')}</select></label>`,
+    <label>在籍状況<select name="status">${STATUS.filter(t=>t!=='退職').map(t=>`<option>${t}</option>`).join('')}</select></label>
+    <label>直属上司</label>${bossPicker({self:null,sel:'',attr:'name="boss"'})}`,
     actions:[{label:'やめる',key:null},{label:'追加する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
   if(!r.key)return;
   const p=newPerson({name:r.form.name.trim(),deptId:r.form.dept||null,title:r.form.title,status:r.form.status});
-  o.people.push(p);dirty();V.sel=p.id;render();
+  o.people.push(p);if(r.form.boss)setBoss(p,r.form.boss,'新規登録');dirty();V.sel=p.id;render();
 }
 
 /* ========== 取込（表の貼り付け） ========== */
 async function importTable(){
-  const r=await modal({title:'社員データを取込',body:`<div class="note">スプレッドシート・Excelの表を、見出し行ごとコピーして貼り付けてください。<br>使う列：部署（所属）・氏名・役職・役割・上位部署・入社・勤務地。役割定義シートのように1人が複数行ある表でも、氏名ごとに1人にまとめます。役割に「部門長」を含む人は部門長になります。</div>
+  const r=await modal({title:'社員データを取込',body:`<div class="note">スプレッドシート・Excelの表を、見出し行ごとコピーして貼り付けてください。<br>使う列：部署（所属）・氏名・役職・役割・上位部署・上司（直属上司）・入社・勤務地。役割定義シートのように1人が複数行ある表でも、氏名ごとに1人にまとめます。役割に「部門長」を含む人は部門長になります。</div>
     <textarea name="txt" placeholder="部署&#9;役職&#9;氏名&#9;役割"></textarea>
     <label>取込み方<select name="how"><option value="replace">今の組織を置き換える</option><option value="add">今の組織に追加する</option></select></label>
     <div class="note">取込先：${isOfficial()?'正式組織':'シナリオ「'+esc(org().name)+'」'}</div>`,
@@ -777,7 +878,7 @@ async function importTable(){
   if(!r.key||!r.form.txt.trim())return;
   const rows=r.form.txt.trim().split(/\r?\n/).map(l=>{const sep=l.includes('\t')?'\t':',';return l.split(sep).map(s=>s.trim().replace(/^"|"$/g,''))});
   const H=rows.shift();const col=re=>H.findIndex(h=>re.test(h));
-  const ci={dept:col(/部署|所属|部門/),name:col(/氏名|名前|社員名/),title:col(/役職/),role:col(/^役割$|役割名/),parent:col(/上位|親部署/),joined:col(/入社/),loc:col(/勤務地|拠点/)};
+  const ci={dept:col(/部署|所属|部門/),name:col(/氏名|名前|社員名/),title:col(/役職/),role:col(/^役割$|役割名/),parent:col(/上位|親部署/),boss:col(/上司/),joined:col(/入社/),loc:col(/勤務地|拠点/)};
   if(ci.name<0){toast('「氏名」の列が見つかりません。見出し行も一緒に貼り付けてください');return}
   const o=org();
   if(r.form.how==='replace'){o.depts=[{id:'top',name:'代表取締役',parentId:null,hue:0}];o.people=[];D.pending=isOfficial()?[]:D.pending}
@@ -785,7 +886,7 @@ async function importTable(){
   const getDept=(name,parent)=>{if(!name)return null;if(byName.has(name))return byName.get(name).id;
     let pid='top';if(parent){pid=getDept(parent,null)}if(!deptById(pid,o))pid=roots(o)[0]?.id||null;
     const d={id:uid('d'),name,parentId:pid,hue:o.depts.length};o.depts.push(d);byName.set(name,d);return d.id};
-  let lastDept='',added=0;
+  let lastDept='',added=0;const bossNm=new Map();
   rows.forEach(c=>{
     const g=i=>i>=0?(c[i]||'').trim():'';
     const dn=g(ci.dept)||lastDept;lastDept=dn;const nm=g(ci.name);if(!nm)return;
@@ -793,8 +894,9 @@ async function importTable(){
     if(seen.has(nm)){const p=seen.get(nm);if(/部門長/.test(role))p.isHead=true;return}
     const t=TITLES.find(x=>g(ci.title).includes(x))||(g(ci.title).includes('リーダー')?'係長':'一般');
     const p=newPerson({name:nm,deptId:dn==='代表取締役'?'top':getDept(dn,g(ci.parent)),title:t,isHead:/部門長/.test(role),roleName:role&&!/部門長/.test(role)&&role.length<20?role:'',joined:g(ci.joined),location:g(ci.loc)||'越谷本社'});
-    o.people.push(p);seen.set(nm,p);added++;
+    o.people.push(p);seen.set(nm,p);added++;if(g(ci.boss))bossNm.set(p,g(ci.boss));
   });
+  bossNm.forEach((bn,p)=>{const b=seen.get(bn)||o.people.find(x=>x.name.replace(/\s/g,'')===bn.replace(/\s/g,''));if(b&&b.id!==p.id)setBoss(p,b.id,'取込')});
   D.isSample=false;dirty();render();toast(`${added}名を取り込みました`);
 }
 
@@ -821,6 +923,9 @@ async function adoptScenario(){
   moves.forEach(p=>{const fromN=deptName(D.official.people.find(x=>x.id===p.id).deptId,D.official),toN=deptName(p.deptId,sc);
     D.history.push({id:uid('h'),personId:p.id,name:p.name,from:fromN,to:toN,date,reason:'シナリオ「'+sc.name+'」を採用',by:me.name||me.email,at:new Date().toISOString()});
     if(p.status!=='採用予定')D.care.push({id:uid('c'),personId:p.id,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))})});
+  sc.people.forEach(p=>{const op=D.official.people.find(x=>x.id===p.id);if(!op||(op.bossId||null)===(p.bossId||null))return;
+    const nm=id=>id?(sc.people.find(x=>x.id===id)?.name||'（削除済み）'):'未設定';
+    (D.bossHistory=D.bossHistory||[]).push({id:uid('b'),personId:p.id,name:p.name,from:nm(op.bossId),to:nm(p.bossId),date,reason:'シナリオ「'+sc.name+'」を採用',by:me.name||me.email,at:new Date().toISOString()})});
   D.official={depts:nextDepts,people:nextPeople};D.pending=[];V.scn='official';
   dirty();render();toast('正式組織に反映しました');
 }
@@ -874,12 +979,29 @@ document.addEventListener('click',async e=>{
   switch(a.dataset.act){
     case 'deptMenu':deptMenu(id);break;
     case 'closeDrawer':closeDrawer();break;
-    case 'delPerson':{const p=person(V.sel);const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
-      if(r.key){const o=org();o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
-    case 'approve':{const x=D.pending.find(y=>y.id===id);if(x){applyMove(x.personId,x.to,x.date,x.reason);dirty();render();toast('承認して反映しました')}break}
-    case 'approveAll':D.pending.slice().forEach(x=>applyMove(x.personId,x.to,x.date,x.reason));dirty();render();toast('すべて反映しました');break;
-    case 'cancelPend':D.pending=D.pending.filter(y=>y.id!==id);dirty();render();break;
-    case 'histCsv':{const lines=[['異動日','氏名','異動元','異動先','理由','記録者','記録日時'],...D.history.map(h=>[h.date,h.name,h.from,h.to,h.reason,h.by,h.at])];
+    case 'delPerson':{const p=person(V.sel);const subs=subsOf(p.id);
+      const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>${subs.length?`<div class="bwarn"><b>直属の部下が${subs.length}名います。</b><br>${subs.map(x=>esc(x.name)).join('、')}<br>削除すると、この${subs.length}名の直属上司は「未設定」になります（上司変更履歴に記録）。</div>`:''}`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
+      if(r.key){const o=org();subs.forEach(x=>setBoss(x,null,`上司（${p.name}）の削除により解除`));
+        o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
+    case 'openPerson':{if(person(id)){V.sel=id;renderDrawer();$('#drawer').scrollTop=0;const b=$('#drawer .body');if(b)b.scrollTop=0}break}
+    case 'bossCsv':{const lines=[['変更日','氏名','変更前の上司','変更後の上司','理由','記録者','記録日時'],...(D.bossHistory||[]).map(h=>[h.date,h.name,h.from,h.to,h.reason,h.by,h.at])];
+      download(`上司変更履歴_${today()}.csv`,'\ufeff'+lines.map(l=>l.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');break}
+    case 'approve':{if(!canApprove())break;const x=D.pending.find(y=>y.id===id);if(!x)break;
+      const p=D.official.people.find(y=>y.id===x.personId);const fut=x.date>today();
+      const r=await modal({title:'異動を承認',body:`<div class="movebox"><b>${esc(p?.name||'')}</b>さんを<br>${esc(deptName(p?.deptId,D.official))} → <b>${esc(deptName(x.to,D.official))}</b><br>異動日 ${esc(x.date)}</div>${bossChangeText(x,p)}
+        <div class="note">${fut?'異動日が未来のため、承認済みとして保持し、異動日に自動で組織図へ反映します。':'異動日が今日以前のため、承認するとすぐに組織図へ反映します。'}<br>異動履歴と異動CAREに記録されます。</div>`,
+        actions:[{label:'やめる',key:null},{label:fut?'承認する（異動日に反映）':'承認して反映',key:'ok',kind:'pri'}]});
+      if(!r.key)break;const res=approvePending(x);dirty();render();
+      toast(res==='now'?'承認して組織図に反映しました':`承認しました。${fmtMD(x.date)}に組織図へ反映します`);break}
+    case 'approveAll':{if(!canApprove())break;let now=0,later=0;D.pending.filter(x=>x.status!=='approved').forEach(x=>{const r=approvePending(x);if(r==='now')now++;else if(r==='later')later++});
+      dirty();render();toast(`承認しました（即時反映 ${now}件／異動日に反映 ${later}件）`);break}
+    case 'cancelPend':{const x=D.pending.find(y=>y.id===id);if(!x)break;
+      if(x.status==='approved'){const r=await modal({title:'承認済みの異動を取消',body:'<div>承認済みの異動予定を取り消します。作成済みの異動CAREも削除し、異動履歴に「取消」を記録します。</div>',actions:[{label:'やめる',key:null},{label:'取り消す',key:'ok',kind:'del'}]});
+        if(!r.key)break;const p=D.official.people.find(y=>y.id===x.personId);
+        D.care=D.care.filter(c=>c.pendingId!==x.id);
+        D.history.push({id:uid('h'),personId:x.personId,name:p?.name||'',from:deptName(p?.deptId,D.official),to:deptName(x.to,D.official),date:x.date,reason:x.reason||'',kind:'取消',by:me.name||me.email,at:new Date().toISOString()})}
+      D.pending=D.pending.filter(y=>y.id!==id);dirty();render();break}
+    case 'histCsv':{const lines=[['異動日','区分','氏名','異動元','異動先','直属上司の変更','理由','記録者','記録日時'],...D.history.map(h=>[h.date,h.kind||'反映',h.name,h.from,h.to,h.boss||'',h.reason,h.by,h.at])];
       download(`異動履歴_${today()}.csv`,'\ufeff'+lines.map(l=>l.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');break}
     case 'aiRun':runAI();break;
     case 'scnEdit':scnForm(org());break;
@@ -902,7 +1024,7 @@ $('#zReset').onclick=()=>{V.zoom=1;renderPane()};
 $('#pdfBtn').onclick=()=>{V.tab='chart';render();setTimeout(()=>window.print(),150)};
 $('#saveBtn').onclick=()=>save(true);
 $('#backupBtn').onclick=async()=>{
-  const r=await modal({title:'バックアップ',body:`<div class="note">全データ（正式組織・シナリオ・異動予定・履歴・CARE）をJSONファイルで書き出し／読み込みできます。</div>${canEdit()?`<label>読み込むファイル<input name="file" type="file" accept=".json"></label>`:''}`,
+  const r=await modal({title:'バックアップ',body:`<div class="note">全データ（正式組織・シナリオ・異動予定・履歴・上司変更履歴・CARE）をJSONファイルで書き出し／読み込みできます。</div>${canEdit()?`<label>読み込むファイル<input name="file" type="file" accept=".json"></label>`:''}`,
     actions:[{label:'閉じる',key:null},...(canEdit()?[{label:'読み込む',key:'in'}]:[]),{label:'書き出す',key:'out',kind:'pri'}]});
   if(r.key==='out')download(`org-design_${today()}.json`,JSON.stringify(D,null,1),'application/json');
   if(r.key==='in'){const f=$('#modal [name=file]')?.files?.[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.official)throw 0;D=j;V.scn='official';dirty();render();toast('読み込みました')}catch{toast('このファイルは読み込めません。書き出したJSONを選んでください')}}
@@ -937,8 +1059,13 @@ async function boot(){
   }catch(e){
     D=D||sample();mode='preview';setSave(e.message==='preview'?'プレビュー表示（保存されません）':'データを読み込めませんでした：'+e.message,e.message!=='preview');
   }
-  ['scenarios','pending','history','care'].forEach(k=>D[k]=D[k]||[]);
+  ['scenarios','pending','history','care','bossHistory'].forEach(k=>D[k]=D[k]||[]);
+  D.pending.forEach(x=>{if(!x.status)x.status='draft'});
+  const nDue=applyDueMoves();if(nDue&&canEdit())dirty();
   render();
+  if(nDue)setTimeout(()=>toast(`異動日を迎えた${nDue}件を組織図に反映しました`),600);
+  setInterval(runDue,10*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)runDue()});
   setTimeout(()=>showWhatsNew(true),350);
 }
 boot();
