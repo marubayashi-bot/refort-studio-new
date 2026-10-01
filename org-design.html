@@ -253,6 +253,56 @@ footer .save.err{color:var(--warn);font-weight:700}
   .dm{display:none}.card{break-inside:avoid}
 }
 .printhead{display:none}
+/* ===== ミルメ比較 ===== */
+.mlm-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--paper);border:1px solid var(--grid);border-radius:var(--r-m);padding:12px 14px;margin-bottom:14px}
+.mlm-top .sp{flex:1}
+.mlm-lock{font-size:12px;color:#8A5A0B;background:#FFF3D6;border-radius:999px;padding:2px 10px;font-weight:700}
+.mlm-kpi{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.mlm-kpi div{background:var(--paper);border:1px solid var(--grid);border-radius:var(--r-m);padding:10px 16px;min-width:130px}
+.mlm-kpi b{display:block;font-size:22px}
+.mlm-kpi .bad b{color:#C0392B}
+.mlm-kpi small{color:var(--muted);font-size:12px}
+.mlm-t td.n,.mlm-t th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mlm-t tr.bad td{background:#FDECEA}
+.mlm-t tr.bad td.gap{color:#C0392B;font-weight:800}
+.mlm-t td.gap{white-space:nowrap}
+.mlm-t .sub{font-size:11px;color:var(--muted)}
+.mlm-t .rel{font-size:11px;border-radius:999px;padding:1px 7px;background:#E6ECF3;color:#1F4E79;white-space:nowrap}
+.mlm-t .rel.auto{background:#F1F1F1;color:#666}
+.mlm-opts{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:4px 0 10px;font-size:13px}
+.mlm-opts input[type=number]{width:64px;border:1px solid #C6D4E3;border-radius:6px;padding:4px 6px}
+.mlm-box{background:#FFF8E6;border:1px solid #F0D9A0;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px}
+.mlm-box.bad{background:#FDECEA;border-color:#E8BDB3}
+/* ===== 活用マニュアル ===== */
+.manual{position:fixed;inset:0;z-index:60;background:var(--paper,#fff);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.manual[hidden]{display:none}
+.mh{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#12233A;color:#fff;flex-wrap:wrap}
+.mh b{font-size:16px}.mh small{opacity:.75;font-size:12px}
+.mh input{flex:1;min-width:160px;max-width:340px;border:0;border-radius:6px;padding:7px 10px;margin-left:auto}
+.mh .hbtn{padding:6px 12px}
+.mbodyw{flex:1;display:grid;grid-template-columns:240px 1fr;min-height:0}
+.mtoc{border-right:1px solid var(--grid);overflow:auto;padding:12px 8px;background:#F6F9FC}
+.mtoc button{display:flex;width:100%;text-align:left;background:none;border:0;padding:7px 10px;border-radius:6px;font-size:13px;color:inherit;gap:6px;align-items:center}
+.mtoc button:hover{background:#E6EEF6}
+.mtoc .grp{font-size:11px;color:var(--muted);font-weight:700;padding:12px 10px 4px;letter-spacing:.05em}
+.mcont{overflow:auto;padding:22px 28px 60px;line-height:1.85;font-size:14px}
+.mcont section{max-width:820px;margin:0 auto 34px;scroll-margin-top:12px}
+.mcont h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid #1F4E79;display:flex;align-items:center;gap:8px}
+.mcont h3{font-size:15px;margin:16px 0 6px;color:#1F4E79}
+.mcont ol,.mcont ul{padding-left:1.4em;margin:6px 0}
+.mcont .tip{background:#FFF8E6;border-left:4px solid #E0A526;padding:8px 12px;border-radius:6px;margin:10px 0}
+.mcont .warn{background:#FFF4F1;border-left:4px solid #C0583F;padding:8px 12px;border-radius:6px;margin:10px 0}
+.mcont .me-box{background:#EEF5FB;border:1px solid #C6D9EB;padding:10px 14px;border-radius:8px}
+.mcont table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}
+.mcont th,.mcont td{border:1px solid var(--grid);padding:6px 8px;text-align:left;vertical-align:top}
+.mcont th{background:#F1F5F9}
+.mcont kbd{display:inline-block;border:1px solid #9FB3C8;border-bottom-width:2px;border-radius:4px;padding:0 6px;font-size:12px;background:#fff;font-family:inherit}
+.newtag{display:inline-block;background:#E0A526;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;letter-spacing:.05em}
+.mver{font-size:12px;color:var(--muted);max-width:820px;margin:0 auto 18px}
+mark{background:#FFE89A;padding:0 1px}
+@media (max-width:820px){.mbodyw{grid-template-columns:1fr}.mtoc{display:none}.mcont{padding:16px 16px 60px}}
+@media print{body.printing-manual>*:not(#manual){display:none!important}body.printing-manual #manual{position:static;display:block}
+  body.printing-manual .mh,body.printing-manual .mtoc{display:none!important}body.printing-manual .mbodyw{display:block}body.printing-manual .mcont{overflow:visible}}
 </style>
 </head>
 <body>
@@ -267,6 +317,7 @@ footer .save.err{color:var(--warn);font-weight:700}
   <button class="hbtn edit-only hide-sm" id="addDept">＋部署</button>
   <button class="hbtn edit-only hide-sm" id="importBtn">取込</button>
   <button class="hbtn ai" id="aiBtn">AI組織診断</button>
+  <button class="hbtn" id="manualBtn" title="活用マニュアル">使い方</button>
   <button class="hbtn hide-sm" id="whatsNew" title="更新履歴">更新履歴</button>
   <span class="me" id="me"></span>
 </header>
@@ -288,6 +339,7 @@ footer .save.err{color:var(--warn);font-weight:700}
       <button role="tab" data-tab="history">異動履歴</button>
       <button role="tab" data-tab="care">異動CARE<span class="cnt" id="cCare" hidden></span></button>
       <button role="tab" data-tab="diag">組織診断</button>
+      <button role="tab" data-tab="milme" id="tabMilme" hidden>ミルメ比較 🔒</button>
       <div class="zoom" id="zoomBox">
         <button id="zOut" aria-label="縮小">−</button>
         <button id="zReset">100%</button>
@@ -307,6 +359,7 @@ footer .save.err{color:var(--warn);font-weight:700}
 </footer>
 <div class="drawer" id="drawer" aria-hidden="true"></div>
 <div class="modal" id="modal" hidden></div>
+<div class="manual" id="manual" hidden role="dialog" aria-modal="true" aria-label="活用マニュアル"></div>
 
 <script>
 /* ========== 設定 ========== */
@@ -324,10 +377,23 @@ const SPAN_LIMIT=8;
 
 /* ========== 状態 ========== */
 /* ========== バージョンと更新履歴 ========== */
-const APP_VERSION='ver.2026.10.01b';
+const APP_VERSION='ver.2026.10.01e';
 const SEEN_KEY='orgdesign_seen_version';
 /* 新しいものを上に。[版, 日付, [変更点...]] */
 const CHANGELOG=[
+  ['ver.2026.10.01e','2026/10/01',[
+    '社長・副社長だけが見られる「ミルメ比較」タブを追加しました。ミルメの受検結果Excelを読み込むと、【基礎】点数・【応用】処理数の最高値・【応用】失敗平均・【応用】FP率平均を、組織図の社員と自動で結び付けて表示します。',
+    '上司と部下の【応用】処理数（最高値）の差を一覧にし、差が25以上の組み合わせを赤で表示します。直属上司が未設定の人は、部署上の上位者と比較することもできます。',
+    '読み込んだExcelのデータは、読み込んだ端末の中だけに保存し、サーバーには送りません（他の社員の画面には一切出ません）。'
+  ]],
+  ['ver.2026.10.01d','2026/10/01',[
+    '「AIに改善案を出してもらう」で、文章の代わりに記号だらけのデータが表示される不具合を直しました。AIの考える時間が長いと回答の文字数が足りなくなっていたため、回答の枠を広げ、空だった場合は自動でもう一度試します。',
+    'AIから回答が得られなかったときは、データではなく分かりやすいメッセージを表示するようにしました。'
+  ]],
+  ['ver.2026.10.01c','2026/10/01',[
+    'ヘッダーに【使い方】を追加し、活用マニュアルをアプリの中で読めるようにしました。アプリを更新するたびにマニュアルも一緒に更新され、新しく変わった項目には「NEW」が付きます。',
+    'マニュアルは、ログイン中の権限でできること・できないことを自動で表示します。キーワード検索と印刷（PDF保存）にも対応しています。'
+  ]],
   ['ver.2026.10.01b','2026/10/01',[
     '社員に「直属上司」を設定できるようにしました。登録済みの社員から、氏名・役職・所属部署で検索して選べます（自分自身や自分の部下は選べません。未設定も可）。',
     '社員カードに「上司：氏名」を表示します。社員の詳細では直属上司と直属の部下を表示し、名前を押すとその人の詳細へ移動します。',
@@ -419,6 +485,7 @@ function stats(o){
 
 /* ========== 描画 ========== */
 function render(){
+  if(V.tab==='milme'&&!canMilme())V.tab='chart';
   renderHeader();renderStats();renderBanner();renderSide();renderPane();
   document.body.classList.toggle('ro',!canEdit());
   document.querySelectorAll('.edit-only').forEach(b=>b.hidden=!canEdit());
@@ -427,6 +494,7 @@ function render(){
   const openCare=D.care.filter(c=>c.items.some(i=>!i.done)).length;cc.hidden=!openCare;cc.textContent=openCare;
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===V.tab));
   $('#zoomBox').style.visibility=V.tab==='chart'?'visible':'hidden';
+  $('#tabMilme').hidden=!canMilme();
   if(V.sel)renderDrawer();
 }
 function renderHeader(){
@@ -495,6 +563,7 @@ function renderPane(){
   else if(V.tab==='history')pane.innerHTML=historyView();
   else if(V.tab==='care')pane.innerHTML=careView();
   else if(V.tab==='diag')pane.innerHTML=diagView();
+  else if(V.tab==='milme')pane.innerHTML=canMilme()?milmeView():'';
 }
 function pendingView(){
   const t=today();
@@ -571,24 +640,157 @@ async function runAI(){
       役職構成:TITLES.map(t=>`${t}${mem.filter(p=>p.title===t&&isActive(p)).length}`).filter(x=>!x.endsWith('0')).join(' '),採用予定:mem.filter(p=>p.status==='採用予定').length}});
   const sc=isOfficial()?null:o;
   const system='あなたは再生可能エネルギー企業「株式会社アースコム」の組織設計アドバイザーです。識学の考え方（責任と権限の明確化、1上司1部下の指揮系統、部門長の結果責任）を前提に、組織構造上の論点と改善案を日本語で示します。個人の評価・昇格・降格は判断しません。';
-  const prompt=`以下の組織データを診断し、次の構成でプレーンテキスト（Markdown記号・HTMLタグは使わない）で回答してください。\n■ 全体所見（3行以内）\n■ 優先度の高い論点（最大4つ。各「論点／理由／打ち手」）\n■ 組織案の提案（1〜2案）\n${sc?`\nシナリオ名：${sc.name}／対象時期：${sc.when||'未設定'}／目標人数：${sc.target||'未設定'}`:''}\nルール診断の結果：${JSON.stringify(diagnose().map(x=>x.t))}\n組織データ：${JSON.stringify(summary)}`;
+  const prompt=`以下の組織データを診断し、次の構成でプレーンテキスト（Markdown記号・HTMLタグは使わない）で回答してください。\n■ 全体所見（3行以内）\n■ 優先度の高い論点（最大4つ。各「論点／理由／打ち手」）\n■ 組織案の提案（1〜2案）\n全体で1,200字以内にまとめること。\n${sc?`\nシナリオ名：${sc.name}／対象時期：${sc.when||'未設定'}／目標人数：${sc.target||'未設定'}`:''}\nルール診断の結果：${JSON.stringify(diagnose().map(x=>x.t))}\n組織データ：${JSON.stringify(summary)}`;
   V.aiText='AIが診断しています…';renderPane();
-  try{V.aiText=await callAI(prompt,system)}catch(e){V.aiText='AIに接続できませんでした（'+e.message+'）。ログイン状態とネットワークを確認して、もう一度実行してください。'}
+  try{V.aiText=await callAI(prompt,system)}catch(e){V.aiText='AIの診断ができませんでした（'+e.message+'）。少し時間をおいて、もう一度「AIに改善案を出してもらう」を押してください。続く場合はログインし直してください。'}
   renderPane();
 }
-async function callAI(prompt,system){
-  if(sb&&mode==='live'){
-    const {data:{session}}=await sb.auth.getSession();
-    const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+(session?.access_token||SB_KEY)},body:JSON.stringify({prompt,system,max_tokens:2000})});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();
-    return j.text||j.content?.map?.(c=>c.text||'').join('')||j.result||j.output||JSON.stringify(j);
-  }
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system,messages:[{role:'user',content:prompt}]})});
-  const j=await r.json();
-  return (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n')||'応答が空でした。';
+/* AIの応答から本文だけを取り出す（thinkingブロックや空のtextは除外。データのまま表示しない） */
+function aiText(j){
+  if(!j)return '';
+  if(typeof j==='string')return j.trim();
+  if(typeof j.text==='string'&&j.text.trim())return j.text.trim();
+  const blocks=Array.isArray(j.content)?j.content:Array.isArray(j.data?.content)?j.data.content:[];
+  const t=blocks.filter(c=>c&&c.type==='text'&&c.text).map(c=>c.text).join('\n').trim();
+  if(t)return t;
+  for(const k of ['result','output','answer','message'])if(typeof j[k]==='string'&&j[k].trim())return j[k].trim();
+  return '';
 }
+async function callAI(prompt,system){
+  const tries=[8000,16000];let last='';
+  for(const max of tries){
+    let j;
+    if(sb&&mode==='live'){
+      const {data:{session}}=await sb.auth.getSession();
+      const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+(session?.access_token||SB_KEY)},body:JSON.stringify({prompt,system,max_tokens:max})});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      j=await r.json();
+    }else{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system,messages:[{role:'user',content:prompt}]})});
+      j=await r.json();
+    }
+    if(j&&j.error)throw new Error(j.error.message||String(j.error));
+    const t=aiText(j);if(t)return t;
+    last=j?.stop_reason||j?.data?.stop_reason||'';
+    if(!(sb&&mode==='live'))break;
+  }
+  throw new Error(last==='max_tokens'?'回答が長くなりすぎて途中で止まりました':'AIから回答が返ってきませんでした');
+}
+
+
+/* ========== ミルメ比較（社長・副社長のみ） ==========
+   ・閲覧できるのは MILME_VIEWERS の氏名（スペース無視）または MILME_EMAILS のメールのログイン者だけ
+   ・読み込んだExcelのデータはこの端末の localStorage にだけ保存し、Supabase（共有データ）には入れない */
+const MILME_VIEWERS=['丸林信宏','丸林綾子'];
+const MILME_EMAILS=[];
+const MILME_KEY='ecod_milme_v1';
+const nkey=t=>String(t||'').replace(/[\s\u3000]/g,'');
+const canMilme=()=>mode==='preview'||MILME_VIEWERS.includes(nkey(me.name))||MILME_EMAILS.includes(String(me.email||'').toLowerCase());
+const MV={only:false,auto:true,th:25};
+function milmeData(){if(!canMilme())return null;try{return JSON.parse(localStorage.getItem(MILME_KEY)||'null')}catch(e){return null}}
+function milmeMap(){const d=milmeData();const m=new Map();(d?.rows||[]).forEach(r=>m.set(nkey(r.name),r));return m}
+async function loadXLSX(){
+  if(window.XLSX)return;
+  await new Promise((ok,ng)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=()=>ng(new Error('読込ライブラリを取得できませんでした'));document.head.appendChild(sc)});
+}
+async function importMilme(file){
+  if(!canMilme())return;
+  try{
+    await loadXLSX();
+    const buf=await file.arrayBuffer();let wb;
+    if(/\.csv$/i.test(file.name)){let t=new TextDecoder('utf-8').decode(buf);if(t.includes('\ufffd'))t=new TextDecoder('shift_jis').decode(buf);wb=XLSX.read(t,{type:'string'})}
+    else wb=XLSX.read(buf,{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const hi=rows.findIndex(r=>r.some(c=>/受検者名|氏名/.test(String(c))));
+    if(hi<0)throw new Error('「受検者名」の列が見つかりません');
+    const H=rows[hi].map(h=>String(h).trim());const col=re=>H.findIndex(h=>re.test(h));
+    const ci={name:col(/受検者名|氏名/),kind:col(/^区分$/),basic:col(/【基礎】点数/),fail:col(/【応用】失敗平均/),fp:col(/【応用】FP率平均/)};
+    const procCols=H.map((h,i)=>{const m=h.match(/【応用(\d)】処理数/);return m?{i,n:m[1]}:null}).filter(Boolean);
+    const miss=[!(ci.basic>=0)&&'【基礎】点数',!procCols.length&&'【応用1〜3】処理数',!(ci.fail>=0)&&'【応用】失敗平均',!(ci.fp>=0)&&'【応用】FP率平均'].filter(Boolean);
+    if(miss.length)throw new Error('列が見つかりません：'+miss.join('、'));
+    const num=v=>{const x=parseFloat(String(v).replace(/,/g,''));return isFinite(x)?x:null};
+    const out=rows.slice(hi+1).filter(r=>String(r[ci.name]||'').trim()).map(r=>{
+      let best=null,which='';procCols.forEach(c=>{const v=num(r[c.i]);if(v!=null&&(best==null||v>best)){best=v;which='応用'+c.n}});
+      return {name:String(r[ci.name]).trim(),kind:ci.kind>=0?String(r[ci.kind]).trim():'',basic:num(r[ci.basic]),procMax:best,procWhich:which,fail:num(r[ci.fail]),fp:num(r[ci.fp])}});
+    if(!out.length)throw new Error('受検者のデータがありません');
+    localStorage.setItem(MILME_KEY,JSON.stringify({file:file.name,at:new Date().toISOString(),rows:out}));
+    const m=new Set(D.official.people.map(p=>nkey(p.name)));
+    toast(`${out.length}名を読み込みました（組織図と一致 ${out.filter(r=>m.has(nkey(r.name))).length}名）`);
+  }catch(e){toast('読み込めませんでした：'+e.message)}
+  render();
+}
+function milmePairs(){
+  const mm=milmeMap(),o=D.official;const pairs=[];
+  o.people.filter(p=>p.status!=='採用予定'&&p.status!=='退職').forEach(p=>{
+    let b=bossOf(p,o),rel='直属上司';
+    if(!b&&MV.auto){const save=V.scn;V.scn='official';b=findBoss(p);V.scn=save;rel='部署上の上位者'}
+    if(!b)return;
+    const ms=mm.get(nkey(p.name)),mb=mm.get(nkey(b.name));
+    const gap=ms&&mb&&ms.procMax!=null&&mb.procMax!=null?mb.procMax-ms.procMax:null;
+    pairs.push({p,b,rel,ms,mb,gap,bad:gap!=null&&Math.abs(gap)>=MV.th});
+  });
+  return pairs;
+}
+const f1=v=>v==null?'—':(Math.round(v*10)/10).toString();
+const f2=v=>v==null?'—':(+v).toFixed(2);
+function milmeView(){
+  const d=milmeData();
+  const top=`<div class="mlm-top"><span class="mlm-lock">🔒 社長・副社長のみ表示</span>
+    ${d?`<span>読込済み：<b>${esc(d.file)}</b>（${esc((d.at||'').slice(0,10))}・${d.rows.length}名）</span>`:'<span>まだ読み込んでいません</span>'}
+    <span class="sp"></span>
+    <label class="btn sm pri" style="cursor:pointer">Excelを読み込む<input type="file" id="milmeFile" accept=".xlsx,.xls,.csv" hidden></label>
+    ${d?'<button class="btn sm del" data-act="milmeDel">この端末から削除</button>':''}</div>
+    <div class="note" style="margin:-6px 0 14px">読み込んだデータはこの端末の中だけに保存され、サーバーには送られません。別の端末で見る場合は、その端末でも読み込んでください。</div>`;
+  if(!d)return `<div class="sheet"><h2>ミルメ比較</h2><p class="lead">ミルメの受検結果（Excel／CSV）を読み込むと、組織図の社員と氏名で結び付けて、上司と部下の能力差を一覧にします。</p>${top}
+    <div class="nodata">「Excelを読み込む」から、ミルメの従業員データ（受検者名・【基礎】点数・【応用1〜3】処理数・【応用】失敗平均・【応用】FP率平均の列があるもの）を選んでください。</div></div>`;
+  const mm=milmeMap();
+  const all=milmePairs();const bad=all.filter(x=>x.bad);
+  const list=(MV.only?bad:all).sort((a,b)=>(b.bad-a.bad)||(Math.abs(b.gap??-1)-Math.abs(a.gap??-1)));
+  const cell=(x,k,f)=>`<td class="n">${f(x.mb?.[k])}<span class="sub"> / </span>${f(x.ms?.[k])}</td>`;
+  const rows=list.map(x=>`<tr class="${x.bad?'bad':''}">
+    <td><button class="plink" data-act="openPerson" data-id="${x.b.id}">${esc(x.b.name)}</button><div class="sub">${esc(deptName(x.b.deptId,D.official))}</div></td>
+    <td><button class="plink" data-act="openPerson" data-id="${x.p.id}">${esc(x.p.name)}</button><div class="sub">${esc(deptName(x.p.deptId,D.official))}</div></td>
+    <td><span class="rel ${x.rel==='直属上司'?'':'auto'}">${x.rel}</span></td>
+    ${cell(x,'basic',f1)}
+    <td class="n">${f1(x.mb?.procMax)}<span class="sub">${x.mb?'（'+esc(x.mb.procWhich)+'）':''}</span> / ${f1(x.ms?.procMax)}<span class="sub">${x.ms?'（'+esc(x.ms.procWhich)+'）':''}</span></td>
+    <td class="n gap">${x.gap==null?'<span class="sub">データなし</span>':`${x.gap>0?'+':''}${f1(x.gap)}<div class="sub">${x.gap>0?'上司が高い':x.gap<0?'部下が高い':'同じ'}</div>`}</td>
+    ${cell(x,'fail',f1)}${cell(x,'fp',f2)}</tr>`).join('');
+  const inOrg=new Set(D.official.people.map(p=>nkey(p.name)));
+  const people=D.official.people.filter(p=>mm.has(nkey(p.name))).map(p=>({p,m:mm.get(nkey(p.name))})).sort((a,b)=>(b.m.procMax??0)-(a.m.procMax??0));
+  const prow=people.map(({p,m})=>`<tr><td><button class="plink" data-act="openPerson" data-id="${p.id}">${esc(p.name)}</button></td><td>${esc(m.kind)}</td><td>${esc(deptName(p.deptId,D.official))}</td><td>${esc(bossOf(p,D.official)?.name||'—')}</td>
+    <td class="n">${f1(m.basic)}</td><td class="n">${f1(m.procMax)} <span class="sub">${esc(m.procWhich)}</span></td><td class="n">${f1(m.fail)}</td><td class="n">${f2(m.fp)}</td></tr>`).join('');
+  const notIn=d.rows.filter(r=>!inOrg.has(nkey(r.name)));
+  const noData=D.official.people.filter(p=>p.status!=='採用予定'&&p.status!=='退職'&&!mm.has(nkey(p.name)));
+  return `<div class="sheet" style="max-width:1240px"><h2>ミルメ比較</h2><p class="lead">上司と部下の【応用】処理数（応用1〜3のうち一番高い回）の差を比べます。差が${MV.th}以上の組み合わせは赤で表示します。数字は「上司 / 部下」の順です。</p>${top}
+    <div class="mlm-kpi"><div><small>比較した組み合わせ</small><b>${all.length}</b></div><div class="bad"><small>差が${MV.th}以上</small><b>${bad.length}</b></div><div><small>比べられない（データなし）</small><b>${all.filter(x=>x.gap==null).length}</b></div></div>
+    <div class="mlm-opts"><label class="chk"><input type="checkbox" data-mf="only" ${MV.only?'checked':''}> 差が基準以上だけ表示</label>
+      <label class="chk"><input type="checkbox" data-mf="auto" ${MV.auto?'checked':''}> 直属上司が未設定の人は、部署上の上位者と比較</label>
+      <label>赤にする差 <input type="number" min="1" data-mf="th" value="${MV.th}"> 以上</label></div>
+    ${rows?`<div style="overflow-x:auto"><table class="mlm-t"><thead><tr><th>上司</th><th>部下</th><th>関係</th><th class="n">【基礎】点数</th><th class="n">【応用】処理数 最高</th><th class="n">処理数の差</th><th class="n">【応用】失敗平均</th><th class="n">【応用】FP率平均</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      :`<div class="nodata">${MV.only?`差が${MV.th}以上の組み合わせはありません。`:'比べられる上司・部下の組み合わせがありません。直属上司を設定するか、「部署上の上位者と比較」にチェックを入れてください。'}</div>`}
+    <h2 style="margin-top:28px">社員ごとの結果</h2><p class="lead">組織図の社員と一致した${people.length}名を、【応用】処理数の最高値が高い順に並べています。</p>
+    <div style="overflow-x:auto"><table class="mlm-t"><thead><tr><th>氏名</th><th>区分</th><th>所属</th><th>直属上司</th><th class="n">【基礎】点数</th><th class="n">【応用】処理数 最高</th><th class="n">【応用】失敗平均</th><th class="n">【応用】FP率平均</th></tr></thead><tbody>${prow}</tbody></table></div>
+    ${notIn.length?`<div class="mlm-box"><b>組織図にいない受検者 ${notIn.length}名</b>（氏名の表記が違う可能性があります）<br>${notIn.map(r=>esc(r.name)).join('、')}</div>`:''}
+    ${noData.length?`<div class="mlm-box"><b>ミルメのデータがない社員 ${noData.length}名</b><br>${noData.map(p=>esc(p.name)).join('、')}</div>`:''}
+  </div>`;
+}
+function milmeDrawer(p){
+  if(!canMilme())return '';const mm=milmeMap();const m=mm.get(nkey(p.name));if(!m)return '';
+  const b=bossOf(p,org());const mb=b?mm.get(nkey(b.name)):null;const gap=mb&&mb.procMax!=null&&m.procMax!=null?mb.procMax-m.procMax:null;
+  return `<h5>ミルメ（社長・副社長のみ表示）</h5><div class="fg">
+    <label>【基礎】点数</label><span>${f1(m.basic)}</span>
+    <label>処理数 最高</label><span>${f1(m.procMax)}（${esc(m.procWhich)}）</span>
+    <label>失敗平均</label><span>${f1(m.fail)}</span>
+    <label>FP率平均</label><span>${f2(m.fp)}</span></div>
+    ${gap!=null?`<div class="mlm-box ${Math.abs(gap)>=MV.th?'bad':''}">直属上司 ${esc(b.name)}（処理数 最高 ${f1(mb.procMax)}）との差：<b>${gap>0?'+':''}${f1(gap)}</b>${Math.abs(gap)>=MV.th?`　差が${MV.th}以上です`:''}</div>`:''}`;
+}
+document.addEventListener('change',e=>{
+  if(e.target.id==='milmeFile'&&e.target.files[0]){importMilme(e.target.files[0]);return}
+  const k=e.target.dataset?.mf;if(!k)return;
+  if(k==='th'){const v=parseInt(e.target.value,10);MV.th=v>0?v:25}else MV[k]=e.target.checked;
+  renderPane();
+});
 
 /* ========== 詳細パネル ========== */
 function renderDrawer(){
@@ -633,6 +835,7 @@ function renderDrawer(){
     ${hist.length?`<ul class="mini">${hist.map(h=>`<li>${esc(h.date)}　${h.kind?esc(h.kind)+'：':''}${esc(h.from)} → ${esc(h.to)}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
     <div class="note" style="margin-top:8px">上司変更履歴</div>
     ${bh.length?`<ul class="mini">${bh.map(h=>`<li>${esc(h.date)}　${esc(h.from)} → ${esc(h.to)}${h.reason?`<span class="note">（${esc(h.reason)}）</span>`:''}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
+    ${milmeDrawer(p)}
     <h5>人材情報</h5>
     <div class="fg">
       <label>タグ</label><input data-f="tags" value="${esc((p.tags||[]).join('、'))}" placeholder="例：次世代幹部、宅建" ${ro}>
@@ -961,14 +1164,201 @@ async function showWhatsNew(onlyNew){
   const seen=seenVersion();
   const list=onlyNew?CHANGELOG.slice(0,Math.max(1,CHANGELOG.findIndex(c=>c[0]===seen))):CHANGELOG;
   if(onlyNew&&seen===APP_VERSION)return;
-  await modal({
+  const r=await modal({
     title:onlyNew?'アプリが新しくなりました':'更新履歴',
     body:`<div class="clwrap">${changelogHTML(list)}</div>
       <div class="note">現在のバージョン ${esc(APP_VERSION)}${onlyNew?'　／　ヘッダーの【更新履歴】からいつでも見られます':''}</div>`,
-    actions:[{label:onlyNew?'確認しました':'閉じる',key:'ok',kind:'pri'}]});
+    actions:[{label:'マニュアルを見る',key:'man'},{label:onlyNew?'確認しました':'閉じる',key:'ok',kind:'pri'}]});
   markSeen();
+  if(r.key==='man')openManual('news');
 }
 $('#whatsNew').onclick=()=>showWhatsNew(false);
+
+/* ========== 活用マニュアル ==========
+   【更新ルール】機能を追加・変更したら、必ずこの MANUAL も同時に書き換え、
+   該当項目の since を新しい APP_VERSION にする（→ その項目に「NEW」が付く）。
+   「最近の更新」は CHANGELOG から、「あなたの権限」は ログイン中の権限から自動で作られる。 */
+const MANUAL=[
+ {id:'intro',grp:'はじめに',title:'このアプリでできること',since:'ver.2026.09.29a',body:()=>`
+  <p>EARTHCOM ORG DESIGN は、アースコムの組織図を「見る」だけでなく、<b>動かして・決めて・定着まで追いかける</b>ための組織OSです。</p>
+  <ul>
+   <li><b>組織図</b>：部署と社員カードで今の組織をひと目で把握。ドラッグで配置を組み替えられます。</li>
+   <li><b>直属上司</b>：誰が誰の上司かを社員ごとに設定し、指揮命令系統をはっきりさせます。</li>
+   <li><b>異動の承認</b>：異動は「登録 → 承認 → 反映」。異動日が来たら自動で組織図に反映されます。</li>
+   <li><b>異動履歴・上司変更履歴</b>：いつ・誰が・どこからどこへ動いたかを自動で記録します。</li>
+   <li><b>異動CARE</b>：異動前の面談から90日後レビューまで、定着のフォローを抜け漏れなく管理します。</li>
+   <li><b>シナリオ</b>：来期・採用後などの「未来の組織」を、正式組織に影響を与えずに試せます。</li>
+   <li><b>組織診断・AI組織診断</b>：部門長の負荷や1名体制などの論点を自動で洗い出します。</li>
+  </ul>
+  <div class="tip">迷ったら、まず <b>組織図を開く → 社員カードを押す</b>。その人の上司・部下・異動履歴がすべて見られます。</div>`},
+ {id:'me',grp:'はじめに',title:'あなたの権限でできること',since:'ver.2026.10.01c',body:()=>{
+  const R={admin:'管理者',manager:'マネージャー',sales:'営業',field:'現場',viewer:'閲覧のみ'};
+  const row=(t,ok)=>`<tr><td>${t}</td><td>${ok?'<b style="color:#2F6B47">できます</b>':'<span style="color:#8A97A6">できません</span>'}</td></tr>`;
+  return `<div class="me-box">ログイン中：<b>${esc(me.name||me.email)}</b>（権限：${esc(R[me.role]||me.role)}）</div>
+  <table><thead><tr><th>操作</th><th>あなた</th></tr></thead><tbody>
+   ${row('組織図・社員情報・履歴を見る',true)}
+   ${row('社員・部署の追加、情報の編集、直属上司の設定',canEdit())}
+   ${row('異動予定に登録する（ドラッグで異動）',canEdit())}
+   ${row('異動を承認して組織図に反映する',canApprove())}
+   ${row('シナリオを作る・編集する',canEdit())}
+   ${row('シナリオを正式組織にする',canApprove())}
+   ${row('異動CAREのチェックを付ける',canEdit())}
+   ${row('機密メモを見る・書く',seeSecret())}
+  </tbody></table>
+  <p class="note">権限は全アプリ共通の「社員・権限管理」で設定されています。変更が必要な場合は管理者に依頼してください。</p>`}},
+ {id:'screen',grp:'基本操作',title:'画面の見方',since:'ver.2026.10.01c',body:()=>`
+  <table><tbody>
+   <tr><th>ヘッダー</th><td>表示する組織（正式組織／シナリオ）の切替、社員検索、＋社員・＋部署・取込、AI組織診断、<b>使い方</b>（このマニュアル）、更新履歴。</td></tr>
+   <tr><th>数字の帯</th><td>社員数・管理職数・平均スパン（部門長1人あたりの直属人数）・部署数・採用予定・異動予定・未配置。シナリオ表示中は正式組織との差が出ます。</td></tr>
+   <tr><th>左：組織一覧</th><td>部署名を押すと組織図のその部署へ移動します。下の「未配置」は所属が決まっていない社員の置き場です。</td></tr>
+   <tr><th>タブ</th><td>組織図／異動予定／異動履歴（上司変更履歴を含む）／異動CARE／組織診断。数字のバッジは対応待ちの件数です。</td></tr>
+   <tr><th>社員カード</th><td>氏名・役職・部門長・<b>上司：氏名</b>・在籍状況。黄色い文字は異動予定（承認済み／未承認）です。</td></tr>
+   <tr><th>フッター</th><td>保存状態（自動保存）、保存、PDF出力、バックアップ。</td></tr>
+  </tbody></table>
+  <p>在籍状況の色：<span class="dot s-on" style="display:inline-block"></span> 在籍　<span class="dot s-off" style="display:inline-block"></span> 休職　<span class="dot s-new" style="display:inline-block"></span> 内定　<span class="dot s-slot" style="display:inline-block"></span> 採用予定枠　<span class="dot s-ret" style="display:inline-block"></span> 退職</p>
+  <div class="tip">スマホ・タブレットでは左上の <kbd>☰</kbd> で組織一覧を開けます。組織図は右下の −／＋ で拡大縮小できます。</div>`},
+ {id:'person',grp:'基本操作',title:'社員を追加・編集する',since:'ver.2026.10.01b',body:()=>`
+  <h3>追加する</h3>
+  <ol><li>ヘッダーの <kbd>＋社員</kbd> を押す</li><li>氏名・所属・役職・在籍状況・<b>直属上司</b>を入れて【追加する】</li><li>続けて右側の詳細画面で、入社年月・勤務地・タグ・スキルなどを入れる</li></ol>
+  <h3>編集する</h3>
+  <p>社員カードを押すと右側に詳細が開きます。入力した内容はその場で自動保存されます。</p>
+  <ul><li><b>部門長</b>：その部署の結果責任者に✓。カードに「部門長」と表示されます。</li>
+   <li><b>役割名</b>：「営業推進責任者」など、役職とは別の役割。</li>
+   <li><b>兼務部署</b>：主所属とは別に関わる部署。</li>
+   <li><b>在籍状況</b>：在籍／休職／内定／採用予定／退職。</li>
+   <li><b>機密メモ</b>：評価・処遇など。管理者だけが見られます。</li></ul>
+  <h3>削除する</h3>
+  <p>詳細画面の一番下【この社員を削除】。異動履歴は残ります。直属の部下がいる場合は警告が出て、削除すると部下の上司は「未設定」になります。</p>`},
+ {id:'boss',grp:'基本操作',title:'直属上司を設定する',since:'ver.2026.10.01b',body:()=>`
+  <p>所属部署とは別に、<b>「誰の指示で動き、誰に報告するか」</b>を社員ごとに決めます。1on1・評価・異動CAREの担当者を決める土台になります。</p>
+  <h3>設定のしかた</h3>
+  <ol><li>社員カードを押して詳細を開く</li><li>基本情報の「直属上司」の検索欄に、氏名・役職・部署の一部を入れる（例：「営業」「部長」）</li><li>絞り込まれたプルダウンから選ぶ → その場で保存</li></ol>
+  <p>候補は「氏名｜役職｜所属部署」で表示されます。部署が違う社員も選べます。上司を外すときは「未設定」を選びます。</p>
+  <h3>ルール</h3>
+  <ul><li>自分自身や、自分の部下（孫部下を含む）は選べません（指揮系統がループしないため）。</li>
+   <li>上司本人が異動しても、部下との関係は自動では外れません。必要なら部下側で上司を変えてください。</li>
+   <li>上司を変えると「上司変更履歴」に自動で記録されます。</li>
+   <li>部下がいる社員を「退職」にする・削除するときは、部下の名前つきで警告が出ます。</li></ul>
+  <h3>確認のしかた</h3>
+  <p>詳細画面の「上司・部下」に、直属上司と直属の部下が出ます。<b>名前を押すとその人の詳細へ移動</b>できるので、指揮系統を上下にたどれます。上司が未設定の人には、参考として「部署上の上位者」が表示されます。</p>
+  <div class="tip">識学の考え方では「1人の部下に、指示を出す上司は1人」が原則です。兼務や応援がある人ほど、直属上司をはっきり決めておきましょう。</div>`},
+ {id:'dept',grp:'基本操作',title:'部署をつくる・変える',since:'ver.2026.09.29a',body:()=>`
+  <ul><li><b>新しい部署</b>：ヘッダーの <kbd>＋部署</kbd>。上位部署を選ぶとその下にぶら下がります。</li>
+   <li><b>部署の設定</b>：部署の見出しの <kbd>⋯</kbd> から、名前・上位部署・色の変更、下位部署の追加、<b>採用予定枠</b>の追加ができます。</li>
+   <li><b>部署の削除</b>：所属の社員は「未配置」へ、下位部署は一つ上へ移ります。</li></ul>
+  <div class="tip">採用計画は「採用予定枠」を部署に置いておくと、数字の帯と組織診断に反映され、どこに何人足りないかが見えます。</div>`},
+ {id:'move',grp:'異動',title:'異動させる（登録）',since:'ver.2026.10.01b',body:()=>`
+  <h3>3通りのやり方</h3>
+  <ul><li><b>PC</b>：社員カードを、移したい部署（または未配置）へドラッグ</li>
+   <li><b>スマホ・タブレット</b>：社員カードを長押し → そのまま動かして離す</li>
+   <li><b>詳細画面</b>：「所属」のプルダウンで部署を選ぶ</li></ul>
+  <h3>確認画面で入れること</h3>
+  <ul><li><b>異動日</b>（初期値は来月1日）</li><li><b>理由・メモ</b>（任意）</li><li><b>異動後の直属上司</b>（初期値は「変更しない」。検索して選べます）</li></ul>
+  <h3>2つのボタン</h3>
+  <table><tbody>
+   <tr><th>異動予定に登録</th><td>組織図はまだ動きません。「異動予定」タブに<b>承認待ち</b>として残ります。マネージャーが起票し、管理者が確認する流れに向いています。</td></tr>
+   <tr><th>承認して反映</th><td>その場で承認まで済ませます。異動日が今日以前なら即反映、未来日なら異動日に自動反映。（承認権限のある人だけに表示）</td></tr>
+  </tbody></table>
+  <p class="note">シナリオ表示中の移動は「試し」なので、承認なしでそのまま動きます。正式組織には影響しません。</p>`},
+ {id:'approve',grp:'異動',title:'異動の承認と反映',since:'ver.2026.10.01b',body:()=>`
+  <ol><li>「異動予定」タブを開く</li><li>内容（異動日・異動先・直属上司の変更・理由）を確認</li><li>各行の <kbd>承認</kbd> を押す → 確認画面で決定</li></ol>
+  <table><thead><tr><th>異動日</th><th>承認したときの動き</th></tr></thead><tbody>
+   <tr><td>今日以前</td><td>すぐに組織図へ反映（未配置の社員も対象部署へ移動）。所属部署と直属上司を同時に更新します。</td></tr>
+   <tr><td>未来</td><td>「承認済み」として保持し、<b>異動日になったら自動で反映</b>。アプリを開いたときと、開いている間は10分ごとにチェックします。</td></tr>
+  </tbody></table>
+  <p>どちらの場合も、<b>承認した時点で</b>異動履歴（区分「承認」）と異動CAREが作られます。反映時には異動履歴に「反映」が追加されます。</p>
+  <ul><li>承認待ちが複数あるときは【すべて承認】でまとめて処理できます。</li>
+   <li>承認済みでも、反映前なら【取消】できます。作成済みの異動CAREは削除され、履歴に「取消」が残ります。</li>
+   <li>承認は管理者・マネージャー権限で行えます。権限がない人にはボタンがグレーで表示されます。</li></ul>`},
+ {id:'history',grp:'異動',title:'異動履歴・上司変更履歴',since:'ver.2026.10.01b',body:()=>`
+  <p>「異動履歴」タブに、正式組織での異動がすべて自動で残ります（監査ログ）。区分は次のとおりです。</p>
+  <table><tbody><tr><th>承認</th><td>未来日の異動を承認した記録</td></tr><tr><th>承認・反映</th><td>承認と同時に組織図へ反映した記録</td></tr><tr><th>反映</th><td>異動日を迎えて自動反映した記録</td></tr><tr><th>取消</th><td>承認済みの異動を取り消した記録</td></tr></tbody></table>
+  <p>同じタブの下に<b>上司変更履歴</b>があります。社員情報の編集・異動・削除・シナリオ採用で上司が変わると自動で記録されます。どちらも【CSVで書き出す】でExcelに出せます。</p>
+  <p>個人ごとの履歴は、社員の詳細画面の「異動履歴」「上司変更履歴」でも見られます。</p>`},
+ {id:'care',grp:'異動',title:'異動CARE（定着フォロー）',since:'ver.2026.10.01b',body:()=>`
+  <p>異動を承認すると、次のフォロー項目が期日つきで自動作成されます。</p>
+  <table><thead><tr><th>項目</th><th>期日</th></tr></thead><tbody>${CARE_TPL.map(([l,o])=>`<tr><td>${esc(l)}</td><td>異動日${o<0?'の'+(-o)+'日前':o===0?'当日':'の'+o+'日後'}</td></tr>`).join('')}</tbody></table>
+  <ul><li>終わった項目に✓を付けます。期日を過ぎた未完了の項目は赤く表示されます。</li>
+   <li>新しい直属上司が決まっている場合は、カードに上司名が出ます。「新上司との1on1」の相手です。</li>
+   <li>タブのバッジは、未完了の項目が残っている人数です。</li></ul>
+  <div class="tip">異動は「配置して終わり」ではありません。週1回、異動CAREタブを開いて赤い項目がないかを確認する運用がおすすめです。</div>`},
+ {id:'scenario',grp:'計画',title:'シナリオ（未来の組織）をつくる',since:'ver.2026.09.29a',body:()=>`
+  <ol><li>ヘッダーの <kbd>＋シナリオ</kbd> → 名前（例：19期4月・60名体制）、対象時期、目標人数、元にする組織を入れて作成</li>
+   <li>ドラッグで自由に組み替え、部署や採用予定枠も追加する</li>
+   <li>数字の帯で、正式組織との差（＋／−）を確認。目標人数を入れると「追加採用が必要な人数」が出ます</li>
+   <li>案が固まったら【この案を正式組織にする】（承認権限が必要）</li></ul>
+  <div class="warn">「正式組織にする」と、今の正式組織は上書きされ、所属が変わる人全員の異動履歴・異動CAREが作られます。承認待ちの異動予定はクリアされます。実行前にバックアップを取っておくと安心です。</div>`},
+ {id:'diag',grp:'計画',title:'組織診断・AI組織診断',since:'ver.2026.09.29a',body:()=>`
+  <p>「組織診断」タブでは、次のような論点をルールで自動チェックします。</p>
+  <ul><li>部門長1名に対して直属が${SPAN_LIMIT}名を超える部署（マネジメント負荷）</li><li>部門長が未設定の部署</li><li>1名体制の部署（キーパーソン依存）</li><li>在籍者のいない部署、採用予定枠のある部署</li><li>未配置の社員、管理職比率が低い状態</li></ul>
+  <p>ヘッダーの <kbd>AI組織診断</kbd> を押すと、識学の考え方（責任と権限の明確化、部門長の結果責任）をもとに、全体所見・優先論点・組織案をAIが文章で出します。シナリオ表示中ならそのシナリオを診断します。</p>
+  <p class="note">AIは組織構造を診断するもので、個人の評価・昇格の判断はしません。</p>`},
+ {id:'milme',grp:'計画',title:'ミルメ比較（社長・副社長のみ）',since:'ver.2026.10.01e',show:()=>canMilme(),body:()=>`
+  <p>このページは社長・副社長のログイン時だけ表示されます。他の社員のマニュアルには載りません。</p>
+  <ol><li>「ミルメ比較 🔒」タブを開く</li><li>【Excelを読み込む】で、ミルメの従業員データ（xlsx／csv）を選ぶ</li><li>受検者名と組織図の氏名を突き合わせて、自動で表示</li></ol>
+  <h3>表示する数字</h3><ul><li>【基礎】点数</li><li>【応用】処理数の最高値（応用1〜3のうち一番高い回。どの回かも表示）</li><li>【応用】失敗平均</li><li>【応用】FP率平均</li></ul>
+  <h3>上司と部下の比較</h3><p>上司の処理数（最高値）から部下の処理数（最高値）を引いた差を出します。<b>差が25以上（プラスでもマイナスでも）の組み合わせは赤</b>で表示し、上に並べます。基準の数字は画面で変えられます。直属上司が未設定の人は、チェックを入れると部署上の上位者と比べます。</p>
+  <div class="warn">読み込んだデータは、その端末の中だけに保存されます（サーバーに送らないので、他の社員が見る方法はありません）。端末を変えたときは、もう一度読み込んでください。不要になったら【この端末から削除】を押してください。</div>
+  <p>社員の詳細画面にも、ミルメの数字と直属上司との差が表示されます（社長・副社長のログイン時のみ）。</p>`},
+ {id:'import',grp:'データ',title:'スプレッドシートから取り込む',since:'ver.2026.10.01b',body:()=>`
+  <ol><li>役割定義シートなどの表を、<b>見出し行ごと</b>コピー</li><li>ヘッダーの <kbd>取込</kbd> に貼り付け</li><li>「今の組織を置き換える」か「今の組織に追加する」を選んで【取り込む】</li></ol>
+  <p>使える列：部署（所属）・氏名・役職・役割・上位部署・<b>上司（直属上司）</b>・入社・勤務地。1人が複数行ある表でも氏名でまとめます。役割に「部門長」を含む人は部門長になります。上司列は氏名で突き合わせて自動設定します。</p>`},
+ {id:'save',grp:'データ',title:'保存・PDF・バックアップ',since:'ver.2026.09.29a',body:()=>`
+  <ul><li><b>保存</b>：変更すると約1.5秒後に自動保存されます。フッターに「保存済み 時刻」が出ていれば完了です。</li>
+   <li><b>PDF出力</b>：組織図を印刷用に整えて出力します。部門長会議や社内掲示に。</li>
+   <li><b>バックアップ</b>：正式組織・シナリオ・異動予定・履歴・上司変更履歴・CAREをまとめてJSONファイルに書き出し／読み込みできます。大きな組織改編の前に書き出しておきましょう。</li></ul>`},
+ {id:'use',grp:'活用',title:'活用シーン別の使い方',since:'ver.2026.10.01b',body:()=>`
+  <h3>期首・四半期の組織改編</h3>
+  <ol><li>シナリオで新体制案をつくる → AI組織診断で論点チェック</li><li>幹部会議で画面を見せながら決める（PDF出力も可）</li><li>決定したら「正式組織にする」→ 異動CAREで定着フォロー</li></ol>
+  <h3>月次の異動運用</h3>
+  <ol><li>マネージャーがドラッグで「異動予定に登録」（異動日・新しい上司を入れる）</li><li>管理者が異動予定タブで内容を確認して【承認】</li><li>異動日に自動反映 → 異動CAREの面談・1on1を期日どおりに実施</li></ol>
+  <h3>採用計画</h3>
+  <p>部署に採用予定枠を置き、シナリオの目標人数と比べて「あと何人必要か」を確認。内定者は在籍状況「内定」で管理します。</p>
+  <h3>1on1・評価の準備</h3>
+  <p>上司ごとの部下一覧は、上司の詳細画面の「直属の部下」で確認できます。部下がいない上司・上司未設定の人がいないかを定期的に見直しましょう。</p>`},
+ {id:'faq',grp:'活用',title:'よくある質問',since:'ver.2026.10.01d',body:()=>`
+  <h3>カードを動かしても何も起きない</h3><p>閲覧系の権限では配置を変更できません（画面下にメッセージが出ます）。「あなたの権限でできること」を確認してください。</p>
+  <h3>承認ボタンが押せない</h3><p>承認は管理者・マネージャー権限が必要です。それ以外の権限ではグレー表示になります。</p>
+  <h3>未来日の異動がまだ反映されない</h3><p>反映は異動日の0時以降、アプリを開いたとき（開いている間は10分ごと）に行われます。異動予定タブで「承認済み」になっているか確認してください。「承認待ち」のままでは反映されません。</p>
+  <h3>上司の候補に出てこない人がいる</h3><p>自分自身、自分の部下（孫部下を含む）、採用予定枠、退職者は候補に出ません。</p>
+  <h3>AI組織診断の結果が出ない</h3><p>AIの混雑などで回答が返らないことがあります。少し時間をおいて、もう一度押してください。アプリ側で1回は自動でやり直します。続く場合はログインし直してください。</p>
+  <h3>「プレビュー表示（保存されません）」と出る</h3><p>公開URLから会社のGoogleアカウントでログインして開いてください。</p>`},
+ {id:'news',grp:'更新',title:'最近の更新',since:'',body:()=>`
+  <p class="note">このマニュアルはアプリと一体になっていて、アプリが更新されると同時に更新されます。新しく変わった項目には <span class="newtag">NEW</span> が付きます。</p>
+  <div class="clwrap">${changelogHTML(CHANGELOG.slice(0,5))}</div>`}
+];
+const NEW_SET=new Set(CHANGELOG.slice(0,2).map(c=>c[0]));
+const isNewSec=m=>m.since&&NEW_SET.has(m.since);
+function renderManual(q=''){
+  const box=$('#manual');const k=q.trim();
+  const secs=MANUAL.filter(m=>!m.show||m.show()).map(m=>({...m,html:m.body()}));
+  const strip=h=>h.replace(/<[^>]+>/g,'');
+  const hits=k?secs.filter(m=>(m.title+strip(m.html)).includes(k)):secs;
+  const hl=h=>k?h.replace(/>([^<]+)</g,(a,t)=>'>'+t.split(k).join(`<mark>${esc(k)}</mark>`)+'<'):h;
+  let g='';const toc=hits.map(m=>{const head=m.grp!==g?`<div class="grp">${esc(m.grp)}</div>`:'';g=m.grp;
+    return head+`<button data-msec="${m.id}">${esc(m.title)}${isNewSec(m)?' <span class="newtag">NEW</span>':''}</button>`}).join('');
+  box.querySelector('.mtoc').innerHTML=toc||'<div class="grp">該当なし</div>';
+  box.querySelector('.mcont').innerHTML=`<div class="mver">マニュアル版：${esc(APP_VERSION)}（アプリと同時に自動更新）</div>`+
+    (hits.map(m=>`<section id="ms-${m.id}"><h2>${esc(m.title)}${isNewSec(m)?'<span class="newtag">NEW</span>':''}</h2>${hl(m.html)}</section>`).join('')||`<section><p>「${esc(k)}」に当てはまる項目はありません。</p></section>`);
+}
+function openManual(sec){
+  const box=$('#manual');
+  box.innerHTML=`<div class="mh"><b>活用マニュアル</b><small>EARTHCOM ORG DESIGN ／ ${esc(APP_VERSION)}</small>
+    <input type="search" id="mq" placeholder="キーワードで探す（例：承認、上司）" aria-label="マニュアル内検索">
+    <button class="hbtn" id="mPrint">印刷・PDF</button><button class="hbtn" id="mClose">閉じる</button></div>
+    <div class="mbodyw"><nav class="mtoc" aria-label="目次"></nav><div class="mcont"></div></div>`;
+  box.hidden=false;renderManual();
+  $('#mq').oninput=e=>renderManual(e.target.value);
+  $('#mClose').onclick=closeManual;
+  $('#mPrint').onclick=()=>{document.body.classList.add('printing-manual');setTimeout(()=>{window.print();document.body.classList.remove('printing-manual')},100)};
+  box.querySelector('.mtoc').onclick=e=>{const b=e.target.closest('[data-msec]');if(b)$('#ms-'+b.dataset.msec)?.scrollIntoView({behavior:'smooth'})};
+  box.onkeydown=e=>{if(e.key==='Escape')closeManual()};
+  if(sec)requestAnimationFrame(()=>$('#ms-'+sec)?.scrollIntoView());
+  $('#mq').focus();
+}
+function closeManual(){const b=$('#manual');b.hidden=true;b.innerHTML='';$('#manualBtn').focus()}
+$('#manualBtn').onclick=()=>openManual();
+
 
 /* ========== イベント ========== */
 document.addEventListener('click',async e=>{
@@ -983,6 +1373,8 @@ document.addEventListener('click',async e=>{
       const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>${subs.length?`<div class="bwarn"><b>直属の部下が${subs.length}名います。</b><br>${subs.map(x=>esc(x.name)).join('、')}<br>削除すると、この${subs.length}名の直属上司は「未設定」になります（上司変更履歴に記録）。</div>`:''}`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
       if(r.key){const o=org();subs.forEach(x=>setBoss(x,null,`上司（${p.name}）の削除により解除`));
         o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
+    case 'milmeDel':{const r=await modal({title:'ミルメのデータを削除',body:'<div>この端末に保存しているミルメのデータを削除します。Excelファイル自体は消えません。</div>',actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
+      if(r.key){try{localStorage.removeItem(MILME_KEY)}catch(e){}render();toast('削除しました')}break}
     case 'openPerson':{if(person(id)){V.sel=id;renderDrawer();$('#drawer').scrollTop=0;const b=$('#drawer .body');if(b)b.scrollTop=0}break}
     case 'bossCsv':{const lines=[['変更日','氏名','変更前の上司','変更後の上司','理由','記録者','記録日時'],...(D.bossHistory||[]).map(h=>[h.date,h.name,h.from,h.to,h.reason,h.by,h.at])];
       download(`上司変更履歴_${today()}.csv`,'\ufeff'+lines.map(l=>l.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');break}
