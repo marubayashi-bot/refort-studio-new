@@ -204,6 +204,22 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tcard.p1{border-left-color:var(--red)} .tcard.p2{border-left-color:var(--orange)}
 .tcard.p4{border-left-color:var(--ink3)}
 .tcard.done b{text-decoration:line-through;color:var(--ink3)}
+/* v5.5.0 タブレット・スマホでのGTD移動 */
+.tcard{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;position:relative}
+.tcard .mv{position:absolute;top:6px;right:6px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:12px;padding:2px 7px;color:var(--ink2);line-height:1.4}
+.tcard.has-mv b{padding-right:30px}
+.tcard .qmv{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.tcard .qmv button{border:1px solid var(--line);background:#F7F9FD;border-radius:16px;font-size:11.5px;padding:5px 9px;color:var(--ink);min-height:30px}
+.tcard .qmv button:active{background:#E3EBFB;border-color:var(--blue)}
+.tcard.lifting{opacity:.35}
+.tdrag-ghost{position:fixed;z-index:200;pointer-events:none;width:240px;transform:rotate(2deg) scale(1.03);box-shadow:0 12px 30px rgba(16,27,51,.28);opacity:.95}
+.board.dragging{scroll-snap-type:none!important}
+.mvsheet{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mvsheet button{display:flex;align-items:center;gap:8px;padding:13px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:600;text-align:left;color:var(--ink)}
+.mvsheet button.on{border-color:var(--navy);background:#F2F5FB}
+.flow-direct{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.flow-direct .t{font-size:12px;color:var(--ink2);margin-bottom:6px}
+.flow-direct .r{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ---------- modal / sheet ---------- */
 .mask{position:fixed;inset:0;background:rgba(16,27,51,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px}
@@ -968,7 +984,7 @@ function renderNav() {
   }).join('');
   const u = DB.user || {};
   $('#sideMe').innerHTML = '<b>' + esc(u.name || '') + '</b>' + esc(u.email || '') +
-    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.4.1</div>' +
+    '<div style="margin-top:6px">権限: ' + (ROLES[DB.settings.role] || '管理者') + ' ／ v5.5.0</div>' +
     '<div style="margin-top:6px">' + (Cloud.enabled()
       ? '<span style="color:#7fd6a8">☁ 同期中</span>' + ' <a href="javascript:void(0)" onclick="syncStart()" style="color:#e0c98f;margin-left:4px">同期先を切り替える</a><br>' + (DB.settings.cloudAt ? ' <span style="opacity:.7">' + (d => (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'))(new Date(DB.settings.cloudAt)) + '</span>' : '')
       : '<a href="javascript:void(0)" onclick="syncStart()" style="color:#ffb86b">⚠ この端末だけに保存（同期する）</a>') + '</div>';
@@ -1944,15 +1960,122 @@ function colHTML(g) {
 }
 function tcard(t) {
   const dl = daysLeft(t.due), p = projectById(t.project_id);
-  return '<div class="tcard p' + t.priority + (t.gtd === 'done' ? ' done' : '') + '" draggable="true" data-id="' + t.id + '" onclick="cardClick(\'' + t.id + '\')">' +
+  return '<div class="tcard has-mv p' + t.priority + (t.gtd === 'done' ? ' done' : '') + '" draggable="true" data-id="' + t.id + '" onclick="cardClick(\'' + t.id + '\')">' +
+    '<button class="mv" title="GTDリストへ移動" onclick="event.stopPropagation();openMoveSheet(\'' + t.id + '\')">⇄</button>' +
     '<b>' + esc(t.title) + '</b><div class="meta">' +
     (t.owner ? '<span>👤' + esc(t.owner) + '</span>' : '') +
     (t.due ? '<span style="' + (dl < 0 && t.gtd !== 'done' ? 'color:var(--red);font-weight:700' : '') + '">📅' + fmtDate(t.due) + (dl < 0 && t.gtd !== 'done' ? '超過' : '') + '</span>' : '') +
     (p ? '<span>■' + esc(p.title.slice(0, 10)) + '</span>' : '') +
     (t.gtask_id ? '<span>✔ToDo</span>' : '') +
-    '</div></div>';
+    '</div>' + (t.gtd === 'inbox' ? quickMoveHTML(t) : '') + '</div>';
 }
+/* v5.5.0 Inboxカード上でワンタップ移動 */
+const QUICK_MV = [['today', '⭐ 今日'], ['next', '▶ 次の行動'], ['project', '■ PJ'], ['waiting', '⏳ 待ち'], ['someday', '○ いつか'], ['reference', '📄 資料'], ['done', '✅ 完了']];
+function quickMoveHTML(t) {
+  return '<div class="qmv">' + QUICK_MV.map(([g, l]) => '<button onclick="event.stopPropagation();quickMove(\'' + t.id + '\',\'' + g + '\')">' + l + '</button>').join('') + '</div>';
+}
+function quickMove(id, g) {
+  const t = taskById(id); if (!t || !requireEdit()) return;
+  setGtd(t, g); render(); toast(GTD[g].label + 'へ移しました');
+}
+const MOVE_TO = ['inbox', 'today', 'next', 'project', 'waiting', 'someday', 'calendar', 'reference', 'done'];
+function openMoveSheet(id) {
+  const t = taskById(id); if (!t) return;
+  openModal('移動先を選ぶ',
+    '<div class="flow-item" style="margin-bottom:12px"><span class="s">移動する項目</span>' + esc(t.title) + '</div>' +
+    '<div class="mvsheet">' + MOVE_TO.map(g => '<button class="' + (t.gtd === g ? 'on' : '') + '" onclick="moveTask(\'' + id + '\',\'' + g + '\')">' + GTD[g].icon + ' ' + GTD[g].label + '</button>').join('') + '</div>' +
+    '<div class="small muted" style="margin-top:12px">カードを長押しすると、そのまま別の列へドラッグすることもできます。</div>',
+    [{ label: '詳細を開く', fn: () => { closeModal(); openTask(id); } }]);
+}
+/* v5.5.0 タッチ・ペンでのドラッグ（長押し→移動→指を離した列へ） */
+const TDRAG = { st: null, bound: false };
+function bindTouchDrag(board) {
+  const HOLD = 280, SLOP = 10;
+  const colAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest ? el.closest('#board .col') : null; };
+  const clearOver = () => $$('#board .col.over').forEach(c => c.classList.remove('over'));
+  const bd = () => $('#board');
+  function cancel() {
+    const st = TDRAG.st; if (!st) return;
+    clearTimeout(st.timer); cancelAnimationFrame(st.raf);
+    if (st.ghost) st.ghost.remove();
+    st.card.classList.remove('lifting'); if (bd()) bd().classList.remove('dragging'); clearOver();
+    TDRAG.st = null;
+  }
+  function place() {
+    const st = TDRAG.st; if (!st || !st.ghost) return;
+    st.ghost.style.left = (st.x - st.dx) + 'px'; st.ghost.style.top = (st.y - st.dy) + 'px';
+    clearOver(); const c = colAt(st.x, st.y); if (c) c.classList.add('over');
+  }
+  function autoScroll() {
+    const st = TDRAG.st, b = bd(); if (!st || !st.active || !b) return;
+    const r = b.getBoundingClientRect(), edge = 60;
+    let v = 0;
+    if (st.x < r.left + edge) v = -Math.ceil((r.left + edge - st.x) / 4);
+    else if (st.x > r.right - edge) v = Math.ceil((st.x - (r.right - edge)) / 4);
+    if (v) { b.scrollLeft += v; place(); }
+    const ve = st.y < 70 ? -8 : (st.y > innerHeight - 90 ? 8 : 0);
+    if (ve) window.scrollBy(0, ve);
+    st.raf = requestAnimationFrame(autoScroll);
+  }
+  function lift() {
+    const st = TDRAG.st; if (!st) return;
+    st.active = true;
+    const r = st.card.getBoundingClientRect();
+    st.dx = st.x - r.left; st.dy = st.y - r.top;
+    const g = st.card.cloneNode(true); g.classList.add('tdrag-ghost'); g.style.width = r.width + 'px';
+    document.body.appendChild(g); st.ghost = g;
+    st.card.classList.add('lifting'); if (bd()) bd().classList.add('dragging');
+    try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+    place(); autoScroll();
+  }
+  function move(x, y) {
+    const st = TDRAG.st; if (!st) return;
+    st.x = x; st.y = y;
+    if (!st.active) { if (Math.hypot(x - st.x0, y - st.y0) > SLOP) cancel(); return; }  /* 長押し前に動いた＝スクロール */
+    place();
+  }
+  function drop() {
+    const st = TDRAG.st; if (!st) return;
+    if (!st.active) { cancel(); return; }
+    const c = colAt(st.x, st.y), id = st.id;
+    BOARD_DRAG_BLOCK_CLICK = Date.now();
+    cancel();
+    if (!c) return;
+    const t = taskById(id); if (!t || t.gtd === c.dataset.col) return;
+    if (!requireEdit()) return;
+    setGtd(t, c.dataset.col); render(); toast(GTD[c.dataset.col].label + 'へ移しました');
+  }
+  /* 毎回描き直されるボードごとに付けるもの */
+  board.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;               /* マウスは従来のドラッグ＆ドロップ */
+    const card = e.target.closest('.tcard');
+    if (!card || e.target.closest('button')) return;
+    cancel();
+    TDRAG.st = { card, id: card.dataset.id, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, active: false };
+    TDRAG.st.timer = setTimeout(lift, HOLD);
+  });
+  board.addEventListener('touchmove', e => {
+    const st = TDRAG.st; if (!st) return;
+    if (st.active) e.preventDefault();                   /* 持ち上げ中はスクロールを止める */
+    const p = e.touches[0]; if (p) move(p.clientX, p.clientY);
+  }, { passive: false });
+  board.addEventListener('contextmenu', e => { if (TDRAG.st) e.preventDefault(); });
+  /* 画面全体の監視は一度だけ登録 */
+  if (TDRAG.bound) return; TDRAG.bound = true;
+  window.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') move(e.clientX, e.clientY); });
+  window.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') drop(); });
+  window.addEventListener('touchend', drop);
+  window.addEventListener('touchcancel', () => { const st = TDRAG.st; if (st && st.active) drop(); else cancel(); });
+  window.addEventListener('pointercancel', () => { const st = TDRAG.st; if (st && !st.active) cancel(); });
+}
+let BOARD_DRAG_BLOCK_CLICK = 0, BOARD_SCROLL = 0;
 function bindBoard() {
+  const bd = $('#board');
+  if (bd) {
+    bd.scrollLeft = BOARD_SCROLL;
+    bd.addEventListener('scroll', () => { BOARD_SCROLL = bd.scrollLeft; }, { passive: true });
+    bindTouchDrag(bd);
+  }
   let dragId = '';
   $$('#board .tcard').forEach(el => {
     el.addEventListener('dragstart', e => { dragId = el.dataset.id; el.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
@@ -5651,7 +5774,7 @@ const CLOUD_SQL = 'create table if not exists public.mindflow (\n' +
    ========================================================================= */
 const FLOW = { id: '', step: 'what', hist: [], data: {}, timer: null };
 
-function cardClick(id) { const t = taskById(id); if (t && t.gtd === 'inbox') openFlow(id); else openTask(id); }
+function cardClick(id) { if (Date.now() - BOARD_DRAG_BLOCK_CLICK < 400) return; const t = taskById(id); if (t && t.gtd === 'inbox') openFlow(id); else openTask(id); }
 function startInboxFlow() {
   const t = tasksIn('inbox')[0];
   if (!t) { toast('Inboxは空です'); return; }
@@ -5661,6 +5784,12 @@ function openFlow(id) {
   const t = taskById(id); if (!t) return;
   FLOW.id = id; FLOW.step = 'what'; FLOW.hist = []; FLOW.data = { next: '' };
   flowRender();
+}
+function flowDirect(g) {
+  const t = taskById(FLOW.id); if (!t || !requireEdit()) return;
+  setGtd(t, g); toast(GTD[g].label + 'へ移しました');
+  if (tasksIn('inbox').length) startInboxFlow(); else { closeModal(); toast('Inboxを空にしました'); }
+  render();
 }
 function flowGo(step) { FLOW.hist.push(FLOW.step); FLOW.step = step; flowRender(); }
 function flowBack() { if (!FLOW.hist.length) { closeModal(); return; } FLOW.step = FLOW.hist.pop(); flowRender(); }
@@ -5693,7 +5822,10 @@ function flowRender() {
       '<div class="flow-sub">あとで自分が読んで分かる言葉に直します。ここで曖昧なままにすると、あとで手が止まります。</div>' +
       '<div class="field"><label>内容</label><input id="fwT" value="' + esc(t.title) + '"></div>' +
       '<div class="field"><label>メモ（任意）</label><textarea id="fwN">' + esc(t.notes) + '</textarea></div>' +
-      opt('これで確定して次へ', '', 'go', 'flowSaveInput();flowGo("actionable")');
+      opt('これで確定して次へ', '', 'go', 'flowSaveInput();flowGo("actionable")') +
+      '<div class="flow-direct"><div class="t">行き先が決まっているなら、ここから直接移動</div><div class="r">' +
+        QUICK_MV.map(([g, l]) => '<button class="btn sm" onclick="flowSaveInput();flowDirect(\'' + g + '\')">' + l + '</button>').join('') +
+      '</div></div>';
   }
   else if (FLOW.step === 'actionable') {
     head = '② 行動を起こすべきか？';
