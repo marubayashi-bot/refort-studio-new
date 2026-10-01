@@ -130,6 +130,11 @@ aside{background:var(--paper);border-right:1px solid var(--grid);display:flex;fl
 .card.slot .cn{color:var(--muted);font-weight:500}
 .card.pend{border-color:var(--sun);background:#FFF9EE}
 .pb{font-size:11px;font-weight:700;color:#8A5A0B;margin-top:3px}
+.pst{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pst.wait{background:#FFF3D6;color:#8A5A0B}
+.pst.ok{background:#E3F2E8;color:#2F6B47}
+.pst.done{background:#E6ECF3;color:#1F4E79}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
 .card.dim{opacity:.28}
 .card.hit{box-shadow:0 0 0 2px var(--sun)}
 .card.lifted{opacity:.35}
@@ -306,10 +311,17 @@ const SPAN_LIMIT=8;
 
 /* ========== 状態 ========== */
 /* ========== バージョンと更新履歴 ========== */
-const APP_VERSION='ver.2026.09.30a';
+const APP_VERSION='ver.2026.10.01a';
 const SEEN_KEY='orgdesign_seen_version';
 /* 新しいものを上に。[版, 日付, [変更点...]] */
 const CHANGELOG=[
+  ['ver.2026.10.01a','2026/10/01',[
+    '「異動予定」画面の各社員に【承認】ボタンを追加しました。管理者・マネージャー権限で操作できます。',
+    '承認したとき、異動日が今日以前ならその場で組織図に反映します（未配置の社員も対象部署へ移動します）。',
+    '異動日が未来の場合は「承認済み（異動日に反映）」として保持し、異動日になると自動で組織図に反映します。',
+    '承認した時点で「異動履歴」と「異動CARE」に自動で記録します。異動履歴には「承認」「反映」の区分を表示します。',
+    '日付の判定を日本時間に修正しました（朝9時前に前日扱いになる・CAREの期日が1日ずれる不具合）。'
+  ]],
   ['ver.2026.09.30a','2026/09/30',[
     '社員カードをドロップしたときの確認画面を分かりやすく変更。【今すぐ組織図に反映】を主ボタンにし、【異動予定に登録（組織図はまだ動かない）】と並べて、それぞれ何が起きるかを画面に明記しました。',
     '閲覧のみの権限でカードを動かそうとしたとき、これまで何も起きず理由が分かりませんでした。「閲覧のみの権限のため、配置を変更できません」と表示するようにしました。',
@@ -325,12 +337,13 @@ const V={scn:'official',tab:'chart',zoom:1,q:'',sel:null,aiText:''};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=p=>(p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const today=()=>new Date().toISOString().slice(0,10);
-const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+const today=()=>ymd(new Date());
+const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return ymd(x)};
 const fmtMD=d=>d?`${+d.slice(5,7)}/${+d.slice(8,10)}`:'';
-const nextMonth1=()=>{const x=new Date();x.setMonth(x.getMonth()+1,1);return x.toISOString().slice(0,10)};
+const nextMonth1=()=>{const x=new Date();x.setMonth(x.getMonth()+1,1);return ymd(x)};
 const canEdit=()=>['admin','manager'].includes(me.role);
-const canApprove=()=>me.role==='admin';
+const canApprove=()=>['admin','manager'].includes(me.role);
 const seeSecret=()=>me.role==='admin';
 
 /* ========== サンプル ========== */
@@ -439,7 +452,7 @@ function card(p){
     <div class="cn">${esc(p.name)}</div>
     <div class="cm">${esc(p.title)}${p.isHead?' ｜ <span class="head">部門長</span>':''}${p.roleName?' ｜ '+esc(p.roleName):''}</div>
     <div class="cs"><i class="dot s-${STATUS_KEY[p.status]||'on'}"></i>${esc(p.status)}${(p.tags||[]).map(t=>`<span class="tag">★ ${esc(t)}</span>`).join('')}</div>
-    ${pend?`<div class="pb">→ ${esc(deptName(pend.to))}へ ${fmtMD(pend.date)} 異動予定</div>`:''}</div>`;
+    ${pend?`<div class="pb">→ ${esc(deptName(pend.to))}へ ${fmtMD(pend.date)} ${pend.status==='approved'?'異動（承認済）':'異動予定（未承認）'}</div>`:''}</div>`;
 }
 function deptNode(d){
   const o=org();const mem=o.people.filter(p=>p.deptId===d.id).sort(sortPeople);const kids=children(d.id);
@@ -462,26 +475,34 @@ function renderPane(){
   else if(V.tab==='diag')pane.innerHTML=diagView();
 }
 function pendingView(){
+  const t=today();
   const rows=D.pending.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(x=>{const p=D.official.people.find(y=>y.id===x.personId);
+    const ok=x.status==='approved';
+    const st=ok?`<span class="pst ok">承認済み</span><div class="note">${esc(x.date)} に自動反映<br>${esc(x.approvedBy||'')}</div>`
+               :`<span class="pst wait">承認待ち</span>${x.date<=t?'<div class="note">承認すると即時反映</div>':'<div class="note">承認後、異動日に反映</div>'}`;
+    const btn=ok?(canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:'')
+      :(canApprove()?`<button class="btn sm pri" data-act="approve" data-id="${x.id}">承認</button>`:`<button class="btn sm" disabled title="承認には管理者・マネージャー権限が必要です">承認</button>`)+(canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:'');
     return `<tr><td>${esc(x.date)}</td><td><b>${esc(p?.name||'（削除済み）')}</b></td><td>${esc(deptName(x.from,D.official))}<span class="arrow">→</span><b>${esc(deptName(x.to,D.official))}</b></td>
-    <td>${esc(x.reason||'')}</td><td class="note">${esc(x.by||'')}</td>
-    <td class="row">${canApprove()?`<button class="btn sm pri" data-act="approve" data-id="${x.id}">承認して反映</button>`:''}${canEdit()?`<button class="btn sm" data-act="cancelPend" data-id="${x.id}">取消</button>`:''}</td></tr>`}).join('');
-  return `<div class="sheet"><h2>異動予定（下書き）</h2><p class="lead">正式組織でカードを動かすと、ここに下書きとして入ります。承認すると組織図に反映され、異動履歴と異動CAREが自動で作られます。</p>
-    ${rows?`${canApprove()&&D.pending.length>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="approveAll">すべて承認して反映</button></div>`:''}
-    <table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>起票</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-    :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグすると下書きが作れます。</div>`}</div>`;
+    <td>${esc(x.reason||'')}</td><td class="note">${esc(x.by||'')}</td><td>${st}</td>
+    <td class="row">${btn}</td></tr>`}).join('');
+  const waiting=D.pending.filter(x=>x.status!=='approved').length;
+  return `<div class="sheet"><h2>異動予定</h2><p class="lead">正式組織でカードを動かして「異動予定に登録」すると、ここに承認待ちとして入ります。【承認】を押すと、異動日が今日以前ならその場で組織図に反映し、未来日なら異動日に自動で反映します。承認した時点で異動履歴と異動CAREに記録されます。</p>
+    ${rows?`${canApprove()&&waiting>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="approveAll">承認待ち ${waiting}件をすべて承認</button></div>`:''}
+    ${canApprove()?'':`<div class="note" style="margin-bottom:10px">承認は管理者・マネージャー権限で行えます。</div>`}
+    <div style="overflow-x:auto"><table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>起票</th><th>状態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグし「異動予定に登録」を選ぶと作れます。</div>`}</div>`;
 }
 function historyView(){
-  const rows=D.history.slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b></td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
+  const rows=D.history.slice().sort((a,b)=>(b.date+b.at).localeCompare(a.date+a.at)).map(h=>`<tr><td>${esc(h.date)}</td><td>${h.kind?`<span class="pst ${h.kind==='承認'?'ok':'done'}">${esc(h.kind)}</span>`:''}</td><td><b>${esc(h.name)}</b></td><td>${esc(h.from)}<span class="arrow">→</span><b>${esc(h.to)}</b></td><td>${esc(h.reason||'')}</td><td class="note">${esc(h.by||'')}<br>${esc((h.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');
   return `<div class="sheet"><h2>異動履歴</h2><p class="lead">正式組織に反映された異動を自動で記録しています。誰が・いつ・どこからどこへ動いたかの監査ログです。</p>
-    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="histCsv">CSVで書き出す</button></div><table><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table>`
+    ${rows?`<div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="histCsv">CSVで書き出す</button></div><table><thead><tr><th>異動日</th><th>区分</th><th>氏名</th><th>異動内容</th><th>理由・メモ</th><th>記録者</th></tr></thead><tbody>${rows}</tbody></table>`
     :`<div class="nodata">まだ異動の記録はありません。</div>`}</div>`;
 }
 function careView(){
   const t=today();
   const list=D.care.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>{
     const done=c.items.filter(i=>i.done).length,pct=Math.round(done/c.items.length*100);
-    return `<div class="care"><h4>${esc(c.name)}</h4><div class="sub">${esc(c.from)} → ${esc(c.to)}　異動日 ${esc(c.date)}</div>
+    return `<div class="care"><h4>${esc(c.name)}</h4><div class="sub">${esc(c.from)} → ${esc(c.to)}　異動日 ${esc(c.date)}${c.date>t?' <b>（反映前）</b>':''}</div>
       <div class="row" style="justify-content:space-between;font-size:12px"><span>進捗</span><b>${pct}%</b></div><div class="bar"><i style="width:${pct}%"></i></div>
       ${c.items.map((i,k)=>{const late=!i.done&&i.due<t;return `<label class="${i.done?'done':''} ${late?'late':''}"><input type="checkbox" data-care="${c.id}" data-k="${k}" ${i.done?'checked':''} ${canEdit()?'':'disabled'}><span>${esc(i.label)}</span><small>${late?'期限超過 ':''}${fmtMD(i.due)}</small></label>`}).join('')}</div>`}).join('');
   return `<div class="sheet"><h2>異動CARE</h2><p class="lead">異動を反映すると、異動前から90日後までのフォロー項目が自動で作られます。配置して終わりにせず、定着まで追いかけます。</p>
@@ -555,7 +576,7 @@ function renderDrawer(){
   const pend=pendingOf(p.id);
   dr.innerHTML=`<header><b style="flex:1;font-size:17px">${esc(p.name)}</b><button class="btn sm" data-act="closeDrawer">閉じる</button></header>
   <div class="body">
-    ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>異動予定タブで承認すると反映されます</span></div>`:''}
+    ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>${pend.status==='approved'?'承認済み。異動日に自動で反映されます':'異動予定タブで【承認】すると反映されます'}</span></div>`:''}
     <h5>基本情報</h5>
     <div class="fg">
       <label>氏名</label><input data-f="name" value="${esc(p.name)}" ${ro}>
@@ -618,29 +639,55 @@ async function requestMove(pid,to){
   const body=`<div class="movebox"><b>${esc(p.name)}</b>さんを<br>${esc(deptName(from))} → <b>${esc(deptName(to))}</b> へ${off?'異動しますか？':'移動しますか？'}</div>
     ${off?`<label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>理由・メモ（任意）<input name="reason" placeholder="例：東京支社立上げのため"></label>`:''}
     ${p.isHead?`<div class="note">部門長のため、異動後は部門長の設定が外れます。</div>`:''}
-    ${off?`<div class="note">【今すぐ組織図に反映】カードがその場で移動し、異動履歴と異動CAREに記録されます。<br>【異動予定に登録】組織図は変わりません。異動予定タブに下書きとして残り、あとで承認すると反映されます。</div>`:''}`;
+    ${off?`<div class="note">【承認して反映】異動日が今日以前ならカードがその場で移動、未来日なら異動日に自動で反映されます。異動履歴と異動CAREに記録されます。<br>【異動予定に登録】組織図は変わりません。異動予定タブに承認待ちとして残り、あとで【承認】できます。</div>`:''}`;
   const acts=off?[{label:'やめる',key:null},
                   {label:'異動予定に登録（組織図はまだ動かない）',key:'draft',kind:canApprove()?null:'pri'},
-                  ...(canApprove()?[{label:'今すぐ組織図に反映',key:'now',kind:'pri'}]:[])]
+                  ...(canApprove()?[{label:'承認して反映',key:'now',kind:'pri'}]:[])]
                :[{label:'やめる',key:null},{label:'移動する',key:'move',kind:'pri'}];
   const r=await modal({title:off?'異動の確認':'シナリオ内で移動',body,actions:acts});
   if(!r.key)return;
   if(r.key==='move'){p.deptId=to;p.isHead=false}
   else if(r.key==='draft'){
     D.pending=D.pending.filter(x=>x.personId!==pid);
-    D.pending.push({id:uid('m'),personId:pid,from,to,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString()});
+    D.pending.push({id:uid('m'),personId:pid,from,to,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString(),status:'draft'});
     toast('異動予定（下書き）に追加しました');
-  }else if(r.key==='now'){applyMove(pid,to,r.form.date||today(),r.form.reason);toast('組織図に反映しました')}
+  }else if(r.key==='now'){
+    const x={id:uid('m'),personId:pid,from,to,date:r.form.date||today(),reason:r.form.reason||'',by:me.name||me.email,at:new Date().toISOString(),status:'draft'};
+    D.pending=D.pending.filter(y=>y.personId!==pid);D.pending.push(x);
+    toast(approvePending(x)==='now'?'承認して組織図に反映しました':`承認しました。${fmtMD(x.date)}に組織図へ反映します`)}
   dirty();render();
 }
-function applyMove(pid,to,date,reason,o=D.official){
+function applyMove(pid,to,date,reason,o=D.official,opt={}){
   const p=o.people.find(x=>x.id===pid);if(!p)return;
   const from=p.deptId;const fromN=deptName(from,o),toN=deptName(to,o);
-  p.deptId=to;p.isHead=false;
+  p.deptId=to||null;p.isHead=false;
   D.pending=D.pending.filter(x=>x.personId!==pid);
-  D.history.push({id:uid('h'),personId:pid,name:p.name,from:fromN,to:toN,date,reason:reason||'',by:me.name||me.email,at:new Date().toISOString()});
-  if(p.status!=='採用予定')D.care.push({id:uid('c'),personId:pid,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))});
+  D.history.push({id:uid('h'),personId:pid,name:p.name,from:fromN,to:toN,date,reason:reason||'',kind:opt.kind||'反映',by:opt.by||me.name||me.email,at:new Date().toISOString()});
+  if(!opt.noCare&&p.status!=='採用予定')D.care.push({id:uid('c'),personId:pid,name:p.name,from:fromN,to:toN,date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(date,off),done:false}))});
 }
+/* 承認：異動日が今日以前→即時反映／未来日→承認済みとして保持し、異動日に自動反映。履歴・CAREは承認時点で記録 */
+function approvePending(x){
+  if(!x||x.status==='approved')return null;
+  const p=D.official.people.find(y=>y.id===x.personId);
+  if(!p){D.pending=D.pending.filter(y=>y.id!==x.id);return null}
+  const by=me.name||me.email;
+  if(x.date<=today()){applyMove(x.personId,x.to,x.date,x.reason,D.official,{kind:'承認・反映',by});return 'now'}
+  const fromN=deptName(p.deptId,D.official),toN=deptName(x.to,D.official);
+  x.status='approved';x.approvedBy=by;x.approvedAt=new Date().toISOString();x.from=p.deptId||null;
+  D.history.push({id:uid('h'),personId:p.id,name:p.name,from:fromN,to:toN,date:x.date,reason:x.reason||'',kind:'承認',by,at:x.approvedAt});
+  if(p.status!=='採用予定'){D.care=D.care.filter(c=>!(c.pendingId===x.id));
+    D.care.push({id:uid('c'),pendingId:x.id,personId:p.id,name:p.name,from:fromN,to:toN,date:x.date,items:CARE_TPL.map(([label,off])=>({label,due:addDays(x.date,off),done:false}))})}
+  return 'later';
+}
+/* 異動日を迎えた承認済みの異動を組織図へ反映（CAREは承認時に作成済みのため重複させない） */
+function applyDueMoves(){
+  const t=today();const due=D.pending.filter(x=>x.status==='approved'&&x.date<=t);
+  due.forEach(x=>{const p=D.official.people.find(y=>y.id===x.personId);
+    if(!p){D.pending=D.pending.filter(y=>y.id!==x.id);return}
+    applyMove(x.personId,x.to,x.date,x.reason,D.official,{kind:'反映',by:'自動反映（承認：'+(x.approvedBy||'')+'）',noCare:true})});
+  return due.length;
+}
+function runDue(){if(!D)return;const n=applyDueMoves();if(n){if(canEdit())dirty();render();toast(`異動日を迎えた${n}件を組織図に反映しました`)}}
 
 /* ========== ドラッグ＆ドロップ（マウス／タッチ長押し） ========== */
 let drag=null;
@@ -843,10 +890,22 @@ document.addEventListener('click',async e=>{
     case 'closeDrawer':closeDrawer();break;
     case 'delPerson':{const p=person(V.sel);const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
       if(r.key){const o=org();o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
-    case 'approve':{const x=D.pending.find(y=>y.id===id);if(x){applyMove(x.personId,x.to,x.date,x.reason);dirty();render();toast('承認して反映しました')}break}
-    case 'approveAll':D.pending.slice().forEach(x=>applyMove(x.personId,x.to,x.date,x.reason));dirty();render();toast('すべて反映しました');break;
-    case 'cancelPend':D.pending=D.pending.filter(y=>y.id!==id);dirty();render();break;
-    case 'histCsv':{const lines=[['異動日','氏名','異動元','異動先','理由','記録者','記録日時'],...D.history.map(h=>[h.date,h.name,h.from,h.to,h.reason,h.by,h.at])];
+    case 'approve':{if(!canApprove())break;const x=D.pending.find(y=>y.id===id);if(!x)break;
+      const p=D.official.people.find(y=>y.id===x.personId);const fut=x.date>today();
+      const r=await modal({title:'異動を承認',body:`<div class="movebox"><b>${esc(p?.name||'')}</b>さんを<br>${esc(deptName(p?.deptId,D.official))} → <b>${esc(deptName(x.to,D.official))}</b><br>異動日 ${esc(x.date)}</div>
+        <div class="note">${fut?'異動日が未来のため、承認済みとして保持し、異動日に自動で組織図へ反映します。':'異動日が今日以前のため、承認するとすぐに組織図へ反映します。'}<br>異動履歴と異動CAREに記録されます。</div>`,
+        actions:[{label:'やめる',key:null},{label:fut?'承認する（異動日に反映）':'承認して反映',key:'ok',kind:'pri'}]});
+      if(!r.key)break;const res=approvePending(x);dirty();render();
+      toast(res==='now'?'承認して組織図に反映しました':`承認しました。${fmtMD(x.date)}に組織図へ反映します`);break}
+    case 'approveAll':{if(!canApprove())break;let now=0,later=0;D.pending.filter(x=>x.status!=='approved').forEach(x=>{const r=approvePending(x);if(r==='now')now++;else if(r==='later')later++});
+      dirty();render();toast(`承認しました（即時反映 ${now}件／異動日に反映 ${later}件）`);break}
+    case 'cancelPend':{const x=D.pending.find(y=>y.id===id);if(!x)break;
+      if(x.status==='approved'){const r=await modal({title:'承認済みの異動を取消',body:'<div>承認済みの異動予定を取り消します。作成済みの異動CAREも削除し、異動履歴に「取消」を記録します。</div>',actions:[{label:'やめる',key:null},{label:'取り消す',key:'ok',kind:'del'}]});
+        if(!r.key)break;const p=D.official.people.find(y=>y.id===x.personId);
+        D.care=D.care.filter(c=>c.pendingId!==x.id);
+        D.history.push({id:uid('h'),personId:x.personId,name:p?.name||'',from:deptName(p?.deptId,D.official),to:deptName(x.to,D.official),date:x.date,reason:x.reason||'',kind:'取消',by:me.name||me.email,at:new Date().toISOString()})}
+      D.pending=D.pending.filter(y=>y.id!==id);dirty();render();break}
+    case 'histCsv':{const lines=[['異動日','区分','氏名','異動元','異動先','理由','記録者','記録日時'],...D.history.map(h=>[h.date,h.kind||'反映',h.name,h.from,h.to,h.reason,h.by,h.at])];
       download(`異動履歴_${today()}.csv`,'\ufeff'+lines.map(l=>l.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');break}
     case 'aiRun':runAI();break;
     case 'scnEdit':scnForm(org());break;
@@ -905,7 +964,12 @@ async function boot(){
     D=D||sample();mode='preview';setSave(e.message==='preview'?'プレビュー表示（保存されません）':'データを読み込めませんでした：'+e.message,e.message!=='preview');
   }
   ['scenarios','pending','history','care'].forEach(k=>D[k]=D[k]||[]);
+  D.pending.forEach(x=>{if(!x.status)x.status='draft'});
+  const nDue=applyDueMoves();if(nDue&&canEdit())dirty();
   render();
+  if(nDue)setTimeout(()=>toast(`異動日を迎えた${nDue}件を組織図に反映しました`),600);
+  setInterval(runDue,10*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)runDue()});
   setTimeout(()=>showWhatsNew(true),350);
 }
 boot();
