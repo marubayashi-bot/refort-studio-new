@@ -1147,6 +1147,17 @@ function probOf(l){
 }
 const isRec=l=> l.status==='入金済';                       /* 売上計上済とみなす */
 const isWon=l=> ['入金済','契約'].includes(l.status);      /* 受注済 */
+/* ステータスが指定の値に変わった最後の日（活動ログから） */
+function stChangedDay(l,sts){ let d='';
+  (l.logs||[]).forEach(g=>{ const t=String(g&&g.t||''), m=t.match(/ステータスを「(.+?)」に変更/);
+    if(m && sts.includes(m[1]) && g.d && String(g.d)>d) d=String(g.d).slice(0,10); });
+  return d; }
+/* 受注日：受注（契約／入金済）に変わった日 → 契約予定日 → 入金予定日 → 計上予定日 */
+const wonDay=l=> stChangedDay(l,['契約','入金済']) || l.cday || l.payday || l.revday || '';
+/* 失注日：失注に変わった日 → 最終更新日 */
+const lostDay=l=> stChangedDay(l,['失注']) || l.updated || '';
+const inQ4=d=> !!d && d>=Q4_START && d<=Q4_END;
+const md=d=> d? d.slice(5).replace('-','/') : '';
 /* 4Q対象プール：計上予定日がQ4内、または日付未設定の刈り取り商談 */
 function q4Pool(){
   return leads.filter(l=>{
@@ -1913,23 +1924,38 @@ function renderAi(){
       <div class="lb" style="margin-top:3px">${!hasGoal? '目標が未設定です' : gap>0? 'パイプラインで'+(pipe>=gap? '充足':'不足 '+fmtOku(gap-pipe)) : ''}</div></div></div>`;
 
   /* フェーズ別ボード */
-  $('aiBoard').innerHTML=PH_IDS.map(id=>{
-    const items=live.filter(l=>phOf(l)===id).sort((a,b)=>mqOf(b)-mqOf(a));
-    const c=PH8_COLOR[id];
+  /* PH08受注・失注は今期4Q（9/1〜11/30）に決まった分だけを表示 */
+  const cols=PH_IDS.map(id=>{
+    let items=live.filter(l=>phOf(l)===id), hidden=0;
+    if(id==='PH08'){ const all=items; items=all.filter(l=>inQ4(wonDay(l))); hidden=all.length-items.length; }
+    return {id, n:phDef(id).n, c:PH8_COLOR[id], items, hidden};
+  });
+  const lostAll=base.filter(l=>l.status==='失注'), lostQ=lostAll.filter(l=>inQ4(lostDay(l)));
+  cols.push({id:'LOST', n:'失注', c:'#c94a4a', items:lostQ, hidden:lostAll.length-lostQ.length});
+  $('aiBoard').innerHTML=cols.map(col=>{
+    const {id,c,items,hidden}=col;
+    const won=id==='PH08', lost=id==='LOST';
+    items.sort((a,b)=> won? (wonDay(b)||'').localeCompare(wonDay(a)||'')||mqOf(b)-mqOf(a)
+                     : lost? (lostDay(b)||'').localeCompare(lostDay(a)||'')
+                     : mqOf(b)-mqOf(a));
     const show=items.slice(0,5);
     return `<div class="aicol">
-      <h4 style="background:${c}1c;color:${c}">${id}　${esc(phDef(id).n)}<span>${items.length}件　${sum(items).toLocaleString()}万円</span></h4>
+      <h4 style="background:${c}1c;color:${c}">${lost? '失注' : id+'　'+esc(col.n)}${won||lost? '<small style="font-weight:800;font-size:10px;opacity:.8">（4Q）</small>':''}<span>${items.length}件　${sum(items).toLocaleString()}万円</span></h4>
       <div class="cards">
         ${show.map(l=>{
-          const d=dayDiff(l.updated,today());
-          const ov= l.due && l.due<today();
+          let right;
+          if(won){ const w=wonDay(l); right=`<span style="color:var(--green);font-weight:800">受注 ${md(w)}</span>`; }
+          else if(lost){ right=`<span>失注 ${md(lostDay(l))}</span>`; }
+          else { const d=dayDiff(l.updated,today()), ov= l.due && l.due<today();
+            right=`<span class="${ov?'ov':''}">${ov? '❗期限超過' : (d!=null? '経過 '+d+'日':'')}</span>`; }
           return `<div class="aicard" data-id="${l.id}">
             <b>${esc(l.name)}</b>
-            <div class="r"><span>粗利 ${mqOf(l).toLocaleString()}万円</span>
-              <span class="${ov?'ov':''}">${ov? '❗期限超過' : (d!=null? '経過 '+d+'日':'')}</span></div>
+            <div class="r"><span>粗利 ${mqOf(l).toLocaleString()}万円</span>${right}</div>
+            ${lost&&l.lost? `<div style="font-size:10.5px;color:var(--tx2);margin-top:3px;line-height:1.4">理由：${esc(l.lost)}</div>`:''}
           </div>`; }).join('')
         || '<div style="font-size:11px;color:var(--tx2);padding:4px 2px">なし</div>'}
         ${items.length>show.length? `<div style="font-size:11px;color:var(--tx2);padding:2px">ほか ${items.length-show.length}件</div>`:''}
+        ${hidden? `<div style="font-size:10.5px;color:var(--tx2);padding:2px">前期以前の${lost?'失注':'受注'} ${hidden}件は非表示</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -2020,13 +2046,15 @@ function renderPhase(){
   const cols=list.map(x=>x.code).concat(['']);
   $('phkb').innerHTML=cols.map((code,ci)=>{
     const x=list[ci];
-    const items= code? f.filter(l=>keyOf(l)===code) : base.filter(l=> !phLive(l) || !keyOf(l));
+    let items= code? f.filter(l=>keyOf(l)===code) : base.filter(l=> !phLive(l) || !keyOf(l)), hid=0;
+    /* 受注（最終フェーズ PH08）は今期4Qに受注した分だけ */
+    if(code && x.cph===8 && ci===list.length-1){ const all=items; items=all.filter(l=>inQ4(wonDay(l))); hid=all.length-items.length; }
     const c= code? colOf(x) : '#9a8f6b';
     const mq=items.reduce((s,l)=>s+mqOf(l),0);
     const title= code? (model==='pc'? phLabel(code) : x.code+' '+x.n+(x.code!=='PH0'+x.cph? '（PH0'+x.cph+'）':'')) : '未設定・保留・失注';
     return `<div class="kcol" data-ph="${code}">
       <h3><span style="color:${c}">■</span>${esc(title)}<em>${items.length}</em></h3>
-      <div style="font-size:11px;color:var(--tx2);padding:0 6px 6px;font-weight:700">MQ ${mq.toLocaleString()}万円</div>
+      <div style="font-size:11px;color:var(--tx2);padding:0 6px 6px;font-weight:700">MQ ${mq.toLocaleString()}万円${hid? `<br><span style="font-weight:600">今期4Qの受注のみ（前期以前 ${hid}件は非表示）</span>`:''}</div>
       ${items.map(l=>`<div class="kcard" draggable="true" data-id="${l.id}" style="border-left-color:${c}">
         <div class="n">${esc(l.name)}</div>
         ${(()=>{ if(model!=='pc') return ''; const b=bphOf(l);return b&&b.code!==phOf(l)? `<div style="font-size:11px;font-weight:700;color:${c};margin:1px 0 3px">${esc(b.code+' '+b.n)}</div>`:'';})()}
@@ -3120,7 +3148,8 @@ async function renderCwPanel(loadMembers){
   P.innerHTML=`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <b style="font-size:14px">💬 Chatworkタスク連携</b>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="cwOn"${c.on?' checked':''}> タスクを担当者本人のChatworkタスクに自動登録する</label>
-      <label style="font-size:12px;color:var(--tx2)">グループのルームID <input id="cwRoom" value="${esc(c.room)}" style="width:120px"></label>
+      <label style="font-size:12px;color:var(--tx2)">送り先グループのルームID <input id="cwRoom" value="${esc(c.room)}" style="width:120px" placeholder="営業部グループ"></label>
+      <span style="font-size:11.5px;color:var(--tx2)">営業部グループを開いたときのURL末尾「#!rid○○○」の数字です</span>
       <button class="btn gray" id="cwReload" style="font-size:12px">メンバーを読み込み直す</button>
     </div>
     <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">登録・完了は、商談ボードと査定スタジオのどちらで操作しても連動します。Chatworkで完了にしたタスクも、5分以内にアプリ側が完了になります。</div>
@@ -3138,8 +3167,19 @@ async function renderCwPanel(loadMembers){
       if(v==='-') map[k]=[]; else if(v) map[k]=[v]; });
     /* 画面に出ていない担当者の設定は残す */
     const old=(settings.cw&&settings.cw.map)||{}; Object.keys(old).forEach(k=>{ if(!owners.includes(k)) map[k]=old[k]; });
+    const oldRoom=String(CW_CONF().room);
     settings.cw={ on:$('cwOn').checked, room:String($('cwRoom').value||'441792999').replace(/\D/g,''), map };
-    await saveSettings(); $('cwMsg').textContent='保存しました（全員に共有されます）'; renderCwPanel(false);
+    const roomChanged= oldRoom!==settings.cw.room;
+    if(roomChanged){ CW_MEMBERS=null;
+      /* 送り先グループが変わったら、担当者の対応づけは新しいグループのメンバーで取り直す */
+      settings.cw.map={}; }
+    await saveSettings(); $('cwMsg').textContent='保存しました（全員に共有されます）';
+    const moving= roomChanged&&settings.cw.on? TASKS.filter(t=>cwIsOpen(t)&&t.cw&&String(t.cw.room)===oldRoom) : [];
+    if(moving.length && confirm('送り先グループを変更しました。\n前のグループに登録済みの未完了タスク '+moving.length+'件を、新しいグループへ付け替えますか？\n（前のグループ側は完了にして、新しいグループに作り直します）')){
+      let ok=0; for(const t of moving){ $('cwMsg').textContent='付け替え中… '+(ok+1)+'/'+moving.length;
+        await cwReplace(t); if(t.cw&&String(t.cw.room)===settings.cw.room) ok++; }
+      $('cwMsg').textContent='付け替え '+ok+'/'+moving.length+'件 完了'; renderTask(); }
+    renderCwPanel(false);
   };
   $('cwSend').onclick=async()=>{
     if(!confirm(unsent.length+'件のタスクを、担当者のChatworkタスクとして登録します。よろしいですか？')) return;
@@ -3502,6 +3542,12 @@ $('aReload').onclick=()=> loadAssets(true);
 /* ===== 活用マニュアル（アプリ本体に同梱：更新すればマニュアルも同時に更新される） ===== */
 const APP_VERSION = '2026.09.19f';
 const CHANGELOG = [
+  ['2026.10.01', [
+    '<b>PH08 受注は「今期4Q（9/1〜11/30）に受注した商談」だけを表示するようにしました。</b>受注日は、ステータスが契約／入金済に変わった日（無ければ契約予定日→入金予定日→計上予定日）で判定します。前期以前の分は件数だけ「非表示」と出ます',
+    'AIタブのフェーズ別ボードの右端に<b>「失注」列</b>を追加しました（今期4Qに失注した分、失注理由つき）',
+    '受注カードは「期限超過」ではなく受注日を表示します',
+    'Chatworkタスクの送り先グループを変更したとき、前のグループの未完了タスクを新しいグループへ付け替えられるようにしました',
+  ]],
   ['2026.09.19f', [
     '<b>「🔗 HubSpot照合」タブを追加しました。</b>ボードの商談（入力シート）と、HubSpotの取引を並べて「一致／金額ずれ／HubSpotにない」を一覧にします。HubSpotに一本化する前の確認用です',
     'ボードは「お客様ごと」、HubSpotは「物件・区画ごと」なので、同じお客様のHubSpot取引を合計して比べます。組み合わせが違うときは「✎ 紐づけ」で直せます（全員に共有）',
