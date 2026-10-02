@@ -773,7 +773,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.1.1',
+  APP_VERSION  : '2.1.2',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -788,7 +788,15 @@ const CFG = {
   },
   // 編集権限（社長・総務のみ）
   EDITORS      : ['marubayashi@earthcom-eco.jp'],
-  EDITOR_ROLES : ['admin']
+  EDITOR_ROLES : ['admin'],
+  // 方針アセスメントを閲覧・入力できる幹部（社長は EDITORS で常に可）。
+  // 画面の「幹部メンバーと設定」で追加した人もあわせて表示される。
+  ASSESS_MEMBERS: [
+    { email:'a-marubayashi@earthcom-eco.jp', name:'丸林綾子' },
+    { email:'ishino@earthcom-eco.jp',        name:'石野由香' },
+    { email:'osawa@earthcom-eco.jp',         name:'大澤輝行' },
+    { email:'kitsunezuka@earthcom-eco.jp',   name:'狐塚智也' }
+  ]
 };
 
 /* ============================================================
@@ -2523,8 +2531,12 @@ async function asInit() {
   const email = (S.me?.email || '').toLowerCase();
   AS.owner = AS_OWNERS().includes(email);
   AS.half = asHalfNow();
-  try { AS.members = await sbGet('kk_assess_members', 'select=*&order=added_at'); AS.memRemote = true; }
-  catch { AS.members = lsGet(AS_MKEY, []); AS.memRemote = false; }
+  let dbm = [];
+  try { dbm = await sbGet('kk_assess_members', 'select=*&order=added_at'); AS.memRemote = true; }
+  catch { dbm = lsGet(AS_MKEY, []); AS.memRemote = false; }
+  // アプリに書き込んだ幹部（固定）＋画面で追加した幹部
+  const fixed = (CFG.ASSESS_MEMBERS || []).map(m => ({ ...m, email:m.email.toLowerCase(), fixed:true }));
+  AS.members = [...fixed, ...dbm.filter(m => !fixed.some(f => f.email === (m.email || '').toLowerCase()))];
   AS.ok = AS.owner || AS.members.some(m => (m.email || '').toLowerCase() === email);
   ['as-sep', 'as-head', 'nav-assess'].forEach(id => { const el = $('#' + id); if (el) el.style.display = AS.ok ? '' : 'none'; });
   if (AS.ok) await asLoadRows();
@@ -2707,7 +2719,7 @@ function asOwnerPanel(excluded) {
         <div class="eyebrow">閲覧・入力できる幹部（${AS.members.length}名）</div>
         <p class="muted" style="margin:0 0 8px">ここに登録した人だけに「方針アセスメント」が表示されます。${AS.memRemote === false ? '<br>※サーバーのテーブルが未作成のため、この端末にのみ保存されます。' : ''}</p>
         ${AS.members.map(m => `<div class="as-mem"><b>${esc(m.name || '')}</b><span class="e">${esc(m.email)}</span>
-          <button class="btn ghost" style="padding:3px 10px;font-size:12px" data-delmem="${esc(m.email)}">外す</button></div>`).join('')}
+          ${m.fixed ? '<span class="muted">アプリに登録済み</span>' : `<button class="btn ghost" style="padding:3px 10px;font-size:12px" data-delmem="${esc(m.email)}">外す</button>`}</div>`).join('')}
         <div class="as-mem" style="gap:6px;flex-wrap:wrap">
           <input id="am-name" class="ws-in" style="flex:1 1 110px;padding:5px 9px;font-size:13px" placeholder="氏名">
           <input id="am-mail" class="ws-in" style="flex:2 1 180px;padding:5px 9px;font-size:13px" placeholder="メール（@earthcom-eco.jp）">
@@ -2724,9 +2736,7 @@ function asOwnerPanel(excluded) {
     </div>`;
 }
 function asBindOwner(v) {
-  const saveMem = async () => {
-    lsSet(AS_MKEY, AS.members);
-  };
+  const saveMem = async () => { lsSet(AS_MKEY, AS.members.filter(m => !m.fixed)); };
   const add = $('#am-add');
   if (add) add.onclick = async () => {
     const email = $('#am-mail').value.trim().toLowerCase(), name = $('#am-name').value.trim();
@@ -2740,7 +2750,7 @@ function asBindOwner(v) {
   v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = async () => {
     const email = b.dataset.delmem;
     if (!confirm(`${email} を外しますか？`)) return;
-    AS.members = AS.members.filter(m => m.email !== email); await saveMem();
+    AS.members = AS.members.filter(m => m.email !== email); lsSet(AS_MKEY, AS.members.filter(m => !m.fixed));
     if (AS.memRemote !== false) { try { await sb('kk_assess_members?email=eq.' + encodeURIComponent(email), { method:'DELETE' }); } catch {} }
     viewAssess(v);
   });
