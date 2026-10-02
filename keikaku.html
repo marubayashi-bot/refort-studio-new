@@ -491,6 +491,147 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+
+/* ============================================================
+   方針アセスメント（PDCA振り返り）— 幹部のみ
+   ============================================================ */
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:#fff;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:7px 14px;font-size:13px;line-height:1.4}
+.seg button + button{border-left:1px solid var(--rule-2)}
+.seg button.on{background:var(--navy);color:#fff}
+.as-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 4px}
+.as-bar select{border:1px solid var(--rule);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;background:#fff}
+.as-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.as-kpi{background:#fff;border:1px solid var(--rule-2);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.as-kpi .l{font-size:11.5px;color:var(--ink-3);font-weight:700;letter-spacing:.08em}
+.as-kpi .v{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--navy);line-height:1.35}
+.as-kpi .v small{font-size:13px;color:var(--ink-3);margin-left:3px;font-weight:500}
+.as-kpi .h{font-size:11.5px;color:var(--ink-3)}
+.as-dist{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--rule-2);margin-top:8px}
+.as-dist i{display:block;height:100%}
+.as-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.as-pol{text-align:left;background:#fff;border:1px solid var(--rule-2);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.as-pol:hover{border-color:#AFC4DB;background:#FCFDFE}
+.as-pol .t{font-weight:700;font-size:14.5px;line-height:1.55;color:var(--navy)}
+.as-pol .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-3)}
+.as-scores{display:flex;gap:16px;align-items:flex-end}
+.as-scores .k{font-size:10.5px;color:var(--ink-3);display:block;line-height:1.3;margin-bottom:3px}
+.sc{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;font-family:var(--mono);font-weight:700;font-size:15px;color:#fff;background:#C4CDD9}
+.sc.s1{background:#C0392B}.sc.s2{background:#D9822B}.sc.s3{background:#B8962F}.sc.s4{background:#2E9F88}.sc.s5{background:#2479BE}
+.sc.sm{width:24px;height:24px;font-size:12.5px;border-radius:6px}
+.st{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#EEF2F7;color:var(--ink-2);white-space:nowrap}
+.st.doing{background:#FFF4DE;color:#8A6416}.st.done{background:var(--midori-bg);color:#1F7564}
+.as-up{font-family:var(--mono);font-size:12px;font-weight:700}
+.as-up.p{color:var(--midori)}.as-up.m{color:var(--shu)}
+
+/* ワークシート */
+.ws-crumb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.ws-crumb .sp{flex:1}
+.ws-save{font-size:12px;color:var(--ink-3)}
+.ws-steps{position:sticky;top:var(--hd);z-index:5;background:var(--bg);padding:8px 0;margin-bottom:10px;display:flex;gap:6px;overflow-x:auto}
+.ws-steps button{flex-shrink:0;border:1px solid var(--rule);background:#fff;border-radius:16px;padding:4px 12px;font-size:12px;color:var(--ink-2)}
+.ws-steps button b{font-family:var(--mono);color:var(--navy);margin-right:4px}
+.ws-sheet{background:#fff;border:1px solid #B9C4D2;border-radius:6px;box-shadow:var(--shadow)}
+.ws-top{display:grid;grid-template-columns:1fr 330px;gap:18px;padding:18px 20px 14px}
+.ws-top .ttl{font-size:13px;color:var(--ink-3)}
+.ws-top .pn{font-size:21px;font-weight:700;line-height:1.5;margin:4px 0 8px}
+.ws-top .pn span{color:var(--ink-3);font-weight:500}
+.ws-crit{background:#E8ECF1;border:1.5px solid #4F5F78;padding:8px 12px;font-size:11.5px;line-height:1.65}
+.ws-crit b{text-decoration:underline;display:block;margin-bottom:2px}
+.ws-row{border-top:1.5px solid #3A4A66;padding:12px 20px}
+.ws-row > label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+.ws-row textarea,.ws-row input[type=text],.ws-in{width:100%;border:1px solid var(--rule);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:14px;line-height:1.7;background:#fff;resize:vertical}
+.ws-ideal{font-size:17px!important;font-weight:700}
+.ws-eval{display:grid;grid-template-columns:1fr 1fr;border-top:1.5px solid #3A4A66}
+.ws-eval > div{padding:12px 20px}
+.ws-eval > div + div{border-left:1.5px solid #3A4A66}
+.ws-eval .lb{font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.pick{display:flex;gap:6px}
+.pick button{width:40px;height:40px;border-radius:8px;border:1px solid var(--rule);background:#fff;font-family:var(--mono);font-weight:700;font-size:17px;color:var(--ink-2)}
+.pick button.on{color:#fff;border-color:transparent}
+.pick button.on.s1{background:#C0392B}.pick button.on.s2{background:#D9822B}.pick button.on.s3{background:#B8962F}.pick button.on.s4{background:#2E9F88}.pick button.on.s5{background:#2479BE}
+.pick-cap{font-size:12px;color:var(--ink-2);margin-top:6px;min-height:20px}
+.ws-rule{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:#FFF9EC;border:1px solid #EFE2BE;border-radius:10px;padding:10px 14px;margin:14px 0;font-size:12.5px;color:#5E4D22}
+.ws-rule .ord{font-family:var(--mono);font-weight:700;color:var(--shu);font-size:14px;letter-spacing:.06em}
+.lane{display:grid;grid-template-columns:170px 1fr;border-top:1.5px solid #3A4A66}
+.lane .lh{padding:14px 12px 14px 16px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--rule-2)}
+.lane .lh .row{display:flex;align-items:center;gap:8px}
+.pdc{width:42px;height:42px;border-radius:50%;border:2.5px solid #1B2336;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex-shrink:0;font-family:var(--body)}
+.lane.P .pdc{background:#F5E127}.lane.D .pdc{background:#6FA24F}.lane.C .pdc{background:#E58AB8}.lane.A .pdc{background:#2F6DB8;color:#fff}
+.lane .ordn{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.lane .q{font-size:11.5px;color:var(--ink-2);line-height:1.65}
+.notes{padding:16px 14px;display:flex;flex-wrap:wrap;gap:12px;align-content:flex-start;min-height:130px}
+.note{width:152px;min-height:124px;padding:12px 11px 30px;font-size:12.5px;line-height:1.6;position:relative;border:1px solid rgba(0,0,0,.45);box-shadow:1px 2px 3px rgba(0,0,0,.1)}
+.lane.P .note{background:#F8E636}.lane.D .note{background:#86B266}.lane.C .note{background:#E592BC}.lane.A .note{background:#A9C6E8}
+.note.issue{background:#fff!important;border:2px dashed #B0477A;box-shadow:none}
+.note .tag{position:absolute;top:-11px;left:8px;background:#B0477A;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:3px;letter-spacing:.06em}
+.note .tx{outline:none;white-space:pre-wrap;word-break:break-word;min-height:60px}
+.note .tx:focus{background:rgba(255,255,255,.35)}
+.note .ops{position:absolute;left:5px;right:5px;bottom:4px;display:flex;justify-content:space-between;gap:4px;opacity:0;transition:opacity .15s}
+.note:hover .ops,.note:focus-within .ops{opacity:1}
+@media (hover:none){.note .ops{opacity:1}}
+.note .ops button{border:0;background:rgba(255,255,255,.8);border-radius:4px;font-size:10.5px;padding:1px 6px;color:var(--ink)}
+.addnote{width:152px;min-height:124px;border:1.5px dashed #AEBACB;border-radius:2px;display:flex;flex-direction:column;background:rgba(255,255,255,.6)}
+.addnote textarea{flex:1;border:0;resize:none;padding:10px;font-family:inherit;font-size:12.5px;line-height:1.6;background:transparent;outline:none}
+.addnote button{border:0;border-top:1px dashed #AEBACB;background:none;font-size:12px;padding:5px;color:var(--blue);font-weight:700}
+.ws-card{background:#fff;border:1px solid var(--rule-2);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);margin-top:16px}
+.ws-card h3{font-size:16px;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.ws-card h3 .n{font-family:var(--mono);font-size:12px;background:var(--navy);color:#fff;border-radius:4px;padding:1px 7px}
+.ws-card .lead{font-size:12.5px;color:var(--ink-3);margin:0 0 12px}
+.ai-out{background:#FFFBF0;border:1px solid #EBD9A8;border-radius:10px;padding:12px 14px;margin-top:12px;font-size:13px;line-height:1.85}
+.ai-out ul{margin:4px 0 8px;padding-left:1.2em}
+.ai-out .sg{display:flex;gap:8px;align-items:flex-start;margin:4px 0}
+.ai-out .sg .pdc{width:24px;height:24px;font-size:12px;border-width:1.5px}
+.ideal-chips{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.ideal-chips button{text-align:left;background:#fff;border:1px solid #CFE0EE;border-radius:8px;padding:7px 11px;font-size:13px}
+.ideal-chips button:hover{background:#F0F6FB}
+/* 優先順位マトリクス */
+.mx{display:grid;grid-template-columns:26px 1fr 1fr;grid-template-rows:auto auto 26px;gap:8px}
+.mx .ax{font-size:11px;color:var(--ink-3);font-weight:700;display:flex;align-items:center;justify-content:center}
+.mx .ay{writing-mode:vertical-rl;letter-spacing:.2em}
+.mxq{min-height:170px;border-radius:10px;padding:10px 12px;border:1.5px solid var(--rule);background:#fff;transition:background .12s}
+.mxq.q1{background:#EAF2FC;border-color:#2479BE}
+.mxq.q2{background:#FFF9DC;border-color:#D9BC3A}
+.mxq.q3{background:#F1F2F4;border-color:#55606F}
+.mxq.q4{background:#fff;border-style:dashed;border-color:#9AA6B8}
+.mxq.hov,.mxq.target{box-shadow:0 0 0 3px rgba(197,163,90,.55)}
+.mxq .qh{font-weight:700;font-size:14px;color:var(--navy)}
+.mxq .qs{font-size:11px;color:var(--ink-3);line-height:1.5;margin-bottom:4px}
+.ichip{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--rule);border-left:5px solid #9AA6B8;border-radius:6px;padding:6px 9px;font-size:12.5px;line-height:1.55;margin-top:7px;cursor:grab}
+.ichip.P{border-left-color:#E3CC12}.ichip.D{border-left-color:#5E9440}.ichip.C{border-left-color:#D46FA3}.ichip.A{border-left-color:#2F6DB8}
+.ichip.sel{outline:2.5px solid var(--gold);outline-offset:1px}
+.ichip .ex{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.ichip .ex input{border:1px solid var(--rule);border-radius:6px;padding:3px 7px;font-family:inherit;font-size:12px;min-width:0;flex:1 1 110px}
+.ichip .ex label{font-size:10.5px;color:var(--ink-3);display:flex;flex-direction:column;flex:1 1 110px}
+.mx-tray{border:1.5px dashed var(--rule);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#FAFBFC}
+.mx-tray .qh{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.mx-add{display:flex;gap:6px;margin-top:8px}
+.mx-add input{flex:1;border:1px solid var(--rule);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px}
+/* 方針修正案 */
+.imp{display:grid;grid-template-columns:108px 1fr 1fr auto;gap:8px;align-items:start;padding:10px 0;border-top:1px solid var(--rule-2)}
+.imp select{border:1px solid var(--rule);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;background:#fff}
+.imp textarea{width:100%;border:1px solid var(--rule);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13.5px;line-height:1.6;resize:vertical;min-height:40px}
+.imp.add textarea.c{color:#1E5FB0;border-left:4px solid #2479BE}
+.imp.del textarea.c{color:#C0392B;border-left:4px solid #C0392B;text-decoration:line-through;text-decoration-thickness:1px}
+.imp .acts{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.imp .acts button{font-size:11.5px;padding:4px 9px}
+.as-hist{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.as-hist div{border:1px solid var(--rule-2);border-radius:8px;padding:6px 10px;font-size:12px;display:flex;gap:8px;align-items:center;background:#fff}
+.grid2 > .card + .card{margin-top:0}
+.as-mem{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--rule-2);font-size:13px}
+.as-mem .e{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--ink-3);font-family:var(--mono);font-size:12px}
+@media (max-width:860px){
+  .as-kpis{grid-template-columns:repeat(2,1fr)}
+  .ws-top{grid-template-columns:1fr}
+  .ws-eval{grid-template-columns:1fr}
+  .ws-eval > div + div{border-left:0;border-top:1px solid var(--rule)}
+  .lane{grid-template-columns:1fr}
+  .lane .lh{border-right:0;border-bottom:1px solid var(--rule-2)}
+  .note,.addnote{width:calc(50% - 6px)}
+  .imp{grid-template-columns:1fr}
+  .imp .acts{flex-direction:row}
+  .mx{grid-template-columns:20px 1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -568,6 +709,9 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
     <button class="navlink" data-go="notes" id="nav-notes"></button>
     <button class="navlink" data-go="learn" id="nav-learn"></button>
     <button class="navlink" data-go="manual" id="nav-manual"></button>
+    <div class="railsep" id="as-sep" style="display:none"></div>
+    <div class="railhead" id="as-head" style="display:none">幹部</div>
+    <button class="navlink" data-go="assess" id="nav-assess" style="display:none"></button>
     <div class="railsep"></div>
     <div id="syncbox">
       <div class="muted" id="syncinfo">同期状況を確認中…</div>
@@ -623,7 +767,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.0',
+  APP_VERSION  : '2.1',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -760,6 +904,7 @@ async function boot() {
 
   await loadAll();
   await loadLearning();
+  await asInit().catch(e => console.warn('方針アセスメントの初期化に失敗', e));
   bindUI();
   bindChat();
   route();
@@ -858,6 +1003,7 @@ function renderRail() {
   nav('nav-notes', 'memo', '自分のメモ');
   nav('nav-learn', 'bulb', '学習の記録');
   nav('nav-manual','help', '使い方', '<span class="n" id="manualn" style="display:none">新</span>');
+  nav('nav-assess','pdca', '方針アセスメント');
 }
 
 /* ============================================================
@@ -868,7 +1014,7 @@ function go(name, arg) { S.route = { name, arg }; route(); $('#rail').classList.
 function route() {
   const curTab = S.route.name === 'tab' ? S.route.arg : S.route.name === 'sec' ? S.byId[S.route.arg]?.tab_id : null;
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === curTab));
-  $$('#rail .navlink').forEach(b => b.classList.toggle('on', b.dataset.go === S.route.name));
+  $$('#rail .navlink').forEach(b => b.classList.toggle('on', b.dataset.go === S.route.name || (S.route.name === 'assessWs' && b.dataset.go === 'assess')));
   if (S.route.name !== 'home') clearInterval(nobuTimer);
   const v = $('#view');
   ({
@@ -881,6 +1027,8 @@ function route() {
     learn: viewLearn,
     manual: viewManual,
     admin: viewAdmin,
+    assess: viewAssess,
+    assessWs: viewAssessWs,
     search: viewSearch
   }[S.route.name] || viewHome)(v);
 }
@@ -974,6 +1122,8 @@ function viewHome(v) {
           <div class="muted" style="margin-top:2px">アプリに更新があります。使い方をご確認ください。</div></div>
         <button class="btn ghost" data-go="manual">使い方を見る</button>
       </div>` : ''}
+
+    ${asHomeStrip()}
 
     ${S.terms.length ? `
       <div class="strip">
@@ -1825,6 +1975,7 @@ const ICONS = {
   org    : '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
   chev   : '<path d="M9 6l6 6-6 6"/>',
   arrow  : '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  pdca   : '<path d="M20 12a8 8 0 01-13.7 5.6"/><path d="M4 12a8 8 0 0113.7-5.6"/><path d="M18 3v3.6h-3.6M6 21v-3.6h3.6"/>',
   spark  : '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>'
 };
 function chapIcon(title) {
@@ -2316,6 +2467,654 @@ function viewLearn(v) {
       : emptyState(MSG_EMPTY, '方針を開いて、理解度チェックかケーススタディに取り組むと、ここに記録されます。')}
     ${S.learnRemote === false && recs.length ? '<p class="muted" style="margin-top:12px">※記録はこの端末に保存されています。</p>' : ''}`;
   wire(v);
+}
+
+/* ============================================================
+   方針アセスメント（PDCA振り返り）— 幹部のみ
+   武蔵野「経営品質向上ガイドライン」のワークシート①②・評価基準1〜5・
+   優先順位マトリクスをデジタル化。半期ごと（上期12〜5月／下期6〜11月）に全方針を振り返る。
+   保存先：Supabase kk_assess（1方針×1半期＝1行。ワークシート本体は data(JSON)）
+           kk_assess_members（閲覧・入力できる幹部）／kk_assess_policy（担当チーム・対象外）
+   テーブル未作成でもブラウザ内に保存して動く。
+   ============================================================ */
+const AS = {
+  ok:false, owner:false, members:[], memRemote:null, rowsRemote:null,
+  rows:{}, policyMeta:{}, loaded:false,
+  term:CFG.TERM, half:null, filter:'all', sort:'doc',
+  cur:null, saveT:null, sel:null, busy:false, ai:null, ideals:null
+};
+const AS_OWNERS = () => CFG.EDITORS.map(e => e.toLowerCase());   // 社長（総務を足す場合は CFG.EDITORS に追加）
+const AS_CRIT = [
+  '無秩序（個人プレー）になっている。',
+  'プロセスが存在し導入し始めてるが、バラツキがある。（導入状態）',
+  '形になり始めている。（守）',
+  '管理が行き届き改善がされている。（破）',
+  'PDCAが回り、全社最適化になっている。（離）'
+];
+const AS_LANES = [
+  { k:'P', ord:2, q:'実行するための計画や仕組み、またそれらの事を決定する場はどういうものがあるか？' },
+  { k:'D', ord:1, q:'具体的にどういう事に取り組んでいて、何を実行しているのか？' },
+  { k:'C', ord:3, q:'実行している事の活動結果をどのようにチェックしているのか？' },
+  { k:'A', ord:4, q:'活動結果に基づいて、次の行動にどのようにつなげているのか？' }
+];
+const AS_Q = {
+  q1:{ t:'優先順位No.1',     s:'重要度 高 × 難易度 低。重点主義。担当と期限を決めて実行する' },
+  q2:{ t:'プロジェクトを検討', s:'重要度 高 × 難易度 高。人・モノ・金・時間を見て、いつまでに・見切りを決める' },
+  q3:{ t:'止める、捨てる',     s:'重要度 低 × 難易度 低。止める事・捨てる事を明確にする' },
+  q4:{ t:'やらない',          s:'重要度 低 × 難易度 高。検討に値しない' }
+};
+const AS_EXCLUDE = /経営[（(]?基本[)）]?方針|発表にあたって|長期事業構想/;
+const AS_LKEY = 'kk_assess_v1', AS_PKEY = 'kk_assess_policy_v1', AS_MKEY = 'kk_assess_members_v1';
+
+const asKey  = (pid, term, half) => `${pid}__${term}__${half}`;
+const asUid  = () => Math.random().toString(36).slice(2, 10);
+const scCls  = n => n ? `sc s${n}` : 'sc';
+const asHalfNow = () => { const m = new Date().getMonth() + 1; return (m >= 12 || m <= 5) ? '上期' : '下期'; };
+function asPrev(term, half) { return half === '下期' ? [term, '上期'] : [term - 1, '下期']; }
+
+/* ---------- 起動・権限 ---------- */
+async function asInit() {
+  const email = (S.me?.email || '').toLowerCase();
+  AS.owner = AS_OWNERS().includes(email);
+  AS.half = asHalfNow();
+  try { AS.members = await sbGet('kk_assess_members', 'select=*&order=added_at'); AS.memRemote = true; }
+  catch { AS.members = lsGet(AS_MKEY, []); AS.memRemote = false; }
+  AS.ok = AS.owner || AS.members.some(m => (m.email || '').toLowerCase() === email);
+  ['as-sep', 'as-head', 'nav-assess'].forEach(id => { const el = $('#' + id); if (el) el.style.display = AS.ok ? '' : 'none'; });
+  if (AS.ok) await asLoadRows();
+}
+
+async function asLoadRows() {
+  const local = lsGet(AS_LKEY, {});
+  let remote = [];
+  try { remote = await sbGet('kk_assess', 'select=*'); AS.rowsRemote = true; }
+  catch { AS.rowsRemote = false; }
+  const m = { ...local };
+  remote.forEach(r => {
+    const k = asKey(r.policy_id, r.term, r.half);
+    if (!m[k] || String(r.updated_at) >= String(m[k].updated_at)) m[k] = r;
+  });
+  AS.rows = m;
+  try {
+    const pm = await sbGet('kk_assess_policy', 'select=*');
+    AS.policyMeta = Object.fromEntries(pm.map(x => [x.policy_id, x]));
+  } catch { AS.policyMeta = lsGet(AS_PKEY, {}); }
+  AS.loaded = true;
+}
+
+/* 方針一覧：「〜に関する方針」を拾う。社長の領域（経営基本方針・発表にあたって・長期事業構想書）は除外 */
+function asAllPolicies() {
+  let list = S.sections.filter(s => /に関する方針/.test(s.title || ''));
+  if (list.length < 5) list = S.sections.filter(s => s.level <= 2 && /方針/.test(s.title || ''));
+  const seen = new Set();
+  return list.filter(s => !AS_EXCLUDE.test(s.title || ''))
+             .filter(s => { const k = s.title.trim(); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+const asPolicies = () => asAllPolicies().filter(s => !AS.policyMeta[s.id]?.exclude);
+const asRow = (pid, term = AS.term, half = AS.half) => AS.rows[asKey(pid, term, half)] || null;
+
+function asNewRow(pid) {
+  return { id:asKey(pid, AS.term, AS.half), policy_id:pid, term:AS.term, half:AS.half, status:'todo',
+    score1:null, score2:null, updated_at:null, updated_by:'',
+    data:{ ideal:'', reason:'', insight:'', notes:[], mx:{}, imps:[] } };
+}
+
+/* ---------- 保存 ---------- */
+function asSaveMsg(t) { const el = $('#ws-save'); if (el) el.textContent = t; }
+function asTouch() {
+  const r = AS.cur; if (!r) return;
+  r.updated_at = new Date().toISOString();
+  r.updated_by = S.me.full_name || S.me.email;
+  if (r.status === 'todo') r.status = 'doing';
+  AS.rows[r.id] = r;
+  asSaveMsg('保存中…');
+  clearTimeout(AS.saveT);
+  AS.saveT = setTimeout(asSave, 700);
+}
+async function asSave() {
+  const r = AS.cur; if (!r) return;
+  const all = lsGet(AS_LKEY, {}); all[r.id] = r; lsSet(AS_LKEY, all);
+  if (AS.rowsRemote === false) { asSaveMsg('この端末に保存しました'); return; }
+  try {
+    await sbUpsert('kk_assess', [{ id:r.id, policy_id:r.policy_id, term:r.term, half:r.half, status:r.status,
+      score1:r.score1, score2:r.score2, data:r.data, updated_at:r.updated_at, updated_by:r.updated_by }], 'id');
+    asSaveMsg(`保存しました ${fmt(r.updated_at)}`);
+  } catch { asSaveMsg('この端末に保存（サーバー未接続）'); }
+}
+async function asSavePolicy(pid, patch) {
+  const m = { ...(AS.policyMeta[pid] || { policy_id:pid }), ...patch, updated_at:new Date().toISOString() };
+  AS.policyMeta[pid] = m;
+  lsSet(AS_PKEY, AS.policyMeta);
+  try { await sbUpsert('kk_assess_policy', [m], 'policy_id'); } catch {}
+}
+
+/* 語尾チェック：否定形・過去形・未来形は「課題」（ガイドライン P8） */
+function asTense(t) {
+  const s = String(t || '').trim().replace(/[。．.！!？?\s]+$/, '');
+  if (!s) return null;
+  if (/(ていない|ていなかった|できていない|されていない|がない|ない|ません|なかった|できず)$/.test(s)) return '否定形';
+  if (/(方が良い|方がよい|ほうが良い|ほうがよい|べき|したい|させたい|する予定|必要がある|必要|しよう|していく|してほしい)$/.test(s)) return '未来形';
+  if (/(ていた|でいた|だった|かった|した|あった|いた|られた)$/.test(s)) return '過去形';
+  return null;
+}
+
+/* ---------- ホームの案内 ---------- */
+function asHomeStrip() {
+  if (!AS.ok || !AS.loaded) return '';
+  const ps = asPolicies(); const done = ps.filter(p => asRow(p.id)?.status === 'done').length;
+  return `<div class="strip">
+    <span class="ic">${IC(ICONS.pdca, 26)}</span>
+    <div style="flex:1"><b>方針アセスメント　第${AS.term}期 ${AS.half}（幹部）</b>
+      <div class="muted" style="margin-top:2px">${ps.length}方針中 ${done}方針 完了。PDCAが回っているかを振り返りましょう。</div></div>
+    <button class="btn ghost" data-go="assess">${IC(ICONS.pdca, 16)} 開く</button></div>`;
+}
+
+/* ============================================================
+   一覧
+   ============================================================ */
+async function viewAssess(v) {
+  if (!AS.ok) { v.innerHTML = emptyState('この画面は幹部のみが利用できます', '利用が必要な場合は社長に依頼してください。'); return; }
+  if (!AS.loaded) { v.innerHTML = '<p class="muted">読み込み中…</p>'; await asLoadRows(); }
+  log('assess_list');
+  const all = asPolicies();
+  const rowsOf = all.map(p => ({ p, r:asRow(p.id), prev:asRow(p.id, ...asPrev(AS.term, AS.half)), meta:AS.policyMeta[p.id] || {} }));
+  const done = rowsOf.filter(x => x.r?.status === 'done').length;
+  const s2 = rowsOf.map(x => x.r?.score2).filter(Boolean);
+  const avg = s2.length ? (s2.reduce((a, b) => a + b, 0) / s2.length).toFixed(1) : '—';
+  let issues = 0, unplaced = 0, no1 = 0;
+  rowsOf.forEach(x => { const d = x.r?.data; if (!d) return;
+    d.notes.filter(n => n.issue).forEach(n => { issues++; const q = d.mx[n.id]?.q; if (!q) unplaced++; if (q === 'q1') no1++; }); });
+  const dist = [1,2,3,4,5].map(n => s2.filter(x => x === n).length);
+  const colors = ['#C0392B','#D9822B','#B8962F','#2E9F88','#2479BE'];
+
+  let list = rowsOf.filter(x => {
+    const st = x.r?.status || 'todo';
+    return AS.filter === 'all' || AS.filter === st || (AS.filter === 'low' && x.r?.score2 && x.r.score2 <= 2);
+  });
+  if (AS.sort === 'low') list = [...list].sort((a, b) => (a.r?.score2 || 9) - (b.r?.score2 || 9));
+  const excluded = asAllPolicies().filter(s => AS.policyMeta[s.id]?.exclude);
+  const terms = [AS.term, CFG.TERM, CFG.TERM - 1, CFG.TERM - 2].filter((t, i, a) => a.indexOf(t) === i).sort((a, b) => b - a);
+
+  v.innerHTML = `
+    <div class="eyebrow">幹部専用</div>
+    <div class="sectitle"><h2>方針アセスメント（PDCA振り返り）</h2>
+      <span class="muted">${AS.rowsRemote === false ? 'この端末に保存中' : '幹部のみ閲覧'}</span></div>
+    <div class="as-bar">
+      <select id="as-term">${terms.map(t => `<option value="${t}" ${t === AS.term ? 'selected' : ''}>第${t}期</option>`).join('')}</select>
+      <div class="seg" id="as-half">${['上期','下期'].map(h => `<button data-h="${h}" class="${h === AS.half ? 'on' : ''}">${h}</button>`).join('')}</div>
+      <span class="muted">上期 12〜5月／下期 6〜11月</span>
+    </div>
+    ${nobuSay('今やっていること（D）から書き出し、その計画（P）を逆算しましょう。点数は「理想の状態」に対して付けます。1方針70〜90分が目安、和談を心掛けてください。')}
+    <div class="as-kpis">
+      <div class="as-kpi"><div class="l">完了</div><div class="v">${done}<small>/ ${all.length}方針</small></div>
+        <div class="bar" style="margin-top:8px"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></div>
+      <div class="as-kpi"><div class="l">PDCA視点の評価（平均）</div><div class="v">${avg}<small>/ 5</small></div>
+        <div class="as-dist">${dist.map((n, i) => n ? `<i style="flex:${n};background:${colors[i]}" title="${i + 1}点：${n}方針"></i>` : '').join('')}</div></div>
+      <div class="as-kpi"><div class="l">課題（気づき）</div><div class="v">${issues}<small>件</small></div>
+        <div class="h">${unplaced ? `優先順位 未配置 ${unplaced}件` : '全件配置済み'}</div></div>
+      <div class="as-kpi"><div class="l">優先順位No.1の施策</div><div class="v">${no1}<small>件</small></div>
+        <div class="h">担当と期限を決めて実行</div></div>
+    </div>
+    <div class="as-bar" style="margin-bottom:12px">
+      <div class="seg" id="as-filter">${[['all','すべて'],['todo','未着手'],['doing','実施中'],['done','完了'],['low','評価2以下']]
+        .map(([k, l]) => `<button data-f="${k}" class="${AS.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <select id="as-sort"><option value="doc" ${AS.sort === 'doc' ? 'selected' : ''}>経営計画書の順</option>
+        <option value="low" ${AS.sort === 'low' ? 'selected' : ''}>評価の低い順</option></select>
+    </div>
+    ${all.length ? (list.length ? `<div class="as-list">${list.map(asCard).join('')}</div>`
+        : emptyState('該当する方針はありません', '絞り込みを変えてください。'))
+      : emptyState(MSG_EMPTY, '「〜に関する方針」の見出しが見つかりません。同期を確認してください。')}
+    ${AS.owner ? asOwnerPanel(excluded) : ''}`;
+
+  $('#as-term').onchange = e => { AS.term = +e.target.value; viewAssess(v); };
+  $$('#as-half button').forEach(b => b.onclick = () => { AS.half = b.dataset.h; viewAssess(v); });
+  $$('#as-filter button').forEach(b => b.onclick = () => { AS.filter = b.dataset.f; viewAssess(v); });
+  $('#as-sort').onchange = e => { AS.sort = e.target.value; viewAssess(v); };
+  v.querySelectorAll('[data-asp]').forEach(b => b.onclick = () => go('assessWs', b.dataset.asp));
+  if (AS.owner) asBindOwner(v);
+  wire(v);
+}
+
+function asCard({ p, r, prev, meta }) {
+  const st = r?.status || 'todo';
+  const stl = { todo:'未着手', doing:'実施中', done:'完了' }[st];
+  const iss = r ? r.data.notes.filter(n => n.issue).length : 0;
+  const diff = r?.score2 && prev?.score2 ? r.score2 - prev.score2 : null;
+  return `<button class="as-pol" data-asp="${esc(p.id)}">
+    <div style="display:flex;gap:8px;align-items:flex-start"><div class="t" style="flex:1">${esc(p.title.trim())}</div><span class="st ${st}">${stl}</span></div>
+    <div class="as-scores">
+      <div><span class="k">最初の評価</span><span class="${scCls(r?.score1)}">${r?.score1 || '—'}</span></div>
+      <div><span class="k">PDCA視点</span><span class="${scCls(r?.score2)}">${r?.score2 || '—'}</span></div>
+      <div><span class="k">前回</span><span class="${scCls(prev?.score2)} sm">${prev?.score2 || '—'}</span></div>
+      ${diff ? `<span class="as-up ${diff > 0 ? 'p' : 'm'}">${diff > 0 ? '▲' : '▼'}${Math.abs(diff)}</span>` : ''}
+    </div>
+    <div class="meta"><span>担当：${esc(meta.team || '未定')}</span><span>課題 ${iss}件</span>
+      ${r?.updated_at ? `<span>更新 ${fmt(r.updated_at)}</span>` : ''}</div>
+  </button>`;
+}
+
+/* 社長：幹部メンバーと対象外の管理 */
+function asOwnerPanel(excluded) {
+  return `<div class="sechead"><h3>幹部メンバーと設定</h3><span class="line"></span><span class="tagline">社長のみ</span></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="eyebrow">閲覧・入力できる幹部（${AS.members.length}名）</div>
+        <p class="muted" style="margin:0 0 8px">ここに登録した人だけに「方針アセスメント」が表示されます。${AS.memRemote === false ? '<br>※サーバーのテーブルが未作成のため、この端末にのみ保存されます。' : ''}</p>
+        ${AS.members.map(m => `<div class="as-mem"><b>${esc(m.name || '')}</b><span class="e">${esc(m.email)}</span>
+          <button class="btn ghost" style="padding:3px 10px;font-size:12px" data-delmem="${esc(m.email)}">外す</button></div>`).join('')}
+        <div class="as-mem" style="gap:6px;flex-wrap:wrap">
+          <input id="am-name" class="ws-in" style="flex:1 1 110px;padding:5px 9px;font-size:13px" placeholder="氏名">
+          <input id="am-mail" class="ws-in" style="flex:2 1 180px;padding:5px 9px;font-size:13px" placeholder="メール（@earthcom-eco.jp）">
+          <button class="btn" style="padding:6px 14px" id="am-add">追加</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">対象外にした方針（${excluded.length}件）</div>
+        <p class="muted" style="margin:0 0 8px">経営（基本）方針・経営計画発表にあたって・長期事業構想書は最初から除外しています。各方針の画面から対象外にできます。</p>
+        ${excluded.length ? excluded.map(s => `<div class="as-mem"><span style="flex:1">${esc(s.title.trim())}</span>
+          <button class="btn ghost" style="padding:3px 10px;font-size:12px" data-incl="${esc(s.id)}">戻す</button></div>`).join('')
+          : '<p class="muted" style="margin:0">ありません</p>'}
+      </div>
+    </div>`;
+}
+function asBindOwner(v) {
+  const saveMem = async () => {
+    lsSet(AS_MKEY, AS.members);
+  };
+  const add = $('#am-add');
+  if (add) add.onclick = async () => {
+    const email = $('#am-mail').value.trim().toLowerCase(), name = $('#am-name').value.trim();
+    if (!/^[^@\s]+@[^@\s]+$/.test(email)) { toast('メールアドレスを入力してください'); return; }
+    if (AS.members.some(m => m.email.toLowerCase() === email)) { toast('登録済みです'); return; }
+    const row = { email, name, added_by:S.me.email, added_at:new Date().toISOString() };
+    AS.members.push(row); await saveMem();
+    if (AS.memRemote !== false) { try { await sbUpsert('kk_assess_members', [row], 'email'); } catch { toast('サーバーに保存できませんでした'); } }
+    toast(`${name || email} を追加しました`); viewAssess(v);
+  };
+  v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = async () => {
+    const email = b.dataset.delmem;
+    if (!confirm(`${email} を外しますか？`)) return;
+    AS.members = AS.members.filter(m => m.email !== email); await saveMem();
+    if (AS.memRemote !== false) { try { await sb('kk_assess_members?email=eq.' + encodeURIComponent(email), { method:'DELETE' }); } catch {} }
+    viewAssess(v);
+  });
+  v.querySelectorAll('[data-incl]').forEach(b => b.onclick = async () => { await asSavePolicy(b.dataset.incl, { exclude:false }); viewAssess(v); });
+}
+
+/* ============================================================
+   ワークシート
+   ============================================================ */
+async function viewAssessWs(v) {
+  if (!AS.ok) { v.innerHTML = emptyState('この画面は幹部のみが利用できます', ''); return; }
+  if (!AS.loaded) await asLoadRows();
+  const pid = S.route.arg;
+  const p = S.byId[pid];
+  if (!p) { go('assess'); return; }
+  const k = asKey(pid, AS.term, AS.half);
+  AS.cur = AS.rows[k] ? JSON.parse(JSON.stringify(AS.rows[k])) : asNewRow(pid);
+  AS.cur.data = { ideal:'', reason:'', insight:'', notes:[], mx:{}, imps:[], ...(AS.cur.data || {}) };
+  AS.sel = null; AS.ai = null; AS.ideals = null;
+  log('assess_open', pid);
+  asRender(v);
+}
+
+function asRender(v = $('#view')) {
+  const y = window.scrollY;
+  const r = AS.cur, d = r.data, p = S.byId[r.policy_id];
+  const meta = AS.policyMeta[r.policy_id] || {};
+  const [pt, ph] = asPrev(r.term, r.half);
+  const prev = asRow(r.policy_id, pt, ph);
+  const hist = Object.values(AS.rows).filter(x => x.policy_id === r.policy_id && x.id !== r.id && (x.score1 || x.score2))
+    .sort((a, b) => (b.term - a.term) || (a.half === '下期' ? -1 : 1));
+  const stl = { todo:'未着手', doing:'実施中', done:'完了' }[r.status];
+  const issues = d.notes.filter(n => n.issue);
+
+  v.innerHTML = `
+    <div class="ws-crumb">
+      <button class="btn ghost" data-go="assess">← 方針一覧</button>
+      <span class="st ${r.status}">${stl}</span>
+      <span class="muted">第${r.term}期 ${r.half}</span>
+      <span class="sp"></span>
+      <span class="ws-save" id="ws-save">${r.updated_at ? `最終更新 ${fmt(r.updated_at)} ${esc(r.updated_by || '')}` : '入力すると自動で保存されます'}</span>
+    </div>
+    <div class="ws-steps">${[['ws-1','1','理想の状態'],['ws-2','2','最初の評価'],['ws-3','3','D→P→C→A'],['ws-4','4','PDCA視点の評価'],
+      ['ws-5','5','課題（気づき）'],['ws-6','6','優先順位'],['ws-7','7','方針の修正案']]
+      .map(([id, n, l]) => `<button data-jump="${id}"><b>${n}</b>${l}</button>`).join('')}</div>
+
+    ${!d.notes.length && !d.ideal && prev ? `<div class="strip gold" style="margin-bottom:14px">
+      <span class="ic">${IC(ICONS.spark, 24)}</span>
+      <div style="flex:1"><b>前回（第${pt}期 ${ph}）のワークシートがあります</b>
+        <div class="muted" style="margin-top:2px">複製して始めると、変わったところだけ直せば済みます。</div></div>
+      <button class="btn gold" id="ws-copy">前回を複製して始める</button></div>` : ''}
+
+    <div class="ws-sheet" id="ws-1">
+      <div class="ws-top">
+        <div>
+          <div class="ttl">ワークシート②　会社名「株式会社アースコム」</div>
+          <div class="pn"><span>方針名【</span>${esc(p.title.trim())}<span>】</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="muted" style="font-weight:700">担当チーム</span>
+            <input class="ws-in" id="ws-team" style="flex:1;min-width:160px;padding:5px 10px;font-size:13px" value="${esc(meta.team || '')}" placeholder="例：営業部門長チーム（後から決めてOK）">
+            <button class="btn ghost" style="padding:5px 12px;font-size:12px" data-sec="${esc(p.id)}">方針本文を開く</button>
+            ${AS.owner ? `<button class="btn ghost" style="padding:5px 12px;font-size:12px" id="ws-excl">対象外にする</button>` : ''}
+          </div>
+        </div>
+        <div class="ws-crit"><b>評価基準</b>${AS_CRIT.map((c, i) => `${i + 1}：${c}`).join('<br>')}</div>
+      </div>
+      <div class="ws-row">
+        <label>〈方針実施の理想の状態〉 和談でまとめる（複数可）</label>
+        <textarea class="ws-ideal" id="ws-ideal" rows="2" placeholder="例：実行確率の高い組織になっている状態">${esc(d.ideal)}</textarea>
+        <div style="margin-top:6px"><button class="btn ghost" style="padding:5px 12px;font-size:12px" id="ws-ai-ideal">${IC(ICONS.chat, 14)} 社長AIに文案を出してもらう</button></div>
+        ${AS.ideals ? `<div class="ideal-chips">${AS.ideals.map((t, i) => `<button data-ideal="${i}">${esc(t)}</button>`).join('')}</div>` : ''}
+      </div>
+      <div class="ws-eval">
+        <div id="ws-2"><div class="lb">最初の評価 <span class="muted">（理想の状態に対して）</span></div>
+          ${asPick('score1', r.score1)}<div class="pick-cap">${r.score1 ? AS_CRIT[r.score1 - 1] : ''}</div></div>
+        <div id="ws-4"><div class="lb">PDCA視点での評価 <span class="muted">（付箋を書き出した後に付け直す）</span>
+          ${r.score1 && r.score2 && r.score1 !== r.score2 ? `<span class="as-up ${r.score2 > r.score1 ? 'p' : 'm'}">${r.score2 > r.score1 ? '▲' : '▼'}${Math.abs(r.score2 - r.score1)}</span>` : ''}</div>
+          ${asPick('score2', r.score2)}<div class="pick-cap">${r.score2 ? AS_CRIT[r.score2 - 1] : ''}</div></div>
+      </div>
+      <div class="ws-row" style="padding-top:8px">
+        <label>評価の理由（最初の評価から変わった理由など）</label>
+        <textarea id="ws-reason" rows="2" placeholder="例：Cの仕組みはあるが、チェック結果を次に生かすAが部署ごとにバラついている">${esc(d.reason)}</textarea>
+      </div>
+      <div style="padding:0 20px"><div class="ws-rule" id="ws-3">
+        <span>※重要</span><span class="ord">D → P → C → A の順で考える</span>
+        <span>付箋は文章で、語尾は「〜がある」「〜している」。否定形・過去形・未来形は自動で<b>課題付箋</b>になります。</span>
+      </div></div>
+      ${AS_LANES.map(l => asLane(l, d)).join('')}
+    </div>
+
+    <div class="ws-card">
+      <h3><span class="n">AI</span>社長AIの点検</h3>
+      <p class="lead">PDCAの抜け、繋がり、評価の妥当性を点検します。提案はチームで確認してから付箋にしてください。</p>
+      <button class="btn gold" id="ws-ai-check" ${AS.busy ? 'disabled' : ''}>${AS.busy ? '点検中…' : '社長AIに点検してもらう'}</button>
+      ${AS.ai ? asAiOut(AS.ai) : ''}
+    </div>
+
+    <div class="ws-card" id="ws-5">
+      <h3><span class="n">5</span>理想の状態に近づくための課題（気づき）</h3>
+      <p class="lead">PDCAに書き込んだ事柄の繋がり・整合性を見て感じたことをまとめます。</p>
+      <textarea class="ws-in" id="ws-insight" rows="3" placeholder="例：経営計画書を作成し発表会も開催しているが、一般社員やパートさんまで浸透するに至っていない。解説する場が非常に少ないことが分かった。">${esc(d.insight)}</textarea>
+    </div>
+
+    <div class="ws-card" id="ws-6">
+      <h3><span class="n">6</span>優先順位マトリクス</h3>
+      <p class="lead">課題付箋（${issues.length}件）を4つに分けます。ドラッグ、またはタップで選んでから枠をタップ。限られた経営資源は優先順位No.1に集中投入します。</p>
+      ${asMatrix(d)}
+    </div>
+
+    <div class="ws-card" id="ws-7">
+      <h3><span class="n">7</span>改善（方針）案と経営計画書の修正案</h3>
+      <p class="lead">理想とする姿に近づくために何に着手するか。方針本文の修正は、追記＝青、削除＝赤で記録し、社長の承認後に総務が原本へ反映します。</p>
+      ${d.imps.map(asImp).join('') || '<p class="muted" style="margin:0 0 8px">まだありません</p>'}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn ghost" data-impadd="add" style="color:#1E5FB0">＋ 追記（青）</button>
+        <button class="btn ghost" data-impadd="del" style="color:#C0392B">＋ 削除（赤）</button>
+        <button class="btn ghost" data-impadd="act">＋ 取り組み（方針文は変えない）</button>
+      </div>
+    </div>
+
+    ${hist.length ? `<div class="ws-card"><h3>この方針の評価の推移</h3>
+      <div class="as-hist">${hist.map(h => `<div>第${h.term}期 ${h.half}<span class="${scCls(h.score1)} sm">${h.score1 || '—'}</span>→<span class="${scCls(h.score2)} sm">${h.score2 || '—'}</span></div>`).join('')}</div></div>` : ''}
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap">
+      ${r.status === 'done'
+        ? `<button class="btn ghost" id="ws-reopen">実施中に戻す</button>`
+        : `<button class="btn gold" id="ws-done">アセスメントを完了にする</button>`}
+    </div>`;
+
+  asBind(v);
+  wire(v);
+  window.scrollTo(0, y);
+}
+
+function asPick(f, val) {
+  return `<div class="pick" data-pick="${f}">${[1,2,3,4,5].map(n =>
+    `<button data-n="${n}" class="${val === n ? 'on s' + n : ''}" title="${esc(AS_CRIT[n - 1])}">${n}</button>`).join('')}</div>`;
+}
+
+function asLane(l, d) {
+  const ns = d.notes.filter(n => n.lane === l.k);
+  return `<div class="lane ${l.k}">
+    <div class="lh"><div class="row"><span class="pdc">${l.k}</span><span class="ordn">考える順 ${'①②③④'[l.ord - 1]}</span></div>
+      <div class="q">${esc(l.q)}</div></div>
+    <div class="notes">
+      ${ns.map(n => `<div class="note ${n.issue ? 'issue' : ''}" data-note="${n.id}">
+        ${n.issue ? '<span class="tag">課題</span>' : ''}
+        <div class="tx" contenteditable="true" data-ntx="${n.id}">${esc(n.text)}</div>
+        <div class="ops"><button data-nissue="${n.id}">${n.issue ? '現状に戻す' : '課題にする'}</button><button data-ndel="${n.id}">削除</button></div>
+      </div>`).join('')}
+      <div class="addnote"><textarea data-addlane="${l.k}" placeholder="${l.k === 'D' ? '例：毎日、環境整備を実施している' : l.k === 'P' ? '例：事業年度計画で実施日が決まっている' : l.k === 'C' ? '例：チェックシートを基に実施をチェックしている' : '例：点検結果を全社へ共有し、次回の点検に繋げている'}"></textarea>
+        <button data-addbtn="${l.k}">＋ 付箋を貼る</button></div>
+    </div>
+  </div>`;
+}
+
+function asMatrix(d) {
+  const issues = d.notes.filter(n => n.issue);
+  const chip = n => {
+    const m = d.mx[n.id] || {};
+    return `<div class="ichip ${n.lane} ${AS.sel === n.id ? 'sel' : ''}" draggable="true" data-ichip="${n.id}">
+      ${esc(n.text)}
+      ${m.q === 'q1' ? `<div class="ex"><label>担当<input data-mxf="owner" data-mxid="${n.id}" value="${esc(m.owner || '')}" placeholder="氏名"></label>
+        <label>期限<input type="date" data-mxf="due" data-mxid="${n.id}" value="${esc(m.due || '')}"></label></div>` : ''}
+      ${m.q === 'q2' ? `<div class="ex"><label>いつまでに<input type="date" data-mxf="due" data-mxid="${n.id}" value="${esc(m.due || '')}"></label>
+        <label>見切り日<input type="date" data-mxf="cutoff" data-mxid="${n.id}" value="${esc(m.cutoff || '')}"></label></div>` : ''}
+    </div>`;
+  };
+  const inQ = q => issues.filter(n => d.mx[n.id]?.q === q).map(chip).join('');
+  const tray = issues.filter(n => !d.mx[n.id]?.q);
+  const quad = q => `<div class="mxq ${q} ${AS.sel ? 'target' : ''}" data-q="${q}"><div class="qh">${AS_Q[q].t}</div><div class="qs">${AS_Q[q].s}</div>${inQ(q)}</div>`;
+  return `
+    <div class="mx-tray" data-q="">
+      <div class="qh">未配置の課題（${tray.length}件）</div>
+      ${tray.map(chip).join('') || '<div class="muted">ありません。各レーンで「課題にする」と、ここに並びます。</div>'}
+      <div class="mx-add"><input id="mx-new" placeholder="付箋以外の課題を追加（例：解説する場が少ない）"><button class="btn ghost" id="mx-addbtn">追加</button></div>
+    </div>
+    <div class="mx">
+      <div class="ax ay" style="grid-row:1">重要度 高</div>${quad('q1')}${quad('q2')}
+      <div class="ax ay" style="grid-row:2">重要度 低</div>${quad('q3')}${quad('q4')}
+      <div></div><div class="ax">難易度 低</div><div class="ax">難易度 高</div>
+    </div>`;
+}
+
+function asImp(m) {
+  const st = { prop:'提案', ok:'承認', done:'原本に反映済み' }[m.state || 'prop'];
+  return `<div class="imp ${m.type}" data-imp="${m.id}">
+    <select data-impf="type"><option value="add" ${m.type === 'add' ? 'selected' : ''}>追記（青）</option>
+      <option value="del" ${m.type === 'del' ? 'selected' : ''}>削除（赤）</option>
+      <option value="act" ${m.type === 'act' ? 'selected' : ''}>取り組み</option></select>
+    <textarea class="c" data-impf="text" placeholder="${m.type === 'act' ? '例：幹部が方針を解説できるように教育していく' : m.type === 'del' ? '削除する文' : '追記する文'}">${esc(m.text || '')}</textarea>
+    <textarea data-impf="target" placeholder="${m.type === 'act' ? '担当・期限など' : '方針本文の該当箇所（例：第3項の2行目）'}">${esc(m.target || '')}</textarea>
+    <div class="acts"><span class="st ${m.state === 'done' ? 'done' : m.state === 'ok' ? 'doing' : ''}">${st}</span>
+      ${AS.owner && m.type !== 'act' ? (m.state === 'ok' ? `<button class="btn ghost" data-impst="done">反映済みにする</button>`
+        : m.state === 'done' ? '' : `<button class="btn" data-impst="ok">承認する</button>`) : ''}
+      <button class="btn ghost" data-impdel="1">削除</button></div>
+  </div>`;
+}
+
+function asAiOut(a) {
+  if (a.error) return `<div class="ai-out">${esc(a.error)}</div>`;
+  return `<div class="ai-out">
+    ${a.score ? `<p style="margin:0 0 6px"><b>PDCA視点の評価の目安：</b><span class="${scCls(a.score)} sm">${a.score}</span>　${esc(a.score_reason || '')}</p>` : ''}
+    ${a.links ? `<p style="margin:0 0 6px"><b>PDCAの繋がり：</b>${esc(a.links)}</p>` : ''}
+    ${a.gaps?.length ? `<b>抜け・弱いところ</b><ul>${a.gaps.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
+    ${a.suggest?.length ? `<b>付箋の候補</b>（実際にやっていることだけを貼ってください）
+      ${a.suggest.map((s, i) => `<div class="sg"><span class="pdc" style="background:${{P:'#F5E127',D:'#6FA24F',C:'#E58AB8',A:'#2F6DB8'}[s.lane] || '#ccc'};${s.lane === 'A' ? 'color:#fff' : ''}">${esc(s.lane)}</span>
+        <span style="flex:1">${esc(s.text)}</span><button class="btn ghost" style="padding:2px 10px;font-size:12px" data-aisg="${i}">貼る</button></div>`).join('')}` : ''}
+  </div>`;
+}
+
+/* ---------- イベント ---------- */
+function asBind(v) {
+  const r = AS.cur, d = r.data;
+  v.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
+    const el = document.getElementById(b.dataset.jump);
+    if (el) window.scrollTo({ top:el.getBoundingClientRect().top + window.scrollY - 130, behavior:'smooth' });
+  });
+  const txt = (id, f) => { const el = $('#' + id); if (el) el.oninput = () => { d[f] = el.value; asTouch(); }; };
+  txt('ws-ideal', 'ideal'); txt('ws-reason', 'reason'); txt('ws-insight', 'insight');
+  const team = $('#ws-team'); if (team) team.onchange = () => asSavePolicy(r.policy_id, { team:team.value.trim() });
+  const excl = $('#ws-excl'); if (excl) excl.onclick = async () => {
+    if (!confirm('この方針をアセスメントの対象外にしますか？（一覧の設定から戻せます）')) return;
+    await asSavePolicy(r.policy_id, { exclude:true }); go('assess');
+  };
+  const copy = $('#ws-copy'); if (copy) copy.onclick = () => {
+    const prev = asRow(r.policy_id, ...asPrev(r.term, r.half));
+    const pd = JSON.parse(JSON.stringify(prev.data));
+    r.data = { ideal:pd.ideal || '', reason:'', insight:'', notes:pd.notes || [], mx:pd.mx || {},
+      imps:(pd.imps || []).filter(m => m.type === 'act' || m.state !== 'done') };
+    asTouch(); asRender(v); toast('前回のワークシートを複製しました');
+  };
+  v.querySelectorAll('[data-pick]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
+    r[g.dataset.pick] = +b.dataset.n; asTouch(); asRender(v);
+  }));
+
+  // 付箋
+  const addNote = (lane, text) => {
+    text = text.trim(); if (!text) return null;
+    const kind = asTense(text);
+    const n = { id:asUid(), lane, text, issue:!!kind };
+    d.notes.push(n); asTouch();
+    if (kind) toast(`「${kind}」の付箋は課題として残しました`);
+    return n;
+  };
+  v.querySelectorAll('[data-addbtn]').forEach(b => b.onclick = () => {
+    const ta = v.querySelector(`[data-addlane="${b.dataset.addbtn}"]`);
+    if (addNote(b.dataset.addbtn, ta.value)) { asRender(v); v.querySelector(`[data-addlane="${b.dataset.addbtn}"]`)?.focus(); }
+  });
+  v.querySelectorAll('[data-addlane]').forEach(ta => ta.onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); v.querySelector(`[data-addbtn="${ta.dataset.addlane}"]`).click(); }
+  });
+  v.querySelectorAll('[data-ntx]').forEach(el => el.onblur = () => {
+    const n = d.notes.find(x => x.id === el.dataset.ntx); if (!n) return;
+    const t = el.innerText.trim();
+    if (!t) { d.notes = d.notes.filter(x => x !== n); delete d.mx[n.id]; asTouch(); asRender(v); return; }
+    if (t === n.text) return;
+    n.text = t;
+    const kind = asTense(t);
+    if (kind && !n.issue) { n.issue = true; toast(`「${kind}」の付箋は課題として残しました`); asTouch(); asRender(v); return; }
+    asTouch();
+  });
+  v.querySelectorAll('[data-nissue]').forEach(b => b.onclick = () => {
+    const n = d.notes.find(x => x.id === b.dataset.nissue); n.issue = !n.issue;
+    if (!n.issue) delete d.mx[n.id];
+    asTouch(); asRender(v);
+  });
+  v.querySelectorAll('[data-ndel]').forEach(b => b.onclick = () => {
+    d.notes = d.notes.filter(x => x.id !== b.dataset.ndel); delete d.mx[b.dataset.ndel]; asTouch(); asRender(v);
+  });
+
+  // マトリクス（ドラッグ／タップ）
+  const place = (id, q) => {
+    if (!q) delete d.mx[id]; else d.mx[id] = { ...(d.mx[id] || {}), q };
+    AS.sel = null; asTouch(); asRender(v);
+  };
+  v.querySelectorAll('[data-ichip]').forEach(c => {
+    c.ondragstart = e => { e.dataTransfer.setData('text/plain', c.dataset.ichip); };
+    c.onclick = e => {
+      if (e.target.closest('input')) return;
+      e.stopPropagation();
+      AS.sel = AS.sel === c.dataset.ichip ? null : c.dataset.ichip; asRender(v);
+    };
+  });
+  v.querySelectorAll('[data-q]').forEach(z => {
+    z.ondragover = e => { e.preventDefault(); z.classList.add('hov'); };
+    z.ondragleave = () => z.classList.remove('hov');
+    z.ondrop = e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) place(id, z.dataset.q); };
+    z.onclick = e => { if (AS.sel && !e.target.closest('input,button')) place(AS.sel, z.dataset.q); };
+  });
+  v.querySelectorAll('[data-mxf]').forEach(inp => inp.onchange = () => {
+    const m = d.mx[inp.dataset.mxid] || (d.mx[inp.dataset.mxid] = {}); m[inp.dataset.mxf] = inp.value; asTouch();
+  });
+  const mxadd = $('#mx-addbtn');
+  if (mxadd) mxadd.onclick = () => { const t = $('#mx-new').value.trim(); if (!t) return;
+    d.notes.push({ id:asUid(), lane:'X', text:t, issue:true }); asTouch(); asRender(v); };
+
+  // 改善案
+  v.querySelectorAll('[data-impadd]').forEach(b => b.onclick = () => {
+    d.imps.push({ id:asUid(), type:b.dataset.impadd, text:'', target:'', state:'prop' }); asTouch(); asRender(v);
+  });
+  v.querySelectorAll('[data-imp]').forEach(row => {
+    const m = d.imps.find(x => x.id === row.dataset.imp);
+    row.querySelectorAll('[data-impf]').forEach(el => {
+      el.oninput = () => { m[el.dataset.impf] = el.value; asTouch(); };
+      if (el.tagName === 'SELECT') el.onchange = () => { m.type = el.value; asTouch(); asRender(v); };
+    });
+    row.querySelectorAll('[data-impst]').forEach(b => b.onclick = () => {
+      m.state = b.dataset.impst; m.by = S.me.full_name || S.me.email; m.at = new Date().toISOString(); asTouch(); asRender(v);
+    });
+    row.querySelector('[data-impdel]').onclick = () => { d.imps = d.imps.filter(x => x !== m); asTouch(); asRender(v); };
+  });
+
+  // 社長AI
+  const ai = $('#ws-ai-check'); if (ai) ai.onclick = () => asAiCheck(v);
+  const aiI = $('#ws-ai-ideal'); if (aiI) aiI.onclick = () => asAiIdeal(v, aiI);
+  v.querySelectorAll('[data-ideal]').forEach(b => b.onclick = () => {
+    d.ideal = (d.ideal ? d.ideal + '\n' : '') + AS.ideals[+b.dataset.ideal]; AS.ideals = null; asTouch(); asRender(v);
+  });
+  v.querySelectorAll('[data-aisg]').forEach(b => b.onclick = () => {
+    const s = AS.ai.suggest[+b.dataset.aisg]; if (addNote(s.lane, s.text)) { AS.ai.suggest.splice(+b.dataset.aisg, 1); asRender(v); }
+  });
+
+  // 完了
+  const done = $('#ws-done'); if (done) done.onclick = () => {
+    const miss = [];
+    if (!d.ideal.trim()) miss.push('理想の状態');
+    if (!r.score1) miss.push('最初の評価');
+    if (!r.score2) miss.push('PDCA視点での評価');
+    AS_LANES.forEach(l => { if (!d.notes.some(n => n.lane === l.k)) miss.push(`${l.k}の付箋`); });
+    const un = d.notes.filter(n => n.issue && !d.mx[n.id]?.q).length;
+    if (un) miss.push(`優先順位が未配置の課題 ${un}件`);
+    if (miss.length && !confirm(`未入力があります：\n・${miss.join('\n・')}\n\nこのまま完了にしますか？`)) return;
+    r.status = 'done'; asTouch(); asSave(); asRender(v); toast('アセスメントを完了にしました'); log('assess_done', r.policy_id);
+  };
+  const re = $('#ws-reopen'); if (re) re.onclick = () => { r.status = 'doing'; asTouch(); asRender(v); };
+}
+
+/* ---------- 社長AI ---------- */
+const AS_AI_SYS = `あなたは株式会社アースコムの社内AI「社長AI」です。武蔵野「経営品質向上ガイドライン」に沿った方針アセスメントを支援します。
+評価基準：1 無秩序（個人プレー）／2 プロセスが存在し導入し始めてるがバラツキがある（導入状態）／3 形になり始めている（守）／4 管理が行き届き改善がされている（破）／5 PDCAが回り全社最適化になっている（離）。
+P＝実行するための計画や仕組み・決定する場、D＝具体的に実行していること、C＝活動結果のチェック方法、A＝結果を次の行動につなげる方法。
+付箋は現在形（〜がある）か現在進行形（〜している）の文章。否定形・過去形・未来形は課題。
+与えられた方針本文と付箋だけを根拠にし、推測で事実を作らない。出力は指定のJSONのみ。前置き・コードブロック禁止。`;
+
+function asSheetText() {
+  const r = AS.cur, d = r.data, p = S.byId[r.policy_id];
+  const lane = k => d.notes.filter(n => n.lane === k).map(n => `- ${n.issue ? '［課題］' : ''}${n.text}`).join('\n') || '（なし）';
+  return `【方針名】${p.title.trim()}
+【方針本文（抜粋）】${(p.body_text || '').replace(/\s+/g, ' ').slice(0, 2500)}
+【理想の状態】${d.ideal || '（未入力）'}
+【最初の評価】${r.score1 || '未'}　【PDCA視点での評価】${r.score2 || '未'}
+【P】\n${lane('P')}\n【D】\n${lane('D')}\n【C】\n${lane('C')}\n【A】\n${lane('A')}
+【気づき】${d.insight || '（未入力）'}`;
+}
+async function asAiCheck(v) {
+  if (AS.busy) return;
+  AS.busy = true; AS.ai = null; asRender(v);
+  try {
+    const out = await aiCall({ system:AS_AI_SYS, max_tokens:1400, prompt:`${asSheetText()}
+
+次のJSONで返してください。
+{"score":1〜5の整数（PDCA視点での評価の目安）,"score_reason":"40字以内","links":"P→D→C→Aの繋がり・整合性について80字以内","gaps":["抜けや弱いところ（3件以内、各40字以内）"],"suggest":[{"lane":"P|D|C|A","text":"方針本文から読み取れる、実施していそうな取り組みの付箋案（現在進行形、30字以内）"}]}
+suggestは方針本文に書かれていることに限り、最大4件。` });
+    AS.ai = parseJSON(out);
+    log('assess_ai', AS.cur.policy_id);
+  } catch (e) { AS.ai = { error:'社長AIに接続できませんでした。時間をおいてお試しください。' }; }
+  AS.busy = false; asRender(v);
+}
+async function asAiIdeal(v, btn) {
+  btn.disabled = true; btn.textContent = '考えています…';
+  try {
+    const p = S.byId[AS.cur.policy_id];
+    const out = await aiCall({ system:AS_AI_SYS, max_tokens:600, prompt:`【方針名】${p.title.trim()}
+【方針本文（抜粋）】${(p.body_text || '').replace(/\s+/g, ' ').slice(0, 2500)}
+この方針を実施していく上での「方針実施の理想の状態」の文案を3つ。各40字以内、「〜になっている状態」「〜がある」で終える。
+{"ideals":["…","…","…"]}` });
+    AS.ideals = (parseJSON(out).ideals || []).slice(0, 3);
+  } catch { toast('社長AIに接続できませんでした'); }
+  asRender(v);
 }
 
 boot();
