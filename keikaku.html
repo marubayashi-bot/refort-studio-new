@@ -805,7 +805,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.3.1',
+  APP_VERSION  : '2.3.2',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -3331,30 +3331,63 @@ function asSheetText() {
 【P】\n${lane('P')}\n【D】\n${lane('D')}\n【C】\n${lane('C')}\n【A】\n${lane('A')}
 【気づき】${d.insight || '（未入力）'}`;
 }
+
+/** 社長AIを呼び、JSONで受け取る。形式が崩れたら直して読み、だめなら1回だけ聞き直す */
+function asParseLoose(t) {
+  let x = String(t || '').replace(/```json|```/g, '').trim();
+  const a = x.indexOf('{'), b = x.lastIndexOf('}');
+  if (a < 0 || b < a) throw new Error('NOJSON');
+  x = x.slice(a, b + 1)
+    .replace(/[“”]/g, '"')
+    .replace(/,\s*([}\]])/g, '$1')          // 末尾のカンマ
+    .replace(/"score"\s*:\s*"?(\d)[^,}]*/, '"score":$1');   // 点数の後ろに文字が付いた場合
+  return JSON.parse(x);
+}
+async function asAiJSON(opts) {
+  let lastErr;
+  for (let i = 0; i < 2; i++) {
+    let out;
+    try {
+      out = await aiCall({ ...opts, prompt:opts.prompt + (i ? '\n\n※前回の回答はJSONとして読めませんでした。説明文を付けず、有効なJSONだけを1つ返してください。' : '') });
+    } catch (e) { const er = new Error('NET'); er.detail = e.message; throw er; }
+    try { return asParseLoose(out); } catch (e) { lastErr = e; lastErr.raw = out; }
+  }
+  const er = new Error('FORMAT'); er.raw = lastErr?.raw; throw er;
+}
+function asAiErrMsg(e) {
+  if (e?.message === 'NET') return `社長AIに接続できませんでした（${e.detail || '通信エラー'}）。通信を確認して、もう一度お試しください。`;
+  return '社長AIの回答をうまく読み取れませんでした。もう一度お試しください。';
+}
 async function asAiCheck(v) {
   if (AS.busy) return;
   AS.busy = true; AS.ai = null; asRender(v);
   try {
-    const out = await aiCall({ system:AS_AI_SYS, max_tokens:1400, prompt:`${asSheetText()}
+    const res = await asAiJSON({ system:AS_AI_SYS, max_tokens:2000, prompt:`${asSheetText()}
 
-次のJSONで返してください。
-{"score":1〜5の整数（PDCA視点での評価の目安）,"score_reason":"40字以内","links":"P→D→C→Aの繋がり・整合性について80字以内","gaps":["抜けや弱いところ（3件以内、各40字以内）"],"suggest":[{"lane":"P|D|C|A","text":"方針本文から読み取れる、実施していそうな取り組みの付箋案（現在進行形、30字以内）"}]}
-suggestは方針本文に書かれていることに限り、最大4件。` });
-    AS.ai = parseJSON(out);
+上のワークシートを点検し、次の形のJSONだけを返してください（値は例です）。
+{"score":3,"score_reason":"Cの仕組みはあるが、結果を次につなぐAが弱い","links":"DとPは繋がっているが、Cで確認した結果をAで次の行動にする場が見えない","gaps":["Cの結果を共有する場がない"],"suggest":[{"lane":"C","text":"月1回の会議で実施状況を確認している"}]}
+項目の決まり：
+・score：PDCA視点での評価の目安。1〜5の整数
+・score_reason：40字以内
+・links：P→D→C→Aの繋がり・整合性。80字以内
+・gaps：抜けや弱いところ。3件以内、各40字以内
+・suggest：方針本文から読み取れる、実施していそうな取り組みの付箋案。lane は P・D・C・A のどれか1文字。text は現在進行形で30字以内。最大4件。本文に無いことは書かない` });
+    AS.ai = res;
     log('assess_ai', AS.cur.policy_id);
-  } catch (e) { AS.ai = { error:'社長AIに接続できませんでした。時間をおいてお試しください。' }; }
+  } catch (e) { console.warn('社長AI点検', e, e.raw); AS.ai = { error:asAiErrMsg(e) }; }
   AS.busy = false; asRender(v);
 }
 async function asAiIdeal(v, btn) {
   btn.disabled = true; btn.textContent = '考えています…';
   try {
     const p = S.byId[AS.cur.policy_id];
-    const out = await aiCall({ system:AS_AI_SYS, max_tokens:600, prompt:`【方針名】${p.title.trim()}
+    const res = await asAiJSON({ system:AS_AI_SYS, max_tokens:1000, prompt:`【方針名】${p.title.trim()}
 【方針本文（抜粋）】${(p.body_text || '').replace(/\s+/g, ' ').slice(0, 2500)}
 この方針を実施していく上での「方針実施の理想の状態」の文案を3つ。各40字以内、「〜になっている状態」「〜がある」で終える。
 {"ideals":["…","…","…"]}` });
-    AS.ideals = (parseJSON(out).ideals || []).slice(0, 3);
-  } catch { toast('社長AIに接続できませんでした'); }
+    AS.ideals = (res.ideals || []).slice(0, 3);
+    if (!AS.ideals.length) toast('文案を作れませんでした。もう一度お試しください');
+  } catch (e) { console.warn('社長AI理想', e, e.raw); toast(asAiErrMsg(e)); }
   asRender(v);
 }
 
@@ -3526,7 +3559,7 @@ async function rvAi(v, items) {
   AS.busy = true; asRender(v);
   const issues = d.notes.filter(n => n.issue).map(n => `- ${n.text}${d.mx[n.id]?.q ? `（${AS_Q[d.mx[n.id].q].t}）` : ''}`).join('\n') || '（なし）';
   try {
-    const out = await aiCall({ system:AS_AI_SYS, max_tokens:1800, prompt:`【方針名】${p.title.trim()}
+    const res0 = await asAiJSON({ system:AS_AI_SYS, max_tokens:3000, prompt:`【方針名】${p.title.trim()}
 【今の方針本文（抜粋）】${(p.body_text || '').replace(/\s+/g, ' ').slice(0, 2500)}
 【理想の状態】${d.ideal || '（未入力）'}
 【アセスメントで出た課題】\n${issues}
@@ -3539,11 +3572,11 @@ ${targets.map(it => `[${it.key}] ${it.g ? it.g + '／' : ''}${it.t}${R.items[it.
 ・誰が・いつ・何を・どの基準でが分かる具体的な文にする（数字は現状に書かれたものだけ使う）
 ・優先順位No.1の課題があれば反映する
 {"items":[{"key":"0-0","policy":"…"}]}` });
-    const res = parseJSON(out).items || [];
+    const res = res0.items || [];
     let n = 0;
     res.forEach(x => { if (R.items[x.key] && x.policy && !(R.items[x.key].draft || '').trim()) { R.items[x.key].draft = String(x.policy).trim(); n++; } });
     asTouch(); toast(`${n}項目の方針文（案）を作りました`); log('assess_ai_review', r.policy_id);
-  } catch { toast('社長AIに接続できませんでした'); }
+  } catch (e) { console.warn('社長AI見直し', e, e.raw); toast(asAiErrMsg(e)); }
   AS.busy = false; asRender(v);
 }
 
