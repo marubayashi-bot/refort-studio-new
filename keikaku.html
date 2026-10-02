@@ -638,6 +638,26 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
   .mx{grid-template-columns:20px 1fr 1fr}
 }
 @media (max-width:600px){ .note,.addnote{width:calc(50% - 6px)} }
+/* 方針見直しワーク */
+.rv-prog{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--ink-3);margin-bottom:6px}
+.rv-g{margin:18px 0 4px;font-weight:700;font-size:14px;color:var(--navy);border-left:4px solid var(--blue);padding-left:10px}
+.rv-item{border-top:1px solid var(--rule-2);padding:14px 0}
+.rv-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rv-h b{background:#D7E8F5;padding:1px 8px;font-size:15px}
+.rv-no{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1.5px solid var(--ink);border-radius:5px;font-size:13px;font-weight:700}
+.rv-kw{display:inline-flex;align-items:center;flex:1;min-width:220px;font-size:15px}
+.rv-kw input{flex:1;border:0;border-bottom:1.5px solid var(--ink-2);padding:3px 6px;font-family:inherit;font-size:14px;background:transparent;outline:none}
+.rv-q{font-size:12.5px;color:var(--ink-2);line-height:1.75;margin:8px 0;background:var(--bg);border-radius:8px;padding:8px 12px}
+textarea.ruled{width:100%;border:1px solid #8C98AA;border-radius:2px;padding:0 10px;font-family:inherit;font-size:14px;line-height:32px;resize:vertical;
+  background:#fff repeating-linear-gradient(#fff 0 31px,#AEB8C6 31px 32px);background-attachment:local;min-height:162px}
+.rv-draft{margin-top:10px;background:#F2F7FD;border:1px solid #CFE0EE;border-radius:10px;padding:10px 12px}
+.rv-draft label{display:block;font-size:11.5px;font-weight:700;color:#1E5FB0;margin-bottom:4px}
+.rv-draft textarea{width:100%;border:1px solid #CFE0EE;border-radius:8px;padding:7px 10px;font-family:inherit;font-size:14px;line-height:1.7;color:#1E5FB0;resize:vertical}
+.rv-add{display:flex;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--rule);padding-top:12px;margin-top:6px}
+.rv-add input{flex:1 1 180px;padding:6px 10px;font-size:13px}
+.rv-final{margin-top:16px;border:2px solid var(--navy);border-radius:10px;padding:14px 16px}
+.linkbtn{background:none;border:0;color:var(--shu);font-size:12px;text-decoration:underline}
+
 </style>
 </head>
 <body>
@@ -773,7 +793,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.1.2',
+  APP_VERSION  : '2.2',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -2768,7 +2788,7 @@ async function viewAssessWs(v) {
   if (!p) { go('assess'); return; }
   const k = asKey(pid, AS.term, AS.half);
   AS.cur = AS.rows[k] ? JSON.parse(JSON.stringify(AS.rows[k])) : asNewRow(pid);
-  AS.cur.data = { ideal:'', reason:'', insight:'', notes:[], mx:{}, imps:[], ...(AS.cur.data || {}) };
+  AS.cur.data = { ideal:'', reason:'', insight:'', notes:[], mx:{}, imps:[], review:{ items:{}, custom:[], final:'' }, ...(AS.cur.data || {}) };
   AS.sel = null; AS.ai = null; AS.ideals = null;
   log('assess_open', pid);
   asRender(v);
@@ -2794,7 +2814,7 @@ function asRender(v = $('#view')) {
       <span class="ws-save" id="ws-save">${r.updated_at ? `最終更新 ${fmt(r.updated_at)} ${esc(r.updated_by || '')}` : '入力すると自動で保存されます'}</span>
     </div>
     <div class="ws-steps">${[['ws-1','1','理想の状態'],['ws-2','2','最初の評価'],['ws-3','3','D→P→C→A'],['ws-4','4','PDCA視点の評価'],
-      ['ws-5','5','課題（気づき）'],['ws-6','6','優先順位'],['ws-7','7','方針の修正案']]
+      ['ws-5','5','課題（気づき）'],['ws-6','6','優先順位'],['ws-7','7','方針の見直し'],['ws-8','8','修正案と承認']]
       .map(([id, n, l]) => `<button data-jump="${id}"><b>${n}</b>${l}</button>`).join('')}</div>
 
     ${!d.notes.length && !d.ideal && prev ? `<div class="strip gold" style="margin-bottom:14px">
@@ -2860,8 +2880,10 @@ function asRender(v = $('#view')) {
       ${asMatrix(d)}
     </div>
 
-    <div class="ws-card" id="ws-7">
-      <h3><span class="n">7</span>改善（方針）案と経営計画書の修正案</h3>
+    ${rvSection(d, p)}
+
+    <div class="ws-card" id="ws-8">
+      <h3><span class="n">8</span>改善（方針）案と経営計画書の修正案</h3>
       <p class="lead">理想とする姿に近づくために何に着手するか。方針本文の修正は、追記＝青、削除＝赤で記録し、社長の承認後に総務が原本へ反映します。</p>
       ${d.imps.map(asImp).join('') || '<p class="muted" style="margin:0 0 8px">まだありません</p>'}
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
@@ -2981,7 +3003,8 @@ function asBind(v) {
     const prev = asRow(r.policy_id, ...asPrev(r.term, r.half));
     const pd = JSON.parse(JSON.stringify(prev.data));
     r.data = { ideal:pd.ideal || '', reason:'', insight:'', notes:pd.notes || [], mx:pd.mx || {},
-      imps:(pd.imps || []).filter(m => m.type === 'act' || m.state !== 'done') };
+      imps:(pd.imps || []).filter(m => m.type === 'act' || m.state !== 'done'),
+      review:pd.review || { items:{}, custom:[], final:'' } };
     asTouch(); asRender(v); toast('前回のワークシートを複製しました');
   };
   v.querySelectorAll('[data-pick]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -3075,6 +3098,8 @@ function asBind(v) {
     const s = AS.ai.suggest[+b.dataset.aisg]; if (addNote(s.lane, s.text)) { AS.ai.suggest.splice(+b.dataset.aisg, 1); asRender(v); }
   });
 
+  rvBind(v);
+
   // 完了
   const done = $('#ws-done'); if (done) done.onclick = () => {
     const miss = [];
@@ -3084,6 +3109,7 @@ function asBind(v) {
     AS_LANES.forEach(l => { if (!d.notes.some(n => n.lane === l.k)) miss.push(`${l.k}の付箋`); });
     const un = d.notes.filter(n => n.issue && !d.mx[n.id]?.q).length;
     if (un) miss.push(`優先順位が未配置の課題 ${un}件`);
+    if (!Object.values(d.review?.items || {}).some(a => (a.text || '').trim())) miss.push('方針の見直しワーク');
     if (miss.length && !confirm(`未入力があります：\n・${miss.join('\n・')}\n\nこのまま完了にしますか？`)) return;
     r.status = 'done'; asTouch(); asSave(); asRender(v); toast('アセスメントを完了にしました'); log('assess_done', r.policy_id);
   };
@@ -3132,6 +3158,195 @@ async function asAiIdeal(v, btn) {
     AS.ideals = (parseJSON(out).ideals || []).slice(0, 3);
   } catch { toast('社長AIに接続できませんでした'); }
   asRender(v);
+}
+
+/* ============================================================
+   方針見直しワーク（アセスメントの最後に方針文そのものを見直す）
+   武蔵野「経営品質向上ガイドライン」の方針別の問い（お客様・販売（営業）既存／新規・ライバル）。
+   それ以外の方針は共通の4つの問いで見直す。
+   ============================================================ */
+const RV_TPL = {
+  customer: [{ g:'お客様に関する方針', items:[
+    { t:'お客様の定義', q:'自社のお客様を定義してください。どの様なお客様を増やしたいですか？今お取り引きのある中では、どの様なお客様を守りたいのですか？そのお客様はどの様な層（年齢、コミュニティー、規模、業界、地域など）なのかをお書きください。' },
+    { t:'関係性の強化', q:'お褒めの言葉やお叱りの言葉、ご要望、お困りになっているなど、お客様の声はいつ、どの様な方法で収集していますか？また、収集した声をどの様なツール・方法で蓄積して、関係者に共有されているのかをお書きください。' },
+    { t:'ロイヤルカスタマー', q:'自社にとって大切で、最重要な、他社に奪われては困るお客様をどの様な方法で分類・区分されていますか？（売上額、粗利益額、件数、年数など）そのロイヤルカスタマーをライバルから守るためにされている活動をお書きください。' },
+    { t:'見直し、改善、開発', q:'関係性の強化の振り返りはいつ、どなたがされているのかをお書きください。お客様の声を活用して、社内の業務プロセスやお客様との関係を強化する企画・立案は、どのメンバーが、どの会議で検討されているのかをお書きください。' }
+  ]}],
+  sales: [
+    { g:'既存のお客様', items:[
+      { t:'離さない', q:'既存のお客様との良好な関係を維持・継続する為に、お客様をどの様な方法で分類・区分をして、接触する頻度に差をつけていますか？（お客様に関する方針と同じ分類・区分方法です）また、どの様な方法でお客様と接触をされていますか？' },
+      { t:'納期と品質管理', q:'お客様から要求された納期や品質を遵守する為に、受注から納品まではどの様な基準、どの様な方法で予実管理をされていますか？また、納期が遅れる際には、納期の何日前までに連絡をするなどは決められていますか？' },
+      { t:'請求と回収', q:'納品した商品やサービスは、請求と回収に対する社内ルールはどの様に定められていますか？未回収はどの様に管理されていますか？請求の締日と請求日、入金日は決められていますか？また、受取手形に関するルールなどをお書きください。' },
+      { t:'お客様紹介', q:'既存のお客様に新しいお客様を紹介していただく仕組み、行事はありますか？ご紹介していただいた場合には、結果の良否に関わらずお礼をする仕組み、また、商品や金銭などのお礼はどの様に定められていますか？' }
+    ]},
+    { g:'新規のお客様', items:[
+      { t:'新規取引', q:'新しいお客様はどの様な方法で自社商品・サービスを認知させていますか？そのお客様はどこへ集客（見込み創り）をして、どの様な方法で販売（受注）に繋げていますか？その活動をお書きください。' },
+      { t:'重点', q:'どの様なお客様に優先的に、頻度を多く接触されますか？対象となる地域や業種・業態、規模、もしくは優先している認知経路などの活動領域は、どこを重点、優先にされていますか？' },
+      { t:'価格', q:'商品やサービスの販売価格や最低料金、出張費、値引き、セット価格など、価格に関する社内ルールはどんなものがありますか？現状ではどの様な時に、どなたに聞いていますか？価格に関して、個人ではしてはいけないことも含めてお書きください。' },
+      { t:'定期取り引き', q:'新しくお取り引きがスタートしたお客様を、繰り返しの定期的なお取り引きをするリピーターにするには、現在はどんな仕組み、取り組みをされていますか？' }
+    ]}
+  ],
+  rival: [{ g:'ライバルに関する方針', items:[
+    { t:'ライバルの定義', q:'自社のライバルを定義してください。ライバルとして認識している企業、団体はどの様な価値を提供していますか？ライバルに対しては日頃からどの様に対応すれば良いのかをお書きください。' },
+    { t:'差別化', q:'ライバルとはどの様な方法で差別化しますか？もしくはどの様な独自能力（自社の強み）をライバルと差別化しますか？差別化はどの様な方法で表現していますか？' },
+    { t:'ライバル情報', q:'ライバル情報はどの様な方法で収集していますか？収集されたライバル情報はどこに蓄積されて、どんな方法で関係者に共有されていますか？' },
+    { t:'見直し、改善、開発', q:'収集したライバル情報をどの様に商品やサービスの改善、開発に活かしていますか？月次・週次の営業会議や商品開発会議など、ライバル情報から見直し、開発をしている商品・サービスを検討・決定しているプロセスや機関をお書きください。' }
+  ]}],
+  generic: [{ g:'', items:[
+    { t:'目的と定義', q:'この方針で何を実現したいのですか？対象となる人・範囲・言葉の定義をお書きください。' },
+    { t:'仕組みと基準', q:'方針を実行するための仕組み、基準、ルールは何が決まっていますか？誰が、いつ、どの様に実行していますか？' },
+    { t:'チェックと共有', q:'実行した結果はどこで、誰が、どの様にチェックしていますか？結果はどこに蓄積され、関係者にどう共有されていますか？' },
+    { t:'見直し、改善', q:'結果をもとに、方針や仕組みをいつ、どの会議で、誰が見直し、改善していますか？' }
+  ]}]
+};
+function rvKind(title) {
+  const t = title || '';
+  if (/お客様/.test(t)) return 'customer';
+  if (/ライバル|競合/.test(t)) return 'rival';
+  if (/販売|営業/.test(t)) return 'sales';
+  return 'generic';
+}
+/** この方針の見直し項目（テンプレート＋自分で足した項目）を {key,no,g,t,q} の配列で返す */
+function rvItems(d, title) {
+  const out = [];
+  RV_TPL[rvKind(title)].forEach((grp, gi) => grp.items.forEach((it, i) =>
+    out.push({ key:`${gi}-${i}`, no:i + 1, g:grp.g, t:it.t, q:it.q })));
+  (d.review?.custom || []).forEach((c, i) => out.push({ key:c.key, no:i + 1, g:'追加した項目', t:c.t, q:c.q || '', custom:true }));
+  return out;
+}
+const rvMark = n => '①②③④⑤⑥⑦⑧⑨⑩'[n - 1] || n;
+
+function rvSection(d, p) {
+  d.review = d.review || { items:{}, custom:[], final:'' };
+  const R = d.review;
+  const items = rvItems(d, p.title);
+  const kind = rvKind(p.title);
+  const filled = items.filter(it => (R.items[it.key]?.text || '').trim()).length;
+  let lastG = null;
+  return `
+    <div class="ws-card" id="ws-7">
+      <h3><span class="n">7</span>方針の見直しワーク</h3>
+      <p class="lead">アセスメントで見えた課題をふまえて、方針そのものを見直します。問いに対して今の自社の現状を書き、（　）にはひと言でまとめた答えを入れます。最後に「見直し後の方針文（案）」を作り、修正案に登録します。
+        ${kind === 'generic' ? '<br>※この方針は共通の4つの問いで見直します。必要な問いは下の「項目を追加」で足してください。' : ''}</p>
+      <div class="rv-prog"><span>記入 ${filled}/${items.length}項目</span><div class="bar" style="flex:1"><i style="width:${items.length ? Math.round(filled / items.length * 100) : 0}%"></i></div></div>
+      ${items.map(it => {
+        const a = R.items[it.key] || {};
+        const head = it.g && it.g !== lastG ? `<div class="rv-g">${esc(it.g)}</div>` : '';
+        lastG = it.g;
+        return `${head}<div class="rv-item" data-rv="${it.key}">
+          <div class="rv-h"><span class="rv-no">${rvMark(it.no)}</span><b>${esc(it.t)}</b>
+            <span class="rv-kw">（<input data-rvf="kw" value="${esc(a.kw || '')}" placeholder="ひと言でまとめると">）</span>
+            ${it.custom ? `<button class="linkbtn" data-rvdel="${it.key}">項目を削除</button>` : ''}</div>
+          ${it.q ? `<div class="rv-q">${esc(it.q)}</div>` : ''}
+          <textarea class="ruled" data-rvf="text" rows="5" placeholder="今の自社の現状を書く（例：お客様をA・B・Cに分け、Aは月1回訪問している）">${esc(a.text || '')}</textarea>
+          <div class="rv-draft">
+            <label>見直し後の方針文（案）</label>
+            <textarea data-rvf="draft" rows="2" placeholder="経営計画書に載せる文（例：お客様をA・B・Cの3ランクに分類し、Aランクは月1回訪問する。）">${esc(a.draft || '')}</textarea>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap">
+              ${d.imps.some(m => m.from === it.key) ? '<span class="st doing">修正案に登録済み</span>' : ''}
+              <button class="btn ghost" style="padding:4px 12px;font-size:12px" data-rvreg="${it.key}">修正案に登録</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="rv-add">
+        <input id="rv-new-t" class="ws-in" placeholder="項目名（例：アフター点検）">
+        <input id="rv-new-q" class="ws-in" placeholder="問い（任意）">
+        <button class="btn ghost" id="rv-addbtn">項目を追加</button>
+      </div>
+      <div class="rv-final">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <b style="flex:1">見直し後の方針（全体）</b>
+          <button class="btn gold" id="rv-ai" ${AS.busy ? 'disabled' : ''}>${AS.busy ? '作成中…' : '社長AIで方針文の案を作る'}</button>
+          <button class="btn ghost" id="rv-build">項目の案をまとめる</button>
+        </div>
+        <p class="muted" style="margin:0 0 8px">社長AIは、記入した現状・課題・今の方針本文から、各項目の方針文（案）が空欄のところだけを作ります。</p>
+        <textarea class="ws-in" id="rv-finaltx" rows="8" placeholder="「項目の案をまとめる」を押すと、①〜の方針文がここに並びます。経営計画書の形に整えてください。">${esc(R.final || '')}</textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn" id="rv-regall">方針全体の修正案として登録</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function rvBind(v) {
+  const r = AS.cur, d = r.data, p = S.byId[r.policy_id];
+  const R = d.review; if (!R) return;
+  const items = rvItems(d, p.title);
+  v.querySelectorAll('[data-rv]').forEach(box => {
+    const k = box.dataset.rv;
+    box.querySelectorAll('[data-rvf]').forEach(el => el.oninput = () => {
+      (R.items[k] = R.items[k] || {})[el.dataset.rvf] = el.value; asTouch();
+    });
+  });
+  v.querySelectorAll('[data-rvreg]').forEach(b => b.onclick = () => {
+    const it = items.find(x => x.key === b.dataset.rvreg); const a = R.items[it.key] || {};
+    const text = (a.draft || '').trim();
+    if (!text) { toast('先に「見直し後の方針文（案）」を書いてください'); return; }
+    const target = `${p.title.trim()} ${it.g && it.g !== p.title.trim() ? it.g + ' ' : ''}${rvMark(it.no)}${it.t}${a.kw ? `（${a.kw}）` : ''}`;
+    const ex = d.imps.find(m => m.from === it.key);
+    if (ex) { ex.text = text; ex.target = target; ex.state = 'prop'; }
+    else d.imps.push({ id:asUid(), type:'add', text, target, state:'prop', from:it.key });
+    asTouch(); asRender(v); toast('修正案に登録しました');
+  });
+  v.querySelectorAll('[data-rvdel]').forEach(b => b.onclick = () => {
+    if (!confirm('この項目を削除しますか？')) return;
+    R.custom = R.custom.filter(c => c.key !== b.dataset.rvdel); delete R.items[b.dataset.rvdel]; asTouch(); asRender(v);
+  });
+  const add = $('#rv-addbtn'); if (add) add.onclick = () => {
+    const t = $('#rv-new-t').value.trim(); if (!t) { toast('項目名を入力してください'); return; }
+    R.custom.push({ key:'c-' + asUid(), t, q:$('#rv-new-q').value.trim() }); asTouch(); asRender(v);
+  };
+  const fin = $('#rv-finaltx'); if (fin) fin.oninput = () => { R.final = fin.value; asTouch(); };
+  const build = $('#rv-build'); if (build) build.onclick = () => {
+    let lastG = null; const lines = [];
+    items.forEach(it => {
+      const a = R.items[it.key] || {}; if (!(a.draft || '').trim()) return;
+      if (it.g && it.g !== lastG && rvKind(p.title) === 'sales') { lines.push(`【${it.g}】`); }
+      lastG = it.g;
+      lines.push(`${rvMark(it.no)}${it.t}${a.kw ? `（${a.kw}）` : ''}\n${a.draft.trim()}`);
+    });
+    if (!lines.length) { toast('方針文（案）が書かれた項目がありません'); return; }
+    if (R.final.trim() && !confirm('今の内容を置き換えますか？')) return;
+    R.final = lines.join('\n\n'); asTouch(); asRender(v);
+  };
+  const regall = $('#rv-regall'); if (regall) regall.onclick = () => {
+    const text = (R.final || '').trim(); if (!text) { toast('見直し後の方針（全体）が空です'); return; }
+    const ex = d.imps.find(m => m.from === 'ALL');
+    const target = `${p.title.trim()}（方針全体の見直し）`;
+    if (ex) { ex.text = text; ex.target = target; ex.state = 'prop'; }
+    else d.imps.push({ id:asUid(), type:'add', text, target, state:'prop', from:'ALL' });
+    asTouch(); asRender(v); toast('方針全体の修正案として登録しました');
+  };
+  const ai = $('#rv-ai'); if (ai) ai.onclick = () => rvAi(v, items);
+}
+
+async function rvAi(v, items) {
+  const r = AS.cur, d = r.data, R = d.review, p = S.byId[r.policy_id];
+  const targets = items.filter(it => (R.items[it.key]?.text || '').trim() && !(R.items[it.key]?.draft || '').trim());
+  if (!targets.length) { toast('現状が書かれていて、方針文（案）が空欄の項目がありません'); return; }
+  AS.busy = true; asRender(v);
+  const issues = d.notes.filter(n => n.issue).map(n => `- ${n.text}${d.mx[n.id]?.q ? `（${AS_Q[d.mx[n.id].q].t}）` : ''}`).join('\n') || '（なし）';
+  try {
+    const out = await aiCall({ system:AS_AI_SYS, max_tokens:1800, prompt:`【方針名】${p.title.trim()}
+【今の方針本文（抜粋）】${(p.body_text || '').replace(/\s+/g, ' ').slice(0, 2500)}
+【理想の状態】${d.ideal || '（未入力）'}
+【アセスメントで出た課題】\n${issues}
+【気づき】${d.insight || '（なし）'}
+【見直し項目と現状】
+${targets.map(it => `[${it.key}] ${it.g ? it.g + '／' : ''}${it.t}${R.items[it.key].kw ? `（${R.items[it.key].kw}）` : ''}\n現状：${R.items[it.key].text}`).join('\n\n')}
+
+各項目について、経営計画書に載せる「見直し後の方針文」を作ってください。
+・言い切りの文（〜する。〜しない。）で、1項目1〜3文、各文60字以内
+・誰が・いつ・何を・どの基準でが分かる具体的な文にする（数字は現状に書かれたものだけ使う）
+・優先順位No.1の課題があれば反映する
+{"items":[{"key":"0-0","policy":"…"}]}` });
+    const res = parseJSON(out).items || [];
+    let n = 0;
+    res.forEach(x => { if (R.items[x.key] && x.policy && !(R.items[x.key].draft || '').trim()) { R.items[x.key].draft = String(x.policy).trim(); n++; } });
+    asTouch(); toast(`${n}項目の方針文（案）を作りました`); log('assess_ai_review', r.policy_id);
+  } catch { toast('社長AIに接続できませんでした'); }
+  AS.busy = false; asRender(v);
 }
 
 boot();
