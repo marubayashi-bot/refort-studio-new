@@ -571,9 +571,14 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
 .note:hover .ops,.note:focus-within .ops{opacity:1}
 @media (hover:none){.note .ops{opacity:1}}
 .note .ops button{border:0;background:rgba(255,255,255,.8);border-radius:4px;font-size:10.5px;padding:1px 6px;color:var(--ink)}
-.addnote{width:152px;min-height:124px;border:1.5px dashed #AEBACB;border-radius:2px;display:flex;flex-direction:column;background:rgba(255,255,255,.6)}
-.addnote textarea{flex:1;border:0;resize:none;padding:10px;font-family:inherit;font-size:12.5px;line-height:1.6;background:transparent;outline:none}
-.addnote button{border:0;border-top:1px dashed #AEBACB;background:none;font-size:12px;padding:5px;color:var(--blue);font-weight:700}
+.addnote{width:152px;min-height:124px;display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.35);box-shadow:1px 2px 3px rgba(0,0,0,.1);transform:rotate(-1deg)}
+.lane.P .addnote{background:#FBF09A}.lane.D .addnote{background:#C9E0B5}.lane.C .addnote{background:#F5CDE1}.lane.A .addnote{background:#D3E3F6}
+.addnote textarea{flex:1;border:0;resize:none;padding:10px 11px;font-family:inherit;font-size:12.5px;line-height:1.6;background:transparent;outline:none;color:var(--ink)}
+.addnote textarea::placeholder{color:rgba(19,35,63,.45)}
+.addnote button{border:0;font-size:12.5px;padding:7px 5px;font-weight:700;color:#1B2336}
+.lane.P .addnote button{background:#F5E127}.lane.D .addnote button{background:#6FA24F;color:#fff}.lane.C .addnote button{background:#E58AB8}.lane.A .addnote button{background:#2F6DB8;color:#fff}
+.note.pop{animation:notepop .35s ease-out}
+@keyframes notepop{0%{transform:scale(.6) rotate(-6deg);opacity:0}70%{transform:scale(1.05) rotate(1deg);opacity:1}100%{transform:none}}
 .ws-card{background:#fff;border:1px solid var(--rule-2);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);margin-top:16px}
 .ws-card h3{font-size:16px;display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .ws-card h3 .n{font-family:var(--mono);font-size:12px;background:var(--navy);color:#fff;border-radius:4px;padding:1px 7px}
@@ -627,11 +632,12 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
   .ws-eval > div + div{border-left:0;border-top:1px solid var(--rule)}
   .lane{grid-template-columns:1fr}
   .lane .lh{border-right:0;border-bottom:1px solid var(--rule-2)}
-  .note,.addnote{width:calc(50% - 6px)}
+  .note,.addnote{width:170px;min-height:132px}
   .imp{grid-template-columns:1fr}
   .imp .acts{flex-direction:row}
   .mx{grid-template-columns:20px 1fr 1fr}
 }
+@media (max-width:600px){ .note,.addnote{width:calc(50% - 6px)} }
 </style>
 </head>
 <body>
@@ -767,7 +773,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.1',
+  APP_VERSION  : '2.1.1',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -2864,6 +2870,7 @@ function asRender(v = $('#view')) {
         : `<button class="btn gold" id="ws-done">アセスメントを完了にする</button>`}
     </div>`;
 
+  AS.justAdded = null;
   asBind(v);
   wire(v);
   window.scrollTo(0, y);
@@ -2880,7 +2887,7 @@ function asLane(l, d) {
     <div class="lh"><div class="row"><span class="pdc">${l.k}</span><span class="ordn">考える順 ${'①②③④'[l.ord - 1]}</span></div>
       <div class="q">${esc(l.q)}</div></div>
     <div class="notes">
-      ${ns.map(n => `<div class="note ${n.issue ? 'issue' : ''}" data-note="${n.id}">
+      ${ns.map(n => `<div class="note ${n.issue ? 'issue' : ''} ${AS.justAdded === n.id ? 'pop' : ''}" data-note="${n.id}">
         ${n.issue ? '<span class="tag">課題</span>' : ''}
         <div class="tx" contenteditable="true" data-ntx="${n.id}">${esc(n.text)}</div>
         <div class="ops"><button data-nissue="${n.id}">${n.issue ? '現状に戻す' : '課題にする'}</button><button data-ndel="${n.id}">削除</button></div>
@@ -2976,7 +2983,7 @@ function asBind(v) {
     text = text.trim(); if (!text) return null;
     const kind = asTense(text);
     const n = { id:asUid(), lane, text, issue:!!kind };
-    d.notes.push(n); asTouch();
+    d.notes.push(n); AS.justAdded = n.id; asTouch();
     if (kind) toast(`「${kind}」の付箋は課題として残しました`);
     return n;
   };
