@@ -572,6 +572,17 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
 .note:hover .ops,.note:focus-within .ops{opacity:1}
 @media (hover:none){.note .ops{opacity:1}}
 .note .ops button{border:0;background:rgba(255,255,255,.8);border-radius:4px;font-size:10.5px;padding:1px 6px;color:var(--ink)}
+.note .ops .mv{display:inline-flex;gap:2px}
+.note .ops button:disabled{opacity:.3;cursor:default}
+.note .tx{padding-right:12px}
+.note .grip{position:absolute;top:2px;right:4px;font-size:14px;line-height:1;color:rgba(0,0,0,.4);cursor:grab;padding:2px 3px;user-select:none;touch-action:none}
+.note .grip:hover{color:rgba(0,0,0,.75)}
+.note.dragging{opacity:.4}
+.note.drop-l{box-shadow:-5px 0 0 var(--gold),1px 2px 3px rgba(0,0,0,.1)}
+.note.drop-r{box-shadow:5px 0 0 var(--gold),1px 2px 3px rgba(0,0,0,.1)}
+.lane.lane-hov .notes{background:rgba(197,163,90,.08)}
+.note.moved{animation:notemv .4s ease-out}
+@keyframes notemv{0%{box-shadow:0 0 0 4px var(--gold)}100%{box-shadow:1px 2px 3px rgba(0,0,0,.1)}}
 .addnote{width:152px;min-height:124px;display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.35);box-shadow:1px 2px 3px rgba(0,0,0,.1);transform:rotate(-1deg)}
 .lane.P .addnote{background:#FBF09A}.lane.D .addnote{background:#C9E0B5}.lane.C .addnote{background:#F5CDE1}.lane.A .addnote{background:#D3E3F6}
 .addnote textarea{flex:1;border:0;resize:none;padding:10px 11px;font-family:inherit;font-size:12.5px;line-height:1.6;background:transparent;outline:none;color:var(--ink)}
@@ -794,7 +805,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.3',
+  APP_VERSION  : '2.3.1',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -3044,16 +3055,24 @@ function asPick(f, val) {
     `<button data-n="${n}" class="${val === n ? 'on s' + n : ''}" title="${esc(AS_CRIT[n - 1])}">${n}</button>`).join('')}</div>`;
 }
 
+/** レーン内の付箋を表示順に並べる（ord が無い古い付箋は貼った順） */
+function asLaneNotes(d, lane) {
+  return d.notes.map((n, i) => [n, i]).filter(([n]) => n.lane === lane)
+    .sort((a, b) => ((a[0].ord ?? 1e6 + a[1]) - (b[0].ord ?? 1e6 + b[1]))).map(([n]) => n);
+}
 function asLane(l, d) {
-  const ns = d.notes.filter(n => n.lane === l.k);
-  return `<div class="lane ${l.k}">
+  const ns = asLaneNotes(d, l.k);
+  return `<div class="lane ${l.k}" data-lane="${l.k}">
     <div class="lh"><div class="row"><span class="pdc">${l.k}</span><span class="ordn">考える順 ${'①②③④'[l.ord - 1]}</span></div>
       <div class="q">${esc(l.q)}</div></div>
     <div class="notes">
-      ${ns.map(n => `<div class="note ${n.issue ? 'issue' : ''} ${AS.justAdded === n.id ? 'pop' : ''}" data-note="${n.id}">
+      ${ns.map((n, i) => `<div class="note ${n.issue ? 'issue' : ''} ${AS.justAdded === n.id ? 'pop' : ''} ${AS.moved === n.id ? 'moved' : ''}" data-note="${n.id}">
         ${n.issue ? '<span class="tag">課題</span>' : ''}
+        <span class="grip" data-grip="${n.id}" title="ドラッグで並べ替え・別のレーンへ移動">⠿</span>
         <div class="tx" contenteditable="true" data-ntx="${n.id}">${esc(n.text)}</div>
-        <div class="ops"><button data-nissue="${n.id}">${n.issue ? '現状に戻す' : '課題にする'}</button><button data-ndel="${n.id}">削除</button></div>
+        <div class="ops">
+          <span class="mv"><button data-nmv="-1" data-nid="${n.id}" ${i === 0 ? 'disabled' : ''} title="左へ">◀</button><button data-nmv="1" data-nid="${n.id}" ${i === ns.length - 1 ? 'disabled' : ''} title="右へ">▶</button></span>
+          <button data-nissue="${n.id}">${n.issue ? '現状に戻す' : '課題にする'}</button><button data-ndel="${n.id}">削除</button></div>
       </div>`).join('')}
       <div class="addnote"><textarea data-addlane="${l.k}" placeholder="${l.k === 'D' ? '例：毎日、環境整備を実施している' : l.k === 'P' ? '例：事業年度計画で実施日が決まっている' : l.k === 'C' ? '例：チェックシートを基に実施をチェックしている' : '例：点検結果を全社へ共有し、次回の点検に繋げている'}"></textarea>
         <button data-addbtn="${l.k}">＋ 付箋を貼る</button></div>
@@ -3146,7 +3165,7 @@ function asBind(v) {
   const addNote = (lane, text) => {
     text = text.trim(); if (!text) return null;
     const kind = asTense(text);
-    const n = { id:asUid(), lane, text, issue:!!kind };
+    const n = { id:asUid(), lane, text, issue:!!kind, ord:asLaneNotes(d, lane).length + 1000 };
     d.notes.push(n); AS.justAdded = n.id; asTouch();
     if (kind) toast(`「${kind}」の付箋は課題として残しました`);
     return n;
@@ -3175,6 +3194,54 @@ function asBind(v) {
   });
   v.querySelectorAll('[data-ndel]').forEach(b => b.onclick = () => {
     d.notes = d.notes.filter(x => x.id !== b.dataset.ndel); delete d.mx[b.dataset.ndel]; asTouch(); asRender(v);
+  });
+
+  // 付箋の並べ替え（◀▶ボタン／ドラッグ。ドラッグは別のレーンへの移動も可）
+  v.querySelectorAll('[data-nmv]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const n = d.notes.find(x => x.id === b.dataset.nid); if (!n) return;
+    const ns = asLaneNotes(d, n.lane), i = ns.indexOf(n), j = i + +b.dataset.nmv;
+    if (j < 0 || j >= ns.length) return;
+    [ns[i], ns[j]] = [ns[j], ns[i]];
+    ns.forEach((x, k) => x.ord = k);
+    AS.moved = n.id; asTouch(); asRender(v); AS.moved = null;
+  });
+  let dragId = null;
+  v.querySelectorAll('[data-grip]').forEach(g => {
+    const note = g.closest('.note');
+    g.onpointerdown = () => { note.draggable = true; };
+    note.ondragstart = e => { dragId = note.dataset.note; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'note:' + dragId); note.classList.add('dragging'); };
+    note.ondragend = () => { note.draggable = false; note.classList.remove('dragging'); dragId = null;
+      v.querySelectorAll('.drop-l,.drop-r,.lane-hov').forEach(x => x.classList.remove('drop-l', 'drop-r', 'lane-hov')); };
+  });
+  v.querySelectorAll('.lane[data-lane] .notes').forEach(zone => {
+    const lane = zone.closest('.lane').dataset.lane;
+    const spot = e => {   // 落とす位置：一番近い付箋の左右
+      const els = [...zone.querySelectorAll('.note:not(.dragging)')];
+      let best = null, bd = 1e9;
+      els.forEach(el => { const r = el.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const dd = Math.hypot(e.clientX - cx, (e.clientY - cy) * 1.5); if (dd < bd) { bd = dd; best = { el, after:e.clientX > cx }; } });
+      return best;
+    };
+    zone.ondragover = e => {
+      if (!dragId) return; e.preventDefault();
+      v.querySelectorAll('.drop-l,.drop-r').forEach(x => x.classList.remove('drop-l', 'drop-r'));
+      zone.closest('.lane').classList.add('lane-hov');
+      const s_ = spot(e); if (s_) s_.el.classList.add(s_.after ? 'drop-r' : 'drop-l');
+    };
+    zone.ondragleave = e => { if (!zone.contains(e.relatedTarget)) zone.closest('.lane').classList.remove('lane-hov'); };
+    zone.ondrop = e => {
+      if (!dragId) return; e.preventDefault();
+      const n = d.notes.find(x => x.id === dragId); if (!n) return;
+      const s_ = spot(e);
+      const ns = asLaneNotes(d, lane).filter(x => x !== n);
+      let at = ns.length;
+      if (s_) { const t = d.notes.find(x => x.id === s_.el.dataset.note); at = ns.indexOf(t) + (s_.after ? 1 : 0); }
+      const moved = n.lane !== lane;
+      n.lane = lane; ns.splice(at, 0, n); ns.forEach((x, k) => x.ord = k);
+      AS.moved = n.id; asTouch(); asRender(v); AS.moved = null;
+      if (moved) toast(`${lane} のレーンへ移動しました`);
+    };
   });
 
   // マトリクス（ドラッグ／タップ）
