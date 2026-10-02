@@ -528,6 +528,7 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
 .ws-crumb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .ws-crumb .sp{flex:1}
 .ws-save{font-size:12px;color:var(--ink-3)}
+.ws-save.warn{color:#8A6416;font-weight:700}.ws-save.ok{color:#1F7564}.ws-save.err{color:var(--shu);font-weight:700}
 .ws-steps{position:sticky;top:var(--hd);z-index:5;background:var(--bg);padding:8px 0;margin-bottom:10px;display:flex;gap:6px;overflow-x:auto}
 .ws-steps button{flex-shrink:0;border:1px solid var(--rule);background:#fff;border-radius:16px;padding:4px 12px;font-size:12px;color:var(--ink-2)}
 .ws-steps button b{font-family:var(--mono);color:var(--navy);margin-right:4px}
@@ -793,7 +794,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.2',
+  APP_VERSION  : '2.3',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -2598,27 +2599,147 @@ function asNewRow(pid) {
 }
 
 /* ---------- 保存 ---------- */
-function asSaveMsg(t) { const el = $('#ws-save'); if (el) el.textContent = t; }
+/* ---------- 保存（同時編集に対応） ----------
+   2人が同じ方針を同時に入力しても消えないように、保存のたびにサーバーの最新を読み、
+   「前回そろえた内容（base）」と比べて、自分が変えた所・相手が変えた所を項目単位で合わせる。
+   付箋・修正案・見直し項目は1枚ずつ、文章は欄ごとに合わせる。同じ欄を同時に変えた場合だけ後から保存した方が残る。
+   開いている間は8秒ごとに相手の入力を取り込む。 */
+const AS_FIELDS = ['status', 'score1', 'score2', 'data'];
+const clone = o => o === undefined ? undefined : JSON.parse(JSON.stringify(o));
+const same  = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
+const idOf  = x => isObj(x) ? (x.id ?? x.key) : undefined;
+
+function mergeVal(base, local, remote) {
+  if (same(local, base)) return clone(remote);
+  if (same(remote, base) || remote === undefined && base === undefined) return clone(local);
+  if (isObj(local) && isObj(remote)) {
+    const b = isObj(base) ? base : {}, out = {};
+    new Set([...Object.keys(local), ...Object.keys(remote), ...Object.keys(b)]).forEach(k => {
+      const v = mergeVal(b[k], local[k], remote[k]);
+      if (v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+  if (Array.isArray(local) && Array.isArray(remote) && [...local, ...remote].every(x => idOf(x) !== undefined)) {
+    const bm = new Map((Array.isArray(base) ? base : []).map(x => [idOf(x), x]));
+    const lm = new Map(local.map(x => [idOf(x), x])), rm = new Map(remote.map(x => [idOf(x), x]));
+    const out = [];
+    const take = id => {
+      const b = bm.get(id), l = lm.get(id), r = rm.get(id);
+      if (l && r) return mergeVal(b, l, r);
+      if (l) return b && same(l, b) ? undefined : clone(l);     // 相手が消した（自分が触っていなければ消す）
+      if (r) return b && same(r, b) ? undefined : clone(r);     // 自分が消した
+    };
+    const ids = [...remote.map(idOf), ...local.map(idOf).filter(id => !rm.has(id))];
+    ids.forEach(id => { const v = take(id); if (v !== undefined) out.push(v); });
+    return out;
+  }
+  return clone(local);   // 同じ欄を同時に変えた：自分（後から保存した方）を残す
+}
+const asPick5 = r => Object.fromEntries(AS_FIELDS.map(f => [f, clone(r[f])]));
+
+/** 入力中の欄を覚えておき、描き直したあとに同じ所へカーソルを戻す */
+function asFocusKey() {
+  const el = document.activeElement; if (!el || !$('#view').contains(el)) return null;
+  const attrs = ['id', 'data-rvf', 'data-ntx', 'data-addlane', 'data-impf', 'data-mxf', 'data-mxid'];
+  const own = attrs.filter(a => el.hasAttribute(a)).map(a => `[${a}="${CSS.escape(el.getAttribute(a))}"]`).join('');
+  if (!own) return null;
+  const host = el.closest('[data-rv],[data-imp]');
+  const hs = host ? (host.dataset.rv ? `[data-rv="${CSS.escape(host.dataset.rv)}"] ` : `[data-imp="${CSS.escape(host.dataset.imp)}"] `) : '';
+  let pos = null; try { pos = el.selectionStart; } catch {}
+  return { sel:hs + own, pos, val:el.value };
+}
+function asRestoreFocus(f) {
+  if (!f) return; const el = $(f.sel); if (!el) return;
+  el.focus({ preventScroll:true });
+  try { if (f.pos != null) el.setSelectionRange(f.pos, f.pos); } catch {}
+}
+function asApplyRemote(merged, who) {
+  const f = asFocusKey();
+  if (f && f.sel.includes('data-ntx')) { AS.pendingRender = true; return; }   // 付箋の文字を打っている途中は描き直さない
+  AS.cur = merged; AS.rows[merged.id] = merged;
+  asRender(); asRestoreFocus(f);
+  if (who) toast(`${who} さんの入力を取り込みました`);
+}
+
+function asSaveMsg(t, cls = '') { const el = $('#ws-save'); if (el) { el.textContent = t; el.className = 'ws-save ' + cls; } }
 function asTouch() {
   const r = AS.cur; if (!r) return;
-  r.updated_at = new Date().toISOString();
-  r.updated_by = S.me.full_name || S.me.email;
   if (r.status === 'todo') r.status = 'doing';
-  AS.rows[r.id] = r;
-  asSaveMsg('保存中…');
+  AS.rows[r.id] = r; AS.dirty = true;
+  asSaveMsg('未保存の変更があります', 'warn');
   clearTimeout(AS.saveT);
-  AS.saveT = setTimeout(asSave, 700);
+  AS.saveT = setTimeout(asSave, 1200);
 }
-async function asSave() {
+async function asFetchRow(id) {
+  const rows = await sbGet('kk_assess', `select=*&id=eq.${encodeURIComponent(id)}`);
+  return rows[0] || null;
+}
+async function asSave(manual = false) {
   const r = AS.cur; if (!r) return;
+  clearTimeout(AS.saveT);
+  if (AS.saving) { AS.saveAgain = true; return; }
   const all = lsGet(AS_LKEY, {}); all[r.id] = r; lsSet(AS_LKEY, all);
-  if (AS.rowsRemote === false) { asSaveMsg('この端末に保存しました'); return; }
+  if (AS.rowsRemote === false) { AS.dirty = false; asSaveMsg('この端末に保存しました', 'ok'); return; }
+  AS.saving = true; asSaveMsg('保存中…');
+  const snap = asPick5(r);           // 保存を始めた時点の自分の入力
+  let who = null;
   try {
-    await sbUpsert('kk_assess', [{ id:r.id, policy_id:r.policy_id, term:r.term, half:r.half, status:r.status,
-      score1:r.score1, score2:r.score2, data:r.data, updated_at:r.updated_at, updated_by:r.updated_by }], 'id');
-    asSaveMsg(`保存しました ${fmt(r.updated_at)}`);
-  } catch { asSaveMsg('この端末に保存（サーバー未接続）'); }
+    for (let i = 0; i < 4; i++) {
+      const remote = await asFetchRow(r.id);
+      let next = snap;
+      if (remote && remote.updated_at !== AS.ver) {
+        next = Object.fromEntries(AS_FIELDS.map(f => [f, mergeVal(AS.base?.[f], snap[f], remote[f])]));
+        if (remote.updated_by && remote.updated_by !== (S.me.full_name || S.me.email)) who = remote.updated_by;
+      }
+      const now = new Date().toISOString();
+      const row = { id:r.id, policy_id:r.policy_id, term:r.term, half:r.half, ...next, updated_at:now, updated_by:S.me.full_name || S.me.email };
+      let ok;
+      if (remote) {   // 読んだ後に誰かが保存していたら書かない（やり直す）
+        ok = await sb(`kk_assess?id=eq.${encodeURIComponent(r.id)}&updated_at=eq.${encodeURIComponent(remote.updated_at)}`,
+          { method:'PATCH', body:JSON.stringify(row), headers:{ Prefer:'return=representation' } });
+      } else {
+        ok = await sb('kk_assess', { method:'POST', body:JSON.stringify([row]), headers:{ Prefer:'return=representation' } }).catch(() => []);
+      }
+      if (!ok || !ok.length) continue;
+      const saved = ok[0];
+      AS.base = asPick5(saved); AS.ver = saved.updated_at;
+      // 保存中に打った分は残したまま、取り込んだ相手の入力を重ねる
+      const mine = asPick5(AS.cur);
+      const merged = { ...AS.cur, ...Object.fromEntries(AS_FIELDS.map(f => [f, mergeVal(snap[f], mine[f], saved[f])])),
+        updated_at:saved.updated_at, updated_by:saved.updated_by };
+      AS.dirty = !same(asPick5(merged), AS.base);
+      if (!same(asPick5(merged), mine)) asApplyRemote(merged, who); else { AS.cur.updated_at = saved.updated_at; AS.cur.updated_by = saved.updated_by; }
+      asSaveMsg(AS.dirty ? '未保存の変更があります' : `保存しました ${fmt(saved.updated_at)}`, AS.dirty ? 'warn' : 'ok');
+      if (manual) toast('保存しました');
+      break;
+    }
+  } catch (e) {
+    console.warn(e); asSaveMsg('保存できませんでした（この端末には保存済み）。通信を確認して「保存」を押してください', 'err');
+  }
+  AS.saving = false;
+  if (AS.saveAgain || AS.dirty) { AS.saveAgain = false; if (AS.dirty) AS.saveT = setTimeout(asSave, 800); }
 }
+/** 開いている間、相手の入力を定期的に取り込む */
+async function asPoll() {
+  if (S.route.name !== 'assessWs' || !AS.cur || AS.saving || AS.rowsRemote === false || document.hidden) return;
+  if (AS.dirty) return;   // 自分の保存のときに合わせる
+  if (AS.pendingRender && !asFocusKey()?.sel.includes('data-ntx')) { AS.pendingRender = false; asApplyRemote(AS.cur); }
+  try {
+    const remote = await asFetchRow(AS.cur.id);
+    if (!remote || remote.updated_at === AS.ver || AS.dirty || AS.saving) return;
+    const mine = asPick5(AS.cur);
+    const merged = { ...AS.cur, ...Object.fromEntries(AS_FIELDS.map(f => [f, mergeVal(AS.base?.[f], mine[f], remote[f])])),
+      updated_at:remote.updated_at, updated_by:remote.updated_by };
+    AS.base = asPick5(remote); AS.ver = remote.updated_at;
+    if (!same(asPick5(merged), mine)) asApplyRemote(merged, remote.updated_by);
+    asSaveMsg(`最新です（${fmt(remote.updated_at)} ${remote.updated_by || ''}）`, 'ok');
+  } catch {}
+}
+setInterval(asPoll, 8000);
+window.addEventListener('beforeunload', e => { if (AS.dirty) { asSave(); e.preventDefault(); e.returnValue = ''; } });
+
 async function asSavePolicy(pid, patch) {
   const m = { ...(AS.policyMeta[pid] || { policy_id:pid }), ...patch, updated_at:new Date().toISOString() };
   AS.policyMeta[pid] = m;
@@ -2652,7 +2773,9 @@ function asHomeStrip() {
    ============================================================ */
 async function viewAssess(v) {
   if (!AS.ok) { v.innerHTML = emptyState('この画面は幹部のみが利用できます', '利用が必要な場合は社長に依頼してください。'); return; }
-  if (!AS.loaded) { v.innerHTML = '<p class="muted">読み込み中…</p>'; await asLoadRows(); }
+  if (AS.dirty && AS.cur) await asSave();
+  if (!AS.loaded) v.innerHTML = '<p class="muted">読み込み中…</p>';
+  await asLoadRows();
   log('assess_list');
   const all = asPolicies();
   const rowsOf = all.map(p => ({ p, r:asRow(p.id), prev:asRow(p.id, ...asPrev(AS.term, AS.half)), meta:AS.policyMeta[p.id] || {} }));
@@ -2787,8 +2910,14 @@ async function viewAssessWs(v) {
   const p = S.byId[pid];
   if (!p) { go('assess'); return; }
   const k = asKey(pid, AS.term, AS.half);
+  if (AS.dirty && AS.cur) await asSave();
+  AS.base = null; AS.ver = null; AS.dirty = false; AS.pendingRender = false;
+  if (AS.rowsRemote !== false) {
+    try { const remote = await asFetchRow(k); if (remote) { AS.rows[k] = remote; AS.base = asPick5(remote); AS.ver = remote.updated_at; } } catch {}
+  }
   AS.cur = AS.rows[k] ? JSON.parse(JSON.stringify(AS.rows[k])) : asNewRow(pid);
   AS.cur.data = { ideal:'', reason:'', insight:'', notes:[], mx:{}, imps:[], review:{ items:{}, custom:[], final:'' }, ...(AS.cur.data || {}) };
+  if (!AS.cur.data.review) AS.cur.data.review = { items:{}, custom:[], final:'' };
   AS.sel = null; AS.ai = null; AS.ideals = null;
   log('assess_open', pid);
   asRender(v);
@@ -2811,7 +2940,8 @@ function asRender(v = $('#view')) {
       <span class="st ${r.status}">${stl}</span>
       <span class="muted">第${r.term}期 ${r.half}</span>
       <span class="sp"></span>
-      <span class="ws-save" id="ws-save">${r.updated_at ? `最終更新 ${fmt(r.updated_at)} ${esc(r.updated_by || '')}` : '入力すると自動で保存されます'}</span>
+      <span class="ws-save ${AS.dirty ? 'warn' : ''}" id="ws-save">${AS.dirty ? '未保存の変更があります' : r.updated_at ? `最終更新 ${fmt(r.updated_at)} ${esc(r.updated_by || '')}` : '入力すると自動で保存されます'}</span>
+      <button class="btn" id="ws-savebtn" style="padding:6px 16px">保存</button>
     </div>
     <div class="ws-steps">${[['ws-1','1','理想の状態'],['ws-2','2','最初の評価'],['ws-3','3','D→P→C→A'],['ws-4','4','PDCA視点の評価'],
       ['ws-5','5','課題（気づき）'],['ws-6','6','優先順位'],['ws-7','7','方針の見直し'],['ws-8','8','修正案と承認']]
@@ -2905,6 +3035,7 @@ function asRender(v = $('#view')) {
   AS.justAdded = null;
   asBind(v);
   wire(v);
+  const sb_ = $('#ws-savebtn'); if (sb_) sb_.onclick = () => asSave(true);
   window.scrollTo(0, y);
 }
 
