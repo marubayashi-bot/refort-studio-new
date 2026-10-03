@@ -406,6 +406,15 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 .sigtag.g{background:#E3F4EC;color:#1F6B52}.sigtag.r{background:#FBE3E3;color:#B3261E}
 .sigtag.b{background:#E3EEFA;color:#1F5A96}.sigtag.y{background:#FFF4D6;color:#8A6410}
 .sigtag.big{font-size:12px;padding:4px 10px;cursor:pointer}.sigtag.on{border-color:currentColor}
+.newsbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FFF7EC;border:1px solid #F6C7A6;border-left:5px solid #F26A21;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.newsbar .newsmain{flex:1;min-width:200px;cursor:pointer}
+.newsfirst{font-size:12.5px;color:var(--ink-2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.newstag{background:#F26A21;color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:.06em}
+.newsrow{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;flex-wrap:wrap}
+.newsrow:hover{background:#F6F8FA}.newsrow.unread b{color:#C4561A}
+.newsdiv{margin:18px 0 4px;padding-top:12px;border-top:1px dashed var(--line)}.newsdiv small{display:block;color:var(--muted)}
+.newsform{background:#F6F8FA;border:1px solid var(--line);border-radius:10px;padding:12px}
 </style>
 </head>
 <body>
@@ -602,6 +611,7 @@ function render(){
     ({ write:vWrite, feed:vFeed, weekly:vWeekly, notify:vNotify, status:vStatus, dash:vDash, result:vResult, ai:vAI, search:vSearch, meeting:vMeeting, todo:vTodo, guide:vGuide, admin:vAdmin })[TAB]();
   drawHeaderStats();   // ヘッダーのボタン・連続提出・達成率・吹き出しを更新
   updateAppBadge();
+  drawNewsBar();       // 未読のお知らせがあれば画面上部に出す
 }
 
 /* ================= CC（上司以外にも日報を共有） =================
@@ -612,7 +622,7 @@ let CC_READY = true;     // report_cc が無いと false
 let CC_SEL = null, CC_SEL_DAY = '';
 let CC_POLL = [];        // 定期チェックで取った「自分宛てで未読のCC」
 
-function notifCount(){ return myNotifs().length + subNotifs().length + ccNotifs().length; }
+function notifCount(){ return myNotifs().length + subNotifs().length + ccNotifs().length + (NEWS_LOADED ? newsUnread().length : 0); }
 
 async function loadCc(){
   const { data, error } = await EC.supabase.from('report_cc')
@@ -737,6 +747,15 @@ async function readAllCc(){
    まだ確認していない人は、アプリを開くと最初にこの画面が出て、「確認しました」を押すまで使えない。
    確認した記録は release_reads に残り、管理タブで誰が未確認か分かる。 */
 const RELEASES = [
+  { v: '2026-10-03', date: '2026年10月3日', title: '金曜日に「日報」か「週次報告」かを選べるようになりました', must: false, sections: [
+    { h: '金曜日の提出', items: [
+      '「日報を書く」を開くと、<b>「週次報告を書く（通常）」と「今日は日報を書く」</b>を選べます。土曜も勤務がある日などは日報を選んでください。',
+      '日報を選んだ週は、週次報告を<b>その週の最終勤務日</b>に提出してください。金曜に日報を提出した場合、20時の週次報告の未提出通知は届きません。' ]},
+    { h: '週次報告の曜日の個人設定', items: [
+      'シフトの関係で週次報告の日がいつも金曜ではない人は、管理部に「週次報告の曜日」の個人設定を依頼してください。' ]},
+    { h: 'お知らせの表示', items: [
+      'アプリを開くと、更新の内容が画面上部の<b>「最新ニュース」</b>に表示されるようになりました。過去のお知らせは「通知」タブからいつでも見返せます。' ]}
+  ]},
   { v: '2026-09-30', date: '2026年9月30日', title: '日報アプリを更新しました', sections: [
     { h: '金曜は週次報告の日', must: true, items: [
       '<b>金曜は日報ではなく、週次報告を提出する日</b>になりました。金曜の日報は提出不要です（残したいことがある日は任意で書けます）。',
@@ -782,7 +801,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-10-03a';
+const BUILD = '2026-10-03b';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -809,36 +828,103 @@ function reloadForBuild(){
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkBuild(); });
 setInterval(() => { if (document.visibilityState === 'visible') checkBuild(); }, 30 * 60000);
 
-async function checkRelease(force){
-  const rel = RELEASES[0]; if (!rel || !ME) return;
-  if (!force){
-    let local = ''; try { local = localStorage.getItem(REL_KEY + ':' + ME.id) || ''; } catch(e){}
-    if (local === rel.v) return;
-    const { data, error } = await EC.supabase.from('release_reads')
-      .select('version').eq('user_id', ME.id).eq('version', rel.v).limit(1);
-    if (!error && data && data.length){ try { localStorage.setItem(REL_KEY + ':' + ME.id, rel.v); } catch(e){} return; }
-  }
-  showRelease(rel, !!force);
+/* ================= 最新ニュース（更新情報の配信） =================
+   お知らせは2か所から集める。
+   ・コードの RELEASES（アプリを更新したときに追記する）
+   ・nippo_news テーブル（管理タブの「お知らせを投稿」から、コードを触らずに配信できる）
+   アプリを開いたとき：
+   ・「必ず確認」の未読 … 画面いっぱいに表示し、「確認しました」を押すまで使えない（記録は release_reads）
+   ・ふつうのお知らせの未読 … 画面上部に「最新ニュース」の帯を出す（既読にすると消える）
+   ・過去分は「通知」タブの「更新のお知らせ」からいつでも見返せる。未読は通知の件数にも入る。 */
+let NEWS = [];                // 新しい順
+let NEWS_READ = new Set();    // 既読の version
+let NEWS_DB = true;
+let NEWS_LOADED = false;
+
+function isManagerish(){
+  return USERS.some(u => u.manager_id === ME.id) || isExec() || ['部長','次長','課長'].includes(ME.job_grade);
+}
+function newsFor(n){ return !n.audience || n.audience === 'all' || (n.audience === 'managers' && isManagerish()); }
+function newsUnread(){ return NEWS.filter(n => newsFor(n) && !NEWS_READ.has(n.v)); }
+
+async function loadNews(){
+  const list = RELEASES.map(r => Object.assign({}, r, {
+    must: r.must !== undefined ? r.must : r.sections.some(s => s.must),
+    at: r.v, src: 'code' }));
+  const db = await EC.supabase.from('nippo_news').select('*').order('posted_at', { ascending: false }).limit(60);
+  if (db.error) NEWS_DB = false;
+  else (db.data || []).forEach(x => {
+    const d = new Date(x.posted_at);
+    list.push({ v: 'news:' + x.id, id: x.id, src: 'db', at: x.posted_at, audience: x.audience || 'all',
+      date: d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日',
+      title: x.title, must: x.level === 'must', created_by: x.created_by,
+      sections: [{ h: '', items: String(x.body || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(s => esc(s)) }] });
+  });
+  NEWS = list.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
+  NEWS_READ = new Set();
+  try { JSON.parse(localStorage.getItem(REL_KEY + ':list:' + ME.id) || '[]').forEach(v => NEWS_READ.add(v)); } catch(e){}
+  try { const old = localStorage.getItem(REL_KEY + ':' + ME.id); if (old) NEWS_READ.add(old); } catch(e){}
+  const rd = await EC.supabase.from('release_reads').select('version').eq('user_id', ME.id);
+  if (!rd.error) (rd.data || []).forEach(x => NEWS_READ.add(x.version));
+  // コードのお知らせは、新しい版を確認済みなら、それより古い版も既読扱い
+  const codes = NEWS.filter(n => n.src === 'code');
+  const lastRead = codes.findIndex(n => NEWS_READ.has(n.v));
+  if (lastRead >= 0) codes.slice(lastRead + 1).forEach(n => NEWS_READ.add(n.v));
+  // 入社前・利用開始前の古いお知らせは既読扱い（初回の人に過去分をまとめて出さない）
+  const since = ME.created_at ? String(ME.created_at).slice(0, 10) : '';
+  if (since) NEWS.forEach(n => { if (String(n.at).slice(0, 10) < since) NEWS_READ.add(n.v); });
+  NEWS_LOADED = true;
+}
+function newsMarkLocal(vs){
+  vs.forEach(v => NEWS_READ.add(v));
+  try { localStorage.setItem(REL_KEY + ':list:' + ME.id, JSON.stringify(Array.from(NEWS_READ).slice(-200))); } catch(e){}
+}
+async function newsMarkRead(vs){
+  newsMarkLocal(vs);
+  const now = new Date().toISOString();
+  const { error } = await EC.supabase.from('release_reads')
+    .upsert(vs.map(v => ({ user_id: ME.id, version: v, read_at: now })), { onConflict: 'user_id,version' });
+  if (error) console.warn('release_reads', error.message);   // 記録できなくても使えるようにする
 }
 
-function showRelease(rel, viewOnly){
+/* アプリを開いたとき（と、新しい版を読み込んだとき） */
+async function checkRelease(force){
+  if (!ME) return;
+  if (!NEWS_LOADED || force === 'reload') await loadNews();
+  if (force === true){ showNewsList(); return; }
+  const unread = newsUnread();
+  const must = unread.filter(n => n.must).slice(0, 3);
+  if (must.length) showRelease(must, false);
+  drawNewsBar();
+  drawNav();
+}
+
+/* 「必ず確認」の画面（複数件をまとめて出す） */
+function newsBodyHtml(n){
+  return n.sections.map(sc => `${sc.h ? `<h4>${esc(sc.h)}${sc.must ? '<span class="tag must">必ず確認</span>' : ''}</h4>` : ''}
+    <ul>${sc.items.map(i => `<li>${i}</li>`).join('')}</ul>`).join('');
+}
+function showRelease(list, viewOnly){
   const box = document.getElementById('relBox'); if (!box) return;
+  if (!Array.isArray(list)) list = [list];
+  const first = list[0];
   box.innerHTML = `<div class="rel-bg" role="dialog" aria-modal="true" aria-labelledby="relTitle">
     <div class="rel">
-      <div class="rel-hd"><small>更新のお知らせ　${esc(rel.date)}</small><h2 id="relTitle">${esc(rel.title)}</h2></div>
+      <div class="rel-hd"><small>更新のお知らせ　${esc(first.date)}${list.length > 1 ? '　ほか' + (list.length - 1) + '件' : ''}</small>
+        <h2 id="relTitle">${esc(first.title)}</h2></div>
       <div class="rel-bd">
         <p class="note" style="margin-top:12px">${viewOnly ? '' : 'アプリを使う前に、最後まで読んで「確認しました」を押してください。'}</p>
-        ${rel.sections.map(sc => `<h4>${esc(sc.h)}${sc.must ? '<span class="tag must">必ず確認</span>' : ''}</h4>
-          <ul>${sc.items.map(i => `<li>${i}</li>`).join('')}</ul>`).join('')}
+        ${list.map((n, i) => `${i ? `<div class="newsdiv"><small>${esc(n.date)}</small><b>${esc(n.title)}</b></div>` : ''}${newsBodyHtml(n)}`).join('')}
         <p class="note" style="margin:16px 0 4px">表示がおかしいときは、Ctrl＋Shift＋R（Macは Cmd＋Shift＋R）で再読み込みしてください。
-          この内容は「通知」タブの「更新のお知らせを見る」からいつでも見返せます。</p>
+          お知らせは「通知」タブの「更新のお知らせ」からいつでも見返せます。</p>
       </div>
       <div class="rel-ft">
         ${viewOnly
           ? `<button class="act" onclick="closeRelease()">閉じる</button>`
           : `<label><input type="checkbox" id="relChk" onchange="document.getElementById('relOk').disabled=!this.checked">
                内容を確認しました</label>
-             <button class="act" id="relOk" disabled onclick="confirmRelease('${rel.v}')">確認して日報を開く</button>`}
+             <button class="act" id="relOk" disabled onclick="confirmRelease('${list.map(n => n.v).join('|')}')">確認して日報を開く</button>`}
       </div>
     </div></div>`;
   document.body.style.overflow = 'hidden';
@@ -848,30 +934,117 @@ function closeRelease(){
   const box = document.getElementById('relBox'); if (box) box.innerHTML = '';
   document.body.style.overflow = '';
 }
-async function confirmRelease(v){
+async function confirmRelease(vs){
   const btn = document.getElementById('relOk'); if (btn){ btn.disabled = true; btn.textContent = '記録中…'; }
-  const { error } = await EC.supabase.from('release_reads')
-    .upsert({ user_id: ME.id, version: v, read_at: new Date().toISOString() }, { onConflict: 'user_id,version' });
-  if (error) console.warn('release_reads', error.message);   // 記録できなくても使えるようにする
-  try { localStorage.setItem(REL_KEY + ':' + ME.id, v); } catch(e){}
-  closeRelease();
+  await newsMarkRead(String(vs).split('|'));
+  closeRelease(); drawNewsBar(); drawNav();
   toast('確認ありがとうございます');
 }
 
-/* 管理タブ：お知らせの確認状況 */
+/* 画面上部の「最新ニュース」帯（ふつうのお知らせの未読） */
+function drawNewsBar(){
+  const old = document.getElementById('newsBar'); if (old) old.remove();
+  if (!ME || !NEWS_LOADED) return;
+  const list = newsUnread().filter(n => !n.must);
+  if (!list.length) return;
+  const n = list[0];
+  const first = (n.sections[0] && n.sections[0].items[0]) || '';
+  const view = document.getElementById('view'); if (!view) return;
+  view.insertAdjacentHTML('afterbegin', `<div id="newsBar" class="newsbar">
+    <span class="newstag">NEW</span>
+    <div class="newsmain" onclick="showNewsItem('${n.v}')">
+      <b>${esc(n.title)}</b><span class="note">　${esc(n.date)}${list.length > 1 ? '　ほか' + (list.length - 1) + '件' : ''}</span>
+      <div class="newsfirst">${first}</div></div>
+    <button class="ghost" onclick="showNewsItem('${n.v}')">詳しく見る</button>
+    <button class="ghost" onclick="newsDismiss()">既読にする</button></div>`);
+}
+async function newsDismiss(){
+  await newsMarkRead(newsUnread().filter(n => !n.must).map(n => n.v));
+  drawNewsBar(); drawNav();
+}
+function showNewsItem(v){
+  const n = NEWS.find(x => x.v === v); if (!n) return;
+  showRelease([n], true);
+  if (!NEWS_READ.has(v)) newsMarkRead([v]).then(() => { drawNewsBar(); drawNav(); });
+}
+/* 過去のお知らせ一覧（新しい順） */
+function showNewsList(){
+  const box = document.getElementById('relBox'); if (!box) return;
+  const list = NEWS.filter(newsFor);
+  box.innerHTML = `<div class="rel-bg" role="dialog" aria-modal="true">
+    <div class="rel">
+      <div class="rel-hd"><small>NIPPO ONE</small><h2>更新のお知らせ</h2></div>
+      <div class="rel-bd">
+        ${list.length ? list.map(n => `<div class="newsrow${NEWS_READ.has(n.v) ? '' : ' unread'}" onclick="showNewsItem('${n.v}')">
+          ${NEWS_READ.has(n.v) ? '' : '<span class="newstag">NEW</span>'}
+          <span class="note">${esc(n.date)}</span><b>${esc(n.title)}</b>
+          ${n.must ? '<span class="tag must">必ず確認</span>' : ''}</div>`).join('')
+          : '<p class="note">お知らせはまだありません。</p>'}
+      </div>
+      <div class="rel-ft">
+        ${newsUnread().length ? `<button class="ghost" onclick="newsMarkRead(newsUnread().filter(n => !n.must).map(n => n.v)).then(() => { showNewsList(); drawNewsBar(); drawNav(); })">すべて既読にする</button>` : ''}
+        <button class="act" onclick="closeRelease()">閉じる</button></div>
+    </div></div>`;
+  document.body.style.overflow = 'hidden';
+}
+
+/* 管理タブ：お知らせの投稿・確認状況 */
 async function loadReleaseReads(){
   const box = document.getElementById('relReads'); if (!box) return;
-  const rel = RELEASES[0];
-  const { data, error } = await EC.supabase.from('release_reads').select('user_id,read_at').eq('version', rel.v);
-  if (error){ box.innerHTML = '<p class="note" style="color:var(--warn)">確認状況の記録用テーブルがありません。管理者に SQL の実行を依頼してください。</p>'; return; }
+  if (!NEWS_LOADED) await loadNews();
+  const sel = box.dataset.v || (NEWS[0] && NEWS[0].v);
+  const n = NEWS.find(x => x.v === sel) || NEWS[0];
+  const form = `<div class="newsform">
+      <b style="font-size:13px">お知らせを投稿する</b>
+      <p class="note" style="margin:2px 0 8px">投稿すると、社員が次にアプリを開いたときに表示されます。コードの更新は不要です。</p>
+      <input type="text" id="nw_title" placeholder="タイトル（例：金曜日に日報か週次報告かを選べるようになりました）">
+      <textarea id="nw_body" rows="4" style="margin-top:6px" placeholder="本文（1行が1項目になります）"></textarea>
+      <div class="row" style="margin-top:6px">
+        <select id="nw_level" style="width:auto"><option value="info">お知らせ（上部に帯で表示）</option>
+          <option value="must">必ず確認（確認するまで使えない）</option></select>
+        <select id="nw_aud" style="width:auto"><option value="all">全員</option><option value="managers">管理職のみ</option></select>
+        <button class="act" style="width:auto;margin:0" onclick="postNews()">投稿する</button>
+      </div>
+      ${NEWS_DB ? '' : '<p class="note" style="color:var(--warn);margin-top:6px">投稿用のテーブル（nippo_news）がまだありません。SQLを実行してください。</p>'}
+    </div>`;
+  if (!n){ box.innerHTML = form; return; }
+  const { data, error } = await EC.supabase.from('release_reads').select('user_id,read_at').eq('version', n.v);
   const read = {}; (data || []).forEach(x => { read[x.user_id] = x.read_at; });
-  const targets = USERS.filter(u => u.department_id && u.is_active !== false);
+  const targets = USERS.filter(u => u.department_id && u.is_active !== false
+    && (n.audience !== 'managers' || USERS.some(x => x.manager_id === u.id) || ['部長','次長','課長','役員・経営'].includes(u.job_grade)));
   const yet = targets.filter(u => !read[u.id]);
-  box.innerHTML = `<p style="margin:0 0 8px"><b>${targets.length - yet.length} / ${targets.length}人</b> が確認済み
-      <span class="note">（${esc(rel.date)}「${esc(rel.title)}」）</span></p>
-    ${yet.length ? `<div class="note">未確認：${yet.map(u => esc(u.full_name)).join('、')}</div>`
-      : '<div class="note" style="color:var(--accent)">全員が確認済みです。</div>'}
-    <button class="ghost" style="margin-top:10px" onclick="checkRelease(true)">お知らせの内容を見る</button>`;
+  box.innerHTML = form + `<div style="margin-top:14px">
+      <label>確認状況を見るお知らせ</label>
+      <select onchange="document.getElementById('relReads').dataset.v=this.value;loadReleaseReads()">
+        ${NEWS.map(x => `<option value="${x.v}"${x.v === n.v ? ' selected' : ''}>${esc(x.date)}　${esc(x.title)}${x.must ? '（必ず確認）' : ''}</option>`).join('')}
+      </select>
+      ${error ? '<p class="note" style="color:var(--warn)">確認状況の記録用テーブルがありません。</p>' : `
+      <p style="margin:8px 0"><b>${targets.length - yet.length} / ${targets.length}人</b> が確認済み</p>
+      ${yet.length ? `<div class="note">未確認：${yet.map(u => esc(u.full_name)).join('、')}</div>`
+        : '<div class="note" style="color:var(--accent)">全員が確認済みです。</div>'}`}
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" onclick="showNewsItem('${n.v}')">内容を見る</button>
+        ${n.src === 'db' ? `<button class="ghost" style="color:var(--warn)" onclick="deleteNews('${n.id}')">このお知らせを削除</button>` : ''}
+      </div></div>`;
+}
+async function postNews(){
+  const title = (document.getElementById('nw_title') || {}).value.trim();
+  const body = (document.getElementById('nw_body') || {}).value.trim();
+  if (!title || !body){ toast('タイトルと本文を入れてください'); return; }
+  const level = document.getElementById('nw_level').value, audience = document.getElementById('nw_aud').value;
+  if (!confirm((level === 'must' ? '【必ず確認】として、' : '') + (audience === 'all' ? '全員' : '管理職') + 'に配信します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('nippo_news').insert({ title, body, level, audience, created_by: ME.id });
+  if (error){ toast('投稿できませんでした：' + error.message); return; }
+  toast('投稿しました。社員が次にアプリを開いたときに表示されます');
+  await loadNews(); const b = document.getElementById('relReads'); if (b) delete b.dataset.v;
+  loadReleaseReads(); drawNav();
+}
+async function deleteNews(id){
+  if (!confirm('このお知らせを削除します。よろしいですか。')) return;
+  const { error } = await EC.supabase.from('nippo_news').delete().eq('id', id);
+  if (error){ toast('削除できませんでした：' + error.message); return; }
+  await loadNews(); const b = document.getElementById('relReads'); if (b) delete b.dataset.v;
+  loadReleaseReads(); drawNewsBar(); drawNav(); toast('削除しました');
 }
 
 /* ナビだけ描き直す（入力中の画面を壊さないため、定期チェックではこちらを使う） */
@@ -1677,7 +1850,7 @@ function vNotify(){
   const pushOn = canPush && Notification.permission === 'granted';
   return `<h2>通知</h2>
   <p class="sub">部下から届いた日報、自分の日報についたコメント、部下からの返信が届きます。
-    <a href="#" onclick="checkRelease(true);return false" class="lnk" style="margin-left:6px">更新のお知らせを見る</a></p>
+    <a href="#" onclick="checkRelease(true);return false" class="lnk" style="margin-left:6px">更新のお知らせを見る${NEWS_LOADED && newsUnread().length ? '（未読 ' + newsUnread().length + '件）' : ''}</a></p>
   ${canPush && !pushOn && mySubIds().length ? `<div class="card" style="background:#FBF3DE;border-color:#EBD9A6">
     <b>パソコン・スマホにも通知を出しますか？</b>
     <p class="note" style="margin:4px 0 8px">オンにすると、アプリを裏で開いている間に部下の日報が届いたとき、画面の隅に通知が出ます。</p>
@@ -3582,7 +3755,7 @@ function vAdmin(){
   if (canAdmin()) setTimeout(loadAiAccess, 0);
   setTimeout(loadReleaseReads, 0);
   return `<h2>管理</h2>
-  <div class="card"><h3>更新のお知らせの確認状況</h3><div id="relReads" class="note">読み込み中…</div></div>
+  <div class="card"><h3>更新のお知らせ（投稿・確認状況）</h3><div id="relReads">読み込み中…</div></div>
   <p class="sub">数値項目は1か所で管理します。項目ごとに、どこに出すかをチェックで切り替えてください。</p>
   <div class="card" style="background:#F7FAFC">
     <table>
