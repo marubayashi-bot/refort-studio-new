@@ -650,6 +650,45 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
   .mx{grid-template-columns:20px 1fr 1fr}
 }
 @media (max-width:600px){ .note,.addnote{width:calc(50% - 6px)} }
+/* 俯瞰マトリクス */
+.bd-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}
+.bd-tray{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;border:1.5px dashed var(--rule);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:#FAFBFC;min-height:46px}
+.bd-tray .qh{font-size:12px;font-weight:700;color:var(--ink-2);align-self:center}
+.bd-wrap{overflow-x:auto;border-radius:8px}
+.bd{position:relative;min-width:860px;aspect-ratio:16/10;background:#FBFBF8;border:1px solid #C9CED6;border-radius:6px;overflow:hidden;touch-action:none}
+.bd-title{position:absolute;left:50%;top:1.2%;transform:translateX(-50%);background:#2B2F36;color:#fff;font-size:12.5px;font-weight:700;padding:4px 14px;white-space:nowrap;z-index:1}
+.bd-axy{position:absolute;left:50%;top:7%;bottom:5%;width:3px;background:#1B2336;transform:translateX(-50%)}
+.bd-axx{position:absolute;top:50%;left:12%;right:2%;height:3px;background:#1B2336}
+.bd-l{position:absolute;font-weight:700;color:#1B2336;font-size:22px;z-index:1}
+.bd-l.hi{left:52%;top:7%}.bd-l.lo{left:52%;bottom:3%}.bd-l.lx{left:2%;top:46%;font-size:17px}.bd-l.hx{right:2%;top:52%}
+.bd-l.imp{left:52%;bottom:-1px;font-size:15px;transform:translateX(30px)}
+.bd-box{position:absolute;border:2px solid #1B2336;background:#fff;font-weight:700;font-size:20px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3;color:#1B2336}
+.bd-box small{font-size:11px;font-weight:500;margin-top:4px}
+.bd-box.b1{left:21%;top:28%;width:17%;height:14%}.bd-box.b2{left:62%;top:28%;width:17%;height:14%}
+.bd-box.b3{left:25%;top:66%;width:16%;height:14%;background:#5D6168;color:#fff;border-color:#5D6168;font-size:30px}
+.bd-box.b4{left:61%;top:66%;width:16%;height:14%;font-size:30px}
+.bn{position:absolute;transform:translate(-50%,-50%);width:118px;min-height:62px;padding:6px 7px 5px;font-size:11px;line-height:1.45;box-shadow:1px 2px 3px rgba(0,0,0,.18);cursor:grab;z-index:2;user-select:none;touch-action:none;color:#1B2336}
+.bd-tray .bn{position:relative;transform:none;left:auto;top:auto}
+.bn .bt{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.bn .bo{font-size:10px;font-weight:700;margin-top:2px;opacity:.85}
+.bn .rk{position:absolute;top:-8px;right:-6px;font-size:10px}
+.bn.sel{outline:3px solid var(--navy);z-index:5}
+.bn.dim{opacity:.18}
+.bn.ghost{position:fixed;transform:none;z-index:9999;opacity:.92;pointer-events:none;box-shadow:4px 8px 16px rgba(0,0,0,.3)}
+.bd-legend{position:absolute;left:1.5%;bottom:2%;display:grid;grid-template-columns:repeat(3,auto);gap:4px;z-index:3}
+.bd-legend button{border:0;font-size:12px;font-weight:700;padding:6px 10px;box-shadow:1px 1px 2px rgba(0,0,0,.2);color:#1B2336}
+.bd-legend button.off{opacity:.3}
+.bd-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;border:1.5px solid var(--navy);border-radius:10px;padding:10px 12px;background:#fff}
+.bd-edit .sw{width:16px;height:16px;border:1px solid rgba(0,0,0,.3)}
+.bd-edit textarea{flex:1 1 100%;border:1px solid var(--rule);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13.5px}
+.bd-edit label{display:flex;align-items:center;gap:6px;font-size:12px}
+.bd-edit input{border:1px solid var(--rule);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:13px}
+.pi-own{display:flex;align-items:center;gap:4px;font-size:11px}
+.pi-own input{flex:1;min-width:0;border:0;background:rgba(255,255,255,.45);border-radius:3px;padding:2px 5px;font-family:inherit;font-size:12px}
+body.bd-fullscreen #rail,body.bd-fullscreen header,body.bd-fullscreen .ws-card:not(.bd-card),body.bd-fullscreen .pl-steps,body.bd-fullscreen .as-tabs,body.bd-fullscreen .sectitle,body.bd-fullscreen .eyebrow,body.bd-fullscreen .ws-crumb{display:none!important}
+body.bd-fullscreen .bd-card{position:fixed;inset:0;z-index:200;margin:0;border-radius:0;overflow:auto;padding:12px 16px}
+body.bd-fullscreen .bd{min-width:0}
+
 /* 行動計画確認表 */
 .as-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
 .as-tabs button{border:1px solid var(--rule);background:#fff;border-radius:20px;padding:7px 16px;font-size:13px;color:var(--ink-2)}
@@ -874,7 +913,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.4',
+  APP_VERSION  : '2.5',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -1124,7 +1163,7 @@ function renderRail() {
 /* ============================================================
    ルーティング
    ============================================================ */
-function go(name, arg) { S.route = { name, arg }; route(); $('#rail').classList.remove('open'); window.scrollTo(0,0); }
+function go(name, arg) { if (name !== 'assessPlan') { document.body.classList.remove('bd-fullscreen'); if (typeof AS !== 'undefined') AS.boardFull = false; } S.route = { name, arg }; route(); $('#rail').classList.remove('open'); window.scrollTo(0,0); }
 
 function route() {
   const curTab = S.route.name === 'tab' ? S.route.arg : S.route.name === 'sec' ? S.byId[S.route.arg]?.tab_id : null;
@@ -3698,6 +3737,7 @@ function asTabs(on) {
 }
 
 async function viewAssessPlan(v) {
+  AS.boardFull = false; document.body.classList.remove('bd-fullscreen');
   if (!AS.ok) { v.innerHTML = emptyState('この画面は幹部のみが利用できます', ''); return; }
   if (AS.dirty && AS.cur) await asSave();
   if (!AS.loaded) v.innerHTML = '<p class="muted">読み込み中…</p>';
@@ -3734,11 +3774,12 @@ function asPlanRender(v = $('#view')) {
   const ranked = planRanked(d);
   const fresh = planCollect(d).length;
   const pols = asPolicies();
-  const issueCard = x => `<div class="pi ${AS.planSel.has(x.id) ? 'chk' : ''}" data-pi="${x.id}">
+  const issueCard = x => `<div class="pi ${AS.planSel.has(x.id) ? 'chk' : ''}" data-pi="${x.id}" style="background:${planPolColor(x.pid)}">
       <div class="pi-top"><label><input type="checkbox" data-pisel="${x.id}" ${AS.planSel.has(x.id) ? 'checked' : ''}> まとめる</label>
         ${x.rank ? `<span class="rk">${x.rank}位</span>` : ''}<button class="pi-del" data-pidel="${x.id}" title="削除">×</button></div>
       <div class="pi-pol">${esc(x.ptitle || '（方針未設定）')}</div>
       <textarea data-pk="issues#${x.id}.text" rows="3">${esc(x.text)}</textarea>
+      <div class="pi-own">担当<input data-pk="issues#${x.id}.owner" value="${esc(x.owner || '')}" placeholder="例：石野"></div>
       <div class="pi-g">${PLAN_G.map(([g, l]) => `<button class="${x.g?.[g] ? 'on' : ''}" data-pig="${x.id}|${g}" title="${l}">${g}<small>${l.slice(-1)}</small></button>`).join('')}</div>
     </div>`;
   const chip = x => `<div class="ichip pc ${AS.sel === x.id ? 'sel' : ''}" draggable="true" data-pchip="${x.id}">
@@ -3781,17 +3822,10 @@ function asPlanRender(v = $('#view')) {
       <div class="pi-list">${d.issues.map(issueCard).join('') || '<p class="muted">まだ課題がありません。取り込むか、書き出してください。</p>'}</div>
     </div>
 
-    <div class="ws-card">
-      <h3><span class="n">2</span>優先順位マトリクスで位置決め</h3>
-      <p class="lead">全社の課題を1枚のマトリクスに並べます。ドラッグ、またはタップで選んでから枠をタップ。</p>
-      <div class="mx-tray" data-pq="">
-        <div class="qh">未配置の課題（${tray.length}件）</div>${tray.map(chip).join('') || '<div class="muted">ありません</div>'}
-      </div>
-      <div class="mx">
-        <div class="ax ay" style="grid-row:1">重要度 高</div>${quad('q1')}${quad('q2')}
-        <div class="ax ay" style="grid-row:2">重要度 低</div>${quad('q3')}${quad('q4')}
-        <div></div><div class="ax">難易度 低</div><div class="ax">難易度 高</div>
-      </div>
+    <div class="ws-card bd-card">
+      <h3><span class="n">2</span>俯瞰マトリクスで位置決め</h3>
+      <p class="lead">全方針の課題を1枚に並べて俯瞰します。付箋の色は方針ごと（左下の凡例）。凡例を押すと、その方針の付箋を薄くできます。付箋を押すと、内容と担当を直せます。</p>
+      ${planBoard(d)}
     </div>
 
     <div class="ws-card">
@@ -3904,6 +3938,8 @@ function planBind(v) {
     k0.src = [...new Set(xs.flatMap(x => x.src || []))];
     const pts = [...new Set(xs.map(x => x.ptitle).filter(Boolean))]; k0.ptitle = pts.join('・');
     xs.forEach(x => Object.keys(x.g || {}).forEach(g => { if (x.g[g]) (k0.g = k0.g || {})[g] = true; }));
+    k0.owner = [...new Set(xs.map(x => x.owner).filter(Boolean))].join('・');
+    if (k0.x == null) { const o = rest.find(x => x.x != null); if (o) { k0.x = o.x; k0.y = o.y; } }
     k0.q = k0.q || rest.find(x => x.q)?.q || ''; k0.rank = k0.rank || rest.find(x => x.rank)?.rank || null;
     d.issues = d.issues.filter(x => !rest.includes(x)); rest.forEach(x => delete d.plans[x.id]);
     AS.planSel = new Set(); asTouch(); asPlanRender(v); toast(`${xs.length}枚を1枚にまとめました。文章を整えてください`);
@@ -3916,24 +3952,14 @@ function planBind(v) {
     const [id, g] = b.dataset.pig.split('|'); const x = find(id); x.g = x.g || {}; x.g[g] = !x.g[g]; asTouch(); asPlanRender(v);
   });
 
-  // マトリクス
-  const place = (id, q) => { const x = find(id); if (!x) return; x.q = q; if (q !== 'q1' && q !== 'q2') x.rank = null; AS.sel = null; asTouch(); asPlanRender(v); };
-  v.querySelectorAll('[data-pchip]').forEach(c => {
-    c.ondragstart = e => e.dataTransfer.setData('text/plain', c.dataset.pchip);
-    c.onclick = e => { e.stopPropagation(); AS.sel = AS.sel === c.dataset.pchip ? null : c.dataset.pchip; asPlanRender(v); };
-  });
-  v.querySelectorAll('[data-pq]').forEach(z => {
-    z.ondragover = e => { e.preventDefault(); z.classList.add('hov'); };
-    z.ondragleave = () => z.classList.remove('hov');
-    z.ondrop = e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) place(id, z.dataset.pq); };
-    z.onclick = () => { if (AS.sel) place(AS.sel, z.dataset.pq); };
-  });
+  planBindBoard(v, d);
 
   // 深刻度順位（同じ順位は1つだけ）
   v.querySelectorAll('[data-prank]').forEach(s => s.onchange = () => {
     const n = s.value ? +s.value : null, x = find(s.dataset.prank);
     if (n) d.issues.forEach(o => { if (o !== x && o.rank === n) o.rank = null; });
-    x.rank = n; if (n) AS.planOpen.add(x.id); asTouch(); asPlanRender(v);
+    x.rank = n; if (n) { AS.planOpen.add(x.id); const P = planPlan(d, x.id); if (!P.leader && x.owner) P.leader = x.owner; }
+    asTouch(); asPlanRender(v);
   });
   const c1 = $('#pl-c1'); if (c1) c1.onclick = () => { d.check1 = { at:new Date().toISOString(), by:S.me.full_name || S.me.email }; asTouch(); asPlanRender(v); toast('1回目の確認をしました'); };
   const c1u = $('#pl-c1undo'); if (c1u) c1u.onclick = () => { d.check1 = null; asTouch(); asPlanRender(v); };
@@ -3970,6 +3996,106 @@ async function planAi(v, id) {
     asTouch(); toast(`${n}か月分の案を入れました。担当者と実施日を決めてください`);
   } catch (e) { toast(asAiErrMsg(e)); }
   AS.busy = false; asPlanRender(v);
+}
+
+/* ---------- 俯瞰マトリクス（全方針の課題を1枚の模造紙のように並べる） ----------
+   付箋は方針ごとに色分け。位置は x（難易度 0=低→1=高）・y（重要度 0=高→1=低）で自由に置く。
+   置いた位置から4つの枠（優先順位No.1／プロジェクト／止める／やらない）を自動で判定する。 */
+const PLAN_COLORS = ['#F8E636','#8FD07E','#F5A3C7','#F57F3B','#8CCBF0','#C7A8EC','#F6C177','#7FD6C4','#E4E79A','#F29C9C','#A9B8F2','#D2B48C'];
+function planPolColor(pid) {
+  const ps = asAllPolicies(); const i = ps.findIndex(p => p.id === pid);
+  return i < 0 ? '#E2B45C' : PLAN_COLORS[i % PLAN_COLORS.length];
+}
+const planShort = t => String(t || '').replace(/に関する方針.*$/, '').replace(/\s+/g, '') || '—';
+const planQOf = (x, y) => y < .5 ? (x < .5 ? 'q1' : 'q2') : (x < .5 ? 'q3' : 'q4');
+/** 前の版で枠だけ決まっていた課題に、枠の中の位置を割り当てる */
+function planEnsurePos(d) {
+  const base = { q1:[.25,.25], q2:[.75,.25], q3:[.25,.75], q4:[.75,.75] };
+  const cnt = {};
+  d.issues.forEach(x => {
+    if (x.q && (x.x == null || x.y == null)) {
+      const n = cnt[x.q] = (cnt[x.q] || 0) + 1, [bx, by] = base[x.q];
+      x.x = Math.min(.95, Math.max(.07, bx - .17 + ((n - 1) % 3) * .14)); x.y = Math.min(.93, Math.max(.16, by - .06 + Math.floor((n - 1) / 3) * .14));
+    }
+  });
+}
+function planBoard(d) {
+  planEnsurePos(d);
+  const hide = AS.planHide || new Set();
+  const placed = d.issues.filter(x => x.x != null && x.y != null);
+  const tray = d.issues.filter(x => x.x == null || x.y == null);
+  const usedP = [...new Set(d.issues.map(x => x.pid).filter(Boolean))];
+  const pols = asAllPolicies().filter(p => usedP.includes(p.id));
+  const note = (x, onBoard) => `<div class="bn ${AS.sel === x.id ? 'sel' : ''} ${hide.has(x.pid) ? 'dim' : ''}" data-bn="${x.id}"
+      style="background:${planPolColor(x.pid)};${onBoard ? `left:${x.x * 100}%;top:${x.y * 100}%` : ''}">
+      ${x.rank ? `<span class="rk">${x.rank}位</span>` : ''}
+      <div class="bt">${esc(x.text)}</div>
+      ${x.owner ? `<div class="bo">担当：${esc(x.owner)}</div>` : ''}
+    </div>`;
+  const sel = d.issues.find(x => x.id === AS.sel);
+  return `
+    <div class="bd-tools">
+      <span class="muted">付箋をドラッグして置きます（iPadは指で動かせます）。置いた位置で「優先順位No.1」などの枠が自動で決まります。</span>
+      <button class="btn ghost" id="bd-full">${AS.boardFull ? '元に戻す' : '全画面で表示'}</button>
+    </div>
+    <div class="bd-tray" data-bdtray="1">
+      <span class="qh">未配置（${tray.length}）</span>${tray.map(x => note(x, false)).join('') || '<span class="muted">ありません</span>'}
+    </div>
+    <div class="bd-wrap"><div class="bd" id="bd">
+      <div class="bd-title">■重点方針・重点施策をより早く・着実に・具現化するための優先順位決定マトリクス（俯瞰図）</div>
+      <div class="bd-axy"></div><div class="bd-axx"></div>
+      <span class="bd-l hi">高</span><span class="bd-l lo">低</span><span class="bd-l lx">難易度　低</span><span class="bd-l hx">高</span><span class="bd-l imp">重要度（成果）</span>
+      <div class="bd-box b1">優先順位<br>No.1</div><div class="bd-box b2">プロジェクトを<br>検討</div>
+      <div class="bd-box b3">？<small>止める、捨てる</small></div><div class="bd-box b4">×<small>やらない</small></div>
+      ${placed.map(x => note(x, true)).join('')}
+      <div class="bd-legend">${pols.map(p => `<button class="${hide.has(p.id) ? 'off' : ''}" data-bdleg="${esc(p.id)}" style="background:${planPolColor(p.id)}" title="押すと薄く表示">${esc(planShort(p.title))}</button>`).join('')}</div>
+    </div></div>
+    ${sel ? `<div class="bd-edit">
+      <span class="sw" style="background:${planPolColor(sel.pid)}"></span><b>${esc(sel.ptitle || '')}</b>
+      <span class="tag2 ${sel.q || ''}">${sel.q ? AS_Q[sel.q].t : '未配置'}</span>
+      <textarea data-pk="issues#${sel.id}.text" rows="2">${esc(sel.text)}</textarea>
+      <label>担当<input data-pk="issues#${sel.id}.owner" value="${esc(sel.owner || '')}" placeholder="例：副社長"></label>
+      <button class="btn ghost" id="bd-unplace">未配置に戻す</button>
+    </div>` : ''}`;
+}
+function planBindBoard(v, d) {
+  const bd = $('#bd'); if (!bd) return;
+  const find = id => d.issues.find(x => x.id === id);
+  const full = $('#bd-full'); if (full) full.onclick = () => { AS.boardFull = !AS.boardFull; document.body.classList.toggle('bd-fullscreen', AS.boardFull); asPlanRender(v); };
+  v.querySelectorAll('[data-bdleg]').forEach(b => b.onclick = () => {
+    AS.planHide = AS.planHide || new Set(); const id = b.dataset.bdleg;
+    AS.planHide.has(id) ? AS.planHide.delete(id) : AS.planHide.add(id); asPlanRender(v);
+  });
+  const un = $('#bd-unplace'); if (un) un.onclick = () => { const x = find(AS.sel); x.x = x.y = null; x.q = ''; x.rank = null; asTouch(); asPlanRender(v); };
+  v.querySelectorAll('[data-bn]').forEach(el => {
+    el.onpointerdown = e => {
+      if (e.button > 0) return;
+      e.preventDefault();
+      const id = el.dataset.bn, r0 = el.getBoundingClientRect();
+      const offX = e.clientX - r0.left, offY = e.clientY - r0.top, sx = e.clientX, sy = e.clientY;
+      let ghost = null, moved = false;
+      const mv = ev => {
+        if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+        if (!moved) { moved = true; ghost = el.cloneNode(true); ghost.classList.add('ghost'); ghost.style.width = r0.width + 'px';
+          document.body.appendChild(ghost); el.style.opacity = .25; }
+        ghost.style.left = (ev.clientX - offX) + 'px'; ghost.style.top = (ev.clientY - offY) + 'px';
+      };
+      const up = ev => {
+        window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+        if (ghost) ghost.remove(); el.style.opacity = '';
+        if (!moved) { AS.sel = AS.sel === id ? null : id; asPlanRender(v); return; }
+        const b = bd.getBoundingClientRect(), x = find(id);
+        const cx = (ev.clientX - offX + r0.width / 2 - b.left) / b.width, cy = (ev.clientY - offY + r0.height / 2 - b.top) / b.height;
+        if (cx >= 0 && cx <= 1 && cy >= 0 && cy <= 1) {
+          x.x = Math.min(.97, Math.max(.03, cx)); x.y = Math.min(.95, Math.max(.06, cy));
+          const q = planQOf(x.x, x.y); x.q = q; if (q !== 'q1' && q !== 'q2') x.rank = null;
+        } else if (document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-bdtray]')) { x.x = x.y = null; x.q = ''; x.rank = null; }
+        else return;
+        AS.sel = id; asTouch(); asPlanRender(v);
+      };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  });
 }
 
 boot();
