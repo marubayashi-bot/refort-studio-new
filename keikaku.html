@@ -650,6 +650,26 @@ body.chat-open #scrim{opacity:1;pointer-events:auto}
   .mx{grid-template-columns:20px 1fr 1fr}
 }
 @media (max-width:600px){ .note,.addnote{width:calc(50% - 6px)} }
+/* 来期の方針候補 */
+.nc-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}
+.nc{background:#fff;border:1px solid var(--rule-2);border-left:5px solid #D9BC3A;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.nc.ok{border-left-color:var(--midori)}.nc.no{border-left-color:#B8C3D3;opacity:.7}
+.nc-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nc-top select,.nc-st{border:1px solid var(--rule);border-radius:6px;padding:4px 6px;font-family:inherit;font-size:12.5px;max-width:230px}
+.nc-top .sp{flex:1}
+.nc-title{border:0;border-bottom:1.5px solid var(--ink-2);font-family:inherit;font-size:16px;font-weight:700;padding:4px 2px;outline:none}
+.nc-l{font-size:11px;font-weight:700;color:var(--ink-3)}
+.nc textarea{border:1px solid var(--rule);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13.5px;line-height:1.7;resize:vertical}
+.nc-body{color:#1E5FB0}
+.nc-note{background:#FFF7F5;border:1px solid #F1C9C0;border-radius:8px;padding:6px 10px;font-size:12.5px}
+.nc-foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px}
+.nc-foot .sp{flex:1}
+.nc-foot .btn{padding:4px 10px;font-size:12px}
+.nc-like.on{background:#FFF4DE;border-color:#E5C77A}
+.nx-imp{border-top:1px solid var(--rule-2);padding:7px 0;font-size:13px;line-height:1.6}
+.nx-imp.add div{color:#1E5FB0}.nx-imp.del div{color:#C0392B}
+@media (max-width:560px){ .nc-list{grid-template-columns:1fr} }
+
 /* 俯瞰マトリクス */
 .bd-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}
 .bd-tray{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;border:1.5px dashed var(--rule);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:#FAFBFC;min-height:46px}
@@ -913,7 +933,7 @@ const CFG = {
   SUPABASE_KEY : 'sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa',
   BUCKET       : 'keikaku',
   APP_ID       : 'keikaku',
-  APP_VERSION  : '2.5',
+  APP_VERSION  : '2.6',
   // 経営コンパスAI：共通のAI中継（APIキーはEdge Function側。HTMLには書かない）
   AI_URL       : 'https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai',
   SYNC_MINUTES : 15,
@@ -1168,7 +1188,7 @@ function go(name, arg) { if (name !== 'assessPlan') { document.body.classList.re
 function route() {
   const curTab = S.route.name === 'tab' ? S.route.arg : S.route.name === 'sec' ? S.byId[S.route.arg]?.tab_id : null;
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === curTab));
-  $$('#rail .navlink').forEach(b => b.classList.toggle('on', b.dataset.go === S.route.name || (/^assess(Ws|Plan)$/.test(S.route.name) && b.dataset.go === 'assess')));
+  $$('#rail .navlink').forEach(b => b.classList.toggle('on', b.dataset.go === S.route.name || (/^assess(Ws|Plan|Next)$/.test(S.route.name) && b.dataset.go === 'assess')));
   if (S.route.name !== 'home') clearInterval(nobuTimer);
   const v = $('#view');
   ({
@@ -1184,6 +1204,7 @@ function route() {
     assess: viewAssess,
     assessWs: viewAssessWs,
     assessPlan: viewAssessPlan,
+    assessNext: viewAssessNext,
     search: viewSearch
   }[S.route.name] || viewHome)(v);
 }
@@ -2779,7 +2800,7 @@ function asApplyRemote(merged, who) {
   const f = asFocusKey();
   if (f && f.sel.includes('data-ntx')) { AS.pendingRender = true; return; }   // 付箋の文字を打っている途中は描き直さない
   AS.cur = merged; AS.rows[merged.id] = merged;
-  (S.route.name === 'assessPlan' ? asPlanRender : asRender)(); asRestoreFocus(f);
+  ({ assessPlan:asPlanRender, assessNext:asNextRender }[S.route.name] || asRender)(); asRestoreFocus(f);
   if (who) toast(`${who} さんの入力を取り込みました`);
 }
 
@@ -2843,7 +2864,7 @@ async function asSave(manual = false) {
 }
 /** 開いている間、相手の入力を定期的に取り込む */
 async function asPoll() {
-  if (!/^assess(Ws|Plan)$/.test(S.route.name) || !AS.cur || AS.saving || AS.rowsRemote === false || document.hidden) return;
+  if (!/^assess(Ws|Plan|Next)$/.test(S.route.name) || !AS.cur || AS.saving || AS.rowsRemote === false || document.hidden) return;
   if (AS.dirty) return;   // 自分の保存のときに合わせる
   if (AS.pendingRender && !asFocusKey()?.sel.includes('data-ntx')) { AS.pendingRender = false; asApplyRemote(AS.cur); }
   try {
@@ -3733,6 +3754,7 @@ function asTabs(on) {
   return `<div class="as-tabs">
     <button class="${on === 'list' ? 'on' : ''}" data-go="assess">① 方針ごとのアセスメント</button>
     <button class="${on === 'plan' ? 'on' : ''}" data-go="assessPlan">② 深刻度の高い課題と行動計画</button>
+    <button class="${on === 'next' ? 'on' : ''}" data-go="assessNext">③ 来期の方針候補</button>
   </div>`;
 }
 
@@ -3848,6 +3870,12 @@ function asPlanRender(v = $('#view')) {
       <h3><span class="n">4</span>行動計画確認表（月別展開）</h3>
       <p class="lead">選んだ課題それぞれに、具体的に何を実行するかを月別に立案します（1情報1マス）。毎日・毎週実行することは左枠にまとめます。進捗は毎月社長へ報告し、その月に計画がなくても「無し」と報告します。</p>
       ${ranked.length ? ranked.map(x => planSheet(d, x)).join('') : '<p class="muted">上位5つを選ぶと、ここに行動計画確認表ができます。</p>'}
+    </div>
+    <div class="next-card">
+      <span class="ic">${IC(ICONS.spark, 26)}</span>
+      <div style="flex:1"><b>次へ：来期の方針候補を出す</b>
+        <div class="muted" style="margin-top:2px">新しい方針や、今の方針への追加・削除の候補を幹部で出し合い、来期の経営計画書に反映します。</div></div>
+      <button class="btn gold" data-go="assessNext">方針候補へ進む</button>
     </div>`;
 
   planBind(v);
@@ -4096,6 +4124,215 @@ function planBindBoard(v, d) {
       window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
     };
   });
+}
+
+/* ============================================================
+   来期の方針候補（来期の経営計画書づくりの置き場）
+   ・新しい方針／既存方針への追加／削除・統合 の候補を、幹部の誰でも出せる
+   ・賛同（和談の目安）と、社長の判断（検討中／採用／見送り）
+   ・各方針アセスメントで承認した修正案と、深刻度上位5つの課題を一覧で参照
+   ・採用分をまとめてコピーし、Googleドキュメント（原本）へ貼り付ける
+   保存は kk_assess に「__next__」の行として期ごとに1件（同時編集の仕組みを使う）。
+   ============================================================ */
+const NEXT_PID = '__next__';
+const NEXT_TYPE = { new:'新しい方針', add:'既存の方針に追加', mod:'既存の方針を修正', del:'削除・統合' };
+const NEXT_ST = { idea:'検討中', ok:'採用', no:'見送り' };
+const nextKey = () => asKey(NEXT_PID, AS.term, '下期');   // 期ごとに1件（下期の行に置く）
+
+async function viewAssessNext(v) {
+  document.body.classList.remove('bd-fullscreen');
+  if (!AS.ok) { v.innerHTML = emptyState('この画面は幹部のみが利用できます', ''); return; }
+  if (AS.dirty && AS.cur) await asSave();
+  if (!AS.loaded) v.innerHTML = '<p class="muted">読み込み中…</p>';
+  await asLoadRows();
+  const k = nextKey();
+  AS.base = null; AS.ver = null; AS.dirty = false; AS.pendingRender = false;
+  if (AS.rowsRemote !== false) {
+    try { const remote = await asFetchRow(k); if (remote) { AS.rows[k] = remote; AS.base = asPick5(remote); AS.ver = remote.updated_at; } } catch {}
+  }
+  AS.cur = AS.rows[k] ? clone(AS.rows[k]) : { ...asNewRow(NEXT_PID), id:k, half:'下期', data:{ cands:[] } };
+  AS.cur.data.cands = AS.cur.data.cands || [];
+  AS.nextFilter = AS.nextFilter || 'all';
+  log('assess_next');
+  asNextRender(v);
+}
+
+/** 各方針で承認した修正案（今期の上期・下期） */
+function nextApprovedImps() {
+  const out = [];
+  asPolicies().forEach(p => ['上期','下期'].forEach(h => {
+    const r = asRow(p.id, AS.term, h); if (!r) return;
+    (r.data.imps || []).filter(m => (m.state === 'ok' || m.state === 'done') && (m.text || '').trim())
+      .forEach(m => out.push({ p, h, m }));
+  }));
+  return out;
+}
+function nextTopIssues() {
+  return ['上期','下期'].flatMap(h => {
+    const r = asRow(PLAN_PID, AS.term, h); if (!r) return [];
+    return (r.data.issues || []).filter(x => x.rank).sort((a, b) => a.rank - b.rank).map(x => ({ ...x, h }));
+  });
+}
+
+function asNextRender(v = $('#view')) {
+  const y = window.scrollY;
+  const r = AS.cur, d = r.data, me = S.me.full_name || S.me.email;
+  const pols = asAllPolicies();
+  const imps = nextApprovedImps(), tops = nextTopIssues();
+  const list = d.cands.filter(c => AS.nextFilter === 'all' || (c.st || 'idea') === AS.nextFilter);
+  const cnt = s => d.cands.filter(c => (c.st || 'idea') === s).length;
+  const card = c => {
+    const likes = c.likes || [];
+    const liked = likes.includes(me);
+    return `<div class="nc ${c.st || 'idea'}" data-nc="${c.id}">
+      <div class="nc-top">
+        <select data-nk="${c.id}.type">${Object.entries(NEXT_TYPE).map(([k, l]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${c.type !== 'new' ? `<select data-nk="${c.id}.pid"><option value="">対象の方針を選ぶ</option>${pols.map(p => `<option value="${esc(p.id)}" ${c.pid === p.id ? 'selected' : ''}>${esc(p.title.trim())}</option>`).join('')}</select>` : ''}
+        <span class="sp"></span>
+        <span class="st ${c.st === 'ok' ? 'done' : c.st === 'no' ? '' : 'doing'}">${NEXT_ST[c.st || 'idea']}</span>
+      </div>
+      ${c.type === 'new' ? `<input class="nc-title" data-nk="${c.id}.title" value="${esc(c.title || '')}" placeholder="方針名（例：DXに関する方針）">` : ''}
+      <label class="nc-l">方針の文案</label>
+      <textarea class="nc-body" data-nk="${c.id}.body" rows="4" placeholder="経営計画書に載せる文（例：1. 全社員が日報アプリで毎日報告する。）">${esc(c.body || '')}</textarea>
+      <label class="nc-l">理由・背景（どの課題を解決するか）</label>
+      <textarea data-nk="${c.id}.why" rows="2" placeholder="例：アセスメントで『一般社員まで方針が浸透していない』が深刻度1位だったため">${esc(c.why || '')}</textarea>
+      ${c.note ? `<div class="nc-note"><b>社長コメント：</b>${esc(c.note)}</div>` : ''}
+      <div class="nc-foot">
+        <span class="muted">提案：${esc(c.by || '')}　${c.at ? fmt(c.at) : ''}</span>
+        <span class="sp"></span>
+        <button class="btn ghost nc-like ${liked ? 'on' : ''}" data-nlike="${c.id}" title="${esc(likes.join('、'))}">👍 賛同 ${likes.length || ''}</button>
+        <button class="btn ghost" data-nai="${c.id}" ${AS.busy ? 'disabled' : ''}>${AS.busy === c.id ? '整えています…' : '社長AIで文案を整える'}</button>
+        ${AS.owner ? `<select data-nk="${c.id}.st" class="nc-st">${Object.entries(NEXT_ST).map(([k, l]) => `<option value="${k}" ${(c.st || 'idea') === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <button class="btn ghost" data-nnote="${c.id}">コメント</button>` : ''}
+        ${AS.owner || c.by === me ? `<button class="linkbtn" data-ndel="${c.id}">削除</button>` : ''}
+      </div>
+    </div>`;
+  };
+
+  v.innerHTML = `
+    <div class="eyebrow">幹部専用</div>
+    <div class="sectitle"><h2>第${r.term + 1}期に向けた方針候補</h2><span class="muted">第${r.term}期のアセスメントから</span></div>
+    ${asTabs('next')}
+    <div class="ws-crumb" style="margin-top:12px">
+      <select id="nx-term" class="ws-in" style="width:auto;padding:6px 10px">${[CFG.TERM, CFG.TERM - 1, CFG.TERM - 2].map(t => `<option value="${t}" ${t === AS.term ? 'selected' : ''}>第${t + 1}期に向けて（第${t}期中）</option>`).join('')}</select>
+      <span class="sp"></span>
+      <span class="ws-save ${AS.dirty ? 'warn' : ''}" id="ws-save">${AS.dirty ? '未保存の変更があります' : r.updated_at ? `最終更新 ${fmt(r.updated_at)} ${esc(r.updated_by || '')}` : '入力すると自動で保存されます'}</span>
+      <button class="btn" id="ws-savebtn" style="padding:6px 16px">保存</button>
+    </div>
+    ${nobuSay('アセスメントや日々の気づきから、来期に入れたい方針を出しておきましょう。新しい方針だけでなく、今の方針への追加・削除も候補にできます。採用した候補は、まとめてコピーして経営計画書の原本に反映します。')}
+
+    <div class="ws-card">
+      <h3><span class="n">1</span>方針候補</h3>
+      <div class="as-bar" style="margin-bottom:12px">
+        <div class="seg" id="nx-filter">${[['all',`すべて ${d.cands.length}`],['idea',`検討中 ${cnt('idea')}`],['ok',`採用 ${cnt('ok')}`],['no',`見送り ${cnt('no')}`]]
+          .map(([k, l]) => `<button data-f="${k}" class="${AS.nextFilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <span class="sp" style="flex:1"></span>
+        ${Object.entries(NEXT_TYPE).map(([k, l]) => `<button class="btn ${k === 'new' ? 'gold' : 'ghost'}" data-nadd="${k}">＋ ${l}</button>`).join('')}
+      </div>
+      <div class="nc-list">${list.map(card).join('') || '<p class="muted">まだ候補がありません。上のボタンから追加してください。</p>'}</div>
+    </div>
+
+    <div class="ws-card">
+      <h3><span class="n">2</span>今期のアセスメントから来期へ渡すもの</h3>
+      <p class="lead">各方針のアセスメントで承認した修正案と、深刻度上位の課題です。候補を考えるときの材料にしてください。</p>
+      <div class="grid2">
+        <div><div class="eyebrow">承認した修正案（${imps.length}件）</div>
+          ${imps.map(({ p, h, m }) => `<div class="nx-imp ${m.type}"><span class="muted">${esc(p.title.trim())}・${h}</span>
+            <div>${m.type === 'add' ? '追記' : m.type === 'del' ? '削除' : '取り組み'}：${esc(m.text)}</div>
+            <button class="linkbtn" style="color:var(--blue)" data-nfrom="${esc(p.id)}" data-ntext="${esc(m.text)}" data-ntype="${m.type === 'del' ? 'del' : 'add'}">候補にする</button></div>`).join('') || '<p class="muted">まだありません</p>'}
+        </div>
+        <div><div class="eyebrow">深刻度上位の課題（${tops.length}件）</div>
+          ${tops.map(x => `<div class="nx-imp"><span class="rk">${x.rank}位</span> <span class="muted">${esc(x.ptitle || '')}・${x.h}</span><div>${esc(x.text)}</div></div>`).join('') || '<p class="muted">まだありません</p>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="ws-card">
+      <h3><span class="n">3</span>来期の経営計画書へ反映</h3>
+      <p class="lead">「採用」にした候補と承認済みの修正案を、方針ごとにまとめた文章にします。コピーして、経営計画書の原本（Googleドキュメント）に貼り付けてください。</p>
+      <button class="btn gold" id="nx-copy">採用分をまとめてコピー</button>
+      <textarea class="ws-in" id="nx-out" rows="8" readonly style="margin-top:10px;font-size:13px">${esc(nextExportText(d, imps))}</textarea>
+    </div>`;
+
+  nextBind(v);
+  wire(v);
+  const sb_ = $('#ws-savebtn'); if (sb_) sb_.onclick = () => asSave(true);
+  window.scrollTo(0, y);
+}
+
+function nextExportText(d, imps) {
+  const ok = d.cands.filter(c => c.st === 'ok');
+  const lines = [`■第${AS.cur.term + 1}期 経営計画書への反映（${fmt(new Date().toISOString())} 時点）`];
+  const news = ok.filter(c => c.type === 'new');
+  if (news.length) { lines.push('', '【新しい方針】'); news.forEach(c => lines.push(`◆${c.title || '（方針名未定）'}`, c.body || '')); }
+  const byPol = {};
+  ok.filter(c => c.type !== 'new').forEach(c => (byPol[c.pid || '—'] = byPol[c.pid || '—'] || []).push(`${NEXT_TYPE[c.type]}：${c.body || ''}`));
+  const candTexts = new Set(d.cands.map(c => (c.fromImp || c.body || '').trim()));
+  imps.filter(({ m }) => !candTexts.has(m.text.trim())).forEach(({ p, m }) => (byPol[p.id] = byPol[p.id] || []).push(`${m.type === 'add' ? '追記' : m.type === 'del' ? '削除' : '取り組み'}（アセスメント）：${m.text}`));
+  const ids = Object.keys(byPol);
+  if (ids.length) {
+    lines.push('', '【既存の方針の見直し】');
+    ids.forEach(id => { lines.push(`◆${S.byId[id]?.title.trim() || '対象未設定'}`); byPol[id].forEach(t => lines.push('・' + t)); });
+  }
+  return lines.length > 1 ? lines.join('\n') : '（「採用」の候補・承認済みの修正案はまだありません）';
+}
+
+function nextBind(v) {
+  const d = AS.cur.data, me = S.me.full_name || S.me.email;
+  const find = id => d.cands.find(c => c.id === id);
+  $('#nx-term').onchange = e => { AS.term = +e.target.value; viewAssessNext(v); };
+  $$('#nx-filter button').forEach(b => b.onclick = () => { AS.nextFilter = b.dataset.f; asNextRender(v); });
+  const add = (type, extra = {}) => {
+    d.cands.unshift({ id:asUid(), type, title:'', pid:'', body:'', why:'', st:'idea', likes:[], by:me, at:new Date().toISOString(), ...extra });
+    AS.nextFilter = 'all'; asTouch(); asNextRender(v);
+    v.querySelector('.nc .nc-title, .nc select[data-nk$=".pid"]')?.focus();
+  };
+  v.querySelectorAll('[data-nadd]').forEach(b => b.onclick = () => add(b.dataset.nadd));
+  v.querySelectorAll('[data-nfrom]').forEach(b => b.onclick = () => {
+    add(b.dataset.ntype, { pid:b.dataset.nfrom, body:b.dataset.ntext, fromImp:b.dataset.ntext, why:'方針アセスメントで承認した修正案から' }); toast('候補に追加しました');
+  });
+  v.querySelectorAll('[data-nk]').forEach(el => {
+    const [id, f] = el.dataset.nk.split('.');
+    const fn = () => { const c = find(id); if (!c) return; c[f] = el.value; asTouch(); if (el.tagName === 'SELECT') asNextRender(v); };
+    el.tagName === 'SELECT' ? el.onchange = fn : el.oninput = fn;
+  });
+  v.querySelectorAll('[data-nlike]').forEach(b => b.onclick = () => {
+    const c = find(b.dataset.nlike); c.likes = c.likes || [];
+    c.likes = c.likes.includes(me) ? c.likes.filter(x => x !== me) : [...c.likes, me]; asTouch(); asNextRender(v);
+  });
+  v.querySelectorAll('[data-nnote]').forEach(b => b.onclick = () => {
+    const c = find(b.dataset.nnote); const t = prompt('社長コメント', c.note || ''); if (t === null) return;
+    c.note = t.trim(); asTouch(); asNextRender(v);
+  });
+  v.querySelectorAll('[data-ndel]').forEach(b => b.onclick = () => {
+    if (!confirm('この候補を削除しますか？')) return; d.cands = d.cands.filter(c => c.id !== b.dataset.ndel); asTouch(); asNextRender(v);
+  });
+  v.querySelectorAll('[data-nai]').forEach(b => b.onclick = () => nextAi(v, b.dataset.nai));
+  const cp = $('#nx-copy'); if (cp) cp.onclick = async () => {
+    const t = $('#nx-out').value;
+    try { await navigator.clipboard.writeText(t); toast('コピーしました。原本に貼り付けてください'); }
+    catch { $('#nx-out').select(); document.execCommand('copy'); toast('コピーしました'); }
+  };
+}
+
+async function nextAi(v, id) {
+  const c = AS.cur.data.cands.find(x => x.id === id);
+  if (!(c.body || '').trim() && !(c.why || '').trim()) { toast('文案か理由を少し書いてください'); return; }
+  AS.busy = id; asNextRender(v);
+  const p = c.pid ? S.byId[c.pid] : null;
+  try {
+    const res = await asAiJSON({ system:AS_AI_SYS, max_tokens:1200, prompt:`来期の経営計画書に載せる方針の文案を整えてください。
+【種類】${NEXT_TYPE[c.type]}
+${c.type === 'new' ? `【方針名】${c.title || '（未定）'}` : `【対象の方針】${p ? p.title.trim() : '（未選択）'}\n【今の方針本文（抜粋）】${p ? (p.body_text || '').replace(/\s+/g, ' ').slice(0, 1500) : ''}`}
+【下書き】${c.body || '（なし）'}
+【理由・背景】${c.why || '（なし）'}
+決まり：経営計画書の方針の書き方（「1. 〜する。」の番号付き、言い切り、1文60字以内、3〜5項目）。誰が・いつ・何をが分かるように。下書きに無い数字は作らない。
+次の形のJSONだけを返してください。{"title":"方針名（新しい方針のときだけ。それ以外は空）","body":"1. 〜する。\\n2. 〜する。"}` });
+    if (res.body) c.body = String(res.body).trim();
+    if (c.type === 'new' && res.title && !(c.title || '').trim()) c.title = String(res.title).trim();
+    asTouch(); toast('文案を整えました');
+  } catch (e) { toast(asAiErrMsg(e)); }
+  AS.busy = false; asNextRender(v);
 }
 
 boot();
