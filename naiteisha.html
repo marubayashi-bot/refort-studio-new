@@ -438,8 +438,10 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
       <div class="row" style="margin-bottom:10px;gap:8px;align-items:center">
         <button class="btn gold sm" onclick="syncRecruit()">↻ スプレッドシートから更新</button>
         <label class="btn ghost sm" style="cursor:pointer">CSVを取り込む<input type="file" accept=".csv,text/csv" hidden onchange="importRecruitCSV(event)"></label>
+        <a class="btn ghost sm" id="mphOpen" target="_blank" rel="noopener">スプレッドシートを開く</a>
         <span class="muted small" id="mphStatus"></span>
       </div>
+      <div class="note" id="mphGuide" style="display:none;margin-bottom:10px"></div>
       <div style="overflow:auto"><table id="mphTbl"></table></div>
     </div>
 
@@ -705,6 +707,10 @@ async function afterLogin(){
    更新のお知らせ（アップデートのたびに先頭へ1件追加する）
    ================================================================== */
 const CHANGELOG=[
+  {ver:'2.3',date:'2026-10-04',items:[
+    {tag:'内定者カルテ',tab:'p-karte',text:'アルバイト回数欄に「スプレッドシートを開く」ボタンと反映手順を追加しました。CSVを1回取り込むと、27卒・28卒の内定者全員分がまとめて反映されます。',by:'東田'},
+    {tag:'新卒採用進捗',tab:'p-recruit',text:'月別PH推移に「スプレッドシートを開く」ボタンと反映手順を追加しました。28卒学生管理シートを取り込むと、選考状況の数値がスプレッドシートの最新値に置き換わります。',by:'東田'},
+  ]},
   {ver:'2.2',date:'2026-09-30',items:[
     {tag:'全体',text:'アップデート時に、開いた最初の画面で更新内容をお知らせするようにしました。右上の「お知らせ」からいつでも見返せます。',by:'丸林'},
   ]},
@@ -918,7 +924,7 @@ function migrate(o){const f=freshState();const m=Object.assign(f,o,{weights:Obje
   if(!m.costYear||!m.funnel.years[m.costYear])m.costYear='28卒';
   ['27卒','28卒'].forEach(y=>{if(m.funnel.years[y])ensureCost(m.funnel.years[y]);});
   return m;}
-function defaultSheetLink(){return{url:'',token:'',recruitId:'1_VoANpU0844FjuCZ1QNmQUs8pbO0rxRbqjo5SK6f7ik',recruitSheet:{'28卒':'28卒学生管理','27卒':'27卒学生管理'},arbeitId:'1O98rVTZlJIKSyzUA5RlxPb8syK32zKHIrTG6ZLH4yyw',arbeitGid:{'27':'1273432843','28':''},arbeitTarget:4};}
+function defaultSheetLink(){return{url:'',token:'',recruitId:'1_VoANpU0844FjuCZ1QNmQUs8pbO0rxRbqjo5SK6f7ik',recruitSheet:{'28卒':'28卒学生管理','27卒':'27卒学生管理'},recruitGid:{'28卒':'997691932'},arbeitId:'1O98rVTZlJIKSyzUA5RlxPb8syK32zKHIrTG6ZLH4yyw',arbeitGid:{'27':'1273432843','28':''},arbeitTarget:4};}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}if(session)scheduleSync();}
 function cur(){return S.cohorts[S.cohort];}
 
@@ -965,7 +971,7 @@ const NAVGROUPS=[
   ['管理',[['p-guide','使い方'],['p-settings','設定']]],
 ];
 const TABS=NAVGROUPS.flatMap(g=>g[1]);
-const APP_VERSION='2026.09 v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
+const APP_VERSION='2026.10 v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';let first=true;
   NAVGROUPS.forEach(g=>{const h=document.createElement('div');h.className='navgrp';h.textContent=g[0];n.appendChild(h);
     g[1].forEach(t=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(first){b.classList.add('active');first=false;}b.dataset.id=t[0];n.appendChild(b);});});}
@@ -1621,6 +1627,10 @@ function renderMonthlyPH(){
   document.getElementById('mphTag').textContent=S.curYear;
   document.getElementById('mphSheet').textContent=sheet?`「${sheet}」シート`:'年代シート';
   if(!sheet){tb.innerHTML='<tbody><tr><td class="muted small">この年代はスプレッドシート連動の対象外です（27卒・28卒で利用できます）。</td></tr></tbody>';st.textContent='';return;}
+  const L0=SL(),gid=(L0.recruitGid||{})[S.curYear];
+  const op=document.getElementById('mphOpen');if(op){op.href=`https://docs.google.com/spreadsheets/d/${L0.recruitId}/edit`+(gid?`#gid=${gid}`:'');op.style.display=sheet?'':'none';}
+  const gd=document.getElementById('mphGuide');
+  if(gd){gd.style.display=(sheet&&!L0.url)?'':'none';gd.innerHTML=`<b>自動連携（設定タブのGAS）が未設置のため、「スプレッドシートから更新」はまだ使えません。</b>今すぐ反映するには：①「スプレッドシートを開く」→ ②「${esc(sheet||'')}」シートを表示した状態で「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③ このカードの「CSVを取り込む」で保存したファイルを選択。反映結果はクラウドに保存され、全員の画面に反映されます。`;}
   const M=Y.monthly;
   if(!M||!M.months){tb.innerHTML='<tbody><tr><td class="muted small">まだ読み込まれていません。「スプレッドシートから更新」を押してください。</td></tr></tbody>';st.textContent='';return;}
   st.textContent=`最終更新 ${fmtDT(M.synced)}／${M.rows}件`+(M.missing&&M.missing.length?`／列が見つからないPH：${M.missing.join('・')}`:'');
@@ -1663,10 +1673,12 @@ function arbeitSec(p){
   const rc=ai.recent==null?'':`<span class="pill ${ai.recent>=tgt*3?'ok':ai.recent>=tgt*1.5?'warn':'danger'}">直近3ヶ月 ${ai.recent}回</span>`;
   return `<div class="k-sec"><h4><span class="no">④</span>アルバイト回数 ${ai.src?`<span class="pill gray">累計 ${ai.total}回</span>`:''}${rc}</h4>
     <p class="hint" style="margin:-4px 0 10px">「内定者データ」スプレッドシート（${esc(S.cohort)}アルバイト数）の記録から、本人の回数を月ごとに自動集計します。${ai.src==='sheet'?'最終更新 '+fmtDT(a.synced):ai.src==='manual'?'手入力の値を使用中':'未連携'}／月間目標 ${tgt}回（エンゲージの「アルバイト回数」は直近3ヶ月の回数÷目標で算出）</p>
+    ${(!SL().url&&!ks.length)?`<div class="note" style="margin-bottom:8px"><b>自動連携（設定タブのGAS）が未設置です。</b>今すぐ反映するには：①「スプレッドシートを開く」→ ②「${esc(S.cohort)}アルバイト数」シートで「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③「CSVを取り込む」で選択。内定者全員分が一度に反映されます。</div>`:''}
     ${ks.length?`<div class="engbar">${ks.map(k=>`<div class="c">${+k.slice(5)}月<b>${bm[k]}回</b></div>`).join('')}</div>`:''}
     <div class="row" style="margin-top:10px;gap:8px;align-items:center">
       <button class="btn gold sm" onclick="syncArbeit()">↻ スプレッドシートから更新</button>
       <label class="btn ghost sm" style="cursor:pointer">CSVを取り込む<input type="file" accept=".csv,text/csv" hidden onchange="importArbeitCSV(event)"></label>
+      <a class="btn ghost sm" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/${esc(SL().arbeitId)}/edit${(SL().arbeitGid||{})[S.cohort]?'#gid='+esc((SL().arbeitGid||{})[S.cohort]):''}">スプレッドシートを開く</a>
       ${ks.length?'':`<span class="muted small">未連携時の手入力（累計回数）</span><input class="in" type="number" min="0" style="width:90px" value="${a.manual??''}" onchange="setArbeitManual('${p.id}',this.value)">`}
     </div></div>`;}
 function setArbeitManual(pid,v){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.arbeitCnt=p.arbeitCnt||{};p.arbeitCnt.manual=(v===''?null:+v);save();renderAll();}
@@ -1674,7 +1686,7 @@ function applyArbeit(rows,src){
   const agg={};
   rows.forEach(r=>{if(!r)return;const nm=normName(r[1]);if(!nm||nm==='氏名')return;const m=ymOf(r[0],'');if(!m)return;
     const n=(r[2]===''||r[2]==null)?1:(+r[2]||0);agg[nm]=agg[nm]||{};agg[nm][m]=(agg[nm][m]||0)+n;});
-  const ppl=cur().people,now=new Date().toISOString(),hit=[],miss=[];
+  const ppl=[].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])),now=new Date().toISOString(),hit=[],miss=[];
   ppl.forEach(p=>{const bm=agg[normName(p.name)];if(bm){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:bm,synced:now,src:src||''});hit.push(p.name);}});
   Object.keys(agg).forEach(nm=>{if(!ppl.some(p=>normName(p.name)===nm))miss.push(nm);});
   save();renderAll();
