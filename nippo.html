@@ -393,6 +393,19 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 }
 .ndbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   background:#FFFBEA;border:1px solid #F1E3A8;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px}
+.sigbox{border:1px solid #CFE0F3;background:#F5F9FE;border-radius:10px;padding:10px 12px;margin:10px 0}
+.sighead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
+.sigpts{margin:8px 0 4px 1.2em;padding:0;font-size:13px;line-height:1.6}
+.sigcmt{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13px}
+.sigcmt button{margin-top:6px}
+.sigacts{margin-top:8px;font-size:13px}
+.sigact{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px dashed var(--line)}
+.sigurgent{background:#FBE3E3;color:#B3261E;font-weight:700;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px}
+.sigtags{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
+.sigtag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:12px;background:#EEF1F5;color:#44566B;border:1px solid transparent;font-family:inherit}
+.sigtag.g{background:#E3F4EC;color:#1F6B52}.sigtag.r{background:#FBE3E3;color:#B3261E}
+.sigtag.b{background:#E3EEFA;color:#1F5A96}.sigtag.y{background:#FFF4D6;color:#8A6410}
+.sigtag.big{font-size:12px;padding:4px 10px;cursor:pointer}.sigtag.on{border-color:currentColor}
 </style>
 </head>
 <body>
@@ -769,7 +782,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-09-30a';
+const BUILD = '2026-10-03a';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -1013,12 +1026,42 @@ function icon(k){
 let FRIDAY_WEEKLY = true;
 let MY_WEEKLY_DONE = null;   // 今週の自分の週次報告が提出済みか
 let STATUS_WK = null;        // 提出・確認状況タブ用：今週の週次報告を出した人
+let WEEKLY_DOW_MAP = {};     // 個人ごとの週次報告の曜日（nippo_settings の weekly_dow:<社員ID>。'none'=曜日を決めない）
+const DOW_JP = ['日','月','火','水','木','金','土'];
 function dowOf(ymd){ return new Date(ymd + 'T12:00:00+09:00').getUTCDay(); }
-function isWeeklyDay(ymd){ return FRIDAY_WEEKLY && dowOf(ymd) === 5; }
+/* その人の週次報告の曜日（null＝決まった曜日なし）。個人設定が無ければ全社設定（金曜） */
+function weeklyDowOf(uid){
+  const v = WEEKLY_DOW_MAP[uid];
+  if (v === 'none') return null;
+  if (v !== undefined && v !== '') return Number(v);
+  return FRIDAY_WEEKLY ? 5 : null;
+}
+function isWeeklyDay(ymd, uid){
+  const w = weeklyDowOf(uid || (ME && ME.id));
+  return w !== null && dowOf(ymd) === w;
+}
+/* 週次報告の日でも「今日は日報を出す」を選べる（土曜も勤務など）。端末に日付ごとに記録 */
+function friKey(day){ return 'nippo_frimode:' + (ME ? ME.id : '') + ':' + day; }
+function friDaily(day){
+  try { if (localStorage.getItem(friKey(day)) === 'daily') return true; } catch(e){}
+  return typeof ndRead === 'function' && !!ndRead('d:' + day);   // 書きかけの日報があれば日報を出す日
+}
+function chooseFri(mode){
+  const day = EDIT_DATE || TODAY;
+  try { mode === 'daily' ? localStorage.setItem(friKey(day), 'daily') : localStorage.removeItem(friKey(day)); } catch(e){}
+  if (mode === 'weekly'){ go('weekly'); return; }
+  render(); drawHeaderStats();
+}
 async function loadNippoMode(){
   try {
-    const st = await EC.supabase.from('nippo_settings').select('key,value').eq('key', 'friday_weekly');
-    if (!st.error && st.data && st.data[0]) FRIDAY_WEEKLY = st.data[0].value !== 'false';
+    const st = await EC.supabase.from('nippo_settings').select('key,value');
+    if (!st.error){
+      WEEKLY_DOW_MAP = {};
+      (st.data || []).forEach(x => {
+        if (x.key === 'friday_weekly') FRIDAY_WEEKLY = x.value !== 'false';
+        if (x.key.indexOf('weekly_dow:') === 0) WEEKLY_DOW_MAP[x.key.slice(11)] = x.value;
+      });
+    }
     const w = await EC.supabase.from('weekly_reports').select('id')
       .eq('user_id', ME.id).eq('week_start', mondayOf(new Date())).limit(1);
     MY_WEEKLY_DONE = !w.error && (w.data || []).length > 0;
@@ -1101,7 +1144,7 @@ function drawHeaderStats(){
   const c = 2 * Math.PI * 21, off = c * (1 - Q.pct / 100);
   const goal = `${Q.end.getMonth() + 1}/${Q.end.getDate()}`;
   box.innerHTML = `
-    ${isWeeklyDay(TODAY) && !today
+    ${isWeeklyDay(TODAY) && !today && !friDaily(TODAY)
       ? `<button class="cta${MY_WEEKLY_DONE ? ' done' : ''}" onclick="go('weekly')">
            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1155,7 +1198,7 @@ function drawBubble(done, streak, rate){
     && USERS.some(u => u.id === r.author_id && u.manager_id === ME.id) && isOverdue(r)).length;
   const rest = done ? 0 : remainingCoreCount();   // 入力途中なら残りの必須項目数
   let msg;
-  if (isWeeklyDay(TODAY) && !done && TAB !== 'write')
+  if (isWeeklyDay(TODAY) && !done && !friDaily(TODAY) && TAB !== 'write')
     msg = MY_WEEKLY_DONE ? '今週の週次報告は提出済みです。お疲れさまでした' : '金曜は週次報告の日です。今週の振り返りを提出しましょう';
   else if (!done && rest === 0 && TAB === 'write') msg = 'あと少し！提出ボタンまで進みましょう';
   else if (!done && rest > 0 && rest < 5)     msg = 'あと' + rest + '項目で完成！';
@@ -1217,6 +1260,20 @@ function canSeeAll(u){
 }
 
 /* ---------- 1. 日報を書く ---------- */
+/* 週次報告の日に「日報を書く」を開いたとき：どちらを出すか選ぶ */
+function vWeeklyChoice(day){
+  const d = new Date(day + 'T12:00:00+09:00');
+  return `<h2>${d.getMonth() + 1}/${d.getDate()}（${DOW_JP[dowOf(day)]}）は週次報告の日です</h2>
+  <p class="sub">今日はどちらを提出しますか。</p>
+  <div class="card">
+    <button class="act" onclick="chooseFri('weekly')">週次報告を書く（通常）</button>
+    <p class="note" style="margin:6px 0 16px">今週の振り返りと来週の目標を提出します。今日の日報は不要です。${MY_WEEKLY_DONE ? '<br>今週の週次報告は提出済みです。' : ''}</p>
+    <button class="ghost" style="width:100%;padding:12px;font-size:14px;font-weight:700" onclick="chooseFri('daily')">今日は日報を書く（明日以降も勤務がある など）</button>
+    <p class="note" style="margin-top:6px">いつもどおり日報を提出します。週次報告は、今週の最終勤務日に提出してください。</p>
+  </div>
+  <p class="note">シフトの関係で週次報告の曜日がいつも違う人は、管理部に「週次報告の曜日」の個人設定を依頼してください。</p>`;
+}
+
 function vWrite(){
   const day = EDIT_DATE || TODAY;
   // 別の週の日報を開いたら、その週の承認済み目標を読み直す
@@ -1224,6 +1281,7 @@ function vWrite(){
     loadApprovedTargets(day).then(() => { if (TAB === 'write') render(); });
   }
   const saved = REPORTS.find(r => r.author_id === ME.id && r.report_date === day);
+  if (isWeeklyDay(day) && !saved && !friDaily(day)) return vWeeklyChoice(day);
   // 編集を選んだとき、または「読み込む」を押したときだけ内容を差し込む
   const mine = (EDIT_DATE || LOAD_SAVED) ? saved : null;
   const v = f => mine ? esc(mine[f] || '') : '';
@@ -1231,13 +1289,10 @@ function vWrite(){
     const f = (mine.report_metric_values||[]).find(x => x.metric_id === id); return f ? f.value : ''; };
   return `
   <h2>${esc(ME.full_name)} さんの日報</h2>
-  <p class="sub">${day}　${esc(ME.dept_name||'')}　${saved ? (saved.status === 'off' ? '休みとして登録済み' : '提出済み') : (isWeeklyDay(day) ? '金曜（週次報告の日）' : '未提出')}</p>
-  ${isWeeklyDay(day) && !saved ? `<div class="card" style="background:#EAF3FB;border-color:#BCD6EE">
-    <b>金曜は週次報告の日です。日報の提出は不要です。</b>
-    <p class="note" style="margin-top:4px">今週の振り返りと来週の目標を週次報告で提出してください。
-      お客様の声など、日報として残したいことがある日は、このまま書いて提出することもできます。</p>
-    <div class="row" style="margin-top:8px">
-      <button class="act" style="width:auto;margin:0" onclick="go('weekly')">${MY_WEEKLY_DONE ? '今週の週次報告を見る' : '週次報告を書く'}</button></div></div>` : ''}
+  <p class="sub">${day}　${esc(ME.dept_name||'')}　${saved ? (saved.status === 'off' ? '休みとして登録済み' : '提出済み') : (isWeeklyDay(day) ? '週次報告の日' : '未提出')}</p>
+  ${isWeeklyDay(day) && !saved ? `<div class="card" style="background:#EAF3FB;border-color:#BCD6EE;padding:12px 16px">
+    <span class="note">今日は週次報告の日ですが、<b>日報を提出します</b>（週次報告は今週の最終勤務日に提出してください）。</span>
+    <button class="ghost" style="margin-left:6px" onclick="chooseFri('weekly')">週次報告に切り替える</button></div>` : ''}
   ${saved && !mine && saved.status !== 'off' ? `<div class="card" style="background:var(--warn-soft);border-color:#E7C4A6">
     <b>この日はすでに提出済みです</b>
     <p class="note" style="margin-top:4px">このまま書いて提出すると、提出済みの内容は新しい内容に置き換わります。
@@ -1716,7 +1771,7 @@ function vFeed(){
         閲覧できる範囲外か、30日より前の日報の可能性があります。</p>
         <button class="ghost" onclick="OPEN_ID='';render()">すべての日報を見る</button></div>`;
   }
-  const list = feedFilteredList();
+  const list = sigFilterList(feedFilteredList());
 
   const nDirect = REPORTS.filter(r => USERS.some(u => u.id === r.author_id && u.manager_id === ME.id)).length;
   const chip = (v, label, n) => `<button class="ghost${FEED_FILTER===v?' on':''}"
@@ -1755,16 +1810,256 @@ function vFeed(){
         ${FEED_FROM||'最古'}〜${FEED_TO||'最新'}${FEED_DEPT?'／'+esc(FEED_DEPT):''}${FEED_USER?'／'+esc(uname(FEED_USER)):''}</span>` : ''}
     </div></div>`;
 
-  const head = `<h2>日報一覧</h2>` + finder + bar + (LEVEL_FILTER
+  const head = `<h2>日報一覧</h2>` + finder + bar + sigBarHtml(list) + (LEVEL_FILTER
     ? `<div class="card" style="background:var(--accent-soft);border-color:#A9D2BE;padding:11px 14px">
         <div class="row"><b>${LEVELS[LEVEL_FILTER-1]}</b>
         <span class="note">${list.length}件</span>
         <button class="ghost" style="margin-left:auto" onclick="clearLevel()">絞り込みを解除</button></div></div>`
     : `<p class="sub">直近30日／直属部下を先頭に表示しています</p>`);
   if (!list.length) return head + '<div class="empty">該当する日報がありません。</div>';
-  const key = [FEED_FROM, FEED_TO, FEED_DEPT, FEED_USER, FEED_FILTER, LEVEL_FILTER].join('|');
+  const key = [FEED_FROM, FEED_TO, FEED_DEPT, FEED_USER, FEED_FILTER, LEVEL_FILTER, SIG_FILTER].join('|');
   if (key !== FEED_KEY){ FEED_KEY = key; FEED_SHOW = FEED_STEP; }
+  if (sigActive() && SIG_LOADED) setTimeout(() => sigQueue(list.slice(0, FEED_SHOW)), 0);
   return head + `<div id="feedList">${list.slice(0, FEED_SHOW).map(card).join('')}</div>` + feedMoreHtml(list.length);
+}
+
+/* ================= 日報シグナルAI（第1段階：試験運用は社長のみ） =================
+   日報の5項目をAIが読み、項目ごとに判定タグを付け、上司が見るべきポイント3つとコメント案、
+   次の一手（担当・期限の目安）を出す。結果は日報1件につき1回だけ分析して保存する。
+   保存先は report_ai_signals（テーブルが無ければこの端末に保存）。 */
+const SIG_FIELDS = [
+  ['voice',     'お客様の声', ['商談チャンス','クレーム','要望','FAQ候補']],
+  ['rival',     'ライバル',   ['競合アラート','失注リスク','勝ちパターン']],
+  ['industry',  '本部・業界', ['制度変更','金融','パートナー案件']],
+  ['thought',   '本人の考え', ['行動宣言あり','行動があいまい','他責']],
+  ['good_news', 'グッドニュース', ['成功事例','推薦の声']]
+];
+const SIG_TONE = { '商談チャンス':'g', '勝ちパターン':'g', '行動宣言あり':'g', '成功事例':'g', '推薦の声':'g',
+  'クレーム':'r', '競合アラート':'r', '失注リスク':'r', '他責':'r',
+  '制度変更':'b', '金融':'b', 'パートナー案件':'b', '要望':'y', 'FAQ候補':'y', '行動があいまい':'y' };
+const SIG_LOCAL = 'nippo_sig';
+let SIG = {};            // 日報id → 分析結果
+let SIG_LOADED = false, SIG_DB = true, SIG_BUSY = false;
+let SIG_QUEUE = [];
+let SIG_FILTER = '';
+let SIG_ON = true;
+
+function sigPilot(){ return !!ME && String(ME.full_name || '').replace(/\s/g, '') === '丸林信宏'; }
+function sigActive(){ return sigPilot() && SIG_ON; }
+function sigHasText(r){ return r.status === 'submitted' && SIG_FIELDS.some(f => String(r[f[0]] || '').trim()); }
+
+async function sigLoad(){
+  if (SIG_LOADED) return; SIG_LOADED = true;
+  try { SIG_ON = localStorage.getItem(SIG_LOCAL + ':on:' + ME.id) !== 'off'; } catch(e){}
+  const { data, error } = await EC.supabase.from('report_ai_signals').select('report_id,result')
+    .gte('created_at', addDays(TODAY, -45) + 'T00:00:00Z').limit(2000);
+  if (error){
+    SIG_DB = false;
+    try { SIG = JSON.parse(localStorage.getItem(SIG_LOCAL + ':' + ME.id) || '{}'); } catch(e){ SIG = {}; }
+  } else (data || []).forEach(x => { SIG[x.report_id] = x.result; });
+  if (TAB === 'feed') render();
+}
+async function sigSave(rid, result){
+  SIG[rid] = result;
+  if (SIG_DB){
+    const { error } = await EC.supabase.from('report_ai_signals')
+      .upsert({ report_id: rid, result, created_by: ME.id, created_at: new Date().toISOString() }, { onConflict: 'report_id' });
+    if (!error) return;
+    SIG_DB = false;
+  }
+  try {
+    const keep = {}; Object.keys(SIG).slice(-400).forEach(k => keep[k] = SIG[k]);
+    localStorage.setItem(SIG_LOCAL + ':' + ME.id, JSON.stringify(keep));
+  } catch(e){}
+}
+function sigToggle(){
+  SIG_ON = !SIG_ON;
+  try { localStorage.setItem(SIG_LOCAL + ':on:' + ME.id, SIG_ON ? 'on' : 'off'); } catch(e){}
+  render();
+}
+
+/* 表示中の未分析の日報を、4件ずつまとめて分析する */
+function sigQueue(list, force){
+  if (!sigActive()) return;
+  list.forEach(r => {
+    if (!sigHasText(r)) return;
+    if (!force && SIG[r.id]) return;
+    if (!SIG_QUEUE.some(x => x.id === r.id)) SIG_QUEUE.push(r);
+  });
+  sigPaintBar();
+  sigRun();
+}
+async function sigRun(){
+  if (SIG_BUSY || !SIG_QUEUE.length) return;
+  SIG_BUSY = true;
+  const batch = SIG_QUEUE.splice(0, 4);
+  batch.forEach(r => sigPaint(r.id, 'busy'));
+  sigPaintBar();
+  const res = await sigAnalyze(batch);
+  if (res.error){
+    toast('AI分析できませんでした：' + res.error);
+    batch.forEach(r => sigPaint(r.id));
+    SIG_QUEUE = []; SIG_BUSY = false; sigPaintBar(); return;
+  }
+  for (const r of batch){
+    const it = res.items.find(x => x.id === r.id || x.id === r.id.slice(0, 8));
+    if (it){ await sigSave(r.id, sigClean(it)); }
+    sigPaint(r.id);
+  }
+  SIG_BUSY = false; sigPaintBar(); sigPaintSummary();
+  if (SIG_QUEUE.length) sigRun();
+}
+async function sigAnalyze(list){
+  const data = list.map(r => {
+    const a = USERS.find(u => u.id === r.author_id) || {};
+    return { id: r.id.slice(0, 8), who: a.full_name || '', dept: a.dept_name || '', grade: a.job_grade || '',
+      date: r.report_date, importance: r.importance,
+      voice: cut(r.voice, 600), rival: cut(r.rival, 500), industry: cut(r.industry, 500),
+      thought: cut(r.thought, 600), good_news: cut(r.good_news, 400) };
+  });
+  const tagList = SIG_FIELDS.map(f => `${f[0]}（${f[1]}）：${f[2].join('／')}`).join('\n');
+  const prompt = `株式会社アースコム（太陽光・蓄電池・リフォート〔既設発電所の再資産化〕・セカンダリー太陽光売買）の日報を読み、項目ごとに「何のシグナルか」を判定して、行動につなげる案を出してください。
+管理手法は識学です。事実と意見を分け、提案は「誰が・いつまでに・どこまで」で書きます。評価や感情の言葉は使いません。
+
+項目と使ってよいタグ（この中からだけ選ぶ。当てはまらなければ付けない）：
+${tagList}
+
+日報ごとに次を返す：
+- fields：項目ごとのタグ。各 {"tag":"…","summary":"根拠となる事実を40字以内"}。1項目に最大2つ。空の項目は省略
+- customers：出てくる顧客名（会社名＋担当者。無ければ空配列）
+- competitors：出てくる競合・金融機関・パートナー名（無ければ空配列）
+- urgent：当日中に上司が動くべき内容（クレーム、期限が迫った商談など）があれば理由を30字以内。無ければ空文字
+- boss.points：直属上司が見るべきポイントを3つ（各50字以内、事実に基づく）
+- boss.comment：上司から本人へのコメント案（120字以内。承認・質問・指示を具体的に。「頑張って」などの抽象語は使わない）
+- actions：次の一手を最大3つ。各 {"field":"voice等","what":"何をどこまで（50字以内）","who":"本人|上司|部門長|商品企画|役員","due":"翌営業日|今週中|週次報告まで|当日中 など"}
+日報に書かれていないことは推測しない。
+
+JSONのみで返答：{"items":[{"id":"","fields":{"voice":[{"tag":"","summary":""}]},"customers":[],"competitors":[],"urgent":"","boss":{"points":[],"comment":""},"actions":[]}]}
+日報：${JSON.stringify(data)}`;
+  const r = await callAI(prompt, 3500);
+  if (r.error) return { error: r.error };
+  const j = parseJSON(r.text);
+  if (!j || !Array.isArray(j.items)) return { error: 'AIの回答を読み取れませんでした' };
+  return { items: j.items.map(x => Object.assign(x, { id: String(x.id || '') })) };
+}
+function sigClean(x){
+  const fields = {};
+  SIG_FIELDS.forEach(([k, , tags]) => {
+    const arr = Array.isArray(x.fields && x.fields[k]) ? x.fields[k] : [];
+    const ok = arr.filter(t => t && tags.includes(t.tag)).slice(0, 2).map(t => ({ tag: t.tag, summary: String(t.summary || '') }));
+    if (ok.length) fields[k] = ok;
+  });
+  const b = x.boss || {};
+  return {
+    v: 1, at: new Date().toISOString(), fields,
+    customers: (x.customers || []).map(String).slice(0, 5),
+    competitors: (x.competitors || []).map(String).slice(0, 5),
+    urgent: String(x.urgent || ''),
+    boss: { points: (b.points || []).map(String).slice(0, 3), comment: String(b.comment || '') },
+    actions: (x.actions || []).slice(0, 3).map(a => ({ field: String(a.field || ''), what: String(a.what || ''),
+      who: String(a.who || '本人'), due: String(a.due || '') })),
+    done: []
+  };
+}
+
+/* ---- 表示 ---- */
+function sigTagPill(t){ return `<span class="sigtag ${SIG_TONE[t.tag] || ''}" title="${esc(t.summary)}">${esc(t.tag)}</span>`; }
+function sigTagsHtml(rid, key){
+  if (!sigActive()) return '';
+  const s = SIG[rid];
+  const tags = s && s.fields && s.fields[key];
+  return `<span class="sigtags" id="sigt_${rid}_${key}">${tags ? tags.map(sigTagPill).join('') : ''}</span>`;
+}
+function sigBoxHtml(r){
+  if (!sigActive() || !sigHasText(r)) return '';
+  if (!SIG_LOADED) setTimeout(sigLoad, 0);
+  return `<div class="sigbox" id="sigb_${r.id}">${sigBoxInner(r)}</div>`;
+}
+function sigBoxInner(r, state){
+  const s = SIG[r.id];
+  if (state === 'busy' || (!s && SIG_QUEUE.some(x => x.id === r.id)))
+    return `<div class="sighead"><b>AI確認アシスト</b><span class="note">日報を読んでいます…</span></div>`;
+  if (!s) return `<div class="sighead"><b>AI確認アシスト</b><button class="ghost mts" onclick="sigOne('${r.id}')">AIで分析する</button></div>`;
+  const who = a => a === '本人' ? uname(r.author_id) : a;
+  return `
+    ${s.urgent ? `<div class="sigurgent">当日対応：${esc(s.urgent)}</div>` : ''}
+    <div class="sighead"><b>AI確認アシスト</b>
+      ${s.customers.length ? `<span class="note">顧客：${s.customers.map(esc).join('、')}</span>` : ''}
+      ${s.competitors.length ? `<span class="note">競合・関係先：${s.competitors.map(esc).join('、')}</span>` : ''}
+      <button class="ghost mts" style="margin-left:auto" onclick="sigOne('${r.id}', true)" title="もう一度分析する">再分析</button></div>
+    ${s.boss.points.length ? `<ol class="sigpts">${s.boss.points.map(p => `<li>${esc(p)}</li>`).join('')}</ol>` : ''}
+    ${s.boss.comment ? `<div class="sigcmt"><span class="note">コメント案</span><div>${esc(s.boss.comment)}</div>
+      <button class="ghost mts" onclick="sigUseComment('${r.id}')">このコメントを使う</button></div>` : ''}
+    ${s.actions.length ? `<div class="sigacts"><span class="note">次の一手</span>${s.actions.map((a, i) => {
+      const done = (s.done || []).includes(i);
+      return `<div class="sigact"><span>${esc(a.what)}<span class="note">　担当：${esc(who(a.who))}${a.due ? '／' + esc(a.due) : ''}</span></span>
+        ${done ? '<span class="pill p2">タスク化済み</span>' : `<button class="ghost mts" onclick="sigTask('${r.id}', ${i})">タスク化</button>`}</div>`; }).join('')}</div>` : ''}`;
+}
+function sigPaint(rid, state){
+  const r = REPORTS.find(x => x.id === rid); if (!r) return;
+  const b = document.getElementById('sigb_' + rid); if (b) b.innerHTML = sigBoxInner(r, state);
+  SIG_FIELDS.forEach(([k]) => {
+    const t = document.getElementById(`sigt_${rid}_${k}`);
+    const tags = SIG[rid] && SIG[rid].fields && SIG[rid].fields[k];
+    if (t) t.innerHTML = tags ? tags.map(sigTagPill).join('') : '';
+  });
+}
+function sigOne(rid, force){
+  const r = REPORTS.find(x => x.id === rid); if (!r) return;
+  sigQueue([r], !!force);
+}
+function sigUseComment(rid){
+  const s = SIG[rid]; if (!s) return;
+  openComment(rid, false, s.boss.comment);
+}
+async function sigTask(rid, i){
+  const r = REPORTS.find(x => x.id === rid), s = SIG[rid]; if (!r || !s) return;
+  const a = s.actions[i]; if (!a) return;
+  const author = USERS.find(u => u.id === r.author_id) || {};
+  const owner = a.who === '本人' ? r.author_id : a.who === '上司' ? (author.manager_id || ME.id) : ME.id;
+  const title = (a.what + (a.due ? '（' + a.due + '）' : '') + (owner === ME.id && a.who !== '上司' && a.who !== '本人' ? '［担当：' + a.who + '］' : '')
+    + '　〔' + uname(r.author_id) + ' ' + r.report_date.slice(5).replace('-', '/') + 'の日報より〕').slice(0, 200);
+  const { error } = await EC.supabase.from('report_tasks').insert({ title, owner_id: owner, created_by: ME.id, source: 'ai' });
+  if (error){ toast('タスク化できませんでした：' + error.message); return; }
+  s.done = (s.done || []).concat(i); await sigSave(rid, s); sigPaint(rid);
+  toast('タスクに登録しました（担当：' + uname(owner) + '）。「実行管理」タブで確認できます');
+}
+
+/* ---- 日報一覧の上部（試験運用バー＋タグ集計） ---- */
+function sigBarHtml(list){
+  if (!sigPilot()) return '';
+  if (!SIG_LOADED) setTimeout(sigLoad, 0);
+  return `<div class="card sigbar" id="sigBar">${sigBarInner(list)}</div>`;
+}
+function sigBarInner(list){
+  list = list || feedFilteredList();
+  if (!SIG_ON) return `<div class="row"><b>日報シグナルAI</b><span class="note">（試験運用・社長のみ表示）オフ</span>
+    <button class="ghost" style="margin-left:auto" onclick="sigToggle()">オンにする</button></div>`;
+  const shown = list.slice(0, FEED_SHOW).filter(sigHasText);
+  const rest = shown.filter(r => !SIG[r.id]).length;
+  const counts = {};
+  list.forEach(r => { const s = SIG[r.id]; if (!s) return;
+    Object.values(s.fields || {}).forEach(a => a.forEach(t => { counts[t.tag] = (counts[t.tag] || 0) + 1; }));
+    if (s.urgent) counts['当日対応'] = (counts['当日対応'] || 0) + 1; });
+  const order = ['当日対応'].concat(...SIG_FIELDS.map(f => f[2])).filter(t => counts[t]);
+  return `<div class="row"><b>日報シグナルAI</b><span class="note">（試験運用・社長のみ表示）</span>
+      <span class="note" id="sigState">${SIG_BUSY || SIG_QUEUE.length ? '分析中… 残り' + (SIG_QUEUE.length + (SIG_BUSY ? 4 : 0)) + '件程度'
+        : rest ? '表示中の未分析 ' + rest + '件' : '表示中の日報はすべて分析済み'}</span>
+      ${rest && !SIG_BUSY ? `<button class="act" style="width:auto;margin:0;padding:7px 14px;font-size:13px" onclick="sigQueue(feedFilteredList().slice(0, FEED_SHOW))">表示中の日報を分析</button>` : ''}
+      <button class="ghost" style="margin-left:auto" onclick="sigToggle()">オフにする</button></div>
+    ${order.length ? `<div class="row" style="margin-top:8px;gap:6px" id="sigSum">
+      ${SIG_FILTER ? `<button class="ghost mts" onclick="sigSetFilter('')">絞り込み解除</button>` : ''}
+      ${order.map(t => `<button class="sigtag ${t === '当日対応' ? 'r' : (SIG_TONE[t] || '')} big${SIG_FILTER === t ? ' on' : ''}"
+        onclick="sigSetFilter('${t}')">${t} ${counts[t]}</button>`).join('')}</div>` : ''}`;
+}
+function sigPaintBar(){ const b = document.getElementById('sigBar'); if (b) b.innerHTML = sigBarInner(); }
+function sigPaintSummary(){ sigPaintBar(); }
+function sigSetFilter(t){ SIG_FILTER = SIG_FILTER === t ? '' : t; render(); }
+function sigFilterList(list){
+  if (!sigActive() || !SIG_FILTER) return list;
+  return list.filter(r => { const s = SIG[r.id]; if (!s) return false;
+    if (SIG_FILTER === '当日対応') return !!s.urgent;
+    return Object.values(s.fields || {}).some(a => a.some(t => t.tag === SIG_FILTER)); });
 }
 
 /* ---------- 一覧は30件ずつ表示 ----------
@@ -1778,11 +2073,12 @@ function feedMoreHtml(total){
     : '<div id="feedMore"></div>';
 }
 function feedMore(){
-  const list = feedFilteredList();
+  const list = sigFilterList(feedFilteredList());
   const box = document.getElementById('feedList'); if (!box) return;
   box.insertAdjacentHTML('beforeend', list.slice(FEED_SHOW, FEED_SHOW + FEED_STEP).map(card).join(''));
   FEED_SHOW += FEED_STEP;
   document.getElementById('feedMore').outerHTML = feedMoreHtml(list.length);
+  if (sigActive()) sigQueue(list.slice(0, FEED_SHOW));
 }
 
 function card(r){
@@ -1825,6 +2121,7 @@ function card(r){
         onclick="showLevel(${r.level})" title="同じレベルの日報を見る">${LEVELS[r.level-1]}</span>` : ''}
     </div>
     ${ccLine(r)}
+    ${sigBoxHtml(r)}
     ${r.status === 'off' ? '' : kpiPanel(r, vals)}
     ${QSECS.filter(q => r[q[0]] && (q[0] !== 'subordinate' || ME.job_grade !== '一般'))
       .map(q => secHtml(r, q, canAct || isMine)).join('')}
@@ -1978,7 +2275,7 @@ function secHtml(r, q, canQuote){
   return `<div class="sec ${q[2]}" data-q="${q[0]}" data-rid="${r.id}" id="sq_${r.id}_${q[0]}">
     ${canQuote ? `<button class="qbtn" onclick="quoteSec('${r.id}','${q[0]}')"
       title="文章の一部を選んでから押すと、その部分だけを引用します">引用してコメント</button>` : ''}
-    <span class="lab">${q[1]}</span><div>${linkify(r[q[0]])}</div></div>`;
+    <span class="lab">${q[1]}</span>${sigTagsHtml(r.id, q[0])}<div>${linkify(r[q[0]])}</div></div>`;
 }
 
 function quoteSec(rid, key){
@@ -2163,17 +2460,17 @@ function vStatus(){
   const prevOf = uid => REPORTS.filter(r => r.author_id === uid && r.report_date < TODAY && r.report_date >= since
     && r.status === 'submitted').sort((a, b) => b.report_date.localeCompare(a.report_date))[0];
 
-  const wkDay = isWeeklyDay(TODAY);
+  const wkDay = targets.some(u => isWeeklyDay(TODAY, u.id));   // 今日が週次報告の日の人がいるか
   if (wkDay && (!STATUS_WK || STATUS_WK.week !== mondayOf(new Date()))){ STATUS_WK = { week: mondayOf(new Date()), ids: undefined }; setTimeout(loadStatusWeekly, 0); }
   const wkDone = uid => STATUS_WK && Array.isArray(STATUS_WK.ids) ? STATUS_WK.ids.includes(uid) : null;
   const rows = targets.map(u => {
     const r = todays.find(x => x.author_id === u.id);
     const pv = prevOf(u.id);
-    if (wkDay){
+    if (isWeeklyDay(TODAY, u.id) && !(r && r.status !== 'off')){
       const w = wkDone(u.id);
       const cell = r && r.status === 'off' ? '<span class="pill p2">休み</span>'
         : w === null ? '<span class="note">読み込み中…</span>'
-        : (w ? '<span class="pill p2">週次 提出</span>' : '<span class="pill p5">週次 未提出</span>') + (r ? '<br><span class="note">日報も提出</span>' : '');
+        : (w ? '<span class="pill p2">週次 提出</span>' : '<span class="pill p5">週次 未提出</span>');
       return `<tr><td>${esc(u.full_name)}<br><span class="note">${esc(u.dept_name||'')}</span></td>
         <td>${cell}</td>
         <td>${pv ? `<span class="note num">${pv.report_date.slice(5).replace('-','/')}分</span><br>${checkCell(pv)}` : '—'}</td>
@@ -2193,9 +2490,8 @@ function vStatus(){
     const offIds = todays.filter(r => r.status === 'off').map(r => r.author_id);
     const subs = USERS.filter(x => x.manager_id === b.id);
     const subsToday = subs.filter(x => !offIds.includes(x.id));
-    const nToday = wkDay
-      ? subsToday.filter(x => wkDone(x.id)).length
-      : todays.filter(r => subsToday.some(s => s.id === r.author_id) && r.status !== 'off').length;
+    const nToday = subsToday.filter(x => todays.some(r => r.author_id === x.id && r.status !== 'off')
+      || (isWeeklyDay(TODAY, x.id) && wkDone(x.id))).length;
     const subRate = subsToday.length ? Math.round(nToday / subsToday.length * 100) : 0;
     const due = REPORTS.filter(r => subs.some(s => s.id === r.author_id) && r.status === 'submitted'
       && r.report_date >= since && isOverdue(r));
@@ -2213,11 +2509,11 @@ function vStatus(){
   return `<h2>提出・確認状況</h2>
   <p class="sub">見るのは「誰が書いていないか」だけではなく「どの上司が読んでいないか」。上司確認の期限は<b>日報の翌日 9:30</b>（土日をはさむときは月曜 9:30）です。金曜は週次報告の日です。</p>
   <div class="card"><h3>社員別（${TODAY}）</h3>
-    <table><tr><th>社員</th><th>${wkDay ? '今週の週次報告（金曜）' : '本日の日報'}</th><th>前回分の上司確認</th><th>本日分の上司確認</th><th>要対応</th></tr>${rows}</table>
-    ${wkDay ? '<p class="note" style="margin-top:8px">金曜は週次報告の日です。日報ではなく、今週の週次報告の提出を表示しています。</p>' : ''}
+    <table><tr><th>社員</th><th>${wkDay ? '本日の日報／週次報告' : '本日の日報'}</th><th>前回分の上司確認</th><th>本日分の上司確認</th><th>要対応</th></tr>${rows}</table>
+    ${wkDay ? '<p class="note" style="margin-top:8px">今日が週次報告の日の人は、日報を出していなければ今週の週次報告の提出状況を表示しています（日報を選んで提出した人は日報の状況）。</p>' : ''}
     <p class="note" style="margin-top:8px">「確認待ち」は期限前なので問題ありません。「期限切れ」は翌日9:30を過ぎても直属上司が確認していない日報です。</p></div>
   <div class="card"><h3>管理職別の確認品質（直近7日）</h3>
-    <table><tr><th>上司</th><th>${wkDay ? '部下の週次提出率' : '本日の部下提出率'}</th><th>期限内確認率</th><th>期限切れ（未確認）</th><th>コメント率</th></tr>${bossRows}</table>
+    <table><tr><th>上司</th><th>本日の部下提出率${wkDay ? '（日報または週次）' : ''}</th><th>期限内確認率</th><th>期限切れ（未確認）</th><th>コメント率</th></tr>${bossRows}</table>
     <p class="note" style="margin-top:8px">期限内確認率＝確認期限（翌日9:30）を過ぎた部下の日報のうち、期限までに確認済みにした割合です。</p></div>`;
 }
 function bar(p){ return `<div class="row"><div class="bar ${p<70?'warn':''}"><i style="width:${p}%"></i></div>
@@ -4144,6 +4440,24 @@ async function loadHolidays(){
         <input type="checkbox" style="width:auto" ${NSET.friday_weekly !== 'false' ? 'checked' : ''}
           onchange="setNSet('friday_weekly', this.checked)"> 金曜は週次報告の日（日報は提出不要）</label>
     </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--line)">
+      <b style="font-size:13px">週次報告の曜日（個人設定）</b>
+      <p class="note" style="margin:2px 0 8px">土曜勤務などで週次報告の日が金曜ではない人だけ設定します。設定した曜日は日報が不要になり、週次報告のリマインドもその曜日に届きます。</p>
+      <div class="row">
+        <select id="wd_user" style="flex:2;min-width:160px">${USERS.slice().sort((a, b) => String(a.dept_name||'').localeCompare(String(b.dept_name||''))).map(u =>
+          `<option value="${u.id}">${esc(u.full_name || u.email)}（${esc(u.dept_name || '')}）</option>`).join('')}</select>
+        <select id="wd_dow" style="flex:1;min-width:120px">
+          ${[6,5,4,3,2,1,0].map(n => `<option value="${n}">${DOW_JP[n]}曜</option>`).join('')}
+          <option value="none">決まった曜日なし（毎日日報）</option></select>
+        <button class="ghost" onclick="setWeeklyDow()">設定する</button>
+      </div>
+      ${Object.keys(NSET).filter(k => k.indexOf('weekly_dow:') === 0).length
+        ? `<table style="margin-top:10px"><tr><th>社員</th><th>週次報告の日</th><th></th></tr>
+          ${Object.keys(NSET).filter(k => k.indexOf('weekly_dow:') === 0).map(k => { const id = k.slice(11), v = NSET[k];
+            return `<tr><td>${esc(uname(id))}</td><td>${v === 'none' ? '決まった曜日なし' : DOW_JP[Number(v)] + '曜'}</td>
+              <td><button class="ghost" onclick="clearWeeklyDow('${id}')">全社設定に戻す</button></td></tr>`; }).join('')}</table>`
+        : '<p class="note" style="margin-top:8px">個人設定はありません（全員、全社設定に従います）。</p>'}
+    </div>
     <div class="row" style="margin-top:14px">
       <div style="flex:1;min-width:150px"><label>日付を追加</label><input type="date" id="hol_date"></div>
       <div style="flex:2;min-width:160px"><label>名称</label><input type="text" id="hol_label" placeholder="例：夏季休業、経営計画発表会"></div>
@@ -4161,6 +4475,18 @@ async function setNSet(key, on){
   toast(error ? '変更できませんでした' : '設定を変更しました');
   if (!error && key === 'friday_weekly'){ FRIDAY_WEEKLY = on; drawHeaderStats(); }
   loadHolidays();
+}
+async function setWeeklyDow(){
+  const id = (document.getElementById('wd_user') || {}).value, v = (document.getElementById('wd_dow') || {}).value;
+  if (!id) return;
+  const { error } = await EC.supabase.from('nippo_settings').upsert({ key: 'weekly_dow:' + id, value: v }, { onConflict: 'key' });
+  if (error){ toast('設定できませんでした：' + error.message); return; }
+  WEEKLY_DOW_MAP[id] = v; toast(uname(id) + ' さんの週次報告の日を設定しました'); drawHeaderStats(); loadHolidays();
+}
+async function clearWeeklyDow(id){
+  const { error } = await EC.supabase.from('nippo_settings').delete().eq('key', 'weekly_dow:' + id);
+  if (error){ toast('戻せませんでした：' + error.message); return; }
+  delete WEEKLY_DOW_MAP[id]; toast('全社設定に戻しました'); drawHeaderStats(); loadHolidays();
 }
 async function addHoliday(){
   const d = (document.getElementById('hol_date')||{}).value;
