@@ -415,6 +415,15 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 .newsrow:hover{background:#F6F8FA}.newsrow.unread b{color:#C4561A}
 .newsdiv{margin:18px 0 4px;padding-top:12px;border-top:1px dashed var(--line)}.newsdiv small{display:block;color:var(--muted)}
 .newsform{background:#F6F8FA;border:1px solid var(--line);border-radius:10px;padding:12px}
+.srplan textarea,.srplan input,.srplan select{font-size:13px}
+.srsec{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.srsec ol{margin:6px 0 0 1.2em;padding:0;line-height:1.7}
+.sract{display:flex;gap:10px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px 12px;margin-top:8px;background:#fff}
+.sract.off{opacity:.5;border-left-color:#C9D3DE}
+.srchk input{width:auto;margin-top:4px}
+.srbody{flex:1;min-width:0}
+.srgrid{display:grid;grid-template-columns:1fr 1fr 2fr;gap:0 10px;margin-top:4px}
+@media (max-width:760px){.srgrid{grid-template-columns:1fr 1fr}.srgrid>div[style*="span 2"]{grid-column:span 2}}
 </style>
 </head>
 <body>
@@ -801,7 +810,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-10-03b';
+const BUILD = '2026-10-04a';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -2847,14 +2856,22 @@ async function aiAct(kind, k, i, btn){
 /* ---------- 6. AI検索 ---------- */
 const EXAMPLES = ['最近お客様から何と言われている？','直近の失注理由をまとめて','施工や工程の問題を分析して',
   '最近増えている競合会社は？','社員から出ている改善提案をまとめて','今月最も重要な一次情報を5つ'];
+/* ---------- AI検索 → マネージャーとしての指示 ----------
+   検索の答え（事実）をもとに、AIが「なぜ起きているか」と「打ち手」を出し、
+   上司は担当・期限・完了条件を確定して、タスク化・Chatworkでの指示までその場で行う。
+   決めるのは上司。AIは案を出すだけ。 */
+let SR = null;      // 直近の検索結果 { q, answer, who, refs }
+let SR_PLAN = null; // 指示案 { causes, actions:[{issue,action,owner,due,done_when,check,on}], message, review }
+
 function vSearch(){
-  return `<h2>AI検索</h2><p class="sub">日本語のまま質問できます。回答には根拠の日報が付きます。</p>
+  return `<h2>AI検索</h2><p class="sub">日本語のまま質問できます。回答には根拠の日報が付きます。答えをもとに、マネージャーとしての指示までその場で出せます。</p>
   <div class="card">
-    <input type="text" id="q" placeholder="例：直近の失注理由をまとめて">
+    <input type="text" id="q" placeholder="例：直近の失注理由をまとめて" value="${SR ? esc(SR.q) : ''}"
+      onkeydown="if(event.key==='Enter'&&!event.isComposing)runSearch()">
     <div class="row" style="margin-top:10px">${EXAMPLES.map(e =>
       `<button class="ghost" onclick="document.getElementById('q').value='${e}';runSearch()">${e}</button>`).join('')}</div>
     <button class="act" style="margin-top:12px" onclick="runSearch()">質問する</button>
-  </div><div id="sres"></div>`;
+  </div><div id="sres">${SR ? srAnswerHtml() + srPlanHtml() : ''}</div>`;
 }
 async function runSearch(){
   const q = document.getElementById('q').value.trim();
@@ -2863,16 +2880,154 @@ async function runSearch(){
   box.innerHTML = '<div class="empty">日報を検索しています…</div>';
   const data = packReports(REPORTS, 40, 400);
   const r = await callAI(`社内日報データベースへの質問に、データだけを根拠に日本語で答えてください。
-JSONのみ: {"answer":"回答（箇条書き可・400字以内）","who":["根拠になった氏名"]}
+JSONのみ: {"answer":"回答（箇条書き可・400字以内）","who":["根拠になった氏名"],"refs":[{"id":"根拠の日報id（8文字）","who":"氏名","date":"日付"}]}
+refs は根拠になった日報を最大8件。
 質問: ${q}
-日報: ${JSON.stringify(data)}`, 1500);
+日報: ${JSON.stringify(data)}`, 1800);
   if (r.error){ box.innerHTML = `<div class="empty">${esc(r.error)}</div>`; return; }
   const j = parseJSON(r.text);
   if (!j){ box.innerHTML = `<div class="card">${esc(r.text)}</div>`; return; }
-  box.innerHTML = `<div class="card"><h3>${esc(q)}</h3>
-    <div style="white-space:pre-wrap">${esc(j.answer)}</div>
-    ${(j.who||[]).length ? `<div style="margin-top:12px"><span class="eyebrow">根拠</span><br>
-      ${j.who.map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>` : ''}</div>`;
+  SR = { q, answer: String(j.answer || ''), who: j.who || [], refs: (j.refs || []).slice(0, 8) };
+  SR_PLAN = null;
+  box.innerHTML = srAnswerHtml() + srPlanHtml();
+}
+function srAnswerHtml(){
+  const refs = SR.refs.map(x => ({ x, r: REPORTS.find(r => r.id.slice(0, 8) === String(x.id || '').slice(0, 8)) })).filter(o => o.r);
+  return `<div class="card"><h3>${esc(SR.q)}</h3>
+    <div style="white-space:pre-wrap">${esc(SR.answer)}</div>
+    ${refs.length ? `<div style="margin-top:12px"><span class="eyebrow">根拠の日報（押すと開きます）</span><br>
+      ${refs.map(o => `<button class="pill" style="cursor:pointer;border:0" onclick="OPEN_ID='${o.r.id}';go('feed')">${esc(uname(o.r.author_id))} ${o.r.report_date.slice(5).replace('-', '/')}</button>`).join(' ')}</div>`
+    : (SR.who.length ? `<div style="margin-top:12px"><span class="eyebrow">根拠</span><br>
+      ${SR.who.map(w => `<span class="pill">${esc(w)}</span>`).join(' ')}</div>` : '')}</div>`;
+}
+
+/* ---- 指示づくり ---- */
+function srCandidates(){
+  // 担当にできる人：自分、直属部下、根拠になった人、自部署
+  const ids = new Set([ME.id]);
+  USERS.filter(u => u.manager_id === ME.id || (ME.dept_name && u.dept_name === ME.dept_name)).forEach(u => ids.add(u.id));
+  SR.refs.forEach(x => { const r = REPORTS.find(r => r.id.slice(0, 8) === String(x.id || '').slice(0, 8)); if (r) ids.add(r.author_id); });
+  SR.who.forEach(n => { const u = USERS.find(u => (u.full_name || '').replace(/\s/g, '') === String(n).replace(/\s/g, '')); if (u) ids.add(u.id); });
+  return USERS.filter(u => ids.has(u.id) && u.is_active !== false);
+}
+function srPlanHtml(){
+  if (!SR) return '';
+  if (!SR_PLAN) return `<div class="card srplan">
+    <h3>マネージャーとして指示を出す</h3>
+    <p class="note">上の答え（事実）をもとに、AIが「なぜ起きているか」と「打ち手（誰が・いつまでに・どこまで）」の案を出します。担当・期限・完了条件はあなたが決めてください。</p>
+    <label>あなたの方針・考え（任意）</label>
+    <textarea id="sr_intent" rows="2" placeholder="例：価格では下げない。融資スキームの提案力で勝つ方針。来月までに失注率を下げたい">${esc(SR.intent || '')}</textarea>
+    <button class="act" style="margin-top:10px" onclick="srMakePlan()">AIに打ち手を考えてもらう</button>
+  </div>`;
+  const P = SR_PLAN, cands = srCandidates();
+  const opt = sel => `<option value="">（未定）</option>` + cands.map(u =>
+    `<option value="${u.id}"${sel === u.id ? ' selected' : ''}>${esc(u.full_name)}（${esc(u.dept_name || '')}）</option>`).join('');
+  return `<div class="card srplan">
+    <div class="row" style="justify-content:space-between"><h3 style="margin:0">マネージャーとして指示を出す</h3>
+      <button class="ghost" onclick="SR_PLAN=null;document.getElementById('sres').innerHTML=srAnswerHtml()+srPlanHtml()">方針を変えて作り直す</button></div>
+    ${P.causes.length ? `<div class="srsec"><span class="eyebrow">なぜ起きているか（AIの見立て）</span>
+      <ol>${P.causes.map(c => `<li>${esc(c)}</li>`).join('')}</ol></div>` : ''}
+    <div class="srsec"><span class="eyebrow">打ち手（チェックしたものを指示・タスク化します）</span>
+      ${P.actions.map((a, i) => `<div class="sract${a.on ? '' : ' off'}">
+        <label class="srchk"><input type="checkbox" ${a.on ? 'checked' : ''} onchange="SR_PLAN.actions[${i}].on=this.checked;this.closest('.sract').classList.toggle('off',!this.checked)"></label>
+        <div class="srbody">
+          ${a.issue ? `<div class="note">課題：${esc(a.issue)}</div>` : ''}
+          <textarea rows="2" oninput="SR_PLAN.actions[${i}].action=this.value">${esc(a.action)}</textarea>
+          <div class="srgrid">
+            <div><label>担当</label><select onchange="SR_PLAN.actions[${i}].owner=this.value">${opt(a.owner)}</select></div>
+            <div><label>期限</label><input type="date" value="${esc(a.due)}" oninput="SR_PLAN.actions[${i}].due=this.value"></div>
+            <div style="grid-column:span 2"><label>完了条件（どこまでやったら完了か）</label>
+              <input type="text" value="${esc(a.done_when)}" oninput="SR_PLAN.actions[${i}].done_when=this.value"></div>
+          </div>
+          ${a.check ? `<div class="note" style="margin-top:4px">確認方法：${esc(a.check)}</div>` : ''}
+        </div></div>`).join('')}
+      <button class="ghost" style="margin-top:8px" onclick="srAddAction()">＋ 打ち手を追加</button>
+    </div>
+    ${P.review ? `<div class="srsec"><span class="eyebrow">次に確認すること</span><div>${esc(P.review)}</div></div>` : ''}
+    <div class="srsec"><span class="eyebrow">メンバーへの指示文（Chatwork用）</span>
+      <textarea id="sr_msg" rows="10">${esc(srChatwork())}</textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" onclick="document.getElementById('sr_msg').value=srChatwork()">打ち手の修正を指示文に反映</button>
+        <button class="ghost" onclick="srCopy()">指示文をコピー</button>
+        <button class="act" style="width:auto;margin:0" onclick="srToTasks()">チェックした打ち手をタスク化</button>
+      </div>
+      <p class="note" style="margin-top:6px">担当・期限・完了条件を直したら「打ち手の修正を指示文に反映」を押してください。タスクは「実行管理」タブに入ります。</p>
+    </div>
+  </div>`;
+}
+async function srMakePlan(){
+  SR.intent = (document.getElementById('sr_intent') || {}).value || '';
+  const box = document.getElementById('sres');
+  box.innerHTML = srAnswerHtml() + '<div class="empty">打ち手を考えています…</div>';
+  const cands = srCandidates().map(u => ({ id: u.id.slice(0, 8), name: u.full_name, dept: u.dept_name || '', grade: u.job_grade || '',
+    boss: u.manager_id === ME.id }));
+  const refsData = SR.refs.map(x => { const r = REPORTS.find(r => r.id.slice(0, 8) === String(x.id || '').slice(0, 8)); return r ? {
+    who: uname(r.author_id), date: r.report_date, voice: cut(r.voice, 300), rival: cut(r.rival, 250), thought: cut(r.thought, 300) } : null; }).filter(Boolean);
+  const r = await callAI(`あなたは株式会社アースコム（太陽光・蓄電池・リフォート・セカンダリー太陽光売買）の管理職の参謀です。管理手法は識学です。
+日報の分析結果（事実）をもとに、上司（${ME.full_name}／${ME.job_grade || ''}）が部下に出す指示の案を作ってください。
+ルール：
+- causes：なぜ起きているかの見立てを2〜3個（各60字以内）。日報の事実に基づき、推測は「〜の可能性」と書く
+- actions：打ち手を3〜5個。1つの打ち手に担当は1人。担当は候補者の id から選ぶ（決められなければ空）
+  各 {"issue":"どの課題か（30字以内）","action":"何をどこまでやるか（60字以内、動詞で終える）","owner":"候補者id","due":"YYYY-MM-DD","done_when":"完了条件（測れる状態で。40字以内）","check":"上司がどこで確認するか（日報・週次報告・KPIなど30字以内）"}
+- 期限は今日（${TODAY}）から2週間以内の具体的な日付。金曜は週次報告の日
+- 「頑張る」「意識する」「徹底する」など測れない言葉は使わない
+- message：指示文の冒頭に置く、背景と狙いの説明（120字以内。上司の方針があれば必ず反映）
+- review：次に上司が確認するタイミングと見る数字（60字以内）
+上司の方針：${SR.intent || '（特になし）'}
+JSONのみ：{"causes":[],"actions":[],"message":"","review":""}
+質問：${SR.q}
+分析結果：${SR.answer}
+根拠の日報：${JSON.stringify(refsData)}
+担当の候補者：${JSON.stringify(cands)}`, 2500);
+  if (r.error){ box.innerHTML = srAnswerHtml() + srPlanHtml(); toast('作れませんでした：' + r.error); return; }
+  const j = parseJSON(r.text);
+  if (!j){ box.innerHTML = srAnswerHtml() + srPlanHtml(); toast('AIの回答を読み取れませんでした'); return; }
+  const full = id => { const u = srCandidates().find(u => u.id.slice(0, 8) === String(id || '').slice(0, 8)); return u ? u.id : ''; };
+  SR_PLAN = {
+    causes: (j.causes || []).map(String).slice(0, 3),
+    actions: (j.actions || []).slice(0, 5).map(a => ({ issue: String(a.issue || ''), action: String(a.action || ''), owner: full(a.owner),
+      due: /^\d{4}-\d{2}-\d{2}$/.test(a.due || '') ? a.due : '', done_when: String(a.done_when || ''), check: String(a.check || ''), on: true })),
+    message: String(j.message || ''), review: String(j.review || '')
+  };
+  box.innerHTML = srAnswerHtml() + srPlanHtml();
+}
+function srAddAction(){
+  SR_PLAN.actions.push({ issue: '', action: '', owner: '', due: '', done_when: '', check: '', on: true });
+  document.getElementById('sres').innerHTML = srAnswerHtml() + srPlanHtml();
+}
+function srDue(d){ if (!d) return '未定'; const x = new Date(d + 'T12:00:00+09:00'); return (x.getMonth() + 1) + '/' + x.getDate() + '（' + DOW_JP[x.getDay()] + '）'; }
+/* Chatwork用：HTMLタグを使わず、強調は【】、見出しは■、区切りは[hr]、[title]は先頭1回だけ */
+function srChatwork(){
+  const P = SR_PLAN; if (!P) return '';
+  const L = ['[info][title]指示：' + SR.q + '[/title]'];
+  if (P.message) L.push(P.message);
+  if (P.causes.length){ L.push('[hr]■現状の見立て'); P.causes.forEach((c, i) => L.push((i + 1) + '. ' + c)); }
+  L.push('[hr]■指示（担当・期限・完了条件）');
+  P.actions.filter(a => a.on && a.action.trim()).forEach((a, i) => {
+    L.push('【' + (i + 1) + '】' + a.action);
+    L.push('　担当：' + (a.owner ? uname(a.owner) + 'さん' : '未定') + '　期限：' + srDue(a.due));
+    if (a.done_when) L.push('　完了条件：' + a.done_when);
+    if (a.check) L.push('　確認方法：' + a.check);
+  });
+  if (P.review){ L.push('[hr]■次の確認'); L.push(P.review); }
+  L.push('[/info]');
+  return L.join('\n');
+}
+function srCopy(){
+  const t = (document.getElementById('sr_msg') || {}).value || srChatwork();
+  navigator.clipboard.writeText(t).then(() => toast('指示文をコピーしました。Chatworkに貼り付けてください'), () => toast('コピーできませんでした'));
+}
+async function srToTasks(){
+  const list = SR_PLAN.actions.filter(a => a.on && a.action.trim());
+  if (!list.length){ toast('チェックした打ち手がありません'); return; }
+  const noOwner = list.filter(a => !a.owner).length;
+  if (!confirm(list.length + '件をタスクに登録します。' + (noOwner ? '\n担当が未定の' + noOwner + '件は、あなたの担当で登録します。' : '') + '\nよろしいですか。')) return;
+  const rows = list.map(a => ({
+    title: (a.action + '（期限 ' + srDue(a.due) + '）' + (a.done_when ? '　完了条件：' + a.done_when : '') + '　〔AI検索：' + SR.q + '〕').slice(0, 200),
+    owner_id: a.owner || ME.id, created_by: ME.id, source: 'ai' }));
+  const { error } = await EC.supabase.from('report_tasks').insert(rows);
+  if (error){ toast('タスク化できませんでした：' + error.message); return; }
+  toast(rows.length + '件をタスクに登録しました。「実行管理」タブで確認できます');
 }
 
 /* ================= 一時保存（日報・週次報告） =================
