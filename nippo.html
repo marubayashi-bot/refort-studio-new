@@ -433,6 +433,7 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 .wimptab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
 .wimptab th,.wimptab td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
 .wimptab td input[type=checkbox]{width:auto}
+.wimpwarn{background:#FFF4D6;border:1px solid #F1D98A;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px}
 </style>
 </head>
 <body>
@@ -819,7 +820,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-10-04b';
+const BUILD = '2026-10-04c';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -5512,8 +5513,10 @@ function wimpCardHtml(){
       <h3 style="border:0;padding:0;margin:0">PDF・資料から読み込む</h3>
       <span class="note">スプレッドシートで作った週次報告のPDFなどから、下の入力欄に自動で振り分けます</span></div>
     <div class="row" style="margin-top:10px">
-      <label class="ghost wimpbtn">PDFを選ぶ<input type="file" accept="application/pdf,.pdf,text/plain,.txt" style="display:none" onchange="wimpFile(this)"></label>
+      <input type="file" id="wimpFileIn" accept="application/pdf,.pdf,text/plain,.txt" style="display:none" onchange="wimpFile(this)">
+      <button class="act" style="width:auto;margin:0" onclick="document.getElementById('wimpFileIn').click()">PDFを選ぶ</button>
       <button class="ghost" onclick="wimpPasteOpen()">文章を貼り付けて読み込む</button>
+      <button class="ghost" onclick="wimpSample()">サンプルで試す</button>
       <span id="wimpState" class="note"></span>
     </div>
     <div id="wimpPaste" style="display:none;margin-top:8px">
@@ -5569,42 +5572,106 @@ async function wimpFromText(){
   if (t.trim().length < 20){ toast('内容を貼り付けてください'); return; }
   await wimpAnalyze(t, '貼り付けた文章');
 }
-async function wimpAnalyze(text, src){
-  wimpState('AIが項目に振り分けています…');
-  const goals = QGOALS.map(g => ({ id: g.id.slice(0, 8), name: g.name, unit: g.unit || '', q_target: g.target }));
-  const r = await callAI(`週次報告の資料（スプレッドシートから出力したPDFの文字）を読み、日報アプリの週次報告の入力欄に振り分けてください。
-文字は表が崩れて並んでいることがあります。項目名と数字の対応を慎重に読み取ってください。
-書かれていないことは作らない。文章は原文をできるだけそのまま使い、読みやすく改行を整えるだけにする。
+/* 取り込みのお試し用サンプル（実在の人・会社ではない） */
+const WIMP_SAMPLE = `週次報告（見本太郎→社長）
+今週月曜 10/5 対象週：10/5〜10/9 氏名：見本太郎 役職：課長 報告日：2026/10/05
+B. 四半期逆算シミュレーション
+# KPI項目 Q目標 Q実績 残り必要 週あたり
+1 全社予算進行入金済MQ 1,000 170 830 119
+2 個人予算進行MQ 100 7 94 14
+C. 先週の実行結果
+1 PH06MQ 目標15 結果0 0% 未達
+2 土地契約締結 目標3 結果3 100% 達成
+D. 今週の約束（10/12〜10/16）
+1 PH06MQ 目標15 担当 見本 完了状態：合意書取得
+2 PH04商談数 目標4 担当 見本
+I. 未達成の理由
+PH06MQ ▲15（1件）。次回コンタクト日・相見積もりの返答日を確認できておらず、商談日が確定していない（通過率26%）。
+J. 行動変化（改善策）
+やめる：訪問後に持ち帰って合意書を作ること。始める：訪問時に合意書の内容をその場で確認し、送付までの時間を短縮する。
+サンプル商事様：9日（金）までに支払いスケジュールと相見積もり金額を確認し、16日までに合意書締結を完了した状態にする。
+K. 相談事項
+サンプル商事様の支払い条件（完工後一括）を受けてよいか判断をお願いしたい。
+今週の報告
+・GOODNEWS：見本建設様の社長回答入手。高圧蓄電池で検討。
+・部下の近況：見本花子：EXPOで土地仕入れのリードを4件紹介済み。
+■現状の決定率 ①無料診断→現調 35%（23件→8件） ②現調後→合意書 26%（27件→7件）`;
 
-振り分け先：
-- cause：未達要因（「未達成の理由」「未達要因」など）
-- action：行動変化・改善策（「行動変化」「改善策」など。何をやめて何を始めるか、担当・期限があれば残す）
-- consult：相談事項（無い・「なし」なら空）
-- report：今週の報告（GOOD NEWS、部下の近況、休暇、気にかかること、部下の仕事チェック、決定率などの報告）
-- week_label：資料に書かれた対象週や報告日（例：10/5〜10/9、報告日 2026/10/05）
-- next_targets：次週（今週の約束）の目標。各 {"name":"資料の項目名","goal_id":"下のアプリの項目に当たればそのid、無ければ空","target":数値,"unit":"単位","note":"担当・完了状態など"}
-- q_actuals：四半期の実績（Q実績）。アプリの項目に当たるものだけ {"goal_id":"","name":"資料の項目名","value":数値,"unit":"資料の単位"}
+async function wimpSample(){
+  await wimpAnalyze(WIMP_SAMPLE, 'サンプル', true);
+}
+
+/* AIの回答が途中で切れた時に、文字の欄だけでも拾う */
+function wimpSalvage(t){
+  const o = {};
+  ['person','week_label','cause','action','consult','report'].forEach(k => {
+    const m = String(t || '').match(new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)'));
+    if (m) o[k] = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  });
+  return Object.keys(o).length ? o : null;
+}
+async function wimpAnalyze(text, src, sample){
+  wimpState('AIが項目に振り分けています…（20秒ほどかかります）');
+  const goals = QGOALS.map(g => ({ id: g.id.slice(0, 8), name: g.name, unit: g.unit || '', q_target: g.target }));
+  const body = text.slice(0, 12000);
+  const head = `週次報告の資料（スプレッドシートから出力したPDFの文字）を読み取ります。
+文字は表が崩れ、2列の内容が1行に混ざって並んでいることがあります。見出し（I. J. K. など）と内容の対応を慎重に読み取ってください。
+書かれていないことは作らない。`;
+  // 文章と数字を分けて2回に分けて聞く（1回の回答が長すぎて途中で切れるのを防ぐ）
+  const pText = callAI(`${head}
+次の欄だけを取り出す。文章は原文をできるだけそのまま使い、読みやすく改行を整えるだけにする。
+- person：報告者の氏名（資料に書かれていれば）
+- week_label：対象週や報告日（例：10/5〜10/9、報告日 2026/10/05）
+- cause：未達要因（「I. 未達成の理由」など）
+- action：行動変化・改善策（「J. 行動変化（改善策）」など）
+- consult：相談事項（「K. 相談事項」。無い・「なし」なら空）
+- report：今週の報告（GOOD NEWS、部下の近況、休暇、気にかかること、部下の仕事チェック、決定率など）
+JSONのみ：{"person":"","week_label":"","cause":"","action":"","consult":"","report":""}
+資料（${src}）：
+${body}`, 4000);
+  const pNum = callAI(`${head}
+数字の欄だけを取り出す。
+- next_targets：次週（「D. 今週の約束」など）の目標。各 {"name":"資料の項目名","goal_id":"下のアプリの項目に当たればそのid、無ければ空","target":数値,"unit":"単位","note":"担当・完了状態など（30字以内）"}
+- q_actuals：四半期の実績（Q実績）。アプリの項目に当たるものだけ {"goal_id":"","name":"資料の項目名","value":数値,"unit":"資料の単位"}。同じ項目が2か所にあり数字が違う場合は、両方を入れて note に欄名を書く
 - last_week：先週の実行結果（参考）。各 {"name":"","target":"","result":"","rate":""}
 アプリの四半期項目：${JSON.stringify(goals)}
-JSONのみ：{"week_label":"","cause":"","action":"","consult":"","report":"","next_targets":[],"q_actuals":[],"last_week":[]}
+JSONのみ：{"next_targets":[],"q_actuals":[],"last_week":[]}
 資料（${src}）：
-${text.slice(0, 14000)}`, 4000);
-  if (r.error){ wimpState(''); toast('AIで読み取れませんでした：' + r.error); return; }
-  const j = parseJSON(r.text);
-  if (!j){ wimpState(''); toast('AIの回答を読み取れませんでした。もう一度お試しください'); return; }
+${body}`, 2500);
+  const [rt, rn] = await Promise.all([pText, pNum]);
+  if (rt.error && rn.error){ wimpState(''); wimpFail('AIを呼び出せませんでした：' + rt.error); return; }
+  const jt = (!rt.error && (parseJSON(rt.text) || wimpSalvage(rt.text))) || {};
+  const jn = (!rn.error && parseJSON(rn.text)) || {};
+  if (!jt.cause && !jt.action && !jt.consult && !jt.report && !(jn.next_targets || []).length){
+    wimpState(''); wimpFail('資料から週次報告の内容を見つけられませんでした。', text); return;
+  }
   const gid = id => { const g = QGOALS.find(g => g.id.slice(0, 8) === String(id || '').slice(0, 8)); return g ? g.id : ''; };
+  const person = String(jt.person || '');
+  const norm2 = x => String(x || '').replace(/\s/g, '');
   WIMP = {
-    src, week_label: String(j.week_label || ''),
-    cause: String(j.cause || ''), action: String(j.action || ''), consult: String(j.consult || ''), report: String(j.report || ''),
-    next: (j.next_targets || []).map(x => ({ name: String(x.name || ''), goal_id: gid(x.goal_id), target: x.target,
+    src, sample: !!sample, person,
+    other: !sample && person && norm2(person) !== norm2(ME.full_name) && !norm2(ME.full_name).includes(norm2(person)),
+    allowOther: false,
+    week_label: String(jt.week_label || ''),
+    cause: String(jt.cause || ''), action: String(jt.action || ''), consult: String(jt.consult || ''), report: String(jt.report || ''),
+    next: (jn.next_targets || []).map(x => ({ name: String(x.name || ''), goal_id: gid(x.goal_id), target: x.target,
       unit: String(x.unit || ''), note: String(x.note || ''), on: true })).filter(x => x.name && x.target !== '' && x.target !== null),
-    qa: (j.q_actuals || []).map(x => ({ goal_id: gid(x.goal_id), name: String(x.name || ''), value: x.value, unit: String(x.unit || ''), on: false }))
-      .filter(x => x.goal_id && x.value !== '' && x.value !== null),
-    last: (j.last_week || []).slice(0, 8),
+    qa: (jn.q_actuals || []).map(x => ({ goal_id: gid(x.goal_id), name: String(x.name || '') + (x.note ? '（' + x.note + '）' : ''),
+      value: x.value, unit: String(x.unit || ''), on: false })).filter(x => x.goal_id && x.value !== '' && x.value !== null),
+    last: (jn.last_week || []).slice(0, 8),
     on: { cause: true, action: true, consult: true, report: true }
   };
   wimpState('');
   wimpDrawPrev();
+}
+function wimpFail(msg, text){
+  const box = document.getElementById('wimpPrev'); if (!box) { toast(msg); return; }
+  box.innerHTML = `<div class="wimpprev" style="border-color:#E7C4A6">
+    <b style="color:var(--warn)">${esc(msg)}</b>
+    <p class="note" style="margin-top:4px">もう一度試すか、「文章を貼り付けて読み込む」で必要な部分だけを貼り付けてください。</p>
+    ${text ? `<details style="margin-top:6px"><summary class="note">読み取れた文字を見る（${text.length}文字）</summary>
+      <pre style="white-space:pre-wrap;font-size:11px;max-height:240px;overflow:auto">${esc(text.slice(0, 4000))}</pre></details>` : ''}
+  </div>`;
 }
 function wimpDrawPrev(){
   const box = document.getElementById('wimpPrev'); if (!box || !WIMP) return;
@@ -5616,6 +5683,11 @@ function wimpDrawPrev(){
   box.innerHTML = `<div class="wimpprev">
     <div class="row" style="justify-content:space-between"><b>読み取り結果（${esc(W.src)}）</b>
       <button class="ghost mts" onclick="WIMP=null;document.getElementById('wimpPrev').innerHTML=''">閉じる</button></div>
+    ${W.sample ? `<div class="wimpwarn">これは<b>サンプル</b>の読み取り結果です。どの欄に何が入るかの確認用で、入力欄には反映しません。</div>` : ''}
+    ${W.other ? `<div class="wimpwarn">この資料は<b>${esc(W.person)}さん</b>の週次報告のようです。ここはあなた（${esc(ME.full_name)}）の週次報告の入力欄です。
+      <br>部下の資料の場合は、読み取り結果の確認（サンプル表示）として見てください。
+      <label class="wimpchk" style="margin-top:6px"><input type="checkbox" onchange="WIMP.allowOther=this.checked;document.getElementById('wimpGo').disabled=!this.checked">
+        それでも自分の週次報告に反映する</label></div>` : ''}
     ${W.week_label ? `<p class="note" style="margin:4px 0 0">資料の対象週：${esc(W.week_label)}　／　この画面の週：<b>${WEEK_START} 〜 ${addDays(WEEK_START, 6)}</b>。
       違う週の資料なら、上の「← 前の週／次の週 →」で週を合わせてから反映してください。</p>` : ''}
     <p class="note" style="margin:6px 0 0">チェックした項目だけを入力欄に反映します。内容はここで直せます。反映した後、確認して「提出する／更新する」を押してください。</p>
@@ -5640,11 +5712,13 @@ function wimpDrawPrev(){
     ${W.last.length ? `<div class="wimprow"><b style="font-size:13px">先週の実行結果（参考）</b>
       <div class="note">${W.last.map(x => `${esc(x.name)}：目標 ${esc(x.target)}／結果 ${esc(x.result)}${x.rate ? '（' + esc(x.rate) + '）' : ''}`).join('　')}</div>
       <p class="note">結果の数字は日報から自動集計しています。違う場合は「今週の目標と結果」の「数字を修正する」で直してください。</p></div>` : ''}
-    <button class="act" style="width:auto;margin-top:10px" onclick="wimpApply()">チェックした内容を入力欄に反映する</button>
+    ${W.sample ? `<p class="note" style="margin-top:10px">実際の資料は「PDFを選ぶ」から読み込んでください。</p>`
+      : `<button class="act" id="wimpGo" style="width:auto;margin-top:10px" ${W.other ? 'disabled' : ''} onclick="wimpApply()">チェックした内容を入力欄に反映する</button>`}
   </div>`;
 }
 async function wimpApply(){
-  const W = WIMP; if (!W) return;
+  const W = WIMP; if (!W || W.sample) return;
+  if (W.other && !W.allowOther) return;
   const set = (id, v, append) => { const el = document.getElementById(id); if (!el) return false;
     if (append && el.value.trim()) el.value = el.value.trim() + '\n\n' + v; else el.value = v;
     el.dispatchEvent(new Event('input', { bubbles: true })); return true; };
