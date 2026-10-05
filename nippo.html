@@ -434,6 +434,19 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 .wimptab th,.wimptab td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
 .wimptab td input[type=checkbox]{width:auto}
 .wimpwarn{background:#FFF4D6;border:1px solid #F1D98A;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px}
+.wkfb{border:1px solid #CFE0F3;background:#F5F9FE;border-radius:10px;padding:10px 12px;margin-top:10px}
+.wkfbtab{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}.wkfbtab td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
+.wkfbtab td:first-child{width:72px}
+.wkfbsec{margin-top:10px;font-size:13px}.wkfbsec ul{margin:4px 0 0 1.2em;padding:0}
+.wkfbdir{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line)}
+.wkfbcmt{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:4px;white-space:pre-wrap;line-height:1.7}
+.arclist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.arcrow{border:1px solid var(--line);border-radius:10px;background:#fff}
+.arcrow.open{border-color:var(--accent)}
+.archead{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;flex-wrap:wrap}
+.arcsnip{flex:1;min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arcbody{padding:0 12px 12px}
+mark{background:#FFF0A8;padding:0 1px}
 </style>
 </head>
 <body>
@@ -820,7 +833,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-10-04c';
+const BUILD = '2026-10-05a';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -5173,7 +5186,7 @@ function buildWkSnapshot(prev){
 }
 
 function findWkReport(id){
-  return [WREPORT].concat(MYHIST || [], TEAMW || [], TEAMHIST || []).find(r => r && r.id === id);
+  return [WREPORT].concat(MYHIST || [], TEAMW || [], TEAMHIST || [], (typeof ARC !== 'undefined' && ARC.rows) || []).find(r => r && r.id === id);
 }
 function wkPdfBtn(r){
   return r ? `<button class="ghost" onclick="printWeekly('${r.id}')">報告書をPDFで保存</button>` : '';
@@ -5338,9 +5351,11 @@ function vWeekly(){
   ${members.length ? `<div class="row" style="margin-bottom:12px">
     <button class="ghost" onclick="jumpWk('wkBox')">自分の目標と週次報告</button>
     <button class="ghost" onclick="jumpWk('wkTeam')">部下の目標と週次報告（${members.length}名）</button>
-  </div>` : ''}
+    <button class="ghost" onclick="jumpWk('wkArc')">過去の週次報告（アーカイブ）</button>
+  </div>` : `<div class="row" style="margin-bottom:12px"><button class="ghost" onclick="jumpWk('wkArc')">過去の週次報告（アーカイブ）</button></div>`}
   <div id="wkBox"><div class="empty">読み込み中…</div></div>
-  <div id="wkTeam"></div>`;
+  <div id="wkTeam"></div>
+  ${arcCardHtml()}`;
 }
 function jumpWk(id){
   const el = document.getElementById(id);
@@ -5814,7 +5829,8 @@ function wkFormHtml(rows){
 
 /* 自分の過去の週次報告 */
 function wkHistoryHtml(){
-  return `  <div class="card"><h3>過去の週次報告（直近8週）</h3>
+  return `  <div class="card"><div class="row" style="justify-content:space-between"><h3 style="border:0;margin:0;padding:0">過去の週次報告（直近8週）</h3>
+    <button class="ghost" onclick="jumpWk('wkArc')">それより前はアーカイブで見る</button></div>
     ${MYHIST.length ? MYHIST.map(r => `
       <div class="sec s-num" style="margin-top:12px">
         <span class="lab">${r.week_start} 〜 ${addDays(r.week_start,6)}</span>
@@ -5987,6 +6003,7 @@ function wkMemberDetail(uid){
     ${(w.weekly_comments||[]).length ? (w.weekly_comments||[]).map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
       <span class="note num">${(c.created_at||'').slice(5,16).replace('T',' ')}</span><br>${linkify(c.body)}</div>`).join('')
       : '<p class="note">まだコメントがありません。</p>'}
+    ${wkFbBoxHtml(w)}
     <textarea id="wc_${w.id}" style="min-height:70px;margin-top:8px" placeholder="例：現調の件数ではなく、週前半の架電が0だったことが原因という整理は正しい。来週は月曜9時までの架電5件を完了条件にして、水曜に一度報告してください。"></textarea>
     <button class="act" style="margin-top:8px" onclick="addWeeklyComment('${w.id}')">コメントする</button>
   </div>` : `<div class="card"><div class="empty">この週はまだ提出されていません。</div></div>`}
@@ -6097,6 +6114,199 @@ async function unapproveTargets(uid){
   if (error){ toast('取り消せませんでした: ' + error.message); return; }
   toast('承認を取り消しました');
   loadApproval(uid);
+}
+
+/* ================= 週次報告：上司のAIフィードバック =================
+   部下の週次報告を、識学の観点（結果・未達要因・行動変化・完了条件）で点検し、
+   上司のコメント案を作る。コメントを送るのは上司。AIは案を出すだけ。 */
+let WKFB = {};   // 週次報告id → AIの結果
+
+function wkFbBoxHtml(w){
+  const r = WKFB[w.id];
+  if (!r) return `<div class="wkfb" id="wkfb_${w.id}">
+    <div class="row" style="align-items:center">
+      <b>AIでフィードバック案を作る</b>
+      <select id="wkfbFocus_${w.id}" style="width:auto">
+        <option value="総合">総合（承認・指摘・指示をバランスよく）</option>
+        <option value="未達要因">未達要因の深掘り（事実と数字で詰まりを特定させる）</option>
+        <option value="行動変化">行動変化の具体化（やめること・期限・完了条件）</option>
+        <option value="承認">できている点の承認を中心に</option>
+      </select>
+      <button class="act" style="width:auto;margin:0" onclick="wkFbRun('${w.id}')">作る</button>
+    </div>
+    <p class="note" style="margin-top:4px">今週の数字・未達要因・行動変化・過去4週の報告と上司コメントを読んで、点検結果とコメント案を出します。</p>
+  </div>`;
+  if (r.busy) return `<div class="wkfb" id="wkfb_${w.id}"><div class="note">週次報告を読んでいます…</div></div>`;
+  return `<div class="wkfb" id="wkfb_${w.id}">
+    <div class="row" style="justify-content:space-between"><b>AIフィードバック案</b>
+      <button class="ghost mts" onclick="delete WKFB['${w.id}'];wkFbPaint('${w.id}')">作り直す</button></div>
+    ${r.summary ? `<div class="note" style="margin-top:4px">${esc(r.summary)}</div>` : ''}
+    ${r.checks.length ? `<table class="wkfbtab">${r.checks.map(c => `<tr>
+      <td><span class="pill ${c.ok ? 'p2' : 'p5'}">${c.ok ? 'OK' : '要指導'}</span></td><td><b>${esc(c.item)}</b><br><span class="note">${esc(c.note)}</span></td></tr>`).join('')}</table>` : ''}
+    ${r.prev ? `<div class="wkfbsec"><span class="eyebrow">前回の指示の実行状況</span><div>${esc(r.prev)}</div></div>` : ''}
+    ${r.questions.length ? `<div class="wkfbsec"><span class="eyebrow">本人に確認する質問</span><ul>${r.questions.map(q => `<li>${esc(q)}</li>`).join('')}</ul></div>` : ''}
+    ${r.directives.length ? `<div class="wkfbsec"><span class="eyebrow">指示（担当1人・期限・完了条件）</span>
+      ${r.directives.map((d, i) => `<div class="wkfbdir"><span>${esc(d.what)}<span class="note">　期限 ${esc(d.due || '未定')}${d.done_when ? '／完了条件：' + esc(d.done_when) : ''}</span></span>
+        <button class="ghost mts" onclick="wkFbTask('${w.id}', ${i})">${(r.tasked || []).includes(i) ? 'タスク化済み' : 'タスク化'}</button></div>`).join('')}</div>` : ''}
+    <div class="wkfbsec"><span class="eyebrow">コメント案</span>
+      <div class="wkfbcmt">${esc(r.comment)}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="act" style="width:auto;margin:0" onclick="wkFbUse('${w.id}')">コメント欄に入れる</button>
+        <span class="note">入れた後、直してから「コメントする」を押してください。</span></div></div>
+  </div>`;
+}
+function wkFbPaint(id){
+  const el = document.getElementById('wkfb_' + id); if (!el) return;
+  const w = findWkReport(id); if (!w) return;
+  el.outerHTML = wkFbBoxHtml(w);
+}
+async function wkFbRun(id){
+  const w = findWkReport(id); if (!w) return;
+  const focus = (document.getElementById('wkfbFocus_' + id) || {}).value || '総合';
+  const uid = w.user_id, u = USERS.find(x => x.id === uid) || {};
+  WKFB[id] = { busy: true }; wkFbPaint(id);
+  const rows = weeklyRowsFor(uid, w.week_start, goalsOf(uid), w.week_start === WEEK_START ? TEAM_WTARGETS : [])
+    .map(r => ({ 項目: r.name, 目標: r.wTarget, 実績: Math.round((r.week || 0) * 10) / 10, 達成率: r.wRate + '%' }));
+  const q = goalsOf(uid).map(g => ({ 項目: g.name, 四半期目標: g.target + (g.unit || ''),
+    実績: Math.round(quarterActual(g, uid) * 10) / 10, 達成率: goalRate(quarterActual(g, uid), g.target) + '%' }));
+  const hist = (TEAMHIST || []).filter(x => x.user_id === uid && x.week_start < w.week_start).slice(0, 4).map(x => ({
+    週: x.week_start, 未達要因: cut(x.gap_cause, 300), 行動変化: cut(x.action_change, 300),
+    上司コメント: (x.weekly_comments || []).map(c => cut(c.body, 200)).join(' ／ ') }));
+  const days = REPORTS.filter(r => r.author_id === uid && r.report_date >= w.week_start && r.report_date <= addDays(w.week_start, 6) && r.status === 'submitted');
+  const r = await callAI(`あなたは株式会社アースコムの管理職（${ME.full_name}／${ME.job_grade || ''}）の参謀です。管理手法は識学です。
+部下（${u.full_name}／${u.dept_name || ''}／${u.job_grade || ''}）の週次報告を点検し、上司から返すフィードバックの案を作ってください。
+観点：${focus}
+識学のルール：
+- 評価は結果（数字）で行う。プロセスや頑張りを褒めない。感情的な言葉や人格への言及はしない
+- 未達要因は「事実と数字」で、どこで詰まったか（入口が少ない／途中で止まった／決め切れない）が特定されているか
+- 行動変化は「やめること」を1つ以上含み、誰が・いつまでに・どこまで（完了条件）が書かれているか
+- 前回の上司コメント（指示）が今週実行されたかを確認する
+- 指示は担当1人・具体的な期限（${TODAY}から2週間以内の日付、YYYY-MM-DDまたはM/D）・測れる完了条件で書く
+- 「頑張って」「意識して」「徹底して」など測れない言葉は使わない
+返す内容：
+- summary：今週の結果の要約（数字で。80字以内）
+- checks：点検結果4〜5件。各 {"item":"点検項目（例：未達要因が事実で書けているか）","ok":true/false,"note":"根拠（50字以内）"}
+- prev：前回の指示の実行状況（前回コメントが無ければ空。80字以内）
+- questions：本人に確認する質問2〜3個（各50字以内）
+- directives：指示1〜3個。各 {"what":"何をどこまで（50字以内）","due":"期限","done_when":"完了条件（40字以内）"}
+- comment：上司から本人へのコメント本文（250字以内。結果の事実→良い点（結果に基づくもの）→指摘→指示（期限・完了条件）の順。です・ます調）
+JSONのみ：{"summary":"","checks":[],"prev":"","questions":[],"directives":[],"comment":""}
+今週（${w.week_start}〜${addDays(w.week_start, 6)}）の目標と結果：${JSON.stringify(rows)}
+四半期の進捗：${JSON.stringify(q)}
+未達要因：${cut(w.gap_cause, 1200) || '（記入なし）'}
+行動変化：${cut(w.action_change, 1200) || '（記入なし）'}
+その他相談：${cut(w.consult, 800) || '（なし）'}
+今週の日報：${days.length}件提出
+過去4週の週次報告と上司コメント：${JSON.stringify(hist)}`, 2500);
+  if (r.error){ delete WKFB[id]; wkFbPaint(id); toast('作れませんでした：' + r.error); return; }
+  const j = parseJSON(r.text);
+  if (!j){ delete WKFB[id]; wkFbPaint(id); toast('AIの回答を読み取れませんでした。もう一度お試しください'); return; }
+  WKFB[id] = {
+    summary: String(j.summary || ''),
+    checks: (j.checks || []).slice(0, 6).map(c => ({ item: String(c.item || ''), ok: !!c.ok, note: String(c.note || '') })),
+    prev: String(j.prev || ''),
+    questions: (j.questions || []).map(String).slice(0, 3),
+    directives: (j.directives || []).slice(0, 3).map(d => ({ what: String(d.what || ''), due: String(d.due || ''), done_when: String(d.done_when || '') })),
+    comment: String(j.comment || ''), tasked: []
+  };
+  wkFbPaint(id);
+}
+function wkFbUse(id){
+  const r = WKFB[id], el = document.getElementById('wc_' + id); if (!r || !el) return;
+  if (el.value.trim() && !confirm('入力中のコメントを、AIのコメント案で置き換えます。よろしいですか。')) return;
+  el.value = r.comment; el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function wkFbTask(id, i){
+  const r = WKFB[id], w = findWkReport(id); if (!r || !w) return;
+  if ((r.tasked || []).includes(i)) return;
+  const d = r.directives[i];
+  const title = (d.what + '（期限 ' + (d.due || '未定') + '）' + (d.done_when ? '　完了条件：' + d.done_when : '')
+    + '　〔' + w.week_start.slice(5).replace('-', '/') + '週の週次報告より〕').slice(0, 200);
+  const { error } = await EC.supabase.from('report_tasks').insert({ title, owner_id: w.user_id, created_by: ME.id, source: 'ai' });
+  if (error){ toast('タスク化できませんでした：' + error.message); return; }
+  r.tasked = (r.tasked || []).concat(i); wkFbPaint(id);
+  toast(uname(w.user_id) + ' さんのタスクに登録しました');
+}
+
+/* ================= 週次報告アーカイブ（過去の週次報告を保存・閲覧） =================
+   直近8週より前も含め、期間・人・キーワードで探して、全文・上司コメント・PDFを見られる。 */
+let ARC = { from: '', to: '', who: '', kw: '', rows: [], open: {}, more: false, loaded: false, page: 0 };
+const ARC_PAGE = 30;
+function arcPeople(){
+  if (canAdmin() && (ME.role === 'admin' || isExec())) return USERS.filter(u => u.is_active !== false);
+  const ids = new Set([ME.id].concat(weeklyMembers().map(u => u.id)));
+  return USERS.filter(u => ids.has(u.id));
+}
+function arcCardHtml(){
+  if (!ARC.from){ ARC.from = addDays(TODAY, -182); ARC.to = TODAY; }
+  const people = arcPeople();
+  return `<div class="card" id="wkArc">
+    <h3>週次報告アーカイブ（過去の週次報告）</h3>
+    <p class="note">提出された週次報告はすべて保存されています。期間・人・キーワードで探して、全文・上司コメント・PDFを見られます。</p>
+    <div class="row" style="margin-top:8px">
+      <input type="date" style="width:auto" value="${ARC.from}" onchange="ARC.from=this.value">
+      <span>〜</span><input type="date" style="width:auto" value="${ARC.to}" onchange="ARC.to=this.value">
+      <select style="width:auto" onchange="ARC.who=this.value">
+        <option value="">${people.length > 1 ? '見られる全員' : '自分'}</option>
+        ${people.length > 1 ? people.map(u => `<option value="${u.id}"${ARC.who === u.id ? ' selected' : ''}>${esc(u.full_name || u.email)}</option>`).join('') : ''}
+      </select>
+      <input type="text" style="flex:1;min-width:160px" placeholder="キーワード（例：合意書、東名様）" value="${esc(ARC.kw)}"
+        onchange="ARC.kw=this.value" onkeydown="if(event.key==='Enter'&&!event.isComposing){ARC.kw=this.value;arcLoad()}">
+      <button class="act" style="width:auto;margin:0" onclick="arcLoad()">探す</button>
+    </div>
+    <div id="arcList">${ARC.loaded ? arcListHtml() : '<p class="note" style="margin-top:10px">「探す」を押すと表示します。</p>'}</div>
+  </div>`;
+}
+async function arcLoad(more){
+  const box = document.getElementById('arcList');
+  if (!more){ ARC.page = 0; ARC.rows = []; ARC.open = {}; }
+  if (box && !more) box.innerHTML = '<div class="empty">読み込んでいます…</div>';
+  const ids = ARC.who ? [ARC.who] : arcPeople().map(u => u.id);
+  let q = EC.supabase.from('weekly_reports').select('*, weekly_comments(*)')
+    .in('user_id', ids).gte('week_start', addDays(ARC.from, -6)).lte('week_start', ARC.to)
+    .order('week_start', { ascending: false }).range(ARC.page * ARC_PAGE, ARC.page * ARC_PAGE + ARC_PAGE - 1);
+  const kw = String(ARC.kw || '').trim().replace(/[,()]/g, ' ');
+  if (kw) q = q.or(`gap_cause.ilike.%${kw}%,action_change.ilike.%${kw}%,consult.ilike.%${kw}%`);
+  const { data, error } = await q;
+  if (error){ if (box) box.innerHTML = `<div class="empty">読み込めませんでした：${esc(error.message)}</div>`; return; }
+  ARC.rows = ARC.rows.concat(data || []); ARC.more = (data || []).length === ARC_PAGE; ARC.page++; ARC.loaded = true;
+  // PDF出力・AIで使えるよう、見つけた報告書を手元の一覧にも入れておく
+  (data || []).forEach(r => { if (!TEAMHIST.some(x => x.id === r.id) && r.user_id !== ME.id) TEAMHIST.push(r);
+                               if (r.user_id === ME.id && !MYHIST.some(x => x.id === r.id)) MYHIST.push(r); });
+  const b = document.getElementById('arcList'); if (b) b.innerHTML = arcListHtml();
+}
+function arcHi(t){
+  const s = esc(t || ''); const kw = String(ARC.kw || '').trim();
+  return kw ? s.split(esc(kw)).join(`<mark>${esc(kw)}</mark>`) : s;
+}
+function arcListHtml(){
+  if (!ARC.rows.length) return '<div class="empty">条件に合う週次報告はありません。</div>';
+  return `<p class="note" style="margin-top:10px">${ARC.rows.length}件${ARC.more ? '以上' : ''}</p>
+  <div class="arclist">${ARC.rows.map(r => {
+    const o = ARC.open[r.id], cm = r.weekly_comments || [];
+    return `<div class="arcrow${o ? ' open' : ''}">
+      <div class="archead" onclick="ARC.open['${r.id}']=!ARC.open['${r.id}'];document.getElementById('arcList').innerHTML=arcListHtml()">
+        <span class="num"><b>${r.week_start.slice(2).replace(/-/g, '/')}</b>〜${addDays(r.week_start, 6).slice(5).replace('-', '/')}</span>
+        <b>${esc(uname(r.user_id))}</b>
+        <span class="note arcsnip">${esc(String(r.gap_cause || r.action_change || '記入なし').replace(/\s+/g, ' ').slice(0, 70))}</span>
+        <span class="pill ${cm.length ? 'p2' : 'p4'}">${cm.length ? 'コメント' + cm.length : 'コメント未'}</span>
+      </div>
+      ${o ? `<div class="arcbody">
+        <div class="sec s-rival"><span class="lab">未達要因</span><div>${r.gap_cause ? arcHi(r.gap_cause).replace(/\n/g, '<br>') : '<span class="note">記入なし</span>'}</div></div>
+        <div class="sec s-think"><span class="lab">行動変化</span><div>${r.action_change ? arcHi(r.action_change).replace(/\n/g, '<br>') : '<span class="note">記入なし</span>'}</div></div>
+        ${r.consult ? `<div class="sec s-voice"><span class="lab">その他相談</span><div>${arcHi(r.consult).replace(/\n/g, '<br>')}</div></div>` : ''}
+        ${cm.length ? `<div style="margin-top:8px"><b style="font-size:13px">上司コメント</b>${cm.map(c => `<div class="cmt"><b>${esc(uname(c.author_id))}</b>
+          <span class="note num">${(c.created_at || '').slice(0, 16).replace('T', ' ')}</span><br>${linkify(c.body)}</div>`).join('')}</div>` : ''}
+        <div class="row" style="margin-top:8px">
+          <button class="ghost" onclick="printWeekly('${r.id}')">報告書をPDFで保存</button>
+          ${r.user_id !== ME.id ? `<button class="ghost" onclick="arcOpenWeek('${r.user_id}','${r.week_start}')">この週を開いてコメントする</button>` : ''}
+        </div></div>` : ''}
+    </div>`; }).join('')}</div>
+  ${ARC.more ? `<button class="ghost" style="margin-top:10px" onclick="arcLoad(true)">さらに読み込む</button>` : ''}`;
+}
+function arcOpenWeek(uid, ws){
+  WEEK_START = ws; WUSER = uid;
+  loadWeekly().then(() => setTimeout(() => jumpWk('wkTeam'), 300));
 }
 
 async function addWeeklyComment(reportId){
