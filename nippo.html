@@ -447,6 +447,21 @@ button.mtx{padding:3px 9px;color:var(--warn)}
 .arcsnip{flex:1;min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arcbody{padding:0 12px 12px}
 mark{background:#FFF0A8;padding:0 1px}
+.wktabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:4px 0 16px;overflow-x:auto}
+.wktab{font:inherit;font-size:14px;font-weight:700;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;
+  padding:10px 14px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.wktab.on{color:var(--ink);border-bottom-color:var(--accent)}
+.wksteps{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;position:sticky;top:0;z-index:5;background:var(--bg,#F4F7FA);padding:6px 0}
+.wksteps a{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);font-size:13px;font-weight:700;
+  background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 12px}
+.wksteps a b,.wkstephd b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;font-size:11px}
+.wkstephd{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--accent);letter-spacing:.06em;margin-bottom:4px}
+.wkttab{width:100%;border-collapse:collapse}
+.wkttab th,.wkttab td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;font-size:13px}
+.wkttab input{padding:6px 8px;font-weight:700}
+.wimpoff td{opacity:.55}
+.wimpbad{display:inline-block;font-size:10.5px;font-weight:700;color:#B3261E;background:#FBE3E3;border-radius:8px;padding:1px 6px}
+.wimptab select{font-size:12.5px;padding:4px 6px;max-width:240px}
 </style>
 </head>
 <body>
@@ -833,7 +848,7 @@ const REL_KEY = 'nippo_release_seen';
    アプリを開いたままにしている人にも更新を届けるため、画面に戻ったときと30分ごとに
    公開中の nippo.html を確認し、BUILD が変わっていたら「再読み込み」の帯を出す。
    ※更新してアップロードするときは、この BUILD の値を必ず変えること。 */
-const BUILD = '2026-10-05a';
+const BUILD = '2026-10-05b';
 let BUILD_LAST = 0;
 async function checkBuild(){
   if (Date.now() - BUILD_LAST < 5 * 60000) return;   // 5分以内に確認済みなら何もしない
@@ -5341,25 +5356,43 @@ function actualSum(metricId, from, to, uid){
   return sum;
 }
 
+/* 週次報告は4つのタブに分ける：書く／部下／PDF取り込み／アーカイブ */
+let WK_TAB = 'write';
 function vWeekly(){
   if (!WEEK_START) WEEK_START = mondayOf(new Date());
   const members = weeklyMembers();
   setTimeout(loadWeekly, 0);
+  const tabs = [['write', '自分の週次報告を書く'], members.length ? ['team', '部下の週次報告（' + members.length + '名）'] : null,
+    ['import', 'PDF・資料から取り込む'], ['archive', '過去の週次報告']].filter(Boolean);
+  if (!tabs.some(t => t[0] === WK_TAB)) WK_TAB = 'write';
+  const show = k => WK_TAB === k ? '' : 'display:none';
   return `<h2>週次報告</h2>
-  <p class="sub">結果は日報の数値から自動集計します。書くのは要因・行動変化・次週目標だけです。
-    日報の入力ミスや未提出の日があるときは「数字を修正する」で直せます。</p>
-  ${members.length ? `<div class="row" style="margin-bottom:12px">
-    <button class="ghost" onclick="jumpWk('wkBox')">自分の目標と週次報告</button>
-    <button class="ghost" onclick="jumpWk('wkTeam')">部下の目標と週次報告（${members.length}名）</button>
-    <button class="ghost" onclick="jumpWk('wkArc')">過去の週次報告（アーカイブ）</button>
-  </div>` : `<div class="row" style="margin-bottom:12px"><button class="ghost" onclick="jumpWk('wkArc')">過去の週次報告（アーカイブ）</button></div>`}
-  <div id="wkBox"><div class="empty">読み込み中…</div></div>
-  <div id="wkTeam"></div>
-  ${arcCardHtml()}`;
+  <div class="wktabs">${tabs.map(t => `<button class="wktab${WK_TAB === t[0] ? ' on' : ''}" data-wk="${t[0]}" onclick="wkTab('${t[0]}')">${t[1]}</button>`).join('')}</div>
+  <div class="wkpane" data-wk="write" style="${show('write')}">
+    <p class="sub">結果は日報の数値から自動集計します。書くのは「振り返り」と「次週の目標」だけです。</p>
+    <div class="wksteps">
+      <a href="#" onclick="wkStep('wkS1');return false"><b>1</b>今週の数字</a>
+      <a href="#" onclick="wkStep('wkS2');return false"><b>2</b>振り返り</a>
+      <a href="#" onclick="wkStep('wkS3');return false"><b>3</b>次週の目標</a>
+      <a href="#" onclick="wkStep('wkS4');return false"><b>4</b>相談・提出</a>
+    </div>
+    <div id="wkBox"><div class="empty">読み込み中…</div></div>
+  </div>
+  <div class="wkpane" data-wk="team" style="${show('team')}"><div id="wkTeam"></div></div>
+  <div class="wkpane" data-wk="import" style="${show('import')}">${wimpCardHtml()}</div>
+  <div class="wkpane" data-wk="archive" style="${show('archive')}">${arcCardHtml()}</div>`;
 }
+function wkTab(k){
+  WK_TAB = k;
+  document.querySelectorAll('.wktab').forEach(b => b.classList.toggle('on', b.dataset.wk === k));
+  document.querySelectorAll('.wkpane').forEach(p => p.style.display = p.dataset.wk === k ? '' : 'none');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function wkStep(id){ const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 function jumpWk(id){
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const map = { wkBox: 'write', wkTeam: 'team', wkArc: 'archive', wkImport: 'import' };
+  if (map[id]){ wkTab(map[id]); return; }
+  wkStep(id);
 }
 function setWMode(m){ jumpWk(m === 'team' ? 'wkTeam' : 'wkBox'); }
 function openWUser(uid){ WUSER = (WUSER === uid ? null : uid); loadWeeklyTeam(); }
@@ -5468,7 +5501,7 @@ async function loadWeeklySelf(){
     ${wkSubmittedNote(WREPORT)}
   </div>
 
-  <div class="card"><h3>四半期の進捗</h3>
+  <div class="card wkstep" id="wkS1"><div class="wkstephd"><b>1</b>今週の数字</div><h3>四半期の進捗</h3>
     <table><tr><th>項目</th><th>対象</th><th>目標</th><th>実績（入力できます）</th><th>達成率</th><th>残り</th><th>必要ペース／週</th></tr>
     ${rows.map(r => `<tr>
       <td>${esc(r.g.name)}${r.g.kind === 'KGI' ? ' <span class="pill">KGI</span>' : ''}</td>
@@ -5526,7 +5559,7 @@ function wimpCardHtml(){
   return `<div class="card wimp">
     <div class="row" style="align-items:center">
       <h3 style="border:0;padding:0;margin:0">PDF・資料から読み込む</h3>
-      <span class="note">スプレッドシートで作った週次報告のPDFなどから、下の入力欄に自動で振り分けます</span></div>
+      <span class="note">スプレッドシートで作った週次報告のPDFなどを読み取り、確認してから「自分の週次報告を書く」の入力欄に入れます</span></div>
     <div class="row" style="margin-top:10px">
       <input type="file" id="wimpFileIn" accept="application/pdf,.pdf,text/plain,.txt" style="display:none" onchange="wimpFile(this)">
       <button class="act" style="width:auto;margin:0" onclick="document.getElementById('wimpFileIn').click()">PDFを選ぶ</button>
@@ -5645,10 +5678,14 @@ JSONのみ：{"person":"","week_label":"","cause":"","action":"","consult":"","r
 資料（${src}）：
 ${body}`, 4000);
   const pNum = callAI(`${head}
-数字の欄だけを取り出す。
-- next_targets：次週（「D. 今週の約束」など）の目標。各 {"name":"資料の項目名","goal_id":"下のアプリの項目に当たればそのid、無ければ空","target":数値,"unit":"単位","note":"担当・完了状態など（30字以内）"}
-- q_actuals：四半期の実績（Q実績）。アプリの項目に当たるものだけ {"goal_id":"","name":"資料の項目名","value":数値,"unit":"資料の単位"}。同じ項目が2か所にあり数字が違う場合は、両方を入れて note に欄名を書く
+数字の欄だけを取り出す。数字は資料に書かれている値をそのまま使い、計算や推測で作らない。
+各項目に、根拠として資料のその行の文字をそのまま raw に入れる（40字以内で切ってよい）。
+- next_targets：次週（「D. 今週の約束」など、これからの週）の目標。各 {"name":"資料の項目名","target":数値,"unit":"単位","note":"担当・完了状態など（30字以内）","raw":"根拠の行","goal_id":"下のアプリの項目と同じものならそのid。似ているだけなら空","sure":true/false}
+  ※「目標」の列の数字を target にする。「現状」「分母」「達成率」の列と取り違えない
+- q_actuals：四半期の実績（Q実績）。各 {"name":"資料の項目名","value":数値,"unit":"資料の単位","section":"欄名（B.など）","raw":"根拠の行","goal_id":"同じ項目ならid、無ければ空","sure":true/false}
+  ※同じ項目が2か所にあり数字が違う場合は、両方を入れる
 - last_week：先週の実行結果（参考）。各 {"name":"","target":"","result":"","rate":""}
+goal_id は、項目名と意味が同じと確信できるときだけ入れ、sure を true にする（例：「PH06MQ」と「個人進行MQ」は別物なので空）。
 アプリの四半期項目：${JSON.stringify(goals)}
 JSONのみ：{"next_targets":[],"q_actuals":[],"last_week":[]}
 資料（${src}）：
@@ -5669,15 +5706,44 @@ ${body}`, 2500);
     allowOther: false,
     week_label: String(jt.week_label || ''),
     cause: String(jt.cause || ''), action: String(jt.action || ''), consult: String(jt.consult || ''), report: String(jt.report || ''),
-    next: (jn.next_targets || []).map(x => ({ name: String(x.name || ''), goal_id: gid(x.goal_id), target: x.target,
-      unit: String(x.unit || ''), note: String(x.note || ''), on: true })).filter(x => x.name && x.target !== '' && x.target !== null),
-    qa: (jn.q_actuals || []).map(x => ({ goal_id: gid(x.goal_id), name: String(x.name || '') + (x.note ? '（' + x.note + '）' : ''),
-      value: x.value, unit: String(x.unit || ''), on: false })).filter(x => x.goal_id && x.value !== '' && x.value !== null),
+    next: (jn.next_targets || []).map(x => {
+        const g = wimpMatch(x.name, gid(x.goal_id), x.sure);
+        return { name: String(x.name || ''), target: x.target, unit: String(x.unit || ''), note: String(x.note || ''),
+          raw: String(x.raw || ''), found: wimpFound(text, x.target), dest: g || 'none', guess: g };
+      }).filter(x => x.name && x.target !== '' && x.target !== null),
+    qa: (jn.q_actuals || []).map(x => {
+        const g = wimpMatch(x.name, gid(x.goal_id), x.sure);
+        return { name: String(x.name || ''), value: x.value, unit: String(x.unit || ''), section: String(x.section || ''),
+          raw: String(x.raw || ''), found: wimpFound(text, x.value), dest: 'none', guess: g };
+      }).filter(x => x.name && x.value !== '' && x.value !== null),
     last: (jn.last_week || []).slice(0, 8),
     on: { cause: true, action: true, consult: true, report: true }
   };
   wimpState('');
   wimpDrawPrev();
+}
+/* 資料の項目名とアプリの項目名が「同じもの」と言えるときだけ結び付ける */
+function wimpNorm(s){ return String(s || '').normalize('NFKC').replace(/[\s（）()【】\[\]・／/]/g, '').toUpperCase(); }
+function wimpSim(a, b){
+  a = wimpNorm(a); b = wimpNorm(b); if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return Math.min(a.length, b.length) / Math.max(a.length, b.length) >= 0.5 ? 0.85 : 0.5;
+  const bg = s => { const o = new Set(); for (let i = 0; i < s.length - 1; i++) o.add(s.slice(i, i + 2)); return o; };
+  const A = bg(a), B = bg(b); let n = 0; A.forEach(x => { if (B.has(x)) n++; });
+  return (2 * n) / (A.size + B.size || 1);
+}
+function wimpMatch(name, aiId, sure){
+  let best = '', bs = 0;
+  QGOALS.forEach(g => { const v = wimpSim(name, g.name); if (v > bs){ bs = v; best = g.id; } });
+  if (bs >= 0.8) return best;                               // 名前がほぼ同じ
+  if (aiId && sure && wimpSim(name, (QGOALS.find(g => g.id === aiId) || {}).name) >= 0.45) return aiId;
+  return '';                                                // 自信がないときは結び付けない
+}
+/* 数字が資料の文字の中に実際にあるか（カンマ・全角も考慮） */
+function wimpFound(text, v){
+  const n = Number(String(v).replace(/[,，]/g, '')); if (Number.isNaN(n)) return false;
+  const t = String(text || '').normalize('NFKC').replace(/,/g, '');
+  return new RegExp('(^|[^0-9.])' + String(n).replace('.', '\\.') + '([^0-9]|$)').test(t);
 }
 function wimpFail(msg, text){
   const box = document.getElementById('wimpPrev'); if (!box) { toast(msg); return; }
@@ -5711,19 +5777,31 @@ function wimpDrawPrev(){
     ${txt('consult', 'その他相談に入れる')}
     ${txt('report', '今週の報告を、その他相談の後ろに付ける', '（GOOD NEWS・部下の近況など。専用の欄が無いため相談欄の末尾に【今週の報告】として入れます）')}
     ${W.next.length ? `<div class="wimprow"><b style="font-size:13px">次週の目標</b>
-      <table class="wimptab"><tr><th></th><th>資料の項目</th><th>入れる先</th><th>目標</th><th>メモ</th></tr>
-      ${W.next.map((x, i) => `<tr><td><input type="checkbox" ${x.on ? 'checked' : ''} onchange="WIMP.next[${i}].on=this.checked"></td>
-        <td>${esc(x.name)}</td>
-        <td>${x.goal_id ? esc(gname(x.goal_id)) : '来週だけ追う項目に追加'}</td>
-        <td><input type="number" step="any" style="width:90px" value="${esc(x.target)}" oninput="WIMP.next[${i}].target=this.value"> ${esc(x.unit)}</td>
-        <td class="note">${esc(x.note)}</td></tr>`).join('')}</table></div>` : ''}
-    ${W.qa.length ? `<div class="wimprow"><b style="font-size:13px">四半期の実績（手入力として上書き）</b>
-      <p class="note" style="margin:2px 0 4px">日報の自動集計を資料の数字で上書きします。単位が違うことがあるため、初期値はチェックなしです。</p>
-      <table class="wimptab"><tr><th></th><th>アプリの項目</th><th>資料の項目</th><th>実績</th></tr>
-      ${W.qa.map((x, i) => { const g = QGOALS.find(g => g.id === x.goal_id) || {};
-        return `<tr><td><input type="checkbox" ${x.on ? 'checked' : ''} onchange="WIMP.qa[${i}].on=this.checked"></td>
-        <td>${esc(g.name || '')}（目標 ${esc(g.target)}${esc(g.unit || '')}）</td><td>${esc(x.name)}</td>
-        <td><input type="number" step="any" style="width:90px" value="${esc(x.value)}" oninput="WIMP.qa[${i}].value=this.value"> ${esc(g.unit || x.unit)}</td></tr>`; }).join('')}</table></div>` : ''}
+      <p class="note" style="margin:2px 0 4px">「入れる先」を選んだ行だけ反映します。名前が同じと判断できた項目だけ自動で選んでいます。
+        <span class="wimpbad">要確認</span> は資料の中にその数字が見つからなかった行です。</p>
+      <div style="overflow-x:auto"><table class="wimptab"><tr><th>資料の項目</th><th>資料の数字</th><th>入れる先</th><th>今の値</th><th>根拠（資料の行）</th></tr>
+      ${W.next.map((x, i) => { const cur = x.dest && x.dest !== 'none' && x.dest !== 'extra' ? (document.getElementById('wt_' + x.dest) || {}).value : '';
+        return `<tr class="${x.dest === 'none' ? 'wimpoff' : ''}">
+        <td><b>${esc(x.name)}</b>${x.note ? `<br><span class="note">${esc(x.note)}</span>` : ''}</td>
+        <td><input type="number" step="any" style="width:90px" value="${esc(x.target)}" oninput="WIMP.next[${i}].target=this.value"> ${esc(x.unit)}
+          ${x.found ? '' : '<br><span class="wimpbad">要確認</span>'}</td>
+        <td><select onchange="WIMP.next[${i}].dest=this.value;wimpDrawPrev()">
+          <option value="none"${x.dest === 'none' ? ' selected' : ''}>入れない</option>
+          ${QGOALS.map(g => `<option value="${g.id}"${x.dest === g.id ? ' selected' : ''}>${esc(g.name)}（${esc(g.unit || '')}）${x.guess === g.id ? '　←候補' : ''}</option>`).join('')}
+          <option value="extra"${x.dest === 'extra' ? ' selected' : ''}>来週だけ追う項目として追加</option></select></td>
+        <td class="note">${cur !== undefined && cur !== '' ? esc(cur) : '—'}</td>
+        <td class="note">${esc(x.raw)}</td></tr>`; }).join('')}</table></div></div>` : ''}
+    ${W.qa.length ? `<div class="wimprow"><b style="font-size:13px">四半期の実績（日報の自動集計を手入力で上書き）</b>
+      <p class="note" style="margin:2px 0 4px">単位や数字の取り違えが起きやすいため、すべて「入れない」から始めています。入れる場合だけ選んでください。</p>
+      <div style="overflow-x:auto"><table class="wimptab"><tr><th>資料の項目</th><th>資料の数字</th><th>入れる先</th><th>根拠（資料の行）</th></tr>
+      ${W.qa.map((x, i) => `<tr class="${x.dest === 'none' ? 'wimpoff' : ''}">
+        <td><b>${esc(x.name)}</b>${x.section ? `<br><span class="note">${esc(x.section)}</span>` : ''}</td>
+        <td><input type="number" step="any" style="width:90px" value="${esc(x.value)}" oninput="WIMP.qa[${i}].value=this.value"> ${esc(x.unit)}
+          ${x.found ? '' : '<br><span class="wimpbad">要確認</span>'}</td>
+        <td><select onchange="WIMP.qa[${i}].dest=this.value;wimpDrawPrev()">
+          <option value="none"${x.dest === 'none' ? ' selected' : ''}>入れない</option>
+          ${QGOALS.map(g => `<option value="${g.id}"${x.dest === g.id ? ' selected' : ''}>${esc(g.name)}（目標 ${esc(g.target)}${esc(g.unit || '')}）${x.guess === g.id ? '　←候補' : ''}</option>`).join('')}</select></td>
+        <td class="note">${esc(x.raw)}</td></tr>`).join('')}</table></div></div>` : ''}
     ${W.last.length ? `<div class="wimprow"><b style="font-size:13px">先週の実行結果（参考）</b>
       <div class="note">${W.last.map(x => `${esc(x.name)}：目標 ${esc(x.target)}／結果 ${esc(x.result)}${x.rate ? '（' + esc(x.rate) + '）' : ''}`).join('　')}</div>
       <p class="note">結果の数字は日報から自動集計しています。違う場合は「今週の目標と結果」の「数字を修正する」で直してください。</p></div>` : ''}
@@ -5746,10 +5824,10 @@ async function wimpApply(){
   if (W.on.consult && W.consult && set('w_consult', W.consult)) n++;
   if (W.on.report && W.report && set('w_consult', '【今週の報告】\n' + W.report, true)) n++;
   let extra = 0;
-  W.next.filter(x => x.on).forEach(x => {
-    if (x.goal_id){
-      if (WT_SKIP.indexOf(x.goal_id) >= 0) WT_SKIP.splice(WT_SKIP.indexOf(x.goal_id), 1);
-      if (set('wt_' + x.goal_id, String(x.target))) n++;
+  W.next.filter(x => x.dest && x.dest !== 'none').forEach(x => {
+    if (x.dest !== 'extra'){
+      if (WT_SKIP.indexOf(x.dest) >= 0) WT_SKIP.splice(WT_SKIP.indexOf(x.dest), 1);
+      if (set('wt_' + x.dest, String(x.target))) n++;
     } else {
       const ex = WT_EXTRA.find(e => String(e.label).trim() === x.name);
       if (ex) ex.target = x.target; else WT_EXTRA.push({ label: x.name, unit: x.unit || '件', target: x.target });
@@ -5759,7 +5837,8 @@ async function wimpApply(){
   if (extra) drawExtraTargets();
   if (typeof ndSave === 'function') ndSave();   // 書き直しで消えないよう、先に一時保存
   // 四半期の実績（手入力の上書き）。画面の描き直しは最後に1回だけ
-  const qa = W.qa.filter(x => x.on && String(x.value).trim() !== '' && !Number.isNaN(Number(x.value)));
+  const qa = W.qa.filter(x => x.dest && x.dest !== 'none' && String(x.value).trim() !== '' && !Number.isNaN(Number(String(x.value).replace(/,/g, ''))))
+    .map(x => Object.assign({}, x, { goal_id: x.dest, value: String(x.value).replace(/,/g, '') }));
   for (const x of qa){
     const val = Number(x.value);
     const { error } = await EC.supabase.from('quarter_goals').update({ actual_override: val }).eq('id', x.goal_id);
@@ -5769,22 +5848,24 @@ async function wimpApply(){
   }
   if (qa.length) setTimeout(loadWeekly, 50);   // 描き直しても、一時保存から入力内容が戻る
   toast(n + extra + '件を反映しました。内容を確認して「' + (WREPORT ? '更新する' : '提出する') + '」を押してください');
-  const box = document.getElementById('wimpPrev'); if (box) box.innerHTML = '<p class="note" style="margin-top:8px;color:var(--accent)">反映しました。下の入力欄を確認して提出してください。</p>';
+  const box = document.getElementById('wimpPrev'); if (box) box.innerHTML = '<p class="note" style="margin-top:8px;color:var(--accent)">反映しました。「自分の週次報告を書く」タブで確認して提出してください。</p>';
   WIMP = null;
-  const c = document.getElementById('w_cause'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  wkTab('write');
+  setTimeout(() => wkStep('wkS2'), 200);
 }
 
 /* 週次報告の入力フォーム（四半期目標が無くても書ける） */
 function wkFormHtml(rows){
   rows = rows || [];
-  return `${wimpCardHtml()}
-  <div class="card">
+  return `<div class="card wkguidebar">
     <div class="row"><h3 style="border:0;padding:0;margin:0">書き方</h3>
+      <button class="ghost" onclick="wkTab('import')">PDF・資料から取り込む</button>
       <button class="ghost" style="margin-left:auto" onclick="toggleWkGuide()">サンプルを見る</button></div>
     <div id="wkGuide" style="display:none">${wkGuideHtml()}</div>
   </div>
 
-  <div class="card">
+  <div class="card wkstep" id="wkS2">
+    <div class="wkstephd"><b>2</b>振り返り</div>
     <h3>未達要因</h3>
     <p class="note">なぜ足りなかったか。「頑張りが足りない」ではなく、事実で書きます。
       数字のどこが詰まったか（入口が少ない／途中で止まった／決め切れない）を特定してください。</p>
@@ -5795,15 +5876,21 @@ function wkFormHtml(rows){
       足し算だけの計画は、時間が足りずに実行されません。</p>
     <textarea id="w_action" placeholder="例：やめる…金曜午後の資料作成（月曜午前に移す）／始める…月曜9時までに現調候補5件へ架電し、水曜までに日程を確定させる">${esc(WREPORT ? WREPORT.action_change : '')}</textarea>
 
-    <h3 style="margin-top:16px">次週の目標</h3>
-    ${rows.length ? `<p class="note">初期値は「残り週数から逆算した必要ペース」です。遅れた分が上乗せされています。
-      下げる場合は、四半期目標に届く筋道を未達要因か行動変化に書いてください。</p>
-    <div class="grid">${rows.filter(r => WT_SKIP.indexOf(r.g.id) < 0).map(r => `
-      <div><label>${esc(r.g.name)}（${esc(r.g.unit)}）　推奨 ${Math.round(r.need*10)/10}
-        <a href="#" onclick="skipWeeklyTarget('${r.g.id}');return false"
-           style="color:var(--warn);font-size:11px;margin-left:6px">この週は外す</a></label>
-      <input type="number" step="any" id="wt_${r.g.id}" value="${Math.round(r.need*10)/10}"></div>`).join('')}
-    </div>
+  </div>
+
+  <div class="card wkstep" id="wkS3">
+    <div class="wkstephd"><b>3</b>次週の目標</div>
+    ${rows.length ? `<p class="note">推奨は「残り週数から逆算した必要ペース」です（遅れた分が上乗せされています）。
+      下げる場合は、四半期目標に届く筋道を振り返りに書いてください。</p>
+    <div style="overflow-x:auto"><table class="wkttab">
+      <tr><th>項目</th><th>単位</th><th>推奨</th><th style="width:130px">次週の目標</th><th></th></tr>
+      ${rows.filter(r => WT_SKIP.indexOf(r.g.id) < 0).map(r => `<tr>
+        <td><b>${esc(r.g.name)}</b></td><td class="note">${esc(r.g.unit)}</td>
+        <td class="num note">${Math.round(r.need*10)/10}</td>
+        <td><input type="number" step="any" id="wt_${r.g.id}" value="${Math.round(r.need*10)/10}"></td>
+        <td><a href="#" onclick="skipWeeklyTarget('${r.g.id}');return false" style="color:var(--warn);font-size:12px">この週は外す</a></td>
+      </tr>`).join('')}
+    </table></div>
     ${WT_SKIP.length ? `<p class="note" style="margin-top:8px">外した項目：
       ${WT_SKIP.map(id => { const g = QGOALS.find(x => x.id === id); return g
         ? `<a href="#" onclick="unskipWeeklyTarget('${id}');return false" style="color:var(--accent);margin-right:8px">${esc(g.name)} を戻す</a>` : ''; }).join('')}</p>` : ''}
@@ -5815,7 +5902,11 @@ function wkFormHtml(rows){
     <div id="wtExtra"></div>
     <button class="ghost" style="margin-top:8px" onclick="addExtraTarget()">＋ 項目を足す</button>
 
-    <h3 style="margin-top:16px">その他相談</h3>
+  </div>
+
+  <div class="card wkstep" id="wkS4">
+    <div class="wkstephd"><b>4</b>相談・提出</div>
+    <h3>その他相談</h3>
     <p class="note">自分では決められないこと、上司に判断してほしいことを書きます。なければ空欄で構いません。</p>
     <textarea id="w_consult" style="min-height:56px" placeholder="例：A社の値引き要請について、どこまで対応してよいか判断をお願いしたい">${esc(WREPORT ? WREPORT.consult : '')}</textarea>
 
