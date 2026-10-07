@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ReFort DESIGN｜リフォート設計支援</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="ec-auth.js"></script>
+<style>
+:root{
+  --paper:#E9EEF1; --sheet:#FFFFFF; --ink:#16212C; --sub:#56636F; --line:#C7D0D7; --grid:#DCE3E8;
+  --blue:#1D4E89; --blue-soft:#DCE7F4;
+  --ok:#2F7D4F; --ok-bg:#E1F1E7; --ng:#B3261E; --ng-bg:#F8E1DF; --unk:#9A6400; --unk-bg:#FBEFD5; --na:#6E7A85; --na-bg:#E8ECEF;
+  --r-s:4px; --r-m:8px;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#121A21; --sheet:#1A242D; --ink:#E4EAEF; --sub:#9AA8B4; --line:#33414D; --grid:#26323C;
+  --blue:#7FB0EA; --blue-soft:#20344A;
+  --ok:#6CC28F; --ok-bg:#1C3427; --ng:#F08A80; --ng-bg:#3D2220; --unk:#E6B455; --unk-bg:#3A2E15; --na:#95A2AD; --na-bg:#25303A;
+}}
+:root[data-theme="dark"]{
+  --paper:#121A21; --sheet:#1A242D; --ink:#E4EAEF; --sub:#9AA8B4; --line:#33414D; --grid:#26323C;
+  --blue:#7FB0EA; --blue-soft:#20344A;
+  --ok:#6CC28F; --ok-bg:#1C3427; --ng:#F08A80; --ng-bg:#3D2220; --unk:#E6B455; --unk-bg:#3A2E15; --na:#95A2AD; --na-bg:#25303A;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;font-size:14px;line-height:1.6;font-variant-numeric:tabular-nums;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+header.top{position:sticky;top:0;z-index:20;background:var(--ink);color:var(--paper);display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) header.top{background:#0A1015;color:var(--ink)}}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-size:18px;letter-spacing:.04em}
+.brand span{font-size:12px;opacity:.75}
+header.top select{background:transparent;border:1px solid currentColor;border-radius:var(--r-s);padding:4px 8px;max-width:280px}
+header.top select option{color:#16212C}
+header.top .hbtn{background:transparent;border:1px solid currentColor;color:inherit;border-radius:var(--r-s);padding:4px 10px;cursor:pointer;font-size:13px}
+nav.tabs{position:sticky;top:52px;z-index:15;display:flex;gap:2px;overflow-x:auto;background:var(--sheet);border-bottom:1px solid var(--line);padding:0 12px}
+nav.tabs button{border:0;background:none;padding:11px 14px;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--ink);border-bottom-color:var(--blue);font-weight:700}
+main{max-width:1320px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:22px;margin:0 0 4px;font-weight:700}
+h2{font-size:17px;margin:0;font-weight:700}
+h3{font-size:15px;margin:0 0 8px}
+.lead{color:var(--sub);margin:0 0 16px;max-width:72ch}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-m);padding:16px;margin-bottom:16px}
+.step{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start}
+.step-no{width:36px;height:36px;border:2px solid var(--blue);color:var(--blue);border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px}
+.step-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
+.side{position:sticky;top:110px}
+@media (max-width:1000px){.cols{grid-template-columns:1fr}.side{position:static}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 14px}
+label.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--sub)}
+label.fld .row{display:flex;align-items:center;gap:6px}
+input[type=text],input[type=number],input[type=date],select,textarea{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-s);padding:6px 8px;width:100%;min-width:0;font-size:14px}
+textarea{min-height:56px;resize:vertical}
+.u{font-size:12px;color:var(--sub);white-space:nowrap}
+.btn{border:1px solid var(--blue);background:var(--blue);color:#fff;border-radius:var(--r-s);padding:7px 14px;cursor:pointer;font-weight:500;font-size:13px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn{color:#0E1720}}
+.btn.ghost{background:transparent;color:var(--blue)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.danger{border-color:var(--ng);background:transparent;color:var(--ng)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:middle}
+th{font-weight:500;color:var(--sub);font-size:12px;white-space:nowrap;background:var(--paper)}
+td.n,th.n{text-align:right}
+table input,table select{padding:4px 6px;font-size:13px}
+.v{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.v.ok{background:var(--ok-bg);color:var(--ok)} .v.ng{background:var(--ng-bg);color:var(--ng)}
+.v.unk{background:var(--unk-bg);color:var(--unk)} .v.na{background:var(--na-bg);color:var(--na)}
+.v.ai{background:var(--blue-soft);color:var(--blue)}
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.tally div{border:1px solid var(--line);border-radius:var(--r-s);padding:8px;text-align:center}
+.tally b{display:block;font-size:24px;line-height:1.1}
+.tally .ng b{color:var(--ng)} .tally .unk b{color:var(--unk)} .tally .ok b{color:var(--ok)} .tally .na b{color:var(--na)}
+.tally small{font-size:11px;color:var(--sub)}
+.check{border:1px solid var(--line);border-left:4px solid var(--na);border-radius:var(--r-s);padding:10px 12px;margin-bottom:8px;background:var(--sheet)}
+.check.ng{border-left-color:var(--ng)} .check.unk{border-left-color:var(--unk)} .check.ok{border-left-color:var(--ok)}
+.check .t{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.check .t b{font-size:14px}
+.check .val{font-size:13px;margin-top:4px}
+.check .basis{font-size:12px;color:var(--sub);margin-top:2px}
+.check .fix{font-size:13px;margin-top:6px;padding:6px 8px;background:var(--paper);border-radius:var(--r-s)}
+.tag{font-size:11px;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:0 5px}
+.sld-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-s);background:var(--sheet)}
+.sld-wrap svg{display:block;min-width:340px}
+.svg-ink{stroke:var(--ink);fill:none}
+.svg-t{fill:var(--ink);font-size:11px;font-family:inherit}
+.svg-s{fill:var(--sub);font-size:10px;font-family:inherit}
+.cat{border:1px solid var(--line);border-radius:var(--r-m);background:var(--sheet);margin-bottom:12px}
+.cat > summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.cat > summary::-webkit-details-marker{display:none}
+.meter{flex:0 0 120px;height:6px;background:var(--grid);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--ok)}
+.sv{display:grid;grid-template-columns:200px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 14px;border-top:1px solid var(--line)}
+.sv .lab{font-size:13px;padding-top:6px}
+.sv .lab em{font-style:normal;color:var(--ng);font-size:11px;margin-left:4px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
+.seg button{border:0;background:var(--sheet);padding:5px 9px;font-size:12px;cursor:pointer;color:var(--sub)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on.ok{background:var(--ok-bg);color:var(--ok);font-weight:700}
+.seg button.on.unk{background:var(--unk-bg);color:var(--unk);font-weight:700}
+.seg button.on.na{background:var(--na-bg);color:var(--na);font-weight:700}
+.thumb{width:84px;height:64px;object-fit:cover;border-radius:var(--r-s);border:1px solid var(--line);cursor:zoom-in}
+@media (max-width:700px){.sv{grid-template-columns:1fr}.sv .lab{padding-top:0}.meter{flex-basis:70px}}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chips button{border:1px solid var(--line);background:var(--sheet);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:12px}
+.chips button.on{border-color:var(--blue);color:var(--blue);font-weight:700}
+.muted{color:var(--sub);font-size:12px}
+.note{font-size:12px;color:var(--sub);border-left:3px solid var(--line);padding:4px 10px;margin:8px 0}
+.warn{background:var(--unk-bg);color:var(--unk);border-radius:var(--r-s);padding:8px 12px;font-size:13px;margin-bottom:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:var(--r-m);font-size:13px;z-index:99;max-width:90vw}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:90;padding:20px}
+.modal img{max-width:100%;max-height:85vh;border-radius:var(--r-m)}
+.status-sel{border-radius:999px;padding:2px 8px;font-size:12px;width:auto}
+.empty{padding:40px 20px;text-align:center;color:var(--sub)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-size:13px}
+.kv dt{color:var(--sub)} .kv dd{margin:0}
+.report h2{border-bottom:2px solid var(--ink);padding-bottom:4px;margin:18px 0 8px}
+@media print{
+  body{background:#fff;color:#000}
+  header.top,nav.tabs,.noprint{display:none!important}
+  main{padding:0;max-width:none}
+  .sheet{border:0;padding:0}
+  .check,.tally div{break-inside:avoid}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>ReFort DESIGN</b><span>リフォート設計支援・自動検証</span></div>
+  <select id="projSel" aria-label="案件を選ぶ"></select>
+  <button class="hbtn" data-act="export">データを書き出す</button>
+  <button class="hbtn" data-act="import">読み込む</button>
+  <input type="file" id="importFile" accept="application/json" hidden>
+</header>
+<nav class="tabs" id="tabs"></nav>
+<main id="app"></main>
+
+<script>
+/* =========================================================
+   ReFort DESIGN — 第1段階：現調入力＋設計検証
+   ========================================================= */
+const APP_VERSION='v2026.10.07';
+const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
+const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const AI_URL=SB_URL+'/functions/v1/ai';
+const KEY='refort-design-v1';
+const VL={ok:'適合',ng:'要修正',unk:'未確認',na:'対象外'};
+const VRANK={ng:3,unk:2,ok:1,na:0};
+const STATUSES=['現調済み','情報不足','設計中','確認待ち','承認済み'];
+
+try{ if(window.EC && EC.guard) EC.guard({allow:['admin','manager','sales','field']}); }catch(e){}
+
+/* ---------- 現調チェックリスト ---------- */
+const SURVEY=[
+ {id:'trafo',cat:'トランス',items:[
+  {k:'trafo_kva',l:'定格容量',u:'kVA',t:'num',req:1},
+  {k:'trafo_v2',l:'二次電圧',u:'V',t:'num',req:1},
+  {k:'trafo_v1',l:'一次電圧',u:'V',t:'num'},
+  {k:'trafo_conn',l:'結線方式',t:'text'},
+  {k:'trafo_use',l:'既存の運用条件（負荷・周囲温度など）',t:'area'},
+  {k:'trafo_plate',l:'銘板写真',t:'photo',req:1,ai:['trafo_kva','trafo_v1','trafo_v2','trafo_conn']},
+  {k:'trafo_spec',l:'仕様書（URL・ファイル名）',t:'text'}]},
+ {id:'pcspv',cat:'PCS・パネル',items:[
+  {k:'ex_pcs',l:'既設PCS 型式',t:'text'},
+  {k:'ex_pcs_n',l:'既設PCS 台数',u:'台',t:'num'},
+  {k:'ex_pv',l:'既設パネル 型式',t:'text'},
+  {k:'ex_pv_n',l:'既設パネル 枚数',u:'枚',t:'num'},
+  {k:'ex_string',l:'既設ストリング構成',t:'text'},
+  {k:'pcs_plate',l:'PCS銘板写真',t:'photo',ai:['ex_pcs']},
+  {k:'pv_plate',l:'パネル銘板写真',t:'photo',ai:['ex_pv']}]},
+ {id:'board',cat:'キュービクル・盤',items:[
+  {k:'board_w',l:'盤 内寸 幅',u:'mm',t:'num',req:1},
+  {k:'board_h',l:'盤 内寸 高さ',u:'mm',t:'num',req:1},
+  {k:'board_d',l:'盤 内寸 奥行',u:'mm',t:'num',req:1},
+  {k:'board_free',l:'空きスペースの状況',t:'area'},
+  {k:'board_photo',l:'盤内写真（機器・端子・銘板）',t:'photo',req:1}]},
+ {id:'wire',cat:'配線',items:[
+  {k:'wire_ex',l:'既設電線の仕様',t:'text'},
+  {k:'wire_method',l:'敷設方法',t:'text'},
+  {k:'wire_route',l:'経路と距離',t:'area'},
+  {k:'wire_state',l:'既設配線の状態',t:'area'},
+  {k:'wire_photo',l:'配線経路写真',t:'photo'}]},
+ {id:'layout',cat:'配置',items:[
+  {k:'site_dim',l:'敷地・架台寸法',t:'text'},
+  {k:'azimuth',l:'方位（真南=0）',u:'°',t:'num'},
+  {k:'tilt',l:'傾斜角',u:'°',t:'num'},
+  {k:'height_diff',l:'高低差',u:'m',t:'num'},
+  {k:'shade',l:'障害物・影',t:'area',req:1},
+  {k:'install_area',l:'機器設置可能範囲・保守動線',t:'area',req:1},
+  {k:'temp_min',l:'最低気温（設計用）',u:'℃',t:'num',req:1},
+  {k:'temp_max',l:'最高気温（設計用）',u:'℃',t:'num',req:1}]},
+ {id:'grid',cat:'回路・連系',items:[
+  {k:'sld',l:'既存単線結線図',t:'photo',req:1},
+  {k:'protect',l:'保護機器（OVGR・RPR等）',t:'text'},
+  {k:'grid_cond',l:'連系条件（電力会社）',t:'area'},
+  {k:'curtail',l:'出力制御・通信設備',t:'text'}]},
+ {id:'perf',cat:'発電性能',items:[
+  {k:'gen_rec',l:'発電実績',t:'area'},
+  {k:'fail_hist',l:'停止・故障履歴',t:'area'},
+  {k:'ex_state',l:'既存設備の状態',t:'area'}]}
+];
+const SURVEY_ITEM={}; SURVEY.forEach(c=>c.items.forEach(i=>SURVEY_ITEM[i.k]={...i,cat:c.cat,catId:c.id}));
+
+/* ---------- 機器マスター（サンプル値：実機仕様書で差し替える） ---------- */
+function defaultMasters(){
+ const m={src:'サンプル値（仕様書で差し替え）',rev:'',by:''};
+ return {
+  pcs:[
+   {id:'pcs-a',name:'PCS-A 49.5kW 三相420V',kw:49.5,acV:420,maxDcV:1000,mpptMin:200,mpptMax:850,nMppt:4,maxIin:26,maxIsc:40,w:660,h:820,d:300,price:0,...m},
+   {id:'pcs-b',name:'PCS-B 99.9kW 三相420V',kw:99.9,acV:420,maxDcV:1100,mpptMin:200,mpptMax:1000,nMppt:10,maxIin:30,maxIsc:40,w:1050,h:660,d:350,price:0,...m},
+   {id:'pcs-d',name:'PCS-D 49.5kW 三相420V（6MPPT）',kw:49.5,acV:420,maxDcV:1100,mpptMin:180,mpptMax:1000,nMppt:6,maxIin:30,maxIsc:45,w:700,h:850,d:320,price:0,...m},
+   {id:'pcs-c',name:'PCS-C 9.9kW 三相202V',kw:9.9,acV:202,maxDcV:600,mpptMin:100,mpptMax:550,nMppt:3,maxIin:13,maxIsc:16,w:450,h:550,d:200,price:0,...m}],
+  panel:[
+   {id:'pv-550',name:'単結晶 550W',pmax:550,voc:49.6,isc:14.0,vmp:41.6,imp:13.23,tcVoc:-0.27,tcVmp:-0.35,price:0,...m},
+   {id:'pv-410',name:'単結晶 410W',pmax:410,voc:37.5,isc:13.9,vmp:31.4,imp:13.06,tcVoc:-0.28,tcVmp:-0.36,price:0,...m},
+   {id:'pv-250',name:'多結晶 250W（既設想定）',pmax:250,voc:37.6,isc:8.6,vmp:30.4,imp:8.2,tcVoc:-0.33,tcVmp:-0.45,price:0,...m}],
+  cable:[
+   ['cvt14',14,91,1.31,0.09],['cvt22',22,120,0.84,0.09],['cvt38',38,170,0.491,0.09],['cvt60',60,225,0.311,0.085],
+   ['cvt100',100,310,0.187,0.08],['cvt150',150,400,0.124,0.08],['cvt200',200,465,0.0933,0.08],
+   ['cvt250',250,535,0.0754,0.08],['cvt325',325,630,0.0579,0.08]
+  ].map(([id,sq,amp,r,x])=>({id,name:'CVT '+sq+'sq',sq,amp,r,x,price:0,...m})),
+  breaker:[
+   [50,75,130,68],[75,75,130,68],[100,75,130,68],[125,105,165,68],[150,105,165,68],[175,105,165,68],[200,105,165,68],[225,105,165,68],
+   [250,140,257,103],[300,140,257,103],[350,140,257,103],[400,140,257,103],[500,210,275,103],[600,210,275,103],
+   [700,210,275,103],[800,210,275,103],[1000,210,370,140]
+  ].map(([a,w,h,d])=>({id:'b'+a,name:'MCCB 3P '+a+'A',ratedA:a,w,h,d,price:0,...m}))
+ };
+}
+function defaultSettings(){return{pf:0.95,dropLimit:2.0,totalDropLimit:3.0,breakerMargin:1.25,dcacMin:1.0,dcacMax:1.5,dcacTarget:1.25,
+ trafoMax:1.0,trafoWarn:0.9,boardCoef:3.0,allowance:0.10,tCellRise:25,maxPar:4,methods:{'気中':1.0,'ラック':0.85,'管路':0.7,'地中埋設':0.8}}}
+
+/* ---------- 状態 ---------- */
+let S=load();
+let UI={view:'projects',filter:'all',mtab:'pcs',designId:null};
+function uid(){return Math.random().toString(36).slice(2,10)}
+function load(){
+ try{const raw=localStorage.getItem(KEY); if(raw){const s=JSON.parse(raw); s.settings={...defaultSettings(),...s.settings}; return s;}}catch(e){}
+ const s={projects:[],masters:defaultMasters(),settings:defaultSettings(),currentId:null};
+ const demo=demoProject(); s.projects.push(demo); s.currentId=demo.id; return s;
+}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(S)); return true}
+ catch(e){toast('保存できませんでした。写真の容量が上限に近いため、データを書き出してから不要な写真を削除してください。'); return false}
+}
+const cur=()=>S.projects.find(p=>p.id===S.currentId)||null;
+function curDesign(p=cur()){ if(!p) return null; let d=p.designs.find(x=>x.id===p.activeDesign); if(!d){d=p.designs[0];p.activeDesign=d&&d.id} return d }
+const byId=(arr,id)=>arr.find(x=>x.id===id);
+
+function newDesign(name){
+ return {id:uid(),name:name||'A案',pcsId:'pcs-a',pcsQty:10,panelId:'pv-550',panelCount:1152,series:18,dcLen:30,
+  circuits:[
+   {id:uid(),name:'幹線（集電盤→トランス）',type:'main',pcsN:0,method:'ラック',lenM:15,par:2,cableId:'cvt325',breakerId:'b1000',route:''},
+   {id:uid(),name:'分岐1（PCS群A）',type:'branch',pcsN:5,method:'ラック',lenM:40,par:1,cableId:'cvt250',breakerId:'b500',route:''},
+   {id:uid(),name:'分岐2（PCS群B）',type:'branch',pcsN:5,method:'管路',lenM:120,par:1,cableId:'cvt150',breakerId:'b500',route:''}],
+  pcsPlace:'',maintOk:false,noBuild:'',
+  existing:[
+   {id:uid(),name:'既設PCS（集中型）',action:'撤去',ok:false,memo:''},
+   {id:uid(),name:'既設トランス',action:'残置',ok:true,memo:''},
+   {id:uid(),name:'保護継電器（OVGR・RPR）',action:'残置',ok:false,memo:''}],
+  memo:''};
+}
+function emptySurvey(){const o={}; Object.keys(SURVEY_ITEM).forEach(k=>o[k]={v:'',st:'unk',photo:'',src:''}); return o}
+function newProject(name,site,owner){
+ const d=newDesign('A案');
+ return {id:uid(),name,site:site||'',owner:owner||'',status:'現調済み',created:new Date().toISOString(),updated:new Date().toISOString(),
+  survey:emptySurvey(),designs:[d],activeDesign:d.id,approvals:[]};
+}
+function demoProject(){
+ const p=newProject('デモ：サンプル発電所（高圧・約500kW）','（デモ用の架空案件）','設計担当');
+ const set=(k,v)=>{p.survey[k].v=v;p.survey[k].st='ok'};
+ set('trafo_kva',500);set('trafo_v2',420);set('trafo_v1',6600);set('trafo_conn','Δ-Y');
+ set('ex_pcs','集中型 500kW');set('ex_pcs_n',1);set('ex_pv','多結晶 250W');set('ex_pv_n',2000);
+ set('board_w',800);set('board_h',1200);set('board_d',400);set('board_free','右側に約300mmの空き');
+ set('wire_method','ラック／一部管路');set('azimuth',0);set('tilt',10);
+ set('temp_min',-10);set('temp_max',40);
+ set('shade','南東に樹木。冬季午前に一部影の可能性');set('protect','OVGR・RPR');
+ p.status='設計中'; return p;
+}
+
+/* ---------- 共通 ---------- */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const f=(n,d=1)=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('ja-JP',{minimumFractionDigits:d,maximumFractionDigits:d});
+const vtag=v=>`<span class="v ${v}">${VL[v]}</span>`;
+function sv(p,k){const it=p.survey[k]; if(!it||it.st!=='ok') return null; if(SURVEY_ITEM[k].t==='photo') return it.photo?true:null;
+ if(it.v===''||it.v==null) return null; if(SURVEY_ITEM[k].t==='num'){const n=parseFloat(it.v); return isNaN(n)?null:n} return it.v}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+function touch(){const p=cur(); if(p) p.updated=new Date().toISOString(); save()}
+
+/* =========================================================
+   検証エンジン（計算は仕様値と計算式で行う）
+   ========================================================= */
+function pcsCurrent(pcs,n,st){return n*pcs.kw*1000/(Math.sqrt(3)*pcs.acV*st.pf)}
+function dropPct(I,L,cab,par,V,st){
+ const cos=st.pf, sin=Math.sqrt(1-cos*cos);
+ const dv=Math.sqrt(3)*I*(L/1000)*(cab.r*cos+cab.x*sin)/par; return {dv,pct:dv/V*100};
+}
+function evaluate(p,d){
+ const st=S.settings,M=S.masters,C=[];
+ const add=(o)=>C.push(o);
+ const pcs=byId(M.pcs,d.pcsId), pv=byId(M.panel,d.panelId);
+ const kva=sv(p,'trafo_kva'), v2=sv(p,'trafo_v2'), tMin=sv(p,'temp_min'), tMax=sv(p,'temp_max');
+ const metrics={};
+ if(!pcs||!pv){add({g:'電気的な適合',step:'①',title:'機器の選定',v:'unk',val:'PCSまたはパネルが未選択です',basis:'',fix:'①PCS選定で機種を選んでください',go:'s1'}); return {C,metrics}}
+ if(pcs.src&&pcs.src.startsWith('サンプル')||pv.src&&pv.src.startsWith('サンプル'))
+  add({g:'電気的な適合',step:'①',title:'判定根拠の仕様書',v:'unk',val:'選択中の機器にサンプル値が含まれています',basis:'機器マスターの出典欄',fix:'採用する機種の仕様書を機器マスターに登録し、出典・改訂日・承認者を記入してください',go:'master'});
+ const pcsKw=pcs.kw*d.pcsQty, pcsKva=pcsKw/st.pf, pvKw=pv.pmax*d.panelCount/1000, dcac=pvKw/pcsKw;
+ Object.assign(metrics,{pcsKw,pvKw,dcac});
+
+ // ① トランス容量
+ if(kva==null) add({g:'電気的な適合',step:'①',title:'トランス容量とPCS合計出力',v:'unk',val:`PCS合計 ${f(pcsKva)}kVA／トランス容量 未確認`,basis:'PCS合計kVA＝定格kW÷力率',fix:'追加調査：トランス銘板の容量を撮影・入力してください',go:'survey'});
+ else{const r=pcsKva/kva; metrics.trafoRatio=r;
+  const v=r>st.trafoMax?'ng':(r>st.trafoWarn?'unk':'ok');
+  add({g:'電気的な適合',step:'①',title:'トランス容量とPCS合計出力',v,val:`PCS合計 ${f(pcsKva)}kVA ÷ トランス ${f(kva,0)}kVA ＝ ${f(r*100)}%`,
+   basis:`PCS合計kVA＝${pcs.kw}kW×${d.pcsQty}台÷力率${st.pf}／上限${f(st.trafoMax*100,0)}%・注意域${f(st.trafoWarn*100,0)}%超（設定）`,
+   fix:v==='ng'?'PCS台数を減らす、出力制限付きPCSを選ぶ、またはトランス増設を比較してください':v==='unk'?'追加調査：周囲温度・発電負荷条件をトランスのメーカー資料で確認してください':'',go:'s1'})}
+ // ① 交流電圧
+ if(v2==null) add({g:'電気的な適合',step:'①',title:'PCS出力電圧とトランス二次電圧',v:'unk',val:`PCS ${pcs.acV}V／トランス二次 未確認`,basis:'',fix:'追加調査：トランス銘板の二次電圧を確認してください',go:'survey'});
+ else{const ok=Math.abs(pcs.acV-v2)/v2<=0.05;
+  add({g:'電気的な適合',step:'①',title:'PCS出力電圧とトランス二次電圧',v:ok?'ok':'ng',val:`PCS ${pcs.acV}V／トランス二次 ${v2}V`,basis:'差が±5%以内を適合とする',fix:ok?'':'二次電圧に合うPCSを選ぶか、昇降圧トランスの追加を検討してください',go:'s1'})}
+ // ① DC/AC比
+ {const v=dcac>st.dcacMax?'ng':dcac<st.dcacMin?'ng':'ok';
+  add({g:'発電性能',step:'①',title:'過積載率（DC/AC比）',v,val:`パネル ${f(pvKw)}kW ÷ PCS ${f(pcsKw)}kW ＝ ${f(dcac,2)}`,basis:`許容範囲 ${st.dcacMin}〜${st.dcacMax}（設定）`,
+   fix:dcac>st.dcacMax?'PCS容量を増やすか、パネル枚数を減らしてください（ピークカット損失が大きくなります）':dcac<st.dcacMin?'PCS容量に対してパネルが不足しています。PCS台数の削減を比較してください':'',go:'s1'})}
+ // ① ストリング構成
+ const N=d.series, rem=d.panelCount%N, strings=Math.floor(d.panelCount/N), inputs=d.pcsQty*pcs.nMppt, spm=Math.ceil(strings/inputs);
+ Object.assign(metrics,{strings,spm,inputs});
+ add({g:'発電性能',step:'①',title:'ストリング割付',v:rem?'ng':(strings>inputs*Math.max(spm,1)?'ng':'ok'),
+  val:`${N}直列 × ${strings}回路（MPPT ${inputs}入力・1入力あたり最大${spm}回路）${rem?`／端数 ${rem}枚`:''}`,
+  basis:'総回路数＝パネル枚数÷直列数、MPPT入力数＝PCS台数×MPPT数',fix:rem?`パネル枚数を直列数の倍数にするか、直列数を見直してください（端数${rem}枚）`:'',go:'s1'});
+ if(tMin==null) add({g:'電気的な適合',step:'①',title:'最低気温時の開放電圧',v:'unk',val:'設計用最低気温が未確認',basis:'',fix:'追加調査：設置地点の設計用最低気温を入力してください',go:'survey'});
+ else{const voc=pv.voc*(1+pv.tcVoc/100*(tMin-25))*N, ok=voc<=pcs.maxDcV;
+  add({g:'電気的な適合',step:'①',title:'最低気温時の開放電圧',v:ok?'ok':'ng',val:`${f(voc)}V ／ PCS上限 ${pcs.maxDcV}V`,
+   basis:`Voc ${pv.voc}V ×（1＋${pv.tcVoc}%/℃×(${tMin}−25)）× ${N}直列`,fix:ok?'':`直列数を ${maxSeries(pv,pcs,tMin)}枚以下にしてください（機器破損のおそれ）`,go:'s1'});
+  const vmpC=pv.vmp*(1+pv.tcVmp/100*(tMin-25))*N;
+  add({g:'発電性能',step:'①',title:'低温時の動作電圧（MPPT上限）',v:vmpC<=pcs.mpptMax?'ok':'ng',val:`${f(vmpC)}V ／ MPPT上限 ${pcs.mpptMax}V`,basis:'Vmp×温度補正×直列数',fix:vmpC<=pcs.mpptMax?'':'直列数を減らしてください（MPPT範囲外で発電損失）',go:'s1'})}
+ if(tMax==null) add({g:'発電性能',step:'①',title:'高温時の動作電圧（MPPT下限）',v:'unk',val:'設計用最高気温が未確認',basis:'',fix:'追加調査：設置地点の設計用最高気温を入力してください',go:'survey'});
+ else{const tc=tMax+st.tCellRise, vmpH=pv.vmp*(1+pv.tcVmp/100*(tc-25))*N, ok=vmpH>=pcs.mpptMin;
+  add({g:'発電性能',step:'①',title:'高温時の動作電圧（MPPT下限）',v:ok?'ok':'ng',val:`${f(vmpH)}V ／ MPPT下限 ${pcs.mpptMin}V`,
+   basis:`セル温度＝最高気温${tMax}℃＋${st.tCellRise}℃、Vmp ${pv.vmp}V×温度補正×${N}直列`,fix:ok?'':'直列数を増やすか、MPPT下限の低いPCSを選んでください',go:'s1'})}
+ {const Iimp=pv.imp*spm, Iisc=pv.isc*spm;
+  add({g:'発電性能',step:'①',title:'MPPT入力電流',v:Iimp<=pcs.maxIin?'ok':'ng',val:`${f(Iimp)}A（${spm}回路×Imp ${pv.imp}A）／上限 ${pcs.maxIin}A`,basis:'1入力あたり最大回路数×Imp',
+   fix:Iimp<=pcs.maxIin?'':'入力電流の上限を超え、発電がカットされます。MPPT数の多いPCS、PCS台数の追加、または回路の割付変更を比較してください',go:'s1'});
+  add({g:'電気的な適合',step:'①',title:'MPPT短絡電流',v:Iisc<=pcs.maxIsc?'ok':'ng',val:`${f(Iisc)}A／上限 ${pcs.maxIsc}A`,basis:'1入力あたり最大回路数×Isc',fix:Iisc<=pcs.maxIsc?'':'1入力あたりの回路数を減らしてください（機器保護）',go:'s1'})}
+
+ // ②③⑥ 回路
+ const branches=d.circuits.filter(c=>c.type!=='main'), main=d.circuits.find(c=>c.type==='main');
+ const sumN=branches.reduce((a,c)=>a+(+c.pcsN||0),0);
+ add({g:'電気的な適合',step:'⑤',title:'回路構成とPCS台数',v:sumN===d.pcsQty?'ok':'ng',val:`分岐回路のPCS合計 ${sumN}台／採用台数 ${d.pcsQty}台`,basis:'',fix:sumN===d.pcsQty?'':'②の各分岐回路に接続するPCS台数を合わせてください',go:'s2'});
+ let maxBranchPct=0,lossW=0; metrics.circ={};
+ d.circuits.forEach(c=>{
+  const n=c.type==='main'?d.pcsQty:(+c.pcsN||0), I=pcsCurrent(pcs,n,st), cab=byId(M.cable,c.cableId), br=byId(M.breaker,c.breakerId);
+  const mf=st.methods[c.method]??1, par=Math.max(1,+c.par||1);
+  const m={I,n}; metrics.circ[c.id]=m;
+  if(!cab){add({g:'電気的な適合',step:'③',title:`${c.name}：電線`,v:'unk',val:'電線が未選択',basis:'',fix:'③で電線を選ぶか自動選定してください',go:'s3',cid:c.id});return}
+  const allow=cab.amp*mf*par; m.allow=allow;
+  add({g:'電気的な適合',step:'③',title:`${c.name}：許容電流`,v:I<=allow?'ok':'ng',cid:c.id,
+   val:`負荷電流 ${f(I)}A／許容 ${f(allow)}A（${cab.name}×${par}並列・${c.method}）`,
+   basis:`I＝${n}台×${pcs.kw}kW÷(√3×${pcs.acV}V×力率${st.pf})、許容＝${cab.amp}A×低減率${mf}×${par}`,fix:I<=allow?'':'太い電線への変更、並列数の追加、または敷設方法の変更を検討してください',go:'s3'});
+  if(!br) add({g:'電気的な適合',step:'③',title:`${c.name}：遮断器`,v:'unk',val:'遮断器が未選択',basis:'',fix:'③で遮断器を選んでください',go:'s3',cid:c.id});
+  else{const need=I*st.breakerMargin, okA=br.ratedA>=need, okP=br.ratedA<=allow;
+   add({g:'電気的な適合',step:'③',title:`${c.name}：遮断器の定格`,v:okA&&okP?'ok':'ng',cid:c.id,
+    val:`${br.ratedA}A（必要 ${f(need)}A以上・電線許容 ${f(allow)}A以下）`,basis:`必要定格＝負荷電流×${st.breakerMargin}（設定）。電線を保護できる定格であること`,
+    fix:!okA?'遮断器の定格を上げてください':!okP?'電線を太くするか並列数を増やし、遮断器で電線を保護できるようにしてください':'',go:'s3'})}
+  if(!c.lenM){add({g:'電気的な適合',step:'⑥',title:`${c.name}：電圧上昇`,v:'unk',val:'配線距離が未入力',basis:'',fix:'追加調査：配線経路の実測距離を入力してください',go:'s2',cid:c.id});return}
+  const r=dropPct(I,+c.lenM,cab,par,pcs.acV,st); m.pct=r.pct; m.dv=r.dv;
+  const W=3*I*I*(cab.r*(+c.lenM)/1000)/par; m.loss=W; lossW+=W;
+  if(c.type!=='main') maxBranchPct=Math.max(maxBranchPct,r.pct); else metrics.mainPct=r.pct;
+  add({g:'電気的な適合',step:'⑥',title:`${c.name}：電圧上昇`,v:r.pct<=st.dropLimit?'ok':'ng',cid:c.id,
+   val:`${f(r.dv,2)}V（${f(r.pct,2)}%）／上限 ${st.dropLimit}%`,basis:`ΔV＝√3×I×L×(R cosθ＋X sinθ)÷並列数、R=${cab.r}Ω/km X=${cab.x}Ω/km L=${c.lenM}m`,
+   fix:r.pct<=st.dropLimit?'':'電線を太くする、並列数を増やす、PCSの位置を盤に近づける、または経路を短くしてください（PCSの電圧上昇抑制による発電停止を防ぐため）',go:'s3'});
+ });
+ const total=maxBranchPct+(metrics.mainPct||0); metrics.totalPct=total; metrics.lossW=lossW; metrics.lossPct=lossW/(pcsKw*1000)*100;
+ add({g:'発電性能',step:'⑥',title:'PCSから受電点までの合計電圧上昇',v:total<=st.totalDropLimit?'ok':'ng',val:`最大 ${f(total,2)}%／上限 ${st.totalDropLimit}%`,basis:'最も条件の悪い分岐＋幹線',fix:total<=st.totalDropLimit?'':'電圧上昇が大きい分岐から電線サイズを見直してください',go:'s3'});
+ add({g:'発電性能',step:'⑥',title:'交流配線損失（定格時）',v:'ok',val:`${f(lossW/1000,2)}kW（PCS定格の ${f(metrics.lossPct,2)}%）`,basis:'損失＝3×I²×R×L÷並列数（各回路の合計）',fix:''});
+
+ // ④ 盤収容
+ const bw=sv(p,'board_w'),bh=sv(p,'board_h'),bd=sv(p,'board_d');
+ const brs=d.circuits.map(c=>byId(M.breaker,c.breakerId)).filter(Boolean);
+ if(bw==null||bh==null||bd==null) add({g:'施工・保守',step:'④',title:'盤への収容',v:'unk',val:'盤の内寸が未確認',basis:'',fix:'追加調査：盤の内寸（幅・高さ・奥行）を実測し、盤内写真を撮影してください',go:'survey'});
+ else{const need=brs.reduce((a,b)=>a+b.w*b.h,0)*st.boardCoef, have=bw*bh, deep=Math.max(0,...brs.map(b=>b.d))+50;
+  metrics.board={need,have};
+  const okA=need<=have, okD=deep<=bd;
+  add({g:'施工・保守',step:'④',title:'盤への収容（面積）',v:okA?'ok':'ng',val:`必要 ${f(need/1e4,0)}cm²／盤内 ${f(have/1e4,0)}cm²（使用率 ${f(need/have*100,0)}%）`,
+   basis:`遮断器の取付面積合計×${st.boardCoef}（配線・放熱スペース込みの係数・設定）`,fix:okA?'':`約 ${f((need-have)/1e4,0)}cm² 不足しています。増設盤の追加、または遮断器構成の見直しを検討してください`,go:'s4'});
+  add({g:'施工・保守',step:'④',title:'盤への収容（奥行）',v:okD?'ok':'ng',val:`必要 ${deep}mm／盤内 ${bd}mm`,basis:'遮断器の奥行最大値＋配線余裕50mm',fix:okD?'':'奥行の深い盤への交換または増設盤を検討してください',go:'s4'})}
+ if(sv(p,'board_photo')==null) add({g:'施工・保守',step:'④',title:'盤内の端子・既設機器',v:'unk',val:'盤内写真が未登録',basis:'',fix:'追加調査：盤内の機器・端子・銘板を撮影してください',go:'survey'});
+
+ // ⑤ 既存回路
+ if(sv(p,'sld')==null) add({g:'電気的な適合',step:'⑤',title:'既存単線結線図',v:'unk',val:'既存の単線結線図が未登録',basis:'',fix:'追加調査：既存単線結線図を撮影・登録してください',go:'survey'});
+ (d.existing||[]).forEach(x=>{ if(!x.ok) add({g:'電気的な適合',step:'⑤',title:`既存機器：${x.name}`,v:'unk',val:`扱い：${x.action}／接続の確認が未完了`,basis:'',fix:'既存単線結線図・現地写真で接続と影響範囲を確認し、⑤で確認済みにしてください',go:'s5'})});
+
+ // 施工・保守
+ add({g:'施工・保守',step:'②',title:'PCSの設置場所・保守スペース',v:d.maintOk?'ok':'unk',val:d.pcsPlace?`設置場所：${d.pcsPlace}`:'設置場所が未記入',basis:'機器交換スペース・点検動線',fix:d.maintOk?'':'現地写真で前面の保守スペースと交換動線を確認し、②で確認済みにしてください',go:'s2'});
+ if(sv(p,'install_area')==null) add({g:'施工・保守',step:'②',title:'機器設置可能範囲',v:'unk',val:'現調で未確認',basis:'',fix:'追加調査：機器設置可能範囲・保守動線を記録してください',go:'survey'});
+ // 発電性能（影・方位）
+ if(sv(p,'shade')==null||sv(p,'azimuth')==null) add({g:'発電性能',step:'②',title:'影・方位',v:'unk',val:'影または方位が未確認',basis:'',fix:'追加調査：方位と障害物・影の状況を記録してください',go:'survey'});
+ add({g:'発電性能',step:'⑥',title:'年間発電シミュレーション',v:'na',val:'第3段階で追加予定',basis:'現地の気象・影・設備条件が必要',fix:''});
+ return {C,metrics};
+}
+function maxSeries(pv,pcs,tMin){let n=1; while(pv.voc*(1+pv.tcVoc/100*(tMin-25))*(n+1)<=pcs.maxDcV && pv.vmp*(1+pv.tcVmp/100*(tMin-25))*(n+1)<=pcs.mpptMax) n++; return n}
+function tally(C){const t={ok:0,ng:0,unk:0,na:0}; C.forEach(c=>t[c.v]++); return t}
+function circuitVerdict(C,cid){let w='ok'; C.filter(c=>c.cid===cid).forEach(c=>{if(VRANK[c.v]>VRANK[w]) w=c.v}); return w}
+
+/* ---------- 自動選定 ---------- */
+function autoSelect(d){
+ const st=S.settings,M=S.masters,pcs=byId(M.pcs,d.pcsId); if(!pcs) return 0;
+ const cables=[...M.cable].sort((a,b)=>a.sq-b.sq), brs=[...M.breaker].sort((a,b)=>a.ratedA-b.ratedA); let changed=0;
+ d.circuits.forEach(c=>{
+  const n=c.type==='main'?d.pcsQty:(+c.pcsN||0); if(!n) return;
+  const I=pcsCurrent(pcs,n,st), mf=st.methods[c.method]??1, br=brs.find(b=>b.ratedA>=I*st.breakerMargin); if(!br) return;
+  let pick=null;
+  for(let par=Math.max(1,+c.par||1); par<=st.maxPar && !pick; par++){
+   for(const cab of cables){
+    const allow=cab.amp*mf*par, pct=c.lenM?dropPct(I,+c.lenM,cab,par,pcs.acV,st).pct:0;
+    if(allow>=br.ratedA && pct<=st.dropLimit){pick={cab,par};break}
+   }
+  }
+  if(pick){ if(c.cableId!==pick.cab.id||+c.par!==pick.par||c.breakerId!==br.id) changed++; c.cableId=pick.cab.id;c.par=pick.par;c.breakerId=br.id }
+ });
+ return changed;
+}
+function pcsOptions(p,d){
+ const st=S.settings,M=S.masters,pv=byId(M.panel,d.panelId); if(!pv) return [];
+ const kva=sv(p,'trafo_kva'), v2=sv(p,'trafo_v2'), tMin=sv(p,'temp_min'), pvKw=pv.pmax*d.panelCount/1000;
+ return M.pcs.map(pcs=>{
+  const qMin=Math.ceil(pvKw/(pcs.kw*st.dcacMax)), qMax=kva!=null?Math.floor(kva*st.trafoMax*st.pf/pcs.kw):Infinity;
+  let q=Math.ceil(pvKw/(pcs.kw*st.dcacTarget)); q=Math.max(q,qMin); if(q>qMax) q=qMax;
+  const reasons=[]; let v='ok';
+  if(qMin>qMax){v='ng';reasons.push('トランス容量内で過積載率の上限を守れない')}
+  if(v2!=null && Math.abs(pcs.acV-v2)/v2>0.05){v='ng';reasons.push(`出力電圧${pcs.acV}Vが二次電圧${v2}Vと不一致`)}
+  if(kva==null||v2==null){if(v==='ok')v='unk';reasons.push('トランス条件が未確認')}
+  const sMax=tMin!=null?maxSeries(pv,pcs,tMin):null; let ser=sMax;
+  if(sMax){for(let n=sMax;n>=Math.ceil(sMax*0.7);n--){if(d.panelCount%n===0){ser=n;break}}}
+  const strings=ser?Math.floor(d.panelCount/ser):null;
+  const spm=strings&&q>0?Math.ceil(strings/(q*pcs.nMppt)):null;
+  if(spm&&pv.imp*spm>pcs.maxIin){if(v==='ok')v='ng';reasons.push(`MPPT入力電流超過（${f(pv.imp*spm)}A＞${pcs.maxIin}A）`)}
+  if(tMin==null) reasons.push('最低気温が未確認のため直列数は未算出');
+  return {pcs,q:Math.max(q,0),dcac:q>0?pvKw/(pcs.kw*q):null,trafo:kva?pcs.kw*q/st.pf/kva:null,ser,spm,v,reasons};
+ });
+}
+
+/* ---------- 数量表 ---------- */
+function quantities(p,d){
+ const st=S.settings,M=S.masters,rows=[],pcs=byId(M.pcs,d.pcsId),pv=byId(M.panel,d.panelId);
+ if(pv) rows.push({k:'パネル',name:pv.name,q:d.panelCount,u:'枚',price:pv.price});
+ if(pcs) rows.push({k:'PCS',name:pcs.name,q:d.pcsQty,u:'台',price:pcs.price});
+ const cab={}; d.circuits.forEach(c=>{const x=byId(M.cable,c.cableId); if(!x||!c.lenM) return; cab[x.id]=(cab[x.id]||0)+c.lenM*Math.max(1,+c.par||1)});
+ Object.entries(cab).forEach(([id,m])=>{const x=byId(M.cable,id); rows.push({k:'交流電線',name:x.name,q:Math.ceil(m*(1+st.allowance)),u:'m',price:x.price,note:`実長${f(m,0)}m＋余長${st.allowance*100}%`})});
+ if(pv&&d.dcLen){const strings=Math.floor(d.panelCount/d.series); rows.push({k:'直流電線',name:'PV用ケーブル（往復）',q:Math.ceil(strings*2*d.dcLen*(1+st.allowance)),u:'m',price:0,note:`${strings}回路×2×平均${d.dcLen}m（概算）`})}
+ const br={}; d.circuits.forEach(c=>{if(c.breakerId) br[c.breakerId]=(br[c.breakerId]||0)+1});
+ Object.entries(br).forEach(([id,n])=>{const x=byId(M.breaker,id); if(x) rows.push({k:'遮断器',name:x.name,q:n,u:'個',price:x.price})});
+ rows.forEach(r=>r.cost=r.price>0?r.q*r.price:null);
+ return rows;
+}
+
+/* =========================================================
+   単線結線図（簡易・自動生成）
+   ========================================================= */
+function sld(p,d,C){
+ const M=S.masters,pcs=byId(M.pcs,d.pcsId),pv=byId(M.panel,d.panelId);
+ const br=d.circuits.filter(c=>c.type!=='main'), main=d.circuits.find(c=>c.type==='main');
+ const colW=150,n=Math.max(br.length,1),W=Math.max(340,n*colW+40),cx=W/2,H=440;
+ const col=v=>({ok:'var(--ok)',ng:'var(--ng)',unk:'var(--unk)',na:'var(--na)'}[v]);
+ const kva=sv(p,'trafo_kva'),v2=sv(p,'trafo_v2');
+ const mv=main?circuitVerdict(C,main.id):'unk', mb=main&&byId(M.breaker,main.breakerId), mc=main&&byId(M.cable,main.cableId);
+ let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="単線結線図">`;
+ s+=`<text x="${cx}" y="14" text-anchor="middle" class="svg-t">受電点</text><line x1="${cx}" y1="20" x2="${cx}" y2="44" class="svg-ink" stroke-width="2"/>`;
+ s+=`<circle cx="${cx}" cy="58" r="15" class="svg-ink" stroke-width="2"/><circle cx="${cx}" cy="78" r="15" class="svg-ink" stroke-width="2"/>`;
+ s+=`<text x="${cx+24}" y="64" class="svg-t">トランス ${kva!=null?kva+'kVA':'容量未確認'}</text><text x="${cx+24}" y="78" class="svg-s">二次 ${v2!=null?v2+'V':'未確認'}</text>`;
+ s+=`<line x1="${cx}" y1="93" x2="${cx}" y2="118" stroke="${col(mv)}" stroke-width="3"/>`;
+ s+=`<rect x="${cx-9}" y="118" width="18" height="24" fill="var(--sheet)" stroke="${col(mv)}" stroke-width="2"/>`;
+ s+=`<text x="${cx+16}" y="130" class="svg-t">${mb?mb.ratedA+'A':'遮断器未選択'}</text><text x="${cx+16}" y="143" class="svg-s">${mc?mc.name+'×'+(main.par||1)+' '+(main.lenM||'?')+'m':''}</text>`;
+ s+=`<line x1="${cx}" y1="142" x2="${cx}" y2="170" stroke="${col(mv)}" stroke-width="3"/>`;
+ const x0=20+colW/2, x1=20+colW*(n-1)+colW/2;
+ s+=`<line x1="${Math.min(x0,cx)}" y1="172" x2="${Math.max(x1,cx)}" y2="172" class="svg-ink" stroke-width="5"/><text x="${Math.min(x0,cx)-6}" y="166" class="svg-s">集電盤</text>`;
+ br.forEach((c,i)=>{
+  const x=20+colW*i+colW/2, v=circuitVerdict(C,c.id), b=byId(M.breaker,c.breakerId), cb=byId(M.cable,c.cableId), k=col(v);
+  s+=`<line x1="${x}" y1="172" x2="${x}" y2="196" stroke="${k}" stroke-width="3"/>`;
+  s+=`<rect x="${x-9}" y="196" width="18" height="24" fill="var(--sheet)" stroke="${k}" stroke-width="2"/><text x="${x+14}" y="212" class="svg-t">${b?b.ratedA+'A':'—'}</text>`;
+  s+=`<line x1="${x}" y1="220" x2="${x}" y2="300" stroke="${k}" stroke-width="3" ${v==='ng'?'stroke-dasharray="6 4"':''}/>`;
+  s+=`<text x="${x+8}" y="250" class="svg-s">${cb?esc(cb.name):'電線未選択'}${(+c.par||1)>1?'×'+c.par:''}</text><text x="${x+8}" y="264" class="svg-s">${c.lenM||'?'}m ${esc(c.method)}</text>`;
+  s+=`<rect x="${x-44}" y="300" width="88" height="40" rx="3" fill="var(--sheet)" stroke="${k}" stroke-width="2"/>`;
+  s+=`<text x="${x}" y="318" text-anchor="middle" class="svg-t">PCS × ${c.pcsN||0}</text><text x="${x}" y="332" text-anchor="middle" class="svg-s">${pcs?pcs.kw+'kW':''}</text>`;
+  s+=`<line x1="${x}" y1="340" x2="${x}" y2="360" class="svg-ink" stroke-width="1.5"/>`;
+  for(let r=0;r<2;r++)for(let q=0;q<4;q++) s+=`<rect x="${x-34+q*17}" y="${360+r*13}" width="15" height="11" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1"/>`;
+  s+=`<text x="${x}" y="402" text-anchor="middle" class="svg-t">${esc(c.name.replace(/（.*?）/,''))}</text>`;
+ });
+ s+=`<text x="10" y="${H-10}" class="svg-s">${pv?esc(pv.name)+' × '+d.panelCount+'枚／'+d.series+'直列':''}　線色：緑=適合 赤=要修正 黄=未確認</text>`;
+ return s+'</svg>';
+}
+
+/* =========================================================
+   画面
+   ========================================================= */
+const VIEWS=[['projects','案件一覧'],['survey','現調資料'],['design','設計'],['verify','検証結果'],['compare','案比較'],['output','出力・承認'],['master','機器マスター・基準']];
+function render(){
+ const p=cur();
+ document.getElementById('projSel').innerHTML=S.projects.map(x=>`<option value="${x.id}" ${x.id===S.currentId?'selected':''}>${esc(x.name)}</option>`).join('')||'<option>案件なし</option>';
+ document.getElementById('tabs').innerHTML=VIEWS.map(([k,l])=>`<button data-act="nav" data-v="${k}" class="${UI.view===k?'on':''}">${l}</button>`).join('');
+ const needP=['survey','design','verify','compare','output'].includes(UI.view);
+ let h='';
+ if(needP&&!p) h=`<div class="sheet empty">案件を選ぶか、案件一覧から新しい案件を作成してください。</div>`;
+ else h=({projects:vProjects,survey:vSurvey,design:vDesign,verify:vVerify,compare:vCompare,output:vOutput,master:vMaster})[UI.view](p);
+ document.getElementById('app').innerHTML=h;
+}
+
+/* ---------- 案件一覧 ---------- */
+function vProjects(){
+ const rows=S.projects.map(p=>{
+  const d=curDesign(p), ev=d?evaluate(p,d):{C:[]}, t=tally(ev.C);
+  const req=Object.values(SURVEY_ITEM).filter(i=>i.req), got=req.filter(i=>sv(p,i.k)!=null).length;
+  return `<tr><td><button class="btn ghost sm" data-act="open" data-id="${p.id}">開く</button></td>
+   <td><b>${esc(p.name)}</b><div class="muted">${esc(p.site)}</div></td>
+   <td><select class="status-sel" data-act-change="status" data-id="${p.id}">${STATUSES.map(s=>`<option ${p.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+   <td class="n">${got}/${req.length}</td><td class="n" style="color:var(--ng)">${t.ng}</td><td class="n" style="color:var(--unk)">${t.unk}</td>
+   <td>${esc(p.owner)}</td><td class="muted">${new Date(p.updated).toLocaleDateString('ja-JP')}</td>
+   <td><button class="btn danger sm" data-act="delProject" data-id="${p.id}">削除</button></td></tr>`}).join('');
+ return `<h1>案件一覧</h1><p class="lead">現調から承認までを案件ごとに管理します。必須の現調項目が揃うと、設計の自動検証ができる範囲が広がります。</p>
+ <div class="sheet"><h3>新しい案件</h3><div class="grid">
+  <label class="fld">案件名<input type="text" id="np_name" placeholder="例：〇〇発電所 リフォート"></label>
+  <label class="fld">所在地<input type="text" id="np_site"></label>
+  <label class="fld">設計担当<input type="text" id="np_owner"></label>
+  <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn" data-act="newProject">案件を作成</button><button class="btn ghost" data-act="addDemo">デモ案件を追加</button></div></div></div>
+ <div class="sheet tw">${S.projects.length?`<table><thead><tr><th></th><th>案件</th><th>状態</th><th class="n">必須現調</th><th class="n">要修正</th><th class="n">未確認</th><th>担当</th><th>更新</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">案件がありません。上のフォームから作成してください。</div>'}</div>
+ <p class="muted">データはこのブラウザに保存されます。他の端末と共有するときは「データを書き出す」で保存したファイルを読み込んでください。${APP_VERSION}</p>`;
+}
+
+/* ---------- 現調資料 ---------- */
+function vSurvey(p){
+ const cats=SURVEY.map(c=>{
+  const items=c.items, done=items.filter(i=>{const s=p.survey[i.k].st; return s==='ok'||s==='na'}).length, pct=Math.round(done/items.length*100);
+  const miss=items.filter(i=>i.req&&sv(p,i.k)==null).length;
+  return `<details class="cat" ${miss?'open':''}><summary><h2 style="flex:1">${c.cat}</h2>${miss?`<span class="v unk">必須未確認 ${miss}</span>`:''}<span class="meter"><i style="width:${pct}%"></i></span><span class="muted">${done}/${items.length}</span></summary>
+   ${items.map(i=>surveyRow(p,i)).join('')}</details>`}).join('');
+ return `<h1>現調資料</h1><p class="lead">写真から読み取れない寸法や接続は「未確認」のまま残してください。未確認の項目は、検証結果で「何を追加調査すれば判定できるか」として表示されます。</p>
+ <div class="sheet"><dl class="kv"><dt>案件</dt><dd>${esc(p.name)}</dd><dt>所在地</dt><dd>${esc(p.site)||'—'}</dd></dl></div>${cats}`;
+}
+function surveyRow(p,i){
+ const it=p.survey[i.k]; const st=it.st;
+ let input='';
+ if(i.t==='photo'){
+  input=`<div class="bar">${it.photo?`<img class="thumb" src="${it.photo}" data-act="zoom" alt="${esc(i.l)}">`:''}
+   <label class="btn ghost sm" style="cursor:pointer">${it.photo?'撮り直す':'写真を追加'}<input type="file" accept="image/*" capture="environment" data-photo="${i.k}" hidden></label>
+   ${it.photo&&i.ai?`<button class="btn sm" data-act="ai" data-k="${i.k}">AIで読み取る</button>`:''}
+   ${it.photo?`<button class="btn danger sm" data-act="delPhoto" data-k="${i.k}">削除</button>`:''}</div>
+   <input type="text" data-sv="${i.k}" value="${esc(it.v)}" placeholder="メモ（任意）" style="margin-top:6px">`;
+ }else if(i.t==='area') input=`<textarea data-sv="${i.k}">${esc(it.v)}</textarea>`;
+ else input=`<div class="row" style="display:flex;gap:6px;align-items:center"><input type="${i.t==='num'?'number':'text'}" ${i.t==='num'?'inputmode="decimal" step="any"':''} data-sv="${i.k}" value="${esc(it.v)}">${i.u?`<span class="u">${i.u}</span>`:''}</div>`;
+ const src=it.src?`<div class="muted" style="margin-top:4px">AI読取元：${esc(SURVEY_ITEM[it.src]?.l||it.src)}${p.survey[it.src]?.photo?` <a href="#" data-act="zoomsrc" data-k="${it.src}">元画像を見る</a>`:''}</div>`:'';
+ const seg=st==='ai'?`<span class="v ai">AI読取・要確認</span> <button class="btn sm" data-act="confirmAi" data-k="${i.k}">確認済みにする</button>`:
+  `<div class="seg">${[['ok','確認済み'],['unk','未確認'],['na','対象外']].map(([k,l])=>`<button class="${st===k?'on '+k:''}" data-act="svst" data-k="${i.k}" data-st="${k}">${l}</button>`).join('')}</div>`;
+ return `<div class="sv"><div class="lab">${esc(i.l)}${i.req?'<em>必須</em>':''}</div><div>${input}${src}</div><div>${seg}</div></div>`;
+}
+
+/* ---------- 設計 ---------- */
+function designSwitcher(p,d){
+ return `<div class="sheet bar noprint"><label class="fld" style="flex:1;min-width:160px">設計案<select data-act-change="selDesign">${p.designs.map(x=>`<option value="${x.id}" ${x.id===d.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+  <label class="fld" style="flex:1;min-width:160px">案の名前<input type="text" data-f="name" value="${esc(d.name)}"></label>
+  <div class="bar" style="align-self:flex-end"><button class="btn ghost sm" data-act="dupDesign">この案を複製</button>${p.designs.length>1?`<button class="btn danger sm" data-act="delDesign">この案を削除</button>`:''}</div></div>`;
+}
+function stepBox(no,title,id,body,v){
+ return `<section class="sheet" id="${id}"><div class="step"><div class="step-no">${no}</div><div><div class="step-head"><h2>${title}</h2>${v?vtag(v):''}</div>${body}</div></div></section>`;
+}
+function worstOf(C,step){let w=null; C.filter(c=>c.step===step).forEach(c=>{if(w==null||VRANK[c.v]>VRANK[w]) w=c.v}); return w}
+function vDesign(p){
+ const d=curDesign(p), M=S.masters, st=S.settings, ev=evaluate(p,d), C=ev.C, m=ev.metrics, pcs=byId(M.pcs,d.pcsId), pv=byId(M.panel,d.panelId);
+ const opt=pcsOptions(p,d);
+ const num=(f,l,u,v,attr='')=>`<label class="fld">${l}<span class="row"><input type="number" inputmode="decimal" step="any" data-f="${f}" data-t="num" value="${v??''}" ${attr}>${u?`<span class="u">${u}</span>`:''}</span></label>`;
+ const svShow=(k)=>{const v=sv(p,k), i=SURVEY_ITEM[k]; return `<div class="fld"><span>${i.l}（現調）</span><span>${v==null?'<span class="v unk">未確認</span>':`<b>${esc(v)}</b> ${i.u||''}`}</span></div>`};
+
+ const s1=`<div class="grid">${svShow('trafo_kva')}${svShow('trafo_v2')}${svShow('temp_min')}${svShow('temp_max')}</div>
+  <div class="grid" style="margin-top:12px">
+   <label class="fld">パネル<select data-f="panelId">${M.panel.map(x=>`<option value="${x.id}" ${x.id===d.panelId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+   ${num('panelCount','パネル枚数','枚',d.panelCount)}${num('series','直列数','枚',d.series)}
+   <label class="fld">PCS<select data-f="pcsId">${M.pcs.map(x=>`<option value="${x.id}" ${x.id===d.pcsId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+   ${num('pcsQty','PCS台数','台',d.pcsQty)}</div>
+  <p class="muted">パネル ${f(m.pvKw)}kW／PCS ${f(m.pcsKw)}kW／過積載率 ${f(m.dcac,2)}／${m.strings||0}回路・MPPT1入力あたり最大${m.spm||0}回路${pv&&pcs&&sv(p,'temp_min')!=null?`／この組み合わせの最大直列数 ${maxSeries(pv,pcs,sv(p,'temp_min'))}枚`:''}</p>
+  <h3 style="margin-top:14px">PCS構成の比較</h3>
+  <div class="tw"><table><thead><tr><th>機種</th><th class="n">推奨台数</th><th class="n">過積載率</th><th class="n">トランス負荷</th><th class="n">推奨直列</th><th>判定</th><th>制約・理由</th><th></th></tr></thead><tbody>
+  ${opt.map(o=>`<tr><td>${esc(o.pcs.name)}</td><td class="n">${o.q}</td><td class="n">${f(o.dcac,2)}</td><td class="n">${o.trafo!=null?f(o.trafo*100,0)+'%':'—'}</td><td class="n">${o.ser??'—'}</td><td>${vtag(o.v)}</td><td class="muted">${esc(o.reasons.join('／'))||'制約なし'}</td>
+   <td><button class="btn ghost sm" data-act="adopt" data-pcs="${o.pcs.id}" data-q="${o.q}" data-ser="${o.ser||''}" ${o.q<1?'disabled':''}>採用</button></td></tr>`).join('')}</tbody></table></div>
+  <p class="note">トランス容量だけで確定させず、出力電圧・直列数・MPPT入力電流まで含めて判定しています。推奨直列は、温度条件の上限以内で、パネル枚数を割り切れる最大の枚数です。採用すると直列数も変更されます。</p>`;
+
+ const methods=Object.keys(st.methods);
+ const s2=`<div class="tw"><table><thead><tr><th>回路名</th><th>種別</th><th class="n">PCS台数</th><th>敷設方法</th><th class="n">距離(m)</th><th class="n">並列</th><th>経路メモ</th><th></th></tr></thead><tbody>
+  ${d.circuits.map((c,i)=>`<tr><td><input type="text" data-f="circuits.${i}.name" value="${esc(c.name)}"></td>
+   <td>${c.type==='main'?'幹線':'分岐'}</td>
+   <td class="n">${c.type==='main'?d.pcsQty:`<input type="number" style="width:64px" data-f="circuits.${i}.pcsN" data-t="num" value="${c.pcsN}">`}</td>
+   <td><select data-f="circuits.${i}.method">${methods.map(x=>`<option ${x===c.method?'selected':''}>${x}</option>`).join('')}</select></td>
+   <td class="n"><input type="number" style="width:76px" inputmode="decimal" data-f="circuits.${i}.lenM" data-t="num" value="${c.lenM??''}"></td>
+   <td class="n"><input type="number" style="width:56px" data-f="circuits.${i}.par" data-t="num" value="${c.par}"></td>
+   <td><input type="text" data-f="circuits.${i}.route" value="${esc(c.route)}" placeholder="経路・施工禁止区域など"></td>
+   <td>${c.type==='main'?'':`<button class="btn danger sm" data-act="delCircuit" data-i="${i}">削除</button>`}</td></tr>`).join('')}</tbody></table></div>
+  <div class="bar" style="margin-top:8px"><button class="btn ghost sm" data-act="addCircuit">分岐回路を追加</button></div>
+  <div class="grid" style="margin-top:12px">
+   <label class="fld">PCSの設置場所<input type="text" data-f="pcsPlace" value="${esc(d.pcsPlace)}" placeholder="例：架台北側・各アレイ端部"></label>
+   <label class="fld">施工禁止区域・注意点<input type="text" data-f="noBuild" value="${esc(d.noBuild)}"></label>
+   ${num('dcLen','直流配線の平均距離（片道）','m',d.dcLen)}
+   <label class="fld">保守スペース・交換動線<span class="row"><input type="checkbox" data-f="maintOk" data-t="bool" ${d.maintOk?'checked':''}> 現地写真で確認済み</span></label></div>
+  <p class="note">図面上での配置編集と経路の自動計測は第2段階で追加します。現段階では実測距離を入力してください。</p>`;
+
+ const s3=`<div class="bar" style="margin-bottom:8px"><button class="btn sm" data-act="auto">電線・遮断器を自動選定</button><span class="muted">許容電流・遮断器での電線保護・電圧上昇${st.dropLimit}%以内を満たす最小構成を選びます</span></div>
+  <div class="tw"><table><thead><tr><th>回路</th><th class="n">負荷電流</th><th>電線</th><th class="n">許容電流</th><th>遮断器</th><th>判定</th></tr></thead><tbody>
+  ${d.circuits.map((c,i)=>{const x=m.circ[c.id]||{}; return `<tr><td>${esc(c.name)}</td><td class="n">${f(x.I)}A</td>
+   <td><select data-f="circuits.${i}.cableId"><option value="">選択</option>${M.cable.map(k=>`<option value="${k.id}" ${k.id===c.cableId?'selected':''}>${esc(k.name)}</option>`).join('')}</select></td>
+   <td class="n">${f(x.allow)}A</td>
+   <td><select data-f="circuits.${i}.breakerId"><option value="">選択</option>${M.breaker.map(k=>`<option value="${k.id}" ${k.id===c.breakerId?'selected':''}>${esc(k.name)}</option>`).join('')}</select></td>
+   <td>${vtag(circuitVerdict(C,c.id))}</td></tr>`}).join('')}</tbody></table></div>`;
+
+ const bd=m.board;
+ const s4=`<div class="grid">${svShow('board_w')}${svShow('board_h')}${svShow('board_d')}</div>
+  ${bd?`<div style="margin-top:10px"><div class="meter" style="height:12px;max-width:420px;flex:none"><i style="width:${Math.min(100,bd.need/bd.have*100)}%;background:${bd.need>bd.have?'var(--ng)':'var(--ok)'}"></i></div>
+  <p class="muted">盤内使用率 ${f(bd.need/bd.have*100,0)}%（遮断器 ${d.circuits.filter(c=>c.breakerId).length}個・余裕係数 ${st.boardCoef}）</p></div>`:''}
+  ${C.filter(c=>c.step==='④').map(chk).join('')}`;
+
+ const s5=`<div class="tw"><table><thead><tr><th>既存機器</th><th>扱い</th><th>接続確認</th><th>メモ</th><th></th></tr></thead><tbody>
+  ${(d.existing||[]).map((x,i)=>`<tr><td><input type="text" data-f="existing.${i}.name" value="${esc(x.name)}"></td>
+   <td><select data-f="existing.${i}.action">${['交換','残置','撤去','新設'].map(a=>`<option ${a===x.action?'selected':''}>${a}</option>`).join('')}</select></td>
+   <td><label><input type="checkbox" data-f="existing.${i}.ok" data-t="bool" ${x.ok?'checked':''}> 確認済み</label></td>
+   <td><input type="text" data-f="existing.${i}.memo" value="${esc(x.memo)}"></td>
+   <td><button class="btn danger sm" data-act="delExisting" data-i="${i}">削除</button></td></tr>`).join('')}</tbody></table></div>
+  <div class="bar" style="margin-top:8px"><button class="btn ghost sm" data-act="addExisting">既存機器を追加</button><span class="muted">既存単線結線図：${sv(p,'sld')?'登録済み':'<span class="v unk">未登録</span>'}</span></div>`;
+
+ const s6=`<div class="tw"><table><thead><tr><th>回路</th><th class="n">電流</th><th class="n">距離</th><th class="n">電圧上昇</th><th class="n">率</th><th class="n">損失</th></tr></thead><tbody>
+  ${d.circuits.map(c=>{const x=m.circ[c.id]||{}; return `<tr><td>${esc(c.name)}</td><td class="n">${f(x.I)}A</td><td class="n">${c.lenM||'—'}m</td><td class="n">${f(x.dv,2)}V</td>
+   <td class="n" style="color:${x.pct>st.dropLimit?'var(--ng)':'inherit'}">${f(x.pct,2)}%</td><td class="n">${f(x.loss/1000,2)}kW</td></tr>`}).join('')}
+  <tr><td><b>合計・最大</b></td><td></td><td></td><td></td><td class="n"><b>${f(m.totalPct,2)}%</b></td><td class="n"><b>${f(m.lossW/1000,2)}kW（${f(m.lossPct,2)}%）</b></td></tr></tbody></table></div>
+  <p class="note">変更すると関連する電流・電圧上昇・盤収容・数量表がすべて再計算されます。</p>`;
+
+ const t=tally(C);
+ const side=`<aside class="side"><div class="sheet"><div class="tally"><div class="ng"><b>${t.ng}</b><small>要修正</small></div><div class="unk"><b>${t.unk}</b><small>未確認</small></div><div class="ok"><b>${t.ok}</b><small>適合</small></div><div class="na"><b>${t.na}</b><small>対象外</small></div></div>
+  <div class="sld-wrap">${sld(p,d,C)}</div>
+  <h3 style="margin-top:12px">直すべき箇所</h3>${C.filter(c=>c.v==='ng').slice(0,5).map(c=>`<div class="check ng"><div class="t">${vtag('ng')}<b>${esc(c.title)}</b></div><div class="val">${esc(c.val)}</div>${c.fix?`<div class="fix">${esc(c.fix)}</div>`:''}</div>`).join('')||'<p class="muted">要修正の項目はありません。</p>'}
+  <button class="btn ghost sm" data-act="nav" data-v="verify">検証結果をすべて見る</button></div></aside>`;
+
+ return `<h1>設計</h1><p class="lead">①〜⑥はどこから直しても構いません。値を変えると、関連する計算と判定がその場で更新されます。</p>
+ ${designSwitcher(p,d)}
+ <div class="cols"><div>
+ ${stepBox('①','PCS選定','s1',s1,worstOf(C,'①'))}
+ ${stepBox('②','配置・配線経路','s2',s2,worstOf(C,'②'))}
+ ${stepBox('③','電線・遮断器の選定','s3',s3,worstOf(C,'③'))}
+ ${stepBox('④','盤への収容確認','s4',s4,worstOf(C,'④'))}
+ ${stepBox('⑤','既存回路との整合','s5',s5,worstOf(C,'⑤'))}
+ ${stepBox('⑥','電気計算','s6',s6,worstOf(C,'⑥'))}
+ ${stepBox('⑦','設計完了','s7',`<p>検証結果を確認し、出力・承認で図面と数量表を確定します。</p><button class="btn" data-act="nav" data-v="output">出力・承認へ進む</button>`,null)}
+ </div>${side}</div>`;
+}
+function chk(c){
+ return `<div class="check ${c.v}"><div class="t"><span class="tag">${c.step}</span>${vtag(c.v)}<b>${esc(c.title)}</b></div>
+  <div class="val">${esc(c.val)}</div>${c.basis?`<div class="basis">根拠：${esc(c.basis)}</div>`:''}
+  ${c.fix?`<div class="fix">${c.v==='unk'?'':'改善案：'}${esc(c.fix)}</div>`:''}
+  ${c.go?`<div style="margin-top:6px" class="noprint"><button class="btn ghost sm" data-act="goto" data-go="${c.go}">該当箇所を開く</button></div>`:''}</div>`;
+}
+
+/* ---------- 検証結果 ---------- */
+function vVerify(p){
+ const d=curDesign(p), {C}=evaluate(p,d), t=tally(C);
+ const list=C.filter(c=>UI.filter==='all'||c.v===UI.filter).sort((a,b)=>VRANK[b.v]-VRANK[a.v]);
+ const groups=['電気的な適合','発電性能','施工・保守'];
+ return `<h1>検証結果</h1><p class="lead">${esc(d.name)}の判定です。容量・電圧・電流の判定は機器マスターの仕様値と計算式で行い、根拠を併記しています。</p>
+ ${designSwitcher(p,d)}
+ <div class="sheet"><div class="tally"><div class="ng"><b>${t.ng}</b><small>要修正</small></div><div class="unk"><b>${t.unk}</b><small>未確認</small></div><div class="ok"><b>${t.ok}</b><small>適合</small></div><div class="na"><b>${t.na}</b><small>対象外</small></div></div>
+ <div class="chips">${[['all','すべて'],['ng','要修正'],['unk','未確認'],['ok','適合'],['na','対象外']].map(([k,l])=>`<button class="${UI.filter===k?'on':''}" data-act="filter" data-f2="${k}">${l}</button>`).join('')}</div>
+ ${groups.map(g=>{const xs=list.filter(c=>c.g===g); return xs.length?`<h2 style="margin:16px 0 8px">${g}</h2>${xs.map(chk).join('')}`:''}).join('')||'<p class="muted">該当する項目はありません。</p>'}</div>`;
+}
+
+/* ---------- 案比較 ---------- */
+function vCompare(p){
+ const M=S.masters;
+ const rows=p.designs.map(d=>{const {C,metrics:m}=evaluate(p,d),t=tally(C),q=quantities(p,d),pcs=byId(M.pcs,d.pcsId);
+  const cost=q.reduce((a,r)=>a+(r.cost||0),0), priced=q.every(r=>r.cost!=null);
+  const cab=q.filter(r=>r.k==='交流電線').reduce((a,r)=>a+r.q,0);
+  return {d,t,m,pcs,cost,priced,cab}});
+ const best=(fn,low=true)=>{const vals=rows.map(fn).filter(v=>v!=null&&!isNaN(v)); return vals.length?(low?Math.min(...vals):Math.max(...vals)):null};
+ const line=(label,fn,fmt,low=true)=>{const b=best(fn,low); return `<tr><th>${label}</th>${rows.map(r=>{const v=fn(r); return `<td class="n" style="${v===b&&rows.length>1?'font-weight:700;color:var(--ok)':''}">${fmt(v,r)}</td>`}).join('')}</tr>`};
+ return `<h1>案比較</h1><p class="lead">設計案を複製して条件を変えると、性能・施工性・資材量を並べて比較できます。最も良い値を緑で示します。</p>
+ <div class="sheet bar"><button class="btn" data-act="dupDesign">現在の案を複製して新しい案を作る</button></div>
+ <div class="sheet tw"><table><thead><tr><th></th>${rows.map(r=>`<th>${esc(r.d.name)}${r.d.id===p.activeDesign?'（編集中）':''}</th>`).join('')}</tr></thead><tbody>
+  <tr><th>PCS構成</th>${rows.map(r=>`<td>${r.pcs?esc(r.pcs.name)+' × '+r.d.pcsQty:'—'}</td>`).join('')}</tr>
+  ${line('要修正',r=>r.t.ng,v=>v)}${line('未確認',r=>r.t.unk,v=>v)}
+  ${line('過積載率',r=>r.m.dcac,v=>f(v,2),false)}
+  ${line('最大電圧上昇',r=>r.m.totalPct,v=>f(v,2)+'%')}
+  ${line('交流配線損失',r=>r.m.lossPct,v=>f(v,2)+'%')}
+  ${line('トランス負荷',r=>r.m.trafoRatio,v=>v!=null?f(v*100,0)+'%':'—')}
+  ${line('交流電線 合計',r=>r.cab,v=>f(v,0)+'m')}
+  ${line('概算資材費',r=>r.priced?r.cost:null,(v,r)=>r.priced?f(v,0)+'円':'単価未登録')}
+  <tr><th></th>${rows.map(r=>`<td>${r.d.id===p.activeDesign?'':`<button class="btn ghost sm" data-act="useDesign" data-id="${r.d.id}">この案を編集</button>`}</td>`).join('')}</tr>
+ </tbody></table></div>
+ <p class="note">年間発電量による比較は第3段階で追加します。資材費は機器マスターに単価を登録すると表示されます。</p>`;
+}
+
+/* ---------- 出力・承認 ---------- */
+function vOutput(p){
+ const d=curDesign(p),{C,metrics:m}=evaluate(p,d),t=tally(C),q=quantities(p,d),M=S.masters,pcs=byId(M.pcs,d.pcsId),pv=byId(M.panel,d.panelId);
+ const unk=C.filter(c=>c.v==='unk'), ng=C.filter(c=>c.v==='ng');
+ const cost=q.reduce((a,r)=>a+(r.cost||0),0);
+ return `<div class="noprint"><h1>出力・承認</h1><p class="lead">図面・計算書・数量表を確認し、承認して版を確定します。要修正が残っている間は承認できません。</p>${designSwitcher(p,d)}
+ <div class="sheet bar"><button class="btn" data-act="print">印刷・PDFに保存</button><button class="btn ghost" data-act="csv">数量表をCSVで書き出す</button></div></div>
+ <div class="sheet report">
+  <h1>${esc(p.name)}　設計書（${esc(d.name)}）</h1>
+  <dl class="kv"><dt>所在地</dt><dd>${esc(p.site)||'—'}</dd><dt>設計担当</dt><dd>${esc(p.owner)||'—'}</dd><dt>出力日</dt><dd>${new Date().toLocaleDateString('ja-JP')}</dd>
+   <dt>構成</dt><dd>${pv?esc(pv.name)+' × '+d.panelCount+'枚（'+f(m.pvKw)+'kW）':''}／${pcs?esc(pcs.name)+' × '+d.pcsQty+'台（'+f(m.pcsKw)+'kW）':''}</dd>
+   <dt>判定</dt><dd>要修正 ${t.ng}件／未確認 ${t.unk}件／適合 ${t.ok}件</dd></dl>
+  <h2>単線結線図（簡易）</h2><div class="sld-wrap">${sld(p,d,C)}</div>
+  <h2>計算書</h2><div class="tw"><table><thead><tr><th>回路</th><th>電線</th><th>遮断器</th><th class="n">電流</th><th class="n">許容</th><th class="n">距離</th><th class="n">電圧上昇</th><th class="n">損失</th></tr></thead><tbody>
+  ${d.circuits.map(c=>{const x=m.circ[c.id]||{},cb=byId(M.cable,c.cableId),b=byId(M.breaker,c.breakerId); return `<tr><td>${esc(c.name)}</td><td>${cb?esc(cb.name)+'×'+(c.par||1):'—'}</td><td>${b?b.ratedA+'A':'—'}</td><td class="n">${f(x.I)}A</td><td class="n">${f(x.allow)}A</td><td class="n">${c.lenM||'—'}m</td><td class="n">${f(x.pct,2)}%</td><td class="n">${f(x.loss/1000,2)}kW</td></tr>`}).join('')}
+  </tbody></table></div>
+  <h2>機器・資材数量表</h2><div class="tw"><table><thead><tr><th>区分</th><th>品名</th><th class="n">数量</th><th>単位</th><th class="n">金額</th><th>備考</th></tr></thead><tbody>
+  ${q.map(r=>`<tr><td>${r.k}</td><td>${esc(r.name)}</td><td class="n">${f(r.q,0)}</td><td>${r.u}</td><td class="n">${r.cost!=null?f(r.cost,0)+'円':'—'}</td><td class="muted">${esc(r.note||'')}</td></tr>`).join('')}
+  ${cost?`<tr><td colspan="4"><b>合計（単価登録分）</b></td><td class="n"><b>${f(cost,0)}円</b></td><td></td></tr>`:''}</tbody></table></div>
+  <h2>要修正（${ng.length}件）</h2>${ng.map(chk).join('')||'<p>なし</p>'}
+  <h2>未確認・追加調査事項（${unk.length}件）</h2>${unk.map(chk).join('')||'<p>なし</p>'}
+  ${p.approvals.length?`<h2>承認履歴</h2><table><thead><tr><th>版</th><th>日時</th><th>承認者</th><th>設計案</th><th>承認時の未確認</th><th>コメント</th></tr></thead><tbody>
+   ${p.approvals.map(a=>`<tr><td>v${a.ver}</td><td>${new Date(a.date).toLocaleString('ja-JP')}</td><td>${esc(a.by)}</td><td>${esc(a.design)}</td><td class="n">${a.unk}</td><td>${esc(a.comment)}</td></tr>`).join('')}</tbody></table>`:''}
+ </div>
+ <div class="sheet noprint"><h2>承認して版を確定</h2>
+  ${ng.length?`<div class="warn" style="margin-top:10px">要修正が ${ng.length}件 残っています。設計を修正してから承認してください。</div>`:''}
+  ${!ng.length&&unk.length?`<div class="warn" style="margin-top:10px">未確認が ${unk.length}件あります。承認する場合は、扱いをコメントに記入してください。</div>`:''}
+  <div class="grid" style="margin-top:10px"><label class="fld">承認者<input type="text" id="ap_by"></label><label class="fld" style="grid-column:span 2">コメント<input type="text" id="ap_comment" placeholder="${unk.length?'未確認事項の扱い（必須）':'任意'}"></label></div>
+  <div class="bar" style="margin-top:10px"><button class="btn" data-act="approve" ${ng.length?'disabled':''}>承認して v${p.approvals.length+1} を確定</button></div></div>`;
+}
+
+/* ---------- 機器マスター・基準 ---------- */
+const MCOLS={
+ pcs:[['name','機種名','t'],['kw','定格出力kW'],['acV','出力電圧V'],['maxDcV','最大入力電圧V'],['mpptMin','MPPT下限V'],['mpptMax','MPPT上限V'],['nMppt','MPPT数'],['maxIin','入力電流上限A/MPPT'],['maxIsc','短絡電流上限A/MPPT'],['w','幅mm'],['h','高さmm'],['d','奥行mm'],['price','単価円']],
+ panel:[['name','型式','t'],['pmax','最大出力W'],['voc','Voc V'],['isc','Isc A'],['vmp','Vmp V'],['imp','Imp A'],['tcVoc','Voc温度係数%/℃'],['tcVmp','Vmp温度係数%/℃'],['price','単価円']],
+ cable:[['name','品名','t'],['sq','断面積sq'],['amp','許容電流A（気中）'],['r','導体抵抗Ω/km'],['x','リアクタンスΩ/km'],['price','単価円/m']],
+ breaker:[['name','品名','t'],['ratedA','定格A'],['w','幅mm'],['h','高さmm'],['d','奥行mm'],['price','単価円']]
+};
+function vMaster(){
+ const k=UI.mtab, rows=S.masters[k], cols=MCOLS[k], st=S.settings;
+ const sf=(f2,l,u)=>`<label class="fld">${l}<span class="row"><input type="number" step="any" data-scope="s" data-f="${f2}" data-t="num" value="${f2.split('.').reduce((o,x)=>o[x],st)}">${u?`<span class="u">${u}</span>`:''}</span></label>`;
+ return `<h1>機器マスター・基準</h1><p class="lead">判定の根拠になる仕様値です。初期値はサンプルなので、採用する機種の仕様書から登録し、出典・改訂日・承認者を記入してください。</p>
+ <div class="chips">${[['pcs','PCS'],['panel','パネル'],['cable','電線'],['breaker','遮断器']].map(([x,l])=>`<button class="${k===x?'on':''}" data-act="mtab" data-k="${x}">${l}</button>`).join('')}</div>
+ <div class="sheet tw"><table><thead><tr>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>出典（仕様書）</th><th>改訂日</th><th>承認者</th><th></th></tr></thead><tbody>
+ ${rows.map((r,i)=>`<tr>${cols.map(([f2,,t])=>`<td><input type="${t?'text':'number'}" step="any" style="min-width:${t?'170px':'76px'}" data-scope="m" data-f="${k}.${i}.${f2}" ${t?'':'data-t="num"'} value="${esc(r[f2])}"></td>`).join('')}
+  <td><input type="text" style="min-width:180px" data-scope="m" data-f="${k}.${i}.src" value="${esc(r.src)}"></td>
+  <td><input type="date" data-scope="m" data-f="${k}.${i}.rev" value="${esc(r.rev)}"></td>
+  <td><input type="text" style="min-width:90px" data-scope="m" data-f="${k}.${i}.by" value="${esc(r.by)}"></td>
+  <td><button class="btn danger sm" data-act="delMaster" data-i="${i}">削除</button></td></tr>`).join('')}</tbody></table>
+ <div class="bar" style="margin-top:10px"><button class="btn ghost sm" data-act="addMaster">行を追加</button></div></div>
+ <div class="sheet"><h2>判定基準（社内基準に合わせて調整）</h2><div class="grid" style="margin-top:10px">
+  ${sf('pf','力率')}${sf('dropLimit','回路ごとの電圧上昇上限','%')}${sf('totalDropLimit','合計電圧上昇上限','%')}${sf('breakerMargin','遮断器の余裕倍率','倍')}
+  ${sf('dcacMin','過積載率 下限')}${sf('dcacMax','過積載率 上限')}${sf('dcacTarget','過積載率 目標')}
+  ${sf('trafoMax','トランス負荷 上限','比')}${sf('trafoWarn','トランス負荷 注意域','比')}${sf('boardCoef','盤内余裕係数','倍')}${sf('allowance','電線の余長率','比')}${sf('tCellRise','セル温度上昇','℃')}${sf('maxPar','自動選定の最大並列数','本')}
+  ${Object.keys(st.methods).map(x=>sf('methods.'+x,`低減率：${x}`)).join('')}</div>
+  <div class="bar" style="margin-top:12px"><button class="btn danger sm" data-act="resetSettings">判定基準を初期値に戻す</button></div>
+  <p class="note">許容電流・抵抗値・低減率の初期値は参考値です。適用基準・メーカー条件・電力会社条件に合わせて確定してください。</p></div>`;
+}
+
+/* =========================================================
+   操作
+   ========================================================= */
+function setPath(obj,path,val){const ks=path.split('.'); let o=obj; for(let i=0;i<ks.length-1;i++) o=o[ks[i]]; o[ks[ks.length-1]]=val}
+function rootOf(scope){return scope==='m'?S.masters:scope==='s'?S.settings:scope==='p'?cur():curDesign()}
+
+document.addEventListener('change',async e=>{
+ const el=e.target;
+ if(el.id==='projSel'){S.currentId=el.value;save();render();return}
+ if(el.id==='importFile'){return importData(el.files[0])}
+ if(el.dataset.photo){const file=el.files[0]; if(!file) return; const p=cur(),it=p.survey[el.dataset.photo];
+  it.photo=await compress(file); it.st='ok'; touch(); render(); toast('写真を追加しました'); return}
+ if(el.dataset.sv){const p=cur(),it=p.survey[el.dataset.sv]; it.v=el.value; it.src='';
+  if(SURVEY_ITEM[el.dataset.sv].t!=='photo'&&it.st!=='na') it.st=el.value===''?'unk':'ok'; touch(); render(); return}
+ if(el.dataset.actChange==='status'){const p=S.projects.find(x=>x.id===el.dataset.id); p.status=el.value; save(); return}
+ if(el.dataset.actChange==='selDesign'){cur().activeDesign=el.value; save(); render(); return}
+ if(el.dataset.f){
+  let v=el.value; if(el.dataset.t==='num') v=v===''?null:parseFloat(v); if(el.dataset.t==='bool') v=el.checked;
+  setPath(rootOf(el.dataset.scope||'d'),el.dataset.f,v); touch();
+  const y=window.scrollY; render(); window.scrollTo(0,y);
+ }
+});
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]'); if(!b||b.tagName==='SELECT') return;
+ const a=b.dataset.act, p=cur();
+ const A={
+  nav:()=>{UI.view=b.dataset.v;render();window.scrollTo(0,0)},
+  open:()=>{S.currentId=b.dataset.id;UI.view='survey';save();render()},
+  newProject:()=>{const n=document.getElementById('np_name').value.trim(); if(!n){toast('案件名を入力してください');return}
+   const x=newProject(n,document.getElementById('np_site').value,document.getElementById('np_owner').value); S.projects.unshift(x); S.currentId=x.id; UI.view='survey'; save(); render()},
+  addDemo:()=>{const x=demoProject(); S.projects.unshift(x); S.currentId=x.id; save(); render(); toast('デモ案件を追加しました')},
+  delProject:()=>{const x=S.projects.find(q=>q.id===b.dataset.id); if(!confirm(`「${x.name}」を削除します。元に戻せません。`)) return;
+   S.projects=S.projects.filter(q=>q!==x); if(S.currentId===x.id) S.currentId=S.projects[0]?.id||null; save(); render()},
+  svst:()=>{p.survey[b.dataset.k].st=b.dataset.st; touch(); render()},
+  confirmAi:()=>{p.survey[b.dataset.k].st='ok'; touch(); render()},
+  delPhoto:()=>{const it=p.survey[b.dataset.k]; it.photo=''; it.st='unk'; touch(); render()},
+  zoom:()=>zoom(b.src),
+  zoomsrc:()=>{e.preventDefault(); zoom(p.survey[b.dataset.k].photo)},
+  ai:()=>aiRead(b.dataset.k,b),
+  addCircuit:()=>{const d=curDesign(); d.circuits.push({id:uid(),name:`分岐${d.circuits.filter(c=>c.type!=='main').length+1}`,type:'branch',pcsN:0,method:'ラック',lenM:null,par:1,cableId:'',breakerId:'',route:''}); touch(); render()},
+  delCircuit:()=>{const d=curDesign(); d.circuits.splice(+b.dataset.i,1); touch(); render()},
+  addExisting:()=>{const d=curDesign(); (d.existing=d.existing||[]).push({id:uid(),name:'',action:'残置',ok:false,memo:''}); touch(); render()},
+  delExisting:()=>{curDesign().existing.splice(+b.dataset.i,1); touch(); render()},
+  auto:()=>{const n=autoSelect(curDesign()); touch(); const y=window.scrollY; render(); window.scrollTo(0,y); toast(n?`${n}回路の電線・遮断器を変更しました`:'変更が必要な回路はありませんでした')},
+  adopt:()=>{const d=curDesign(); d.pcsId=b.dataset.pcs; d.pcsQty=+b.dataset.q; if(b.dataset.ser) d.series=+b.dataset.ser;
+   const br=d.circuits.filter(c=>c.type!=='main'); const per=Math.floor(d.pcsQty/br.length); br.forEach((c,i)=>c.pcsN=per+(i<d.pcsQty%br.length?1:0));
+   touch(); render(); toast('PCS構成を採用しました。分岐回路のPCS台数を均等に振り分けています')},
+  dupDesign:()=>{const d=curDesign(); const c=JSON.parse(JSON.stringify(d)); c.id=uid(); c.name=d.name+'（複製）'; c.circuits.forEach(x=>x.id=uid()); p.designs.push(c); p.activeDesign=c.id; touch(); render(); toast('案を複製しました')},
+  delDesign:()=>{if(!confirm('この設計案を削除します。')) return; p.designs=p.designs.filter(x=>x.id!==p.activeDesign); p.activeDesign=p.designs[0].id; touch(); render()},
+  useDesign:()=>{p.activeDesign=b.dataset.id; UI.view='design'; save(); render()},
+  filter:()=>{UI.filter=b.dataset.f2; render()},
+  goto:()=>{const g=b.dataset.go; if(g==='survey'){UI.view='survey';render();window.scrollTo(0,0)} else if(g==='master'){UI.view='master';render()} else {UI.view='design';render();document.getElementById(g)?.scrollIntoView({block:'start'})}},
+  print:()=>window.print(),
+  csv:()=>exportCsv(),
+  approve:()=>approve(),
+  mtab:()=>{UI.mtab=b.dataset.k; render()},
+  addMaster:()=>{const k=UI.mtab, o={id:k+'-'+uid(),src:'',rev:'',by:'',price:0}; MCOLS[k].forEach(([f2,,t])=>{if(!(f2 in o)) o[f2]=t?'新規':0}); S.masters[k].push(o); save(); render()},
+  delMaster:()=>{const k=UI.mtab,i=+b.dataset.i,x=S.masters[k][i]; const used=S.projects.some(p=>p.designs.some(d=>[d.pcsId,d.panelId].includes(x.id)||d.circuits.some(c=>[c.cableId,c.breakerId].includes(x.id))));
+   if(used){toast('設計案で使用中のため削除できません');return} if(!confirm(`「${x.name}」を削除します。`)) return; S.masters[k].splice(i,1); save(); render()},
+  resetSettings:()=>{if(!confirm('判定基準を初期値に戻します。')) return; S.settings=defaultSettings(); save(); render()},
+  export:()=>{const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}); dl(blob,`refort-design_${new Date().toISOString().slice(0,10)}.json`)},
+  import:()=>document.getElementById('importFile').click()
+ };
+ if(A[a]) A[a]();
+});
+function dl(blob,name){const u=URL.createObjectURL(blob),x=document.createElement('a'); x.href=u; x.download=name; document.body.appendChild(x); x.click(); x.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function zoom(src){const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<img src="${src}" alt="拡大画像">`; m.onclick=()=>m.remove(); document.body.appendChild(m)}
+function importData(file){ if(!file) return; const r=new FileReader(); r.onload=()=>{try{const s=JSON.parse(r.result); if(!s.projects||!s.masters) throw 0;
+ if(!confirm('現在のデータを読み込んだデータに置き換えます。')) return; s.settings={...defaultSettings(),...s.settings}; S=s; save(); render(); toast('読み込みました')}catch(e){toast('読み込めませんでした。ReFort DESIGNで書き出したJSONファイルを選んでください')}}; r.readAsText(file)}
+function exportCsv(){const p=cur(),d=curDesign(),q=quantities(p,d);
+ const lines=[['区分','品名','数量','単位','単価','金額','備考'],...q.map(r=>[r.k,r.name,r.q,r.u,r.price||'',r.cost??'',r.note||''])].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(','));
+ dl(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),`数量表_${p.name}_${d.name}.csv`)}
+function approve(){const p=cur(),d=curDesign(),{C}=evaluate(p,d),t=tally(C);
+ const by=document.getElementById('ap_by').value.trim(), cm=document.getElementById('ap_comment').value.trim();
+ if(t.ng){toast('要修正が残っているため承認できません');return} if(!by){toast('承認者を入力してください');return}
+ if(t.unk&&!cm){toast('未確認事項の扱いをコメントに記入してください');return}
+ p.approvals.push({ver:p.approvals.length+1,date:new Date().toISOString(),by,comment:cm,design:d.name,unk:t.unk,snapshot:JSON.parse(JSON.stringify(d))});
+ p.status='承認済み'; touch(); render(); toast(`v${p.approvals.length} を確定しました`)}
+function compress(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file); img.onload=()=>{const max=1280,s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');
+ c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg',0.72))}; img.onerror=rej; img.src=u})}
+
+/* ---------- AI読み取り（社内共通Edge Function経由） ---------- */
+let sb=null;
+function sbClient(){ if(sb) return sb; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){} return sb }
+async function aiRead(key,btn){
+ const p=cur(), it=p.survey[key], def=SURVEY_ITEM[key], targets=def.ai.map(k=>SURVEY_ITEM[k]);
+ const c=sbClient(); let token=null;
+ try{ const {data}=await c.auth.getSession(); token=data?.session?.access_token }catch(e){}
+ if(!token){toast('AI読み取りには社内アカウントでのログインが必要です（社内アプリからログインしてから開いてください）');return}
+ btn.disabled=true; btn.textContent='読み取り中…';
+ const fields=targets.map(t=>`"${t.k}": ${t.l}${t.u?`（単位 ${t.u}、数値のみ）`:''}`).join('\n');
+ const prompt=`この写真は太陽光発電所の「${def.l}」です。写真に明記されている値だけを読み取り、次のキーのJSONで返してください。読めない・写っていない項目は null にしてください。推測で埋めないでください。\n${fields}\nJSONのみを出力し、前置きやコードブロックは付けないでください。`;
+ try{
+  const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SB_KEY},
+   body:JSON.stringify({prompt,system:'あなたは電気設備の銘板を正確に読み取るアシスタントです。JSONのみで答えます。',max_tokens:600,images:[{media_type:'image/jpeg',data:it.photo.split(',')[1]}]})});
+  const data=await r.json(); if(!r.ok) throw new Error(data.error||r.status);
+  const text=typeof data==='string'?data:(data.text||data.result||(data.content||[]).map(x=>x.text||'').join('')||'');
+  const obj=JSON.parse(text.replace(/```json|```/g,'').trim()); let n=0;
+  targets.forEach(t=>{const v=obj[t.k]; if(v!=null&&v!==''){p.survey[t.k].v=String(v); p.survey[t.k].st='ai'; p.survey[t.k].src=key; n++}});
+  touch(); render(); toast(n?`${n}項目を読み取りました。写真と照合して「確認済みにする」を押してください`:'読み取れる値がありませんでした。手入力してください');
+ }catch(e){ btn.disabled=false; btn.textContent='AIで読み取る'; toast('読み取りに失敗しました：'+(e.message||e)) }
+}
+
+render();
+</script>
+</body>
+</html>
