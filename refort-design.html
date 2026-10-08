@@ -127,6 +127,22 @@ table input,table select{padding:4px 6px;font-size:13px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-size:13px}
 .kv dt{color:var(--sub)} .kv dd{margin:0}
 .report h2{border-bottom:2px solid var(--ink);padding-bottom:4px;margin:18px 0 8px}
+/* レイアウト */
+.lay-ed{border:1px solid var(--line);border-radius:var(--r-s);background:#fff;height:min(68vh,720px);touch-action:none;overflow:hidden}
+.lay-ed svg{width:100%;height:100%;display:block;user-select:none}
+.lay-ed.tool-pan svg,.lay-ed.ro svg{cursor:grab}.lay-ed.tool-add svg,.lay-ed.tool-array svg{cursor:crosshair}
+.lay-ed [data-pid]{cursor:move}
+.lg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin:2px 4px 8px;align-items:center}
+.lg span{display:inline-flex;align-items:center;gap:5px}.lg i{width:16px;height:11px;border:1px solid #33475B;display:inline-block}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:800px){.cmp{grid-template-columns:1fr}}
+.lay-view{border:1px solid var(--line);border-radius:var(--r-s);background:#fff}
+.lay-view svg{width:100%;height:auto;display:block}
+#printSheet{display:none}
+@media print{
+  body.printing-sheet > *:not(#printSheet){display:none!important}
+  body.printing-sheet #printSheet{display:block}
+}
 @media print{
   body{background:#fff;color:#000}
   header.top,nav.tabs,.noprint{display:none!important}
@@ -152,7 +168,7 @@ table input,table select{padding:4px 6px;font-size:13px}
 /* =========================================================
    ReFort DESIGN — 第1段階：現調入力＋設計検証
    ========================================================= */
-const APP_VERSION='v2026.10.07';
+const APP_VERSION='v2026.10.08';
 const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
 const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
 const AI_URL=SB_URL+'/functions/v1/ai';
@@ -224,9 +240,9 @@ function defaultMasters(){
    {id:'pcs-d',name:'PCS-D 49.5kW 三相420V（6MPPT）',kw:49.5,acV:420,maxDcV:1100,mpptMin:180,mpptMax:1000,nMppt:6,maxIin:30,maxIsc:45,w:700,h:850,d:320,price:0,...m},
    {id:'pcs-c',name:'PCS-C 9.9kW 三相202V',kw:9.9,acV:202,maxDcV:600,mpptMin:100,mpptMax:550,nMppt:3,maxIin:13,maxIsc:16,w:450,h:550,d:200,price:0,...m}],
   panel:[
-   {id:'pv-550',name:'単結晶 550W',pmax:550,voc:49.6,isc:14.0,vmp:41.6,imp:13.23,tcVoc:-0.27,tcVmp:-0.35,price:0,...m},
-   {id:'pv-410',name:'単結晶 410W',pmax:410,voc:37.5,isc:13.9,vmp:31.4,imp:13.06,tcVoc:-0.28,tcVmp:-0.36,price:0,...m},
-   {id:'pv-250',name:'多結晶 250W（既設想定）',pmax:250,voc:37.6,isc:8.6,vmp:30.4,imp:8.2,tcVoc:-0.33,tcVmp:-0.45,price:0,...m}],
+   {id:'pv-550',name:'単結晶 550W',w:1134,h:2278,pmax:550,voc:49.6,isc:14.0,vmp:41.6,imp:13.23,tcVoc:-0.27,tcVmp:-0.35,price:0,...m},
+   {id:'pv-410',name:'単結晶 410W',w:1134,h:1722,pmax:410,voc:37.5,isc:13.9,vmp:31.4,imp:13.06,tcVoc:-0.28,tcVmp:-0.36,price:0,...m},
+   {id:'pv-250',name:'多結晶 250W（既設想定）',w:992,h:1640,pmax:250,voc:37.6,isc:8.6,vmp:30.4,imp:8.2,tcVoc:-0.33,tcVmp:-0.45,price:0,...m}],
   cable:[
    ['cvt14',14,91,1.31,0.09],['cvt22',22,120,0.84,0.09],['cvt38',38,170,0.491,0.09],['cvt60',60,225,0.311,0.085],
    ['cvt100',100,310,0.187,0.08],['cvt150',150,400,0.124,0.08],['cvt200',200,465,0.0933,0.08],
@@ -246,8 +262,15 @@ function defaultSettings(){return{pf:0.95,dropLimit:2.0,totalDropLimit:3.0,break
 let S=load();
 let UI={view:'projects',filter:'all',mtab:'pcs',designId:null};
 function uid(){return Math.random().toString(36).slice(2,10)}
+const PANEL_DIM={'pv-550':[1134,2278],'pv-410':[1134,1722],'pv-250':[992,1640]};
+function migrate(s){
+ s.settings={...defaultSettings(),...s.settings};
+ (s.masters.panel||[]).forEach(x=>{if(x.w==null||x.h==null){const d=PANEL_DIM[x.id]; x.w=d?d[0]:null; x.h=d?d[1]:null}});
+ (s.projects||[]).forEach(p=>{ if(!p.layoutBefore) p.layoutBefore={panelId:s.masters.panel[0]?.id,panels:[],locked:false,savedAt:null}; if(p.layoutBg===undefined) p.layoutBg=null });
+ return s;
+}
 function load(){
- try{const raw=localStorage.getItem(KEY); if(raw){const s=JSON.parse(raw); s.settings={...defaultSettings(),...s.settings}; return s;}}catch(e){}
+ try{const raw=localStorage.getItem(KEY); if(raw) return migrate(JSON.parse(raw));}catch(e){}
  const s={projects:[],masters:defaultMasters(),settings:defaultSettings(),currentId:null};
  const demo=demoProject(); s.projects.push(demo); s.currentId=demo.id; return s;
 }
@@ -276,7 +299,7 @@ function emptySurvey(){const o={}; Object.keys(SURVEY_ITEM).forEach(k=>o[k]={v:'
 function newProject(name,site,owner){
  const d=newDesign('A案');
  return {id:uid(),name,site:site||'',owner:owner||'',status:'現調済み',created:new Date().toISOString(),updated:new Date().toISOString(),
-  survey:emptySurvey(),designs:[d],activeDesign:d.id,approvals:[]};
+  survey:emptySurvey(),designs:[d],activeDesign:d.id,approvals:[],layoutBefore:emptyLayout('pv-550'),layoutBg:null};
 }
 function demoProject(){
  const p=newProject('デモ：サンプル発電所（高圧・約500kW）','（デモ用の架空案件）','設計担当');
@@ -287,7 +310,7 @@ function demoProject(){
  set('wire_method','ラック／一部管路');set('azimuth',0);set('tilt',10);
  set('temp_min',-10);set('temp_max',40);
  set('shade','南東に樹木。冬季午前に一部影の可能性');set('protect','OVGR・RPR');
- p.status='設計中'; return p;
+ p.layoutBefore=demoLayout(); p.status='設計中'; return p;
 }
 
 /* ---------- 共通 ---------- */
@@ -296,7 +319,7 @@ const f=(n,d=1)=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('ja-JP',{min
 const vtag=v=>`<span class="v ${v}">${VL[v]}</span>`;
 function sv(p,k){const it=p.survey[k]; if(!it||it.st!=='ok') return null; if(SURVEY_ITEM[k].t==='photo') return it.photo?true:null;
  if(it.v===''||it.v==null) return null; if(SURVEY_ITEM[k].t==='num'){const n=parseFloat(it.v); return isNaN(n)?null:n} return it.v}
-function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+function toast(msg){document.querySelectorAll('.toast').forEach(x=>x.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
 function touch(){const p=cur(); if(p) p.updated=new Date().toISOString(); save()}
 
 /* =========================================================
@@ -309,14 +332,15 @@ function dropPct(I,L,cab,par,V,st){
 }
 function evaluate(p,d){
  const st=S.settings,M=S.masters,C=[];
- const add=(o)=>C.push(o);
+ const add=(o)=>C.push(o); syncFromLayout(d);
  const pcs=byId(M.pcs,d.pcsId), pv=byId(M.panel,d.panelId);
  const kva=sv(p,'trafo_kva'), v2=sv(p,'trafo_v2'), tMin=sv(p,'temp_min'), tMax=sv(p,'temp_max');
  const metrics={};
  if(!pcs||!pv){add({g:'電気的な適合',step:'①',title:'機器の選定',v:'unk',val:'PCSまたはパネルが未選択です',basis:'',fix:'①PCS選定で機種を選んでください',go:'s1'}); return {C,metrics}}
  if(pcs.src&&pcs.src.startsWith('サンプル')||pv.src&&pv.src.startsWith('サンプル'))
   add({g:'電気的な適合',step:'①',title:'判定根拠の仕様書',v:'unk',val:'選択中の機器にサンプル値が含まれています',basis:'機器マスターの出典欄',fix:'採用する機種の仕様書を機器マスターに登録し、出典・改訂日・承認者を記入してください',go:'master'});
- const pcsKw=pcs.kw*d.pcsQty, pcsKva=pcsKw/st.pf, pvKw=pv.pmax*d.panelCount/1000, dcac=pvKw/pcsKw;
+ const pcsKw=pcs.kw*d.pcsQty, pcsKva=pcsKw/st.pf, pvKw=d._pvKw??pv.pmax*d.panelCount/1000, dcac=pvKw/pcsKw;
+ if(d._mixed) add({g:'発電性能',step:'①',title:'パネル型式の混在',v:'unk',val:'変更後レイアウトに複数の型式があります（'+Object.entries(d._byType).map(([id,n])=>(byId(M.panel,id)?.name||id)+'×'+n).join('、')+'）',basis:'ストリング検証は最も多い型式で行っています',fix:'型式ごとにストリングとPCSを分けて構成し、異なる型式を同じストリングに混ぜないよう確認してください',go:'s1'});
  Object.assign(metrics,{pcsKw,pvKw,dcac});
 
  // ① トランス容量
@@ -434,7 +458,7 @@ function autoSelect(d){
 }
 function pcsOptions(p,d){
  const st=S.settings,M=S.masters,pv=byId(M.panel,d.panelId); if(!pv) return [];
- const kva=sv(p,'trafo_kva'), v2=sv(p,'trafo_v2'), tMin=sv(p,'temp_min'), pvKw=pv.pmax*d.panelCount/1000;
+ const kva=sv(p,'trafo_kva'), v2=sv(p,'trafo_v2'), tMin=sv(p,'temp_min'); syncFromLayout(d); const pvKw=d._pvKw??pv.pmax*d.panelCount/1000;
  return M.pcs.map(pcs=>{
   const qMin=Math.ceil(pvKw/(pcs.kw*st.dcacMax)), qMax=kva!=null?Math.floor(kva*st.trafoMax*st.pf/pcs.kw):Infinity;
   let q=Math.ceil(pvKw/(pcs.kw*st.dcacTarget)); q=Math.max(q,qMin); if(q>qMax) q=qMax;
@@ -455,7 +479,9 @@ function pcsOptions(p,d){
 /* ---------- 数量表 ---------- */
 function quantities(p,d){
  const st=S.settings,M=S.masters,rows=[],pcs=byId(M.pcs,d.pcsId),pv=byId(M.panel,d.panelId);
- if(pv) rows.push({k:'パネル',name:pv.name,q:d.panelCount,u:'枚',price:pv.price});
+ syncFromLayout(d);
+ if(d._linked) Object.entries(d._byType).forEach(([id,n])=>{const x=byId(M.panel,id); if(x) rows.push({k:'パネル',name:x.name,q:n,u:'枚',price:x.price,note:'変更後レイアウトより'})});
+ else if(pv) rows.push({k:'パネル',name:pv.name,q:d.panelCount,u:'枚',price:pv.price});
  if(pcs) rows.push({k:'PCS',name:pcs.name,q:d.pcsQty,u:'台',price:pcs.price});
  const cab={}; d.circuits.forEach(c=>{const x=byId(M.cable,c.cableId); if(!x||!c.lenM) return; cab[x.id]=(cab[x.id]||0)+c.lenM*Math.max(1,+c.par||1)});
  Object.entries(cab).forEach(([id,m])=>{const x=byId(M.cable,id); rows.push({k:'交流電線',name:x.name,q:Math.ceil(m*(1+st.allowance)),u:'m',price:x.price,note:`実長${f(m,0)}m＋余長${st.allowance*100}%`})});
@@ -505,16 +531,17 @@ function sld(p,d,C){
 /* =========================================================
    画面
    ========================================================= */
-const VIEWS=[['projects','案件一覧'],['survey','現調資料'],['design','設計'],['verify','検証結果'],['compare','案比較'],['output','出力・承認'],['master','機器マスター・基準']];
+const VIEWS=[['projects','案件一覧'],['survey','現調資料'],['layout','レイアウト'],['design','設計'],['verify','検証結果'],['compare','案比較'],['output','出力・承認'],['master','機器マスター・基準']];
 function render(){
  const p=cur();
  document.getElementById('projSel').innerHTML=S.projects.map(x=>`<option value="${x.id}" ${x.id===S.currentId?'selected':''}>${esc(x.name)}</option>`).join('')||'<option>案件なし</option>';
  document.getElementById('tabs').innerHTML=VIEWS.map(([k,l])=>`<button data-act="nav" data-v="${k}" class="${UI.view===k?'on':''}">${l}</button>`).join('');
- const needP=['survey','design','verify','compare','output'].includes(UI.view);
+ const needP=['survey','layout','design','verify','compare','output'].includes(UI.view);
  let h='';
  if(needP&&!p) h=`<div class="sheet empty">案件を選ぶか、案件一覧から新しい案件を作成してください。</div>`;
- else h=({projects:vProjects,survey:vSurvey,design:vDesign,verify:vVerify,compare:vCompare,output:vOutput,master:vMaster})[UI.view](p);
+ else h=({projects:vProjects,survey:vSurvey,layout:vLayout,design:vDesign,verify:vVerify,compare:vCompare,output:vOutput,master:vMaster})[UI.view](p);
  document.getElementById('app').innerHTML=h;
+ if(UI.view==='layout'&&p) bindEditor();
 }
 
 /* ---------- 案件一覧 ---------- */
@@ -583,10 +610,11 @@ function vDesign(p){
 
  const s1=`<div class="grid">${svShow('trafo_kva')}${svShow('trafo_v2')}${svShow('temp_min')}${svShow('temp_max')}</div>
   <div class="grid" style="margin-top:12px">
-   <label class="fld">パネル<select data-f="panelId">${M.panel.map(x=>`<option value="${x.id}" ${x.id===d.panelId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
-   ${num('panelCount','パネル枚数','枚',d.panelCount)}${num('series','直列数','枚',d.series)}
+   <label class="fld">パネル<select data-f="panelId" ${d._linked?'disabled':''}>${M.panel.map(x=>`<option value="${x.id}" ${x.id===d.panelId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+   ${num('panelCount','パネル枚数','枚',d.panelCount,d._linked?'disabled':'')}${num('series','直列数','枚',d.series)}
    <label class="fld">PCS<select data-f="pcsId">${M.pcs.map(x=>`<option value="${x.id}" ${x.id===d.pcsId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
    ${num('pcsQty','PCS台数','台',d.pcsQty)}</div>
+  ${d._linked?`<p class="note">パネルの型式と枚数は、この案の変更後レイアウトから反映しています。変更はレイアウト画面で行ってください。 <button class="btn ghost sm" data-act="nav" data-v="layout">レイアウトを開く</button></p>`:''}
   <p class="muted">パネル ${f(m.pvKw)}kW／PCS ${f(m.pcsKw)}kW／過積載率 ${f(m.dcac,2)}／${m.strings||0}回路・MPPT1入力あたり最大${m.spm||0}回路${pv&&pcs&&sv(p,'temp_min')!=null?`／この組み合わせの最大直列数 ${maxSeries(pv,pcs,sv(p,'temp_min'))}枚`:''}</p>
   <h3 style="margin-top:14px">PCS構成の比較</h3>
   <div class="tw"><table><thead><tr><th>機種</th><th class="n">推奨台数</th><th class="n">過積載率</th><th class="n">トランス負荷</th><th class="n">推奨直列</th><th>判定</th><th>制約・理由</th><th></th></tr></thead><tbody>
@@ -736,7 +764,7 @@ function vOutput(p){
 /* ---------- 機器マスター・基準 ---------- */
 const MCOLS={
  pcs:[['name','機種名','t'],['kw','定格出力kW'],['acV','出力電圧V'],['maxDcV','最大入力電圧V'],['mpptMin','MPPT下限V'],['mpptMax','MPPT上限V'],['nMppt','MPPT数'],['maxIin','入力電流上限A/MPPT'],['maxIsc','短絡電流上限A/MPPT'],['w','幅mm'],['h','高さmm'],['d','奥行mm'],['price','単価円']],
- panel:[['name','型式','t'],['pmax','最大出力W'],['voc','Voc V'],['isc','Isc A'],['vmp','Vmp V'],['imp','Imp A'],['tcVoc','Voc温度係数%/℃'],['tcVmp','Vmp温度係数%/℃'],['price','単価円']],
+ panel:[['name','型式','t'],['w','幅mm'],['h','高さmm'],['pmax','最大出力W'],['voc','Voc V'],['isc','Isc A'],['vmp','Vmp V'],['imp','Imp A'],['tcVoc','Voc温度係数%/℃'],['tcVmp','Vmp温度係数%/℃'],['price','単価円']],
  cable:[['name','品名','t'],['sq','断面積sq'],['amp','許容電流A（気中）'],['r','導体抵抗Ω/km'],['x','リアクタンスΩ/km'],['price','単価円/m']],
  breaker:[['name','品名','t'],['ratedA','定格A'],['w','幅mm'],['h','高さmm'],['d','奥行mm'],['price','単価円']]
 };
@@ -762,6 +790,269 @@ function vMaster(){
 }
 
 /* =========================================================
+   レイアウト（既存／変更後／比較・出力）
+   データ：既存＝p.layoutBefore、変更後＝設計案ごとの d.layoutAfter、背景画像＝p.layoutBg
+   座標はメートル（x右・y下＝北が上）、パネルは中心座標＋回転角
+   ========================================================= */
+const LCOL={same:'#9DB4CC',add:'#2F9E5B',del:'#D0453B',move:'#E0A21B',type:'#6E56CF',sel:'#1D4E89',stroke:'#33475B'};
+const LLABEL={same:'変更なし',add:'追加',del:'削除',move:'移動・回転',type:'型式変更'};
+let ED={tool:'select',sel:new Set(),drag:null,undo:[],key:'',vb:null,showGhost:true};
+function emptyLayout(pid){return {panelId:pid||S.masters.panel[0]?.id,panels:[],locked:false,savedAt:null}}
+function panelOf(L,pnl){return byId(S.masters.panel,pnl.pid||L.panelId)}
+function pdim(L,pnl){const m=panelOf(L,pnl); return {w:(m?.w||1000)/1000,h:(m?.h||1700)/1000}}
+function layoutStats(L){const s={count:0,kw:0,byType:{}}; if(!L) return s;
+ L.panels.forEach(x=>{const m=panelOf(L,x),id=x.pid||L.panelId; s.count++; s.kw+=(m?.pmax||0)/1000; s.byType[id]=(s.byType[id]||0)+1}); return s}
+function syncFromLayout(d){
+ const L=d.layoutAfter; d._linked=!!(L&&L.panels.length); d._pvKw=null; d._mixed=false; if(!d._linked) return;
+ const s=layoutStats(L), dom=Object.entries(s.byType).sort((a,b)=>b[1]-a[1])[0][0];
+ d.panelCount=s.count; d.panelId=dom; d._pvKw=s.kw; d._mixed=Object.keys(s.byType).length>1; d._byType=s.byType;
+}
+function diffLayouts(B,A){
+ const bm=new Map((B?.panels||[]).map(x=>[x.id,x])), am=new Map((A?.panels||[]).map(x=>[x.id,x]));
+ const cat=new Map(), from=new Map(); const n={add:0,del:0,move:0,type:0,same:0};
+ (A?.panels||[]).forEach(a=>{const b=bm.get(a.id); let c;
+  if(!b) c='add'; else{const moved=Math.abs(a.x-b.x)>0.005||Math.abs(a.y-b.y)>0.005||((a.rot||0)-(b.rot||0))%360!==0;
+   const typ=(a.pid||A.panelId)!==(b.pid||B.panelId); c=moved?'move':typ?'type':'same'; if(moved) from.set(a.id,b)}
+  cat.set(a.id,c); n[c]++});
+ const removed=(B?.panels||[]).filter(b=>!am.has(b.id)); n.del=removed.length;
+ return {cat,from,removed,n,bcat:new Map((B?.panels||[]).map(b=>[b.id,!am.has(b.id)?'del':(from.has(b.id)?'move':'same')]))};
+}
+function bboxOf(list){
+ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+ list.forEach(([L,pn])=>{const {w,h}=pdim(L,pn),r=Math.max(w,h)/2; x0=Math.min(x0,pn.x-r);y0=Math.min(y0,pn.y-r);x1=Math.max(x1,pn.x+r);y1=Math.max(y1,pn.y+r)});
+ return x0===Infinity?null:{x0,y0,x1,y1};
+}
+function unionBox(p,d){
+ const list=[]; (p.layoutBefore?.panels||[]).forEach(x=>list.push([p.layoutBefore,x])); (d?.layoutAfter?.panels||[]).forEach(x=>list.push([d.layoutAfter,x]));
+ let b=bboxOf(list); const bg=p.layoutBg;
+ if(bg){b=b||{x0:bg.x,y0:bg.y,x1:bg.x+bg.w,y1:bg.y+bg.h}; b={x0:Math.min(b.x0,bg.x),y0:Math.min(b.y0,bg.y),x1:Math.max(b.x1,bg.x+bg.w),y1:Math.max(b.y1,bg.y+bg.h)}}
+ if(!b) b={x0:0,y0:0,x1:40,y1:24};
+ const m=Math.max(2,(b.x1-b.x0)*0.05); return [b.x0-m,b.y0-m,(b.x1-b.x0)+2*m,(b.y1-b.y0)+2*m];
+}
+function panelShape(L,pn,fill,opt={}){
+ const {w,h}=pdim(L,pn);
+ return `<g transform="translate(${pn.x} ${pn.y}) rotate(${pn.rot||0})"><rect ${opt.attr||''} x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" fill="${fill}" fill-opacity="${opt.op??1}" stroke="${opt.stroke||LCOL.stroke}" stroke-width="${opt.sw||0.025}" ${opt.dash?`stroke-dasharray="${opt.dash}"`:''}/></g>`;
+}
+function bgShape(p,op){const bg=p.layoutBg; return bg?`<image href="${bg.img}" x="${bg.x}" y="${bg.y}" width="${bg.w}" height="${bg.h}" preserveAspectRatio="none" opacity="${op??bg.op??0.5}"/>`:''}
+function gridShape(vb,step=5){let s='';const [x,y,w,h]=vb; for(let gx=Math.ceil(x/step)*step;gx<x+w;gx+=step) s+=`<line x1="${gx}" y1="${y}" x2="${gx}" y2="${y+h}" stroke="#9AA8B4" stroke-opacity=".25" stroke-width="${w/1500}"/>`;
+ for(let gy=Math.ceil(y/step)*step;gy<y+h;gy+=step) s+=`<line x1="${x}" y1="${gy}" x2="${x+w}" y2="${gy}" stroke="#9AA8B4" stroke-opacity=".25" stroke-width="${w/1500}"/>`; return s}
+
+/* 描画：既存側／変更後側（色分けあり） */
+function drawBefore(p,d,diff,opt={}){
+ const B=p.layoutBefore; return B.panels.map(x=>{const c=diff?diff.bcat.get(x.id):'same'; return panelShape(B,x,LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
+}
+function drawAfter(p,d,diff,opt={}){
+ const A=d.layoutAfter, B=p.layoutBefore; let s='';
+ if(opt.ghost!==false) s+=diff.removed.map(x=>panelShape(B,x,LCOL.del,{op:0.15,stroke:LCOL.del,dash:'0.15 0.1',sw:0.04})).join('');
+ s+=A.panels.map(x=>{const c=diff.cat.get(x.id); return panelShape(A,x,LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
+ if(opt.arrows!==false) diff.from.forEach((b,id)=>{const a=A.panels.find(x=>x.id===id); if(a&&(Math.abs(a.x-b.x)>0.3||Math.abs(a.y-b.y)>0.3)) s+=`<line x1="${b.x}" y1="${b.y}" x2="${a.x}" y2="${a.y}" stroke="${LCOL.move}" stroke-width="0.06" stroke-dasharray="0.2 0.12"/>`});
+ return s;
+}
+
+/* ---------- 画面 ---------- */
+function curLayoutKey(p,d){return UI.lmode==='before'?'B:'+p.id:'A:'+d.id}
+function editLayout(p,d){return UI.lmode==='before'?p.layoutBefore:d.layoutAfter}
+function readOnly(p,d){return UI.lmode==='before'?p.layoutBefore.locked:!d.layoutAfter}
+function vLayout(p){
+ UI.lmode=UI.lmode||'before'; const d=curDesign(p), M=S.masters;
+ const key=curLayoutKey(p,d); if(ED.key!==key){ED.key=key;ED.sel=new Set();ED.undo=[];ED.vb=null}
+ const B=p.layoutBefore, A=d.layoutAfter;
+ const modes=`<div class="chips">${[['before','既存レイアウト'],['after','変更後レイアウト'],['compare','比較・出力']].map(([k,l])=>`<button class="${UI.lmode===k?'on':''}" data-act="lmode" data-k="${k}">${l}</button>`).join('')}</div>`;
+ const head=`<h1>レイアウト</h1><p class="lead">既存のパネル配置を保存し、変更後の配置と比べます。変更後レイアウトは設計案ごとに保存され、パネルの型式と枚数は設計①に反映されます。</p>${modes}`;
+ if(UI.lmode==='compare') return head+vLayoutCompare(p,d);
+ let top='';
+ if(UI.lmode==='before'){
+  top=`<div class="sheet bar">${B.locked?`<span class="v ok">確定済み${B.savedAt?'（'+new Date(B.savedAt).toLocaleString('ja-JP')+'）':''}</span><span class="muted">確定済みのため編集できません。</span><button class="btn ghost sm" data-act="unlockBefore">確定を解除して編集する</button>`
+   :`<span class="v unk">編集中</span><span class="muted">配置が終わったら確定してください。確定すると変更後レイアウトの編集で上書きされることはありません。</span><button class="btn sm" data-act="lockBefore" ${B.panels.length?'':'disabled'}>既存レイアウトとして確定</button>`}</div>`;
+ }else{
+  top=designSwitcher(p,d)+`<div class="sheet bar">${A?`<span class="muted">「${esc(d.name)}」の変更後レイアウトです。既存レイアウトとは別に保存されます。</span><button class="btn ghost sm" data-act="recopyAfter">既存から複製し直す</button><button class="btn danger sm" data-act="delAfter">この変更後レイアウトを削除</button>`
+   :`<span class="muted">まだ変更後レイアウトがありません。</span><button class="btn sm" data-act="copyAfter" ${B.panels.length?'':'disabled'}>既存から複製して作成</button>${B.panels.length?'':'<span class="muted">先に既存レイアウトを作成してください。</span>'}`}
+   ${A&&!B.locked?'<span class="v unk">既存レイアウトが未確定です</span>':''}</div>`;
+  if(!A) return head+top;
+ }
+ const L=editLayout(p,d), ro=readOnly(p,d), st=layoutStats(L), sel=[...ED.sel].map(id=>L.panels.find(x=>x.id===id)).filter(Boolean);
+ const tools=[['select','選択・移動'],['add','1枚追加'],['array','まとめて配置'],['pan','表示移動']];
+ const pOpts=(v)=>M.panel.map(x=>`<option value="${x.id}" ${x.id===v?'selected':''}>${esc(x.name)}${x.w&&x.h?'':'（寸法未登録）'}</option>`).join('');
+ const ar=UI.arr||(UI.arr={rows:2,cols:10,orient:'縦',gx:0.02,gy:0.02});
+ const diffNote=UI.lmode==='after'?(()=>{const df=diffLayouts(B,A); return `<div class="lg">${['same','add','move','type'].map(k=>`<span><i style="background:${LCOL[k]}"></i>${LLABEL[k]} ${df.n[k]}</span>`).join('')}<span><i style="background:${LCOL.del};opacity:.35;outline:1px dashed ${LCOL.del}"></i>削除 ${df.n.del}</span></div>`})():'';
+ const side=`<aside class="side"><div class="sheet">
+  <dl class="kv"><dt>枚数</dt><dd><b>${st.count.toLocaleString()}</b> 枚</dd><dt>合計容量</dt><dd><b>${f(st.kw,2)}</b> kW</dd>
+   ${Object.entries(st.byType).map(([id,n])=>`<dt>${esc(byId(M.panel,id)?.name||id)}</dt><dd>${n}枚</dd>`).join('')}</dl>
+  <label class="fld" style="margin-top:10px">このレイアウトの標準パネル<select data-act-change="lpanel" ${ro?'disabled':''}>${pOpts(L.panelId)}</select></label>
+  <p class="muted">型式を個別に変えていないパネルに適用されます。</p>
+  ${ro?'':`<h3 style="margin-top:14px">選択中 ${sel.length}枚</h3>
+  ${sel.length?`<div class="bar"><button class="btn ghost sm" data-act="lrot" data-deg="90">90°回転</button><button class="btn ghost sm" data-act="lrot" data-deg="-15">−15°</button><button class="btn ghost sm" data-act="lrot" data-deg="15">＋15°</button><button class="btn danger sm" data-act="ldel">削除</button></div>
+   <label class="fld" style="margin-top:8px">型式を変更<select data-act-change="lselpanel"><option value="">選択</option>${pOpts('')}</select></label>
+   ${sel.length===1?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr 1fr 1fr"><label class="fld">X(m)<input type="number" step="0.05" data-act-change="lxy" data-k="x" value="${f(sel[0].x,2).replace(/,/g,'')}"></label><label class="fld">Y(m)<input type="number" step="0.05" data-act-change="lxy" data-k="y" value="${f(sel[0].y,2).replace(/,/g,'')}"></label><label class="fld">角度°<input type="number" step="1" data-act-change="lxy" data-k="rot" value="${sel[0].rot||0}"></label></div>`:''}`:'<p class="muted">パネルをクリック（Shift＋クリックで追加選択）、または空いている所をドラッグして範囲選択します。</p>'}
+  <h3 style="margin-top:14px">まとめて配置の設定</h3>
+  <div class="grid" style="grid-template-columns:1fr 1fr"><label class="fld">段（縦）<input type="number" min="1" data-arr="rows" value="${ar.rows}"></label><label class="fld">列（横）<input type="number" min="1" data-arr="cols" value="${ar.cols}"></label>
+   <label class="fld">向き<select data-arr="orient">${['縦','横'].map(o=>`<option ${ar.orient===o?'selected':''}>${o}</option>`).join('')}</select></label><label class="fld">すき間(m)<input type="number" step="0.01" data-arr="gx" value="${ar.gx}"></label></div>
+  <p class="muted">「まとめて配置」を選び、図の上をクリックした位置を左上にして配置します。</p>`}
+  <h3 style="margin-top:14px">背景画像（既存図面・ドローン写真）</h3>
+  ${p.layoutBg?`<div class="grid" style="grid-template-columns:1fr 1fr"><label class="fld">実寸の幅(m)<input type="number" step="0.1" data-act-change="bgw" value="${f(p.layoutBg.w,1).replace(/,/g,'')}"></label><label class="fld">濃さ<input type="number" step="0.1" min="0" max="1" data-act-change="bgop" value="${p.layoutBg.op??0.5}"></label></div>
+   <div class="bar" style="margin-top:6px"><button class="btn danger sm" data-act="bgdel">背景を削除</button></div>`
+   :`<label class="btn ghost sm" style="cursor:pointer;display:inline-block">背景画像を読み込む<input type="file" accept="image/*" data-bg="1" hidden></label>`}
+  <p class="muted">背景は既存・変更後・比較で共通です。図面の縮尺に合わせて実寸の幅を入力してください。</p>
+ </div></aside>`;
+ const toolbar=`<div class="sheet bar noprint" style="position:sticky;top:96px;z-index:5">
+  ${ro?'<span class="muted">閲覧のみ</span>':`<div class="seg">${tools.map(([k,l])=>`<button class="${ED.tool===k?'on ok':''}" data-act="ltool" data-k="${k}">${l}</button>`).join('')}</div>
+  <button class="btn ghost sm" data-act="lundo" ${ED.undo.length?'':'disabled'}>元に戻す</button>`}
+  <button class="btn ghost sm" data-act="lfit">全体表示</button><button class="btn ghost sm" data-act="lzoom" data-z="0.8">拡大</button><button class="btn ghost sm" data-act="lzoom" data-z="1.25">縮小</button>
+  ${UI.lmode==='after'?`<label class="muted"><input type="checkbox" data-act-change="lghost" ${ED.showGhost?'checked':''}> 削除したパネルを薄く表示</label>`:''}
+  <span class="muted">Delete：削除　R：回転　矢印：0.05m移動（Shiftで0.5m）　Ctrl+Z：元に戻す</span></div>`;
+ return head+top+toolbar+`<div class="cols"><div><div class="sheet" style="padding:6px">${diffNote}<div id="layEd" class="lay-ed ${ro?'ro':''} tool-${ED.tool}"><svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg></div></div></div>${side}</div>`;
+}
+function editorInner(p,d){
+ const vb=ED.vb||(ED.vb=unionBox(p,d)), L=editLayout(p,d); let s=bgShape(p)+gridShape(vb);
+ if(UI.lmode==='before') s+=drawBefore(p,d,null,{edit:true,sel:ED.sel});
+ else s+=drawAfter(p,d,diffLayouts(p.layoutBefore,L),{edit:true,sel:ED.sel,ghost:ED.showGhost});
+ if(ED.drag&&ED.drag.type==='marquee'){const m=ED.drag,x=Math.min(m.x0,m.x1),y=Math.min(m.y0,m.y1); s+=`<rect x="${x}" y="${y}" width="${Math.abs(m.x1-m.x0)}" height="${Math.abs(m.y1-m.y0)}" fill="${LCOL.sel}" fill-opacity=".1" stroke="${LCOL.sel}" stroke-width="${vb[2]/600}"/>`}
+ s+=northArrow(vb);
+ return s;
+}
+function northArrow(vb){const [x,y,w]=vb,u=w/40,cx=x+w-u*1.6,cy=y+u*1.8;
+ return `<g><path d="M${cx} ${cy-u} L${cx+u*0.5} ${cy+u*0.6} L${cx} ${cy+u*0.25} L${cx-u*0.5} ${cy+u*0.6} Z" fill="#33475B"/><text x="${cx}" y="${cy-u*1.15}" text-anchor="middle" font-size="${u*0.8}" fill="#33475B">N</text></g>`}
+function redrawEditor(){const p=cur(),d=curDesign(p),svg=document.querySelector('#layEd svg'); if(!svg) return; if(!ED.vb) ED.vb=unionBox(p,d); svg.setAttribute('viewBox',ED.vb.join(' ')); svg.innerHTML=editorInner(p,d)}
+function svgPt(svg,e){const pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse())}
+const snap=v=>Math.round(v/0.05)*0.05;
+function pushUndo(L){ED.undo.push(JSON.stringify(L.panels)); if(ED.undo.length>60) ED.undo.shift()}
+function bindEditor(){
+ const svg=document.querySelector('#layEd svg'); if(!svg) return; const p=cur(),d=curDesign(p); redrawEditor();
+ const L=editLayout(p,d), ro=readOnly(p,d);
+ svg.addEventListener('wheel',e=>{e.preventDefault(); const z=e.deltaY>0?1.15:1/1.15, pt=svgPt(svg,e), [x,y,w,h]=ED.vb; ED.vb=[pt.x-(pt.x-x)*z,pt.y-(pt.y-y)*z,w*z,h*z]; redrawEditor()},{passive:false});
+ svg.addEventListener('pointerdown',e=>{
+  const pt=svgPt(svg,e), hit=e.target.closest('[data-pid]');
+  if(ED.tool==='pan'||e.button===1||ro&&!hit){ED.drag={type:'pan',cx:e.clientX,cy:e.clientY,vb:[...ED.vb],k:ED.vb[2]/svg.clientWidth}; svg.setPointerCapture(e.pointerId); return}
+  if(ro) return;
+  if(ED.tool==='add'){pushUndo(L); const id=uid(); L.panels.push({id,x:snap(pt.x),y:snap(pt.y),rot:0}); ED.sel=new Set([id]); layoutChanged(); return}
+  if(ED.tool==='array'){placeArray(L,pt); return}
+  if(hit){const id=hit.dataset.pid;
+   if(e.shiftKey){ED.sel.has(id)?ED.sel.delete(id):ED.sel.add(id)} else if(!ED.sel.has(id)) ED.sel=new Set([id]);
+   pushUndo(L); ED.drag={type:'move',x0:pt.x,y0:pt.y,orig:new Map(L.panels.filter(x=>ED.sel.has(x.id)).map(x=>[x.id,{x:x.x,y:x.y}])),moved:false};
+  }else{ if(!e.shiftKey) ED.sel=new Set(); ED.drag={type:'marquee',x0:pt.x,y0:pt.y,x1:pt.x,y1:pt.y,add:e.shiftKey} }
+  svg.setPointerCapture(e.pointerId); redrawEditor();
+ });
+ svg.addEventListener('pointermove',e=>{const g=ED.drag; if(!g) return;
+  if(g.type==='pan'){ED.vb=[g.vb[0]-(e.clientX-g.cx)*g.k,g.vb[1]-(e.clientY-g.cy)*g.k,g.vb[2],g.vb[3]]; redrawEditor(); return}
+  const pt=svgPt(svg,e);
+  if(g.type==='move'){const dx=snap(pt.x-g.x0),dy=snap(pt.y-g.y0); if(dx||dy) g.moved=true; L.panels.forEach(x=>{const o=g.orig.get(x.id); if(o){x.x=+(o.x+dx).toFixed(3);x.y=+(o.y+dy).toFixed(3)}}); redrawEditor()}
+  if(g.type==='marquee'){g.x1=pt.x;g.y1=pt.y; redrawEditor()}
+ });
+ svg.addEventListener('pointerup',()=>{const g=ED.drag; ED.drag=null; if(!g) return;
+  if(g.type==='move'){ if(!g.moved) ED.undo.pop(); layoutChanged(); return }
+  if(g.type==='marquee'){const x0=Math.min(g.x0,g.x1),x1=Math.max(g.x0,g.x1),y0=Math.min(g.y0,g.y1),y1=Math.max(g.y0,g.y1);
+   if(x1-x0>0.05||y1-y0>0.05) L.panels.forEach(x=>{if(x.x>=x0&&x.x<=x1&&x.y>=y0&&x.y<=y1) ED.sel.add(x.id)}); render(); return}
+  redrawEditor();
+ });
+}
+function placeArray(L,pt){
+ const a=UI.arr, m=byId(S.masters.panel,L.panelId); if(!m){toast('標準パネルを選んでください');return}
+ const pw=(m.w||1000)/1000, ph=(m.h||1700)/1000, rot=a.orient==='横'?90:0, cw=rot?ph:pw, chh=rot?pw:ph, g=+a.gx||0;
+ const rows=Math.max(1,+a.rows|0), cols=Math.max(1,+a.cols|0); if(rows*cols>3000){toast('一度に配置できるのは3,000枚までです');return}
+ pushUndo(L); const ids=new Set();
+ for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){const id=uid(); ids.add(id); L.panels.push({id,x:+(snap(pt.x)+cw/2+c*(cw+g)).toFixed(3),y:+(snap(pt.y)+chh/2+r*(chh+g)).toFixed(3),rot})}
+ ED.sel=ids; layoutChanged(); toast(`${rows*cols}枚を配置しました`);
+}
+function layoutChanged(){const p=cur(),d=curDesign(p); const L=editLayout(p,d); if(L) L.savedAt=new Date().toISOString(); touch(); render()}
+function layoutKey(e){
+ if(UI.view!=='layout'||UI.lmode==='compare') return; if(e.target.closest('input,select,textarea')) return;
+ const p=cur(),d=curDesign(p); if(!p||readOnly(p,d)) return; const L=editLayout(p,d);
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault(); return layoutAct('lundo')}
+ if(!ED.sel.size) return;
+ if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault(); return layoutAct('ldel')}
+ if(e.key==='r'||e.key==='R'){e.preventDefault(); return layoutAct('lrot',90)}
+ const st=e.shiftKey?0.5:0.05, mv={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+ if(mv){e.preventDefault(); pushUndo(L); L.panels.forEach(x=>{if(ED.sel.has(x.id)){x.x=+(x.x+mv[0]).toFixed(3);x.y=+(x.y+mv[1]).toFixed(3)}}); clearTimeout(ED.kt); redrawEditor(); ED.kt=setTimeout(layoutChanged,400)}
+}
+function layoutAct(a,arg){
+ const p=cur(),d=curDesign(p),L=editLayout(p,d);
+ if(a==='lundo'){const s=ED.undo.pop(); if(s){L.panels=JSON.parse(s); ED.sel=new Set([...ED.sel].filter(id=>L.panels.some(x=>x.id===id))); layoutChanged()} return}
+ if(a==='ldel'){if(!ED.sel.size) return; pushUndo(L); const n=ED.sel.size; L.panels=L.panels.filter(x=>!ED.sel.has(x.id)); ED.sel=new Set(); layoutChanged(); toast(`${n}枚を削除しました`); return}
+ if(a==='lrot'){if(!ED.sel.size) return; pushUndo(L); const deg=+arg;
+  const sel=L.panels.filter(x=>ED.sel.has(x.id)), cx=sel.reduce((s,x)=>s+x.x,0)/sel.length, cy=sel.reduce((s,x)=>s+x.y,0)/sel.length, r=deg*Math.PI/180;
+  sel.forEach(x=>{ if(sel.length>1){const dx=x.x-cx,dy=x.y-cy; x.x=+(cx+dx*Math.cos(r)-dy*Math.sin(r)).toFixed(3); x.y=+(cy+dx*Math.sin(r)+dy*Math.cos(r)).toFixed(3)} x.rot=(((x.rot||0)+deg)%360+360)%360 });
+  layoutChanged(); return}
+}
+
+/* ---------- 比較・出力 ---------- */
+function vLayoutCompare(p,d){
+ const B=p.layoutBefore, A=d.layoutAfter, M=S.masters;
+ const sw=designSwitcher(p,d);
+ if(!B.panels.length) return sw+`<div class="sheet empty">既存レイアウトがまだありません。「既存レイアウト」で作成してください。</div>`;
+ const df=A?diffLayouts(B,A):null, sb=layoutStats(B), sa=layoutStats(A), vb=unionBox(p,d);
+ const svgB=`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${drawBefore(p,d,df)}${northArrow(vb)}</svg>`;
+ const svgA=A?`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${drawAfter(p,d,df)}${northArrow(vb)}</svg>`:'<div class="empty">この設計案には変更後レイアウトがありません。</div>';
+ const diffRow=(a,b,u,dg)=>{const x=a-b; return `${x>0?'＋':x<0?'−':'±'}${f(Math.abs(x),dg)}${u}`};
+ return sw+`<div class="sheet"><div class="lg">${['same','add','del','move','type'].map(k=>`<span><i style="background:${LCOL[k]}"></i>${LLABEL[k]}</span>`).join('')}<span class="muted">既存側：削除・移動するパネルを色分け／変更後側：削除したパネルは点線で表示</span></div>
+  <div class="cmp"><div><h3>既存レイアウト${B.locked?'':'（未確定）'}</h3><div class="lay-view">${svgB}</div></div><div><h3>変更後レイアウト（${esc(d.name)}）</h3><div class="lay-view">${svgA}</div></div></div>
+  <div class="tw" style="margin-top:12px"><table><thead><tr><th></th><th class="n">既存</th><th class="n">変更後</th><th class="n">差</th></tr></thead><tbody>
+   <tr><th>パネル枚数</th><td class="n">${sb.count.toLocaleString()}枚</td><td class="n">${A?sa.count.toLocaleString()+'枚':'—'}</td><td class="n">${A?diffRow(sa.count,sb.count,'枚',0):'—'}</td></tr>
+   <tr><th>合計容量</th><td class="n">${f(sb.kw,2)}kW</td><td class="n">${A?f(sa.kw,2)+'kW':'—'}</td><td class="n">${A?diffRow(sa.kw,sb.kw,'kW',2):'—'}</td></tr>
+   ${A?`<tr><th>内訳</th><td class="n" colspan="3">追加 ${df.n.add}枚／削除 ${df.n.del}枚／移動・回転 ${df.n.move}枚／型式変更 ${df.n.type}枚／変更なし ${df.n.same}枚</td></tr>`:''}
+  </tbody></table></div>
+  <p class="note">容量は機器マスターに登録されたパネルの定格出力から計算しています。</p></div>
+ <div class="sheet"><h2>出力</h2><p class="muted">出力には案件名・図面タイトル・作成日（出力した日）を記載します。PDFは印刷画面から「PDFに保存」を選んでください（A3横）。</p>
+  <div class="tw"><table><tbody>
+  ${[['before','既存レイアウト図'],['after','変更後レイアウト図'],['compare','変更前後比較図']].map(([k,l])=>`<tr><th>${l}</th><td><button class="btn ghost sm" data-act="lout" data-k="${k}" data-fmt="png" ${k!=='before'&&!A?'disabled':''}>画像（PNG）</button> <button class="btn ghost sm" data-act="lout" data-k="${k}" data-fmt="pdf" ${k!=='before'&&!A?'disabled':''}>PDF</button></td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+/* 出力用シート（A3横比率・色は固定値） */
+function sheetSvg(p,d,kind){
+ const W=1680,H=1188,B=p.layoutBefore,A=d.layoutAfter,df=A?diffLayouts(B,A):null,vb=unionBox(p,d),M=S.masters;
+ const title={before:'既存レイアウト図',after:`変更後レイアウト図（${d.name}）`,compare:`変更前後比較図（${d.name}）`}[kind];
+ const today=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+ const pad=40, top=110, bottom=190, areas=kind==='compare'?2:1, gap=30, aw=(W-pad*2-gap*(areas-1))/areas, ah=H-top-bottom;
+ const sc=Math.min(aw/vb[2],ah/vb[3]);
+ const tx=t=>esc(t);
+ let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="'IBM Plex Sans JP','Hiragino Sans','Yu Gothic',Meiryo,sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>`;
+ s+=`<rect x="20" y="20" width="${W-40}" height="${H-40}" fill="none" stroke="#16212C" stroke-width="2"/>`;
+ s+=`<text x="${pad}" y="70" font-size="30" font-weight="700" fill="#16212C">${tx(title)}</text>`;
+ s+=`<text x="${W-pad}" y="56" font-size="18" text-anchor="end" fill="#16212C">案件名：${tx(p.name)}</text><text x="${W-pad}" y="84" font-size="16" text-anchor="end" fill="#56636F">作成日：${today}</text>`;
+ s+=`<line x1="20" y1="${top-14}" x2="${W-20}" y2="${top-14}" stroke="#16212C"/>`;
+ const area=(i,label,inner)=>{const ax=pad+i*(aw+gap), w=vb[2]*sc, h=vb[3]*sc, ox=ax+(aw-w)/2, oy=top+(ah-h)/2;
+  return `${label?`<text x="${ax}" y="${top+8}" font-size="18" font-weight="700" fill="#16212C">${tx(label)}</text>`:''}<rect x="${ox}" y="${oy}" width="${w}" height="${h}" fill="none" stroke="#C7D0D7"/>
+   <g transform="translate(${ox} ${oy}) scale(${sc}) translate(${-vb[0]} ${-vb[1]})">${bgShape(p)}${gridShape(vb)}${inner}${northArrow(vb)}</g>`};
+ if(kind==='before') s+=area(0,'',drawBefore(p,d,null));
+ if(kind==='after') s+=area(0,'',drawAfter(p,d,df));
+ if(kind==='compare'){s+=area(0,'既存',drawBefore(p,d,df)); s+=area(1,'変更後',drawAfter(p,d,df))}
+ // 縮尺バー
+ const nice=[1,2,5,10,20,50,100,200].find(m=>m*sc>=120)||200, by=H-bottom+40;
+ s+=`<g><line x1="${pad}" y1="${by}" x2="${pad+nice*sc}" y2="${by}" stroke="#16212C" stroke-width="3"/><line x1="${pad}" y1="${by-6}" x2="${pad}" y2="${by+6}" stroke="#16212C" stroke-width="2"/><line x1="${pad+nice*sc}" y1="${by-6}" x2="${pad+nice*sc}" y2="${by+6}" stroke="#16212C" stroke-width="2"/><text x="${pad}" y="${by+26}" font-size="14" fill="#16212C">${nice} m</text></g>`;
+ // 凡例・集計
+ const sb=layoutStats(B), sa=layoutStats(A), ly=H-bottom+90;
+ const keys=kind==='before'?['same']:kind==='after'?['same','add','move','type','del']:['same','add','del','move','type'];
+ if(kind!=='before') s+=keys.map((k,i)=>`<rect x="${pad+i*150}" y="${ly-14}" width="22" height="16" fill="${LCOL[k]}" ${k==='del'&&kind==='after'?'fill-opacity=".2" stroke="'+LCOL.del+'" stroke-dasharray="4 3"':''}/><text x="${pad+i*150+30}" y="${ly}" font-size="15" fill="#16212C">${LLABEL[k]}</text>`).join('');
+ const line=(t,i)=>`<text x="${W-pad}" y="${H-bottom+50+i*28}" font-size="16" text-anchor="end" fill="#16212C">${tx(t)}</text>`;
+ const typeTxt=st=>Object.entries(st.byType).map(([id,n])=>`${byId(M.panel,id)?.name||id}×${n}`).join('、');
+ const sign=(x,dg)=>(x>0?'＋':x<0?'−':'±')+f(Math.abs(x),dg);
+ if(kind==='before') [ `パネル ${sb.count.toLocaleString()}枚　合計 ${f(sb.kw,2)}kW`, typeTxt(sb) ].forEach((t,i)=>s+=line(t,i));
+ if(kind==='after') [ `パネル ${sa.count.toLocaleString()}枚　合計 ${f(sa.kw,2)}kW`, typeTxt(sa), `追加${df.n.add}／削除${df.n.del}／移動・回転${df.n.move}／型式変更${df.n.type}（枚）` ].forEach((t,i)=>s+=line(t,i));
+ if(kind==='compare') [ `既存 ${sb.count.toLocaleString()}枚・${f(sb.kw,2)}kW　→　変更後 ${sa.count.toLocaleString()}枚・${f(sa.kw,2)}kW`, `差　${sign(sa.count-sb.count,0)}枚　${sign(sa.kw-sb.kw,2)}kW`, `追加${df.n.add}／削除${df.n.del}／移動・回転${df.n.move}／型式変更${df.n.type}（枚）` ].forEach((t,i)=>s+=line(t,i));
+ s+=`<text x="${W-pad}" y="${H-32}" font-size="12" text-anchor="end" fill="#56636F">ReFort DESIGN　容量は機器マスター登録の定格出力から算出</text>`;
+ return s+'</svg>';
+}
+function layoutOutput(kind,fmt){
+ const p=cur(),d=curDesign(p), svg=sheetSvg(p,d,kind);
+ const title={before:'既存レイアウト図',after:'変更後レイアウト図_'+d.name,compare:'変更前後比較図_'+d.name}[kind]+'_'+p.name;
+ if(fmt==='png'){const img=new Image(); img.onload=()=>{const c=document.createElement('canvas'); c.width=img.width*2; c.height=img.height*2; const g=c.getContext('2d'); g.scale(2,2); g.drawImage(img,0,0);
+   c.toBlob(b=>{if(b) dl(b,title+'.png'); else toast('画像を作成できませんでした')},'image/png')};
+  img.onerror=()=>toast('画像を作成できませんでした'); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); return}
+ let box=document.getElementById('printSheet'); if(!box){box=document.createElement('div'); box.id='printSheet'; document.body.appendChild(box)}
+ box.innerHTML=svg.replace('<svg ','<svg style="width:100%;height:auto" ');
+ const stl=document.createElement('style'); stl.id='pageA3'; stl.textContent='@page{size:A3 landscape;margin:8mm}'; document.head.appendChild(stl);
+ const old=document.title; document.title=title; document.body.classList.add('printing-sheet');
+ const done=()=>{document.body.classList.remove('printing-sheet'); stl.remove(); box.innerHTML=''; document.title=old; window.removeEventListener('afterprint',done)};
+ window.addEventListener('afterprint',done); setTimeout(()=>window.print(),50);
+}
+function loadBg(file){compress(file).then(url=>{const img=new Image(); img.onload=()=>{const p=cur(); const w=60; p.layoutBg={img:url,x:0,y:0,w,h:w*img.height/img.width,op:0.5}; ED.vb=null; touch(); render(); toast('背景画像を読み込みました。実寸の幅を入力してください')}; img.src=url})}
+function demoLayout(){
+ const L=emptyLayout('pv-250'); const pw=0.992,ph=1.64,g=0.02;
+ for(let r=0;r<10;r++) for(let row=0;row<4;row++) for(let c=0;c<50;c++)
+  L.panels.push({id:uid(),x:+(2+ph/2+c*(ph+g)).toFixed(3),y:+(2+pw/2+r*6.5+row*(pw+g)).toFixed(3),rot:90});
+ return L;
+}
+
+/* =========================================================
    操作
    ========================================================= */
 function setPath(obj,path,val){const ks=path.split('.'); let o=obj; for(let i=0;i<ks.length-1;i++) o=o[ks[i]]; o[ks[ks.length-1]]=val}
@@ -771,6 +1062,18 @@ document.addEventListener('change',async e=>{
  const el=e.target;
  if(el.id==='projSel'){S.currentId=el.value;save();render();return}
  if(el.id==='importFile'){return importData(el.files[0])}
+ if(el.dataset.bg){if(el.files[0]) loadBg(el.files[0]); return}
+ if(el.dataset.arr){UI.arr[el.dataset.arr]=el.dataset.arr==='orient'?el.value:parseFloat(el.value)||0; return}
+ const lc=el.dataset.actChange;
+ if(['lpanel','lselpanel','lxy','bgw','bgop','lghost'].includes(lc)){const p=cur(),d=curDesign(p),Lx=editLayout(p,d);
+  if(lc==='lghost'){ED.showGhost=el.checked; redrawEditor(); return}
+  if(lc==='bgw'){const bg=p.layoutBg,v=parseFloat(el.value); if(v>0){bg.h=bg.h*v/bg.w; bg.w=v; ED.vb=null}}
+  if(lc==='bgop'){p.layoutBg.op=Math.min(1,Math.max(0,parseFloat(el.value)||0))}
+  if(lc==='lpanel'){pushUndo(Lx); Lx.panelId=el.value}
+  if(lc==='lselpanel'&&el.value){pushUndo(Lx); Lx.panels.forEach(x=>{if(ED.sel.has(x.id)){if(el.value===Lx.panelId) delete x.pid; else x.pid=el.value}})}
+  if(lc==='lxy'){const x=Lx.panels.find(q=>ED.sel.has(q.id)),v=parseFloat(el.value); if(x&&!isNaN(v)){pushUndo(Lx); x[el.dataset.k]=el.dataset.k==='rot'?((v%360)+360)%360:v}}
+  if(lc!=='bgw'&&lc!=='bgop') Lx.savedAt=new Date().toISOString();
+  touch(); render(); return}
  if(el.dataset.photo){const file=el.files[0]; if(!file) return; const p=cur(),it=p.survey[el.dataset.photo];
   it.photo=await compress(file); it.st='ok'; touch(); render(); toast('写真を追加しました'); return}
  if(el.dataset.sv){const p=cur(),it=p.survey[el.dataset.sv]; it.v=el.value; it.src='';
@@ -783,6 +1086,7 @@ document.addEventListener('change',async e=>{
   const y=window.scrollY; render(); window.scrollTo(0,y);
  }
 });
+document.addEventListener('keydown',layoutKey);
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]'); if(!b||b.tagName==='SELECT') return;
  const a=b.dataset.act, p=cur();
@@ -814,6 +1118,18 @@ document.addEventListener('click',e=>{
   filter:()=>{UI.filter=b.dataset.f2; render()},
   goto:()=>{const g=b.dataset.go; if(g==='survey'){UI.view='survey';render();window.scrollTo(0,0)} else if(g==='master'){UI.view='master';render()} else {UI.view='design';render();document.getElementById(g)?.scrollIntoView({block:'start'})}},
   print:()=>window.print(),
+  lmode:()=>{UI.lmode=b.dataset.k; render()},
+  lockBefore:()=>{const B=p.layoutBefore; B.locked=true; B.savedAt=new Date().toISOString(); touch(); render(); toast('既存レイアウトとして確定しました')},
+  unlockBefore:()=>{if(!confirm('既存レイアウトの確定を解除します。編集すると、変更後レイアウトとの比較結果も変わります。')) return; p.layoutBefore.locked=false; touch(); render()},
+  copyAfter:()=>{const d=curDesign(); d.layoutAfter=JSON.parse(JSON.stringify(p.layoutBefore)); d.layoutAfter.locked=false; d.layoutAfter.savedAt=new Date().toISOString(); ED.key=''; touch(); render(); toast('既存レイアウトを複製しました')},
+  recopyAfter:()=>{if(!confirm('変更後レイアウトを、既存レイアウトの複製で置き換えます。今の変更後レイアウトは失われます。')) return; A.copyAfter()},
+  delAfter:()=>{if(!confirm('この設計案の変更後レイアウトを削除します。設計①のパネルは手入力に戻ります。')) return; delete curDesign().layoutAfter; touch(); render()},
+  ltool:()=>{ED.tool=b.dataset.k; render()},
+  lundo:()=>layoutAct('lundo'), ldel:()=>layoutAct('ldel'), lrot:()=>layoutAct('lrot',b.dataset.deg),
+  lfit:()=>{ED.vb=null; redrawEditor()},
+  lzoom:()=>{const z=+b.dataset.z,[x,y,w,h]=ED.vb; ED.vb=[x+w*(1-z)/2,y+h*(1-z)/2,w*z,h*z]; redrawEditor()},
+  bgdel:()=>{if(!confirm('背景画像を削除します。')) return; p.layoutBg=null; ED.vb=null; touch(); render()},
+  lout:()=>layoutOutput(b.dataset.k,b.dataset.fmt),
   csv:()=>exportCsv(),
   approve:()=>approve(),
   mtab:()=>{UI.mtab=b.dataset.k; render()},
@@ -829,7 +1145,7 @@ document.addEventListener('click',e=>{
 function dl(blob,name){const u=URL.createObjectURL(blob),x=document.createElement('a'); x.href=u; x.download=name; document.body.appendChild(x); x.click(); x.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function zoom(src){const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<img src="${src}" alt="拡大画像">`; m.onclick=()=>m.remove(); document.body.appendChild(m)}
 function importData(file){ if(!file) return; const r=new FileReader(); r.onload=()=>{try{const s=JSON.parse(r.result); if(!s.projects||!s.masters) throw 0;
- if(!confirm('現在のデータを読み込んだデータに置き換えます。')) return; s.settings={...defaultSettings(),...s.settings}; S=s; save(); render(); toast('読み込みました')}catch(e){toast('読み込めませんでした。ReFort DESIGNで書き出したJSONファイルを選んでください')}}; r.readAsText(file)}
+ if(!confirm('現在のデータを読み込んだデータに置き換えます。')) return; S=migrate(s); save(); render(); toast('読み込みました')}catch(e){toast('読み込めませんでした。ReFort DESIGNで書き出したJSONファイルを選んでください')}}; r.readAsText(file)}
 function exportCsv(){const p=cur(),d=curDesign(),q=quantities(p,d);
  const lines=[['区分','品名','数量','単位','単価','金額','備考'],...q.map(r=>[r.k,r.name,r.q,r.u,r.price||'',r.cost??'',r.note||''])].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(','));
  dl(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),`数量表_${p.name}_${d.name}.csv`)}
