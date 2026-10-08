@@ -236,6 +236,37 @@ table.num th.cur{background:#E7EEF9;color:var(--ai)}
   input.search{width:140px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== 社長コメント（AI） v1.4 ===== */
+.pc-trig{margin-top:10px;background:none;border:1px solid var(--rule);border-radius:var(--r);padding:3px 10px;font-size:11px;color:var(--ai);white-space:nowrap}
+.pc-trig:hover{border-color:var(--ai);background:var(--ai-soft)}
+.pc-trig[disabled]{opacity:.5;cursor:wait}
+.rrow>.pc-row{grid-column:1/-1;border-top:1px dashed var(--rule-2);border-left:0;background:#F7F9FD;padding:12px 14px 12px 164px;position:relative;white-space:normal}
+.pc-row::before{content:"社長";position:absolute;left:14px;top:12px;font-size:10.5px;font-weight:700;color:#fff;background:var(--ai);padding:1px 8px;border-radius:2px;letter-spacing:.1em}
+.pc-row textarea{width:100%;min-height:72px;border:1px solid var(--rule-2);border-radius:var(--r);background:#fff;padding:8px 10px;font-size:12.5px;line-height:1.75;resize:vertical}
+.pc-row textarea:focus{outline:none;border-color:var(--ai)}
+.pc-acts{display:flex;gap:8px;margin-top:6px;align-items:center;font-size:11px;color:var(--ink-3)}
+.pc-acts button{background:none;border:0;padding:0;font-size:11px;color:var(--ai);text-decoration:underline;text-underline-offset:2px}
+.pc-acts button.del{color:var(--ink-3)}
+.pc-box{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--ai);border-radius:var(--r);padding:18px 20px}
+.pc-grid{display:grid;grid-template-columns:300px 1fr;gap:20px}
+.pc-lab{font-size:11px;color:var(--ink-3);letter-spacing:.08em;margin:0 0 6px}
+.pc-tones{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.pc-tone{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--rule-2);border-radius:var(--r);padding:8px 10px;cursor:pointer;font-size:12.5px;line-height:1.5}
+.pc-tone input{margin-top:3px;accent-color:var(--ai)}
+.pc-tone small{display:block;color:var(--ink-3);font-size:11px}
+.pc-tone.on{border-color:var(--ai);background:var(--ai-soft)}
+.pc-memo{width:100%;min-height:96px;border:1px solid var(--rule);border-radius:var(--r);padding:8px 10px;font-size:12.5px;line-height:1.7;resize:vertical}
+.pc-gen{width:100%;margin-top:12px;background:var(--ai);color:#fff;border:0;border-radius:var(--r);padding:10px 12px;font-weight:700;font-size:13px}
+.pc-gen:hover{background:#1A3863}
+.pc-gen[disabled]{opacity:.6;cursor:wait}
+.pc-out{width:100%;min-height:340px;border:1px solid var(--rule);border-radius:var(--r);padding:12px 14px;font-size:13px;line-height:1.85;resize:vertical;background:#fff}
+.pc-out:focus,.pc-memo:focus{outline:none;border-color:var(--ai)}
+.pc-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.pc-bar .st{font-size:11px;color:var(--ink-3);margin-left:auto}
+.pc-err{color:var(--short);font-size:12px;margin-top:6px}
+.pc-busy{color:var(--ink-3);font-size:12px;padding:6px 0}
+@media(max-width:1080px){.rrow>.pc-row{padding-left:14px;padding-top:36px}.pc-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -245,7 +276,7 @@ table.num th.cur{background:#E7EEF9;color:var(--ai)}
       <p class="brand">EARTHCOM</p>
       <h1>部門長会議ボード</h1>
       <div class="rail-sub" id="railSub">実行計画達成状況報告書 ＋ 経営計画資料</div>
-      <div class="ver mono" id="ver">v1.3 · 2026-08-17</div>
+      <div class="ver mono" id="ver">v1.4 · 2026-10-09</div>
     </div>
     <div class="rail-scroll">
       <div class="rail-label">全社</div>
@@ -440,7 +471,7 @@ function render(){
     location.search = "?api=" + encodeURIComponent(u);
   };
   const ver=$("#ver");
-  if(ver){ ver.classList.toggle("live", state.source==="live"); ver.textContent = "v1.3 · " + (state.source==="live"?"連動中":"サンプル"); }
+  if(ver){ ver.classList.toggle("live", state.source==="live"); ver.textContent = "v1.4 · " + (state.source==="live"?"連動中":"サンプル"); }
 }
 function banner(){
   if(state.view==="manual"||state.view==="suchi") return "";
@@ -510,12 +541,14 @@ function viewReport(){
         <div class="rsec">${show?`<span class="badge">${esc(badge||"・")}</span><br>${esc(sec.replace(/^[A-Ea-e][,、\s]*/,""))}`:""}</div>
         <div class="rfact">${highlight(it.fact)}</div>
         <div class="rcause">${highlight(it.cause||"—")}</div>
-        <div class="rphase">${chips?`<div class="chips">${chips}</div>`:""}${highlight(ph.body||(chips?"":"—"))}</div>
+        <div class="rphase">${chips?`<div class="chips">${chips}</div>`:""}${highlight(ph.body||(chips?"":"—"))}${pcRowTrigger(r,it)}</div>
+        ${pcRowStrip(r,it)}
       </div>`);
     });
     S.push(`</div>`);
   }
   if(r.auth) S.push(`<div class="sec"><h2>権限相談</h2></div><div class="card"><div class="cb" style="white-space:pre-wrap">${highlight(r.auth)}</div></div>`);
+  S.push(pcPanel(r));
   return S.join("");
 }
 function kpiCard(title,k,unit){
@@ -885,6 +918,269 @@ function bindSuchi(c){
     location.search = "?" + p.toString();
   };
 }
+
+
+/* ============================================================
+   社長コメント（AI下書き）  v1.4
+   ・報告の各項目に「AIコメント」→ その項目だけの短い社長コメント
+   ・下部「４｜社長コメント」→ 報告全体へのChatwork用コメント
+   ・AIは全アプリ共通の Supabase Edge Function `ai` 経由（APIキーはHTMLに持たない）
+   ・下書きはこの端末のブラウザに 部門×会議月 単位で保存
+   ============================================================ */
+const PC_AI_URL = "https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai";
+const PC_SB_KEY = "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa";
+const PC_TONES = {
+  shiki:  {label:"識学で締める",       note:"結果・不足・次の行動・完了条件を明確に",
+           guide:"識学ベース。感情評価・経過評価はしない。目標に対する位置（結果）、不足、次の行動を、期限と完了条件つきで明確にする。免責（相手待ち・確認中・忙しい）を残さない。"},
+  push:   {label:"承認して背中を押す", note:"良い変化を具体的に認め、期待を伝える",
+           guide:"良かった結果・変化を具体的に認め、再現してほしい行動を明確にする。そのうえで次の一手と期待を伝え、前向きに締める。ただし褒めるだけで終わらせない。"},
+  strict: {label:"修正を強く求める",   note:"未達・ズレをはっきり指摘し、やり直しを指示",
+           guide:"未達・施策のズレ・報告の不備をはっきり指摘する。人格ではなく行動と結果に向ける。何をいつまでにどの状態にするかを指示として明示する。感情的には怒らない。"}
+};
+const pcState = {busy:{}, err:{}};
+
+function pcKey(r){ return "bmc_pc:" + (r.sheet||r.dept) + ":" + ym(r.date); }
+function pcLoad(r){ try{ return JSON.parse(localStorage.getItem(pcKey(r))||"null") || {tone:"shiki",memo:"",overall:"",items:{}}; }catch(e){ return {tone:"shiki",memo:"",overall:"",items:{}}; } }
+function pcSave(r,d){ d.at=new Date().toISOString(); try{ localStorage.setItem(pcKey(r), JSON.stringify(d)); }catch(e){} }
+function pcIdx(r,it){ return (r.summary||[]).indexOf(it); }
+function pcIsNoise(it){ const f=String(it.fact||""); return /^作成時の留意点/.test(f) || /^①\s*実績のマイナス/.test(f); }
+function pcRowNo(it){ return (String(it.fact||"").match(/^[❶❷❸❹❺➊➋➌➍➎①②③④⑤]/)||[""])[0]; }
+
+/* --- AIへ渡す報告テキスト --- */
+function pcMoney(k,lbl){
+  const m=k?.month||{}, t=k?.total||{};
+  if(n(m.actual)===null && n(m.target)===null) return "";
+  return `${lbl}：当月 実績${fmt(n(m.actual))}／目標${fmt(n(m.target))}（目標差 ${diff(m.diffTarget)}・前年差 ${diff(m.diffPrev)}）　累計 実績${fmt(n(t.actual))}／目標${fmt(n(t.target))}（目標差 ${diff(t.diffTarget)}）`;
+}
+function pcReportText(r){
+  const L=[];
+  L.push(`部門：${r.dept||""}（${cleanName(r.sheet||"")}）`);
+  L.push(`会議日：${r.date}　参加者：${String(r.members||"").replace(/\n/g,"、")}`);
+  L.push("【成果A】");
+  const mq=pcMoney(r.mq,"MQ（百万円）"); if(mq) L.push(mq);
+  const g=pcMoney(r.g,"G"); if(g) L.push(g);
+  if(r.fm?.month && n(r.fm.month.actual)!==null) L.push(`FM比率：当月 ${fmt(n(r.fm.month.actual))}%（評価${r.fm.month.rank||"—"}）`+(r.fm.total&&n(r.fm.total.actual)!==null?`　累計 ${fmt(n(r.fm.total.actual))}%（評価${r.fm.total.rank||"—"}）`:"")+"　※FM比率は低いほど良い。D＝100%以上で赤字部門");
+  const pm=r.plan?.month; const pr=normRate(pm?.rate) ?? rate(pm?.score,pm?.max);
+  L.push("【成果B】");
+  if(pr!==null) L.push(`実行計画達成率：当月 ${Math.round(pr)}%（${fmt(n(pm?.score))}/${fmt(n(pm?.max))}点）`);
+  (r.actions||[]).forEach(a=>{
+    const p=normRate(a.month?.rate) ?? rate(a.month?.actual,a.month?.target);
+    L.push(`重点施策${a.no||""} ${a.name||"（名称なし）"}　KPI：${a.kpi||"—"}　評価 ${fmt(n(a.month?.actual))}/${fmt(n(a.month?.target))}点${p===null?"":"（"+Math.round(p)+"%）"}`);
+  });
+  L.push("【結果（総括）】");
+  (r.summary||[]).forEach(it=>{
+    if(pcIsNoise(it)) return;
+    const f=String(it.fact||"").trim(); if(!f || f.length<=2) return;
+    L.push(`―― ${String(it.section||"").replace(/\n/g," ")}`);
+    L.push(`事実：${f}`);
+    if(String(it.cause||"").trim()) L.push(`要因・分析・改善：${String(it.cause).trim()}`);
+    if(String(it.phase||"").trim()) L.push(`実行フェーズ：${String(it.phase).trim()}`);
+  });
+  if(r.auth) L.push(`【権限相談】\n${r.auth}`);
+  return L.join("\n").replace(/https?:\/\/\S+/g,"（リンク）");
+}
+function pcPrevPhases(r){
+  const prev = state.rows.find(x=>(x.sheet||x.dept)===(r.sheet||r.dept) && x.date < r.date);
+  if(!prev) return "";
+  const ph=(prev.summary||[]).filter(it=>!pcIsNoise(it) && String(it.phase||"").trim().length>2)
+    .map(it=>`・${pcRowNo(it)}${String(it.phase).trim().replace(/\n/g," ／ ")}`);
+  return ph.length ? `前回（${prev.date}）の報告で約束した実行フェーズ：\n${ph.join("\n")}` : "";
+}
+
+const PC_SYSTEM_BASE = `あなたは株式会社アースコム（埼玉県越谷市、太陽光発電・蓄電池・ReFort（リフォート）・セカンダリー太陽光ほか）の代表取締役社長 丸林信宏として、部門長会議で部門長が提出した「実行計画達成状況報告書」にコメントを書く。
+社長本人がそのまま使える下書きを書くこと。
+
+基本姿勢：
+・識学ベースの管理。評価するのは経過ではなく結果と変化。人格ではなく行動と結果に向けて書く
+・上から目線にしない。感情的に怒らない。ただ褒めるだけで終わらせない
+・報告の数字・固有名詞・期限を正確に引用し、具体的に書く。報告に無い数字や事実は作らない
+・実行計画達成率が高いのにMQが未達なら「やり切ったが成果に繋がっていない＝施策の選び方の問題」として施策の見直しを求める
+・FM比率がC・D（D＝100%以上で赤字）なら必ず触れる
+・前回約束した実行フェーズがあれば、その消化状況の報告を求める
+・「要因」が他責・曖昧（相手待ち、確認中、忙しい等）なら、本人が取る次の行動に置き換えさせる
+・実行フェーズに担当・期限・完了条件が欠けていれば、それを決めるよう指示する
+・権限相談があれば、判断材料が足りているかを見て、承認の条件や確認事項を示す（最終判断は社長が行うため断定しない）
+・絵文字は使わない。AIっぽい言い回し（「素晴らしい取り組みですね」「〜と言えるでしょう」「いかがでしょうか」等）は禁止
+・「引き続きよろしくお願いします」「頑張ってください」で終わらせない。最後は「誰が・何を・いつまでに・どの状態にするか」で締める
+・HTMLタグやMarkdown記号（#、**、- の箇条書き記号）は使わない`;
+
+function pcSystemOverall(tone){
+  return PC_SYSTEM_BASE + `
+
+今回の書き方：${PC_TONES[tone].guide}
+
+出力はChatworkにそのまま貼る本文のみ。次の書式を厳守：
+・先頭の1行目だけに [title]部門名 会議月 実行計画報告へのコメント[/title] を置く（[title]は1回だけ）
+・見出しは「■」で始める（例：■結果の受け止め／■修正してほしい点／■次回までの宿題）
+・強調は【】で囲む
+・大きな区切りには [hr] を単独行で入れる
+・宿題は「・誰が／何を／いつまでに／完了条件」が分かる形で3つ以内
+・全体で600〜900字程度。部門長が会議後すぐ読める長さにする`;
+}
+const PC_SYSTEM_ITEM = PC_SYSTEM_BASE + `
+
+今回は報告の「1項目だけ」に対するコメントを書く。
+・3〜5行、180字以内。前置きや宛名は不要
+・その項目の事実・要因・実行フェーズを踏まえ、受け止め→指摘または問い→次の行動（期限・完了条件）の順
+・[title]、■、[hr] は使わない。強調が必要なら【】のみ`;
+
+async function pcToken(){
+  try{
+    const k=Object.keys(localStorage).find(x=>/^sb-.*-auth-token$/.test(x));
+    if(k){ const j=JSON.parse(localStorage.getItem(k)); const s=j?.currentSession||j;
+      if(s?.access_token && (!s.expires_at || s.expires_at*1000>Date.now()+30000)) return s.access_token; }
+  }catch(e){}
+  return PC_SB_KEY;
+}
+async function pcCallAI(system, prompt, maxTokens){
+  const res = await fetch(PC_AI_URL,{method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+await pcToken(),"apikey":PC_SB_KEY},
+    body:JSON.stringify({system, max_tokens:maxTokens||2000, messages:[{role:"user",content:prompt}]})});
+  const raw=await res.text(); let j={}; try{ j=JSON.parse(raw); }catch(e){}
+  if(!res.ok){ const em=j.error?(typeof j.error==="string"?j.error:(j.error.message||JSON.stringify(j.error))):raw.slice(0,160);
+    throw new Error("AIの呼び出しに失敗しました（"+res.status+"）："+em); }
+  const t=(typeof j==="string")?j:(j.text||(Array.isArray(j.content)?j.content.map(c=>c.text||"").join(""):"")||j.result||"");
+  if(!t) throw new Error("AIから回答が返ってきませんでした。少し待ってもう一度押してください");
+  return t.replace(/\*\*/g,"").replace(/^#+\s*/gm,"").trim();
+}
+
+/* --- 描画パーツ --- */
+function pcRowTrigger(r,it){
+  if(pcIsNoise(it) || String(it.fact||"").trim().length<=2) return "";
+  const i=pcIdx(r,it), k=pcKey(r)+"#"+i, busy=pcState.busy[k];
+  return `<div style="white-space:normal"><button class="pc-trig" data-pc-item="${i}"${busy?" disabled":""}>${busy?"作成中…":"AIコメント"}</button></div>`;
+}
+function pcRowStrip(r,it){
+  const i=pcIdx(r,it), d=pcLoad(r), txt=d.items?.[i], k=pcKey(r)+"#"+i;
+  if(!txt && !pcState.err[k]) return "";
+  return `<div class="pc-row">${txt!==undefined?`<textarea data-pc-edit="${i}" rows="3">${esc(txt)}</textarea>
+    <div class="pc-acts"><button data-pc-copy-item="${i}">コピー</button><button data-pc-item="${i}">作り直す</button><button class="del" data-pc-del="${i}">消す</button></div>`:""}
+    ${pcState.err[k]?`<div class="pc-err">${esc(pcState.err[k])}</div>`:""}</div>`;
+}
+function pcPanel(r){
+  const d=pcLoad(r), k=pcKey(r), busy=pcState.busy[k];
+  const nItems=Object.values(d.items||{}).filter(Boolean).length;
+  return `<div class="sec"><h2>４｜社長コメント</h2><span class="note">AIが下書き → 社長が手直し → Chatworkへ</span></div>
+  <div class="pc-box" id="pcPanel">
+    <div class="pc-grid">
+      <div>
+        <p class="pc-lab">書き方</p>
+        <div class="pc-tones">${Object.entries(PC_TONES).map(([v,t])=>`<label class="pc-tone${d.tone===v?" on":""}">
+          <input type="radio" name="pcTone" value="${v}"${d.tone===v?" checked":""}><span>${t.label}<small>${t.note}</small></span></label>`).join("")}</div>
+        <p class="pc-lab">社長として伝えたいこと（任意）</p>
+        <textarea class="pc-memo" id="pcMemo" placeholder="例）丸紅の未引渡し56件は4Q中に必ず片付ける。23日時点の歩留まりを数字で報告させたい">${esc(d.memo||"")}</textarea>
+        <button class="pc-gen" id="pcGen"${busy?" disabled":""}>${busy?"下書きを作成中…":(d.overall?"もう一度下書きする":"AIで下書きする")}</button>
+        <div style="font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.6">報告の数字・総括・前回の実行フェーズを読ませています。${nItems?`項目別コメント${nItems}件も踏まえて書きます。`:""}</div>
+      </div>
+      <div>
+        <p class="pc-lab">コメント（ここで直接直せます）</p>
+        ${busy&&!d.overall?`<div class="pc-busy">報告を読んでいます。20秒ほどかかります…</div>`:""}
+        <textarea class="pc-out" id="pcOut" placeholder="左の「AIで下書きする」を押すと、ここにChatwork用の文面が入ります">${esc(d.overall||"")}</textarea>
+        <div class="pc-bar">
+          <button class="ghost" id="pcCopy">Chatwork用にコピー</button>
+          ${nItems?`<label style="font-size:11.5px;color:var(--ink-2);display:flex;gap:5px;align-items:center"><input type="checkbox" id="pcWithItems" checked style="accent-color:var(--ai)">項目別コメント${nItems}件も付ける</label>`:""}
+          <span class="st" id="pcSt">${d.at?"保存 "+new Date(d.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+"（この端末）":""}</span>
+        </div>
+        ${pcState.err[k]?`<div class="pc-err">${esc(pcState.err[k])}</div>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* --- 動作 --- */
+function pcCurrent(){ return state.view==="report" && state.dept!=="__ALL__" ? pick(state.dept, state.date) : null; }
+async function pcGenItem(r,i){
+  const it=(r.summary||[])[i]; if(!it) return;
+  const k=pcKey(r)+"#"+i; if(pcState.busy[k]) return;
+  pcState.busy[k]=true; delete pcState.err[k]; render();
+  try{
+    const d0=pcLoad(r);
+    const prompt=`次の部門長会議報告のうち、【対象項目】にだけ社長コメントを書いてください。
+
+【報告全体（参考）】
+${pcReportText(r)}
+
+【対象項目】
+区分：${String(it.section||"").replace(/\n/g," ")}
+事実：${it.fact||""}
+要因・分析・改善：${it.cause||"（記載なし）"}
+実行フェーズ：${it.phase||"（記載なし）"}
+${d0.memo?`\n【社長のメモ（意図）】\n${d0.memo}`:""}`;
+    const t=await pcCallAI(PC_SYSTEM_ITEM, prompt, 600);
+    const d=pcLoad(r); d.items=d.items||{}; d.items[i]=t; pcSave(r,d);
+  }catch(e){ pcState.err[k]=e.message; }
+  delete pcState.busy[k]; render();
+}
+async function pcGenOverall(r){
+  const k=pcKey(r); if(pcState.busy[k]) return;
+  const d=pcLoad(r);
+  d.memo=($("#pcMemo")?.value||"").trim();
+  d.tone=(document.querySelector('input[name="pcTone"]:checked')||{}).value||d.tone||"shiki";
+  pcSave(r,d);
+  pcState.busy[k]=true; delete pcState.err[k]; render();
+  try{
+    const items=Object.entries(d.items||{}).filter(([,v])=>v).map(([i,v])=>`${pcRowNo((r.summary||[])[i]||{})||"・"}${String(((r.summary||[])[i]||{}).section||"").replace(/\n/g," ")}：${v}`);
+    const prev=pcPrevPhases(r);
+    const prompt=`部門長会議の報告に対する、社長コメント全体の下書きを書いてください。
+
+【今回の報告】
+${pcReportText(r)}
+${prev?`\n【${prev}】`:""}
+${items.length?`\n【社長がすでに項目別に書いたコメント（内容を矛盾させない。重複は避け、全体の総括として書く）】\n${items.join("\n")}`:""}
+${d.memo?`\n【社長が特に伝えたいこと（必ず反映し、最優先で扱う）】\n${d.memo}`:""}`;
+    const t=await pcCallAI(pcSystemOverall(d.tone), prompt, 2500);
+    const d2=pcLoad(r); d2.overall=t; pcSave(r,d2);
+  }catch(e){ pcState.err[k]=e.message; }
+  delete pcState.busy[k]; render();
+  const out=$("#pcOut"); if(out && !pcState.err[k]) out.scrollIntoView({behavior:"smooth",block:"center"});
+}
+async function pcCopyText(text, btn){
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  if(btn){ const o=btn.textContent; btn.textContent="コピーしました"; setTimeout(()=>btn.textContent=o,1600); }
+}
+function pcBind(){
+  const c=$("#content");
+  c.addEventListener("click", e=>{
+    const r=pcCurrent(); if(!r) return;
+    const b=e.target.closest("button"); if(!b) return;
+    if(b.dataset.pcItem!==undefined){ pcGenItem(r, +b.dataset.pcItem); return; }
+    if(b.dataset.pcDel!==undefined){ const d=pcLoad(r); delete d.items[b.dataset.pcDel]; delete pcState.err[pcKey(r)+"#"+b.dataset.pcDel]; pcSave(r,d); render(); return; }
+    if(b.dataset.pcCopyItem!==undefined){ const d=pcLoad(r); pcCopyText(d.items[b.dataset.pcCopyItem]||"", b); return; }
+    if(b.id==="pcGen"){ pcGenOverall(r); return; }
+    if(b.id==="pcCopy"){
+      const d=pcLoad(r); let t=($("#pcOut")?.value||"").trim();
+      const withItems=$("#pcWithItems")?.checked;
+      const items=Object.entries(d.items||{}).filter(([,v])=>v);
+      if(withItems && items.length){
+        t += "\n[hr]\n■項目別コメント\n" + items.map(([i,v])=>{const it=(r.summary||[])[i]||{};
+          return `【${pcRowNo(it)}${String(it.section||"").replace(/\n/g," ").replace(/^[A-Ea-e][,、\s]*/,"")}】\n${v}`;}).join("\n\n");
+      }
+      if(!t){ b.textContent="まだ文面がありません"; setTimeout(()=>b.textContent="Chatwork用にコピー",1600); return; }
+      pcCopyText(t, b);
+    }
+  });
+  c.addEventListener("change", e=>{
+    const r=pcCurrent(); if(!r) return;
+    if(e.target.name==="pcTone"){ const d=pcLoad(r); d.tone=e.target.value; pcSave(r,d);
+      document.querySelectorAll(".pc-tone").forEach(l=>l.classList.toggle("on", l.querySelector("input").checked)); }
+  });
+  let tm;
+  c.addEventListener("input", e=>{
+    const r=pcCurrent(); if(!r) return;
+    const el=e.target;
+    if(el.id!=="pcOut" && el.id!=="pcMemo" && el.dataset.pcEdit===undefined) return;
+    clearTimeout(tm); tm=setTimeout(()=>{
+      const d=pcLoad(r);
+      if(el.id==="pcOut") d.overall=el.value;
+      else if(el.id==="pcMemo") d.memo=el.value;
+      else { d.items=d.items||{}; d.items[el.dataset.pcEdit]=el.value; }
+      pcSave(r,d);
+      const st=$("#pcSt"); if(st) st.textContent="保存 "+new Date().toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+"（この端末）";
+    },400);
+  });
+}
+pcBind();
 
 /* ---------- 操作 ---------- */
 $("#monthSel").onchange = e=>{state.date=e.target.value; renderRail(); render();};
