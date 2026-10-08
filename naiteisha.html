@@ -375,6 +375,16 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
     <h2 class="title">辞退アラート・異常値</h2>
     <p class="lead">リスクスコアの内訳と、異常値（参加率0%・課題0%・30日以上未接触・課題遅延・承諾日未入力）を自動抽出します。</p>
     <div class="card"><h3>辞退リスク（要因内訳）</h3><div id="alertTbl"></div></div>
+    <div class="card"><h3>アルバイト回数（内定者ごと） <span class="tag" id="arbTag"></span></h3>
+      <p class="hint" id="arbHint"></p>
+      <div class="row" style="margin-bottom:10px;gap:8px;align-items:center">
+        <button class="btn gold sm" onclick="syncArbeit()">↻ スプレッドシートから更新</button>
+        <label class="btn ghost sm" style="cursor:pointer">CSVを取り込む<input type="file" accept=".csv,text/csv" hidden onchange="importArbeitCSV(event)"></label>
+        <a class="btn ghost sm" id="arbOpen" target="_blank" rel="noopener">スプレッドシートを開く</a>
+      </div>
+      <div class="note" id="arbGuide" style="display:none;margin-bottom:10px"></div>
+      <div style="overflow:auto" id="arbTbl"></div>
+    </div>
     <div class="card"><h3>異常値ログ <span class="tag">自動検知</span></h3><div id="anomalyTbl"></div></div>
     <div class="ai-card"><h4><img id="aiAvatar3" alt="社長AI">社長AI 辞退要因分析</h4>
       <p class="hint">点数だけでなく「直近30日で何が変わったか」「その根拠」「今週打つ手」を言語化します。</p>
@@ -465,14 +475,6 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
       <div style="overflow:auto"><table id="costCmp"></table></div>
     </div>
 
-    <div class="card"><h3>Looker Studio レポート（埋め込み）</h3>
-      <p class="hint">レポートを「共有→レポートを埋め込む」で有効化すると下に表示されます。<code>/reporting/</code> 形式のURLは自動で <code>/embed/</code> に変換します。</p>
-      <div class="row" style="margin-bottom:10px">
-        <input class="in" id="lookerInput" placeholder="Looker Studio の URL を貼り付け" style="flex:1;min-width:280px">
-        <button class="btn" onclick="applyLooker()">表示</button>
-      </div>
-      <div id="lookerWrap"></div>
-    </div>
   </section>
 
   <!-- MEETING -->
@@ -707,6 +709,11 @@ async function afterLogin(){
    更新のお知らせ（アップデートのたびに先頭へ1件追加する）
    ================================================================== */
 const CHANGELOG=[
+  {ver:'2.4',date:'2026-10-08',items:[
+    {tag:'辞退アラート',tab:'p-alerts',text:'「アルバイト回数（内定者ごと）」を辞退アラートタブに移しました。内定者ごとに累計・直近3ヶ月・月別（6ヶ月分）の回数と判定を一覧で確認できます。',by:'東田'},
+    {tag:'辞退アラート',tab:'p-alerts',text:'回数が全員分の合計のように大きく表示される不具合を直しました（スプシの「回数」列は通し番号のため、記録1行＝1回で数えるよう修正）。以前取り込んだ数値はリセットされるので、もう一度「CSVを取り込む」を行ってください。読み込み前はスプシの集計欄の累計を表示します。',by:'東田'},
+    {tag:'新卒採用進捗',tab:'p-recruit',text:'「Looker Studio レポート（埋め込み）」を削除しました。'},
+  ]},
   {ver:'2.3',date:'2026-10-04',items:[
     {tag:'内定者カルテ',tab:'p-karte',text:'アルバイト回数欄に「スプレッドシートを開く」ボタンと反映手順を追加しました。CSVを1回取り込むと、27卒・28卒の内定者全員分がまとめて反映されます。',by:'東田'},
     {tag:'新卒採用進捗',tab:'p-recruit',text:'月別PH推移に「スプレッドシートを開く」ボタンと反映手順を追加しました。28卒学生管理シートを取り込むと、選考状況の数値がスプレッドシートの最新値に置き換わります。',by:'東田'},
@@ -971,7 +978,7 @@ const NAVGROUPS=[
   ['管理',[['p-guide','使い方'],['p-settings','設定']]],
 ];
 const TABS=NAVGROUPS.flatMap(g=>g[1]);
-const APP_VERSION='2026.10 v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
+const APP_VERSION='2026.10 v2.4（アルバイト回数を辞退アラートへ／集計修正／Looker削除）｜v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';let first=true;
   NAVGROUPS.forEach(g=>{const h=document.createElement('div');h.className='navgrp';h.textContent=g[0];n.appendChild(h);
     g[1].forEach(t=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(first){b.classList.add('active');first=false;}b.dataset.id=t[0];n.appendChild(b);});});}
@@ -1075,7 +1082,26 @@ function renderTasks(){
       <td><input class="in" type="date" style="width:140px" value="${t.done?.[p.id]||''}" onchange="updDone('${t.id}','${p.id}',this.value)"></td>
       <td>${st?(st.lateSubmit?`<span class="pill warn">期限超過（${st.over}日遅れ提出）</span>`:st.late?`<span class="badge-late">遅延 ${st.over}日</span>`:st.k==='完了'?'<span class="pill ok">完了</span>':st.k==='期限間近'?'<span class="pill warn">期限間近</span>':`<span class="pill gray">${st.k}</span>`):'—'}</td></tr>`;}).join('')}</tbody></table></div>`).join('');
 }
+function renderArbeitTable(){
+  const el=document.getElementById('arbTbl');if(!el)return;
+  const L=SL(),gid=(L.arbeitGid||{})[S.cohort],tgt=+L.arbeitTarget||4,ppl=cur().people;
+  document.getElementById('arbTag').textContent=S.cohort+'卒';
+  const op=document.getElementById('arbOpen');op.href=`https://docs.google.com/spreadsheets/d/${L.arbeitId}/edit`+(gid?`#gid=${gid}`:'');
+  document.getElementById('arbHint').textContent=`「内定者データ」スプレッドシート（${S.cohort}アルバイト数）の記録1行＝1回として、内定者ごとに集計します。判定は直近3ヶ月の回数を月間目標${tgt}回×3と比べています（目標は設定タブで変更可）。`;
+  const anySheet=ppl.some(p=>p.arbeitCnt&&p.arbeitCnt.byMonth&&Object.keys(p.arbeitCnt.byMonth).length);
+  const gd=document.getElementById('arbGuide');gd.style.display=(!L.url&&!anySheet)?'':'none';
+  gd.innerHTML=`<b>月別の回数を出すには、記録の読み込みが必要です。</b>①「スプレッドシートを開く」→ ②「${esc(S.cohort)}アルバイト数」シートで「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③「CSVを取り込む」で選択（全員分が一度に反映されます）。`;
+  if(!ppl.length){el.innerHTML='<p class="muted small">内定者が登録されていません。</p>';return;}
+  const ms=ymList(6).reverse();
+  const rows=ppl.map(p=>({p,a:arbeitInfo(p)})).sort((x,y)=>(y.a.total||0)-(x.a.total||0));
+  el.innerHTML=`<table><thead><tr><th>氏名</th><th style="text-align:right">累計</th><th style="text-align:right">直近3ヶ月</th>${ms.map(m=>`<th style="text-align:right;white-space:nowrap">${+m.slice(5)}月</th>`).join('')}<th>判定</th><th class="small">出典</th></tr></thead><tbody>`+
+    rows.map(({p,a})=>{const bm=(p.arbeitCnt&&p.arbeitCnt.byMonth)||{};
+      const lv=a.recent==null?['—','gray']:a.recent>=tgt*3?['目標達成','ok']:a.recent>=tgt*1.5?['やや不足','warn']:['要フォロー','danger'];
+      const src=a.src==='sheet'?'スプシ '+fmtDT(p.arbeitCnt.synced):a.src==='snap'?`スプシ集計値（${ARBEIT_SNAP.date}時点）`:a.src==='manual'?'手入力':'未反映';
+      return `<tr class="${lv[1]==='danger'?'flagrow':''}"><td><b>${esc(p.name)}</b></td><td style="text-align:right"><b>${a.src?a.total+'回':'—'}</b></td><td style="text-align:right">${a.recent==null?'—':a.recent+'回'}</td>${ms.map(m=>`<td style="text-align:right">${a.src==='sheet'?(bm[m]||0):'—'}</td>`).join('')}<td><span class="pill ${lv[1]}">${lv[0]}</span></td><td class="small muted">${src}</td></tr>`;}).join('')+`</tbody></table>`;
+}
 function renderAlerts(){
+  renderArbeitTable();
   const ppl=cur().people;const scored=ppl.map(p=>({p,r:riskScore(p)})).sort((a,b)=>b.r.score-a.r.score);
   document.getElementById('alertTbl').innerHTML=ppl.length?`<table><thead><tr><th>氏名</th><th>点</th><th>判定</th><th>該当要因</th></tr></thead><tbody>`+
     scored.map(x=>`<tr class="${x.r.lv==='危険'?'flagrow':''}"><td><b>${esc(x.p.name)}</b></td><td><b>${x.r.score}</b></td><td><span class="pill ${lvClass(x.r.lv)}">${x.r.lv}</span></td><td class="small">${x.r.reasons.map(esc).join(' / ')||'なし'}</td></tr>`).join('')+`</tbody></table>`:'<p class="muted">内定者が未登録です。</p>';
@@ -1087,6 +1113,7 @@ function renderAlerts(){
     if(nc!=null&&nc>=30)logs.push([p.name,'未接触30日以上',`${nc}日接触なし`]);
     if(hasDelay(p.id))logs.push([p.name,'課題遅延','期限超過の課題あり']);
     if(!p.acceptDate)logs.push([p.name,'承諾日未入力','内定承諾が未確定']);
+    {const ai=arbeitInfo(p);if(ai.src==='sheet'){const m2=ymList(2).reduce((t,k)=>t+((p.arbeitCnt.byMonth||{})[k]||0),0);if(m2===0)logs.push([p.name,'アルバイト 2ヶ月0回','今月・先月ともアルバイト記録なし']);}}
     const lm=lastMendan(p);
     if(!lm)logs.push([p.name,'月次面談 未実施','面談記録が1件もありません']);
     else{const dd=daysBetween(lm.date,S.baseDate);
@@ -1489,7 +1516,7 @@ function renderRecruit(){
     </div>`;}).join('');
   renderMonthlyPH();
   renderCost();
-  document.getElementById('lookerInput').value=S.lookerUrl||'';
+  {const li=document.getElementById('lookerInput');if(li)li.value=S.lookerUrl||'';}
 }
 const MAINKEY={エントリー:'合計',TOPLIVE:'出席',一次面談:'合格',キャリア面談:'合格',社長面接:'合格',二次面接:'合格',インターン:'合格',最終面談:'合格',かばん持ち:'合格',内定:'通知',内定承諾:'承諾'};
 /* ---------- 採用コスト ---------- */
@@ -1661,11 +1688,16 @@ function importRecruitCSV(ev){const f=ev.target.files[0];if(!f)return;const r=ne
 function normName(s){return String(s||'').replace(/[\s\u3000]/g,'').replace(/さん$/,'')
   .replace(/[邉邊]/g,'辺').replace(/舘/g,'館').replace(/髙/g,'高').replace(/[﨑嵜]/g,'崎').replace(/[齋齊斉]/g,'斎').replace(/濵/g,'浜');}
 function ymList(n){const b=new Date(S.baseDate||Date.now());const out=[];for(let i=0;i<n;i++){const d=new Date(b.getFullYear(),b.getMonth()-i,1);out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}return out;}
+/* スプシの集計欄（27アルバイト数 E1:I2）の値。記録を読み込むまでの暫定表示 */
+const ARBEIT_SNAP={date:'2026/10/8',totals:{'太田朋希':57,'茅島圭汰':71,'磯辺館太一':29,'笹川裕平':13,'小林柊羽':20}};
 function arbeitInfo(p){
+  if(p.arbeitCnt&&p.arbeitCnt.byMonth&&p.arbeitCnt.cv!==2){delete p.arbeitCnt.byMonth;}  /* 旧集計（回数を合算していた）を破棄 */
   const a=p.arbeitCnt||{},bm=a.byMonth||{},tgt=+(SL().arbeitTarget)||4;
   if(Object.keys(bm).length){const total=Object.values(bm).reduce((x,y)=>x+y,0);const recent=ymList(3).reduce((s,k)=>s+(bm[k]||0),0);
     return{rate:Math.min(1,recent/(tgt*3)),label:total+'回',total,recent,src:'sheet'};}
   if(a.manual!=null&&a.manual!==''){const total=+a.manual||0;return{rate:Math.min(1,total/(tgt*3)),label:total+'回',total,recent:null,src:'manual'};}
+  const sn=ARBEIT_SNAP.totals[normName(p.name)];
+  if(sn!=null)return{rate:Math.min(1,sn/(tgt*12)),label:sn+'回',total:sn,recent:null,src:'snap'};
   return{rate:evRateTypes(p.id,['アルバイト']),label:'—',total:0,recent:null,src:''};}
 function arbeitSec(p){
   const a=p.arbeitCnt||{},bm=a.byMonth||{},ai=arbeitInfo(p),tgt=+(SL().arbeitTarget)||4;
@@ -1685,9 +1717,9 @@ function setArbeitManual(pid,v){const p=cur().people.find(x=>x.id===pid);if(!p)r
 function applyArbeit(rows,src){
   const agg={};
   rows.forEach(r=>{if(!r)return;const nm=normName(r[1]);if(!nm||nm==='氏名')return;const m=ymOf(r[0],'');if(!m)return;
-    const n=(r[2]===''||r[2]==null)?1:(+r[2]||0);agg[nm]=agg[nm]||{};agg[nm][m]=(agg[nm][m]||0)+n;});
+    agg[nm]=agg[nm]||{};agg[nm][m]=(agg[nm][m]||0)+1;});  /* C列「回数」は本人の通し番号のため、記録1行＝1回で数える */
   const ppl=[].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])),now=new Date().toISOString(),hit=[],miss=[];
-  ppl.forEach(p=>{const bm=agg[normName(p.name)];if(bm){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:bm,synced:now,src:src||''});hit.push(p.name);}});
+  ppl.forEach(p=>{const bm=agg[normName(p.name)];if(bm){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:bm,synced:now,src:src||'',cv:2});hit.push(p.name);}});
   Object.keys(agg).forEach(nm=>{if(!ppl.some(p=>normName(p.name)===nm))miss.push(nm);});
   save();renderAll();
   alert(`アルバイト回数を反映しました（${src||''}）\n一致：${hit.length}名`+(miss.length?`\nカルテに該当者なし：${miss.join('、')}\n（氏名の表記がカルテと違う場合は、カルテ側の氏名をスプレッドシートに合わせてください）`:''));}
@@ -1738,7 +1770,7 @@ function setYear(y){S.curYear=y;save();renderRecruit();}
 function setTarget(st,v){const Y=S.funnel.years[S.curYear];Y.target=Y.target||{};Y.target[st]=(v===''?null:+v);save();renderRecruit();}
 function setRate(st,v){const Y=S.funnel.years[S.curYear];Y.rate=Y.rate||{};Y.rate[st]=(v===''?null:+v);save();}
 function applyLooker(){S.lookerUrl=document.getElementById('lookerInput').value.trim();save();renderLooker();}
-function renderLooker(){const u=S.lookerUrl||'';const w=document.getElementById('lookerWrap');
+function renderLooker(){const u=S.lookerUrl||'';const w=document.getElementById('lookerWrap');if(!w)return;
   if(!u){w.innerHTML='<p class="muted">URL未設定です。</p>';return;}
   const emb=u.replace('/reporting/','/embed/reporting/');
   w.innerHTML=`<iframe class="looker" src="${esc(emb)}" allowfullscreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe><p class="hint">表示されない場合は、Looker Studioの「共有 → レポートを埋め込む」が有効か、社内ドメイン制限がないかをご確認ください。<a href="${esc(u)}" target="_blank" rel="noopener">元レポートを新しいタブで開く</a></p>`;
@@ -1881,7 +1913,6 @@ function renderKarte(){
     </div>
   </div>
 
-  ${arbeitSec(p)}
 
   <div class="k-sec"><h4><span class="no">⑤</span>内定者課題</h4>
     <table><thead><tr><th>項目</th><th style="width:90px">提出</th><th style="width:90px">評価</th><th style="width:60px"></th></tr></thead><tbody>
