@@ -1,148 +1,294 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ナレッジ｜EARTHCOM</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ナレッジ｜業界情報・知識・ルール｜EARTHCOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --navy:#0d2340;--navy2:#163a5f;--navy3:#1f4e7a;
-  --gold:#c8a24a;--gold2:#e3c878;--gold-soft:#f3ead0;
-  --ink:#15202e;--muted:#6a7787;--line:#e1e8f0;--line2:#cdd8e4;
-  --bg:#eef1f5;--surface:#fff;--surface2:#f5f8fb;
-  --pos:#1f8a55;--neg:#c0392b;--warn:#b8791d;
-  --r:11px;--shadow:0 1px 3px rgba(13,35,64,.08),0 4px 16px rgba(13,35,64,.06);
+  --navy:#0d2340;--navy2:#163a5f;--navy3:#1f4e7a;--ink:#15202e;
+  --gold:#c8a24a;--gold2:#e3c878;--gold-soft:#f6efd9;
+  --muted:#667487;--line:#e2e8ef;--line2:#cdd7e3;
+  --bg:#eef1f5;--surface:#fff;--surface2:#f6f8fb;
+  --pos:#1f8a55;--pos-soft:#e5f3eb;--neg:#bf3a2b;--neg-soft:#fbeae7;--warn:#a96f14;--warn-soft:#fbf1df;
+  --r:10px;--shadow:0 1px 2px rgba(13,35,64,.07),0 3px 12px rgba(13,35,64,.05);
+  --num:"Barlow Condensed","Noto Sans JP",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
-  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
-button{font-family:inherit;cursor:pointer;border:1px solid transparent;background:none;color:inherit}
+html{scroll-padding-top:120px}
+body{font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:1px solid transparent;background:none;color:inherit;font-size:inherit}
+button:disabled{opacity:.5;cursor:default}
+.daily .opts button:disabled,.qbox .opts button:disabled{opacity:1}
+#iUse{max-width:210px}
 input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 a{color:var(--navy3)}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-/* ---------- header ---------- */
-header{background:var(--navy);border-bottom:2px solid var(--gold);color:#fff;position:sticky;top:0;z-index:30}
-.hbar{max-width:1080px;margin:0 auto;padding:11px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.brand{font-weight:800;font-size:15px;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
-.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--gold)}
+/* header */
+header{background:var(--navy);color:#fff;position:sticky;top:0;z-index:40;box-shadow:0 2px 0 var(--gold)}
+.hbar{max-width:1180px;margin:0 auto;padding:10px 16px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px;font-weight:900;font-size:15.5px;letter-spacing:.03em}
+.brand small{font-weight:500;font-size:11.5px;color:#a9bbcf;letter-spacing:.02em}
 .hbar .sp{flex:1}
-.hbtn{border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;color:#fff}
+.hbtn{border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;color:#fff}
 .hbtn:hover{background:rgba(255,255,255,.1)}
-.hbtn.pri{background:var(--gold);border-color:var(--gold);color:#0d2340}
+.hbtn.pri{background:var(--gold);border-color:var(--gold);color:var(--navy)}
 .hbtn.pri:hover{background:var(--gold2)}
+nav.tabs{max-width:1180px;margin:0 auto;padding:6px 10px 0;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{padding:9px 14px 10px;font-size:13px;font-weight:700;color:#b9c8d9;border-radius:8px 8px 0 0;white-space:nowrap;position:relative}
+nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.06)}
+nav.tabs button.on{color:var(--navy);background:var(--bg)}
+nav.tabs .cnt{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;font-size:10.5px;
+  background:var(--neg);color:#fff;line-height:17px;text-align:center}
 
-/* ---------- search hero ---------- */
-.hero{background:linear-gradient(180deg,var(--navy) 0%,var(--navy2) 100%);padding:0 16px 22px}
-.hero-in{max-width:1080px;margin:0 auto}
-.searchwrap{position:relative}
-.searchwrap .ic{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;opacity:.5}
-#q{width:100%;padding:15px 16px 15px 46px;border-radius:12px;border:2px solid transparent;
-  font-size:16px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.22)}
-#q:focus{outline:none;border-color:var(--gold)}
-.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
-.chip{border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 13px;font-size:12.5px;
-  color:#dce6f2;font-weight:600;transition:background .12s}
-.chip:hover{background:rgba(255,255,255,.12)}
-.chip.on{background:var(--gold);border-color:var(--gold);color:#0d2340}
-.hint{color:#9fb3c9;font-size:11.5px;margin-top:9px}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 70px}
+.view{display:none}.view.on{display:block}
+.banner{background:var(--warn-soft);border:1px solid #efd7ad;color:#6c4a10;border-radius:9px;padding:10px 14px;font-size:12.5px;margin-bottom:14px;display:none}
+.banner.show{display:block}
+.banner button{text-decoration:underline;font-weight:700;color:#6c4a10}
 
-/* ---------- list ---------- */
-main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
-.meta-line{display:flex;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap}
-.count{font-size:12px;color:var(--muted);font-weight:600}
-.seg{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#fff}
-.seg button{padding:5px 11px;font-size:12px;font-weight:600;color:var(--muted);border-right:1px solid var(--line)}
+/* common parts */
+h2.sec{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 4px}
+p.lead{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.panel{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px}
+.panel h3{font-size:13.5px;font-weight:800;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.panel h3 .sp{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.stack{display:grid;gap:14px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .sp{flex:1}
+.inp{padding:8px 11px;border:1px solid var(--line2);border-radius:8px;background:#fff}
+.inp:focus{outline:none;border-color:var(--navy3);box-shadow:0 0 0 3px rgba(31,78,122,.1)}
+.btn{border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;white-space:nowrap}
+.btn.pri{background:var(--navy);color:#fff}.btn.pri:hover{background:var(--navy2)}
+.btn.gold{background:var(--gold);color:var(--navy)}.btn.gold:hover{background:var(--gold2)}
+.btn.gh{border:1px solid var(--line2);color:var(--navy);background:#fff}.btn.gh:hover{background:var(--surface2)}
+.btn.danger{color:var(--neg);border:1px solid #eec9c4;background:#fff}
+.btn.sm{padding:5px 10px;font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{padding:6px 11px;font-size:12px;font-weight:700;color:var(--muted);border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--navy);color:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;color:var(--navy);background:#fff}
+.chip:hover{background:var(--surface2)}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.tag{display:inline-block;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:11px;color:#46586c}
+.badge{display:inline-block;border-radius:5px;padding:1px 7px;font-size:10.5px;font-weight:800;line-height:18px}
+.b-ok{background:var(--pos-soft);color:var(--pos)}
+.b-draft{background:#eef2f6;color:var(--muted)}
+.b-re{background:var(--warn-soft);color:var(--warn)}
+.b-old{background:var(--neg-soft);color:var(--neg)}
+.b-kind{background:var(--navy);color:#fff}
+.b-ai{background:#eef0fb;color:#4a4f9a}
+.b-chance{background:var(--pos-soft);color:var(--pos)}
+.b-risk{background:var(--neg-soft);color:var(--neg)}
+.b-both{background:var(--warn-soft);color:var(--warn)}
+.star{color:var(--gold);font-weight:900}
+.muted{color:var(--muted)}
+.note{font-size:11.5px;color:var(--muted);line-height:1.7}
+.empty{background:#fff;border-radius:var(--r);padding:34px 20px;text-align:center;box-shadow:var(--shadow);color:var(--muted);font-size:13px}
+.empty b{display:block;color:var(--navy);font-size:14.5px;margin-bottom:5px}
+.bar{height:7px;background:#e6ebf1;border-radius:9px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--navy3);border-radius:9px}
+.bar.gold>i{background:var(--gold)}
 
-.cards{display:grid;gap:11px}
-.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;
-  border-left:4px solid var(--line2);cursor:pointer;transition:box-shadow .13s,transform .13s}
-.card:hover{box-shadow:0 3px 8px rgba(13,35,64,.12),0 10px 26px rgba(13,35,64,.1)}
-.card.c-term{border-left-color:var(--navy3)}
-.card.c-qa{border-left-color:var(--gold)}
-.card.c-know{border-left-color:var(--pos)}
-.card h3{font-size:15.5px;font-weight:800;color:var(--navy);line-height:1.4}
-.card .snip{font-size:12.8px;color:#46586c;margin-top:5px;
+/* home */
+.daily{background:var(--navy);color:#fff;border-radius:14px;padding:20px 22px;position:relative;overflow:hidden}
+.daily::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
+  border:28px solid rgba(200,162,74,.16)}
+.daily .k{font-size:12px;color:var(--gold2);font-weight:700;display:flex;gap:10px;align-items:center}
+.daily .q{font-size:18px;font-weight:900;line-height:1.5;margin:8px 0 14px;max-width:760px;position:relative;z-index:1}
+.daily .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:820px;position:relative;z-index:1}
+.daily .opts button{text-align:left;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);border-radius:9px;
+  padding:10px 13px;font-size:13.5px;color:#fff;font-weight:500}
+.daily .opts button:hover:not(:disabled){background:rgba(255,255,255,.14)}
+.daily .opts button.ok{background:#1f8a55;border-color:#1f8a55}
+.daily .opts button.ng{background:#8f2c22;border-color:#8f2c22}
+.daily .exp{margin-top:12px;font-size:13px;color:#d9e3ee;max-width:820px;position:relative;z-index:1}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat .v{font-family:var(--num);font-size:34px;font-weight:700;color:var(--navy);line-height:1.05}
+.stat .v small{font-size:16px;color:var(--muted);margin-left:3px}
+.stat .l{font-size:12px;color:var(--muted);font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.lvl{display:flex;align-items:center;gap:10px}
+.lvl .medal{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:12px;
+  background:var(--gold-soft);color:var(--warn);border:2px solid var(--gold)}
+.mini-list{display:grid;gap:2px}
+.mini-list button{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:8px 6px;border-radius:7px;width:100%}
+.mini-list button:hover{background:var(--surface2)}
+.mini-list .t{font-weight:700;font-size:13px;color:var(--ink);flex:1;line-height:1.45}
+.mini-list .d{font-size:11px;color:var(--muted);white-space:nowrap}
+
+/* matrix (業界情報) */
+.matrix{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+.mcol{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;min-width:170px}
+.mcol .mh{background:var(--navy);color:#fff;padding:9px 12px;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px}
+.mcol .mh .n{margin-left:auto;font-family:var(--num);font-size:17px;color:var(--gold2)}
+.mcell{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 12px;border-top:1px solid var(--line);font-size:12.5px}
+.mcell:hover{background:var(--surface2)}
+.mcell.on{background:var(--gold-soft);box-shadow:inset 3px 0 0 var(--gold)}
+.mcell .nm{flex:1;line-height:1.35}
+.mcell .ct{font-family:var(--num);font-size:16px;font-weight:700;min-width:26px;height:24px;border-radius:6px;display:grid;place-items:center;padding:0 5px}
+.h0{background:#fff;color:var(--neg);border:1px dashed #e7b2ab}
+.h1{background:#f6efd9;color:#7a5a12}
+.h2{background:#ecd9a3;color:#5a420c}
+.h3{background:var(--gold);color:var(--navy)}
+.legend{display:flex;gap:12px;align-items:center;font-size:11.5px;color:var(--muted);flex-wrap:wrap;margin:8px 0 16px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px}
+
+/* cards */
+.cards{display:grid;gap:10px}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:13px 16px;border-left:4px solid var(--line2);cursor:pointer}
+.card:hover{box-shadow:0 2px 6px rgba(13,35,64,.12),0 8px 22px rgba(13,35,64,.08)}
+.card h4{font-size:15px;font-weight:800;color:var(--navy);line-height:1.45}
+.card .snip{font-size:12.8px;color:#46586c;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .talk{font-size:12.5px;color:#5a420c;background:var(--gold-soft);border-radius:7px;padding:6px 10px;margin-top:8px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .foot{display:flex;align-items:center;gap:7px;margin-top:9px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
-.tag{background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font-size:11px;color:#46586c}
-.badge{border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:800;letter-spacing:.02em}
-.b-ok{background:#e6f4ec;color:var(--pos);border:1px solid #b9e0cb}
-.b-draft{background:#f1f4f8;color:var(--muted);border:1px solid var(--line2)}
-.b-re{background:#fdf3e2;color:var(--warn);border:1px solid #f0dcb4}
-.b-cat{background:var(--navy);color:#fff}
-.attach{font-size:11px;color:var(--muted)}
+.card .foot{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.card .foot .sp{flex:1}
+.k-term{border-left-color:var(--navy3)}.k-qa{border-left-color:var(--gold)}.k-rule{border-left-color:var(--neg)}
+.k-know{border-left-color:var(--pos)}.k-product{border-left-color:#6a5acd}.k-case{border-left-color:#d07a1f}
+.i-3{border-left-color:var(--neg)}.i-2{border-left-color:var(--gold)}.i-1{border-left-color:var(--line2)}
+.done-mark{color:var(--pos);font-weight:800}
 
-.empty{background:#fff;border-radius:var(--r);padding:40px 22px;text-align:center;box-shadow:var(--shadow)}
-.empty h3{font-size:15px;color:var(--navy);margin-bottom:6px}
-.empty p{font-size:13px;color:var(--muted);margin-bottom:16px}
+/* knowledge hero */
+.khero{background:linear-gradient(180deg,var(--navy) 0%,var(--navy2) 100%);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.searchwrap{position:relative}
+.searchwrap .ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:.5}
+.searchwrap input{width:100%;padding:13px 14px 13px 42px;border-radius:10px;border:2px solid transparent;font-size:15.5px;background:#fff}
+.searchwrap input:focus{outline:none;border-color:var(--gold)}
+.khero .chips{margin-top:10px}
+.khero .chip{background:transparent;color:#dce6f2;border-color:rgba(255,255,255,.28)}
+.khero .chip:hover{background:rgba(255,255,255,.1)}
+.khero .chip.on{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.fieldnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 
-/* ---------- modal ---------- */
-.ov{display:none;position:fixed;inset:0;z-index:100;background:rgba(13,35,64,.55);overflow:auto;padding:20px 12px}
+/* curriculum */
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.stepc{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px}
+.stepc .s{font-size:11.5px;color:var(--muted);font-weight:700}
+.stepc .t{font-weight:900;color:var(--navy);font-size:14px;margin:2px 0 8px}
+.stepc .p{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px}
+table.tb{width:100%;border-collapse:collapse;background:#fff;font-size:12.8px}
+.tbwrap{overflow-x:auto;border-radius:var(--r);box-shadow:var(--shadow);background:#fff;margin-bottom:16px}
+.tb th{background:var(--surface2);color:var(--muted);font-size:11.5px;font-weight:700;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tb td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tb tr.grp td{background:var(--navy);color:#fff;font-weight:800;font-size:13px;padding:8px 12px}
+.tb tr.grp td .muted{color:#a9bbcf;font-weight:500;margin-left:8px}
+.tb td.no{font-family:var(--num);font-size:15px;color:var(--muted);width:40px}
+.tb td .it{font-weight:800;color:var(--navy)}
+.tb input.inp,.tb select.inp{padding:4px 7px;font-size:12px;width:100%}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.chk input{width:16px;height:16px;accent-color:var(--pos)}
+.st-done{color:var(--pos);font-weight:800}.st-plan{color:var(--warn);font-weight:800}.st-none{color:var(--muted)}
+
+/* quiz */
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.qcard{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.qcard .t{font-weight:900;color:var(--navy);font-size:14.5px}
+.qcard .m{font-size:12px;color:var(--muted)}
+.qcard .acts{display:flex;gap:6px;margin-top:auto;flex-wrap:wrap}
+.score{font-family:var(--num);font-size:24px;font-weight:700}
+.pass{color:var(--pos)}.fail{color:var(--neg)}
+.qbox .qn{font-size:12px;color:var(--muted);font-weight:700}
+.qbox .qq{font-size:17px;font-weight:800;color:var(--navy);margin:6px 0 14px;line-height:1.55}
+.qbox .opts{display:grid;gap:8px}
+.qbox .opts button{text-align:left;border:1px solid var(--line2);border-radius:9px;padding:11px 14px;font-size:14px;background:#fff}
+.qbox .opts button:hover:not(:disabled){background:var(--surface2)}
+.qbox .opts button.ok{background:var(--pos-soft);border-color:var(--pos);color:#135c38;font-weight:700}
+.qbox .opts button.ng{background:var(--neg-soft);border-color:var(--neg);color:#7d2219}
+.qbox .exp{margin-top:12px;background:var(--surface2);border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.75}
+.heat{border-collapse:collapse;font-size:12px;background:#fff}
+.heat th{font-size:11px;color:var(--muted);padding:6px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--line)}
+.heat th.l,.heat td.l{text-align:left}
+.heat td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
+.heat td span{display:inline-block;min-width:38px;padding:3px 0;border-radius:5px;font-family:var(--num);font-size:14px;font-weight:700}
+.hs-p{background:var(--pos-soft);color:var(--pos)}.hs-m{background:var(--warn-soft);color:var(--warn)}.hs-f{background:var(--neg-soft);color:var(--neg)}.hs-n{color:#c3ccd6}
+
+/* ask */
+.ask textarea{width:100%;min-height:96px;padding:12px 14px;border:1px solid var(--line2);border-radius:10px;font-size:14.5px;line-height:1.7;resize:vertical}
+.ask textarea:focus{outline:none;border-color:var(--navy3)}
+.answer{white-space:pre-wrap;line-height:1.85;font-size:14px}
+.refs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.refs button{font-size:12px;border:1px solid var(--line2);border-radius:7px;padding:4px 10px;background:var(--surface2);color:var(--navy);font-weight:700}
+
+/* modal */
+.ov{display:none;position:fixed;inset:0;z-index:100;background:rgba(13,35,64,.55);overflow:auto;padding:22px 12px}
 .ov.show{display:block}
-.modal{max-width:760px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
-.mhead{background:var(--navy);color:#fff;padding:13px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2}
+.modal{max-width:780px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.modal.wide{max-width:960px}
+.mhead{background:var(--navy);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2}
 .mhead .t{font-weight:800;font-size:14px;flex:1}
 .mbody{padding:18px}
-.mfoot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:9px;flex-wrap:wrap;background:var(--surface2)}
+.mfoot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;background:var(--surface2)}
 .mfoot .sp{flex:1}
-
-.fld{margin-bottom:13px}
-.fld label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:.03em}
-.fld input[type=text],.fld textarea,.fld select{width:100%;padding:9px 11px;border:1px solid var(--line2);
-  border-radius:8px;background:#fff}
-.fld textarea{min-height:150px;resize:vertical;line-height:1.7}
+.fld{margin-bottom:12px}
+.fld>label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.fld input[type=text],.fld input[type=date],.fld input[type=url],.fld textarea,.fld select{width:100%;padding:8px 11px;border:1px solid var(--line2);border-radius:8px;background:#fff}
+.fld textarea{min-height:110px;resize:vertical;line-height:1.7}
+.fld textarea.s{min-height:70px}
 .fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--navy3);box-shadow:0 0 0 3px rgba(31,78,122,.1)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.sub-h{font-size:11.5px;font-weight:800;color:var(--navy);letter-spacing:.05em;
-  border-bottom:1px solid var(--line);padding-bottom:5px;margin:18px 0 10px}
-.mini{border:1px solid var(--line2);border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;color:var(--navy);background:#fff}
-.mini:hover{background:var(--surface2)}
-.mini.del{color:var(--neg);border-color:#eec9c4}
-.btn{border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700}
-.btn.pri{background:var(--navy);color:#fff}
-.btn.pri:hover{background:var(--navy2)}
-.btn.gold{background:var(--gold);color:#0d2340}
-.btn.gold:hover{background:var(--gold2)}
-.btn.gh{border:1px solid var(--line2);color:var(--muted);background:#fff}
-.btn.gh:hover{background:var(--surface2)}
-.btn.danger{color:var(--neg);border:1px solid #eec9c4;background:#fff}
-
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.sub-h{font-size:12px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:5px;margin:16px 0 10px}
+.checks{display:flex;gap:6px 14px;flex-wrap:wrap}
+.checks label{display:inline-flex;gap:5px;align-items:center;font-size:12.5px;cursor:pointer}
+.d-title{font-size:20px;font-weight:900;color:var(--navy);line-height:1.4;margin-bottom:8px}
+.d-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-size:11.5px}
+.d-body{font-size:14px;line-height:1.9;white-space:pre-wrap;word-break:break-word}
+.d-talk{margin-top:14px;background:var(--gold-soft);border-left:4px solid var(--gold);border-radius:8px;padding:11px 14px}
+.d-talk .h,.d-caution .h,.d-src .h{font-size:11.5px;font-weight:800;margin-bottom:3px}
+.d-talk .h{color:#7a5a12}
+.d-talk div:last-child{white-space:pre-wrap;line-height:1.8}
+.d-caution{margin-top:10px;background:var(--neg-soft);border-left:4px solid var(--neg);border-radius:8px;padding:10px 14px;white-space:pre-wrap;line-height:1.75}
+.d-caution .h{color:var(--neg)}
+.d-src{margin-top:10px;background:var(--surface2);border-radius:8px;padding:10px 14px;font-size:12.5px}
+.d-src .h{color:var(--muted)}
+.d-sec{font-size:11.5px;font-weight:800;color:var(--muted);margin:18px 0 8px}
+.d-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.d-imgs a{display:block;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.d-imgs img{width:100%;display:block}
+.linklist{display:grid;gap:6px}
+.linklist a{display:block;padding:8px 12px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;font-size:13px;text-decoration:none;font-weight:700}
+.linklist a:hover{background:var(--gold-soft);border-color:var(--gold)}
 .itemrow{display:flex;gap:7px;margin-bottom:7px;align-items:center}
-.itemrow input{flex:1;padding:8px 10px;border:1px solid var(--line2);border-radius:7px}
+.itemrow input{flex:1;padding:7px 10px;border:1px solid var(--line2);border-radius:7px}
 .itemrow input.lab{flex:0 0 32%}
 .thumbs{display:flex;gap:9px;flex-wrap:wrap;margin-top:9px}
 .thumb{position:relative;width:104px;height:78px;border-radius:8px;overflow:hidden;border:1px solid var(--line2);background:var(--surface2)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.thumb button{position:absolute;top:3px;right:3px;background:rgba(13,35,64,.8);color:#fff;border-radius:5px;
-  width:20px;height:20px;font-size:12px;line-height:1;display:grid;place-items:center}
-.drop{border:2px dashed var(--line2);border-radius:9px;padding:16px;text-align:center;font-size:12px;color:var(--muted);background:var(--surface2)}
+.thumb button{position:absolute;top:3px;right:3px;background:rgba(13,35,64,.8);color:#fff;border-radius:5px;width:20px;height:20px;font-size:12px;line-height:1;display:grid;place-items:center}
+.drop{display:block;border:2px dashed var(--line2);border-radius:9px;padding:14px;text-align:center;font-size:12px;color:var(--muted);background:var(--surface2);cursor:pointer}
 .drop.over{border-color:var(--gold);background:var(--gold-soft)}
-
-/* ---------- detail ---------- */
-.d-title{font-size:20px;font-weight:800;color:var(--navy);line-height:1.35;margin-bottom:8px}
-.d-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:15px}
-.d-body{font-size:14px;line-height:1.85;white-space:pre-wrap;word-break:break-word}
-.d-sec{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin:20px 0 9px}
-.d-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-.d-imgs a{display:block;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--surface2)}
-.d-imgs img{width:100%;display:block}
-.linklist{display:grid;gap:6px}
-.linklist a{display:flex;gap:8px;align-items:center;padding:9px 12px;background:var(--surface2);
-  border:1px solid var(--line);border-radius:8px;font-size:13px;text-decoration:none;font-weight:600}
-.linklist a:hover{background:var(--gold-soft);border-color:var(--gold)}
-
-#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(70px);background:var(--navy);
-  color:#fff;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;opacity:0;transition:.22s;z-index:300;pointer-events:none}
+.sql{background:var(--navy);color:#cfe0f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:300px;overflow:auto}
+.cw{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;white-space:pre-wrap;font-size:12.5px;line-height:1.75;max-height:420px;overflow:auto}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:var(--neg);font-size:12.5px;font-weight:700;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(70px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;opacity:0;transition:.22s;z-index:300;pointer-events:none;max-width:90vw}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.sql{background:#0d2340;color:#cfe0f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
-  padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-all;line-height:1.6}
-.note{font-size:11.5px;color:var(--muted);line-height:1.7}
+.news li{margin:0 0 8px 18px;font-size:13px}
+.guide h4{font-size:13.5px;color:var(--navy);margin:14px 0 4px}
+.guide p,.guide li{font-size:13px;line-height:1.8}
+.guide ol,.guide ul{margin-left:20px}
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .steps{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:640px){
-  .row2{grid-template-columns:1fr}
-  .hbar{padding:9px 12px;gap:8px}
-  .brand{font-size:13.5px}
-  main{padding:14px 12px 50px}
+  .row2,.row3{grid-template-columns:1fr}
+  .daily .opts{grid-template-columns:1fr}
+  .daily .q{font-size:16px}
+  .brand small{display:none}
+  main{padding:14px 10px 60px}
   .d-title{font-size:17px}
 }
 </style>
@@ -151,459 +297,1440 @@ main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
 
 <header>
   <div class="hbar">
-    <div class="brand"><span class="dot"></span>EARTHCOM ナレッジ</div>
+    <div class="brand">EARTHCOM ナレッジ <small>業界情報・知識・ルールで、営業の打率を上げる</small></div>
     <div class="sp"></div>
     <span id="userBadge"></span>
+    <button class="hbtn" id="btnGuide">使い方</button>
     <button class="hbtn" id="btnSetup">設定</button>
-    <button class="hbtn pri" id="btnNew">＋ 新規</button>
   </div>
+  <nav class="tabs" id="tabs">
+    <button data-v="home" class="on">ホーム</button>
+    <button data-v="info">業界情報</button>
+    <button data-v="know">知識・ルール</button>
+    <button data-v="course">研修カリキュラム</button>
+    <button data-v="quiz">確認テスト</button>
+    <button data-v="ask">AIに聞く</button>
+  </nav>
 </header>
 
-<div class="hero"><div class="hero-in">
-  <div class="searchwrap">
-    <span class="ic">🔍</span>
-    <input id="q" type="text" placeholder="用語・質問・キーワードで検索（例：一次調整力、出力制御、償却）" autocomplete="off">
-  </div>
-  <div class="chips" id="catChips"></div>
-  <div class="chips" id="bizChips"></div>
-  <div class="hint" id="hint">全件表示中</div>
-</div></div>
-
 <main>
-  <div class="meta-line">
-    <span class="count" id="count"></span>
-    <div class="sp" style="flex:1"></div>
-    <div class="seg" id="statusSeg">
-      <button data-st="all" class="on">すべて</button>
-      <button data-st="approved">公式のみ</button>
-      <button data-st="pending">要確認</button>
+  <div class="banner" id="dbBanner"></div>
+
+  <!-- ホーム -->
+  <section class="view on" id="v-home"></section>
+
+  <!-- 業界情報 -->
+  <section class="view" id="v-info">
+    <h2 class="sec">業界情報</h2>
+    <p class="lead">業界情報に関する方針の「収集する情報」5区分・29項目です。数字は登録件数で、点線の枠はまだ1件も集まっていない項目です。項目を押すと、その情報だけに絞り込めます。</p>
+    <div class="matrix" id="matrix"></div>
+    <div class="legend"><span><i class="h0"></i>未収集</span><span><i class="h1"></i>1件</span><span><i class="h2"></i>2〜3件</span><span><i class="h3"></i>4件以上</span><span id="matrixSel"></span></div>
+    <div class="toolbar">
+      <input class="inp" id="iq" placeholder="キーワードで探す" style="min-width:200px">
+      <select class="inp" id="iSt"><option value="">状況：すべて</option><option value="new">未分析</option><option value="analyzed">分析済み</option><option value="used">活用中</option></select>
+      <select class="inp" id="iUse"><option value="">活用先：すべて</option></select>
+      <select class="inp" id="iCr"><option value="">影響：すべて</option><option value="chance">チャンス</option><option value="risk">リスク</option><option value="both">両面</option></select>
+      <div class="sp"></div>
+      <button class="btn gh" id="btnMonthly">今月のまとめ（AI）</button>
+      <button class="btn gold" id="btnInfoAI">URL・記事からAIで登録</button>
+      <button class="btn pri" id="btnInfoNew">＋ 情報を登録</button>
     </div>
-  </div>
-  <div class="cards" id="cards"></div>
+    <div class="cards" id="infoList"></div>
+  </section>
+
+  <!-- 知識・ルール -->
+  <section class="view" id="v-know">
+    <div class="khero">
+      <div class="searchwrap"><span class="ic">🔍</span>
+        <input id="kq" placeholder="用語・お客様の質問・ルールで検索（例：出力制御、即時償却、使用前自己確認）" autocomplete="off"></div>
+      <div class="chips" id="kindChips"></div>
+    </div>
+    <div class="fieldnav" id="fieldChips"></div>
+    <div class="toolbar">
+      <span class="note" id="kCount"></span>
+      <div class="seg" id="kSeg">
+        <button data-f="all" class="on">すべて</button>
+        <button data-f="official">公式のみ</button>
+        <button data-f="talk">営業トークあり</button>
+        <button data-f="stale">要確認</button>
+        <button data-f="unread">未理解</button>
+      </div>
+      <div class="sp"></div>
+      <button class="btn pri" id="btnKNew">＋ 追加する</button>
+    </div>
+    <div class="cards" id="kList"></div>
+  </section>
+
+  <!-- カリキュラム -->
+  <section class="view" id="v-course">
+    <h2 class="sec">太陽光事業 専門教育カリキュラム</h2>
+    <p class="lead" id="courseLead"></p>
+    <div class="steps" id="steps"></div>
+    <div class="toolbar">
+      <div class="seg" id="cSeg"><button data-f="all" class="on">すべて</button><button data-f="mine">自分が未受講</button><button data-f="star">★社内事例</button><button data-f="plan">実施予定あり</button></div>
+      <div class="sp"></div>
+      <button class="btn gh" id="btnCsv">CSVで出力</button>
+      <button class="btn gh" id="btnCEdit" style="display:none">講師・日程を編集</button>
+    </div>
+    <div class="tbwrap"><table class="tb" id="cTable"></table></div>
+  </section>
+
+  <!-- テスト -->
+  <section class="view" id="v-quiz">
+    <h2 class="sec">確認テスト</h2>
+    <p class="lead">分野ごとに80点で合格です。知識・ルールに登録した内容から、AIで新しい問題を作ることもできます。</p>
+    <div class="qgrid" id="qGrid"></div>
+    <div id="heatWrap" style="margin-top:22px"></div>
+  </section>
+
+  <!-- AIに聞く -->
+  <section class="view" id="v-ask">
+    <h2 class="sec">AIに聞く</h2>
+    <p class="lead">社内のナレッジと業界情報を読んだうえでAIが答えます。社内に登録がない内容は、一般的な知識として「要確認」をつけて答えます。</p>
+    <div class="panel ask">
+      <textarea id="askQ" placeholder="例：FIT残り8年の高圧発電所のお客様に、リパワリングと売却のどちらを勧めるべきか、判断のポイントは？"></textarea>
+      <div class="toolbar" style="margin:10px 0 0">
+        <label class="chk"><input type="checkbox" id="askTalk" checked>お客様向けトーク例も出す</label>
+        <div class="sp"></div>
+        <button class="btn gold" id="askGo">質問する</button>
+      </div>
+    </div>
+    <div id="askOut" style="margin-top:14px"></div>
+  </section>
 </main>
 
-<!-- 詳細 -->
-<div class="ov" id="ovView"><div class="modal">
-  <div class="mhead"><span class="t" id="vHead">ナレッジ</span>
-    <button class="hbtn" id="vClose">閉じる</button></div>
-  <div class="mbody" id="vBody"></div>
-  <div class="mfoot">
-    <button class="btn gh" id="vCopy">本文をコピー</button>
-    <div class="sp"></div>
-    <button class="btn gold" id="vApprove">公式として承認</button>
-    <button class="btn pri" id="vEdit">編集する</button>
-  </div>
+<div class="ov" id="ov"><div class="modal" id="modal">
+  <div class="mhead"><span class="t" id="mTitle"></span><button class="hbtn" id="mClose">閉じる</button></div>
+  <div class="mbody" id="mBody"></div>
+  <div class="mfoot" id="mFoot"></div>
 </div></div>
-
-<!-- 編集 -->
-<div class="ov" id="ovEdit"><div class="modal">
-  <div class="mhead"><span class="t" id="eHead">ナレッジを追加</span>
-    <button class="hbtn" id="eClose">閉じる</button></div>
-  <div class="mbody">
-    <div class="row2">
-      <div class="fld"><label>種別</label><select id="eCat">
-        <option value="term">用語</option><option value="qa">QA</option><option value="know">ナレッジ</option>
-      </select></div>
-      <div class="fld"><label>事業</label><select id="eBiz"></select></div>
-    </div>
-    <div class="fld"><label id="eTitleLab">タイトル</label>
-      <input id="eTitle" type="text" placeholder="例：一次調整力市場（FCR）"></div>
-    <div class="fld"><label id="eBodyLab">本文</label>
-      <textarea id="eBody" placeholder="そのままお客様に説明できる言葉で書いてください。"></textarea></div>
-    <div class="fld"><label>タグ（カンマ区切り）</label>
-      <input id="eTags" type="text" placeholder="例：市場, 収益, 投資家説明"></div>
-
-    <div class="sub-h">関連リンク（スライド・スプレッドシート・社内資料）</div>
-    <div id="eLinks"></div>
-    <button class="mini" id="eAddLink">＋ リンクを追加</button>
-
-    <div class="sub-h">画像</div>
-    <label class="drop" id="eDrop" for="eFile">画像をここにドロップ／クリックして選択<br>
-      <span class="note">Supabase Storage にアップロードします（1枚10MBまで）</span>
-      <input type="file" id="eFile" accept="image/*" multiple style="display:none"></label>
-    <div class="note" id="eUpStat" style="margin-top:7px;min-height:17px"></div>
-    <div class="itemrow" style="margin-top:5px">
-      <input id="eImgUrl" type="text" placeholder="画像URLを貼り付ける場合はこちら（Googleドライブの共有リンクも可）">
-      <button class="mini" id="eAddImg">追加</button>
-    </div>
-    <div class="thumbs" id="eThumbs"></div>
-  </div>
-  <div class="mfoot">
-    <button class="btn danger" id="eDel">削除</button>
-    <div class="sp"></div>
-    <button class="btn gh" id="eCancel">やめる</button>
-    <button class="btn pri" id="eSave">保存する</button>
-  </div>
-</div></div>
-
-<!-- 設定 -->
-<div class="ov" id="ovSetup"><div class="modal">
-  <div class="mhead"><span class="t">設定</span><button class="hbtn" id="sClose">閉じる</button></div>
-  <div class="mbody">
-    <div class="fld"><label>接続状態</label><div id="sStat" class="note"></div></div>
-    <div class="sub-h">初回のみ：Supabase で実行してください</div>
-    <div class="sql" id="sqlBox"></div>
-    <p class="note" style="margin-top:10px">画像アップロードを使う場合は、Storage で <b>knowledge</b> という公開バケットを作成してください。作成しない場合でも、画像URLの貼り付けは使えます。</p>
-    <div class="sub-h">はじめのデータ</div>
-    <p class="note">蓄電池提案で使う市場用語3件（スポット市場／一次調整力市場／容量市場）を登録します。すでにある場合は追加されません。</p>
-    <button class="btn gold" id="sSeed" style="margin-top:10px">市場用語3件を登録する</button>
-    <div class="sub-h">画像アップロードの確認</div>
-    <p class="note">バケットと権限が正しく設定されているかをその場で確認します。</p>
-    <button class="btn gh" id="sTest" style="margin-top:8px">接続テストを実行</button>
-    <div class="note" id="sTestOut" style="margin-top:8px"></div>
-  </div>
-  <div class="mfoot"><div class="sp"></div><button class="btn pri" id="sDone">閉じる</button></div>
-</div></div>
-
+<input type="file" id="fileImg" accept="image/*" multiple style="display:none">
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./ec-auth.js"></script>
 <script>
 'use strict';
+/* =====================================================================
+   マスタ定義
+   ===================================================================== */
+const APP_VERSION='2026.10.09';
+const CHANGELOG=[
+  {v:'2026.10.09',items:[
+    '「業界情報に関する方針」にそって、業界情報タブを新設（5区分・29項目の収集状況マップ、収集先・活用先、チャンス／リスク、営業トーク化）',
+    'URLや記事本文を貼るだけで、AIが要点・当社への影響・営業トークを下書きする機能を追加',
+    '今月集まった業界情報を、AIが会議用のまとめ（Chatwork形式）にする機能を追加',
+    '知識・ルールを「分野」で整理し直し（制度・系統・法令・自治体・税制・市場・競合・商品・工事・補填）、採用・組織の項目は表示しないように変更',
+    'ナレッジに「お客様にはこう伝える」「言ってはいけないこと」「出典・確認日」を追加。制度・税制などは確認日から180日で「要確認」になります',
+    '太陽光事業 専門教育カリキュラム（既存31項目＋税制・補助金・系統情報・市場競合・商品の21項目）を取り込み、受講チェックと講師・日程管理を追加',
+    '分野別の確認テスト（合格80点）と、社員×分野の習熟度マップを追加。AIで問題を追加作成できます',
+    'ホームに「今日の1問」と自分の習得状況を表示',
+    '「AIに聞く」を追加（社内ナレッジを根拠に回答し、そのままQAとして登録できます）'
+  ]}
+];
+
+/* 知識の分野 */
+const FIELDS=[
+  {k:'tech',  n:'太陽光の仕組み',       s:'発電の原理・機器・発電量'},
+  {k:'fit',   n:'FIT・FIP／国の制度',   s:'再エネ特措法・認定・積立'},
+  {k:'grid',  n:'系統・電力会社',       s:'連系・空き容量・出力制御'},
+  {k:'law',   n:'法令・保安',           s:'電気事業法・自己確認・主任技術者'},
+  {k:'local', n:'自治体・補助金・土地', s:'補助金・条例・農地'},
+  {k:'tax',   n:'税制・会計',           s:'償却・税額控除・固定資産税'},
+  {k:'market',n:'電力市場・蓄電池',     s:'JEPX・需給調整・容量市場'},
+  {k:'comp',  n:'市場・競合・ニーズ',   s:'競合・新技術・お客様の声'},
+  {k:'product',n:'当社の商品',          s:'ReFort・蓄電池・セカンダリー・サンキーパー'},
+  {k:'koji',  n:'工事・施工管理',       s:'着工前・工程・竣工書類'},
+  {k:'hoten', n:'売電補填・トラブル',   s:'補填事例・責任分担・予防'},
+  {k:'common',n:'共通・その他',         s:''}
+];
+const FIELD=Object.fromEntries(FIELDS.map(f=>[f.k,f]));
+const OLD_BIZ={'共通':'common','蓄電池':'market','ReFort':'product','セカンダリー':'product','太陽光':'tech'};
+const ARCHIVE_BIZ=['採用・組織'];
+const STALE_FIELDS=['fit','grid','law','local','tax','market'];
+const STALE_DAYS=180;
+
+const KINDS=[
+  {k:'term',n:'用語'},{k:'qa',n:'お客様QA'},{k:'rule',n:'制度・ルール'},
+  {k:'know',n:'ナレッジ'},{k:'product',n:'商品'},{k:'case',n:'社内事例'}
+];
+const KIND=Object.fromEntries(KINDS.map(k=>[k.k,k.n]));
+const PRODUCTS=['ReFort高圧','ReFort低圧','系統蓄電池','セカンダリー','サンキーパー','O&M・保守','営農型太陽光'];
+
+/* 業界情報に関する方針：収集する情報 */
+const POLICY=[
+  {k:'gov',n:'国・制度',items:['FIT・FIP制度','再生可能エネルギー政策','出力制御','系統制度','蓄電池・需給調整市場','補助金・支援制度']},
+  {k:'power',n:'電力会社',items:['系統空き容量','接続条件','出力制御情報','系統増強情報','オンライン化','蓄電池接続条件']},
+  {k:'local',n:'行政・自治体',items:['補助金・助成金','条例・規制','農地・土地利用制度','地域脱炭素政策','企業誘致・地域支援制度']},
+  {k:'tax',n:'税制',items:['即時償却','特別償却','税額控除','固定資産税軽減','設備投資促進税制','特区制度']},
+  {k:'market',n:'市場・競合',items:['市場価格','競合商品','競合価格','新技術','業界動向','お客様ニーズ']}
+];
+const POL=Object.fromEntries(POLICY.map(p=>[p.k,p]));
+const SOURCES=['経済産業省・資源エネルギー庁','各電力会社・一般送配電事業者','国・都道府県・市区町村','国税庁・中小企業庁','業界団体・専門メディア・ニュース','競合会社（HP・商品資料・プレスリリース）','お客様・取引先（金融機関・アグリゲーター）'];
+const USES=['経営戦略・事業戦略','年度・四半期・月次の戦術','新商品・新サービスの開発','営業トーク・提案書・チラシ','金融機関・提携先への情報提供'];
+const INFO_ST={new:'未分析',analyzed:'分析済み',used:'活用中'};
+const CR={chance:'チャンス',risk:'リスク',both:'両面',neutral:'中立'};
+
+/* =====================================================================
+   研修カリキュラム（Excel「太陽光事業_専門教育カリキュラム」＋追加分）
+   f = 確認テストの分野
+   ===================================================================== */
+const STEPS=['1 基礎知識','2 実務・法令','3 事業理解','4 対応力・姿勢','5 提案力'];
+const CURRICULUM=[
+ {no:1,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'発電の原理',item:'太陽電池セルが光を電気に変える仕組み（半導体・pn接合の基礎）'},
+ {no:2,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'システム構成',item:'パネル → 接続箱 → PCS → 受変電設備 → 系統、という電気の流れ'},
+ {no:3,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'パネルの種類',item:'単結晶・多結晶、片面・両面発電、N型・P型の違い'},
+ {no:4,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'PCSの役割',item:'直流から交流への変換、MPPT制御、集中型と分散型の違い'},
+ {no:5,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'低圧・高圧・特別高圧の区分',item:'容量による区分（50kW未満・2,000kW未満など）と、それぞれに必要な手続き'},
+ {no:6,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'過積載の考え方',item:'パネル容量をPCS容量より大きくする設計の意図と、ピークカットの発生'},
+ {no:7,st:0,g:'Ⅰ 太陽光発電の仕組み',f:'tech',sub:'発電量に影響する要因',item:'日射量・温度・影・汚れ・劣化率'},
+ {no:9,st:0,g:'Ⅱ FIT/FIP制度',f:'fit',sub:'FIT制度の基本',item:'固定価格買取の仕組みと、調達期間20年'},
+ {no:10,st:0,g:'Ⅱ FIT/FIP制度',f:'fit',sub:'FIP制度の基本',item:'市場価格にプレミアムを上乗せする仕組み（FITとの違い）'},
+ {no:11,st:0,g:'Ⅱ FIT/FIP制度',f:'fit',sub:'FITからFIPへの移行',item:'移行の条件、メリット・デメリット'},
+ {no:12,st:0,g:'Ⅱ FIT/FIP制度',f:'fit',sub:'バランシングコストとインバランス',item:'FIPで新たに生じる、発電量予測の責任'},
+ {no:14,st:0,g:'Ⅱ FIT/FIP制度',f:'fit',sub:'認定取消しのリスク',item:'取消しにつながる典型的な違反パターン',star:'香川観音・まんのう発電所'},
+ {no:16,st:1,g:'Ⅲ 系統連系・法令',f:'grid',sub:'系統連系の申請フロー',item:'接続検討 → 契約申込 → 工事負担金 → 連系',star:'東電・東北電の管理案件'},
+ {no:19,st:1,g:'Ⅲ 系統連系・法令',f:'law',sub:'使用前自己確認',item:'対象設備と、売電開始前に必須となる理由',star:'小野メガ発電所'},
+ {no:21,st:1,g:'Ⅲ 系統連系・法令',f:'grid',sub:'出力制御',item:'制御ルールの種類（旧ルール・新ルール・無制限無補償）と収益への影響',star:'山形遊佐・京都中台'},
+ {no:23,st:1,g:'Ⅲ 系統連系・法令',f:'market',sub:'電力市場の基礎',item:'JEPX、需給調整市場、容量市場、非化石証書'},
+ {no:24,st:2,g:'Ⅳ リパワリング（ReFort）',f:'product',sub:'リパワリングとは',item:'パネル・PCS更新の目的と、事業性の考え方'},
+ {no:25,st:2,g:'Ⅳ リパワリング（ReFort）',f:'fit',sub:'増出力と認定変更',item:'出力を増やす場合の、調達価格への影響ルール'},
+ {no:26,st:2,g:'Ⅳ リパワリング（ReFort）',f:'product',sub:'現地調査の進め方',item:'現調チェックリストの使い方',star:'現調マニュアル'},
+ {no:27,st:2,g:'Ⅳ リパワリング（ReFort）',f:'tech',sub:'既存設備の劣化診断',item:'パネル劣化、ホットスポット、絶縁抵抗の測定'},
+ {no:28,st:2,g:'Ⅳ リパワリング（ReFort）',f:'product',sub:'収益シミュレーション',item:'更新前後の発電量と投資回収の比較',star:'シミュレーションツール'},
+ {no:30,st:2,g:'Ⅳ リパワリング（ReFort）',f:'hoten',sub:'更新後のトラブル事例',item:'漏電・パネル破損の原因と対応',star:'丸森発電所'},
+ {no:31,st:2,g:'Ⅴ 系統蓄電池',f:'market',sub:'系統蓄電池とは',item:'系統用・併設型・需要家用の違い'},
+ {no:33,st:2,g:'Ⅴ 系統蓄電池',f:'market',sub:'収益モデル',item:'JEPXでの裁定取引・需給調整市場・容量市場を組み合わせた収益化'},
+ {no:36,st:2,g:'Ⅴ 系統蓄電池',f:'product',sub:'高圧系統蓄電池',item:'低圧との手続き・設備の違い',star:'東電管轄2MW案件'},
+ {no:38,st:2,g:'Ⅴ 系統蓄電池',f:'comp',sub:'競合比較と販売戦略',item:'同メーカー・同スペック品との差別化',star:'東京プラン'},
+ {no:39,st:1,g:'Ⅵ 工事・施工管理',f:'koji',sub:'着工前チェックリスト',item:'承認・承諾を得る前に着工しない仕組みづくり',star:'未来テクノス様（無断着工）'},
+ {no:44,st:1,g:'Ⅵ 工事・施工管理',f:'koji',sub:'竣工書類の整備',item:'完成図書・写真の保管と、METI登録データとの照合',star:'七尾エリアのデューデリジェンス'},
+ {no:46,st:3,g:'Ⅶ 売電補填が発生したケース',f:'hoten',sub:'補填が発生した事例',item:'連系ルール違反による発電停止と、その期間の売電損失補償',star:'未来テクノス様（丸森・小野メガ）'},
+ {no:50,st:3,g:'Ⅶ 売電補填が発生したケース',f:'hoten',sub:'補填の責任分担',item:'当社・協力会社・施主のどこに原因があるかを整理し、契約で明確にする',star:'小野メガ発電所'},
+ {no:51,st:3,g:'Ⅶ 売電補填が発生したケース',f:'hoten',sub:'補填を防ぐ工程管理',item:'連系承認日・自己確認完了日・売電開始日を工程表で必ず管理する'},
+ /* --- 追加分（業界情報に関する方針にもとづく） --- */
+ {no:101,st:4,g:'Ⅷ 税制・会計',f:'tax',sub:'減価償却と法定耐用年数',item:'太陽光発電設備の耐用年数（17年）と、定率法・定額法の考え方',add:1},
+ {no:102,st:4,g:'Ⅷ 税制・会計',f:'tax',sub:'即時償却・税額控除',item:'中小企業経営強化税制の仕組みと、売電目的の設備が対象外になる条件',add:1},
+ {no:103,st:4,g:'Ⅷ 税制・会計',f:'tax',sub:'特別償却',item:'中小企業投資促進税制など、特別償却と税額控除の選び方',add:1},
+ {no:104,st:4,g:'Ⅷ 税制・会計',f:'tax',sub:'固定資産税（償却資産税）',item:'1月1日現在の申告と、軽減特例の有無の確認',add:1},
+ {no:105,st:4,g:'Ⅷ 税制・会計',f:'tax',sub:'リパワリングの除却損',item:'取得価額の配分と除却損。最終判断は顧問税理士という役割分担',star:'設備価格評価・取得価額配分算定書',add:1},
+ {no:106,st:4,g:'Ⅸ 自治体・補助金・土地',f:'local',sub:'補助金の探し方',item:'国・都道府県・市区町村の補助金の探し方と、公募スケジュールの押さえ方',add:1},
+ {no:107,st:4,g:'Ⅸ 自治体・補助金・土地',f:'local',sub:'条例・規制',item:'太陽光条例・景観・林地開発など、自治体ごとの規制の調べ方',add:1},
+ {no:108,st:4,g:'Ⅸ 自治体・補助金・土地',f:'local',sub:'農地と営農型太陽光',item:'農地の一時転用と、下部農地の営農継続の要件',add:1},
+ {no:109,st:4,g:'Ⅸ 自治体・補助金・土地',f:'local',sub:'地域脱炭素政策',item:'脱炭素先行地域・ゼロカーボンシティなど、自治体の方針を提案に使う',add:1},
+ {no:110,st:1,g:'Ⅹ 電力会社・系統情報',f:'grid',sub:'系統空き容量',item:'各送配電事業者の空き容量マップの見方と、ノンファーム型接続',add:1},
+ {no:111,st:1,g:'Ⅹ 電力会社・系統情報',f:'grid',sub:'系統増強情報',item:'増強工事の計画と、連系時期・負担金への影響',add:1},
+ {no:112,st:1,g:'Ⅹ 電力会社・系統情報',f:'grid',sub:'出力制御の見通し',item:'エリア別の出力制御の実績・見通しの読み方',add:1},
+ {no:113,st:1,g:'Ⅹ 電力会社・系統情報',f:'grid',sub:'オンライン化',item:'出力制御機器のオンライン化と、PCS更新時の確認事項',add:1},
+ {no:114,st:1,g:'Ⅹ 電力会社・系統情報',f:'grid',sub:'蓄電池の接続条件',item:'系統用蓄電池の接続検討と、充電・放電に付く条件',add:1},
+ {no:115,st:4,g:'Ⅺ 市場・競合',f:'market',sub:'市場価格',item:'JEPXスポット価格の季節・時間帯の傾向の読み方',add:1},
+ {no:116,st:4,g:'Ⅺ 市場・競合',f:'comp',sub:'競合商品・競合価格',item:'競合比較表の作り方と、価格ではなく価値で比べる話し方',add:1},
+ {no:117,st:4,g:'Ⅺ 市場・競合',f:'comp',sub:'新技術',item:'ペロブスカイト・両面発電・高効率PCSなど、新技術の現在地',add:1},
+ {no:118,st:4,g:'Ⅺ 市場・競合',f:'comp',sub:'お客様ニーズ',item:'発電量低下・盗難・FIT終了・出力制御など、お客様の不安の聞き取り方',add:1},
+ {no:119,st:2,g:'Ⅻ 当社の商品',f:'product',sub:'セカンダリー',item:'中古発電所の売買の流れ（SC-01〜06）と、価格評価の考え方',add:1},
+ {no:120,st:2,g:'Ⅻ 当社の商品',f:'product',sub:'サンキーパー・O&M',item:'盗難対策（特許）と保守管理を、ReFortとセットで提案する理由',add:1},
+ {no:121,st:2,g:'Ⅻ 当社の商品',f:'product',sub:'営農型太陽光',item:'営農型太陽光の商品設計と、農地法上の注意点',add:1}
+];
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   確認テスト：標準問題（a = 正解の番号 0始まり）
+   ===================================================================== */
+const QBANK=[
+ /* 太陽光の仕組み */
+ {f:'tech',q:'PCS（パワーコンディショナ）の主な役割はどれですか？',o:['パネルが作った直流を交流に変える','パネルの汚れを自動で落とす','電力会社に売電価格を通知する','パネルを太陽の方向に向ける'],a:0,e:'PCSは直流を交流に変換し、MPPT制御で発電量が最大になるよう電圧を調整します。'},
+ {f:'tech',q:'「過積載」の説明として正しいものはどれですか？',o:['PCS容量よりパネル容量を大きくする設計','架台に規定以上の重さのパネルを載せること','電力会社との契約容量を超えて売電すること','パネルを重ねて設置すること'],a:0,e:'朝夕や曇天時の発電量を増やすための設計です。晴天の昼にはPCS容量で頭打ちになる「ピークカット」が起きます。'},
+ {f:'tech',q:'パネルの温度が上がると、一般に発電効率はどうなりますか？',o:['下がる','上がる','変わらない','夜間だけ下がる'],a:0,e:'結晶系パネルは高温で出力が下がります。夏の晴天より、気温の低い春の晴天のほうが効率よく発電することがあります。'},
+ {f:'tech',q:'一般的な実務上の区分で、出力50kW未満の発電所はどれにあたりますか？',o:['低圧','高圧','特別高圧','超高圧'],a:0,e:'50kW未満が低圧、50kW以上2,000kW未満が高圧、2,000kW以上が特別高圧です。区分によって必要な手続きや保安体制が変わります。'},
+ {f:'tech',q:'ホットスポットの主な原因として適切なものはどれですか？',o:['部分的な影やセルの不良で一部が発熱する','PCSの設定温度が高すぎる','ケーブルが長すぎる','売電単価が低い'],a:0,e:'一部のセルが発電せず抵抗となって発熱する現象です。放置すると出力低下や焼損につながるため、劣化診断で必ず確認します。'},
+ {f:'tech',q:'絶縁抵抗の測定で主に確認できることはどれですか？',o:['漏電の起きやすさ（絶縁の劣化）','パネルの発電効率','日射量','売電単価'],a:0,e:'絶縁が劣化すると漏電・地絡の原因になります。更新後のトラブル（漏電）防止にも直結します。'},
+ /* FIT・FIP */
+ {f:'fit',q:'事業用（10kW以上）の太陽光発電のFIT調達期間は何年ですか？',o:['20年','10年','15年','25年'],a:0,e:'10kW以上は20年です（10kW未満の住宅用は10年）。残りの調達期間は、リパワリングの投資判断で最も大事な数字の一つです。'},
+ {f:'fit',q:'FIP制度の説明として正しいものはどれですか？',o:['市場価格にプレミアム（補助額）を上乗せして受け取る','国が決めた固定価格で全量を買い取る','売電しないで自家消費だけをする制度','電力会社が出力制御を免除する制度'],a:0,e:'FIPは市場で売った価格にプレミアムが上乗せされる仕組みです。FITと違い、市場価格の動きと発電計画の責任が発電事業者側に生じます。'},
+ {f:'fit',q:'FIPで新たに発電事業者が負うことになる責任はどれですか？',o:['発電計画と実績のズレ（インバランス）の責任','パネルの製造責任','送電線の建設費の全額負担','電気料金の徴収'],a:0,e:'計画値と実績のズレはインバランスとして精算されます。その負担を和らげるためのものがバランシングコストです。'},
+ {f:'fit',q:'2022年7月に始まった、太陽光の廃棄等費用積立制度の対象はどれですか？',o:['10kW以上のFIT・FIP認定の太陽光','すべての住宅用太陽光','蓄電池だけ','2,000kW以上の発電所だけ'],a:0,e:'10kW以上が対象で、原則として調達期間の終了前10年間、売電収入から差し引く形で外部に積み立てます。'},
+ {f:'fit',q:'2024年4月施行の再エネ特措法改正で導入された措置はどれですか？',o:['関係法令に違反した事業者へのFIT・FIP交付金の一時停止','FIT価格の一律引き上げ','出力制御の全面廃止','低圧発電所の認定の自動延長'],a:0,e:'違反が解消されるまで交付金を止め、解消されない場合は返還を求める仕組みです。法令順守がそのまま売電収入に直結します。'},
+ /* 系統 */
+ {f:'grid',q:'系統連系の一般的な手続きの順番として正しいものはどれですか？',o:['接続検討 → 契約申込 → 工事費負担金の支払い → 連系','契約申込 → 連系 → 接続検討 → 工事費負担金','連系 → 接続検討 → 契約申込 → 工事費負担金','工事費負担金 → 連系 → 契約申込 → 接続検討'],a:0,e:'この順番と各日付を工程表で管理しないと、売電開始の遅れや補填につながります。'},
+ {f:'grid',q:'出力制御の「指定ルール」はどんなルールですか？',o:['時間の上限なく、補償なしで出力制御を受ける','年間30日までは無補償','年間360時間までは無補償','出力制御を一切受けない'],a:0,e:'旧ルール（30日）、新ルール（360時間）と違い、指定ルールは上限のない無制限・無補償です。エリアと認定時期で適用ルールが変わります。'},
+ {f:'grid',q:'「ノンファーム型接続」の説明として正しいものはどれですか？',o:['系統に空きがない時間帯に出力制御を受けることを条件に接続する','系統増強が終わるまで接続できない','蓄電池だけが使える特別な接続','電力会社と契約しない接続'],a:0,e:'空き容量がなくても、混雑時の出力制御を前提に接続できる考え方です。空き容量マップと合わせて確認します。'},
+ /* 法令・保安 */
+ {f:'law',q:'使用前自己確認が売電開始前に必要な理由として最も近いものはどれですか？',o:['設置者が技術基準への適合を自ら確認し、結果を届け出る義務があるため','電力会社が売電価格を決めるため','補助金の申請に必要なため','パネルの保証を受けるため'],a:0,e:'電気事業法にもとづく手続きです。抜けると売電開始の遅れや、補填の原因になります。'},
+ {f:'law',q:'2023年3月から「小規模事業用電気工作物」として新たな義務が課されたのは、どの範囲の太陽光ですか？',o:['10kW以上50kW未満','50kW以上2,000kW未満','2,000kW以上','10kW未満の住宅用'],a:0,e:'低圧の事業用太陽光に、基礎情報の届出・技術基準への適合維持・使用前自己確認などが求められるようになりました。'},
+ {f:'law',q:'高圧（50kW以上）の太陽光発電所で必要になる体制はどれですか？',o:['電気主任技術者の選任（外部委託を含む）','電気工事士の常駐','宅地建物取引士の設置','危険物取扱者の選任'],a:0,e:'自家用電気工作物として保安規程の届出と電気主任技術者の選任が必要です。多くは外部委託で対応します。'},
+ /* 自治体・土地 */
+ {f:'local',q:'営農型太陽光で、下部の農地について求められることはどれですか？',o:['営農を続け、収量を大きく落とさないこと','農地を必ず休耕にすること','農地を宅地に転用すること','作物の販売を禁止すること'],a:0,e:'一時転用の許可を受け、下部農地で適切に営農を続けることが前提です。収量が基準を下回ると許可の更新が難しくなります。'},
+ {f:'local',q:'営農型太陽光の支柱部分の農地転用は、どの扱いになりますか？',o:['期間を区切った一時転用','永久的な転用','転用の手続きは不要','都市計画法の許可だけで足りる'],a:0,e:'期間ごとに更新が必要な一時転用です。期間や要件は最新の農林水産省の情報で確認してください。'},
+ {f:'local',q:'補助金を提案に使うとき、最初に確認すべきことはどれですか？',o:['公募期間と、交付決定前に契約・着工してはいけないかどうか','補助金の名前の由来','過去10年分の採択企業名','担当者の連絡先だけ'],a:0,e:'多くの補助金は交付決定前の発注・着工が対象外になります。スケジュールを誤るとお客様に損をさせてしまいます。'},
+ /* 税制 */
+ {f:'tax',q:'太陽光発電設備の法定耐用年数は一般に何年ですか？',o:['17年','10年','20年','30年'],a:0,e:'減価償却の計算で使う年数で、FITの調達期間20年とは別物です。混同しないようにしましょう。'},
+ {f:'tax',q:'中小企業経営強化税制などで、太陽光が対象外になりやすいのはどんな場合ですか？',o:['発電した電気の半分を超えて売電が見込まれる場合','自家消費の割合が高い場合','屋根に設置する場合','蓄電池とセットの場合'],a:0,e:'売電が主目的の設備は対象外になります。適用の可否は必ず顧問税理士・認定支援機関に確認してもらいます。'},
+ {f:'tax',q:'償却資産税（固定資産税）の申告の基準日はいつですか？',o:['毎年1月1日','毎年4月1日','決算日','売電開始日'],a:0,e:'1月1日現在の償却資産を、その年の1月31日までに市区町村へ申告します。'},
+ {f:'tax',q:'リパワリングで旧設備の除却損を検討するとき、当社の正しい立ち位置はどれですか？',o:['設備の事実と資料を揃え、税務の最終判断はお客様の顧問税理士にしていただく','当社が除却損の金額を保証する','税務署に当社が代わりに申告する','除却損は必ず全額認められると説明する'],a:0,e:'評価会社は設備価格を算定し、当社は工事・撤去の事実を証明し、最終判断は顧問税理士です。「保証します」は言ってはいけません。'},
+ /* 電力市場・蓄電池 */
+ {f:'market',q:'JEPXとは何ですか？',o:['日本卸電力取引所','電力広域的運営推進機関','資源エネルギー庁の略称','太陽光発電協会'],a:0,e:'スポット市場（翌日の30分ごとの電気）などを運営する取引所です。'},
+ {f:'market',q:'需給調整市場の「一次調整力」の特徴として正しいものはどれですか？',o:['10秒以内という速い応動が求められる','1か月前に発電量を約束する','4年後の供給力を取引する','CO2削減量を取引する'],a:0,e:'瞬時の需給のズレを埋める役割です。応動の速い蓄電池が強みを発揮できる区分です。'},
+ {f:'market',q:'容量市場で取引されるのは何ですか？',o:['将来（約4年後）の供給力（kW価値）','当日の電気（kWh）','非化石価値','出力制御の免除権'],a:0,e:'実際に発電した量ではなく、確保した供給力に対して対価が支払われます。'},
+ {f:'market',q:'系統用蓄電池の収益の考え方として正しいものはどれですか？',o:['価格差の裁定・需給調整市場・容量市場を組み合わせる','FITの固定価格で放電した電気を売る','充電した電気を必ず自家消費する','補助金だけで収益を確保する'],a:0,e:'複数の市場を組み合わせて収益を積み上げます。どの市場が主な収益源かは、規模と制度で変わります。'},
+ {f:'market',q:'非化石証書の説明として正しいものはどれですか？',o:['再エネなど化石燃料以外の電気の「環境価値」を切り離して取引する証書','電気そのものの売買契約書','発電所の所有権を示す証書','出力制御の通知書'],a:0,e:'電気とは別に環境価値を取引します。企業のRE100対応などで需要があります。'},
+ /* 市場・競合 */
+ {f:'comp',q:'競合と比較されたとき、最初にすべきことはどれですか？',o:['お客様が何を基準に比べているか（価格・発電量・保証・実績）を聞く','すぐに値引きを提示する','競合の悪口を言う','比較をやめてもらう'],a:0,e:'比較の基準がわかれば、価格ではなく発電量の改善や長期の安心で比べていただく話ができます。'},
+ {f:'comp',q:'業界情報の方針で、収集した情報の活用先に含まれないものはどれですか？',o:['個人的な投資判断','営業トーク・提案書・チラシ','新商品・新サービスの開発','金融機関・提携先への情報提供'],a:0,e:'活用先は、経営戦略、戦術、新商品開発、営業トーク・提案書、金融機関・提携先への情報提供の5つです。'},
+ {f:'comp',q:'ペロブスカイト太陽電池の特徴として一般に言われていることはどれですか？',o:['薄くて軽く、曲げられるため設置場所が広がる','すでに耐久性で結晶系を大きく上回っている','夜間も発電できる','パネルが不要になる'],a:0,e:'軽さと柔軟性が強みで、実用化が進められています。耐久性やコストはまだ課題とされます。'},
+ /* 商品 */
+ {f:'product',q:'ReFort（リパワリング）の主な目的はどれですか？',o:['劣化・故障した機器を更新し、残りの期間の発電量と収益を回復・向上させる','発電所を解体して更地にする','FITの調達期間を延長する','売電単価を引き上げる'],a:0,e:'調達期間は延びません。だからこそ、残りの期間に何kWh増やせるかを数字で示すことが提案の中心になります。'},
+ {f:'product',q:'当社の公式実績として資料で使ってよい表現はどれですか？',o:['リパワリング累計実績500MW・平均改善率140%超','リパワリング累計実績5,000MW','サンキーパー設置後の盗難は年数件','改善率は必ず200%'],a:0,e:'公式数値は、リパワリング累計500MW・平均改善率140%超・全国対応、サンキーパーは特許取得・累計1,500件・設置後の盗難0件です。'},
+ {f:'product',q:'セカンダリー（中古発電所）の売買で、買主に必ず確認していただくものはどれですか？',o:['残りの調達期間・発電実績・設備の状態・権利関係','パネルの色','担当者の出身地','近隣の飲食店'],a:0,e:'デューデリジェンス（DD）で、認定・発電実績・設備・土地の権利を確認します。'},
+ /* 工事 */
+ {f:'koji',q:'着工前のルールとして正しいものはどれですか？',o:['必要な承認・承諾を得る前には着工しない','工期が迫っていれば先に着工してよい','協力会社の判断で着工してよい','お客様の口頭了承があれば着工してよい'],a:0,e:'無断着工は連系ルール違反や補填の原因になります。社内事例（未来テクノス様）を必ず学んでください。'},
+ {f:'koji',q:'工程表で必ず管理する3つの日付はどれですか？',o:['連系承認日・自己確認完了日・売電開始日','見積日・訪問日・請求日','誕生日・入社日・決算日','発注日・納品日・支払日'],a:0,e:'この3つがずれると売電の損失（補填）につながります。'},
+ {f:'koji',q:'竣工書類の整備で大切なことはどれですか？',o:['完成図書・写真を保管し、METIの登録データと照合する','写真は不要で図面だけ保管する','書類はお客様にすべて渡して社内には残さない','登録データは確認しなくてよい'],a:0,e:'登録内容と実際の設備が違うと、売却時のDDや認定上の問題になります。'},
+ /* 補填 */
+ {f:'hoten',q:'売電補填が発生したときに最初に整理すべきことはどれですか？',o:['原因が当社・協力会社・施主のどこにあるか','補填額をすぐに全額支払うこと','担当者の責任追及','お客様への謝罪だけ'],a:0,e:'原因と責任の所在を整理し、契約にもとづいて対応します。再発防止は工程管理と着工前チェックです。'},
+ {f:'hoten',q:'補填を防ぐために契約で明確にしておくべきことはどれですか？',o:['補填が起きた場合の責任分担','担当者の休日','支払い方法の色分け','打合せ場所'],a:0,e:'当社・協力会社・施主の責任範囲を、事前に契約書で明確にしておきます。'}
+];
+
+/* =====================================================================
+   初期ナレッジ（AIによる下書き。出典で確認してから「公式」に承認）
+   ===================================================================== */
+const SEED_K=[
+ /* 太陽光の仕組み */
+ {c:'term',f:'tech',t:'PCS（パワーコンディショナ）',tags:'機器, PCS, MPPT',
+  b:'太陽光パネルが作る直流の電気を、系統に流せる交流に変える機器です。\n\nMPPT制御で、日射や温度が変わっても発電量が最大になる電圧に自動で合わせます。集中型（大型1台）と分散型（小型を複数）があり、分散型は1台が止まっても全体が止まりにくいのが利点です。\n\n寿命は一般に10〜15年程度と言われ、FIT期間中に一度は更新が必要になることが多い機器です。',
+  talk:'「パネルは20年以上もちますが、PCSは家電と同じで10年を過ぎると故障が増えます。止まっている間の売電はゼロになるので、壊れてから替えるより、計画的に替えるほうが損が少ないんです。」',
+  caution:'寿命の年数は機種・環境で大きく違います。「必ず○年で壊れる」とは言わないでください。'},
+ {c:'term',f:'tech',t:'過積載とピークカット',tags:'設計, 過積載, ピークカット',
+  b:'PCSの容量よりパネルの容量を大きくする設計です。朝夕や曇りの日の発電量を増やせるため、年間の発電量が増えます。\n\n一方、晴天の昼はPCSの容量で発電が頭打ちになります（ピークカット）。過積載率を上げすぎると、カットされる量が増えて効果が薄れます。',
+  talk:'「昼のピークは少し捨てても、朝夕と曇りの日にしっかり稼ぐ設計にすると、1年の合計では発電量が増えます。」',
+  caution:'認定上の出力の扱い（PCS出力かパネル出力か）は案件ごとに確認が必要です。増設は調達価格に影響する場合があります。'},
+ {c:'know',f:'tech',t:'発電量が下がる5つの要因',tags:'発電量, 劣化, 診断',
+  b:'1. 日射量（季節・天候）\n2. 温度（高温で効率が下がる）\n3. 影（樹木の成長・雑草・建物）\n4. 汚れ（砂ぼこり・鳥のふん・花粉）\n5. 劣化・故障（パネル劣化、ホットスポット、PCSの停止、ケーブル盗難）\n\n1と2は自然条件、3〜5は対策できる要因です。発電量の低下を相談されたら、対策できる要因から順に確認します。',
+  talk:'「天気のせいなのか、設備のせいなのかを切り分けるのが最初の一歩です。直近3年の発電量をいただければ、設備の問題かどうかを無料で診断します。」',caution:''},
+ {c:'term',f:'tech',t:'低圧・高圧・特別高圧',tags:'区分, 低圧, 高圧',
+  b:'実務上、出力50kW未満が低圧、50kW以上2,000kW未満が高圧、2,000kW以上が特別高圧として扱われます。\n\n区分によって、電力会社との連系の方法、電気主任技術者の要否、使用前自己確認、届出などの手続きが変わります。',
+  talk:'',caution:'厳密な区分は電圧で決まります。個別案件では設備の構成で確認してください。'},
+ {c:'term',f:'tech',t:'ホットスポット',tags:'劣化診断, パネル',
+  b:'部分的な影やセルの不良により、パネルの一部が発電せず抵抗となって発熱する現象です。\n\n出力の低下だけでなく、バックシートの焼損やガラス割れにつながることがあります。サーモカメラやIVカーブ測定で見つけます。',
+  talk:'「赤外線カメラで見ると、熱を持っているパネルがすぐわかります。見た目ではわからない不良が、発電量を下げていることが多いんです。」',caution:''},
+ /* FIT・FIP */
+ {c:'rule',f:'fit',t:'FIT制度の基本（調達期間20年）',tags:'FIT, 調達期間, 再エネ特措法',
+  b:'再エネで発電した電気を、国が定めた価格で一定期間買い取る制度です（2012年7月開始）。事業用（10kW以上）の太陽光は調達期間20年、住宅用（10kW未満）は10年です。\n\n調達期間は運転開始日から数えます。リパワリングをしても調達期間は延びません。',
+  talk:'「売電単価は20年間変わりませんが、期間も延びません。だからこそ、残りの年数で何kWh取り戻せるかが勝負になります。」',
+  caution:'「リパワリングで期間が延びる」「単価が上がる」とは絶対に言わないでください。'},
+ {c:'rule',f:'fit',t:'FIP制度とFITの違い',tags:'FIP, プレミアム, 市場',
+  b:'FIP（2022年4月開始）は、市場で売った価格にプレミアムを上乗せして受け取る制度です。\n\nFIT：固定価格で買い取り。計画・市場の責任は小さい。\nFIP：市場価格＋プレミアム。発電計画と実績のズレ（インバランス）の責任を負う。蓄電池の併設で高い時間帯に売るなどの工夫で収益を伸ばせる。\n\n既存のFIT認定からFIPへ移ることもできますが、FITには戻れません。',
+  talk:'「FIPは、市場の高い時間に売れれば収益が伸びる一方、手間とリスクも増えます。蓄電池とセットで考えると選択肢が広がります。」',
+  caution:'FIPへの移行は戻れない判断です。お客様に移行を勧める場合は、収益の試算と専門家の確認を前提にしてください。'},
+ {c:'term',f:'fit',t:'バランシングコストとインバランス',tags:'FIP, インバランス',
+  b:'インバランス：発電計画と実際の発電量のズレ。FIPでは発電事業者側が精算の責任を負います。\n\nバランシングコスト：そのズレの負担を和らげるため、プレミアムに上乗せされる金額です。段階的に小さくなる設計です。\n\n実務では、アグリゲーターに計画の作成とインバランスの管理を委託することが一般的です。',
+  talk:'',caution:''},
+ {c:'rule',f:'fit',t:'認定取消し・交付金の一時停止',tags:'認定取消し, 交付金, 法令違反, 2024年改正',
+  b:'関係法令（森林法、農地法、電気事業法など）への違反や、認定計画どおりに事業を行わない場合、認定の取消しにつながります。\n\n2024年4月施行の改正再エネ特措法で、違反が認められた事業者へのFIT・FIP交付金の一時停止の仕組みが入りました。違反が解消されれば支払いが再開されますが、解消されない場合は返還を求められることがあります。\n\n典型例：無断での設備変更、標識・柵の未設置、保守点検の不実施、変更認定の申請漏れ。',
+  talk:'「最近は法令違反があると売電の入金そのものが止まる仕組みになりました。点検記録や柵・標識まで含めて、きちんと整っているかを一緒に確認させてください。」',
+  caution:'違反の有無を当社が断定することはしないでください。事実の確認と、必要な手続きの案内にとどめます。',star:'香川観音・まんのう発電所'},
+ {c:'rule',f:'fit',t:'パネル増設・更新時の調達価格の扱い',tags:'増設, 更新, 調達価格, 変更認定',
+  b:'パネルを増やして出力を増やすと、調達価格に影響することがあります。\n\n2024年4月から、既存の太陽光に増設・更新する場合、増えた部分には最新の価格を当て、既存部分は元の価格を維持する考え方が導入されたとされています（要確認）。出力を増やさない同等品への交換は、価格への影響が出ないのが基本です。\n\nいずれの場合も、変更認定・事後変更届出の要否を事前に確認します。',
+  talk:'「出力を増やすかどうかで、手続きと単価の扱いが変わります。設計の段階で、単価を守れる方法をご提案します。」',
+  caution:'ルールは改正が多い分野です。案件ごとに資源エネルギー庁の最新資料で必ず確認してください。'},
+ {c:'rule',f:'fit',t:'廃棄等費用の積立制度',tags:'廃棄費用, 積立, 卒FIT',
+  b:'10kW以上の太陽光（FIT・FIP認定）が対象で、2022年7月に始まりました。原則として調達期間の終了前10年間、売電収入から差し引く形で外部（電力広域的運営推進機関）に積み立てます。\n\n積み立てたお金は、発電所の解体・廃棄のときに取り戻せます。',
+  talk:'「売電の入金が少し減ったのは、将来の撤去費用の積立が始まったためです。お金がなくなったのではなく、外に貯めている状態です。」',
+  caution:''},
+ {c:'qa',f:'fit',t:'FITが終わったら、発電所はどうなりますか？',tags:'卒FIT, 出口戦略',
+  b:'設備は動き続けます。調達期間が終わると固定価格での買取がなくなるため、主な選択肢は次の3つです。\n\n1. 小売電気事業者・アグリゲーターとの相対契約で売る\n2. 自家消費や近隣への供給に切り替える\n3. 発電所を売却する（セカンダリー）\n\nどの道を選ぶ場合も、設備が健全で発電量が出ていることが価値の前提になります。',
+  talk:'「FITが終わっても発電所の価値はなくなりません。ただ、壊れた設備では売り先も買い手も見つかりにくくなります。残りの期間で稼ぎつつ、終わった後の価値も上げておくのがリパワリングです。」',
+  caution:'卒FIT後の買取価格は確約できません。具体的な金額を言わないでください。'},
+ /* 系統 */
+ {c:'rule',f:'grid',t:'出力制御のルール（旧・新・指定）',tags:'出力制御, 30日, 360時間, 無制限無補償',
+  b:'電気が余るときに、電力会社の指示で発電を止める（抑える）仕組みです。適用されるルールは、エリアと接続の時期で変わります。\n\n旧ルール：年間30日まで無補償\n新ルール：年間360時間まで無補償（時間単位）\n指定ルール：上限なし・無補償（無制限無補償）\n\n九州をはじめ、多くのエリアで実績が出ています。オンライン制御に対応すると、制御の割り当てが小さくなる運用もあります。',
+  talk:'「出力制御は避けられない時代になっています。だからこそ、制御されていない時間の発電量を最大にする設備と、オンライン対応が大切です。」',
+  caution:'将来の制御量を予測して断言しないでください。エリアの公表資料を示して説明します。',star:'山形遊佐・京都中台'},
+ {c:'rule',f:'grid',t:'系統連系の申請フロー',tags:'連系, 接続検討, 工事費負担金',
+  b:'1. 接続検討の申込（連系できるか・費用と期間の回答）\n2. 契約申込\n3. 工事費負担金の契約・支払い\n4. 電力会社側の工事\n5. 連系・受給開始\n\n各ステップの日付は工程表で管理します。申込内容と実際の設備が違うと、やり直しや補填の原因になります。',
+  talk:'',caution:'',star:'東電・東北電の管理案件'},
+ {c:'term',f:'grid',t:'系統空き容量・ノンファーム型接続',tags:'空き容量, ノンファーム, 系統増強',
+  b:'空き容量：送電線・変電所にあとどれだけ電気を流せるか。各一般送配電事業者がマップで公表しています。\n\nノンファーム型接続：空きがない場合でも、混雑する時間帯に出力制御を受けることを条件に接続する方式です。\n\n系統増強の工事計画も公表されるため、連系時期や負担金に影響します。',
+  talk:'「この地域の空き容量と増強計画は事前に調べてあります。連系の見込みも含めてご説明します。」',caution:''},
+ {c:'qa',f:'grid',t:'出力制御が増えているのに、リパワリングして意味がありますか？',tags:'出力制御, 断り文句, ReFort',
+  b:'あります。出力制御は「止められている時間」の話で、ReFortは「動いている時間」の発電量を増やす話です。\n\n劣化やPCSの停止で失っている発電量は、出力制御よりも大きいことが多くあります。直近の発電実績と制御の実績を分けて比べると、改善できる量がはっきりします。',
+  talk:'「出力制御で止まる時間は、どの会社の設備でも同じです。差がつくのは、それ以外の時間にどれだけ発電できるかです。実績データで、制御の影響と劣化の影響を分けてお見せします。」',
+  caution:'「出力制御の影響がなくなる」とは言わないでください。'},
+ /* 法令・保安 */
+ {c:'rule',f:'law',t:'使用前自己確認',tags:'電気事業法, 自己確認, 売電開始',
+  b:'設置者が、設備が技術基準に合っているかを自ら確認し、結果を国（産業保安監督部）に届け出る手続きです。\n\n高圧（50kW以上2,000kW未満）の太陽光に加え、2023年3月からは低圧の事業用（10kW以上50kW未満）も対象になりました。\n\n更新工事でも、変更の内容によって必要になる場合があります。売電開始前に終わっていないと、開始が遅れます。',
+  talk:'',caution:'対象の範囲・要否は変更内容で変わります。案件ごとに確認してください。',star:'小野メガ発電所'},
+ {c:'rule',f:'law',t:'小規模事業用電気工作物（低圧10〜50kW）の義務',tags:'低圧, 届出, 技術基準',
+  b:'2023年3月から、10kW以上50kW未満の太陽光は「小規模事業用電気工作物」となり、次の義務があります。\n\n・基礎情報の届出（設置者・保守の連絡先など）\n・技術基準への適合維持\n・使用前自己確認と結果の届出（新設・一定の変更時）\n\n既存の低圧発電所も基礎情報の届出が必要です。',
+  talk:'「低圧でも、今は国への届出や保守の責任が明確になっています。届出が済んでいるか、一緒に確認しませんか。」',caution:''},
+ {c:'term',f:'law',t:'電気主任技術者',tags:'保安, 高圧',
+  b:'高圧以上の発電所（自家用電気工作物）では、保安の監督をする電気主任技術者の選任が必要です。多くは外部委託（保安法人・個人事業者）で対応します。\n\n保安規程の届出も必要です。',talk:'',caution:''},
+ /* 自治体・土地 */
+ {c:'rule',f:'local',t:'営農型太陽光と農地法',tags:'営農型, 農地, 一時転用',
+  b:'農地に支柱を立てて上部に太陽光を設置し、下で営農を続ける方式です。支柱の部分は農地の一時転用許可が必要で、期間ごとに更新します。\n\n下部農地で適切に営農を続け、収量を大きく落とさないことが条件です。営農状況の報告も求められます。',
+  talk:'「発電だけでなく、下の農業をきちんと続けていただくことが前提の制度です。営農計画も一緒に考えます。」',
+  caution:'許可の基準・期間は改正があります。農林水産省・農業委員会の最新情報で確認してください。'},
+ {c:'know',f:'local',t:'補助金の探し方',tags:'補助金, 助成金, 公募',
+  b:'1. 国：資源エネルギー庁・環境省・経済産業省の公募情報、執行団体（SIIなど）のサイト\n2. 都道府県：環境・産業振興の部署のページ\n3. 市区町村：ゼロカーボン関連の補助制度\n\n確認すること：対象設備、補助率と上限、公募期間、交付決定前の発注・着工の可否、実績報告と財産処分の制限。',
+  talk:'「使える補助金がないかは、こちらで調べてからご提案します。公募の時期によっては、契約のタイミングを合わせたほうが得になります。」',
+  caution:'補助金は採択を約束できません。「必ずもらえます」は禁句です。'},
+ {c:'know',f:'local',t:'太陽光条例・規制の確認ポイント',tags:'条例, 規制, 林地開発, 景観',
+  b:'自治体によって、太陽光の設置・変更に独自の条例や指導要綱があります。\n\n確認するもの：設置の届出・許可、住民説明、景観、林地開発許可、土砂災害区域、廃棄・撤去の計画。\n\n更新工事でも、届出が必要な自治体があります。',talk:'',caution:''},
+ /* 税制 */
+ {c:'term',f:'tax',t:'法定耐用年数（太陽光17年）',tags:'減価償却, 耐用年数',
+  b:'減価償却の計算で使う年数で、太陽光発電設備は一般に17年です。FITの調達期間20年とは別物です。\n\n取得価額を耐用年数にわたって費用にしていきます。特別償却・即時償却の制度を使うと、初年度に多く費用にできる場合があります。',
+  talk:'',caution:'業種や用途で扱いが変わることがあります。最終判断は顧問税理士にお願いしてください。'},
+ {c:'rule',f:'tax',t:'中小企業経営強化税制（即時償却・税額控除）',tags:'即時償却, 税額控除, 経営強化',
+  b:'中小企業が一定の設備を取得したとき、即時償却または税額控除を選べる制度です。\n\n太陽光の場合、発電した電気の半分を超えて売電が見込まれる設備は対象外になります。自家消費型の設備は対象になり得ます。経営力向上計画の認定など、事前の手続きが必要です。\n\n適用期限・要件は税制改正で変わるため、毎年確認します。',
+  talk:'「自家消費の割合が高い設備なら、税制の優遇が使える可能性があります。顧問の先生に確認していただくための資料は、こちらで揃えます。」',
+  caution:'当社は税務の判断をしません。「節税になります」と断言しないでください。'},
+ {c:'rule',f:'tax',t:'中小企業投資促進税制（特別償却・税額控除）',tags:'特別償却, 税額控除',
+  b:'中小企業が一定の機械装置などを取得したとき、特別償却または税額控除を選べる制度です。売電目的の発電設備は対象外になる点は、経営強化税制と同じです。\n\n適用期限・要件は毎年の税制改正で確認します。',talk:'',caution:'最終判断は顧問税理士です。'},
+ {c:'rule',f:'tax',t:'償却資産税（固定資産税）',tags:'固定資産税, 償却資産, 申告',
+  b:'事業用の償却資産にかかる市町村の税金です。毎年1月1日現在の資産を、1月31日までに申告します。標準税率は1.4%です。\n\n再エネ設備には、一定の要件で課税標準を軽くする特例がある場合があります（対象や期間は年度・自治体で異なります）。\n\nリパワリングで設備を入れ替えた場合は、除却と取得の申告が必要です。',
+  talk:'',caution:'特例の適用可否は必ず自治体・顧問税理士に確認してください。'},
+ {c:'know',f:'tax',t:'リパワリング時の除却損と取得価額の配分',tags:'除却損, 取得価額, 算定書',
+  b:'中古発電所を取得して更新する場合など、旧設備の除却損が論点になります。\n\n役割分担：\n・評価会社：設備の現況、再調達価格、劣化、撤去範囲、設備別の参考価格を算定\n・アースコム：工事内容、撤去・廃棄・継続使用の事実を証明\n・お客様の顧問税理士：取得価額の配分と除却損の税務処理を最終判断\n\n金額が大きい案件は、契約前に顧問税理士へ資料一式を送り、見解を書面やメールで残していただきます。',
+  talk:'「税務上どう扱うかは顧問の先生のご判断になります。判断に必要な設備の評価と工事の証明は、こちらでしっかり揃えます。」',
+  caution:'除却損の計上や金額を保証しないでください。算定書は参考額を示すものです。',star:'設備価格評価・取得価額配分算定書'},
+ /* 電力市場 */
+ {c:'term',f:'market',t:'需給調整市場',tags:'需給調整, 一次調整力, 蓄電池',
+  b:'電力の需要と供給のズレを調整する力（調整力）を取引する市場です。応動の速さ・継続時間で、一次調整力から三次調整力までの区分があります。2024年4月にすべての区分の取引が始まりました。\n\n一次調整力は10秒以内の応動が求められ、蓄電池が強みを発揮できる区分です。待機している容量（ΔkW）に対して対価が支払われます。',
+  talk:'',caution:'市場価格は大きく変動します。過去の価格が将来も続く前提で説明しないでください。'},
+ {c:'term',f:'market',t:'非化石証書',tags:'環境価値, RE100',
+  b:'再エネなど化石燃料を使わない電気の「環境価値」を、電気そのものと切り離して取引する証書です。\n\n企業の脱炭素（RE100など）の取組みで需要があり、FIT電気の環境価値も取引されています。',talk:'',caution:''},
+ {c:'know',f:'market',t:'系統用・併設型・需要家用蓄電池の違い',tags:'系統用蓄電池, 併設, 自家消費',
+  b:'系統用：系統に直接つなぎ、市場（JEPX・需給調整・容量）で収益を上げる。単独で事業になる。\n併設型：発電所に併設し、出力制御で捨てていた電気を貯めたり、FIPで高い時間に売ったりする。\n需要家用：工場・施設に置き、電気代の削減・BCP（停電対策）に使う。\n\nお客様の目的（投資か、電気代削減か、既存発電所の価値向上か）で提案が変わります。',
+  talk:'「蓄電池は、何のために置くかで選び方がまったく違います。投資としての収益なのか、電気代を下げたいのかを最初にお聞かせください。」',caution:''},
+ /* 市場・競合 */
+ {c:'know',f:'comp',t:'お客様の主なお困りごと（ニーズ）',tags:'ニーズ, ヒアリング',
+  b:'1. 発電量が落ちてきた（劣化・故障）\n2. ケーブル盗難が心配・被害にあった\n3. FIT終了後をどうするか\n4. 出力制御で収入が減っている\n5. 故障時の対応が遅い・保守会社に不満\n\n初回の商談では、この5つのどれが一番気になっているかを聞くと、話が早く進みます。',
+  talk:'「発電所のことで、いま一番気になっているのはどれですか？発電量、盗難、FIT後、出力制御、保守のどれかに当てはまることが多いです。」',caution:''},
+ {c:'know',f:'comp',t:'競合と比べられたときの話し方',tags:'競合, 価格, 差別化',
+  b:'1. 何を基準に比べているかを聞く（価格・発電量・保証・実績・対応の速さ）\n2. 初期費用ではなく、残りの期間の「手取りの増加額」で比べていただく\n3. 現調から設計・施工・保守まで自社で見る体制と、実績を示す\n\n公式実績：リパワリング累計500MW、平均改善率140%超、全国対応。サンキーパーは特許取得・累計1,500件・設置後の盗難0件。',
+  talk:'「見積の金額だけでなく、20年が終わるまでにいくら手元に残るかで比べてみてください。その比較表はこちらで作ります。」',
+  caution:'競合の悪口は言わないでください。事実の比較だけにします。'},
+ {c:'term',f:'comp',t:'ペロブスカイト太陽電池',tags:'新技術',
+  b:'薄くて軽く、曲げられる次世代の太陽電池です。耐荷重の小さい屋根や壁面など、これまで設置できなかった場所への導入が期待されています。\n\n国も導入目標を掲げて支援していますが、耐久性とコストは課題とされています。既存の野立て発電所の更新では、現時点では結晶系パネルが中心です。',
+  talk:'',caution:''},
+ /* 商品 */
+ {c:'product',f:'product',t:'ReFort（リパワリング）',tags:'ReFort, リパワリング',products:'ReFort高圧,ReFort低圧',
+  b:'劣化・故障したパネルやPCSを更新し、残りの調達期間の発電量と収益を回復・向上させるサービスです。\n\n流れ：無料診断（レイアウト図・単線結線図・直近3年の発電量）→ 現地調査 → 設計・シミュレーション → 提案 → 工事 → 保守。\n\n公式実績：累計500MW、平均改善率140%超、全国対応。',
+  talk:'「発電所は、手を入れればまだ稼げます。まずは直近3年の発電量を拝見して、どれだけ取り戻せるかを無料で診断します。」',
+  caution:'改善率は案件で異なります。「必ず140%になる」とは言わないでください。'},
+ {c:'product',f:'product',t:'系統蓄電池',tags:'系統用蓄電池, 投資',products:'系統蓄電池',
+  b:'系統に直接つなぐ蓄電池で、JEPXの価格差、需給調整市場、容量市場を組み合わせて収益を上げる投資商品です。低圧と高圧で、連系の手続き・設備・収益の構成が変わります。',
+  talk:'',caution:'市場収益は変動します。利回りを保証しないでください。'},
+ {c:'product',f:'product',t:'セカンダリー（中古発電所の売買）',tags:'セカンダリー, 売買, DD',products:'セカンダリー',
+  b:'稼働中の発電所を売りたい方と買いたい方をつなぐサービスです。\n\nフェーズ：SC-01 買主の見極め → SC-02 物件提案 → SC-03 検討・DD対応 → SC-04 買付証明受領 → SC-05 売買契約締結 → SC-06 決済・引渡し\n\n価格は、残りの調達期間、発電実績、設備の状態、権利関係で決まります。ReFortで設備を整えてから売ることで、価値が上がる場合があります。',
+  talk:'',caution:''},
+ {c:'product',f:'product',t:'サンキーパー（盗難対策）',tags:'サンキーパー, 盗難, ケーブル',products:'サンキーパー',
+  b:'銅線ケーブルの盗難を防ぐ当社の商品です。特許取得済み、累計1,500件、設置後の盗難0件の実績があります。\n\nケーブル盗難は、復旧までの売電停止と高額な復旧費用の両方が発生します。保険の更新が難しくなるケースもあります。',
+  talk:'「盗まれてからの復旧は、ケーブル代より止まっていた期間の売電のほうが痛いんです。設置後の盗難は今のところ0件です。」',caution:''},
+ /* 工事 */
+ {c:'rule',f:'koji',t:'着工前チェック：承認・承諾前に着工しない',tags:'着工前, 無断着工, 工程',
+  b:'電力会社の承認、変更認定・届出、お客様の承諾、近隣・自治体の手続き。これらが揃う前に着工しないことを徹底します。\n\n工期が迫っていても、協力会社の判断や口頭の了承で着工してはいけません。',
+  talk:'',caution:'',star:'未来テクノス様（無断着工）'},
+ {c:'rule',f:'koji',t:'工程表で必ず管理する3つの日付',tags:'工程, 補填防止',
+  b:'1. 連系承認日\n2. 使用前自己確認の完了日\n3. 売電開始日\n\nこの3つがずれると、売電の損失（補填）が発生します。工程表で必ず管理し、変更があれば即日共有します。',talk:'',caution:''},
+ {c:'rule',f:'koji',t:'竣工書類とMETI登録データの照合',tags:'竣工, 完成図書, DD',
+  b:'完成図書・写真を保管し、METI（再エネ電子申請）に登録された内容と実際の設備が一致しているかを照合します。\n\n不一致は、売却時のデューデリジェンスや認定上の問題になります。',talk:'',caution:'',star:'七尾エリアのデューデリジェンス'},
+ /* 補填 */
+ {c:'case',f:'hoten',t:'売電補填が発生した事例（連系ルール違反）',tags:'補填, 事例',
+  b:'連系のルールに違反して発電を止めることになり、その期間の売電損失をお客様に補償した事例があります。\n\n私たちの給料は、お客様にお支払いいただいたお金から生まれています。一つの手続き漏れや報告遅れが、売電補填や信用の失墜として、会社とお客様の双方に損失を与えます。',
+  talk:'',caution:'',star:'未来テクノス様（丸森・小野メガ）'},
+ {c:'rule',f:'hoten',t:'補填の責任分担を契約で明確にする',tags:'補填, 契約, 責任分担',
+  b:'補填が起きたときに、原因が当社・協力会社・施主のどこにあるかを整理できるよう、責任の範囲を契約で事前に決めておきます。\n\n予防の基本は、着工前チェックと工程表の3つの日付の管理です。',talk:'',caution:'',star:'小野メガ発電所'}
+];
+
+/* 業界情報のサンプル（制度の大きな変化。出典を確認して承認してください） */
+const SEED_I=[
+ {area:'gov',item:'FIT・FIP制度',title:'改正再エネ特措法：法令違反時の交付金一時停止（2024年4月施行）',source:'経済産業省・資源エネルギー庁',eff:'2024-04-01',
+  summary:'関係法令に違反した事業者に対し、FIT・FIP交付金を一時停止する仕組みが導入された。違反が解消されれば再開、解消されなければ返還の対象になり得る。',
+  impact:'法令順守の状態がそのまま売電収入に直結する。点検・柵・標識・変更認定の漏れがある発電所は、収入停止のリスクを抱えている。',
+  cr:'both',imp:3,uses:['営業トーク・提案書・チラシ','新商品・新サービスの開発'],
+  talk:'「今は法令違反があると、売電の入金そのものが止まる仕組みになりました。保守の記録や柵・標識も含めて、いまの状態を無料で点検します。」'},
+ {area:'gov',item:'FIT・FIP制度',title:'既設太陽光の増設・更新時の調達価格の扱いの見直し（2024年度〜）',source:'経済産業省・資源エネルギー庁',eff:'2024-04-01',
+  summary:'既存の太陽光にパネルを増設・更新する場合、増えた部分は最新価格、既存部分は元の価格を維持する考え方が導入されたとされる。詳細要件は資料で要確認。',
+  impact:'増出力を含むリパワリングの提案がしやすくなる可能性。案件ごとに、価格の扱いと手続きを設計段階で確認する必要がある。',
+  cr:'chance',imp:3,uses:['営業トーク・提案書・チラシ','新商品・新サービスの開発','経営戦略・事業戦略']},
+ {area:'gov',item:'蓄電池・需給調整市場',title:'需給調整市場：全区分の取引開始（2024年4月）',source:'業界団体・専門メディア・ニュース',eff:'2024-04-01',
+  summary:'一次〜三次調整力の全区分の取引が始まった。一次調整力は10秒以内の応動が求められ、蓄電池が強みを持つ。',
+  impact:'系統蓄電池の収益源が広がった一方、価格は大きく変動する。投資家への説明では価格変動のリスクを必ず添える。',
+  cr:'chance',imp:2,uses:['営業トーク・提案書・チラシ','金融機関・提携先への情報提供']},
+ {area:'gov',item:'再生可能エネルギー政策',title:'低圧太陽光（10〜50kW）が小規模事業用電気工作物に（2023年3月施行）',source:'経済産業省・資源エネルギー庁',eff:'2023-03-20',
+  summary:'電気事業法の改正で、10kW以上50kW未満の太陽光に基礎情報の届出、技術基準への適合維持、使用前自己確認の義務が課された。',
+  impact:'低圧オーナーにも保守・届出の責任が明確になった。届出・点検の支援は、低圧ReFortとO&Mの入口になる。',
+  cr:'chance',imp:2,uses:['営業トーク・提案書・チラシ','年度・四半期・月次の戦術']},
+ {area:'gov',item:'FIT・FIP制度',title:'廃棄等費用の外部積立の開始（2022年7月）',source:'経済産業省・資源エネルギー庁',eff:'2022-07-01',
+  summary:'10kW以上の太陽光は、原則として調達期間終了前10年間、売電収入から差し引く形で廃棄等費用を外部に積み立てる。',
+  impact:'入金額が減ったことへの問い合わせが出やすい。卒FIT・撤去・売却の相談につながる。',
+  cr:'neutral',imp:1,uses:['営業トーク・提案書・チラシ']}
+];
+</script>
+<script>
+'use strict';
 (function(){
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const LS='ec_knowledge_cache_v1';
 const BUCKET='knowledge';
-const CATS=[['all','すべて'],['term','用語'],['qa','QA'],['know','ナレッジ']];
-const BIZ=['共通','蓄電池','ReFort','セカンダリー','太陽光','採用・組織'];
-const CAT_LABEL={term:'用語',qa:'QA',know:'ナレッジ'};
-const CAT_CLASS={term:'c-term',qa:'c-qa',know:'c-know'};
-const SQL="create table if not exists knowledge (\n"+
-  "  id text primary key,\n  category text,\n  biz text,\n  title text,\n  body text,\n  tags text,\n"+
-  "  links jsonb default '[]'::jsonb,\n  images jsonb default '[]'::jsonb,\n"+
-  "  status text default 'draft',\n  author text,\n  approved_by text,\n"+
-  "  updated_at timestamptz default now()\n);\n"+
-  "alter table knowledge enable row level security;\n"+
-  "create policy \"knowledge rw\" on knowledge for all\n  to authenticated using (true) with check (true);";
+const AI_URL='https://aakofrzurgwrkctunthw.supabase.co/functions/v1/ai';
+const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
+const PASS=80;
 
-let sb=null, ME=null, DATA=[], EDIT=null;
-let F={q:'',cat:'all',biz:'all',status:'all'};
+const SQL=`-- ナレッジ v2（業界情報・研修・テスト）
+-- 既存の knowledge テーブルに追加する列
+alter table knowledge add column if not exists ext jsonb default '{}'::jsonb;
 
-function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
-  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000);}
-function uid(){return 'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+-- 業界情報
+create table if not exists kn_info (
+  id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz default now()
+);
+-- 受講・理解・テストの記録
+create table if not exists kn_progress (
+  id text primary key,
+  user_email text, user_name text,
+  kind text, ref text,
+  score int, total int,
+  created_at timestamptz default now()
+);
+-- カリキュラムの講師・日程など
+create table if not exists kn_settings (
+  key text primary key,
+  value jsonb,
+  updated_at timestamptz default now()
+);
+alter table kn_info enable row level security;
+alter table kn_progress enable row level security;
+alter table kn_settings enable row level security;
+drop policy if exists "kn_info rw" on kn_info;
+create policy "kn_info rw" on kn_info for all to authenticated using (true) with check (true);
+drop policy if exists "kn_progress rw" on kn_progress;
+create policy "kn_progress rw" on kn_progress for all to authenticated using (true) with check (true);
+drop policy if exists "kn_settings rw" on kn_settings;
+create policy "kn_settings rw" on kn_settings for all to authenticated using (true) with check (true);`;
+
+/* ---------- state ---------- */
+let sb=null, ME=null;
+let K=[], INFO=[], PROG=[], CSET={};
+const MISSING={ext:false,kn_info:false,kn_progress:false,kn_settings:false};
+const F={kq:'',kind:'all',field:'all',flt:'all', iq:'',area:'',item:'',st:'',use:'',cr:'', cflt:'all'};
+
+/* ---------- utils ---------- */
+function toast(m,ms){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms||2200);}
+function uid(p){return (p||'k')+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function canEdit(){return ME && ['admin','manager','sales','field'].indexOf(ME.role)>=0;}
-function canApprove(){return ME && ['admin','manager'].indexOf(ME.role)>=0;}
-function fmtDate(v){if(!v)return '';const d=new Date(v);return isNaN(d)?'':d.toLocaleDateString('ja-JP');}
+function fmtDate(v){if(!v)return '';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('ja-JP');}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function daysSince(v){if(!v)return 99999;const d=new Date(v);return isNaN(d)?99999:Math.floor((Date.now()-d.getTime())/86400000);}
+function myName(){return ME?(ME.full_name||ME.email):'ゲスト';}
+function myKey(){return ME?(ME.email||ME.full_name):'local';}
+function role(){return ME?ME.role:'';}
+function canEdit(){return ['admin','manager','sales','field','staff'].indexOf(role())>=0;}
+function canApprove(){return ['admin','manager'].indexOf(role())>=0;}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function lsGet(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+async function copyText(t,msg){try{await navigator.clipboard.writeText(t);toast(msg||'コピーしました');}catch(e){toast('コピーできませんでした');}}
+function isMissingErr(e){const m=String((e&&(e.message||e.code))||e||'');return /does not exist|schema cache|relation|42P01|PGRST205|Could not find/i.test(m);}
 
-/* ---------- storage ---------- */
-function cacheRead(){try{return JSON.parse(localStorage.getItem(LS))||[];}catch(e){return [];}}
-function cacheWrite(){try{localStorage.setItem(LS,JSON.stringify(DATA));}catch(e){}}
-
+/* ---------- data layer ---------- */
+const LS={k:'ec_knowledge_cache_v1',i:'ec_kn_info_v1',p:'ec_kn_progress_v1',c:'ec_kn_settings_v1'};
+function kNorm(x){
+  x.ext=(x.ext&&typeof x.ext==='object')?x.ext:{};
+  if(!x.ext.field)x.ext.field=OLD_BIZ[x.biz]||(FIELD[x.biz]?x.biz:(FIELDS.find(f=>f.n===x.biz)||{}).k)||'common';
+  if(x.category==='know'&&x.ext.kindv2)x.category=x.ext.kindv2;
+  return x;
+}
+function isArchived(x){return ARCHIVE_BIZ.indexOf(x.biz)>=0||!!x.ext.archived;}
 async function loadAll(){
+  K=lsGet(LS.k,[]).map(kNorm); INFO=lsGet(LS.i,[]); PROG=lsGet(LS.p,[]); CSET=lsGet(LS.c,{});
   if(sb){
     const r=await sb.from('knowledge').select('*').order('updated_at',{ascending:false});
-    if(r.error){toast('読み込みに失敗しました。設定を確認してください');DATA=cacheRead();}
-    else{DATA=r.data||[];cacheWrite();}
-  }else{DATA=cacheRead();}
-  render();
+    if(!r.error){K=(r.data||[]).map(kNorm);lsSet(LS.k,K);
+      MISSING.ext=(r.data||[]).length>0&&!('ext' in r.data[0]);}
+    else toast('ナレッジの読み込みに失敗しました');
+    const ri=await sb.from('kn_info').select('*').order('updated_at',{ascending:false});
+    if(ri.error){MISSING.kn_info=isMissingErr(ri.error);}else{INFO=(ri.data||[]).map(r=>Object.assign({},r.data,{id:r.id,updated_at:r.updated_at}));lsSet(LS.i,INFO);}
+    const rp=await sb.from('kn_progress').select('*').order('created_at',{ascending:false}).limit(5000);
+    if(rp.error){MISSING.kn_progress=isMissingErr(rp.error);}else{PROG=rp.data||[];lsSet(LS.p,PROG);}
+    const rc=await sb.from('kn_settings').select('*').eq('key','curriculum');
+    if(rc.error){MISSING.kn_settings=isMissingErr(rc.error);}else if(rc.data&&rc.data[0]){CSET=rc.data[0].value||{};lsSet(LS.c,CSET);}
+    if(!MISSING.ext&&K.length===0){const t=await sb.from('knowledge').select('ext').limit(1);if(t.error&&/ext/.test(t.error.message||''))MISSING.ext=true;}
+  }
+  showBanner(); renderAll();
 }
-async function saveOne(rec){
-  DATA=[rec].concat(DATA.filter(x=>x.id!==rec.id));
-  cacheWrite();
-  if(sb){const r=await sb.from('knowledge').upsert(rec);
-    if(r.error){toast('保存できませんでした：'+r.error.message);return false;}}
+function showBanner(){
+  const miss=Object.keys(MISSING).filter(k=>MISSING[k]);
+  const b=$('#dbBanner');
+  if(sb&&miss.length){
+    b.innerHTML='新しい機能用のデータベース設定がまだです。いまは入力した内容がこの端末だけに保存されます。<button id="bnSql">設定のSQLを開く</button>（管理者が1回実行すれば全員に反映されます）';
+    b.classList.add('show'); $('#bnSql').onclick=openSetup;
+  }else b.classList.remove('show');
+}
+async function saveK(rec){
+  rec.biz=(FIELD[rec.ext.field]||FIELD.common).n;
+  K=[rec].concat(K.filter(x=>x.id!==rec.id)); lsSet(LS.k,K);
+  if(!sb)return true;
+  const row=Object.assign({},rec);
+  /* 旧テーブルとの互換：新しい種別は ext に保存し category は既存値に寄せる */
+  if(['rule','product','case'].indexOf(row.category)>=0){row.ext=Object.assign({},row.ext,{kindv2:row.category});row.category='know';}
+  if(MISSING.ext)delete row.ext;
+  let r=await sb.from('knowledge').upsert(row);
+  if(r.error&&/ext/.test(r.error.message||'')){MISSING.ext=true;showBanner();delete row.ext;r=await sb.from('knowledge').upsert(row);
+    if(!r.error)toast('保存しました（トーク・注意点などはSQL実行後に共有されます）',3500);}
+  if(r.error){toast('保存できませんでした：'+r.error.message,4000);return false;}
   return true;
 }
-async function delOne(id){
-  DATA=DATA.filter(x=>x.id!==id); cacheWrite();
-  if(sb){const r=await sb.from('knowledge').delete().eq('id',id);
-    if(r.error){toast('削除できませんでした：'+r.error.message);return false;}}
+async function delK(id){
+  K=K.filter(x=>x.id!==id); lsSet(LS.k,K);
+  if(sb){const r=await sb.from('knowledge').delete().eq('id',id);if(r.error){toast('削除できませんでした：'+r.error.message);return false;}}
   return true;
+}
+async function saveI(rec){
+  rec.updated_at=new Date().toISOString();
+  INFO=[rec].concat(INFO.filter(x=>x.id!==rec.id)); lsSet(LS.i,INFO);
+  if(sb&&!MISSING.kn_info){const d=Object.assign({},rec);delete d.id;delete d.updated_at;
+    const r=await sb.from('kn_info').upsert({id:rec.id,data:d,updated_at:rec.updated_at});
+    if(r.error){if(isMissingErr(r.error)){MISSING.kn_info=true;showBanner();}else{toast('保存できませんでした：'+r.error.message,4000);return false;}}}
+  return true;
+}
+async function delI(id){
+  INFO=INFO.filter(x=>x.id!==id); lsSet(LS.i,INFO);
+  if(sb&&!MISSING.kn_info){const r=await sb.from('kn_info').delete().eq('id',id);if(r.error){toast('削除できませんでした');return false;}}
+  return true;
+}
+async function addProg(kind,ref,score,total){
+  const rec={id:uid('p'),user_email:myKey(),user_name:myName(),kind,ref:String(ref),score:score==null?null:score,total:total==null?null:total,created_at:new Date().toISOString()};
+  PROG.unshift(rec); lsSet(LS.p,PROG);
+  if(sb&&!MISSING.kn_progress){const r=await sb.from('kn_progress').insert(rec);if(r.error&&isMissingErr(r.error)){MISSING.kn_progress=true;showBanner();}}
+  return rec;
+}
+async function delProg(kind,ref){
+  const mine=PROG.filter(p=>p.user_email===myKey()&&p.kind===kind&&p.ref===String(ref));
+  PROG=PROG.filter(p=>mine.indexOf(p)<0); lsSet(LS.p,PROG);
+  if(sb&&!MISSING.kn_progress&&mine.length){await sb.from('kn_progress').delete().in('id',mine.map(m=>m.id));}
+}
+async function saveCSet(){
+  lsSet(LS.c,CSET);
+  if(sb&&!MISSING.kn_settings){const r=await sb.from('kn_settings').upsert({key:'curriculum',value:CSET,updated_at:new Date().toISOString()});
+    if(r.error){if(isMissingErr(r.error)){MISSING.kn_settings=true;showBanner();}else toast('保存できませんでした：'+r.error.message);}}
+}
+function myProg(kind){return PROG.filter(p=>p.user_email===myKey()&&p.kind===kind);}
+function hasRead(id){return PROG.some(p=>p.user_email===myKey()&&p.kind==='read'&&p.ref===id);}
+function courseDone(no){return PROG.some(p=>p.user_email===myKey()&&p.kind==='course'&&p.ref===String(no));}
+function bestScore(field,who){
+  const ps=PROG.filter(p=>p.kind==='quiz'&&p.ref===field&&p.user_email===(who||myKey())&&p.total);
+  if(!ps.length)return null; return Math.max.apply(null,ps.map(p=>Math.round(p.score/p.total*100)));
 }
 
-/* ---------- filters ---------- */
-function buildChips(){
-  $('#catChips').innerHTML=CATS.map(c=>
-    `<button class="chip${F.cat===c[0]?' on':''}" data-cat="${c[0]}">${c[1]}</button>`).join('');
-  $('#bizChips').innerHTML=`<button class="chip${F.biz==='all'?' on':''}" data-biz="all">事業すべて</button>`+
-    BIZ.map(b=>`<button class="chip${F.biz===b?' on':''}" data-biz="${esc(b)}">${esc(b)}</button>`).join('');
-  $$('[data-cat]').forEach(b=>b.onclick=()=>{F.cat=b.dataset.cat;buildChips();render();});
-  $$('[data-biz]').forEach(b=>b.onclick=()=>{F.biz=b.dataset.biz;buildChips();render();});
+/* ---------- AI ---------- */
+async function token(){
+  try{if(sb){const r=await sb.auth.getSession();const s=r&&r.data&&r.data.session;if(s&&s.access_token)return s.access_token;}}catch(e){}
+  return SB_KEY;
 }
-function matches(x){
-  if(F.cat!=='all'&&x.category!==F.cat)return false;
-  if(F.biz!=='all'&&x.biz!==F.biz)return false;
-  if(F.status==='approved'&&x.status!=='approved')return false;
-  if(F.status==='pending'&&x.status==='approved')return false;
-  const q=F.q.trim().toLowerCase();
-  if(!q)return true;
-  const hay=[x.title,x.body,x.tags,x.biz].join(' ').toLowerCase();
-  return q.split(/\s+/).every(w=>hay.indexOf(w)>=0);
+async function callAI(system,prompt,maxTokens){
+  const res=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token(),'apikey':SB_KEY},
+    body:JSON.stringify({system,max_tokens:maxTokens||2000,messages:[{role:'user',content:prompt}]})});
+  const raw=await res.text(); let j={}; try{j=JSON.parse(raw);}catch(e){}
+  if(!res.ok){const em=j.error?(typeof j.error==='string'?j.error:(j.error.message||JSON.stringify(j.error))):raw.slice(0,160);
+    throw new Error('AIの呼び出しに失敗しました（'+res.status+'）：'+em);}
+  const t=(typeof j==='string')?j:(j.text||(Array.isArray(j.content)?j.content.map(c=>c.text||'').join(''):'')||j.result||'');
+  if(!t)throw new Error('AIから回答が返ってきませんでした。少し待ってもう一度押してください');
+  return t.trim();
 }
+function parseJSON(t){
+  t=String(t).replace(/```json|```/g,'').trim();
+  const a=t.indexOf('{'),b=t.indexOf('['); let s=-1;
+  if(a<0)s=b;else if(b<0)s=a;else s=Math.min(a,b);
+  if(s>0)t=t.slice(s);
+  const end=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']')); if(end>0)t=t.slice(0,end+1);
+  return JSON.parse(t);
+}
+const AI_BASE='あなたは株式会社アースコム（埼玉県越谷市。太陽光発電所のリパワリング「ReFort」、系統蓄電池、中古発電所売買「セカンダリー」、盗難対策「サンキーパー」、保守管理を行う再エネ企業）の社内教育担当です。営業社員がお客様に正確に説明でき、契約率が上がることを目的に、日本語で、平易に、正確に書いてください。制度・税制・数値は断定しすぎず、根拠が不確かなものは「要確認」と明記します。税務判断は顧問税理士、法的判断は専門家の確認が前提であることを守ります。Markdownの記号（**や#）は使いません。';
+
+/* ---------- modal ---------- */
+function openModal(title,body,foot,wide){
+  $('#mTitle').textContent=title; $('#mBody').innerHTML=body; $('#mFoot').innerHTML=foot||'<div class="sp"></div><button class="btn pri" data-close>閉じる</button>';
+  $('#modal').classList.toggle('wide',!!wide); $('#ov').classList.add('show'); $('#ov').scrollTop=0;
+  $$('#mFoot [data-close]').forEach(b=>b.onclick=closeModal);
+}
+function closeModal(){$('#ov').classList.remove('show');}
+$('#mClose').onclick=closeModal;
+$('#ov').addEventListener('click',e=>{if(e.target===$('#ov'))closeModal();});
+
+/* ---------- tabs ---------- */
+let VIEW='home';
+function go(v){
+  VIEW=v; $$('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  renderView(); window.scrollTo(0,0);
+}
+$$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+function renderAll(){renderTabBadges();renderView();}
+function renderView(){
+  ({home:renderHome,info:renderInfo,know:renderKnow,course:renderCourse,quiz:renderQuiz,ask:()=>{}})[VIEW]();
+}
+function liveK(){return K.filter(x=>!isArchived(x));}
+function isStale(x){return STALE_FIELDS.indexOf(x.ext.field)>=0&&daysSince(x.ext.checked||x.updated_at)>STALE_DAYS;}
+function renderTabBadges(){
+  const unInfo=INFO.filter(i=>i.status==='new').length;
+  const b=$('#tabs [data-v="info"]'); b.innerHTML='業界情報'+(unInfo?'<span class="cnt">'+unInfo+'</span>':'');
+}
+
+/* =====================================================================
+   ホーム
+   ===================================================================== */
+function dailyQ(){
+  const d=new Date(); const n=d.getFullYear()*372+d.getMonth()*31+d.getDate();
+  return QBANK[(n*7)%QBANK.length];
+}
+function level(passed){
+  if(passed>=10)return ['M','マスター'];if(passed>=7)return ['E','エキスパート'];if(passed>=4)return ['S','スタンダード'];if(passed>=1)return ['B','ビギナー'];return ['—','これから'];
+}
+function quizFields(){return FIELDS.filter(f=>f.k!=='common');}
+function renderHome(){
+  const q=dailyQ(); const dkey='ec_kn_daily_'+today(); const ans=lsGet(dkey,null);
+  const order=lsGet(dkey+'_o',null)||shuffle([0,1,2,3]); lsSet(dkey+'_o',order);
+  const streak=lsGet('ec_kn_streak',{n:0,last:''});
+  const live=liveK();
+  const read=live.filter(x=>hasRead(x.id)).length;
+  const cdone=CURRICULUM.filter(c=>courseDone(c.no)).length;
+  const passed=quizFields().filter(f=>(bestScore(f.k)||0)>=PASS).length;
+  const lv=level(passed);
+  const stale=live.filter(isStale);
+  const newInfo=INFO.slice().sort((a,b)=>(b.imp||1)-(a.imp||1)||String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,6);
+  const covered=POLICY.reduce((s,p)=>s+p.items.filter(it=>INFO.some(i=>i.area===p.k&&i.item===it)).length,0);
+  const totalItems=POLICY.reduce((s,p)=>s+p.items.length,0);
+  const talks=live.filter(x=>x.ext.talk).sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,5);
+  const nextCourse=CURRICULUM.find(c=>!courseDone(c.no));
+  const weak=quizFields().map(f=>({f,s:bestScore(f.k)})).filter(o=>o.s==null||o.s<PASS).slice(0,3);
+
+  $('#v-home').innerHTML=`
+  <div class="daily">
+    <div class="k"><span>今日の1問</span><span>${esc(FIELD[q.f].n)}</span><span style="margin-left:auto">連続正解 ${streak.n}日</span></div>
+    <div class="q">${esc(q.q)}</div>
+    <div class="opts" id="dOpts">${order.map(i=>`<button data-i="${i}" ${ans!=null?'disabled':''} class="${ans!=null?(i===q.a?'ok':(i===ans?'ng':'')):''}">${esc(q.o[i])}</button>`).join('')}</div>
+    <div class="exp" id="dExp">${ans!=null?(ans===q.a?'正解です。':'正解は「'+esc(q.o[q.a])+'」です。')+' '+esc(q.e):''}</div>
+  </div>
+  <div class="stats" style="margin-top:14px">
+    <div class="panel"><div class="lvl"><div class="medal">${lv[0]}</div><div class="stat"><div class="l">習熟レベル</div><div style="font-weight:900;color:var(--navy);font-size:17px">${lv[1]}</div><div class="note">テスト合格 ${passed}／${quizFields().length}分野</div></div></div></div>
+    <div class="panel"><div class="stat"><div class="l">研修カリキュラム</div><div class="v">${cdone}<small>／${CURRICULUM.length}</small></div></div><div class="bar" style="margin-top:6px"><i style="width:${Math.round(cdone/CURRICULUM.length*100)}%"></i></div></div>
+    <div class="panel"><div class="stat"><div class="l">理解したナレッジ</div><div class="v">${read}<small>／${live.length}</small></div></div><div class="bar gold" style="margin-top:6px"><i style="width:${live.length?Math.round(read/live.length*100):0}%"></i></div></div>
+    <div class="panel"><div class="stat"><div class="l">業界情報の収集状況</div><div class="v">${covered}<small>／${totalItems}項目</small></div></div><div class="bar" style="margin-top:6px"><i style="width:${Math.round(covered/totalItems*100)}%"></i></div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="panel"><h3>重要な業界情報<span class="sp"></span><button class="btn gh sm" data-go="info">すべて見る</button></h3>
+      ${newInfo.length?`<div class="mini-list">${newInfo.map(i=>`<button data-info="${esc(i.id)}"><span class="badge ${i.imp>=3?'b-risk':i.imp==2?'b-both':'b-draft'}">${i.imp>=3?'重要':i.imp==2?'注目':'参考'}</span><span class="t">${esc(i.title)}</span><span class="d">${esc((POL[i.area]||{}).n||'')}</span></button>`).join('')}</div>`
+        :'<div class="note">まだ登録がありません。業界情報タブから登録できます。</div>'}
+    </div>
+    <div class="panel"><h3>次にやること</h3>
+      <div class="mini-list">
+        ${nextCourse?`<button data-go="course"><span class="badge b-kind">研修</span><span class="t">No.${nextCourse.no} ${esc(nextCourse.sub)}：${esc(nextCourse.item)}</span></button>`:''}
+        ${weak.map(o=>`<button data-quiz="${o.f.k}"><span class="badge b-re">テスト</span><span class="t">${esc(o.f.n)}${o.s==null?'（未受験）':'（最高'+o.s+'点）'}</span></button>`).join('')}
+        ${stale.length&&canApprove()?`<button data-stale="1"><span class="badge b-old">要確認</span><span class="t">確認日から${STALE_DAYS}日を過ぎた制度・税制のナレッジが${stale.length}件あります</span></button>`:''}
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h3>最近の営業トーク<span class="sp"></span><button class="btn gh sm" data-talk="1">トークのある知識を見る</button></h3>
+    ${talks.length?`<div class="mini-list">${talks.map(x=>`<button data-k="${esc(x.id)}"><span class="badge b-kind">${esc(KIND[x.category]||'')}</span><span class="t">${esc(x.title)}<br><span class="note">${esc(x.ext.talk.slice(0,90))}</span></span></button>`).join('')}</div>`:'<div class="note">「お客様にはこう伝える」が入ったナレッジがまだありません。</div>'}
+  </div>`;
+  $$('#dOpts button').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i; lsSet(dkey,i);
+    const st=lsGet('ec_kn_streak',{n:0,last:''});
+    const y=new Date(Date.now()-86400000); const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+    if(st.last!==today()){ if(i===q.a){st.n=(st.last===ys?st.n:0)+1;}else st.n=0; st.last=today(); lsSet('ec_kn_streak',st);}
+    addProg('daily',q.f,i===q.a?1:0,1); renderHome();
+  });
+  $$('#v-home [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  $$('#v-home [data-info]').forEach(b=>b.onclick=()=>openInfo(b.dataset.info));
+  $$('#v-home [data-k]').forEach(b=>b.onclick=()=>openK(b.dataset.k));
+  $$('#v-home [data-quiz]').forEach(b=>b.onclick=()=>startQuiz(b.dataset.quiz));
+  $$('#v-home [data-stale]').forEach(b=>b.onclick=()=>{F.flt='stale';go('know');});
+  $$('#v-home [data-talk]').forEach(b=>b.onclick=()=>{F.flt='talk';go('know');});
+}
+
+/* =====================================================================
+   業界情報
+   ===================================================================== */
+$('#iUse').innerHTML='<option value="">活用先：すべて</option>'+USES.map(u=>`<option>${esc(u)}</option>`).join('');
+function heat(n){return n===0?'h0':n===1?'h1':n<=3?'h2':'h3';}
+function renderInfo(){
+  $('#matrix').innerHTML=POLICY.map(p=>{
+    const tot=INFO.filter(i=>i.area===p.k).length;
+    return `<div class="mcol"><div class="mh">${esc(p.n)}<span class="n">${tot}</span></div>
+      ${p.items.map(it=>{const n=INFO.filter(i=>i.area===p.k&&i.item===it).length;
+        return `<button class="mcell${F.area===p.k&&F.item===it?' on':''}" data-a="${p.k}" data-it="${esc(it)}"><span class="nm">${esc(it)}</span><span class="ct ${heat(n)}">${n}</span></button>`;}).join('')}
+    </div>`;}).join('');
+  $('#matrixSel').innerHTML=F.item?`絞り込み中：<b>${esc(POL[F.area].n)}／${esc(F.item)}</b> <button class="btn gh sm" id="mxClr">解除</button>`:'';
+  if($('#mxClr'))$('#mxClr').onclick=()=>{F.area='';F.item='';renderInfo();};
+  $$('.mcell').forEach(b=>b.onclick=()=>{
+    if(F.area===b.dataset.a&&F.item===b.dataset.it){F.area='';F.item='';}else{F.area=b.dataset.a;F.item=b.dataset.it;}
+    renderInfo();});
+  const q=F.iq.trim().toLowerCase();
+  const list=INFO.filter(i=>{
+    if(F.area&&i.area!==F.area)return false; if(F.item&&i.item!==F.item)return false;
+    if(F.st&&i.status!==F.st)return false; if(F.use&&(i.uses||[]).indexOf(F.use)<0)return false;
+    if(F.cr&&i.cr!==F.cr)return false;
+    if(q){const h=[i.title,i.summary,i.impact,i.talk,i.item,i.source].join(' ').toLowerCase();if(!q.split(/\s+/).every(w=>h.indexOf(w)>=0))return false;}
+    return true;
+  }).sort((a,b)=>String(b.info_date||b.eff||b.updated_at).localeCompare(String(a.info_date||a.eff||a.updated_at)));
+  $('#infoList').innerHTML=list.length?list.map(infoCard).join(''):
+    `<div class="empty"><b>${INFO.length?'条件に合う情報がありません':'業界情報はまだありません'}</b>${F.item?'「'+esc(F.item)+'」の情報を最初に登録しましょう。':'ニュース・通達・お客様から聞いた話を、1件ずつ登録してください。'}</div>`;
+  $$('#infoList .card').forEach(c=>c.onclick=()=>openInfo(c.dataset.id));
+  $('#btnInfoNew').style.display=canEdit()?'':'none'; $('#btnInfoAI').style.display=canEdit()?'':'none';
+}
+function infoCard(i){
+  return `<div class="card i-${i.imp||1}" data-id="${esc(i.id)}">
+    <h4>${esc(i.title||'（無題）')}</h4>
+    <div class="snip">${esc(i.summary||'')}</div>
+    ${i.talk?`<div class="talk">営業トーク：${esc(i.talk)}</div>`:''}
+    <div class="foot">
+      <span class="badge b-kind">${esc((POL[i.area]||{}).n||'')}</span><span class="tag">${esc(i.item||'')}</span>
+      ${i.cr&&i.cr!=='neutral'?`<span class="badge b-${i.cr}">${CR[i.cr]}</span>`:''}
+      <span class="badge ${i.status==='used'?'b-ok':i.status==='analyzed'?'b-re':'b-draft'}">${INFO_ST[i.status]||'未分析'}</span>
+      ${i.seed?'<span class="badge b-ai">AI下書き・要出典確認</span>':''}
+      ${(i.uses||[]).slice(0,2).map(u=>`<span class="tag">${esc(u)}</span>`).join('')}
+      <span class="sp"></span><span>${esc(i.source||'')}　${fmtDate(i.info_date||i.eff)}</span>
+    </div></div>`;
+}
+let IQT=null;
+$('#iq').oninput=e=>{clearTimeout(IQT);IQT=setTimeout(()=>{F.iq=e.target.value;renderInfo();},150);};
+$('#iSt').onchange=e=>{F.st=e.target.value;renderInfo();};
+$('#iUse').onchange=e=>{F.use=e.target.value;renderInfo();};
+$('#iCr').onchange=e=>{F.cr=e.target.value;renderInfo();};
+$('#btnInfoNew').onclick=()=>editInfo(null,F.area?{area:F.area,item:F.item}:null);
+$('#btnInfoAI').onclick=infoAIDialog;
+$('#btnMonthly').onclick=monthlyDialog;
+
+function infoChatwork(i){
+  const L=[];
+  L.push('[info][title]【業界情報】'+(i.title||'')+'[/title]');
+  L.push('■区分：'+((POL[i.area]||{}).n||'')+'／'+(i.item||''));
+  L.push('■収集先：'+(i.source||'')+(i.url?'\n'+i.url:''));
+  if(i.info_date||i.eff)L.push('■日付：'+(i.info_date?'情報 '+fmtDate(i.info_date):'')+(i.eff?'　施行・開始 '+fmtDate(i.eff):''));
+  L.push('[hr]■要点\n'+(i.summary||''));
+  if(i.impact)L.push('■当社への影響【'+(CR[i.cr]||'中立')+'】\n'+i.impact);
+  if(i.talk)L.push('■営業トーク\n'+i.talk);
+  if((i.uses||[]).length)L.push('■活用先：'+i.uses.join('、'));
+  L.push('[/info]');
+  return L.join('\n');
+}
+function openInfo(id){
+  const i=INFO.find(x=>x.id===id); if(!i)return;
+  openModal('業界情報',`
+    <div class="d-title">${esc(i.title)}</div>
+    <div class="d-meta"><span class="badge b-kind">${esc((POL[i.area]||{}).n||'')}</span><span class="tag">${esc(i.item||'')}</span>
+      ${i.cr?`<span class="badge b-${i.cr==='neutral'?'draft':i.cr}">${CR[i.cr]||''}</span>`:''}
+      <span class="badge ${i.status==='used'?'b-ok':i.status==='analyzed'?'b-re':'b-draft'}">${INFO_ST[i.status]||'未分析'}</span>
+      ${i.seed?'<span class="badge b-ai">AI下書き・要出典確認</span>':''}
+      <span class="muted">重要度 ${'★'.repeat(i.imp||1)}</span></div>
+    <div class="d-sec" style="margin-top:0">要点</div><div class="d-body">${esc(i.summary||'')}</div>
+    ${i.impact?`<div class="d-sec">当社への影響</div><div class="d-body">${esc(i.impact)}</div>`:''}
+    ${i.talk?`<div class="d-talk"><div class="h">お客様にはこう伝える</div><div>${esc(i.talk)}</div></div>`:''}
+    <div class="d-src"><div class="h">収集先・日付</div>${esc(i.source||'')}${i.url?`<br><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>`:''}
+      <br>情報の日付：${fmtDate(i.info_date)||'—'}　施行・開始：${fmtDate(i.eff)||'—'}<br>登録：${esc(i.author||'')}　更新 ${fmtDate(i.updated_at)}</div>
+    ${(i.uses||[]).length?`<div class="d-sec">活用先</div><div class="chips">${i.uses.map(u=>`<span class="tag">${esc(u)}</span>`).join('')}</div>`:''}
+  `,`<button class="btn gh" id="iCw">Chatwork用にコピー</button>
+    ${canEdit()&&i.talk?'<button class="btn gh" id="iToK">営業トークを知識に登録</button>':''}
+    <div class="sp"></div>
+    ${canEdit()?'<button class="btn pri" id="iEdit">編集する</button>':''}`);
+  $('#iCw').onclick=()=>copyText(infoChatwork(i),'Chatwork用にコピーしました');
+  if($('#iEdit'))$('#iEdit').onclick=()=>editInfo(i.id);
+  if($('#iToK'))$('#iToK').onclick=()=>{
+    const fm={gov:'fit',power:'grid',local:'local',tax:'tax',market:'comp'};
+    const rec=blankK(); rec.category='rule'; rec.title=i.title; rec.body=i.summary+(i.impact?'\n\n当社への影響：'+i.impact:'');
+    rec.ext.field=(i.area==='gov'&&/蓄電池|需給/.test(i.item))?'market':(fm[i.area]||'common'); rec.ext.talk=i.talk||''; rec.ext.source=i.source||''; rec.ext.source_url=i.url||''; rec.ext.checked=i.info_date||today();
+    rec.tags=i.item; editK(null,rec);
+  };
+}
+function editInfo(id,preset){
+  const i=id?JSON.parse(JSON.stringify(INFO.find(x=>x.id===id))):Object.assign({id:uid('i'),area:'gov',item:POLICY[0].items[0],title:'',source:SOURCES[0],url:'',info_date:today(),eff:'',summary:'',impact:'',cr:'neutral',imp:2,uses:[],talk:'',status:'new',author:myName(),created_at:new Date().toISOString()},preset||{});
+  const itemOpts=a=>POL[a].items.map(it=>`<option${it===i.item?' selected':''}>${esc(it)}</option>`).join('');
+  openModal(id?'業界情報を編集':'業界情報を登録',`
+    <div class="row2">
+      <div class="fld"><label>区分</label><select id="fA">${POLICY.map(p=>`<option value="${p.k}"${p.k===i.area?' selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+      <div class="fld"><label>項目</label><select id="fIt">${itemOpts(i.area)}</select></div>
+    </div>
+    <div class="fld"><label>タイトル（何が起きたか・何が決まったか）</label><input type="text" id="fT" value="${esc(i.title)}" placeholder="例：〇〇電力 2026年度の出力制御見通しを公表"></div>
+    <div class="row2">
+      <div class="fld"><label>収集先</label><select id="fS">${SOURCES.map(s=>`<option${s===i.source?' selected':''}>${esc(s)}</option>`).join('')}</select></div>
+      <div class="fld"><label>出典URL</label><input type="text" id="fU" value="${esc(i.url||'')}" placeholder="https://"></div>
+    </div>
+    <div class="row3">
+      <div class="fld"><label>情報の日付</label><input type="date" id="fD" value="${esc(i.info_date||'')}"></div>
+      <div class="fld"><label>施行・開始日（あれば）</label><input type="date" id="fE" value="${esc(i.eff||'')}"></div>
+      <div class="fld"><label>重要度</label><select id="fImp"><option value="3"${i.imp==3?' selected':''}>★★★ 重要（経営判断に関わる）</option><option value="2"${i.imp==2?' selected':''}>★★ 注目</option><option value="1"${i.imp==1?' selected':''}>★ 参考</option></select></div>
+    </div>
+    <div class="fld"><label>要点（事実だけを短く）</label><textarea id="fSum" class="s">${esc(i.summary||'')}</textarea></div>
+    <div class="row2">
+      <div class="fld"><label>当社への影響</label><select id="fCr">${Object.keys(CR).map(k=>`<option value="${k}"${k===i.cr?' selected':''}>${CR[k]}</option>`).join('')}</select></div>
+      <div class="fld"><label>状況</label><select id="fSt">${Object.keys(INFO_ST).map(k=>`<option value="${k}"${k===i.status?' selected':''}>${INFO_ST[k]}</option>`).join('')}</select></div>
+    </div>
+    <div class="fld"><label>分析：当社のビジネスにどう影響するか（チャンス・リスク）</label><textarea id="fImpct" class="s">${esc(i.impact||'')}</textarea></div>
+    <div class="fld"><label>お客様にはこう伝える（営業トーク）</label><textarea id="fTalk" class="s">${esc(i.talk||'')}</textarea></div>
+    <div class="fld"><label>活用先</label><div class="checks">${USES.map(u=>`<label><input type="checkbox" value="${esc(u)}"${(i.uses||[]).indexOf(u)>=0?' checked':''}>${esc(u)}</label>`).join('')}</div></div>
+    <div id="fErr"></div>`,
+    `${id?'<button class="btn danger" id="fDel">削除</button>':''}<button class="btn gh" id="fAI">AIで分析・トークを下書き</button><div class="sp"></div><button class="btn gh" data-close>やめる</button><button class="btn pri" id="fSave">保存する</button>`);
+  $('#fA').onchange=e=>{i.area=e.target.value;i.item=POL[i.area].items[0];$('#fIt').innerHTML=itemOpts(i.area);};
+  const collect=()=>{
+    i.area=$('#fA').value;i.item=$('#fIt').value;i.title=$('#fT').value.trim();i.source=$('#fS').value;i.url=$('#fU').value.trim();
+    i.info_date=$('#fD').value;i.eff=$('#fE').value;i.imp=+$('#fImp').value;i.summary=$('#fSum').value.trim();i.cr=$('#fCr').value;i.status=$('#fSt').value;
+    i.impact=$('#fImpct').value.trim();i.talk=$('#fTalk').value.trim();i.uses=$$('#mBody .checks input:checked').map(c=>c.value);
+  };
+  $('#fAI').onclick=async()=>{
+    collect(); if(!i.summary&&!i.title){toast('タイトルか要点を先に入れてください');return;}
+    const b=$('#fAI'); b.disabled=true; b.innerHTML='<span class="spin"></span> 分析中…';
+    try{
+      const t=await callAI(AI_BASE,`次の業界情報について、当社のビジネスへの影響と営業トークを作ってください。
+JSONだけを返してください：{"impact":"当社への影響（チャンス・リスク、どの商品・どのお客様に効くか。3〜5文）","cr":"chance|risk|both|neutral","talk":"お客様にそのまま話せる営業トーク（2〜3文、「」付き）","uses":["次から該当するもの：${USES.join('／')}"],"imp":1から3の数字}
+区分：${POL[i.area].n}／${i.item}
+タイトル：${i.title}
+要点：${i.summary}
+出典：${i.source} ${i.url}`,1200);
+      const j=parseJSON(t);
+      if(j.impact)$('#fImpct').value=j.impact; if(j.talk)$('#fTalk').value=j.talk;
+      if(CR[j.cr])$('#fCr').value=j.cr; if(j.imp)$('#fImp').value=String(Math.max(1,Math.min(3,+j.imp||2)));
+      (j.uses||[]).forEach(u=>{const c=$$('#mBody .checks input').find(x=>x.value===u);if(c)c.checked=true;});
+      $('#fSt').value='analyzed'; toast('AIの下書きを入れました。内容を確認して保存してください',3000);
+    }catch(e){$('#fErr').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+    b.disabled=false; b.textContent='AIで分析・トークを下書き';
+  };
+  $('#fSave').onclick=async()=>{
+    collect(); if(!i.title){toast('タイトルを入れてください');return;}
+    if(!i.author)i.author=myName(); delete i.seed;
+    if(await saveI(i)){closeModal();renderAll();toast('保存しました');}
+  };
+  if($('#fDel'))$('#fDel').onclick=async()=>{if(!confirm('この情報を削除します。よろしいですか？'))return;if(await delI(i.id)){closeModal();renderAll();toast('削除しました');}};
+}
+function infoAIDialog(){
+  openModal('URL・記事からAIで登録',`
+    <p class="note" style="margin-bottom:10px">ニュース記事・通達・電力会社のお知らせなどの本文を貼り付けてください。AIが区分・項目・要点・当社への影響・営業トークを下書きします。URLだけではAIが中身を読めないため、本文も貼ってください。</p>
+    <div class="fld"><label>出典URL（任意）</label><input type="text" id="aU" placeholder="https://"></div>
+    <div class="fld"><label>本文・メモ</label><textarea id="aT" style="min-height:220px" placeholder="記事の本文、またはお客様・金融機関から聞いた話のメモ"></textarea></div>
+    <div id="aErr"></div>`,
+    `<div class="sp"></div><button class="btn gh" data-close>やめる</button><button class="btn gold" id="aGo">AIで下書きを作る</button>`);
+  $('#aGo').onclick=async()=>{
+    const txt=$('#aT').value.trim(), url=$('#aU').value.trim();
+    if(txt.length<30){toast('本文を30文字以上貼ってください');return;}
+    const b=$('#aGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> 読んでいます…';
+    try{
+      const map=POLICY.map(p=>p.k+'（'+p.n+'）：'+p.items.join('／')).join('\n');
+      const t=await callAI(AI_BASE,`次の情報を、当社の「業界情報に関する方針」にそって整理してください。
+区分(area)と項目(item)は次から1つずつ選びます：
+${map}
+収集先(source)は次から1つ：${SOURCES.join('／')}
+活用先(uses)は次から該当するものを複数：${USES.join('／')}
+JSONだけを返してください：{"area":"gov等のキー","item":"項目名","title":"30字程度の見出し","source":"","info_date":"YYYY-MM-DDまたは空","eff":"施行・開始日 YYYY-MM-DDまたは空","summary":"事実の要点（3〜4文）","impact":"当社への影響（3〜5文）","cr":"chance|risk|both|neutral","imp":1〜3,"talk":"お客様向けトーク（「」付き2〜3文）","uses":[]}
+出典URL：${url}
+本文：
+${txt.slice(0,9000)}`,1800);
+      const j=parseJSON(t);
+      const area=POL[j.area]?j.area:'gov';
+      const pre={area,item:POL[area].items.indexOf(j.item)>=0?j.item:POL[area].items[0],title:j.title||'',source:SOURCES.indexOf(j.source)>=0?j.source:SOURCES[4],
+        url,info_date:/^\d{4}-\d{2}-\d{2}$/.test(j.info_date||'')?j.info_date:today(),eff:/^\d{4}-\d{2}-\d{2}$/.test(j.eff||'')?j.eff:'',
+        summary:j.summary||'',impact:j.impact||'',cr:CR[j.cr]?j.cr:'neutral',imp:Math.max(1,Math.min(3,+j.imp||2)),talk:j.talk||'',uses:(j.uses||[]).filter(u=>USES.indexOf(u)>=0),status:'analyzed'};
+      editInfo(null,pre); toast('下書きを作りました。内容を確認して保存してください',3000);
+    }catch(e){$('#aErr').innerHTML='<div class="err">'+esc(e.message)+'</div>';b.disabled=false;b.textContent='AIで下書きを作る';}
+  };
+}
+function monthlyDialog(){
+  const now=new Date(); const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  openModal('業界情報のまとめ（会議・Chatwork用）',`
+    <div class="row2"><div class="fld"><label>対象の月</label><input type="text" id="mYm" value="${ym}" placeholder="YYYY-MM"></div>
+    <div class="fld"><label>件数</label><div id="mCnt" class="note" style="padding-top:8px"></div></div></div>
+    <p class="note">登録日または情報の日付がその月の業界情報を、AIが「経営判断に効く順」にまとめます。結論・チャンス・リスク・今月の打ち手・営業トークの形で出ます。</p>
+    <div id="mOut" style="margin-top:12px"></div>`,
+    `<div class="sp"></div><button class="btn gh" data-close>閉じる</button><button class="btn gold" id="mGo">AIでまとめる</button>`,true);
+  const pick=()=>{const v=$('#mYm').value.trim();return INFO.filter(i=>String(i.info_date||'').slice(0,7)===v||String(i.updated_at||'').slice(0,7)===v);};
+  const upd=()=>{$('#mCnt').textContent=pick().length+'件';}; upd(); $('#mYm').oninput=upd;
+  $('#mGo').onclick=async()=>{
+    const list=pick(); if(!list.length){toast('その月の情報がありません');return;}
+    const b=$('#mGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> まとめています…';
+    try{
+      const src=list.map((i,n)=>`${n+1}. [${(POL[i.area]||{}).n}/${i.item}] ${i.title}（重要度${i.imp||1}・${CR[i.cr]||''}）\n要点：${i.summary}\n影響：${i.impact||''}`).join('\n\n');
+      const t=await callAI(AI_BASE+' 出力はChatworkにそのまま貼る形式です。HTMLタグは使わず、強調は【】、見出しは■、区切りは[hr]、[title]は先頭に1回だけ使います。',
+`${$('#mYm').value}の業界情報${list.length}件を、幹部会議用にまとめてください。形式：
+[info][title]業界情報まとめ（${$('#mYm').value}）[/title]
+■結論（3行以内）
+[hr]
+■チャンス（どの商品・どのお客様に効くか）
+■リスク（何を備えるか）
+[hr]
+■今月の打ち手（担当部署・期限の目安・完了条件つき、3つまで）
+■営業トークへの反映（2〜3個）
+■金融機関・提携先に伝えるべきこと
+[/info]
+
+情報：
+${src}`,2500);
+      $('#mOut').innerHTML=`<div class="cw" id="mCw">${esc(t)}</div><div style="margin-top:8px"><button class="btn gh sm" id="mCp">Chatwork用にコピー</button></div>`;
+      $('#mCp').onclick=()=>copyText(t,'コピーしました');
+    }catch(e){$('#mOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+    b.disabled=false; b.textContent='もう一度まとめる';
+  };
+}
+
+/* =====================================================================
+   知識・ルール
+   ===================================================================== */
+function renderKnow(){
+  $('#kindChips').innerHTML=[['all','すべて']].concat(KINDS.map(k=>[k.k,k.n])).map(c=>`<button class="chip${F.kind===c[0]?' on':''}" data-kind="${c[0]}">${c[1]}</button>`).join('');
+  const live=liveK();
+  $('#fieldChips').innerHTML=`<button class="chip${F.field==='all'?' on':''}" data-field="all">全分野 ${live.length}</button>`+
+    FIELDS.map(f=>{const n=live.filter(x=>x.ext.field===f.k).length;return n||F.field===f.k?`<button class="chip${F.field===f.k?' on':''}" data-field="${f.k}">${esc(f.n)} ${n}</button>`:'';}).join('');
+  $$('#kSeg button').forEach(b=>b.classList.toggle('on',b.dataset.f===F.flt));
+  $$('[data-kind]').forEach(b=>b.onclick=()=>{F.kind=b.dataset.kind;renderKnow();});
+  $$('[data-field]').forEach(b=>b.onclick=()=>{F.field=b.dataset.field;renderKnow();});
+  const q=F.kq.trim().toLowerCase();
+  const list=live.filter(x=>{
+    if(F.kind!=='all'&&x.category!==F.kind)return false;
+    if(F.field!=='all'&&x.ext.field!==F.field)return false;
+    if(F.flt==='official'&&x.status!=='approved')return false;
+    if(F.flt==='talk'&&!x.ext.talk)return false;
+    if(F.flt==='stale'&&!isStale(x))return false;
+    if(F.flt==='unread'&&hasRead(x.id))return false;
+    if(q){const h=[x.title,x.body,x.tags,x.ext.talk,x.ext.caution,(FIELD[x.ext.field]||{}).n].join(' ').toLowerCase();if(!q.split(/\s+/).every(w=>h.indexOf(w)>=0))return false;}
+    return true;
+  }).sort((a,b)=>(a.status==='approved'?0:1)-(b.status==='approved'?0:1)||FORD(a)-FORD(b)||String(b.updated_at).localeCompare(String(a.updated_at)));
+  $('#kCount').textContent=list.length+'件';
+  $('#kList').innerHTML=list.length?list.map(kCard).join(''):`<div class="empty"><b>${live.length?'該当するものがありません':'ナレッジがまだありません'}</b>${live.length?'キーワードや絞り込みを変えてみてください。':'設定から「基本ナレッジ」を取り込むか、1件追加してください。'}</div>`;
+  $$('#kList .card').forEach(c=>c.onclick=()=>openK(c.dataset.id));
+  $('#btnKNew').style.display=canEdit()?'':'none';
+}
+function FORD(x){const i=FIELDS.findIndex(f=>f.k===x.ext.field);return i<0?99:i;}
 function statusBadge(x){
   if(x.status==='approved')return '<span class="badge b-ok">公式</span>';
-  if(x.status==='review')return '<span class="badge b-re">要再確認</span>';
+  if(x.status==='review')return '<span class="badge b-re">再確認待ち</span>';
   return '<span class="badge b-draft">下書き</span>';
 }
-
-/* ---------- render ---------- */
-function render(){
-  const list=DATA.filter(matches);
-  $('#count').textContent=list.length+' 件';
-  $('#hint').textContent=F.q?('「'+F.q+'」の検索結果'):(DATA.length?'全'+DATA.length+'件から検索できます':'まだ登録がありません');
-  if(!list.length){
-    $('#cards').innerHTML=`<div class="empty"><h3>${DATA.length?'該当するものがありません':'ナレッジがまだありません'}</h3>
-      <p>${DATA.length?'キーワードや絞り込みを変えてみてください。':'よく聞かれる用語やQAを1件登録してみてください。'}</p>
-      <button class="btn gold" id="emptyNew">＋ 追加する</button></div>`;
-    const b=$('#emptyNew'); if(b)b.onclick=()=>openEdit(null);
-    return;
-  }
-  $('#cards').innerHTML=list.map(x=>{
-    const imgs=(x.images||[]).length, lks=(x.links||[]).length;
-    const at=[]; if(imgs)at.push('画像'+imgs); if(lks)at.push('リンク'+lks);
-    const tags=(x.tags||'').split(',').map(s=>s.trim()).filter(Boolean).slice(0,3);
-    return `<div class="card ${CAT_CLASS[x.category]||''}" data-id="${esc(x.id)}">
-      <h3>${esc(x.title||'（無題）')}</h3>
-      <div class="snip">${esc((x.body||'').replace(/\s+/g,' ').slice(0,110))}</div>
-      <div class="foot">
-        <span class="badge b-cat">${CAT_LABEL[x.category]||''}</span>
-        ${statusBadge(x)}
-        <span class="tag">${esc(x.biz||'共通')}</span>
-        ${tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}
-        ${at.length?'<span class="attach">'+at.join('・')+'</span>':''}
-        <span style="flex:1"></span>
-        <span>${esc(x.author||'')} ${fmtDate(x.updated_at)}</span>
-      </div></div>`;
-  }).join('');
-  $$('#cards .card').forEach(c=>c.onclick=()=>openView(c.dataset.id));
+function kCard(x){
+  const tags=(x.tags||'').split(',').map(s=>s.trim()).filter(Boolean).slice(0,3);
+  return `<div class="card k-${x.category}" data-id="${esc(x.id)}">
+    <h4>${esc(x.title||'（無題）')}</h4>
+    <div class="snip">${esc((x.body||'').replace(/\s+/g,' ').slice(0,120))}</div>
+    ${x.ext.talk?`<div class="talk">${esc(x.ext.talk)}</div>`:''}
+    <div class="foot">
+      <span class="badge b-kind">${esc(KIND[x.category]||'ナレッジ')}</span>${statusBadge(x)}
+      ${isStale(x)?'<span class="badge b-old">要確認</span>':''}
+      ${x.ext.seed&&x.status!=='approved'?'<span class="badge b-ai">AI下書き</span>':''}
+      ${x.ext.star?`<span class="tag"><span class="star">★</span>${esc(x.ext.star)}</span>`:''}
+      <span class="tag">${esc((FIELD[x.ext.field]||FIELD.common).n)}</span>
+      ${tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}
+      <span class="sp"></span>${hasRead(x.id)?'<span class="done-mark">✓ 理解済み</span>':''}
+      <span>${esc(x.author||'')} ${fmtDate(x.updated_at)}</span>
+    </div></div>`;
 }
+let KQT=null;
+$('#kq').oninput=e=>{clearTimeout(KQT);KQT=setTimeout(()=>{F.kq=e.target.value;renderKnow();},130);};
+$$('#kSeg button').forEach(b=>b.onclick=()=>{F.flt=b.dataset.f;renderKnow();});
+$('#btnKNew').onclick=()=>editK(null);
 
-/* ---------- detail ---------- */
-let VIEW=null;
-function openView(id){
-  const x=DATA.find(v=>v.id===id); if(!x)return;
-  VIEW=x;
-  $('#vHead').textContent=CAT_LABEL[x.category]||'ナレッジ';
-  const imgs=(x.images||[]), lks=(x.links||[]);
+function openK(id){
+  const x=K.find(v=>v.id===id); if(!x)return;
+  const imgs=x.images||[], lks=x.links||[], e=x.ext;
   const tags=(x.tags||'').split(',').map(s=>s.trim()).filter(Boolean);
-  $('#vBody').innerHTML=
-    `<div class="d-title">${esc(x.title||'')}</div>
-     <div class="d-meta">${statusBadge(x)}<span class="tag">${esc(x.biz||'共通')}</span>
-       ${tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}
-       <span style="flex:1"></span>
-       <span class="attach">${esc(x.author||'')}　更新 ${fmtDate(x.updated_at)}</span></div>
-     <div class="d-body">${esc(x.body||'')}</div>
-     ${imgs.length?'<div class="d-sec">画像</div><div class="d-imgs">'+
-        imgs.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" alt=""></a>').join('')+'</div>':''}
-     ${lks.length?'<div class="d-sec">関連リンク</div><div class="linklist">'+
-        lks.map(l=>'<a href="'+esc(l.url)+'" target="_blank" rel="noopener">🔗 '+esc(l.label||l.url)+'</a>').join('')+'</div>':''}`;
-  $('#vApprove').style.display=(canApprove()&&x.status!=='approved')?'':'none';
-  $('#vEdit').style.display=canEdit()?'':'none';
-  $('#ovView').classList.add('show');
+  const read=hasRead(x.id);
+  openModal(KIND[x.category]||'ナレッジ',`
+    <div class="d-title">${esc(x.title||'')}</div>
+    <div class="d-meta">${statusBadge(x)}${isStale(x)?'<span class="badge b-old">要確認（確認日から'+STALE_DAYS+'日超）</span>':''}
+      ${e.seed&&x.status!=='approved'?'<span class="badge b-ai">AI下書き・出典で確認してください</span>':''}
+      <span class="tag">${esc((FIELD[e.field]||FIELD.common).n)}</span>
+      ${(e.products||[]).map(p=>'<span class="tag">'+esc(p)+'</span>').join('')}
+      ${tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}
+      ${e.star?`<span class="tag"><span class="star">★</span>社内事例：${esc(e.star)}</span>`:''}</div>
+    <div class="d-body">${esc(x.body||'')}</div>
+    ${e.talk?`<div class="d-talk"><div class="h">お客様にはこう伝える</div><div>${esc(e.talk)}</div></div>`:''}
+    ${e.caution?`<div class="d-caution"><div class="h">言ってはいけないこと・注意点</div>${esc(e.caution)}</div>`:''}
+    <div class="d-src"><div class="h">出典・確認</div>${esc(e.source||'出典の記載なし')}${e.source_url?`<br><a href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>`:''}
+      <br>確認日：${fmtDate(e.checked)||'—'}　作成：${esc(x.author||'')}　更新：${fmtDate(x.updated_at)}${x.approved_by?'　承認：'+esc(x.approved_by):''}</div>
+    ${imgs.length?'<div class="d-sec">画像</div><div class="d-imgs">'+imgs.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" alt=""></a>').join('')+'</div>':''}
+    ${lks.length?'<div class="d-sec">関連リンク</div><div class="linklist">'+lks.map(l=>'<a href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label||l.url)+'</a>').join('')+'</div>':''}
+  `,`<button class="btn ${read?'gh':'gold'}" id="vRead">${read?'✓ 理解済み（取り消す）':'理解した'}</button>
+    <button class="btn gh" id="vQuiz">この内容で3問テスト</button>
+    <button class="btn gh" id="vCopy">コピー</button>
+    <div class="sp"></div>
+    ${canApprove()&&x.status!=='approved'?'<button class="btn gold" id="vApprove">公式として承認</button>':''}
+    ${canApprove()&&x.status==='approved'?'<button class="btn gh" id="vCheck">今日確認した</button>':''}
+    ${canEdit()?'<button class="btn pri" id="vEdit">編集する</button>':''}`);
+  $('#vRead').onclick=async()=>{if(read)await delProg('read',x.id);else{await addProg('read',x.id);toast('理解済みにしました');}openK(x.id);renderView();};
+  $('#vCopy').onclick=()=>copyText([x.title,'',x.body,e.talk?'\n【お客様にはこう伝える】\n'+e.talk:'',e.caution?'\n【注意】\n'+e.caution:''].join('\n').trim());
+  $('#vQuiz').onclick=()=>aiQuizFromK(x);
+  if($('#vApprove'))$('#vApprove').onclick=async()=>{x.status='approved';x.approved_by=myName();x.ext.checked=x.ext.checked&&!x.ext.seed?x.ext.checked:today();delete x.ext.seed;x.updated_at=new Date().toISOString();
+    if(await saveK(x)){toast('公式として承認しました');openK(x.id);renderView();}};
+  if($('#vCheck'))$('#vCheck').onclick=async()=>{x.ext.checked=today();x.updated_at=new Date().toISOString();if(await saveK(x)){toast('確認日を今日にしました');openK(x.id);renderView();}};
+  if($('#vEdit'))$('#vEdit').onclick=()=>editK(x.id);
 }
-$('#vClose').onclick=$('#ovView').onclick=e=>{if(e.target===$('#ovView')||e.currentTarget===$('#vClose'))$('#ovView').classList.remove('show');};
-$('#vCopy').onclick=async()=>{
-  if(!VIEW)return;
-  const t=(VIEW.title||'')+'\n\n'+(VIEW.body||'');
-  try{await navigator.clipboard.writeText(t);toast('本文をコピーしました');}
-  catch(e){toast('コピーできませんでした');}
-};
-$('#vApprove').onclick=async()=>{
-  if(!VIEW)return;
-  VIEW.status='approved'; VIEW.approved_by=ME?ME.full_name||ME.email:''; VIEW.updated_at=new Date().toISOString();
-  if(await saveOne(VIEW)){toast('公式として承認しました');render();openView(VIEW.id);}
-};
-$('#vEdit').onclick=()=>{$('#ovView').classList.remove('show');openEdit(VIEW.id);};
-
-/* ---------- editor ---------- */
-function blank(){return {id:uid(),category:'term',biz:'共通',title:'',body:'',tags:'',
-  links:[],images:[],status:'draft',author:ME?(ME.full_name||ME.email):'',approved_by:'',updated_at:new Date().toISOString()};}
-
-function openEdit(id){
-  EDIT=id?JSON.parse(JSON.stringify(DATA.find(x=>x.id===id))):blank();
-  if(!EDIT)return;
-  $('#eHead').textContent=id?'ナレッジを編集':'ナレッジを追加';
-  $('#eBiz').innerHTML=BIZ.map(b=>`<option${EDIT.biz===b?' selected':''}>${esc(b)}</option>`).join('');
-  $('#eCat').value=EDIT.category||'term';
-  $('#eTitle').value=EDIT.title||'';
-  $('#eBody').value=EDIT.body||'';
-  $('#eTags').value=EDIT.tags||'';
-  $('#eDel').style.display=id?'':'none';
-  catLabels(); drawLinks(); drawThumbs(); upStat('');
-  $('#ovEdit').classList.add('show');
-  setTimeout(()=>$('#eTitle').focus(),50);
+function blankK(){return {id:uid('k'),category:'term',biz:'',title:'',body:'',tags:'',links:[],images:[],status:'draft',author:myName(),approved_by:'',updated_at:new Date().toISOString(),ext:{field:F.field!=='all'?F.field:'common',talk:'',caution:'',source:'',source_url:'',checked:today(),products:[]}};}
+let EDIT=null;
+function editK(id,preset){
+  EDIT=id?JSON.parse(JSON.stringify(K.find(x=>x.id===id))):(preset||blankK());
+  if(!EDIT)return; kNorm(EDIT); const e=EDIT.ext; e.products=e.products||[];
+  openModal(id?'知識・ルールを編集':'知識・ルールを追加',`
+    <div class="row2">
+      <div class="fld"><label>種別</label><select id="eC">${KINDS.map(k=>`<option value="${k.k}"${k.k===EDIT.category?' selected':''}>${k.n}</option>`).join('')}</select></div>
+      <div class="fld"><label>分野</label><select id="eF">${FIELDS.map(f=>`<option value="${f.k}"${f.k===e.field?' selected':''}>${esc(f.n)}</option>`).join('')}</select></div>
+    </div>
+    <div class="fld"><label id="eTL">タイトル</label><input type="text" id="eT" value="${esc(EDIT.title)}"></div>
+    <div class="fld"><label id="eBL">説明</label><textarea id="eB" style="min-height:160px">${esc(EDIT.body)}</textarea></div>
+    <div class="fld"><label>お客様にはこう伝える（営業トーク）</label><textarea id="eTalk" class="s" placeholder="「」でそのまま話せる言葉で">${esc(e.talk||'')}</textarea></div>
+    <div class="fld"><label>言ってはいけないこと・注意点</label><textarea id="eCau" class="s" placeholder="例：「必ず節税になります」とは言わない">${esc(e.caution||'')}</textarea></div>
+    <div class="row3">
+      <div class="fld"><label>出典</label><input type="text" id="eSrc" value="${esc(e.source||'')}" placeholder="例：資源エネルギー庁 FAQ"></div>
+      <div class="fld"><label>出典URL</label><input type="text" id="eSU" value="${esc(e.source_url||'')}" placeholder="https://"></div>
+      <div class="fld"><label>確認日</label><input type="date" id="eChk" value="${esc(e.checked||'')}"></div>
+    </div>
+    <div class="fld"><label>関係する商品</label><div class="checks">${PRODUCTS.map(p=>`<label><input type="checkbox" value="${esc(p)}"${e.products.indexOf(p)>=0?' checked':''}>${esc(p)}</label>`).join('')}</div></div>
+    <div class="row2">
+      <div class="fld"><label>タグ（カンマ区切り）</label><input type="text" id="eTags" value="${esc(EDIT.tags||'')}"></div>
+      <div class="fld"><label>★社内事例（あれば）</label><input type="text" id="eStar" value="${esc(e.star||'')}" placeholder="例：小野メガ発電所"></div>
+    </div>
+    <div class="sub-h">関連リンク（スライド・資料・動画）</div><div id="eLinks"></div><button class="btn gh sm" id="eAddLink">＋ リンクを追加</button>
+    <div class="sub-h">画像</div>
+    <label class="drop" id="eDrop">画像をここにドロップ／クリックして選択（1枚10MBまで）</label>
+    <div class="itemrow" style="margin-top:7px"><input id="eImgUrl" type="text" placeholder="画像URLを貼る場合（Googleドライブの共有リンクも可）"><button class="btn gh sm" id="eAddImg">追加</button></div>
+    <div class="note" id="eUp"></div><div class="thumbs" id="eThumbs"></div>`,
+    `${id?'<button class="btn danger" id="eDel">削除</button>':''}<button class="btn gh" id="eAI">AIで整える</button><div class="sp"></div><button class="btn gh" data-close>やめる</button><button class="btn pri" id="eSave">保存する</button>`);
+  const labs=()=>{const c=$('#eC').value;$('#eTL').textContent=c==='qa'?'お客様の質問':c==='term'?'用語':'タイトル';$('#eBL').textContent=c==='qa'?'回答（社内向けの正確な説明）':'説明';};
+  labs(); $('#eC').onchange=labs;
+  drawLinks(); drawThumbs();
+  $('#eAddLink').onclick=()=>{EDIT.links=EDIT.links||[];EDIT.links.push({label:'',url:''});drawLinks();};
+  $('#eDrop').onclick=()=>$('#fileImg').click();
+  ['dragenter','dragover'].forEach(ev=>$('#eDrop').addEventListener(ev,x=>{x.preventDefault();$('#eDrop').classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>$('#eDrop').addEventListener(ev,x=>{x.preventDefault();$('#eDrop').classList.remove('over');}));
+  $('#eDrop').addEventListener('drop',x=>{if(x.dataTransfer&&x.dataTransfer.files)upload([...x.dataTransfer.files]);});
+  $('#eAddImg').onclick=()=>{const raw=$('#eImgUrl').value.trim();if(!/^https?:\/\//.test(raw)){upStat('URLは https:// から始めてください',false);return;}
+    EDIT.images=(EDIT.images||[]).concat([normImgUrl(raw)]);$('#eImgUrl').value='';drawThumbs();upStat('画像を追加しました',true);};
+  const collect=()=>{EDIT.category=$('#eC').value;e.field=$('#eF').value;EDIT.title=$('#eT').value.trim();EDIT.body=$('#eB').value.trim();
+    e.talk=$('#eTalk').value.trim();e.caution=$('#eCau').value.trim();e.source=$('#eSrc').value.trim();e.source_url=$('#eSU').value.trim();e.checked=$('#eChk').value;
+    e.products=$$('#mBody .checks input:checked').map(c=>c.value);EDIT.tags=$('#eTags').value.trim();e.star=$('#eStar').value.trim();
+    EDIT.links=(EDIT.links||[]).filter(l=>l.url&&l.url.trim());};
+  $('#eAI').onclick=async()=>{
+    collect(); if(!EDIT.title&&!EDIT.body){toast('タイトルか説明を先に入れてください');return;}
+    const b=$('#eAI'); b.disabled=true; b.innerHTML='<span class="spin"></span> 整えています…';
+    try{
+      const t=await callAI(AI_BASE,`次の社内ナレッジを、営業社員が覚えやすくお客様に正確に話せる形に整えてください。事実を勝手に足さず、不確かな点は「（要確認）」と書きます。
+JSONだけを返してください：{"body":"説明（結論→理由→具体例の順。400字程度まで）","talk":"お客様向けトーク（「」付き2〜3文）","caution":"言ってはいけないこと・注意点（1〜2文）","tags":"カンマ区切り3〜5個"}
+種別：${KIND[EDIT.category]}／分野：${FIELD[e.field].n}
+タイトル：${EDIT.title}
+説明：${EDIT.body}
+今のトーク：${e.talk}
+今の注意点：${e.caution}`,1500);
+      const j=parseJSON(t);
+      if(j.body)$('#eB').value=j.body; if(j.talk)$('#eTalk').value=j.talk; if(j.caution)$('#eCau').value=j.caution; if(j.tags&&!$('#eTags').value)$('#eTags').value=j.tags;
+      toast('AIで整えました。内容を確認して保存してください',3000);
+    }catch(err){toast(err.message,4000);}
+    b.disabled=false; b.textContent='AIで整える';
+  };
+  $('#eSave').onclick=async()=>{
+    collect(); if(!EDIT.title){toast('タイトルを入れてください');return;}
+    EDIT.author=EDIT.author||myName(); EDIT.updated_at=new Date().toISOString();
+    if(EDIT.status==='approved'&&!canApprove())EDIT.status='review';
+    if(await saveK(EDIT)){closeModal();renderAll();toast(EDIT.status==='review'?'保存しました（幹部の再確認待ちになります）':'保存しました');}
+  };
+  if($('#eDel'))$('#eDel').onclick=async()=>{
+    if(!canApprove()&&EDIT.author!==myName()){toast('自分が作ったもの以外は削除できません');return;}
+    if(!confirm('この項目を削除します。よろしいですか？'))return;
+    if(await delK(EDIT.id)){closeModal();renderAll();toast('削除しました');}
+  };
 }
-function catLabels(){
-  const c=$('#eCat').value;
-  $('#eTitleLab').textContent = c==='qa'?'質問':(c==='term'?'用語':'タイトル');
-  $('#eBodyLab').textContent  = c==='qa'?'回答':'説明';
-  $('#eTitle').placeholder = c==='qa'?'例：FIT終了後はどうなりますか？':'例：一次調整力市場（FCR）';
-}
-$('#eCat').onchange=()=>{catLabels();};
-
 function drawLinks(){
-  $('#eLinks').innerHTML=(EDIT.links||[]).map((l,i)=>
-    `<div class="itemrow"><input class="lab" data-li="${i}" data-k="label" type="text" value="${esc(l.label||'')}" placeholder="表示名">
-     <input data-li="${i}" data-k="url" type="text" value="${esc(l.url||'')}" placeholder="https://…">
-     <button class="mini del" data-lrm="${i}">削除</button></div>`).join('');
-  $$('[data-li]').forEach(i=>i.oninput=e=>{EDIT.links[+i.dataset.li][i.dataset.k]=e.target.value;});
+  $('#eLinks').innerHTML=(EDIT.links||[]).map((l,i)=>`<div class="itemrow"><input class="lab" data-li="${i}" data-k="label" value="${esc(l.label||'')}" placeholder="表示名"><input data-li="${i}" data-k="url" value="${esc(l.url||'')}" placeholder="https://"><button class="btn danger sm" data-lrm="${i}">削除</button></div>`).join('');
+  $$('[data-li]').forEach(i=>i.oninput=ev=>{EDIT.links[+i.dataset.li][i.dataset.k]=ev.target.value;});
   $$('[data-lrm]').forEach(b=>b.onclick=()=>{EDIT.links.splice(+b.dataset.lrm,1);drawLinks();});
 }
-$('#eAddLink').onclick=()=>{EDIT.links=EDIT.links||[];EDIT.links.push({label:'',url:''});drawLinks();};
-
 function drawThumbs(){
-  $('#eThumbs').innerHTML=(EDIT.images||[]).map((u,i)=>
-    `<div class="thumb"><img src="${esc(u)}" alt=""><button data-irm="${i}">×</button></div>`).join('');
+  $('#eThumbs').innerHTML=(EDIT.images||[]).map((u,i)=>`<div class="thumb"><img src="${esc(u)}" alt=""><button data-irm="${i}">×</button></div>`).join('');
   $$('[data-irm]').forEach(b=>b.onclick=()=>{EDIT.images.splice(+b.dataset.irm,1);drawThumbs();});
 }
-function normImgUrl(u){
-  u=(u||'').trim();
-  let m=u.match(/drive\.google\.com\/file\/d\/([^/?&]+)/)||u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^&]*&)*id=([^&]+)/);
-  if(m)return 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1600';
-  return u;
-}
-$('#eAddImg').onclick=()=>{
-  const raw=$('#eImgUrl').value.trim();
-  if(!/^https?:\/\//.test(raw)){upStat('URLは https:// から始めてください',false);return;}
-  const u=normImgUrl(raw);
-  EDIT.images=(EDIT.images||[]).concat([u]);
-  $('#eImgUrl').value='';drawThumbs();
-  upStat(u!==raw?'Googleドライブのリンクを表示用に変換して追加しました':'画像を追加しました',true);
-};
-
-/* 画像アップロード */
-const drop=$('#eDrop');
-const picker=$('#eFile');
-picker.onchange=()=>{upload([...picker.files]);picker.value='';};
-['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files)upload([...e.dataTransfer.files]);});
-
-function upStat(msg,ok){const e=$('#eUpStat');if(!e)return;
-  e.textContent=msg||'';
-  e.style.color=(ok===false)?'var(--neg)':(ok===true?'var(--pos)':'var(--muted)');
-  e.style.fontWeight=(ok===false)?'700':'400';}
-
-function explainErr(err){
-  const m=String((err&&(err.message||err.error))||err||'');
-  if(/bucket not found/i.test(m))
-    return 'Storageに knowledge バケットがありません。設定画面のSQL（バケット作成の1行）を実行してください';
-  if(/row-level security|violates|policy|unauthorized|not authorized|permission|403/i.test(m))
-    return 'アップロードの権限が設定されていません。設定画面のSQL（policy の2行）を実行してください';
-  if(/exceeded|too large|payload|413/i.test(m))
-    return 'ファイルサイズが大きすぎます。10MB以下にしてください';
-  if(/mime|content type/i.test(m))
-    return 'この形式は受け付けられません。JPEG／PNG／WebP をお使いください';
-  return 'アップロードできませんでした：'+m;
-}
-
+function normImgUrl(u){const m=u.match(/drive\.google\.com\/file\/d\/([^/?&]+)/)||u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^&]*&)*id=([^&]+)/);return m?'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1600':u;}
+function upStat(m,ok){const e=$('#eUp');if(!e)return;e.textContent=m||'';e.style.color=ok===false?'var(--neg)':ok===true?'var(--pos)':'';}
+$('#fileImg').onchange=()=>{upload([...$('#fileImg').files]);$('#fileImg').value='';};
 async function upload(files){
   files=(files||[]).filter(f=>/^image\//.test(f.type));
-  if(!files.length){upStat('画像ファイルを選んでください（JPEG・PNG・WebP）',false);return;}
-  if(!sb){upStat('Supabaseに接続できていません。下の欄に画像URLを貼る方法をお使いください',false);return;}
-  const big=files.find(f=>f.size>10*1024*1024);
-  if(big){upStat(big.name+' は10MBを超えています',false);return;}
+  if(!files.length){upStat('画像ファイルを選んでください',false);return;}
+  if(!sb){upStat('Supabaseに接続していません。画像URLを貼る方法をお使いください',false);return;}
+  if(files.some(f=>f.size>10*1024*1024)){upStat('10MBを超える画像があります',false);return;}
   upStat(files.length+'件をアップロード中…');
-  const added=[];
   for(const f of files){
     const ext=(f.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
-    const path=(EDIT&&EDIT.id?EDIT.id:'tmp')+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.'+ext;
-    let up;
-    try{ up=await sb.storage.from(BUCKET).upload(path,f,{upsert:false,contentType:f.type}); }
-    catch(e){ upStat(explainErr(e),false); return; }
-    if(up.error){upStat(explainErr(up.error),false);return;}
+    const path=EDIT.id+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.'+ext;
+    const up=await sb.storage.from(BUCKET).upload(path,f,{upsert:false,contentType:f.type});
+    if(up.error){upStat('アップロードできませんでした：'+up.error.message,false);return;}
     const pub=sb.storage.from(BUCKET).getPublicUrl(path);
-    const url=pub&&pub.data&&pub.data.publicUrl;
-    if(!url){upStat('公開URLを取得できませんでした。バケットが Public になっているか確認してください',false);return;}
-    added.push(url);
+    EDIT.images=(EDIT.images||[]).concat([pub.data.publicUrl]);
   }
-  EDIT.images=(EDIT.images||[]).concat(added);
-  drawThumbs();
-  upStat(added.length+'件を追加しました。保存を押すと確定します',true);
+  drawThumbs(); upStat('追加しました。保存を押すと確定します',true);
 }
 
-$('#eSave').onclick=async()=>{
-  EDIT.category=$('#eCat').value;
-  EDIT.biz=$('#eBiz').value;
-  EDIT.title=$('#eTitle').value.trim();
-  EDIT.body=$('#eBody').value.trim();
-  EDIT.tags=$('#eTags').value.trim();
-  if(!EDIT.title){toast('タイトルを入れてください');$('#eTitle').focus();return;}
-  EDIT.links=(EDIT.links||[]).filter(l=>l.url&&l.url.trim());
-  EDIT.author=ME?(ME.full_name||ME.email):'';
-  EDIT.updated_at=new Date().toISOString();
-  /* 公式記事を承認権限のない人が直した場合は「要再確認」に戻す */
-  if(EDIT.status==='approved'&&!canApprove())EDIT.status='review';
-  if(await saveOne(EDIT)){$('#ovEdit').classList.remove('show');render();
-    toast(EDIT.status==='review'?'保存しました（幹部の再確認待ちになります）':'保存しました');}
+/* =====================================================================
+   研修カリキュラム
+   ===================================================================== */
+let CEDIT=false;
+function cRow(c){return CSET[c.no]||{};}
+function renderCourse(){
+  const tot=CURRICULUM.length, mine=CURRICULUM.filter(c=>courseDone(c.no)).length, held=CURRICULUM.filter(c=>cRow(c).st==='done').length;
+  $('#courseLead').textContent=`全${tot}項目（★社内事例 ${CURRICULUM.filter(c=>c.star).length}件）。自分の受講 ${mine}／${tot}、研修の実施済み ${held}／${tot}。私たちの給料は、お客様にお支払いいただいたお金から生まれています。一つの手続き漏れや報告遅れが、売電補填や信用の失墜として、会社とお客様の双方に損失を与えることを意識して学んでください。`;
+  $('#steps').innerHTML=STEPS.map((s,i)=>{const its=CURRICULUM.filter(c=>c.st===i);const d=its.filter(c=>courseDone(c.no)).length;
+    const groups=[...new Set(its.map(c=>c.g))];
+    return `<div class="stepc"><div class="s">${esc(s.split(' ')[0])}</div><div class="t">${esc(s.split(' ')[1])}</div><div class="note" style="min-height:36px">${groups.map(esc).join('、')}</div>
+      <div class="bar" style="margin-top:6px"><i style="width:${its.length?Math.round(d/its.length*100):0}%"></i></div><div class="p"><span>受講 ${d}/${its.length}</span><span>${its.length?Math.round(d/its.length*100):0}%</span></div></div>`;}).join('');
+  $$('#cSeg button').forEach(b=>b.classList.toggle('on',b.dataset.f===F.cflt));
+  $('#btnCEdit').style.display=canApprove()?'':'none';
+  $('#btnCEdit').textContent=CEDIT?'編集を終える':'講師・日程を編集';
+  const list=CURRICULUM.filter(c=>{
+    if(F.cflt==='mine'&&courseDone(c.no))return false;
+    if(F.cflt==='star'&&!c.star)return false;
+    if(F.cflt==='plan'&&!cRow(c).date)return false; return true;});
+  const groups=[...new Set(list.map(c=>c.g))];
+  const live=liveK();
+  let h=`<thead><tr><th>No.</th><th>項目・学ぶ要点</th><th>★社内事例</th><th>講師</th><th>実施予定日</th><th>実施状況</th><th>関連</th><th>自分</th></tr></thead><tbody>`;
+  groups.forEach(g=>{
+    const its=list.filter(c=>c.g===g);
+    h+=`<tr class="grp"><td colspan="8">${esc(g)}<span class="muted">${esc(STEPS[its[0].st])}　確認テスト：${esc(FIELD[its[0].f].n)}</span></td></tr>`;
+    its.forEach(c=>{
+      const r=cRow(c), rel=live.filter(x=>x.ext.field===c.f).length, done=courseDone(c.no);
+      const st=r.st||'none', stl={none:'未実施',plan:'予定',done:'実施済'}[st];
+      h+=`<tr><td class="no">${c.no}${c.add?'<div class="note">追加</div>':''}</td>
+        <td><div class="it">${esc(c.sub)}</div><div>${esc(c.item)}</div>${r.memo&&!CEDIT?`<div class="note">${esc(r.memo)}</div>`:''}${r.url&&!CEDIT?`<a href="${esc(r.url)}" target="_blank" rel="noopener" class="note">資料を開く</a>`:''}</td>
+        <td>${c.star?'<span class="star">★</span> '+esc(c.star):''}</td>
+        ${CEDIT?`<td><input class="inp" data-ce="${c.no}" data-k="teacher" value="${esc(r.teacher||'')}"></td>
+          <td><input class="inp" type="date" data-ce="${c.no}" data-k="date" value="${esc(r.date||'')}"></td>
+          <td><select class="inp" data-ce="${c.no}" data-k="st"><option value="none"${st==='none'?' selected':''}>未実施</option><option value="plan"${st==='plan'?' selected':''}>予定</option><option value="done"${st==='done'?' selected':''}>実施済</option></select>
+            <input class="inp" style="margin-top:4px" data-ce="${c.no}" data-k="url" value="${esc(r.url||'')}" placeholder="資料URL">
+            <input class="inp" style="margin-top:4px" data-ce="${c.no}" data-k="memo" value="${esc(r.memo||'')}" placeholder="備考"></td>`
+          :`<td>${esc(r.teacher||'')}</td><td>${fmtDate(r.date)}</td><td class="st-${st}">${stl}</td>`}
+        <td><button class="btn gh sm" data-cf="${c.f}">知識 ${rel}</button></td>
+        <td><label class="chk"><input type="checkbox" data-cd="${c.no}"${done?' checked':''}>受講済</label></td></tr>`;
+    });
+  });
+  $('#cTable').innerHTML=h+'</tbody>';
+  $$('[data-cd]').forEach(cb=>cb.onchange=async()=>{if(cb.checked){await addProg('course',cb.dataset.cd);toast('受講済みにしました');}else await delProg('course',cb.dataset.cd);renderCourse();});
+  $$('[data-cf]').forEach(b=>b.onclick=()=>{F.field=b.dataset.cf;F.kind='all';F.flt='all';go('know');});
+  let ct=null;
+  $$('[data-ce]').forEach(inp=>inp.onchange=()=>{const no=inp.dataset.ce;CSET[no]=Object.assign({},CSET[no],{[inp.dataset.k]:inp.value});clearTimeout(ct);ct=setTimeout(()=>{saveCSet();toast('保存しました');},400);});
+}
+$$('#cSeg button').forEach(b=>b.onclick=()=>{F.cflt=b.dataset.f;renderCourse();});
+$('#btnCEdit').onclick=()=>{CEDIT=!CEDIT;renderCourse();};
+$('#btnCsv').onclick=()=>{
+  const rows=[['No.','研修ステップ','分野','小区分','項目','社内事例','題材事例','担当講師','実施予定日','実施状況','備考','資料URL']];
+  CURRICULUM.forEach(c=>{const r=cRow(c);rows.push([c.no,STEPS[c.st],c.g,c.sub,c.item,c.star?'★':'',c.star||'',r.teacher||'',r.date||'',{none:'未実施',plan:'予定',done:'実施済'}[r.st||'none'],r.memo||'',r.url||'']);});
+  const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='専門教育カリキュラム_'+today()+'.csv';a.click();
 };
-$('#eDel').onclick=async()=>{
-  if(!EDIT||!EDIT.id)return;
-  const own=EDIT.author===(ME?(ME.full_name||ME.email):'');
-  if(!canApprove()&&!own){toast('自分が作ったもの以外は削除できません');return;}
-  if(!confirm('この項目を削除します。よろしいですか？'))return;
-  if(await delOne(EDIT.id)){$('#ovEdit').classList.remove('show');render();toast('削除しました');}
-};
-$('#eCancel').onclick=$('#eClose').onclick=()=>$('#ovEdit').classList.remove('show');
-$('#btnNew').onclick=()=>{ if(!canEdit()){toast('編集の権限がありません');return;} openEdit(null); };
 
-/* ---------- setup ---------- */
-$('#sqlBox').textContent=SQL;
-$('#btnSetup').onclick=()=>{
-  $('#sStat').textContent=sb?'Supabaseに接続しています（社内共有中）':'未接続のため、この端末だけに保存されます';
-  $('#ovSetup').classList.add('show');
-};
-$('#sClose').onclick=$('#sDone').onclick=()=>$('#ovSetup').classList.remove('show');
-
-const SEED=[
- {category:'term',biz:'蓄電池',title:'スポット市場',tags:'市場, 蓄電池, 投資家説明',
-  body:'卸電力市場の中で、翌日に受け渡す電力を30分単位で売買する市場です。\n\n蓄電池は、価格が安い時間帯（昼間の太陽光が多い時間など）に充電し、価格が高い時間帯（夕方など）に放電して売電します。この価格差が収益になります。\n\n提案シミュレーターの「スポット市場」行は、この差益を年度別に試算した数字です。'},
- {category:'term',biz:'蓄電池',title:'一次調整力市場（FCR）',tags:'市場, 蓄電池, 投資家説明, 需給調整',
-  body:'需給調整市場で取引される調整力のうち、最も速い応動を求められる区分です。応動時間は10秒以内、継続時間は5分以上。\n\n電力の需要と供給のズレを瞬時に埋める役割で、蓄電池はこの即応性で他の電源より有利に立てます。実際に電気を流した量ではなく、「待機している容量（ΔkW）」に対して対価が支払われるのが特徴です。\n\n低圧系統蓄電池の収益は、この一次調整力市場が大半を占めます。'},
- {category:'term',biz:'蓄電池',title:'容量市場',tags:'市場, 蓄電池, 投資家説明',
-  body:'4年後の供給力（kW価値）をあらかじめ確保しておくための市場です。広域機関が毎年メインオークションを開催し、落札した電源には容量確保契約金額が支払われます。\n\n蓄電池も供給力として応札できます。実際に発電した量に関係なく、契約した容量に対して収入が入るため、収益の下支えになります。\n\n4年前に決まるため、中長期の収益見通しが立てやすいのが投資家にとっての利点です。'}
-];
-$('#sSeed').onclick=async()=>{
-  let n=0;
-  for(const s of SEED){
-    if(DATA.some(x=>x.title===s.title))continue;
-    const rec=Object.assign(blank(),s,{status:'approved',approved_by:ME?(ME.full_name||ME.email):''});
-    if(await saveOne(rec))n++;
-  }
-  render();toast(n?n+'件を登録しました':'すでに登録済みです');
-};
-
-$('#sTest').onclick=async()=>{
-  const out=$('#sTestOut');
-  out.style.color='var(--muted)';out.textContent='確認中…';
-  if(!sb){out.style.color='var(--neg)';out.textContent='Supabaseに接続していません。ログインし直してください';return;}
-  const path='_check/'+Date.now()+'.txt';
+/* =====================================================================
+   確認テスト
+   ===================================================================== */
+function customQs(field){return ((CSET._quiz||{})[field])||[];}
+function questionsOf(field){return QBANK.filter(q=>q.f===field).concat(customQs(field).map(q=>Object.assign({f:field},q)));}
+function renderQuiz(){
+  $('#qGrid').innerHTML=quizFields().map(f=>{
+    const qs=questionsOf(f.k), s=bestScore(f.k), n=PROG.filter(p=>p.kind==='quiz'&&p.ref===f.k&&p.user_email===myKey()).length;
+    return `<div class="qcard"><div class="t">${esc(f.n)}</div><div class="m">${esc(f.s)}　問題 ${qs.length}問</div>
+      <div>${s==null?'<span class="muted">未受験</span>':`<span class="score ${s>=PASS?'pass':'fail'}">${s}</span><span class="muted">点（最高）${s>=PASS?'　合格':''}・${n}回</span>`}</div>
+      <div class="acts"><button class="btn pri sm" data-qs="${f.k}"${qs.length?'':' disabled'}>テストを受ける</button>${canApprove()?`<button class="btn gh sm" data-qa="${f.k}">AIで問題を追加</button>`:''}</div></div>`;}).join('');
+  $$('[data-qs]').forEach(b=>b.onclick=()=>startQuiz(b.dataset.qs));
+  $$('[data-qa]').forEach(b=>b.onclick=()=>aiQuizForField(b.dataset.qa,b));
+  renderHeat();
+}
+function renderHeat(){
+  const people={};
+  PROG.filter(p=>p.kind==='quiz'&&p.total).forEach(p=>{const k=p.user_email;people[k]=people[k]||{name:p.user_name||k,s:{}};
+    const v=Math.round(p.score/p.total*100); if(people[k].s[p.ref]==null||v>people[k].s[p.ref])people[k].s[p.ref]=v;});
+  const keys=Object.keys(people); const fs=quizFields();
+  if(!canApprove()){
+    $('#heatWrap').innerHTML=keys.length?`<div class="panel"><h3>合格分野ランキング</h3>${rankHtml(people,fs)}</div>`:'';return;}
+  if(!keys.length){$('#heatWrap').innerHTML='<div class="panel"><h3>習熟度マップ（社員×分野）</h3><div class="note">まだ受験記録がありません。</div></div>';return;}
+  keys.sort((a,b)=>fs.filter(f=>(people[b].s[f.k]||0)>=PASS).length-fs.filter(f=>(people[a].s[f.k]||0)>=PASS).length);
+  $('#heatWrap').innerHTML=`<div class="panel"><h3>習熟度マップ（社員×分野・最高点）<span class="sp"></span><span class="note">緑＝合格　黄＝60点以上　赤＝60点未満</span></h3>
+    <div style="overflow-x:auto"><table class="heat"><thead><tr><th class="l">社員</th>${fs.map(f=>`<th>${esc(f.n)}</th>`).join('')}<th>合格</th></tr></thead><tbody>
+    ${keys.map(k=>{const p=people[k];const pc=fs.filter(f=>(p.s[f.k]||0)>=PASS).length;
+      return `<tr><td class="l"><b>${esc(p.name)}</b></td>${fs.map(f=>{const v=p.s[f.k];return `<td><span class="${v==null?'hs-n':v>=PASS?'hs-p':v>=60?'hs-m':'hs-f'}">${v==null?'—':v}</span></td>`;}).join('')}<td><b>${pc}</b></td></tr>`;}).join('')}
+    </tbody></table></div>
+    <div class="note" style="margin-top:8px">分野ごとの平均点：${fs.map(f=>{const vs=keys.map(k=>people[k].s[f.k]).filter(v=>v!=null);return esc(f.n)+' '+(vs.length?Math.round(vs.reduce((a,b)=>a+b,0)/vs.length):'—');}).join('　')}</div></div>
+    <div class="panel" style="margin-top:14px"><h3>合格分野ランキング</h3>${rankHtml(people,fs)}</div>`;
+}
+function rankHtml(people,fs){
+  const arr=Object.keys(people).map(k=>({n:people[k].name,c:fs.filter(f=>(people[k].s[f.k]||0)>=PASS).length})).sort((a,b)=>b.c-a.c).slice(0,10);
+  return '<div class="mini-list">'+arr.map((o,i)=>`<div style="display:flex;gap:10px;padding:5px 6px"><b style="width:26px">${i+1}位</b><span style="flex:1">${esc(o.n)}</span><b>${o.c}分野</b></div>`).join('')+'</div>';
+}
+function startQuiz(field,qs,title){
+  qs=qs||shuffle(questionsOf(field)).slice(0,10);
+  if(!qs.length){toast('問題がありません');return;}
+  const Q=qs.map(q=>{const ord=shuffle(q.o.map((_,i)=>i));return {q:q.q,o:ord.map(i=>q.o[i]),a:ord.indexOf(q.a),e:q.e||''};});
+  let idx=0,score=0,answered=false;
+  const draw=()=>{
+    const q=Q[idx];
+    $('#mBody').innerHTML=`<div class="qbox"><div class="qn">${idx+1}／${Q.length}問　正解 ${score}</div><div class="qq">${esc(q.q)}</div>
+      <div class="opts">${q.o.map((o,i)=>`<button data-i="${i}">${esc(o)}</button>`).join('')}</div><div id="qExp"></div></div>`;
+    $('#mFoot').innerHTML=`<div class="sp"></div><button class="btn pri" id="qNext" disabled>${idx+1<Q.length?'次へ':'結果を見る'}</button>`;
+    answered=false;
+    $$('#mBody .opts button').forEach(b=>b.onclick=()=>{
+      if(answered)return; answered=true; const i=+b.dataset.i; if(i===q.a)score++;
+      $$('#mBody .opts button').forEach((x,j)=>{x.disabled=true;if(j===q.a)x.classList.add('ok');else if(j===i)x.classList.add('ng');});
+      $('#qExp').innerHTML=`<div class="exp"><b>${i===q.a?'正解':'不正解'}</b>　${esc(q.e)}</div>`; $('#qNext').disabled=false;});
+    $('#qNext').onclick=async()=>{
+      if(idx+1<Q.length){idx++;draw();return;}
+      const pct=Math.round(score/Q.length*100);
+      if(field)await addProg('quiz',field,score,Q.length);
+      $('#mBody').innerHTML=`<div style="text-align:center;padding:20px 0"><div class="score ${pct>=PASS?'pass':'fail'}" style="font-size:64px">${pct}</div>
+        <div style="font-weight:900;color:var(--navy);font-size:17px">${pct>=PASS?'合格です':'合格は'+PASS+'点です。もう一度挑戦しましょう'}</div>
+        <div class="note" style="margin-top:6px">${score}／${Q.length}問 正解${field?'　記録しました':''}</div></div>`;
+      $('#mFoot').innerHTML=`${field?`<button class="btn gh" id="qK">この分野の知識を読む</button>`:''}<div class="sp"></div><button class="btn gh" id="qAgain">もう一度</button><button class="btn pri" data-close>閉じる</button>`;
+      $$('#mFoot [data-close]').forEach(b=>b.onclick=closeModal);
+      if($('#qK'))$('#qK').onclick=()=>{closeModal();F.field=field;F.kind='all';F.flt='all';go('know');};
+      $('#qAgain').onclick=()=>startQuiz(field,field?null:qs,title);
+      renderView();
+    };
+  };
+  openModal(title||('確認テスト：'+FIELD[field].n),'','');
+  draw();
+}
+async function aiQuizFromK(x){
+  openModal('この内容で3問テスト','<div class="note"><span class="spin"></span> AIが問題を作っています…</div>','');
   try{
-    const blob=new Blob(['ok'],{type:'text/plain'});
-    const r=await sb.storage.from(BUCKET).upload(path,blob,{contentType:'text/plain'});
-    if(r.error){out.style.color='var(--neg)';out.textContent='NG：'+explainErr(r.error);return;}
-    const pub=sb.storage.from(BUCKET).getPublicUrl(path);
-    await sb.storage.from(BUCKET).remove([path]);
-    if(!(pub&&pub.data&&pub.data.publicUrl)){
-      out.style.color='var(--neg)';out.textContent='NG：バケットが Public になっていません';return;}
-    out.style.color='var(--pos)';out.textContent='OK：画像アップロードは使える状態です';
-  }catch(e){out.style.color='var(--neg)';out.textContent='NG：'+explainErr(e);}
+    const qs=await aiMakeQs(`タイトル：${x.title}\n説明：${x.body}\nトーク：${x.ext.talk||''}\n注意：${x.ext.caution||''}`,3);
+    startQuiz(null,qs,'テスト：'+x.title);
+  }catch(e){$('#mBody').innerHTML='<div class="err">'+esc(e.message)+'</div>';$('#mFoot').innerHTML='<div class="sp"></div><button class="btn pri" data-close>閉じる</button>';$$('#mFoot [data-close]').forEach(b=>b.onclick=closeModal);}
+}
+async function aiMakeQs(material,n){
+  const t=await callAI(AI_BASE,`次の社内ナレッジだけを根拠に、営業社員向けの4択問題を${n}問作ってください。ナレッジに書かれていない事実は問わないでください。正解は1つだけ、誤答は紛らわしいが明確に誤りのものにします。
+JSONだけを返してください：[{"q":"問題文","o":["選択肢1","選択肢2","選択肢3","選択肢4"],"a":正解の番号(0〜3),"e":"解説（1〜2文）"}]
+ナレッジ：
+${material.slice(0,8000)}`,2500);
+  const j=parseJSON(t); const arr=Array.isArray(j)?j:(j.questions||[]);
+  const ok=arr.filter(q=>q&&q.q&&Array.isArray(q.o)&&q.o.length===4&&q.a>=0&&q.a<4);
+  if(!ok.length)throw new Error('問題をうまく作れませんでした。もう一度お試しください');
+  return ok.map(q=>({q:q.q,o:q.o,a:+q.a,e:q.e||''}));
+}
+async function aiQuizForField(field,btn){
+  const src=liveK().filter(x=>x.ext.field===field&&x.status==='approved');
+  const use=src.length?src:liveK().filter(x=>x.ext.field===field);
+  if(!use.length){toast('この分野のナレッジがまだありません');return;}
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> 作成中…';
+  try{
+    const mat=use.slice(0,12).map(x=>`■${x.title}\n${x.body}`).join('\n\n');
+    const qs=await aiMakeQs(mat,5);
+    openModal('AIが作った問題（'+FIELD[field].n+'）',`<p class="note" style="margin-bottom:10px">正しいものだけチェックを残して追加してください。追加した問題は、この分野のテストに全員分出題されます。</p>`+
+      qs.map((q,i)=>`<div class="panel" style="margin-bottom:10px;box-shadow:none;border:1px solid var(--line)"><label class="chk"><input type="checkbox" data-aq="${i}" checked>追加する</label>
+        <div style="font-weight:800;margin:6px 0">${esc(q.q)}</div>${q.o.map((o,j)=>`<div style="font-size:13px;${j===q.a?'color:var(--pos);font-weight:800':''}">${j===q.a?'○':'・'} ${esc(o)}</div>`).join('')}<div class="note" style="margin-top:4px">${esc(q.e)}</div></div>`).join(''),
+      `<div class="sp"></div><button class="btn gh" data-close>やめる</button><button class="btn pri" id="aqAdd">チェックした問題を追加</button>`);
+    $('#aqAdd').onclick=async()=>{
+      const pick=$$('[data-aq]').filter(c=>c.checked).map(c=>qs[+c.dataset.aq]);
+      CSET._quiz=CSET._quiz||{}; CSET._quiz[field]=(CSET._quiz[field]||[]).concat(pick);
+      await saveCSet(); closeModal(); renderQuiz(); toast(pick.length+'問を追加しました');
+    };
+  }catch(e){toast(e.message,4000);}
+  btn.disabled=false; btn.textContent='AIで問題を追加';
+}
+
+/* =====================================================================
+   AIに聞く
+   ===================================================================== */
+function grams(s){s=String(s||'').toLowerCase().replace(/[\s、。・「」（）()？?！!,.:：]/g,'');const g=new Set();for(let i=0;i<s.length-1;i++)g.add(s.slice(i,i+2));return g;}
+function retrieve(q,n){
+  const qg=grams(q); if(!qg.size)return [];
+  const score=(title,body)=>{let s=0;const t=String(title).toLowerCase(),b=String(body).toLowerCase();qg.forEach(g=>{if(t.indexOf(g)>=0)s+=3;if(b.indexOf(g)>=0)s+=1;});return s;};
+  const ks=liveK().map(x=>({type:'k',x,s:score(x.title+' '+x.tags,x.body+' '+(x.ext.talk||''))+(x.status==='approved'?2:0)}));
+  const is=INFO.map(x=>({type:'i',x,s:score(x.title+' '+x.item,x.summary+' '+(x.impact||''))}));
+  return ks.concat(is).filter(o=>o.s>4).sort((a,b)=>b.s-a.s).slice(0,n||8);
+}
+$('#askGo').onclick=async()=>{
+  const q=$('#askQ').value.trim(); if(q.length<4){toast('質問を入れてください');return;}
+  const refs=retrieve(q,8);
+  const b=$('#askGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> 考えています…';
+  $('#askOut').innerHTML='';
+  try{
+    const ctx=refs.map((r,i)=>r.type==='k'?`[${i+1}] ナレッジ「${r.x.title}」（${r.x.status==='approved'?'公式':'下書き'}）\n${r.x.body}\nトーク：${r.x.ext.talk||''}\n注意：${r.x.ext.caution||''}`
+      :`[${i+1}] 業界情報「${r.x.title}」\n${r.x.summary}\n影響：${r.x.impact||''}`).join('\n\n');
+    const t=await callAI(AI_BASE,`社員からの質問に答えてください。下の社内ナレッジを最優先の根拠にし、使ったものは文中に[番号]で示してください。社内ナレッジにない内容は「一般的には」と前置きし、制度・数値は（要確認）をつけます。
+構成：結論（2〜3文）→ 理由・根拠 → 判断のポイントや確認すべきこと${$('#askTalk').checked?' → お客様向けトーク例（「」付き）':''} → 言ってはいけないこと（あれば）。見出しは【】で書きます。
+
+質問：${q}
+
+社内ナレッジ：
+${ctx||'（該当なし）'}`,2500);
+    $('#askOut').innerHTML=`<div class="panel"><div class="answer">${esc(t)}</div>
+      ${refs.length?`<div class="d-sec">根拠にしたナレッジ・業界情報</div><div class="refs">${refs.map((r,i)=>`<button data-ref="${i}">[${i+1}] ${esc(r.x.title)}</button>`).join('')}</div>`:'<div class="note" style="margin-top:10px">社内に該当するナレッジがありませんでした。一般的な知識での回答です。</div>'}
+      <div class="toolbar" style="margin:14px 0 0"><button class="btn gh sm" id="askCp">回答をコピー</button>${canEdit()?'<button class="btn gold sm" id="askSave">QAとして登録（下書き）</button>':''}</div></div>`;
+    $$('[data-ref]').forEach(x=>x.onclick=()=>{const r=refs[+x.dataset.ref];r.type==='k'?openK(r.x.id):openInfo(r.x.id);});
+    $('#askCp').onclick=()=>copyText(t);
+    if($('#askSave'))$('#askSave').onclick=()=>{const rec=blankK();rec.category='qa';rec.title=q;rec.body=t;rec.ext.field=(refs.find(r=>r.type==='k')||{x:{ext:{field:'common'}}}).x.ext.field;rec.ext.source='AIに聞く（要確認）';editK(null,rec);};
+  }catch(e){$('#askOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+  b.disabled=false; b.textContent='質問する';
 };
 
-/* ---------- events ---------- */
-let qt=null;
-$('#q').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{F.q=e.target.value;render();},130);};
-$$('#statusSeg button').forEach(b=>b.onclick=()=>{
-  $$('#statusSeg button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on');F.status=b.dataset.st;render();});
+/* =====================================================================
+   設定・使い方
+   ===================================================================== */
+function openSetup(){
+  const arch=K.filter(isArchived);
+  const seedNew=SEED_K.filter(s=>!K.some(x=>x.title===s.t)).length;
+  const seedINew=SEED_I.filter(s=>!INFO.some(x=>x.title===s.title)).length;
+  openModal('設定',`
+    <div class="fld"><label>接続状態</label><div class="note">${sb?'Supabaseに接続しています（社内共有中）':'未接続のため、この端末だけに保存されます'}<br>
+      ${Object.keys(MISSING).map(k=>`${k}：${MISSING[k]?'<b style="color:var(--neg)">未設定</b>':'OK'}`).join('　')}</div></div>
+    <div class="sub-h">管理者が1回だけ：SupabaseのSQL Editorで実行</div>
+    <div class="sql" id="sqlBox">${esc(SQL)}</div>
+    <div style="margin-top:8px"><button class="btn gh sm" id="sqlCp">SQLをコピー</button></div>
+    <div class="sub-h">基本ナレッジ・業界情報の取り込み</div>
+    <p class="note">研修カリキュラムと業界情報の方針にそった基本ナレッジ ${SEED_K.length}件（未登録 ${seedNew}件）と、制度の大きな変化の業界情報 ${SEED_I.length}件（未登録 ${seedINew}件）を取り込みます。AIが作った下書きなので「下書き・AI下書き」の状態で入ります。幹部が出典で確認し、「公式として承認」してください。</p>
+    <div class="toolbar" style="margin-top:8px"><button class="btn gold" id="sSeedK"${seedNew&&canEdit()?'':' disabled'}>基本ナレッジを取り込む</button><button class="btn gold" id="sSeedI"${seedINew&&canEdit()?'':' disabled'}>業界情報を取り込む</button></div>
+    <div class="sub-h">このアプリで扱わない項目（採用・組織）</div>
+    <p class="note">採用・組織・内定者の項目 ${arch.length}件は、画面に表示しない設定です。${arch.length?'不要であれば削除できます。':''}</p>
+    ${arch.length?`<div class="mini-list" style="margin:6px 0">${arch.slice(0,30).map(x=>`<div class="note">・${esc(x.title)}</div>`).join('')}</div>${canApprove()?'<button class="btn danger sm" id="sDelArch">採用・組織の項目をすべて削除</button>':''}`:''}
+  `,`<div class="sp"></div><button class="btn pri" data-close>閉じる</button>`,true);
+  $('#sqlCp').onclick=()=>copyText(SQL,'SQLをコピーしました');
+  $('#sSeedK').onclick=async()=>{
+    const b=$('#sSeedK');b.disabled=true;b.innerHTML='<span class="spin"></span> 取り込み中…';let n=0;
+    for(const s of SEED_K){if(K.some(x=>x.title===s.t))continue;
+      const r=blankK();r.id=uid('k');r.category=s.c;r.title=s.t;r.body=s.b;r.tags=s.tags||'';r.status='draft';r.author='AI下書き（'+myName()+'取込）';
+      r.ext={field:s.f,talk:s.talk||'',caution:s.caution||'',source:'',source_url:'',checked:'',products:(s.products||'').split(',').filter(Boolean),star:s.star||'',seed:true};
+      if(await saveK(r))n++;}
+    toast(n+'件を取り込みました');openSetup();renderAll();
+  };
+  $('#sSeedI').onclick=async()=>{
+    const b=$('#sSeedI');b.disabled=true;b.innerHTML='<span class="spin"></span> 取り込み中…';let n=0;
+    for(const s of SEED_I){if(INFO.some(x=>x.title===s.title))continue;
+      const r={id:uid('i'),area:s.area,item:s.item,title:s.title,source:s.source,url:'',info_date:s.eff,eff:s.eff,summary:s.summary,impact:s.impact,cr:s.cr,imp:s.imp,uses:s.uses||[],talk:s.talk||'',status:'analyzed',author:'AI下書き（'+myName()+'取込）',seed:true,created_at:new Date().toISOString()};
+      if(await saveI(r))n++;}
+    toast(n+'件を取り込みました');openSetup();renderAll();
+  };
+  if($('#sDelArch'))$('#sDelArch').onclick=async()=>{if(!confirm('採用・組織の項目 '+arch.length+'件を削除します。元に戻せません。よろしいですか？'))return;
+    for(const x of arch)await delK(x.id); toast('削除しました'); openSetup(); renderAll();};
+}
+$('#btnSetup').onclick=openSetup;
+function openGuide(){
+  openModal('使い方・更新情報',`<div class="guide">
+    <h4>このアプリの目的</h4><p>サービス内容・業界情報・電力・経産省・税制・商品の知識とルールを、社員全員（特に営業）が正しく話せる状態にし、契約率を上げます。</p>
+    <h4>毎日やること（5分）</h4><ol><li>ホームの「今日の1問」に答える</li><li>重要な業界情報に目を通す</li><li>商談前に「AIに聞く」で確認したいことを聞く</li></ol>
+    <h4>業界情報（方針の運用）</h4><ul><li>ニュース・通達・電力会社の発表・お客様や金融機関から聞いた話を、区分と項目を選んで登録します</li><li>「URL・記事からAIで登録」に本文を貼ると、要点・影響・営業トークまで下書きされます</li><li>上のマップの点線の項目は、まだ情報が集まっていない項目です。担当を決めて埋めてください</li><li>月末は「今月のまとめ（AI）」で会議用のまとめを作り、Chatworkに貼ります</li></ul>
+    <h4>知識・ルール</h4><ul><li>説明・お客様への伝え方・言ってはいけないこと・出典をセットで登録します</li><li>営業・現場も追加・編集できます。幹部が「公式として承認」したものが正解です</li><li>制度・税制などは確認日から${STALE_DAYS}日たつと「要確認」になります。最新情報を確認して「今日確認した」を押してください</li><li>読んで理解したら「理解した」を押すと、ホームの習得状況に反映されます</li></ul>
+    <h4>研修カリキュラム・確認テスト</h4><ul><li>受講したら「受講済」にチェックします。幹部は講師・日程・状況を入力できます</li><li>テストは分野ごとに${PASS}点で合格です。幹部はAIで問題を追加できます</li></ul>
+    <h4>更新情報</h4>${CHANGELOG.map(c=>`<p><b>${c.v}</b></p><ul class="news">${c.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
+  </div>`,'',true);
+}
+$('#btnGuide').onclick=openGuide;
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')$$('.ov.show').forEach(o=>o.classList.remove('show'));
-  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){
-    e.preventDefault();$('#q').focus();}
+  if(e.key==='Escape')closeModal();
+  if(e.key==='/'&&VIEW==='know'&&['INPUT','TEXTAREA','SELECT'].indexOf(document.activeElement.tagName)<0){e.preventDefault();$('#kq').focus();}
 });
-[$('#ovEdit'),$('#ovSetup')].forEach(o=>o.onclick=e=>{if(e.target===o)o.classList.remove('show');});
 
 /* ---------- boot ---------- */
-DATA=cacheRead(); buildChips(); render();
-EC.guard({allow:['admin','manager','sales','field','viewer']}).then(function(me){
-  ME=me; sb=EC.supabase;
-  EC.mountBadge('#userBadge');
-  if(!canEdit())$('#btnNew').style.display='none';
-  loadAll();
-});
+K=lsGet(LS.k,[]).map(kNorm); INFO=lsGet(LS.i,[]); PROG=lsGet(LS.p,[]); CSET=lsGet(LS.c,{});
+renderAll();
+function boot(me){
+  ME=me; sb=window.EC&&EC.supabase||null;
+  if(window.EC&&EC.mountBadge)EC.mountBadge('#userBadge');
+  loadAll().then(()=>{
+    if(lsGet('ec_kn_seen_ver','')!==APP_VERSION){lsSet('ec_kn_seen_ver',APP_VERSION);openGuide();}
+  });
+}
+if(window.EC&&EC.guard){EC.guard({allow:['admin','manager','sales','field','staff','viewer']}).then(boot);}
+else boot(null);
+window.__KN={go,openSetup,startQuiz,state:()=>({K,INFO,PROG,CSET,MISSING})};
 })();
 </script>
 </body></html>
