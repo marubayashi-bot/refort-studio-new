@@ -430,8 +430,9 @@ table.tb{width:100%;border-collapse:collapse;background:#fff;font-size:12.8px}
 /* =====================================================================
    マスタ定義
    ===================================================================== */
-const APP_VERSION='2026.10.10';
+const APP_VERSION='2026.10.10b';
 const CHANGELOG=[
+  {v:'2026.10.10b',items:['AIが使えないときのエラー表示を日本語でわかりやすくしました（残高不足・ログイン切れ・混雑・通信エラー）','「URL・記事からAIで登録」でAIが失敗しても、「AIを使わずに登録する」で貼った本文をそのまま登録画面に移せるようにしました']},
   {v:'2026.10.10',items:['背景デザインとアプリのアイコンを変更（太陽光と知識のネットワークの背景、金色の本のアイコン）']},
   {v:'2026.10.09',items:[
     '「業界情報に関する方針」にそって、業界情報タブを新設（5区分・29項目の収集状況マップ、収集先・活用先、チャンス／リスク、営業トーク化）',
@@ -948,14 +949,26 @@ async function token(){
   return SB_KEY;
 }
 async function callAI(system,prompt,maxTokens){
-  const res=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token(),'apikey':SB_KEY},
+  if(!navigator.onLine)throw new Error('インターネットにつながっていません。電波の良い場所でもう一度押してください。');
+  let res; try{ res=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token(),'apikey':SB_KEY},
     body:JSON.stringify({system,max_tokens:maxTokens||2000,messages:[{role:'user',content:prompt}]})});
+  }catch(e){throw new Error('AIにつながりませんでした。通信状態を確認して、もう一度押してください。');}
   const raw=await res.text(); let j={}; try{j=JSON.parse(raw);}catch(e){}
-  if(!res.ok){const em=j.error?(typeof j.error==='string'?j.error:(j.error.message||JSON.stringify(j.error))):raw.slice(0,160);
-    throw new Error('AIの呼び出しに失敗しました（'+res.status+'）：'+em);}
+  if(!res.ok){const em=j.error?(typeof j.error==='string'?j.error:(j.error.message||JSON.stringify(j.error))):raw;
+    throw new Error(aiErrText(res.status,em));}
   const t=(typeof j==='string')?j:(j.text||(Array.isArray(j.content)?j.content.map(c=>c.text||'').join(''):'')||j.result||'');
   if(!t)throw new Error('AIから回答が返ってきませんでした。少し待ってもう一度押してください');
   return t.trim();
+}
+function aiErrText(st,em){
+  em=String(em||'');
+  if(/credit balance|billing|purchase credits/i.test(em))
+    return 'AIの利用残高（Anthropic APIのクレジット）がなくなっています。管理者が Anthropic Console の「Plans & Billing」でクレジットを追加すると使えるようになります。AIを使わずに登録することはできます。';
+  if(st===401||st===403||/auth|jwt|token/i.test(em))return 'ログインの有効期限が切れています。ページを再読み込みしてから、もう一度押してください。';
+  if(st===429||/rate.?limit/i.test(em))return 'AIへの依頼が混み合っています。1分ほど待ってから、もう一度押してください。';
+  if(st===529||st>=500||/overloaded/i.test(em))return 'AIのサーバーが混雑しています。少し待ってから、もう一度押してください。';
+  if(/too long|too many tokens|prompt is too long/i.test(em))return '貼り付けた文章が長すぎます。要点の部分だけに減らして、もう一度押してください。';
+  return 'AIの呼び出しに失敗しました（'+st+'）。時間をおいてもう一度お試しください。詳細：'+em.slice(0,120);
 }
 function parseJSON(t){
   t=String(t).replace(/```json|```/g,'').trim();
@@ -1215,7 +1228,7 @@ JSONだけを返してください：{"impact":"当社への影響（チャン�
       if(CR[j.cr])$('#fCr').value=j.cr; if(j.imp)$('#fImp').value=String(Math.max(1,Math.min(3,+j.imp||2)));
       (j.uses||[]).forEach(u=>{const c=$$('#mBody .checks input').find(x=>x.value===u);if(c)c.checked=true;});
       $('#fSt').value='analyzed'; toast('AIの下書きを入れました。内容を確認して保存してください',3000);
-    }catch(e){$('#fErr').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+    }catch(e){$('#fErr').innerHTML='<div class="err">'+esc(e.message)+'</div><div class="note">入力した内容は消えていません。このまま手で書いて保存できます。</div>';}
     b.disabled=false; b.textContent='AIで分析・トークを下書き';
   };
   $('#fSave').onclick=async()=>{
@@ -1235,6 +1248,7 @@ function infoAIDialog(){
   $('#aGo').onclick=async()=>{
     const txt=$('#aT').value.trim(), url=$('#aU').value.trim();
     if(txt.length<30){toast('本文を30文字以上貼ってください');return;}
+    if(txt.length>9000)toast('本文が長いため、先頭の約9,000文字だけをAIに渡します',3000);
     const b=$('#aGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> 読んでいます…';
     try{
       const map=POLICY.map(p=>p.k+'（'+p.n+'）：'+p.items.join('／')).join('\n');
@@ -1253,7 +1267,15 @@ ${txt.slice(0,9000)}`,1800);
         url,info_date:/^\d{4}-\d{2}-\d{2}$/.test(j.info_date||'')?j.info_date:today(),eff:/^\d{4}-\d{2}-\d{2}$/.test(j.eff||'')?j.eff:'',
         summary:j.summary||'',impact:j.impact||'',cr:CR[j.cr]?j.cr:'neutral',imp:Math.max(1,Math.min(3,+j.imp||2)),talk:j.talk||'',uses:(j.uses||[]).filter(u=>USES.indexOf(u)>=0),status:'analyzed'};
       editInfo(null,pre); toast('下書きを作りました。内容を確認して保存してください',3000);
-    }catch(e){$('#aErr').innerHTML='<div class="err">'+esc(e.message)+'</div>';b.disabled=false;b.textContent='AIで下書きを作る';}
+    }catch(e){
+      $('#aErr').innerHTML='<div class="err">'+esc(e.message)+'</div><div style="margin-top:8px"><button class="btn gh sm" id="aManual">AIを使わずに登録する（貼った本文を要点に入れます）</button></div>';
+      b.disabled=false;b.textContent='もう一度AIで試す';
+      $('#aManual').onclick=()=>{
+        const first=(txt.split(/\n/).map(x=>x.trim()).filter(Boolean)[0]||'').replace(/^[*＊・\-\s]+/,'').slice(0,40);
+        editInfo(null,{title:first,url,summary:txt.slice(0,2000),source:/drive\.google|docs\.google/.test(url)?SOURCES[4]:SOURCES[4],info_date:today(),status:'new'});
+        toast('本文を要点に入れました。タイトルと区分を確認して保存してください',3500);
+      };
+    }
   };
 }
 function monthlyDialog(){
