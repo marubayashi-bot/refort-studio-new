@@ -16,6 +16,7 @@ header{background:var(--navy);color:#fff;box-shadow:0 2px 0 var(--gold);position
 .hbar{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand{font-weight:900;font-size:15.5px;letter-spacing:.03em}.brand small{font-weight:500;font-size:11.5px;color:#a9bbcf;margin-left:8px}
 .sp{flex:1}
+header .ec-badge{color:#fff!important}header .ec-badge .out{color:#c8d6e6!important}
 main{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#fff}
@@ -135,8 +136,9 @@ async function load(){
 }
 function showSetup(err){
   const b=$('#banner');
-  b.innerHTML='<b>記録用のテーブルがまだありません。</b> SupabaseのSQL Editorで次のSQLを1回実行してから、Edge Function「ai」を新しいコードに差し替えてください。<div class="sql">'+esc(SQL)+'</div><div style="margin-top:6px">（'+esc(err.message||err)+'）</div>';
+  b.innerHTML='<b>記録用のテーブルがまだありません。</b> SupabaseのSQL Editorで次のSQLを1回実行してから、Edge Function「ai」を新しいコードに差し替えてください。<div class="sql">'+esc(SQL)+'</div><div style="margin-top:8px"><button class="btn" id="cpSql">SQLをコピー</button> <span class="note">（'+esc(err.message||err)+'）</span></div>';
   b.classList.add('show');
+  $('#cpSql').onclick=()=>navigator.clipboard.writeText(SQL).then(()=>{$('#cpSql').textContent='コピーしました';},()=>{$('#cpSql').textContent='コピーできませんでした';});
 }
 function group(key){
   const m={};
