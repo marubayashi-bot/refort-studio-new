@@ -1,5 +1,10 @@
 /* ============================================================
- *  EARTHCOM 共通認証モジュール  ec-auth.js  v1.2
+ *  EARTHCOM 共通認証モジュール  ec-auth.js  v1.3
+ *
+ *  v1.3 の変更点 ----------------------------------------------
+ *  ・AI（Edge Function ai）を呼ぶとき、どのアプリからの呼び出しかを
+ *    URLの ?app=ファイル名 として自動で付けます。AI利用状況（ai-usage.html）
+ *    でアプリ別の使用量を見るためのもので、各アプリの修正は不要です。
  *
  *  各アプリの <head> に2行足すだけで、会社のGoogleアカウント
  *  ログインと役割別の権限判定が使えるようになります。
@@ -75,6 +80,26 @@
   if (!global.supabase || !global.supabase.createClient) {
     throw new Error('ec-auth.js: supabase-js を先に読み込んでください');
   }
+
+  /* v1.3: AI呼び出しにアプリ名を付ける（createClient より前に置くこと） */
+  (function () {
+    var orig = global.fetch;
+    if (!orig || orig.__ecAiTag) return;
+    var page = location.pathname.replace(/^.*\//, '') || 'index.html';
+    var re = /\/functions\/v1\/ai(\?|$)/;
+    var tagged = function (input, init) {
+      try {
+        var u = typeof input === 'string' ? input : (input instanceof URL ? input.href : (input && input.url));
+        if (u && re.test(u) && !/[?&]app=/.test(u)) {
+          var nu = u + (u.indexOf('?') >= 0 ? '&' : '?') + 'app=' + encodeURIComponent(page);
+          input = (typeof input === 'string' || input instanceof URL) ? nu : new Request(nu, input);
+        }
+      } catch (e) { /* 付けられなくても通常どおり送る */ }
+      return orig.call(global, input, init);
+    };
+    tagged.__ecAiTag = true;
+    global.fetch = tagged;
+  })();
 
   var client = global.supabase.createClient(CONFIG.url, CONFIG.key, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
