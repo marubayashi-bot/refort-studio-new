@@ -709,6 +709,9 @@ async function afterLogin(){
    更新のお知らせ（アップデートのたびに先頭へ1件追加する）
    ================================================================== */
 const CHANGELOG=[
+  {ver:'2.5',date:'2026-10-12',items:[
+    {tag:'辞退アラート',tab:'p-alerts',text:'「アルバイト回数（内定者ごと）」の月別（6ヶ月）表示をやめ、「直近2週間の回数」に変更しました。基準日は今日ではなく、スプレッドシートに記載のある最新日から遡って14日間で数えます。※日付単位の記録が必要なため、一度「CSVを取り込む（または スプレッドシートから更新）」を実行してください。',by:'東田'},
+  ]},
   {ver:'2.4',date:'2026-10-08',items:[
     {tag:'辞退アラート',tab:'p-alerts',text:'「アルバイト回数（内定者ごと）」を辞退アラートタブに移しました。内定者ごとに累計・直近3ヶ月・月別（6ヶ月分）の回数と判定を一覧で確認できます。',by:'東田'},
     {tag:'辞退アラート',tab:'p-alerts',text:'回数が全員分の合計のように大きく表示される不具合を直しました（スプシの「回数」列は通し番号のため、記録1行＝1回で数えるよう修正）。以前取り込んだ数値はリセットされるので、もう一度「CSVを取り込む」を行ってください。読み込み前はスプシの集計欄の累計を表示します。',by:'東田'},
@@ -978,7 +981,7 @@ const NAVGROUPS=[
   ['管理',[['p-guide','使い方'],['p-settings','設定']]],
 ];
 const TABS=NAVGROUPS.flatMap(g=>g[1]);
-const APP_VERSION='2026.10 v2.4（アルバイト回数を辞退アラートへ／集計修正／Looker削除）｜v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
+const APP_VERSION='2026.10 v2.5（アルバイト回数を直近2週間表示に変更）｜v2.4（アルバイト回数を辞退アラートへ／集計修正／Looker削除）｜v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';let first=true;
   NAVGROUPS.forEach(g=>{const h=document.createElement('div');h.className='navgrp';h.textContent=g[0];n.appendChild(h);
     g[1].forEach(t=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(first){b.classList.add('active');first=false;}b.dataset.id=t[0];n.appendChild(b);});});}
@@ -1087,18 +1090,20 @@ function renderArbeitTable(){
   const L=SL(),gid=(L.arbeitGid||{})[S.cohort],tgt=+L.arbeitTarget||4,ppl=cur().people;
   document.getElementById('arbTag').textContent=S.cohort+'卒';
   const op=document.getElementById('arbOpen');op.href=`https://docs.google.com/spreadsheets/d/${L.arbeitId}/edit`+(gid?`#gid=${gid}`:'');
-  document.getElementById('arbHint').textContent=`「内定者データ」スプレッドシート（${S.cohort}アルバイト数）の記録1行＝1回として、内定者ごとに集計します。判定は直近3ヶ月の回数を月間目標${tgt}回×3と比べています（目標は設定タブで変更可）。`;
+  document.getElementById('arbHint').textContent=`「内定者データ」スプレッドシート（${S.cohort}アルバイト数）の記録1行＝1回として集計します。直近2週間＝データ上の最新日${arbeitRefDate()?('（'+arbeitRefDate()+'）'):''}から遡って14日間の回数です（基準日はスプレッドシートの日付。判定は週間目標×2と比較）。`;
   const anySheet=ppl.some(p=>p.arbeitCnt&&p.arbeitCnt.byMonth&&Object.keys(p.arbeitCnt.byMonth).length);
   const gd=document.getElementById('arbGuide');gd.style.display=(!L.url&&!anySheet)?'':'none';
-  gd.innerHTML=`<b>月別の回数を出すには、記録の読み込みが必要です。</b>①「スプレッドシートを開く」→ ②「${esc(S.cohort)}アルバイト数」シートで「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③「CSVを取り込む」で選択（全員分が一度に反映されます）。`;
+  gd.innerHTML=`<b>直近2週間の回数を出すには、記録の読み込みが必要です。</b>①「スプレッドシートを開く」→ ②「${esc(S.cohort)}アルバイト数」シートで「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③「CSVを取り込む」で選択（全員分が一度に反映されます）。`;
   if(!ppl.length){el.innerHTML='<p class="muted small">内定者が登録されていません。</p>';return;}
-  const ms=ymList(6).reverse();
-  const rows=ppl.map(p=>({p,a:arbeitInfo(p)})).sort((x,y)=>(y.a.total||0)-(x.a.total||0));
-  el.innerHTML=`<table><thead><tr><th>氏名</th><th style="text-align:right">累計</th><th style="text-align:right">直近3ヶ月</th>${ms.map(m=>`<th style="text-align:right;white-space:nowrap">${+m.slice(5)}月</th>`).join('')}<th>判定</th><th class="small">出典</th></tr></thead><tbody>`+
-    rows.map(({p,a})=>{const bm=(p.arbeitCnt&&p.arbeitCnt.byMonth)||{};
-      const lv=a.recent==null?['—','gray']:a.recent>=tgt*3?['目標達成','ok']:a.recent>=tgt*1.5?['やや不足','warn']:['要フォロー','danger'];
+  const ref=arbeitRefDate(),t2=Math.max(1,Math.round(tgt/2));
+  const rows=ppl.map(p=>({p,a:arbeitInfo(p),w:arbeit2w(p)})).sort((x,y)=>((y.w.count||0)-(x.w.count||0))||((y.a.total||0)-(x.a.total||0)));
+  const anyDates=ppl.some(p=>p.arbeitCnt&&p.arbeitCnt.dates&&p.arbeitCnt.dates.length);
+  el.innerHTML=`<table><thead><tr><th>氏名</th><th style="text-align:right">直近2週間${ref?`<div class="small muted" style="font-weight:400">${ref.slice(5).replace('-','/')}まで</div>`:''}</th><th style="text-align:right">累計</th><th>判定</th><th class="small">出典</th></tr></thead><tbody>`+
+    rows.map(({p,a,w})=>{
+      const lv=(!w.has||w.count==null)?['—','gray']:w.count>=t2?['目標ペース','ok']:w.count>=1?['やや不足','warn']:['要フォロー','danger'];
       const src=a.src==='sheet'?'スプシ '+fmtDT(p.arbeitCnt.synced):a.src==='snap'?`スプシ集計値（${ARBEIT_SNAP.date}時点）`:a.src==='manual'?'手入力':'未反映';
-      return `<tr class="${lv[1]==='danger'?'flagrow':''}"><td><b>${esc(p.name)}</b></td><td style="text-align:right"><b>${a.src?a.total+'回':'—'}</b></td><td style="text-align:right">${a.recent==null?'—':a.recent+'回'}</td>${ms.map(m=>`<td style="text-align:right">${a.src==='sheet'?(bm[m]||0):'—'}</td>`).join('')}<td><span class="pill ${lv[1]}">${lv[0]}</span></td><td class="small muted">${src}</td></tr>`;}).join('')+`</tbody></table>`;
+      return `<tr class="${lv[1]==='danger'?'flagrow':''}"><td><b>${esc(p.name)}</b></td><td style="text-align:right"><b>${(w.has&&w.count!=null)?w.count+'回':'—'}</b></td><td style="text-align:right">${a.src?a.total+'回':'—'}</td><td><span class="pill ${lv[1]}">${lv[0]}</span></td><td class="small muted">${src}</td></tr>`;}).join('')+`</tbody></table>`
+    +(anyDates?'':`<p class="hint" style="margin-top:8px">⚠ 直近2週間は<b>日付単位の記録</b>が必要です。上の「スプレッドシートから更新」または「CSVを取り込む」から、アルバイト数シートを一度取り込み直してください（取り込み後に自動表示されます）。</p>`);
 }
 function renderAlerts(){
   renderArbeitTable();
@@ -1688,10 +1693,19 @@ function importRecruitCSV(ev){const f=ev.target.files[0];if(!f)return;const r=ne
 function normName(s){return String(s||'').replace(/[\s\u3000]/g,'').replace(/さん$/,'')
   .replace(/[邉邊]/g,'辺').replace(/舘/g,'館').replace(/髙/g,'高').replace(/[﨑嵜]/g,'崎').replace(/[齋齊斉]/g,'斎').replace(/濵/g,'浜');}
 function ymList(n){const b=new Date(S.baseDate||Date.now());const out=[];for(let i=0;i<n;i++){const d=new Date(b.getFullYear(),b.getMonth()-i,1);out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}return out;}
+function isoOf(v){if(v==null)return null;const s=String(v).trim();if(!s)return null;
+  let m=s.match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/);
+  if(m)return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+  const d=new Date(s);if(!isNaN(d.getTime())&&/\d{4}/.test(s))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return null;}
+function arbeitRefDate(){let mx='';[].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])).forEach(p=>{const ds=p.arbeitCnt&&p.arbeitCnt.dates;if(ds&&ds.length){const d=ds[ds.length-1];if(d>mx)mx=d;}});return mx||null;}
+function arbeit2w(p){const ref=arbeitRefDate();const ds=(p.arbeitCnt&&p.arbeitCnt.dates)||[];if(!ref)return{has:false,count:null,ref:null,from:null};
+  const refD=new Date(ref+'T00:00:00');const from=new Date(refD);from.setDate(from.getDate()-13);const fromS=from.toISOString().slice(0,10);
+  const c=ds.filter(d=>d>=fromS&&d<=ref).length;return{has:true,count:c,ref:ref,from:fromS};}
 /* スプシの集計欄（27アルバイト数 E1:I2）の値。記録を読み込むまでの暫定表示 */
 const ARBEIT_SNAP={date:'2026/10/8',totals:{'太田朋希':57,'茅島圭汰':71,'磯辺館太一':29,'笹川裕平':13,'小林柊羽':20}};
 function arbeitInfo(p){
-  if(p.arbeitCnt&&p.arbeitCnt.byMonth&&p.arbeitCnt.cv!==2){delete p.arbeitCnt.byMonth;}  /* 旧集計（回数を合算していた）を破棄 */
+  if(p.arbeitCnt&&p.arbeitCnt.byMonth&&(p.arbeitCnt.cv||0)<2){delete p.arbeitCnt.byMonth;}  /* 旧集計（回数を合算していた）を破棄 */
   const a=p.arbeitCnt||{},bm=a.byMonth||{},tgt=+(SL().arbeitTarget)||4;
   if(Object.keys(bm).length){const total=Object.values(bm).reduce((x,y)=>x+y,0);const recent=ymList(3).reduce((s,k)=>s+(bm[k]||0),0);
     return{rate:Math.min(1,recent/(tgt*3)),label:total+'回',total,recent,src:'sheet'};}
@@ -1716,10 +1730,10 @@ function arbeitSec(p){
 function setArbeitManual(pid,v){const p=cur().people.find(x=>x.id===pid);if(!p)return;p.arbeitCnt=p.arbeitCnt||{};p.arbeitCnt.manual=(v===''?null:+v);save();renderAll();}
 function applyArbeit(rows,src){
   const agg={};
-  rows.forEach(r=>{if(!r)return;const nm=normName(r[1]);if(!nm||nm==='氏名')return;const m=ymOf(r[0],'');if(!m)return;
-    agg[nm]=agg[nm]||{};agg[nm][m]=(agg[nm][m]||0)+1;});  /* C列「回数」は本人の通し番号のため、記録1行＝1回で数える */
+  rows.forEach(r=>{if(!r)return;const nm=normName(r[1]);if(!nm||nm==='氏名')return;const m=ymOf(r[0],''),iso=isoOf(r[0]);if(!m&&!iso)return;
+    agg[nm]=agg[nm]||{bm:{},ds:[]};if(m)agg[nm].bm[m]=(agg[nm].bm[m]||0)+1;if(iso)agg[nm].ds.push(iso);});  /* 記録1行＝1回。日付も保持して直近2週間を算出 */
   const ppl=[].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])),now=new Date().toISOString(),hit=[],miss=[];
-  ppl.forEach(p=>{const bm=agg[normName(p.name)];if(bm){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:bm,synced:now,src:src||'',cv:2});hit.push(p.name);}});
+  ppl.forEach(p=>{const g=agg[normName(p.name)];if(g){p.arbeitCnt=Object.assign(p.arbeitCnt||{},{byMonth:g.bm,dates:g.ds.slice().sort(),synced:now,src:src||'',cv:3});hit.push(p.name);}});
   Object.keys(agg).forEach(nm=>{if(!ppl.some(p=>normName(p.name)===nm))miss.push(nm);});
   save();renderAll();
   alert(`アルバイト回数を反映しました（${src||''}）\n一致：${hit.length}名`+(miss.length?`\nカルテに該当者なし：${miss.join('、')}\n（氏名の表記がカルテと違う場合は、カルテ側の氏名をスプレッドシートに合わせてください）`:''));}
