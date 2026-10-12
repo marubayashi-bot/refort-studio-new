@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ReFort 完成検査</title>
+<style>
+:root{--navy:#1F2937;--teal:#0F766E;--gray:#6B7280;--sub:#9CA3AF;--line:#E5E7EB;--bg:#F7F8F9;
+--ok:#0F766E;--ng:#B91C1C;--na:#9CA3AF;--amber:#D97706;--r:10px}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--navy);font-size:15px;line-height:1.6;-webkit-text-size-adjust:100%;
+font-family:"Hiragino Kaku Gothic ProN","Yu Gothic Medium","Noto Sans JP","Meiryo",system-ui,sans-serif}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+header{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 14px 0}
+.hd{display:flex;align-items:center;gap:10px;min-height:34px}
+.hd h1{font-size:15px;font-weight:700;margin:0}
+.hd .who{margin-left:auto;font-size:11px;color:var(--sub)}
+.tabs{display:flex;gap:2px;margin-top:8px}
+.tabs button{background:none;border:0;color:var(--sub);padding:9px 12px 11px;border-bottom:3px solid transparent;font-size:13px;font-weight:600}
+.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--teal)}
+main{padding:14px 14px 110px;max-width:1120px;margin:0 auto}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.card+.card{margin-top:10px}
+.row{display:flex;align-items:center;gap:10px}
+.muted{color:var(--gray);font-size:13px}.tiny{font-size:11px;color:var(--sub)}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:12px 16px;font-weight:600;font-size:14px}
+.btn.teal{background:var(--teal)}.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn.wide{display:block;width:100%;text-align:center}.btn:disabled{opacity:.45}
+input[type=text],input[type=date],input[type=number],textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:#fff;color:var(--navy)}
+label.f{display:block;margin-bottom:10px}label.f>span{display:block;font-size:12px;color:var(--gray);margin-bottom:4px}
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;color:#fff}
+.pill.ok{background:var(--ok)}.pill.ng{background:var(--ng)}.pill.na{background:var(--na)}
+.pill.critical{background:var(--ng)}.pill.doing{background:var(--amber)}.pill.approved{background:var(--teal)}
+.alert{border-left:4px solid var(--ng);background:#FEF2F2;padding:10px 12px;border-radius:6px;font-size:13px}
+.note{border-left:4px solid var(--amber);background:#FFFBEB;padding:10px 12px;border-radius:6px;font-size:13px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:8px;z-index:200}
+.cat{margin:18px 0 8px;font-size:12px;font-weight:700;color:var(--gray);letter-spacing:.04em}
+.item{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:8px}
+.item.ngx{border-color:#FCA5A5}
+.item .no{display:inline-block;min-width:26px;font-weight:700;color:var(--sub)}
+.item h4{margin:0;font-size:15px;display:inline}
+.crit{font-size:12px;color:var(--gray);margin:6px 0 10px;white-space:pre-line}
+.judge{display:flex;gap:6px}
+.judge button{flex:1;padding:12px 0;border:1px solid var(--line);background:#fff;border-radius:8px;font-weight:700;color:var(--gray)}
+.judge button[aria-pressed="true"][data-j=ok]{background:var(--ok);color:#fff;border-color:var(--ok)}
+.judge button[aria-pressed="true"][data-j=ng]{background:var(--ng);color:#fff;border-color:var(--ng)}
+.judge button[aria-pressed="true"][data-j=na]{background:var(--na);color:#fff;border-color:var(--na)}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.addp{width:64px;height:64px;border:1px dashed var(--line);border-radius:6px;background:#fff;color:var(--sub);font-size:11px}
+.need{color:var(--ng)}
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);
+padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);display:flex;gap:8px;align-items:center}
+.modal{position:fixed;inset:0;background:rgba(17,24,39,.6);z-index:100;display:flex;align-items:flex-end}
+.sheet{background:#fff;width:100%;border-radius:14px 14px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);max-height:88vh;overflow:auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="hd"><h1>ReFort 完成検査</h1><span class="who" id="who"></span></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="list" aria-selected="true">現場</button>
+    <button data-tab="defects" aria-selected="false">是正</button>
+  </nav>
+</header>
+<main id="view"><div class="card muted" id="boot">読み込み中…</div></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="./ec-auth.js" onerror="window.__noAuth=true"></script>
+<script>
+/* =====================================================================
+   ReFort 完成検査アプリ — Phase 1
+   18項目の検査 → 不具合の是正 → 再検査 → 完成承認
+   案件・写真は完工アルバム（album_projects / album_photos）と共有する
+   ===================================================================== */
+const CFG = {
+  url: "https://aakofrzurgwrkctunthw.supabase.co",
+  key: "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa",
+  bucket: "refort-album", maxEdge: 1600, quality: .82,
+};
+const DIAG = { auth: "-", db: "-", store: "-", err: null };
+let ME = { email: "(未認証)", full_name: "" };
+let sb = null;
+
+function bootError(msg) {
+  const v = document.getElementById("view");
+  if (v) v.innerHTML = `<div class="card" style="border-color:#FCA5A5">
+    <strong style="color:var(--ng)">起動できませんでした</strong>
+    <div class="muted" style="margin-top:8px">${msg}</div>
+    <button class="btn ghost wide" style="margin-top:10px" onclick="location.reload()">読み込み直す</button></div>`;
+}
+try {
+  if (!window.supabase?.createClient) throw new Error("Supabaseライブラリを読み込めません");
+  sb = window.supabase.createClient(CFG.url, CFG.key);
+} catch (e) { bootError(e.message); throw e; }
+
+const $ = (s, r = document) => r.querySelector(s);
+const el = h => { const d = document.createElement("div"); d.innerHTML = h.trim(); return d.firstElementChild; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random().toString(16).slice(2);
+const pubUrl = p => sb.storage.from(CFG.bucket).getPublicUrl(p).data.publicUrl;
+const today = () => new Date().toISOString().slice(0, 10);
+const addDays = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+function toast(m, ms = 2600) { const t = el(`<div class="toast">${esc(m)}</div>`); document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+
+async function auth() {
+  try {
+    if (window.EC?.guard) {
+      const to = new Promise((_, rj) => setTimeout(() => rj(new Error("認証の応答がありません")), 5000));
+      await Promise.race([EC.guard({ allow: ["admin", "manager", "sales", "field"] }), to]);
+      if (EC.me) ME = (await EC.me()) || ME;
+      if (EC.mountBadge) EC.mountBadge("#who");
+      DIAG.auth = "ok";
+    } else DIAG.auth = "ec-auth.js なし";
+  } catch (e) { DIAG.auth = "認証エラー: " + (e.message || e); }
+  const w = $("#who"); if (w && !w.textContent) w.textContent = ME.full_name || ME.email || "";
+}
+
+/* ---------- 写真アップロード（オフライン時は端末へ退避） ---------- */
+const Q = {
+  db: null,
+  open() { return new Promise((res, rej) => { const r = indexedDB.open("refort-inspection", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("q", { keyPath: "id" });
+    r.onsuccess = () => { Q.db = r.result; res(); }; r.onerror = () => rej(r.error); }); },
+  tx(m) { return Q.db.transaction("q", m).objectStore("q"); },
+  add(i) { return new Promise(r => { Q.tx("readwrite").put(i).onsuccess = r; }); },
+  all() { return new Promise(r => { const q = Q.tx("readonly").getAll(); q.onsuccess = () => r(q.result || []); }); },
+  del(id) { return new Promise(r => { Q.tx("readwrite").delete(id).onsuccess = r; }); },
+  async count() { try { return Q.db ? (await Q.all()).length : 0; } catch { return 0; } },
+  async flush() { if (!Q.db) return 0; let ok = 0;
+    for (const it of await Q.all()) { try { await doUpload(it.meta, it.blob); await Q.del(it.id); ok++; } catch { break; } }
+    if (ok) toast(`未送信の写真 ${ok}件を送信しました`); return ok; }
+};
+window.addEventListener("online", () => Q.flush().then(render));
+
+function resize(blob) {
+  return new Promise(res => { const img = new Image();
+    img.onload = () => { const m = Math.max(img.width, img.height), r = m > CFG.maxEdge ? CFG.maxEdge / m : 1;
+      const c = document.createElement("canvas"); c.width = img.width * r | 0; c.height = img.height * r | 0;
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => res(b), "image/jpeg", CFG.quality); };
+    img.src = URL.createObjectURL(blob); });
+}
+async function doUpload(meta, blob) {
+  const path = `${meta.project_id}/${meta.slot_id || "inspection"}/${meta.phase}/${uuid()}.jpg`;
+  const up = await sb.storage.from(CFG.bucket).upload(path, blob, { contentType: "image/jpeg" });
+  if (up.error) throw up.error;
+  const ins = await sb.from("album_photos").insert({ ...meta, storage_path: path, created_by: ME.email });
+  if (ins.error) throw ins.error;
+  return path;
+}
+async function savePhoto(meta, raw) {
+  const blob = await resize(raw);
+  try { if (!navigator.onLine) throw 0; await doUpload(meta, blob); }
+  catch { await Q.add({ id: uuid(), meta, blob }); toast("圏外のため端末に保存しました。復帰後に自動送信します"); }
+}
+function pickFile() {
+  return new Promise(res => { const i = el(`<input type="file" accept="image/*" capture="environment" hidden>`);
+    document.body.appendChild(i); i.onchange = () => { res(i.files[0] || null); i.remove(); }; i.click(); });
+}
+
+/* ---------- 状態・取得 ---------- */
+const S = { tab: "list", templates: [], projects: [], project: null, insp: null, results: [], photos: [], defects: [] };
+
+async function loadBase() {
+  const [{ data: t, error: e1 }, { data: p, error: e2 }, { data: d }] = await Promise.all([
+    sb.from("inspection_templates").select("*").eq("is_active", true).order("sort_order"),
+    sb.from("album_projects").select("*").order("created_at", { ascending: false }),
+    sb.from("inspection_defects").select("*").order("due_date"),
+  ]);
+  if (e1 || e2) { DIAG.db = (e1 || e2).message; throw (e1 || e2); }
+  S.templates = t || []; S.projects = p || []; S.defects = d || [];
+  const { data: ins } = await sb.from("inspections").select("*");
+  S.inspections = ins || [];
+  DIAG.db = `項目${S.templates.length}件 / 現場${S.projects.length}件`;
+}
+
+/** 台数展開：per_unit の項目は PCS台数分の行に広げる */
+function expand(project) {
+  const n = Math.max(1, project.pcs_count || 1);
+  const rows = [];
+  S.templates.forEach(t => {
+    if (t.per_unit) for (let i = 1; i <= n; i++) rows.push({ t, unit: i, label: `${t.name}（${i}号機）` });
+    else rows.push({ t, unit: 1, label: t.name });
+  });
+  return rows;
+}
+const resOf = (tid, unit) => S.results.find(r => r.template_id === tid && r.unit_no === unit);
+const photosOf = rid => S.photos.filter(p => p.result_id === rid);
+
+async function openProject(id) {
+  S.project = S.projects.find(p => p.id === id);
+  let insp = (S.inspections || []).filter(i => i.project_id === id).sort((a, b) => b.round - a.round)[0];
+  if (!insp) {
+    const { data } = await sb.from("inspections").insert({ project_id: id, inspector: ME.email }).select().single();
+    insp = data; S.inspections.push(insp);
+  }
+  S.insp = insp;
+  const [{ data: r }, { data: ph }] = await Promise.all([
+    sb.from("inspection_results").select("*").eq("inspection_id", insp.id),
+    sb.from("album_photos").select("*").eq("project_id", id).not("result_id", "is", null),
+  ]);
+  S.results = r || []; S.photos = ph || [];
+  S.tab = "inspect"; render();
+}
+
+/* ---------- 現場一覧 ---------- */
+function viewList() {
+  const w = el(`<div></div>`);
+  w.appendChild(el(`<div class="muted" style="margin-bottom:10px">現場をタップすると検査画面が開きます。現場の追加は完工アルバム側で行います。</div>`));
+  if (!S.projects.length) w.appendChild(el(`<div class="card muted">現場がありません。完工アルバムで案件を登録してください。</div>`));
+  S.projects.forEach(p => {
+    const ins = (S.inspections || []).filter(i => i.project_id === p.id).sort((a, b) => b.round - a.round)[0];
+    const open = S.defects.filter(d => d.project_id === p.id && d.status !== "closed");
+    const crit = open.filter(d => d.severity === "critical");
+    const c = el(`<div class="card">
+      <div class="row"><strong style="font-size:16px">${esc(p.plant_name)}</strong>
+        <span class="pill ${ins?.status === "approved" ? "approved" : "doing"}" style="margin-left:auto">
+          ${ins ? (ins.status === "approved" ? "承認済" : `${ins.round}回目 検査中`) : "未実施"}</span></div>
+      <div class="muted" style="margin-top:6px">PCS ${p.pcs_count || 1}台　是正 未完了 ${open.length}件</div>
+      ${crit.length ? `<div class="alert" style="margin-top:8px">重大不具合が ${crit.length}件 残っています。完成承認はできません。</div>` : ""}
+      <button class="btn teal wide" style="margin-top:10px">検査を開く</button></div>`);
+    c.querySelector("button").onclick = () => openProject(p.id);
+    w.appendChild(c);
+  });
+  return w;
+}
+
+/* ---------- 検査画面 ---------- */
+function viewInspect() {
+  const p = S.project, rows = expand(p);
+  const w = el(`<div></div>`);
+  const back = el(`<button class="btn ghost" style="padding:8px 14px;margin-bottom:10px">← 現場一覧</button>`);
+  back.onclick = () => { S.tab = "list"; S.project = null; render(); };
+  w.appendChild(back);
+  w.appendChild(el(`<h2 style="margin:0 0 2px;font-size:20px">${esc(p.plant_name)}</h2>
+    <div class="muted">${esc(p.address || "")}</div>`));
+
+  const done = rows.filter(r => resOf(r.t.id, r.unit)?.judgment).length;
+  const ng = rows.filter(r => resOf(r.t.id, r.unit)?.judgment === "ng");
+  const shortPhoto = rows.filter(r => {
+    const res = resOf(r.t.id, r.unit);
+    return res?.judgment === "ok" && photosOf(res.id).length < r.t.required_photos;
+  });
+  w.appendChild(el(`<div class="card" style="margin:12px 0">
+    <div class="row"><strong>${done} / ${rows.length} 項目</strong>
+    <span class="muted" style="margin-left:auto">${S.insp.round}回目　検査者 ${esc(ME.full_name || ME.email)}</span></div>
+    ${done < rows.length ? `<div class="note" style="margin-top:8px">未確認が ${rows.length - done}件あります。すべて判定しないと検査を終了できません。</div>` : ""}
+    ${shortPhoto.length ? `<div class="note" style="margin-top:8px">写真が不足している項目が ${shortPhoto.length}件あります。</div>` : ""}</div>`));
+
+  let cat = "";
+  rows.forEach(r => {
+    if (r.t.category !== cat) { cat = r.t.category; w.appendChild(el(`<div class="cat">【${esc(cat)}】</div>`)); }
+    w.appendChild(itemCard(r));
+  });
+
+  const can = done === rows.length && !shortPhoto.length;
+  const bar = el(`<div class="sticky">
+    <div class="tiny" style="flex:1">${ng.length ? `不合格 ${ng.length}件 → 是正タブへ` : "不合格なし"}</div>
+    <button class="btn teal" ${can ? "" : "disabled"}>検査を終了</button></div>`);
+  bar.querySelector("button").onclick = finishInspection;
+  w.appendChild(bar);
+  return w;
+}
+
+function itemCard(r) {
+  const t = r.t, res = resOf(t.id, r.unit), ph = res ? photosOf(res.id) : [];
+  const card = el(`<div class="item ${res?.judgment === "ng" ? "ngx" : ""}">
+    <div><span class="no">${t.no}</span><h4>${esc(r.label)}</h4>
+      ${t.severity === "critical" ? '<span class="pill critical" style="margin-left:6px">重大</span>' : ""}</div>
+    <div class="crit">${esc(t.criteria.replace(/／/g, "\n・")).replace(/^/, "・")}</div>
+    <div class="judge">
+      <button data-j="ok" aria-pressed="${res?.judgment === "ok"}">合格 ○</button>
+      <button data-j="ng" aria-pressed="${res?.judgment === "ng"}">不合格 ×</button>
+      <button data-j="na" aria-pressed="${res?.judgment === "na"}">対象外 －</button>
+    </div>
+    <div class="thumbs"></div>
+    <div class="tiny" style="margin-top:6px">必要写真 ${t.required_photos}枚
+      <span class="${ph.length < t.required_photos ? "need" : ""}">（現在 ${ph.length}枚）</span></div>
+  </div>`);
+  const th = card.querySelector(".thumbs");
+  ph.forEach(x => th.appendChild(el(`<img src="${pubUrl(x.storage_path)}" alt="">`)));
+  const add = el(`<button class="addp">＋写真</button>`);
+  add.onclick = async () => {
+    const f = await pickFile(); if (!f) return;
+    const rid = (await ensureResult(t.id, r.unit)).id;
+    await savePhoto({ project_id: S.project.id, slot_id: t.slot_id, phase: "after", result_id: rid,
+      caption: r.label, taken_at: new Date().toISOString(), source: "field" }, f);
+    await reloadResults(); render();
+  };
+  th.appendChild(add);
+
+  card.querySelectorAll(".judge button").forEach(b => b.onclick = async () => {
+    const j = b.dataset.j;
+    const row = await ensureResult(t.id, r.unit);
+    await sb.from("inspection_results").update({ judgment: j, judged_by: ME.email, judged_at: new Date().toISOString() }).eq("id", row.id);
+    row.judgment = j;
+    if (j === "ng") openDefect(t, r);
+    else render();
+  });
+  return card;
+}
+
+async function ensureResult(tid, unit) {
+  let row = resOf(tid, unit);
+  if (row) return row;
+  const { data } = await sb.from("inspection_results")
+    .insert({ inspection_id: S.insp.id, template_id: tid, unit_no: unit }).select().single();
+  S.results.push(data); return data;
+}
+async function reloadResults() {
+  const [{ data: r }, { data: ph }] = await Promise.all([
+    sb.from("inspection_results").select("*").eq("inspection_id", S.insp.id),
+    sb.from("album_photos").select("*").eq("project_id", S.project.id).not("result_id", "is", null),
+  ]);
+  S.results = r || []; S.photos = ph || [];
+}
+
+/* ---------- 不具合登録 ---------- */
+function openDefect(t, r) {
+  const m = el(`<div class="modal"><div class="sheet">
+    <div class="row"><strong>不具合の登録</strong>
+      ${t.severity === "critical" ? '<span class="pill critical" style="margin-left:auto">重大</span>' : ""}</div>
+    <div class="muted" style="margin:6px 0 12px">${t.no}. ${esc(r.label)}</div>
+    <label class="f"><span>是正箇所・内容</span><textarea id="d" rows="3" placeholder="例：南側3列目のボルト2本に締結マーキングなし"></textarea></label>
+    <label class="f"><span>是正担当者</span><input type="text" id="a" placeholder="氏名または会社名"></label>
+    <label class="f"><span>是正完了予定</span><input type="date" id="due" value="${addDays(7)}"></label>
+    ${t.severity === "critical" ? '<div class="alert" style="margin-bottom:12px">重大不具合です。閉じるまで完成承認はできません。</div>' : ""}
+    <div class="row"><button class="btn ghost" id="c">取消</button><button class="btn teal" id="s" style="flex:1">登録する</button></div>
+  </div></div>`);
+  document.body.appendChild(m);
+  m.querySelector("#c").onclick = () => { m.remove(); render(); };
+  m.querySelector("#s").onclick = async () => {
+    const desc = m.querySelector("#d").value.trim();
+    if (!desc) return toast("是正内容を入力してください");
+    await sb.from("inspection_defects").insert({
+      project_id: S.project.id, inspection_id: S.insp.id, template_id: t.id, unit_no: r.unit,
+      description: desc, severity: t.severity, assignee: m.querySelector("#a").value.trim() || null,
+      due_date: m.querySelector("#due").value || null, found_by: ME.email,
+    });
+    m.remove(); await loadBase(); render(); toast("是正案件を登録しました");
+  };
+}
+
+/* ---------- 検査終了・承認 ---------- */
+async function finishInspection() {
+  await sb.from("inspections").update({ status: "done", finished_at: new Date().toISOString() }).eq("id", S.insp.id);
+  S.insp.status = "done";
+  const open = S.defects.filter(d => d.project_id === S.project.id && d.status !== "closed");
+  if (open.length) { toast(`検査を終了しました。是正 ${open.length}件が残っています`); S.tab = "defects"; }
+  else { toast("検査を終了しました。完成承認ができます"); }
+  render();
+}
+
+function approvalCard() {
+  const p = S.project || null;
+  return null;
+}
+
+/* ---------- 是正タブ ---------- */
+function viewDefects() {
+  const w = el(`<div></div>`);
+  const open = S.defects.filter(d => d.status !== "closed");
+  const nameOf = id => S.projects.find(p => p.id === id)?.plant_name || "";
+  w.appendChild(el(`<div class="card" style="margin-bottom:10px">
+    <div class="row"><strong>未完了 ${open.length}件</strong>
+    <span class="muted" style="margin-left:auto">期限超過 ${open.filter(d => d.due_date && d.due_date < today()).length}件</span></div></div>`));
+  if (!open.length) w.appendChild(el(`<div class="card muted">未完了の是正はありません。</div>`));
+  open.forEach(d => {
+    const t = S.templates.find(x => x.id === d.template_id);
+    const late = d.due_date && d.due_date < today();
+    const c = el(`<div class="card" style="${late ? "border-color:#FCA5A5" : ""}">
+      <div class="row"><strong>${esc(nameOf(d.project_id))}</strong>
+        ${d.severity === "critical" ? '<span class="pill critical">重大</span>' : ""}
+        <span class="pill ${d.status === "fixed" ? "doing" : "ng"}" style="margin-left:auto">${d.status === "fixed" ? "再検査待ち" : "是正中"}</span></div>
+      <div class="muted" style="margin:6px 0">${t ? `${t.no}. ${esc(t.name)}` : ""}</div>
+      <div>${esc(d.description)}</div>
+      <div class="tiny" style="margin-top:6px">担当 ${esc(d.assignee || "未定")}　期限 ${esc(d.due_date || "未設定")}${late ? "（超過）" : ""}</div>
+      ${d.fixed_photo_path ? `<div class="thumbs"><img src="${pubUrl(d.fixed_photo_path)}" alt=""></div>` : ""}
+      <div class="row" style="margin-top:10px">
+        ${d.status === "open" ? `<button class="btn ghost" data-fix style="flex:1">是正完了を報告（写真）</button>` : ""}
+        ${d.status === "fixed" ? `<button class="btn ghost" data-ng>再検査 不合格</button><button class="btn teal" data-ok style="flex:1">再検査 合格</button>` : ""}
+      </div></div>`);
+    c.querySelector("[data-fix]")?.addEventListener("click", async () => {
+      const f = await pickFile(); if (!f) return;
+      const blob = await resize(f);
+      const path = `${d.project_id}/defects/${uuid()}.jpg`;
+      const up = await sb.storage.from(CFG.bucket).upload(path, blob, { contentType: "image/jpeg" });
+      if (up.error) return toast("写真を送信できませんでした");
+      await sb.from("inspection_defects").update({ status: "fixed", fixed_photo_path: path, fixed_at: new Date().toISOString() }).eq("id", d.id);
+      await loadBase(); render(); toast("是正完了を報告しました。検査者の再検査を待ちます");
+    });
+    c.querySelector("[data-ok]")?.addEventListener("click", async () => {
+      await sb.from("inspection_defects").update({ status: "closed", closed_by: ME.email, closed_at: new Date().toISOString() }).eq("id", d.id);
+      await loadBase(); render(); toast("再検査 合格として閉じました");
+    });
+    c.querySelector("[data-ng]")?.addEventListener("click", async () => {
+      await sb.from("inspection_defects").update({ status: "open", fixed_photo_path: null }).eq("id", d.id);
+      await loadBase(); render(); toast("不合格として差し戻しました");
+    });
+    w.appendChild(c);
+  });
+
+  // 完成承認（条件を満たす現場のみ）
+  S.projects.forEach(p => {
+    const ins = (S.inspections || []).filter(i => i.project_id === p.id).sort((a, b) => b.round - a.round)[0];
+    if (!ins || ins.status !== "done") return;
+    const rest = S.defects.filter(d => d.project_id === p.id && d.status !== "closed");
+    const c = el(`<div class="card" style="margin-top:14px;border-color:${rest.length ? "var(--line)" : "var(--teal)"}">
+      <strong>完成承認：${esc(p.plant_name)}</strong>
+      ${rest.length ? `<div class="alert" style="margin-top:8px">是正 ${rest.length}件が未完了のため承認できません。</div>`
+        : `<div class="muted" style="margin-top:8px">全項目の判定と是正が完了しています。</div>`}
+      <button class="btn teal wide" style="margin-top:10px" ${rest.length ? "disabled" : ""}>完成を承認する</button></div>`);
+    c.querySelector("button").onclick = async () => {
+      await sb.from("inspection_approvals").insert({ project_id: p.id, inspection_id: ins.id, approver: ME.email });
+      await sb.from("inspections").update({ status: "approved" }).eq("id", ins.id);
+      await sb.from("album_projects").update({ status: "completed", completion_date: today() }).eq("id", p.id);
+      await loadBase(); render(); toast("完成を承認しました。完工アルバムが出力できます");
+    };
+    w.appendChild(c);
+  });
+  return w;
+}
+
+/* ---------- 描画 ---------- */
+function diagBox() {
+  return el(`<div class="card" style="border-color:#FCA5A5"><strong style="color:var(--ng)">画面を表示できません</strong>
+  <pre style="white-space:pre-wrap;font-size:12px;background:#F9FAFB;padding:10px;border-radius:6px;margin-top:8px">認証: ${esc(DIAG.auth)}
+DB: ${esc(DIAG.db)}
+保存領域: ${esc(DIAG.store)}
+エラー: ${esc(DIAG.err || "-")}</pre>
+  <button class="btn ghost wide" onclick="location.reload()">読み込み直す</button></div>`);
+}
+async function render() {
+  const v = $("#view");
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
+  try {
+    v.innerHTML = "";
+    const n = await Q.count();
+    if (n) v.appendChild(el(`<div class="note" style="margin-bottom:10px">未送信の写真が ${n}件あります。電波の良い場所で自動送信します。</div>`));
+    v.appendChild(S.tab === "inspect" ? viewInspect() : S.tab === "defects" ? viewDefects() : viewList());
+  } catch (e) { DIAG.err = e.message || String(e); v.innerHTML = ""; v.appendChild(diagBox()); }
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; if (b.dataset.tab !== "inspect") S.project = null; render(); });
+window.addEventListener("error", e => { DIAG.err = DIAG.err || e.message; });
+
+(async () => {
+  const step = t => { const b = document.getElementById("boot"); if (b) b.textContent = t; };
+  setTimeout(() => { const b = document.getElementById("boot"); if (b) { DIAG.err = "読み込みが完了しません（" + b.textContent + " で停止）"; $("#view").innerHTML = ""; $("#view").appendChild(diagBox()); } }, 12000);
+  step("認証を確認中…"); await auth();
+  try { await Q.open(); DIAG.store = "ok"; } catch (e) { DIAG.store = "端末保存が使えません"; }
+  step("データを読み込み中…");
+  try { await loadBase(); }
+  catch (e) { DIAG.err = "データベースに接続できません。SQLの実行がまだの可能性があります。（" + (e.message || e) + "）";
+    $("#view").innerHTML = ""; $("#view").appendChild(diagBox()); return; }
+  Q.flush(); render();
+})().catch(e => { DIAG.err = e.message || String(e); $("#view").innerHTML = ""; $("#view").appendChild(diagBox()); });
+</script>
+</body>
+</html>
