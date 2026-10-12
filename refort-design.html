@@ -168,7 +168,7 @@ table input,table select{padding:4px 6px;font-size:13px}
 /* =========================================================
    ReFort DESIGN — 第1段階：現調入力＋設計検証
    ========================================================= */
-const APP_VERSION='v2026.10.08';
+const APP_VERSION='v2026.10.12';
 const SB_URL='https://aakofrzurgwrkctunthw.supabase.co';
 const SB_KEY='sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa';
 const AI_URL=SB_URL+'/functions/v1/ai';
@@ -266,7 +266,7 @@ const PANEL_DIM={'pv-550':[1134,2278],'pv-410':[1134,1722],'pv-250':[992,1640]};
 function migrate(s){
  s.settings={...defaultSettings(),...s.settings};
  (s.masters.panel||[]).forEach(x=>{if(x.w==null||x.h==null){const d=PANEL_DIM[x.id]; x.w=d?d[0]:null; x.h=d?d[1]:null}});
- (s.projects||[]).forEach(p=>{ if(!p.layoutBefore) p.layoutBefore={panelId:s.masters.panel[0]?.id,panels:[],locked:false,savedAt:null}; if(p.layoutBg===undefined) p.layoutBg=null });
+ (s.projects||[]).forEach(p=>{ if(!p.layoutBefore) p.layoutBefore={panelId:s.masters.panel[0]?.id,panels:[],locked:false,savedAt:null}; if(p.layoutBg===undefined) p.layoutBg=null; if(!p.obstacles) p.obstacles=[]; if(p.geo===undefined) p.geo=null });
  return s;
 }
 function load(){
@@ -299,7 +299,7 @@ function emptySurvey(){const o={}; Object.keys(SURVEY_ITEM).forEach(k=>o[k]={v:'
 function newProject(name,site,owner){
  const d=newDesign('A案');
  return {id:uid(),name,site:site||'',owner:owner||'',status:'現調済み',created:new Date().toISOString(),updated:new Date().toISOString(),
-  survey:emptySurvey(),designs:[d],activeDesign:d.id,approvals:[],layoutBefore:emptyLayout('pv-550'),layoutBg:null};
+  survey:emptySurvey(),designs:[d],activeDesign:d.id,approvals:[],layoutBefore:emptyLayout('pv-550'),layoutBg:null,obstacles:[],geo:null};
 }
 function demoProject(){
  const p=newProject('デモ：サンプル発電所（高圧・約500kW）','（デモ用の架空案件）','設計担当');
@@ -310,7 +310,7 @@ function demoProject(){
  set('wire_method','ラック／一部管路');set('azimuth',0);set('tilt',10);
  set('temp_min',-10);set('temp_max',40);
  set('shade','南東に樹木。冬季午前に一部影の可能性');set('protect','OVGR・RPR');
- p.layoutBefore=demoLayout(); p.status='設計中'; return p;
+ p.layoutBefore=demoLayout(); p.geo={lat:35.89,lng:139.79,label:'（デモ用の仮の位置）'}; p.obstacles=[{id:uid(),kind:'tree',x:30,y:72,r:3,h:12},{id:uid(),kind:'bldg',x:92,y:18,w:10,d:16,h:9}]; p.status='設計中'; return p;
 }
 
 /* ---------- 共通 ---------- */
@@ -340,6 +340,11 @@ function evaluate(p,d){
  if(pcs.src&&pcs.src.startsWith('サンプル')||pv.src&&pv.src.startsWith('サンプル'))
   add({g:'電気的な適合',step:'①',title:'判定根拠の仕様書',v:'unk',val:'選択中の機器にサンプル値が含まれています',basis:'機器マスターの出典欄',fix:'採用する機種の仕様書を機器マスターに登録し、出典・改訂日・承認者を記入してください',go:'master'});
  const pcsKw=pcs.kw*d.pcsQty, pcsKva=pcsKw/st.pf, pvKw=d._pvKw??pv.pmax*d.panelCount/1000, dcac=pvKw/pcsKw;
+ if(d.layoutAfter&&d.layoutAfter.panels.length){
+  if(!p.geo) add({g:'発電性能',step:'②',title:'影（冬至9〜15時）',v:'unk',val:'現地の位置が未設定のため影を計算できません',basis:'',fix:'レイアウト画面で現地の住所または緯度・経度を設定し、樹木・建物などの障害物を登録してください',go:'layout'});
+  else{const an=shadeAnalysis(p,d.layoutAfter);
+   if(an&&an.casters) add({g:'発電性能',step:'②',title:'影（冬至9〜15時）',v:an.long?'ng':'ok',val:`長時間（半分以上の時間帯）${an.long}枚／一部の時間帯 ${an.partial}枚（計 ${f(an.kw,1)}kW）`,basis:`障害物と前後の架台の影を30分ごとに計算（北緯${f(p.geo.lat,3)}°）`,fix:an.long?'レイアウト画面の「影に入るパネルを選択」で該当パネルを確認し、移動・削除するか、前後の列の離隔を広げてください':'',go:'layout'});
+   else add({g:'発電性能',step:'②',title:'影（冬至9〜15時）',v:'unk',val:'障害物と架台が未登録のため影を判定できません',basis:'',fix:'現調の「障害物・影」をもとに、樹木・建物をレイアウトに登録してください',go:'layout'})}}
  if(d._mixed) add({g:'発電性能',step:'①',title:'パネル型式の混在',v:'unk',val:'変更後レイアウトに複数の型式があります（'+Object.entries(d._byType).map(([id,n])=>(byId(M.panel,id)?.name||id)+'×'+n).join('、')+'）',basis:'ストリング検証は最も多い型式で行っています',fix:'型式ごとにストリングとPCSを分けて構成し、異なる型式を同じストリングに混ぜないよう確認してください',go:'s1'});
  Object.assign(metrics,{pcsKw,pvKw,dcac});
 
@@ -799,7 +804,7 @@ const LLABEL={same:'変更なし',add:'追加',del:'削除',move:'移動・回�
 let ED={tool:'select',sel:new Set(),drag:null,undo:[],key:'',vb:null,showGhost:true};
 function emptyLayout(pid){return {panelId:pid||S.masters.panel[0]?.id,panels:[],locked:false,savedAt:null}}
 function panelOf(L,pnl){return byId(S.masters.panel,pnl.pid||L.panelId)}
-function pdim(L,pnl){const m=panelOf(L,pnl); return {w:(m?.w||1000)/1000,h:(m?.h||1700)/1000}}
+function pdim(L,pnl){const m=panelOf(L,pnl); let w=(m?.w||1000)/1000,h=(m?.h||1700)/1000; if(pnl.o==='L'){const t=w;w=h;h=t} if(pnl.rk){const r=rackOf(L,pnl.rk); if(r) h*=Math.cos(r.tilt*Math.PI/180)} return {w,h}}
 function layoutStats(L){const s={count:0,kw:0,byType:{}}; if(!L) return s;
  L.panels.forEach(x=>{const m=panelOf(L,x),id=x.pid||L.panelId; s.count++; s.kw+=(m?.pmax||0)/1000; s.byType[id]=(s.byType[id]||0)+1}); return s}
 function syncFromLayout(d){
@@ -825,6 +830,7 @@ function bboxOf(list){
 function unionBox(p,d){
  const list=[]; (p.layoutBefore?.panels||[]).forEach(x=>list.push([p.layoutBefore,x])); (d?.layoutAfter?.panels||[]).forEach(x=>list.push([d.layoutAfter,x]));
  let b=bboxOf(list); const bg=p.layoutBg;
+ (p.obstacles||[]).forEach(o=>{const q=obstPoly(o); q.forEach(([x,y])=>{b=b?{x0:Math.min(b.x0,x),y0:Math.min(b.y0,y),x1:Math.max(b.x1,x),y1:Math.max(b.y1,y)}:{x0:x,y0:y,x1:x,y1:y}})});
  if(bg){b=b||{x0:bg.x,y0:bg.y,x1:bg.x+bg.w,y1:bg.y+bg.h}; b={x0:Math.min(b.x0,bg.x),y0:Math.min(b.y0,bg.y),x1:Math.max(b.x1,bg.x+bg.w),y1:Math.max(b.y1,bg.y+bg.h)}}
  if(!b) b={x0:0,y0:0,x1:40,y1:24};
  const m=Math.max(2,(b.x1-b.x0)*0.05); return [b.x0-m,b.y0-m,(b.x1-b.x0)+2*m,(b.y1-b.y0)+2*m];
@@ -839,12 +845,12 @@ function gridShape(vb,step=5){let s='';const [x,y,w,h]=vb; for(let gx=Math.ceil(
 
 /* 描画：既存側／変更後側（色分けあり） */
 function drawBefore(p,d,diff,opt={}){
- const B=p.layoutBefore; return B.panels.map(x=>{const c=diff?diff.bcat.get(x.id):'same'; return panelShape(B,x,LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
+ const B=p.layoutBefore; return B.panels.map(x=>{const c=diff?diff.bcat.get(x.id):'same'; return panelShape(B,x,shadeFill(opt.shade,x.id)||LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
 }
 function drawAfter(p,d,diff,opt={}){
  const A=d.layoutAfter, B=p.layoutBefore; let s='';
  if(opt.ghost!==false) s+=diff.removed.map(x=>panelShape(B,x,LCOL.del,{op:0.15,stroke:LCOL.del,dash:'0.15 0.1',sw:0.04})).join('');
- s+=A.panels.map(x=>{const c=diff.cat.get(x.id); return panelShape(A,x,LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
+ s+=A.panels.map(x=>{const c=diff.cat.get(x.id); return panelShape(A,x,shadeFill(opt.shade,x.id)||LCOL[c],{attr:opt.edit?`data-pid="${x.id}"`:'',stroke:opt.sel?.has(x.id)?LCOL.sel:undefined,sw:opt.sel?.has(x.id)?0.08:undefined})}).join('');
  if(opt.arrows!==false) diff.from.forEach((b,id)=>{const a=A.panels.find(x=>x.id===id); if(a&&(Math.abs(a.x-b.x)>0.3||Math.abs(a.y-b.y)>0.3)) s+=`<line x1="${b.x}" y1="${b.y}" x2="${a.x}" y2="${a.y}" stroke="${LCOL.move}" stroke-width="0.06" stroke-dasharray="0.2 0.12"/>`});
  return s;
 }
@@ -871,10 +877,10 @@ function vLayout(p){
   if(!A) return head+top;
  }
  const L=editLayout(p,d), ro=readOnly(p,d), st=layoutStats(L), sel=[...ED.sel].map(id=>L.panels.find(x=>x.id===id)).filter(Boolean);
- const tools=[['select','選択・移動'],['add','1枚追加'],['array','まとめて配置'],['pan','表示移動']];
+ const tools=[['select','選択・移動'],['add','1枚追加'],['array','まとめて配置'],['rack','架台を配置'],['tree','樹木'],['bldg','建物'],['pan','表示移動']];
  const pOpts=(v)=>M.panel.map(x=>`<option value="${x.id}" ${x.id===v?'selected':''}>${esc(x.name)}${x.w&&x.h?'':'（寸法未登録）'}</option>`).join('');
  const ar=UI.arr||(UI.arr={rows:2,cols:10,orient:'縦',gx:0.02,gy:0.02});
- const diffNote=UI.lmode==='after'?(()=>{const df=diffLayouts(B,A); return `<div class="lg">${['same','add','move','type'].map(k=>`<span><i style="background:${LCOL[k]}"></i>${LLABEL[k]} ${df.n[k]}</span>`).join('')}<span><i style="background:${LCOL.del};opacity:.35;outline:1px dashed ${LCOL.del}"></i>削除 ${df.n.del}</span></div>`})():'';
+ const diffNote=UI.shade.on?'':UI.lmode==='after'?(()=>{const df=diffLayouts(B,A); return `<div class="lg">${['same','add','move','type'].map(k=>`<span><i style="background:${LCOL[k]}"></i>${LLABEL[k]} ${df.n[k]}</span>`).join('')}<span><i style="background:${LCOL.del};opacity:.35;outline:1px dashed ${LCOL.del}"></i>削除 ${df.n.del}</span></div>`})():'';
  const side=`<aside class="side"><div class="sheet">
   <dl class="kv"><dt>枚数</dt><dd><b>${st.count.toLocaleString()}</b> 枚</dd><dt>合計容量</dt><dd><b>${f(st.kw,2)}</b> kW</dd>
    ${Object.entries(st.byType).map(([id,n])=>`<dt>${esc(byId(M.panel,id)?.name||id)}</dt><dd>${n}枚</dd>`).join('')}</dl>
@@ -888,6 +894,7 @@ function vLayout(p){
   <div class="grid" style="grid-template-columns:1fr 1fr"><label class="fld">段（縦）<input type="number" min="1" data-arr="rows" value="${ar.rows}"></label><label class="fld">列（横）<input type="number" min="1" data-arr="cols" value="${ar.cols}"></label>
    <label class="fld">向き<select data-arr="orient">${['縦','横'].map(o=>`<option ${ar.orient===o?'selected':''}>${o}</option>`).join('')}</select></label><label class="fld">すき間(m)<input type="number" step="0.01" data-arr="gx" value="${ar.gx}"></label></div>
   <p class="muted">「まとめて配置」を選び、図の上をクリックした位置を左上にして配置します。</p>`}
+  ${geoPanel(p,d,L,ro)}
   <h3 style="margin-top:14px">背景画像（既存図面・ドローン写真）</h3>
   ${p.layoutBg?`<div class="grid" style="grid-template-columns:1fr 1fr"><label class="fld">実寸の幅(m)<input type="number" step="0.1" data-act-change="bgw" value="${f(p.layoutBg.w,1).replace(/,/g,'')}"></label><label class="fld">濃さ<input type="number" step="0.1" min="0" max="1" data-act-change="bgop" value="${p.layoutBg.op??0.5}"></label></div>
    <div class="bar" style="margin-top:6px"><button class="btn danger sm" data-act="bgdel">背景を削除</button></div>`
@@ -899,14 +906,18 @@ function vLayout(p){
   <button class="btn ghost sm" data-act="lundo" ${ED.undo.length?'':'disabled'}>元に戻す</button>`}
   <button class="btn ghost sm" data-act="lfit">全体表示</button><button class="btn ghost sm" data-act="lzoom" data-z="0.8">拡大</button><button class="btn ghost sm" data-act="lzoom" data-z="1.25">縮小</button>
   ${UI.lmode==='after'?`<label class="muted"><input type="checkbox" data-act-change="lghost" ${ED.showGhost?'checked':''}> 削除したパネルを薄く表示</label>`:''}
-  <span class="muted">Delete：削除　R：回転　矢印：0.05m移動（Shiftで0.5m）　Ctrl+Z：元に戻す</span></div>`;
- return head+top+toolbar+`<div class="cols"><div><div class="sheet" style="padding:6px">${diffNote}<div id="layEd" class="lay-ed ${ro?'ro':''} tool-${ED.tool}"><svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg></div></div></div>${side}</div>`;
+  <span class="muted">Delete：削除　R：回転　矢印：0.05m移動（Shiftで0.5m）　Ctrl+A：全選択　Ctrl+Z：元に戻す</span></div>`;
+ return head+top+toolbar+shadeBar(p,d,L)+`<div class="cols"><div><div class="sheet" style="padding:6px">${diffNote}<div id="layEd" class="lay-ed ${ro?'ro':''} tool-${ED.tool}"><svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg></div></div></div>${side}</div>`;
 }
 function editorInner(p,d){
- const vb=ED.vb||(ED.vb=unionBox(p,d)), L=editLayout(p,d); let s=bgShape(p)+gridShape(vb);
- if(UI.lmode==='before') s+=drawBefore(p,d,null,{edit:true,sel:ED.sel});
- else s+=drawAfter(p,d,diffLayouts(p.layoutBefore,L),{edit:true,sel:ED.sel,ghost:ED.showGhost});
- if(ED.drag&&ED.drag.type==='marquee'){const m=ED.drag,x=Math.min(m.x0,m.x1),y=Math.min(m.y0,m.y1); s+=`<rect x="${x}" y="${y}" width="${Math.abs(m.x1-m.x0)}" height="${Math.abs(m.y1-m.y0)}" fill="${LCOL.sel}" fill-opacity=".1" stroke="${LCOL.sel}" stroke-width="${vb[2]/600}"/>`}
+ const vb=ED.vb||(ED.vb=unionBox(p,d)), L=editLayout(p,d), sh=UI.shade; let s=bgShape(p)+gridShape(vb);
+ const fr=sh.on&&p.geo?shadeAnalysis(p,L,sh.date)?.frac:null;
+ if(UI.lmode==='before') s+=drawBefore(p,d,null,{edit:true,sel:ED.sel,shade:fr});
+ else s+=drawAfter(p,d,diffLayouts(p.layoutBefore,L),{edit:true,sel:ED.sel,ghost:ED.showGhost,shade:fr});
+ if(sh.on&&p.geo) s+=`<g pointer-events="none">${shadowShapes(p,L,sh.date,sh.h)}</g>`;
+ s+=obstShapes(p,{edit:true,sel:ED.osel,fs:Math.max(0.6,vb[2]/70)});
+ const g=ED.drag; if(g&&(g.type==='marquee'||g.type==='bldg')){const x=Math.min(g.x0,g.x1),y=Math.min(g.y0,g.y1); s+=`<rect x="${x}" y="${y}" width="${Math.abs(g.x1-g.x0)}" height="${Math.abs(g.y1-g.y0)}" fill="${g.type==='bldg'?'#6B7480':LCOL.sel}" fill-opacity="${g.type==='bldg'?.6:.1}" stroke="${LCOL.sel}" stroke-width="${vb[2]/600}"/>`}
+ if(p.layoutBg?.credit) s+=`<text x="${vb[0]+vb[2]/150}" y="${vb[1]+vb[3]-vb[2]/150}" font-size="${vb[2]/90}" fill="#fff" stroke="#000" stroke-width="${vb[2]/1500}" paint-order="stroke">${esc(p.layoutBg.credit)}</text>`;
  s+=northArrow(vb);
  return s;
 }
@@ -926,6 +937,12 @@ function bindEditor(){
   if(ro) return;
   if(ED.tool==='add'){pushUndo(L); const id=uid(); L.panels.push({id,x:snap(pt.x),y:snap(pt.y),rot:0}); ED.sel=new Set([id]); layoutChanged(); return}
   if(ED.tool==='array'){placeArray(L,pt); return}
+  if(ED.tool==='rack'){placeRack(L,pt); return}
+  if(ED.tool==='tree'){const o={id:uid(),kind:'tree',x:snap(pt.x),y:snap(pt.y),r:+UI.obst.r||2,h:+UI.obst.h||8}; p.obstacles.push(o); ED.osel=o.id; touch(); render(); return}
+  if(ED.tool==='bldg'){ED.drag={type:'bldg',x0:pt.x,y0:pt.y,x1:pt.x,y1:pt.y}; svg.setPointerCapture(e.pointerId); return}
+  const oh=e.target.closest('[data-oid]');
+  if(oh){const o=p.obstacles.find(x=>x.id===oh.dataset.oid); ED.osel=o.id; ED.sel=new Set(); ED.drag={type:'omove',o,x0:pt.x,y0:pt.y,ox:o.x,oy:o.y,moved:false}; svg.setPointerCapture(e.pointerId); redrawEditor(); return}
+  ED.osel=null;
   if(hit){const id=hit.dataset.pid;
    if(e.shiftKey){ED.sel.has(id)?ED.sel.delete(id):ED.sel.add(id)} else if(!ED.sel.has(id)) ED.sel=new Set([id]);
    pushUndo(L); ED.drag={type:'move',x0:pt.x,y0:pt.y,orig:new Map(L.panels.filter(x=>ED.sel.has(x.id)).map(x=>[x.id,{x:x.x,y:x.y}])),moved:false};
@@ -936,10 +953,13 @@ function bindEditor(){
   if(g.type==='pan'){ED.vb=[g.vb[0]-(e.clientX-g.cx)*g.k,g.vb[1]-(e.clientY-g.cy)*g.k,g.vb[2],g.vb[3]]; redrawEditor(); return}
   const pt=svgPt(svg,e);
   if(g.type==='move'){const dx=snap(pt.x-g.x0),dy=snap(pt.y-g.y0); if(dx||dy) g.moved=true; L.panels.forEach(x=>{const o=g.orig.get(x.id); if(o){x.x=+(o.x+dx).toFixed(3);x.y=+(o.y+dy).toFixed(3)}}); redrawEditor()}
-  if(g.type==='marquee'){g.x1=pt.x;g.y1=pt.y; redrawEditor()}
+  if(g.type==='marquee'||g.type==='bldg'){g.x1=pt.x;g.y1=pt.y; redrawEditor()}
+  if(g.type==='omove'){g.o.x=+(g.ox+snap(pt.x-g.x0)).toFixed(2); g.o.y=+(g.oy+snap(pt.y-g.y0)).toFixed(2); g.moved=true; redrawEditor()}
  });
  svg.addEventListener('pointerup',()=>{const g=ED.drag; ED.drag=null; if(!g) return;
   if(g.type==='move'){ if(!g.moved) ED.undo.pop(); layoutChanged(); return }
+  if(g.type==='omove'){ if(g.moved) touch(); render(); return }
+  if(g.type==='bldg'){const w=Math.abs(g.x1-g.x0),dd=Math.abs(g.y1-g.y0); if(w>0.5&&dd>0.5){const o={id:uid(),kind:'bldg',x:snap(Math.min(g.x0,g.x1)),y:snap(Math.min(g.y0,g.y1)),w:snap(w),d:snap(dd),h:+UI.obst.bh||6}; p.obstacles.push(o); ED.osel=o.id; touch()} render(); return}
   if(g.type==='marquee'){const x0=Math.min(g.x0,g.x1),x1=Math.max(g.x0,g.x1),y0=Math.min(g.y0,g.y1),y1=Math.max(g.y0,g.y1);
    if(x1-x0>0.05||y1-y0>0.05) L.panels.forEach(x=>{if(x.x>=x0&&x.x<=x1&&x.y>=y0&&x.y<=y1) ED.sel.add(x.id)}); render(); return}
   redrawEditor();
@@ -958,6 +978,8 @@ function layoutKey(e){
  if(UI.view!=='layout'||UI.lmode==='compare') return; if(e.target.closest('input,select,textarea')) return;
  const p=cur(),d=curDesign(p); if(!p||readOnly(p,d)) return; const L=editLayout(p,d);
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault(); return layoutAct('lundo')}
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){e.preventDefault(); ED.sel=new Set(L.panels.map(x=>x.id)); render(); return}
+ if(ED.osel&&(e.key==='Delete'||e.key==='Backspace')){e.preventDefault(); p.obstacles=p.obstacles.filter(x=>x.id!==ED.osel); ED.osel=null; touch(); render(); return}
  if(!ED.sel.size) return;
  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault(); return layoutAct('ldel')}
  if(e.key==='r'||e.key==='R'){e.preventDefault(); return layoutAct('lrot',90)}
@@ -980,8 +1002,8 @@ function vLayoutCompare(p,d){
  const sw=designSwitcher(p,d);
  if(!B.panels.length) return sw+`<div class="sheet empty">既存レイアウトがまだありません。「既存レイアウト」で作成してください。</div>`;
  const df=A?diffLayouts(B,A):null, sb=layoutStats(B), sa=layoutStats(A), vb=unionBox(p,d);
- const svgB=`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${drawBefore(p,d,df)}${northArrow(vb)}</svg>`;
- const svgA=A?`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${drawAfter(p,d,df)}${northArrow(vb)}</svg>`:'<div class="empty">この設計案には変更後レイアウトがありません。</div>';
+ const svgB=`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${obstShapes(p,{fs:Math.max(0.6,vb[2]/70)})}${drawBefore(p,d,df)}${northArrow(vb)}</svg>`;
+ const svgA=A?`<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg">${bgShape(p)}${gridShape(vb)}${obstShapes(p,{fs:Math.max(0.6,vb[2]/70)})}${drawAfter(p,d,df)}${northArrow(vb)}</svg>`:'<div class="empty">この設計案には変更後レイアウトがありません。</div>';
  const diffRow=(a,b,u,dg)=>{const x=a-b; return `${x>0?'＋':x<0?'−':'±'}${f(Math.abs(x),dg)}${u}`};
  return sw+`<div class="sheet"><div class="lg">${['same','add','del','move','type'].map(k=>`<span><i style="background:${LCOL[k]}"></i>${LLABEL[k]}</span>`).join('')}<span class="muted">既存側：削除・移動するパネルを色分け／変更後側：削除したパネルは点線で表示</span></div>
   <div class="cmp"><div><h3>既存レイアウト${B.locked?'':'（未確定）'}</h3><div class="lay-view">${svgB}</div></div><div><h3>変更後レイアウト（${esc(d.name)}）</h3><div class="lay-view">${svgA}</div></div></div>
@@ -990,7 +1012,7 @@ function vLayoutCompare(p,d){
    <tr><th>合計容量</th><td class="n">${f(sb.kw,2)}kW</td><td class="n">${A?f(sa.kw,2)+'kW':'—'}</td><td class="n">${A?diffRow(sa.kw,sb.kw,'kW',2):'—'}</td></tr>
    ${A?`<tr><th>内訳</th><td class="n" colspan="3">追加 ${df.n.add}枚／削除 ${df.n.del}枚／移動・回転 ${df.n.move}枚／型式変更 ${df.n.type}枚／変更なし ${df.n.same}枚</td></tr>`:''}
   </tbody></table></div>
-  <p class="note">容量は機器マスターに登録されたパネルの定格出力から計算しています。</p></div>
+  <p class="note">容量は機器マスターに登録されたパネルの定格出力から計算しています。${p.layoutBg?.credit?'　背景：'+esc(p.layoutBg.credit):''}</p></div>
  <div class="sheet"><h2>出力</h2><p class="muted">出力には案件名・図面タイトル・作成日（出力した日）を記載します。PDFは印刷画面から「PDFに保存」を選んでください（A3横）。</p>
   <div class="tw"><table><tbody>
   ${[['before','既存レイアウト図'],['after','変更後レイアウト図'],['compare','変更前後比較図']].map(([k,l])=>`<tr><th>${l}</th><td><button class="btn ghost sm" data-act="lout" data-k="${k}" data-fmt="png" ${k!=='before'&&!A?'disabled':''}>画像（PNG）</button> <button class="btn ghost sm" data-act="lout" data-k="${k}" data-fmt="pdf" ${k!=='before'&&!A?'disabled':''}>PDF</button></td></tr>`).join('')}
@@ -1011,7 +1033,7 @@ function sheetSvg(p,d,kind){
  s+=`<line x1="20" y1="${top-14}" x2="${W-20}" y2="${top-14}" stroke="#16212C"/>`;
  const area=(i,label,inner)=>{const ax=pad+i*(aw+gap), w=vb[2]*sc, h=vb[3]*sc, ox=ax+(aw-w)/2, oy=top+(ah-h)/2;
   return `${label?`<text x="${ax}" y="${top+8}" font-size="18" font-weight="700" fill="#16212C">${tx(label)}</text>`:''}<rect x="${ox}" y="${oy}" width="${w}" height="${h}" fill="none" stroke="#C7D0D7"/>
-   <g transform="translate(${ox} ${oy}) scale(${sc}) translate(${-vb[0]} ${-vb[1]})">${bgShape(p)}${gridShape(vb)}${inner}${northArrow(vb)}</g>`};
+   <g transform="translate(${ox} ${oy}) scale(${sc}) translate(${-vb[0]} ${-vb[1]})">${bgShape(p)}${gridShape(vb)}${obstShapes(p,{fs:Math.max(0.6,vb[2]/70)})}${inner}${northArrow(vb)}</g>`};
  if(kind==='before') s+=area(0,'',drawBefore(p,d,null));
  if(kind==='after') s+=area(0,'',drawAfter(p,d,df));
  if(kind==='compare'){s+=area(0,'既存',drawBefore(p,d,df)); s+=area(1,'変更後',drawAfter(p,d,df))}
@@ -1028,7 +1050,7 @@ function sheetSvg(p,d,kind){
  if(kind==='before') [ `パネル ${sb.count.toLocaleString()}枚　合計 ${f(sb.kw,2)}kW`, typeTxt(sb) ].forEach((t,i)=>s+=line(t,i));
  if(kind==='after') [ `パネル ${sa.count.toLocaleString()}枚　合計 ${f(sa.kw,2)}kW`, typeTxt(sa), `追加${df.n.add}／削除${df.n.del}／移動・回転${df.n.move}／型式変更${df.n.type}（枚）` ].forEach((t,i)=>s+=line(t,i));
  if(kind==='compare') [ `既存 ${sb.count.toLocaleString()}枚・${f(sb.kw,2)}kW　→　変更後 ${sa.count.toLocaleString()}枚・${f(sa.kw,2)}kW`, `差　${sign(sa.count-sb.count,0)}枚　${sign(sa.kw-sb.kw,2)}kW`, `追加${df.n.add}／削除${df.n.del}／移動・回転${df.n.move}／型式変更${df.n.type}（枚）` ].forEach((t,i)=>s+=line(t,i));
- s+=`<text x="${W-pad}" y="${H-32}" font-size="12" text-anchor="end" fill="#56636F">ReFort DESIGN　容量は機器マスター登録の定格出力から算出</text>`;
+ s+=`<text x="${W-pad}" y="${H-32}" font-size="12" text-anchor="end" fill="#56636F">ReFort DESIGN　容量は機器マスター登録の定格出力から算出${p.layoutBg?.credit?'　'+esc(p.layoutBg.credit):''}</text>`;
  return s+'</svg>';
 }
 function layoutOutput(kind,fmt){
@@ -1053,6 +1075,171 @@ function demoLayout(){
 }
 
 /* =========================================================
+   航空写真（国土地理院タイル）・架台ブロック・影の計算
+   ========================================================= */
+const GSI_TILE='https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg';
+const GSI_CREDIT='出典：国土地理院（全国最新写真（シームレス））';
+const M_LAT=110574, mLng=lat=>111320*Math.cos(lat*Math.PI/180);
+const lng2tx=(lng,z)=>Math.floor((lng+180)/360*2**z);
+const lat2ty=(lat,z)=>{const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z)};
+const tx2lng=(x,z)=>x/2**z*360-180;
+const ty2lat=(y,z)=>{const n=Math.PI-2*Math.PI*y/2**z; return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)))};
+async function geoSearch(q){
+ q=(q||'').trim(); if(!q) throw new Error('住所または緯度・経度を入力してください');
+ const m=q.match(/(-?\d+\.\d+)\s*[,，\s]\s*(-?\d+\.\d+)/); if(m) return {lat:+m[1],lng:+m[2],label:q};
+ const r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q)); const js=await r.json();
+ if(!js.length) throw new Error('住所が見つかりませんでした。番地を省くか、Googleマップで調べた緯度・経度を貼り付けてください');
+ const [lng,lat]=js[0].geometry.coordinates; return {lat,lng,label:js[0].properties.title};
+}
+function loadTile(url){return new Promise(res=>{const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>res(null); im.src=url})}
+async function importAerial(p,radius){
+ const z=18,{lat,lng}=p.geo, dLat=radius/M_LAT, dLng=radius/mLng(lat);
+ const x0=lng2tx(lng-dLng,z),x1=lng2tx(lng+dLng,z),y0=lat2ty(lat+dLat,z),y1=lat2ty(lat-dLat,z);
+ const nx=x1-x0+1, ny=y1-y0+1; if(nx*ny>64) throw new Error('範囲が広すぎます');
+ const c=document.createElement('canvas'); c.width=nx*256; c.height=ny*256; const g=c.getContext('2d'); g.fillStyle='#ccc'; g.fillRect(0,0,c.width,c.height);
+ const jobs=[]; let ok=0;
+ for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++) jobs.push(loadTile(GSI_TILE.replace('{z}',z).replace('{x}',tx).replace('{y}',ty)).then(im=>{if(im){g.drawImage(im,(tx-x0)*256,(ty-y0)*256); ok++}}));
+ await Promise.all(jobs); if(!ok) throw new Error('航空写真を取得できませんでした（通信環境またはこの地点の写真がありません）');
+ let url; try{url=c.toDataURL('image/jpeg',0.72)}catch(e){throw new Error('航空写真を保存できませんでした（ブラウザの制限）')}
+ const W=tx2lng(x0,z),E=tx2lng(x1+1,z),N=ty2lat(y0,z),Sx=ty2lat(y1+1,z), k=mLng(lat);
+ p.layoutBg={img:url,x:(W-lng)*k,y:(lat-N)*M_LAT,w:(E-W)*k,h:(N-Sx)*M_LAT,op:0.9,credit:GSI_CREDIT,geo:true};
+}
+
+/* 太陽位置（NOAA簡易式）：高度・方位（北=0、時計回り） */
+function sunPos(ms,lat,lng){
+ const rad=Math.PI/180, d=ms/86400000+2440587.5-2451545.0;
+ const g=(357.529+0.98560028*d)*rad, q=280.459+0.98564736*d, L=(q+1.915*Math.sin(g)+0.020*Math.sin(2*g))*rad, e=(23.439-0.00000036*d)*rad;
+ const ra=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L)), dec=Math.asin(Math.sin(e)*Math.sin(L));
+ const gmst=((18.697374558+24.06570982441908*d)%24+24)%24, H=(gmst*15+lng)*rad-ra, la=lat*rad;
+ const alt=Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(H));
+ const az=Math.atan2(-Math.sin(H),Math.tan(dec)*Math.cos(la)-Math.sin(la)*Math.cos(H));
+ return {alt:alt/rad,az:((az/rad)%360+360)%360};
+}
+const jstMs=(ds,h)=>{const [Y,M,D]=ds.split('-').map(Number); return Date.UTC(Y,M-1,D)+(h-9)*3600000};
+const solstice=()=>`${new Date().getFullYear()}-12-22`;
+function hhmm(h){return `${Math.floor(h)}:${String(Math.round((h%1)*60)).padStart(2,'0')}`}
+
+/* 架台ブロック */
+function rackOf(L,id){return (L.racks||[]).find(r=>r.id===id)}
+function rotPt(x,y,deg){const r=deg*Math.PI/180; return [x*Math.cos(r)-y*Math.sin(r),x*Math.sin(r)+y*Math.cos(r)]}
+function rackDims(m,a){const sl=(a.orient==='横'?m.w:m.h)/1000, ac=(a.orient==='横'?m.h:m.w)/1000, b=(+a.tilt||0)*Math.PI/180;
+ return {sl,ac,proj:sl*Math.cos(b),H:(+a.rows||1)*sl*Math.sin(b),b}}
+function placeRack(L,pt){
+ const a=UI.rack, m=byId(S.masters.panel,L.panelId); if(!m||!m.w||!m.h){toast('標準パネルの寸法（幅・高さ）を機器マスターに登録してください');return}
+ const rows=Math.max(1,+a.rows|0), cols=Math.max(1,+a.cols|0); if(rows*cols>3000){toast('一度に配置できるのは3,000枚までです');return}
+ const {sl,ac,proj,b}=rackDims(m,a), g=+a.gap||0, az=+a.az||0, ox=snap(pt.x), oy=snap(pt.y), id=uid(), ids=new Set();
+ pushUndo(L); L.racks=L.racks||[];
+ L.racks.push({id,x:ox,y:oy,az,tilt:+a.tilt||0,h0:+a.h0||0,rows,cols,orient:a.orient,depth:rows*(proj+g)});
+ for(let j=0;j<rows;j++) for(let c=0;c<cols;c++){
+  const [dx,dy]=rotPt((c+0.5)*(ac+g),(j+0.5)*(proj+g),az), pid=uid(); ids.add(pid);
+  L.panels.push({id:pid,x:+(ox+dx).toFixed(3),y:+(oy+dy).toFixed(3),rot:az,o:a.orient==='横'?'L':undefined,rk:id,z:+((+a.h0||0)+(rows-1-j+0.5)*sl*Math.sin(b)).toFixed(3)});
+ }
+ ED.sel=ids; layoutChanged(); toast(`架台（${rows}段×${cols}列＝${rows*cols}枚）を配置しました`);
+}
+function rowSpacing(lat,lng,H,az,ds){
+ if(lat==null) return null; let D=0;
+ for(let h=9;h<=15.001;h+=0.5){const s=sunPos(jstMs(ds,h),lat,lng); if(s.alt<=1) continue;
+  const c=Math.cos((s.az-(180+az))*Math.PI/180); if(c>0) D=Math.max(D,H*c/Math.tan(s.alt*Math.PI/180))}
+ return D;
+}
+
+/* 影を落とすもの（障害物・架台）を3D点で表す */
+function obstPoly(o){ if(o.kind==='tree'){const n=12; return Array.from({length:n},(_,i)=>[o.x+o.r*Math.cos(i/n*2*Math.PI),o.y+o.r*Math.sin(i/n*2*Math.PI)])}
+ return [[o.x,o.y],[o.x+o.w,o.y],[o.x+o.w,o.y+o.d],[o.x,o.y+o.d]] }
+function casters(p,L){
+ const out=[]; (p.obstacles||[]).forEach(o=>{const poly=obstPoly(o); out.push({pts:[...poly.map(([x,y])=>[x,y,0]),...poly.map(([x,y])=>[x,y,+o.h||0])]})});
+ (L?.racks||[]).forEach(r=>{const ps=L.panels.filter(x=>x.rk===r.id); if(!ps.length) return;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity; const tb=Math.tan(r.tilt*Math.PI/180);
+  ps.forEach(pn=>{const {w,h}=pdim(L,pn),[lx,ly]=rotPt(pn.x-r.x,pn.y-r.y,-r.az); x0=Math.min(x0,lx-w/2);x1=Math.max(x1,lx+w/2);y0=Math.min(y0,ly-h/2);y1=Math.max(y1,ly+h/2)});
+  const zf=y=>r.h0+Math.max(0,r.depth-y)*tb;
+  const pts=[[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([lx,ly])=>{const [dx,dy]=rotPt(lx,ly,r.az); return [r.x+dx,r.y+dy,zf(ly)]});
+  out.push({pts,rk:r.id})});
+ return out;
+}
+function hull(P){P=P.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]); if(P.length<3) return P; const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+ const lo=[],up=[]; for(const p of P){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p)}
+ for(let i=P.length-1;i>=0;i--){const p=P[i]; while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p)}
+ up.pop(); lo.pop(); return lo.concat(up)}
+function shadowPoly(c,sun,zr){const t=Math.tan(sun.alt*Math.PI/180), sx=Math.sin(sun.az*Math.PI/180), sy=-Math.cos(sun.az*Math.PI/180);
+ const P=[]; c.pts.forEach(([x,y,z])=>{const rel=z-zr; P.push([x,y]); if(rel>0){const l=rel/t; P.push([x-l*sx,y-l*sy])}}); return hull(P)}
+function inPoly(x,y,H){if(H.length<3) return false; for(let i=0;i<H.length;i++){const a=H[i],b=H[(i+1)%H.length]; if((b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0])<0) return false} return true}
+/* 判定点：中心・下端（前端）の中央と両端。下端に影が掛かると発電への影響が大きいため */
+function panelSamples(L,pn){
+ const z=+(pn.z??0.5), {w,h}=pdim(L,pn), r=pn.rk?rackOf(L,pn.rk):null, dz=r?(h/2)*Math.tan(r.tilt*Math.PI/180):0;
+ const pt=(lx,ly,zz)=>{const [dx,dy]=rotPt(lx,ly,pn.rot||0); return [pn.x+dx,pn.y+dy,zz]};
+ const e=0.05; return [[pn.x,pn.y,z],pt(0,h/2-e,z-dz),pt(-w/2+e,h/2-e,z-dz),pt(w/2-e,h/2-e,z-dz)];
+}
+const SHC=new Map();
+function shadeAnalysis(p,L,ds){
+ if(!p.geo||!L) return null; ds=ds||solstice();
+ const key=JSON.stringify([p.geo.lat,p.geo.lng,p.obstacles,L.racks,L.savedAt,L.panels.length,ds]); if(SHC.has(key)) return SHC.get(key);
+ const C=casters(p,L), frac=new Map(); let steps=0;
+ if(C.length){
+  const cnt=new Map();
+  for(let h=9;h<=15.001;h+=0.5){const sun=sunPos(jstMs(ds,h),p.geo.lat,p.geo.lng); if(sun.alt<=1) continue; steps++;
+   const hc=C.map(c=>{const H0=shadowPoly(c,sun,0); let bx0=Infinity,bx1=-Infinity,by0=Infinity,by1=-Infinity; H0.forEach(([x,y])=>{bx0=Math.min(bx0,x);bx1=Math.max(bx1,x);by0=Math.min(by0,y);by1=Math.max(by1,y)}); return {c,bb:[bx0,bx1,by0,by1],cache:new Map()}});
+   L.panels.forEach(pn=>{ let hitP=false; for(const [sx,sy,zr] of panelSamples(L,pn)){ for(const k of hc){ if(k.c.rk&&k.c.rk===pn.rk) continue; const b=k.bb; if(sx<b[0]||sx>b[1]||sy<b[2]||sy>b[3]) continue;
+     const zk=Math.round(zr*10)/10; let H=k.cache.get(zk); if(!H){H=shadowPoly(k.c,sun,zk); k.cache.set(zk,H)}
+     if(inPoly(sx,sy,H)){hitP=true; break}} if(hitP) break }
+    if(hitP) cnt.set(pn.id,(cnt.get(pn.id)||0)+1)});
+  }
+  cnt.forEach((n,id)=>frac.set(id,n/steps));
+ }
+ const L2=[...frac.values()], res={frac,steps,casters:C.length,partial:L2.filter(v=>v<0.5).length,long:L2.filter(v=>v>=0.5).length,
+  kw:[...frac.keys()].reduce((a,id)=>{const pn=L.panels.find(x=>x.id===id); return a+((panelOf(L,pn)?.pmax)||0)/1000},0)};
+ if(SHC.size>40) SHC.clear(); SHC.set(key,res); return res;
+}
+const SHCOL={part:'#E9A7CF',long:'#8E3B8A'};
+function shadowShapes(p,L,ds,h){
+ if(!p.geo) return ''; const sun=sunPos(jstMs(ds,h),p.geo.lat,p.geo.lng); if(sun.alt<=1) return '';
+ return casters(p,L).map(c=>`<polygon points="${shadowPoly(c,sun,0).map(q=>q.join(',')).join(' ')}" fill="#000" fill-opacity=".28"/>`).join('');
+}
+function obstShapes(p,opt={}){
+ return (p.obstacles||[]).map(o=>{const sel=opt.sel===o.id, st=sel?LCOL.sel:'#2E4A33', sw=sel?0.15:0.06, a=opt.edit?`data-oid="${o.id}"`:'';
+  const lab=`<text x="${o.kind==='tree'?o.x:o.x+o.w/2}" y="${o.kind==='tree'?o.y:o.y+o.d/2}" text-anchor="middle" dominant-baseline="middle" font-size="${opt.fs||1.2}" fill="#fff" stroke="#000" stroke-width="${(opt.fs||1.2)/12}" paint-order="stroke" pointer-events="none">${o.h}m</text>`;
+  return o.kind==='tree'?`<circle ${a} cx="${o.x}" cy="${o.y}" r="${o.r}" fill="#3F8A4A" fill-opacity=".75" stroke="${st}" stroke-width="${sw}"/>${lab}`
+   :`<rect ${a} x="${o.x}" y="${o.y}" width="${o.w}" height="${o.d}" fill="#6B7480" fill-opacity=".8" stroke="${sel?LCOL.sel:'#222'}" stroke-width="${sw}"/>${lab}`}).join('');
+}
+UI.shade={on:false,date:solstice(),h:9}; UI.rack={rows:4,cols:20,orient:'横',tilt:10,h0:0.6,gap:0.02,az:0}; UI.obst={h:8,r:2,bh:6}; ED.osel=null;
+function shadeFill(fr,id){if(!fr) return null; const v=fr.get(id); return v==null?LCOL.same:(v>=0.5?SHCOL.long:SHCOL.part)}
+function sunText(p){const s=sunPos(jstMs(UI.shade.date,UI.shade.h),p.geo.lat,p.geo.lng); return s.alt>1?`太陽高度 ${f(s.alt,1)}°・方位 ${f(s.az,0)}°`:'太陽が沈んでいます'}
+function shadeBar(p,d,L){
+ const sh=UI.shade, an=sh.on?shadeAnalysis(p,L,sh.date):null, md=sh.date.slice(5).replace('-','/');
+ return `<div class="sheet bar noprint"><label><input type="checkbox" data-shade="on" ${sh.on?'checked':''} ${p.geo?'':'disabled'}> 影を表示</label>
+  ${p.geo?`<label class="muted">日付 <input type="date" data-shade="date" value="${sh.date}" style="width:auto"></label>
+  <label class="muted" style="display:flex;align-items:center;gap:6px">時刻 <input type="range" min="7" max="17" step="0.5" data-shade="h" value="${sh.h}" style="width:160px"> <b id="shTime">${hhmm(sh.h)}</b></label>
+  <span class="muted" id="shSun">${sunText(p)}</span>`:'<span class="muted">影を計算するには、右の「現地の位置」を設定してください。</span>'}
+  ${an&&an.casters?`<span>影に入るパネル（${md}の9〜15時）：<b style="color:${SHCOL.long}">長時間 ${an.long}枚</b>／<b style="color:#B0558F">一部 ${an.partial}枚</b>（計 ${f(an.kw,1)}kW）</span>
+   <button class="btn ghost sm" data-act="selShaded" ${an.frac.size&&!readOnly(p,d)?'':'disabled'}>影に入るパネルを選択</button>`:''}
+  ${an&&!an.casters?'<span class="muted">障害物（樹木・建物）または架台が登録されていないため、影はありません。</span>':''}
+  ${sh.on?`<div class="lg" style="width:100%;margin:0"><span><i style="background:${LCOL.same}"></i>影なし</span><span><i style="background:${SHCOL.part}"></i>一部の時間帯に影（半分未満）</span><span><i style="background:${SHCOL.long}"></i>長時間の影（半分以上）</span><span><i style="background:#000;opacity:.3"></i>表示中の時刻の影</span></div>`:''}</div>`;
+}
+function geoPanel(p,d,L,ro){
+ const g=p.geo, m=byId(S.masters.panel,L.panelId), ra=UI.rack, rd=m&&m.w&&m.h?rackDims(m,ra):null;
+ const D=rd&&g?rowSpacing(g.lat,g.lng,rd.H,+ra.az||0,UI.shade.date):null;
+ return `<h3 style="margin-top:14px">現地の位置・航空写真</h3>
+ <div class="bar"><input type="text" id="geo_q" placeholder="住所、または 緯度,経度" value="${esc(g?.label||'')}" style="flex:1;min-width:150px"><button class="btn sm" data-act="geoSearch">検索</button></div>
+ ${g?`<p class="muted">北緯 ${g.lat}／東経 ${g.lng}　<a href="#" data-act="gmap">Googleマップで開く</a></p>
+  <div class="bar"><select id="geo_r" style="width:auto">${[[75,'半径75m'],[150,'半径150m'],[250,'半径250m']].map(([v,l])=>`<option value="${v}" ${v===150?'selected':''}>${l}</option>`).join('')}</select><button class="btn ghost sm" data-act="geoImport">航空写真を取り込む</button></div>
+  <p class="muted">国土地理院の航空写真を、実寸の縮尺で背景に敷きます。検索した地点が図の原点（0,0）になります。</p>`
+  :'<p class="muted">Googleマップで地点を右クリックすると緯度・経度をコピーできます。それを貼り付けても検索できます。</p>'}
+ ${ro?'':`<h3 style="margin-top:14px">架台の設定</h3>
+ <div class="grid" style="grid-template-columns:1fr 1fr">
+  <label class="fld">段（傾斜方向）<input type="number" min="1" data-rack="rows" value="${ra.rows}"></label><label class="fld">列（横方向）<input type="number" min="1" data-rack="cols" value="${ra.cols}"></label>
+  <label class="fld">パネルの向き<select data-rack="orient">${['縦','横'].map(o=>`<option ${ra.orient===o?'selected':''}>${o}</option>`).join('')}</select></label><label class="fld">傾斜角(°)<input type="number" step="1" data-rack="tilt" value="${ra.tilt}"></label>
+  <label class="fld">前端の高さ(m)<input type="number" step="0.1" data-rack="h0" value="${ra.h0}"></label><label class="fld">方位(°・真南0、西が＋)<input type="number" step="1" data-rack="az" value="${ra.az}"></label></div>
+ ${rd?`<p class="muted">架台の奥行 ${f(ra.rows*rd.proj,2)}m・後端の高さ ${f((+ra.h0||0)+rd.H,2)}m${D!=null?`<br><b style="color:var(--ink)">前後の列の離隔：${f(D,2)}m 以上</b>（${UI.shade.date.slice(5).replace('-','/')}の9〜15時に前の列の影が掛からない距離）`:'<br>現地の位置を設定すると、前後の列の必要離隔を計算します。'}</p>`:'<p class="muted">標準パネルの寸法（幅・高さ）が機器マスターに未登録です。</p>'}
+ <p class="muted">「架台を配置」を選び、図の上をクリックした位置を架台の北西の角にして配置します。</p>`}
+ <h3 style="margin-top:14px">障害物（樹木・建物など）</h3>
+ ${ro?'':`<div class="grid" style="grid-template-columns:1fr 1fr 1fr"><label class="fld">樹木の高さ(m)<input type="number" step="0.5" data-obstui="h" value="${UI.obst.h}"></label><label class="fld">樹木の半径(m)<input type="number" step="0.5" data-obstui="r" value="${UI.obst.r}"></label><label class="fld">建物の高さ(m)<input type="number" step="0.5" data-obstui="bh" value="${UI.obst.bh}"></label></div>
+ <p class="muted">「樹木」はクリック、「建物」はドラッグで登録します。登録後はドラッグで移動できます。</p>`}
+ ${(p.obstacles||[]).length?`<div class="tw"><table><thead><tr><th>種類</th><th class="n">高さ(m)</th><th class="n">大きさ(m)</th><th></th></tr></thead><tbody>${p.obstacles.map(o=>`<tr style="${ED.osel===o.id?'background:var(--blue-soft)':''}"><td>${o.kind==='tree'?'樹木':'建物'}</td><td class="n"><input type="number" step="0.5" style="width:64px" data-oed="${o.id}" data-k="h" value="${o.h}" ${ro?'disabled':''}></td>
+  <td class="n">${o.kind==='tree'?`半径 <input type="number" step="0.5" style="width:56px" data-oed="${o.id}" data-k="r" value="${o.r}" ${ro?'disabled':''}>`:`${f(o.w,1)}×${f(o.d,1)}`}</td><td>${ro?'':`<button class="btn danger sm" data-act="delObst" data-id="${o.id}">削除</button>`}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">登録された障害物はありません。</p>'}`;
+}
+document.addEventListener('input',e=>{const el=e.target; if(el.dataset?.shade!=='h') return; UI.shade.h=parseFloat(el.value);
+ const t=document.getElementById('shTime'); if(t) t.textContent=hhmm(UI.shade.h); const p=cur(); const u=document.getElementById('shSun'); if(u&&p?.geo) u.textContent=sunText(p); redrawEditor()});
+
+/* =========================================================
    操作
    ========================================================= */
 function setPath(obj,path,val){const ks=path.split('.'); let o=obj; for(let i=0;i<ks.length-1;i++) o=o[ks[i]]; o[ks[ks.length-1]]=val}
@@ -1063,6 +1250,10 @@ document.addEventListener('change',async e=>{
  if(el.id==='projSel'){S.currentId=el.value;save();render();return}
  if(el.id==='importFile'){return importData(el.files[0])}
  if(el.dataset.bg){if(el.files[0]) loadBg(el.files[0]); return}
+ if(el.dataset.rack){UI.rack[el.dataset.rack]=el.dataset.rack==='orient'?el.value:(parseFloat(el.value)||0); render(); return}
+ if(el.dataset.obstui){UI.obst[el.dataset.obstui]=parseFloat(el.value)||0; return}
+ if(el.dataset.shade){const k=el.dataset.shade; if(k==='on') UI.shade.on=el.checked; else if(k==='h') UI.shade.h=parseFloat(el.value); else UI.shade.date=el.value||solstice(); render(); return}
+ if(el.dataset.oed){const p=cur(),o=p.obstacles.find(x=>x.id===el.dataset.oed),v=parseFloat(el.value); if(o&&!isNaN(v)&&v>=0){o[el.dataset.k]=v; touch()} render(); return}
  if(el.dataset.arr){UI.arr[el.dataset.arr]=el.dataset.arr==='orient'?el.value:parseFloat(el.value)||0; return}
  const lc=el.dataset.actChange;
  if(['lpanel','lselpanel','lxy','bgw','bgop','lghost'].includes(lc)){const p=cur(),d=curDesign(p),Lx=editLayout(p,d);
@@ -1116,7 +1307,7 @@ document.addEventListener('click',e=>{
   delDesign:()=>{if(!confirm('この設計案を削除します。')) return; p.designs=p.designs.filter(x=>x.id!==p.activeDesign); p.activeDesign=p.designs[0].id; touch(); render()},
   useDesign:()=>{p.activeDesign=b.dataset.id; UI.view='design'; save(); render()},
   filter:()=>{UI.filter=b.dataset.f2; render()},
-  goto:()=>{const g=b.dataset.go; if(g==='survey'){UI.view='survey';render();window.scrollTo(0,0)} else if(g==='master'){UI.view='master';render()} else {UI.view='design';render();document.getElementById(g)?.scrollIntoView({block:'start'})}},
+  goto:()=>{const g=b.dataset.go; if(g==='layout'){UI.view='layout';UI.lmode='after';render();window.scrollTo(0,0);return} if(g==='survey'){UI.view='survey';render();window.scrollTo(0,0)} else if(g==='master'){UI.view='master';render()} else {UI.view='design';render();document.getElementById(g)?.scrollIntoView({block:'start'})}},
   print:()=>window.print(),
   lmode:()=>{UI.lmode=b.dataset.k; render()},
   lockBefore:()=>{const B=p.layoutBefore; B.locked=true; B.savedAt=new Date().toISOString(); touch(); render(); toast('既存レイアウトとして確定しました')},
@@ -1130,6 +1321,12 @@ document.addEventListener('click',e=>{
   lzoom:()=>{const z=+b.dataset.z,[x,y,w,h]=ED.vb; ED.vb=[x+w*(1-z)/2,y+h*(1-z)/2,w*z,h*z]; redrawEditor()},
   bgdel:()=>{if(!confirm('背景画像を削除します。')) return; p.layoutBg=null; ED.vb=null; touch(); render()},
   lout:()=>layoutOutput(b.dataset.k,b.dataset.fmt),
+  geoSearch:async()=>{b.disabled=true; try{const g=await geoSearch(document.getElementById('geo_q').value); p.geo={lat:+(+g.lat).toFixed(6),lng:+(+g.lng).toFixed(6),label:g.label}; touch(); render(); toast('位置を設定しました：'+g.label)}catch(err){b.disabled=false; toast(err.message||'検索できませんでした')}},
+  geoImport:async()=>{if(!p.geo) return; if(p.layoutBg&&!confirm('今の背景画像を航空写真に置き換えます。')) return; const r=+document.getElementById('geo_r').value||150; b.disabled=true; b.textContent='取り込み中…';
+   try{await importAerial(p,r); ED.vb=null; touch(); render(); toast('航空写真を取り込みました。全選択（Ctrl+A）してドラッグすると、パネルを写真に合わせられます')}catch(err){b.disabled=false; b.textContent='航空写真を取り込む'; toast(err.message)}},
+  gmap:()=>{e.preventDefault(); if(p.geo) window.open(`https://www.google.com/maps/@${p.geo.lat},${p.geo.lng},150m/data=!3m1!1e3`,'_blank','noopener')},
+  selShaded:()=>{const L=editLayout(p,curDesign()),an=shadeAnalysis(p,L,UI.shade.date); if(!an||!an.frac.size){toast('影に入るパネルはありません');return} ED.sel=new Set(an.frac.keys()); ED.tool='select'; render(); toast(`${ED.sel.size}枚を選択しました。移動または削除で影を避けてください`)},
+  delObst:()=>{p.obstacles=p.obstacles.filter(x=>x.id!==b.dataset.id); if(ED.osel===b.dataset.id) ED.osel=null; touch(); render()},
   csv:()=>exportCsv(),
   approve:()=>approve(),
   mtab:()=>{UI.mtab=b.dataset.k; render()},
