@@ -653,6 +653,17 @@ async function remove(k,id){
   if (!isLocal(k)){ const { error } = await sb.from(T[k]).delete().eq('id',id); if (error) throw error; }
   DATA[k] = DATA[k].filter(x=>x.id!==id); if (isLocal(k)) saveLocal(k);
 }
+/* 保存の前にログインを確認する。切れていたら、AIを動かす前に再ログインへ案内する */
+async function requireLogin(){
+  if (LOCAL) return true;
+  try{
+    const { data } = await sb.auth.getSession(); const ses = data?.session;
+    if (ses){ if (!ME.email) ME.email = ses.user?.email || ''; if (!ME.name || !ME.role) await resolveMe(); return true; }
+  }catch(e){ console.warn(e); }
+  if (confirm('ログインが確認できないため、保存できません。\nOKを押すと画面を再読み込みして、ログイン画面を表示します。')) location.reload();
+  return false;
+}
+const saveErr = e => /row-level security|JWT|not authorized|permission denied/i.test(e?.message||'') ? 'ログインが確認できないため保存できませんでした。画面を再読み込みしてログインし直してください。' : (e?.message||String(e));
 async function insert(k,row){
   row.id = row.id || crypto.randomUUID();
   row.created_at = row.created_at || new Date().toISOString();
@@ -887,6 +898,7 @@ async function runAnalysis(){
   const meta = { rep:repVal(), customer:$('#fCust').value.trim() || (isRp?'ロープレ（想定顧客）':''), industry:$('#fInd').value, product:$('#fProd').value, stage:$('#fStage').selectedOptions[0]?.textContent||'', _model:modelForProduct($('#fProd').value).id, _stage:$('#fStage').value, result:$('#fRes').value, next_date:$('#fNext').value||null, recording_url:($('#srcUrl')?.value||'').trim()||null };
   if (!SRC.text || SRC.text.length<80) return alert('文字起こしを入れてください（80文字以上）。');
   if (!meta.rep) return alert('評価対象の担当者を選んでください。');
+  if (!(await requireLogin())) return;
   if (!meta.customer) return alert('顧客名を入れてください。');
   try{ localStorage.setItem('scai_last_type',type); localStorage.setItem('scai_last_kind',kind); }catch(e){}
   const rb = rbOf(type,kind);
@@ -937,7 +949,7 @@ ${SRC.text.slice(0,60000)}`.replace('__R3__', R3_RULES());
     }
     SRC = { mode:'paste', text:'', fileName:'' };
     go('karte', sess.id);
-  }catch(e){ alert('分析できませんでした：'+e.message+whoDiag()); }
+  }catch(e){ alert('分析できませんでした：'+saveErr(e)+whoDiag()); }
   finally{ loading(false); }
 }
 const R3_RULES = () => `3. 顧客の断り文句・保留発言・懸念をすべて抽出。各断り文句は「断られてから返す」ではなく「断られる前に潰す」視点で、発生の原因地点（商談の何分頃／どの場面の何が不足したか）まで遡る。cause_chain は原因→…→断り文句 の順に3〜5段。
@@ -1279,6 +1291,7 @@ async function rpGrade(){
   if (RP.log.filter(m=>m.role==='user').length<1) return alert('まず1回以上回答してください。');
   const convo = RP.log.map(m=>(m.role==='assistant'?'お客様：':'営業：')+m.content).join('\n');
   const tp = RP.sales_type||'FS', rb = rbOf(tp,'ロープレ'), me = RP.rep||ME.name||who();
+  if (!(await requireLogin())) return;
   if (!me) return alert('担当者名が分からないため採点を記録できません。'+whoDiag());
   const passLine = RP.challenge ? RP.challenge.pass : 80;
   const prevTry = DATA.r.find(r=>r.rep===me && rpType(r)===tp && (RP.challenge ? (r.feedback?.challenge_id===RP.challenge.id || r.objection===RP.opening) : r.category===RP.category));
@@ -1298,8 +1311,8 @@ ${convo}`;
     RP.result=g;
     await insert('r',{ rep:me, rep_email:ME.email, session_id:RP.sessionId, category:RP.category, objection:RP.opening, score:g.score, passed:g.passed, feedback:g, log:RP.log });
     showRpResult(g);
-    if (g.passed && RP.challenge){ loading(false); try{ await giveStamp(findCh(RP.challenge.id), g.score); }catch(e){ alert('スタンプを記録できませんでした：'+e.message+whoDiag()); } }
-  }catch(e){ alert('採点できませんでした：'+e.message+whoDiag()); }
+    if (g.passed && RP.challenge){ loading(false); try{ await giveStamp(findCh(RP.challenge.id), g.score); }catch(e){ alert('スタンプを記録できませんでした：'+saveErr(e)+whoDiag()); } }
+  }catch(e){ alert('採点できませんでした：'+saveErr(e)+whoDiag()); }
   finally{ loading(false); }
 }
 function showRpResult(g){
@@ -2673,8 +2686,11 @@ ${text.slice(0,40000)}`;
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.2.1';
 const CHANGELOG = [
+  { v:'2.2.1', date:'2026-10-14', title:'保存できない不具合を修正', items:[
+    'ログインしているのに、分析・採点の保存で「row-level security」エラーになる不具合を修正',
+    '保存の前にログインを確認し、切れている場合はAIを動かす前に再ログインを案内します' ]},
   { v:'2.2.0', date:'2026-10-14', title:'IS／FS・実商談／ロープレ別の採点と、担当者ごとの育成カルテ', items:[
     '「商談をAI分析」で、区分（IS／FS）と種別（実商談／ロープレ）を選べるようになりました。組み合わせごとに別の採点基準で採点します',
     'IS商談はBANTCの確認状況と有効商談化（PH03到達）の判定も出します',
@@ -2864,8 +2880,8 @@ function showWhatsNew(){
 /* ============ 起動 ============ */
 (async function boot(){
   try{ if (window.EC?.guard) await EC.guard({ allow:['admin','manager','sales'] }); }catch(e){ console.warn(e); }
-  try{ sb = supabase.createClient(CFG.url, CFG.key); }catch(e){ console.warn(e); }
-  try{ const m = window.EC?.me ? await EC.me() : null; if (m){ ME.name=m.full_name||m.name||m.user?.full_name||''; ME.email=m.email||m.user?.email||''; ME.role=m.role||m.user?.role||m.profile?.role||''; } }catch(e){}
+  try{ sb = window.EC?.supabase || supabase.createClient(CFG.url, CFG.key); }catch(e){ console.warn(e); }
+  try{ const m = typeof window.EC?.me==='function' ? await EC.me() : (window.EC?.me || null); if (m){ ME.name=m.full_name||m.name||m.user?.full_name||''; ME.email=m.email||m.user?.email||''; ME.role=m.role||m.user?.role||m.profile?.role||''; } }catch(e){}
   await resolveMe();
   if (!ME.name){ try{ ME.name = localStorage.getItem('scai_myname')||''; }catch(e){} }
   try{ if (window.EC?.mountBadge) EC.mountBadge(document.getElementById('badge')); }catch(e){}
