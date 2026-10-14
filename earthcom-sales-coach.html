@@ -200,6 +200,26 @@ th.n{font-family:inherit;font-size:12px}
 /* ===== 汎用 ===== */
 .list-item{border-bottom:1px solid var(--line);padding:12px 6px;cursor:pointer;border-radius:8px}
 .list-item:hover{background:#F2F8FE}
+.filters{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;padding:16px 22px}
+.filters .f{display:block;margin-bottom:6px}
+.seg{display:inline-flex;border:1px solid #D2E1EF;border-radius:10px;overflow:hidden;background:#fff}
+.seg button{border:0;background:none;padding:7px 14px;font-size:13px;cursor:pointer;color:var(--navy);font-family:inherit}
+.seg button+button{border-left:1px solid #D2E1EF}
+.seg button.on{background:#0D3264;color:#fff}
+.seg button:focus-visible,.clickrow:focus-visible{outline:2px solid #2F5D8A;outline-offset:2px}
+.rb-note{margin-top:14px;padding:10px 14px;border-radius:10px;background:#EEF4FA;font-size:13px}
+.weak-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;font-size:13px}
+.checks{display:grid;gap:8px}
+.check{border-left:3px solid var(--line);padding:2px 0 2px 10px;font-size:13.5px}
+.bantc{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.bt{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff;display:grid;gap:4px;align-content:start}
+.bt b{font-size:22px;line-height:1}
+.bt.green{border-color:#BFE2D1;background:var(--green-bg)} .bt.amber{border-color:#EED8A8;background:var(--amber-bg)} .bt.red{border-color:#F2C9C4;background:var(--red-bg)}
+.clickrow{cursor:pointer} .clickrow:hover td{background:#F2F8FE}
+.rp-box{max-width:680px;width:calc(100vw - 32px);text-align:left;max-height:88vh;overflow:auto}
+.rb-table td{vertical-align:top} .rb-table input,.rb-table textarea{font-size:13px}
+.rb-table textarea{min-height:52px}
+@media (max-width:760px){ .bantc{grid-template-columns:repeat(2,1fr)} .filters{gap:12px} }
 .banner{background:var(--amber-bg);border:1px solid #EED8A8;color:#6B4A06;padding:10px 14px;border-radius:12px;margin-bottom:16px;font-size:13px}
 .loading{position:fixed;inset:0;background:rgba(8,24,48,.55);display:none;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(3px)}
 .loading.on{display:flex}
@@ -400,6 +420,78 @@ const THEME_BY_ITEM = {
   '次回アクション':'商談の最後に「誰が・何を・いつまでに」を合意する'
 };
 
+/* ===== 採点基準：IS／FS × 商談／ロープレ の4種類（sales_coach_settings の rubrics に保存。責任者が「採点基準」画面で編集） ===== */
+const SALES_TYPES = ['FS','IS'];
+const KINDS = ['商談','ロープレ'];
+const TYPE_JA = { FS:'FS（フィールドセールス）', IS:'IS（インサイドセールス）' };
+const RUBRIC_KEY = 'rubrics';
+const RB_IDS = ['FS_商談','FS_ロープレ','IS_商談','IS_ロープレ'];
+const RB_DEFAULT = {
+  'FS_商談': { name:'FS商談', focus:'顧客情報を取れたか・案件が前進したか・次回アクションにつながったか', source:'標準',
+    items: SCORE_ITEMS.map(n=>({ name:n, points:10, good:'', bad:'' })), notes:'' },
+  'FS_ロープレ': { name:'FSロープレ', focus:'正しい型（実績→技術的根拠→無料診断）を実践できているか', source:'標準',
+    items:[
+      { name:'共感と受け止め', points:20, good:'断り文句をいったん受け止め、背景を質問で確かめている', bad:'すぐに反論・説明を始める' },
+      { name:'根拠の順序', points:25, good:'実績 → 技術的根拠 → 無料診断 の順で筋道立てて説明している', bad:'数字だけ・根拠が曖昧・順序がばらばら' },
+      { name:'経営・キャッシュフロー視点への転換', points:20, good:'発電量の話を現状維持コストやCFの比較に変えている', bad:'技術や商品の説明で終わる' },
+      { name:'次の一歩の提案', points:25, good:'無料診断・現調・意思決定者同席を日付つきで提案している', bad:'「ご検討ください」で終わる' },
+      { name:'押し売りになっていないか', points:10, good:'相手の判断材料を渡す話し方になっている', bad:'値引き・即決を迫る' } ], notes:'' },
+  'IS_商談': { name:'IS商談', focus:'担当者に接続し、BANTCを確認して有効商談（PH03）につなげたか', source:'仮（荒井さん作成の採点基準を取り込むまでの仮設定）',
+    items:[
+      { name:'担当者接続', points:15, good:'受付を通り、発電所の判断に関わる担当者と話せている。部署・氏名・役割を確認している', bad:'受付で止まる／担当者名・部署を確認していない' },
+      { name:'課題深掘り', points:25, good:'発電量・故障・O&M・FIT終了後など、相手の課題を質問で具体化している', bad:'商品説明だけで相手の状況を聞いていない' },
+      { name:'BANTC', points:30, good:'予算・決裁者・必要性・時期・比較検討状況を確認できている', bad:'BANTCのほとんどが不明のまま終わる' },
+      { name:'有効商談化', points:20, good:'FS商談（HubSpot PH03）に進む合意が取れている', bad:'資料送付だけで終わる' },
+      { name:'次回アクション', points:10, good:'日時・参加者・準備物を合意している', bad:'「また連絡します」で終わる' } ],
+    notes:'有効商談：HubSpot標準のPH03への到達。失注案件の掘り起こしでPH03に再到達したものも含める。単純なPHの戻し・再移行による重複は対象外（失注後の再開とPH03到達を確認して判定）。\nBANTC：B=予算、A=決裁者、N=必要性、T=導入時期、C=比較検討・競合の状況。' },
+  'IS_ロープレ': { name:'ISロープレ', focus:'架電の正しい型（名乗り→接続→深掘り→BANTC→アポ打診）を実践できているか', source:'仮（荒井さん作成の採点基準を取り込むまでの仮設定）',
+    items:[
+      { name:'名乗りと用件', points:15, good:'会社名・名前・用件を短く伝え、相手が聞く理由を最初に作っている', bad:'用件が曖昧で、営業電話として切られる' },
+      { name:'担当者接続', points:20, good:'受付に担当部署・担当者を自然に確認し、取り次いでもらえている', bad:'「担当者はいますか」だけで終わる' },
+      { name:'課題深掘り', points:25, good:'相手の発電所の状況を質問で聞き出し、課題を言葉にしてもらっている', bad:'一方的に説明している' },
+      { name:'BANTC', points:25, good:'会話の流れの中で予算・決裁者・必要性・時期・比較状況を確認している', bad:'BANTCを聞けていない／尋問のようになる' },
+      { name:'有効商談化と次回アクション', points:15, good:'FS商談（PH03）の日時を具体的に打診し、合意している', bad:'「資料を送ります」で終わる' } ],
+    notes:'BANTC：B=予算、A=決裁者、N=必要性、T=導入時期、C=比較検討・競合の状況。' }
+};
+let RUBRICS = JSON.parse(JSON.stringify(RB_DEFAULT)), RUBRIC_META = null;
+const rbOf = (t,k) => RUBRICS[(t||'FS')+'_'+(k||'商談')] || RB_DEFAULT[(t||'FS')+'_'+(k||'商談')] || RB_DEFAULT['FS_商談'];
+const rbTotal = rb => (rb.items||[]).reduce((a,x)=>a+(+x.points||0),0);
+function rbPrompt(rb){
+  return `【採点基準：${rb.name}】評価の目的：${rb.focus||''}\n` + rb.items.map((x,i)=>`${i+1}. ${x.name}（配点${x.points}点）${x.good?`\n   できている状態：${x.good}`:''}${x.bad?`\n   できていない状態：${x.bad}`:''}`).join('\n') + (rb.notes?`\n【定義・判定ルール】\n${rb.notes}`:'');
+}
+/* 各項目0〜100点 × 配点 で100点満点に換算 */
+function weighted(scores, items){
+  const tot = items.reduce((a,x)=>a+(+x.points||0),0) || 1;
+  return Math.round(items.reduce((a,x)=>{ const v=(scores||[]).find(y=>y.item===x.name)?.score; return a+(+v||0)*(+x.points||0); },0)/tot);
+}
+const metaOf = s => ({ sales_type: s?.analysis?._meta?.sales_type || 'FS', kind: s?.analysis?._meta?.kind || '商談' });
+const rpType = r => r?.feedback?.sales_type || 'FS';
+async function loadRubrics(){
+  try{
+    let v=null;
+    if (!LOCAL){ const { data, error } = await sb.from('sales_coach_settings').select('value').eq('key',RUBRIC_KEY).maybeSingle(); if (error) throw error; v=data?.value; }
+    else v = JSON.parse(localStorage.getItem('scai_rubrics')||'null');
+    if (v && v.set){ RUBRICS = { ...clone(RB_DEFAULT), ...v.set }; RUBRIC_META = { by:v.updated_by, at:v.updated_at }; }
+  }catch(e){ console.warn('採点基準を読めませんでした（標準の基準で採点します）', e); }
+}
+async function saveRubrics(set){
+  const value = { set, updated_by:ME.name||ME.email, updated_at:new Date().toISOString() };
+  if (!LOCAL){ const { error } = await sb.from('sales_coach_settings').upsert({ key:RUBRIC_KEY, value, updated_by:ME.email||ME.name, updated_at:value.updated_at }); if (error) throw error; }
+  else localStorage.setItem('scai_rubrics', JSON.stringify(value));
+  RUBRICS = clone(set); RUBRIC_META = { by:value.updated_by, at:value.updated_at };
+}
+/* 担当者の候補：社員マスタ（app_users）＋これまでの記録 */
+let MEMBERS = [];
+async function loadMembers(){
+  const set = new Set();
+  try{ if (!LOCAL){ const { data, error } = await sb.from('app_users').select('full_name,is_active'); if (!error) (data||[]).forEach(u=>{ if(u.is_active!==false && u.full_name) set.add(u.full_name.trim()); }); } }catch(e){}
+  [...DATA.s, ...DATA.r, ...DATA.p].forEach(x=>{ if(x.rep) set.add(x.rep.trim()); });
+  if (ME.name) set.add(ME.name);
+  MEMBERS = [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ja'));
+}
+/* エラー時に、誰のどの登録状態で失敗したかを表示する（登録漏れの切り分け用） */
+const whoDiag = () => `\n\n（ログイン：${ME.email||'未取得'}／氏名：${ME.name||'未登録'}／権限：${ROLE_JA[ME.role]||ME.role||'未設定'}）\n社員・権限管理で、氏名と有効フラグが登録されているか確認してください。`;
+
 /* ============ 共通 ============ */
 let sb = null, ME = { name:'', email:'', role:'' }, LOCAL = false;
 /* ===== KPI設定：ビジネスモデル別ファネル・KPI・チーム・個人目標（sales_coach_settings に保存） ===== */
@@ -471,7 +563,7 @@ function lastPeriods(unit,n){ const cur=periodStart(new Date(),unit); const a=[]
 /* 顧客単位の到達段階 */
 function custs(model,sessions){
   const by={};
-  for (const s of sessions){ if(modelIdOf(s)!==model.id) continue; const k=(s.customer||'').trim(); if(!k) continue; const i=stageIdx(model,s); if(i<0) continue; (by[k]=by[k]||{rep:s.rep,hits:[]}).hits.push({ i, t:+new Date(s.created_at) }); }
+  for (const s of sessions){ if(metaOf(s).kind==='ロープレ') continue; if(modelIdOf(s)!==model.id) continue; const k=(s.customer||'').trim(); if(!k) continue; const i=stageIdx(model,s); if(i<0) continue; (by[k]=by[k]||{rep:s.rep,hits:[]}).hits.push({ i, t:+new Date(s.created_at) }); }
   return Object.values(by);
 }
 /* 転換率：from段階に入った時点（期間判定）→ 以降to段階に到達したか */
@@ -668,7 +760,7 @@ const ICON = {
 };
 
 const NAV = [['grp','営業担当'],['home','plus','商談をAI分析'],['karte','list','育成カルテ'],['bank','gem','断り文句BANK'],['cases','book','事例ライブラリ'],['roleplay','play','AIロープレ'],['course','trophy','学習コース'],['predict','target','商談前予測'],['common','bulb','よくある断り文句'],
-  ['grp','責任者・社長'],['dash','chart','転換率ダッシュボード'],['learn','bars','学習進捗ボード'],['ceo','star','社長画面'],['kpi','gear','KPI設定'],['grp','ヘルプ'],['guide','help','使い方ガイド']];
+  ['grp','責任者・社長'],['dash','chart','転換率ダッシュボード'],['learn','bars','学習進捗ボード'],['ceo','star','社長画面'],['kpi','gear','KPI設定'],['rubric','doc','採点基準'],['grp','ヘルプ'],['guide','help','使い方ガイド']];
 document.getElementById('nav').innerHTML = NAV.map(n=>n[0]==='grp'?`<div class="grp">${n[1]}</div>`:`<button data-v="${n[0]}">${ICON[n[1]]}<span>${n[2]}</span></button>`).join('');
 const ROLE_JA = { admin:'管理者', manager:'マネージャー', sales:'営業', field:'現場', viewer:'閲覧のみ' };
 function renderMe(){
@@ -688,7 +780,7 @@ const banner = () => { if (LOCAL && !document.getElementById('localNote')){ cons
 /* ============ ① 商談をAI分析 ============ */
 let SRC = { mode:'paste', text:'', fileName:'' };
 VIEWS.home = () => {
-  const reps = [...new Set(DATA.s.map(s=>s.rep).filter(Boolean))];
+  let lastT='FS', lastK='商談'; try{ lastT=localStorage.getItem('scai_last_type')||'FS'; lastK=localStorage.getItem('scai_last_kind')||'商談'; }catch(e){}
   const IND = ['EPC・施工会社','一般事業会社','個人投資家','発電事業者（SPC等）','不動産・金融','その他'];
   $('#main').innerHTML = `${banner()}
   <p class="eyebrow">データが、営業の未来を変えていく。</p>
@@ -721,14 +813,17 @@ VIEWS.home = () => {
     <div class="row" style="justify-content:space-between;margin-bottom:14px"><h2 class="sec-h" style="margin:0">${ICON.people}商談情報登録</h2>
       <button class="btn sm" id="tplBtn" ${DATA.s.length?'':'disabled'}>${ICON.doc}前回の内容を使う</button></div>
     <div class="grid3">
-      <div><label class="f" for="fRep">担当営業</label><input type="text" id="fRep" list="repList" value="${esc(ME.name)}" placeholder="入力してください"><datalist id="repList">${reps.map(r=>`<option value="${esc(r)}">`).join('')}</datalist></div>
-      <div><label class="f" for="fCust">顧客名</label><input type="text" id="fCust" placeholder="例：賛光精機株式会社"></div>
+      <div><label class="f" for="fType">区分</label><select id="fType">${SALES_TYPES.map(t=>`<option value="${t}" ${t===lastT?'selected':''}>${TYPE_JA[t]}</option>`).join('')}</select></div>
+      <div><label class="f" for="fKind">種別</label><select id="fKind">${KINDS.map(k=>`<option value="${k}" ${k===lastK?'selected':''}>${k==='商談'?'実商談':'ロープレ（録画・文字起こし）'}</option>`).join('')}</select></div>
+      <div><label class="f" for="fRep">評価対象の担当者</label><select id="fRep">${repOptions(ME.name)}</select><input type="text" id="fRepOther" placeholder="氏名を入力" style="display:none;margin-top:6px"></div>
+      <div><label class="f" for="fCust" id="fCustL">顧客名</label><input type="text" id="fCust" placeholder="例：賛光精機株式会社"></div>
       <div><label class="f" for="fInd">顧客属性</label><select id="fInd">${opts(IND)}</select></div>
       <div><label class="f" for="fProd">商品</label><select id="fProd">${opts(PRODUCTS)}</select></div>
       <div><label class="f" for="fStage">商談段階 <span class="small muted" id="fModel"></span></label><select id="fStage"></select></div>
       <div><label class="f" for="fRes">商談結果</label><select id="fRes">${opts(RESULTS,'継続')}</select></div>
       <div><label class="f" for="fNext">次回予定</label><input type="date" id="fNext"></div>
     </div>
+    <div class="rb-note" id="fRb"></div>
   </div>
   <div class="go-wrap"><button class="btn go" id="runBtn">${ICON.spark}AIで徹底分析する<span aria-hidden="true" style="margin-left:14px">→</span></button>
     <span class="note">分析後、改善ポイント・ロープレ・次回アクションまで自動生成</span></div>`;
@@ -740,13 +835,23 @@ VIEWS.home = () => {
   d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) readFile(f); });
   $('#runBtn').onclick = runAnalysis;
   bindStageSelect('#fProd','#fStage','#fModel');
+  const rbNote = () => { const k=$('#fKind').value, rb=rbOf($('#fType').value,k); $('#fRb').innerHTML = `採点基準：<b>${esc(rb.name)}</b>（${rb.items.map(x=>esc(x.name)+' '+x.points).join('／')}）　<span class="muted">${esc(rb.focus||'')}</span>`; $('#fCustL').textContent = k==='ロープレ'?'顧客名（ロープレの想定顧客・任意）':'顧客名'; };
+  $('#fType').onchange = rbNote; $('#fKind').onchange = rbNote; rbNote();
+  $('#fRep').onchange = () => { const o=$('#fRep').value==='__other'; $('#fRepOther').style.display=o?'block':'none'; if(o) $('#fRepOther').focus(); };
+  if ($('#fRep').value==='__other') $('#fRepOther').style.display='block';
   $('#tplBtn').onclick = () => {
-    const me = $('#fRep').value.trim(); const last = DATA.s.find(s=>!me||s.rep===me) || DATA.s[0]; if(!last) return;
-    $('#fRep').value = last.rep||''; if (IND.includes(last.industry)) $('#fInd').value = last.industry;
+    const me = repVal(); const last = DATA.s.find(s=>!me||s.rep===me) || DATA.s[0]; if(!last) return;
+    setRep(last.rep||''); const lm=metaOf(last); $('#fType').value=lm.sales_type; $('#fKind').value=lm.kind; $('#fType').onchange(); if (IND.includes(last.industry)) $('#fInd').value = last.industry;
     if (PRODUCTS.includes(last.product)){ $('#fProd').value = last.product; $('#fProd').onchange(); }
     toast('前回（'+(last.customer||'')+'）の担当・属性・商品を入れました');
   };
 };
+function repOptions(sel){
+  const list = MEMBERS.length ? MEMBERS : (ME.name?[ME.name]:[]);
+  return `${sel&&!list.includes(sel)?`<option value="${esc(sel)}" selected>${esc(sel)}</option>`:''}${list.map(n=>`<option value="${esc(n)}" ${n===sel?'selected':''}>${esc(n)}${n===ME.name?'（自分）':''}</option>`).join('')}<option value="__other">リストにない人を入力…</option>`;
+}
+function repVal(){ const v=$('#fRep')?.value||''; return (v==='__other' ? ($('#fRepOther')?.value||'') : v).trim(); }
+function setRep(name){ const el=$('#fRep'); if(!el||!name) return; if(![...el.options].some(o=>o.value===name)) el.insertAdjacentHTML('afterbegin',`<option value="${esc(name)}">${esc(name)}</option>`); el.value=name; $('#fRepOther').style.display='none'; }
 function renderSrc(){
   const b=$('#srcBody'); const MAX=60000;
   const ta = (rows,ph) => `<textarea id="srcText" rows="${rows}" placeholder="${ph}">${esc(SRC.text)}</textarea><div class="cnt"><span id="cnt">${SRC.text.length.toLocaleString()}</span> / ${MAX.toLocaleString()} 文字</div>`;
@@ -778,90 +883,209 @@ async function readFile(f){
 }
 async function runAnalysis(){
   const t=$('#srcText'); if(t) SRC.text=t.value;
-  const meta = { rep:$('#fRep').value.trim(), customer:$('#fCust').value.trim(), industry:$('#fInd').value, product:$('#fProd').value, stage:$('#fStage').selectedOptions[0]?.textContent||'', _model:modelForProduct($('#fProd').value).id, _stage:$('#fStage').value, result:$('#fRes').value, next_date:$('#fNext').value||null, recording_url:($('#srcUrl')?.value||'').trim()||null };
+  const type=$('#fType').value, kind=$('#fKind').value, isRp=kind==='ロープレ', isIS=type==='IS';
+  const meta = { rep:repVal(), customer:$('#fCust').value.trim() || (isRp?'ロープレ（想定顧客）':''), industry:$('#fInd').value, product:$('#fProd').value, stage:$('#fStage').selectedOptions[0]?.textContent||'', _model:modelForProduct($('#fProd').value).id, _stage:$('#fStage').value, result:$('#fRes').value, next_date:$('#fNext').value||null, recording_url:($('#srcUrl')?.value||'').trim()||null };
   if (!SRC.text || SRC.text.length<80) return alert('文字起こしを入れてください（80文字以上）。');
-  if (!meta.rep || !meta.customer) return alert('担当営業と顧客名を入れてください。');
+  if (!meta.rep) return alert('評価対象の担当者を選んでください。');
+  if (!meta.customer) return alert('顧客名を入れてください。');
+  try{ localStorage.setItem('scai_last_type',type); localStorage.setItem('scai_last_kind',kind); }catch(e){}
+  const rb = rbOf(type,kind);
+  const prev = DATA.s.find(x=>x.rep===meta.rep && metaOf(x).sales_type===type);
   const bankTop = topCats(DATA.o.filter(o=>o.product===meta.product)).slice(0,8).map(c=>c.cat).join('、') || 'まだなし';
   const system = companyFor(meta.product) + `\n出力は指定のJSONのみ。前置き・コードブロック禁止。日本語で具体的に。文字起こしに無い事実は作らず、推測は「可能性」と明記する。`;
-  const prompt = `以下の商談を育成カルテとして分析してください。
-【商談情報】担当:${meta.rep}／顧客:${meta.customer}（${meta.industry}）／商品:${meta.product}／段階:${meta.stage}／結果:${meta.result}
+  let n=8; const extra=[];
+  if (isIS) extra.push(`${++n}. BANTCの5要素それぞれについて、確認できた度合いを status（確認済／一部／未確認）と根拠の発言で bantc に書く。valid_deal に有効商談化の判定（有効商談化／見込みあり／未達）と理由を書く。判定は採点基準の定義・判定ルールに従う。`);
+  if (prev) extra.push(`${++n}. 前回の課題それぞれについて、今回改善できたかを previous_check に書く（status：改善／一部改善／未改善／判断できない。evidence に今回の根拠となる発言や場面）。`);
+  if (isRp) extra.push(`${++n}. ロープレなので decision_maker の onepager は空でよい。`);
+  const prompt = `以下の${isRp?'ロープレ（社員同士の練習）':'実際の商談'}を育成カルテとして分析してください。
+【区分】${TYPE_JA[type]}／${isRp?'ロープレ':'実商談'}
+【商談情報】担当:${meta.rep}／顧客:${meta.customer}（${meta.industry}）／商品:${meta.product}／段階:${meta.stage}${isRp?'':'／結果:'+meta.result}
+${isIS?'【ISの役割】電話・オンラインで見込み顧客の担当者に接続し、課題とBANTCを確認して、FSが提案する有効商談（HubSpot PH03）につなげること。現調・見積・契約の詳細はFSの役割なので、ISの評価では求めない。\n':''}${isRp?'【評価の方針】結果ではなく、正しい型を実践できているかで採点する。顧客役も社員なので、顧客役の発言の良し悪しは採点しない。':'【評価の方針】顧客情報を取れたか、案件が前進したか、次回アクションにつながったかを重視して採点する。'}
+${rbPrompt(rb)}
 【同商品で過去に多い断り文句】${bankTop}
-
+${prev?`【この担当者の前回（${fmtDate(prev.created_at)}・${metaOf(prev).kind==='ロープレ'?'ロープレ':'実商談'}）の課題】\n${prevIssueText(prev)}\n`:''}
 【分析ルール】
-1. 10項目を各100点で採点：${SCORE_ITEMS.join('、')}。総合点は加重せず平均。
-2. 総合点より「どこで転換率を落としたか」を bottleneck に書く。
-3. 顧客の断り文句・保留発言・懸念をすべて抽出。各断り文句は「断られてから返す」ではなく「断られる前に潰す」視点で、発生の原因地点（商談の何分頃／どの場面の何が不足したか）まで遡る。cause_chain は原因→…→断り文句 の順に3〜5段。
-4. category は次から1つ：${OBJ_CATS.join('、')}
-5. 意思決定者到達度を ${DM_LEVELS.join('／')} で判定（status: 0=未接触 1=間接的に話題に出た 2=接触・同席）。
-6. 社長が聞きたくなる「経営情報」と、担当者が社長に転送できる「社長向け1枚」（400〜600字、営業臭さを消し、数字比較と判断材料中心。未確定の数字は【要確認】と書く）を作る。
-7. NEXT ACTION は 24時間以内／3日以内／7日以内／次回商談／ロープレ の5区分で、誰が・何を・いつまでに。
-8. roleplay は、この商談で一番痛かった断り文句でお客様役が言う最初の一言と、追撃しそうな質問。
+1. 採点基準の各項目を0〜100点で採点する（item は採点基準の項目名をそのまま使う）。comment には根拠となる発言・場面を書く。total_score は配点で加重した100点満点の値。
+2. 総合点より「どこで${isIS?'有効商談化':'転換率'}を落としたか」を bottleneck に書く。
+__R3__
+${extra.join('\n')}
 
 【JSON形式】
 {"summary":"3行要約","total_score":0,
-"scores":[{"item":"事前準備","score":0,"comment":"根拠となる発言や場面"}],
-"bottleneck":{"item":"","reason":"","impact":"転換率への影響"},
+"scores":[{"item":"${rb.items[0]?.name||''}","score":0,"comment":"根拠となる発言や場面"}],
+"bottleneck":{"item":"","reason":"","impact":"${isIS?'有効商談化':'転換率'}への影響"},
 "good_points":["再現すべき良かった点"],
 "objections":[{"quote":"顧客の実際の発言","category":"","timing":"商談○分頃／場面","surface":"表面的理由","background":"背景","sales_issue":"営業側の問題","cause_chain":["原因","…","断り文句"],"cause_point":"原因地点の説明","prevention_question":"本来事前に聞く質問","prevention_talk":"反論される前の予防トーク","rebuttal":"言われた後の切り返し","severity":"高|中|低"}],
 "decision_maker":{"levels":[{"role":"担当者","status":0,"note":""}],"analysis":"","ceo_interest":["社長が聞きたくなる経営情報"],"onepager_title":"","onepager":"社長向け1枚の本文"},
-"next_actions":[{"when":"24時間以内","who":"","what":"","done":"完了条件"}],
+${isIS?'"bantc":{"B":{"status":"確認済|一部|未確認","note":"根拠"},"A":{"status":"","note":""},"N":{"status":"","note":""},"T":{"status":"","note":""},"C":{"status":"","note":""}},\n"valid_deal":{"judge":"有効商談化|見込みあり|未達","reason":""},\n':''}${prev?'"previous_check":[{"issue":"前回の課題","status":"改善|一部改善|未改善|判断できない","evidence":"今回の根拠"}],\n':''}"next_actions":[{"when":"24時間以内","who":"","what":"","done":"完了条件"}],
 "roleplay":{"opening":"お客様の最初の一言","followups":["追撃質問"],"category":""},
 "training_theme":"今週の重点練習テーマ（1行）"}
 
 【文字起こし】
-${SRC.text.slice(0,60000)}`;
+${SRC.text.slice(0,60000)}`.replace('__R3__', R3_RULES());
   try{
-    loading(true,'AIが商談を分析しています');
+    loading(true, isRp?'AIがロープレを採点しています':'AIが商談を分析しています');
     const a = await aiJSON({ system, prompt, max_tokens:8000 });
-    a._kpi = { model_id:meta._model, stage_id:meta._stage }; const { _model, _stage, ...row } = meta;
-    const sess = await insert('s', { ...row, rep_email:ME.email, transcript:SRC.text, total_score:Math.round(a.total_score||0), analysis:a });
-    const objs = (a.objections||[]).map(o=>({ session_id:sess.id, rep:meta.rep, customer:meta.customer, product:meta.product, result:meta.result, category:OBJ_CATS.includes(o.category)?o.category:'その他', quote:o.quote, detail:o }));
-    await insertMany('o', objs);
+    a._kpi = { model_id:meta._model, stage_id:meta._stage };
+    a._meta = { sales_type:type, kind, rubric:rb.name, items:rb.items.map(x=>({ name:x.name, points:+x.points||0 })), prev_id:prev?.id||null };
+    const { _model, _stage, ...row } = meta;
+    const total = (a.scores||[]).length ? weighted(a.scores, rb.items) : Math.round(a.total_score||0);
+    const sess = await insert('s', { ...row, rep_email:ME.email, transcript:SRC.text, total_score:total, analysis:a });
+    if (!isRp){ /* ロープレの断り文句は、断り文句BANK（実商談の統計）に入れない */
+      const objs = (a.objections||[]).map(o=>({ session_id:sess.id, rep:meta.rep, customer:meta.customer, product:meta.product, result:meta.result, category:OBJ_CATS.includes(o.category)?o.category:'その他', quote:o.quote, detail:o }));
+      await insertMany('o', objs);
+    }
     SRC = { mode:'paste', text:'', fileName:'' };
     go('karte', sess.id);
-  }catch(e){ alert('分析できませんでした：'+e.message); }
+  }catch(e){ alert('分析できませんでした：'+e.message+whoDiag()); }
   finally{ loading(false); }
+}
+const R3_RULES = () => `3. 顧客の断り文句・保留発言・懸念をすべて抽出。各断り文句は「断られてから返す」ではなく「断られる前に潰す」視点で、発生の原因地点（商談の何分頃／どの場面の何が不足したか）まで遡る。cause_chain は原因→…→断り文句 の順に3〜5段。
+4. category は次から1つ：${OBJ_CATS.join('、')}
+5. 意思決定者到達度を ${DM_LEVELS.join('／')} で判定（status: 0=未接触 1=間接的に話題に出た 2=接触・同席）。
+6. 社長が聞きたくなる「経営情報」と、担当者が社長に転送できる「社長向け1枚」（400〜600字、営業臭さを消し、数字比較と判断材料中心。未確定の数字は【要確認】と書く）を作る。
+7. NEXT ACTION は 24時間以内／3日以内／7日以内／次回商談／ロープレ の5区分で、誰が・何を・いつまでに。
+8. roleplay は、この商談で一番痛かった断り文句でお客様役が言う最初の一言と、追撃しそうな質問。`;
+/* 前回の課題（次の分析で「改善できたか」を確かめる材料） */
+function prevIssueText(p){
+  const a=p.analysis||{}, L=[];
+  if (a.bottleneck?.item) L.push(`・落とした地点：${a.bottleneck.item}（${a.bottleneck.reason||''}）`);
+  const items = a._meta?.items || SCORE_ITEMS.map(n=>({name:n}));
+  const low = items.map(it=>(a.scores||[]).find(x=>x.item===it.name)).filter(Boolean).sort((x,y)=>x.score-y.score).slice(0,2);
+  low.forEach(x=>L.push(`・低かった項目：${x.item} ${x.score}点（${x.comment||''}）`));
+  (a.next_actions||[]).filter(n=>['ロープレ','次回商談'].includes(n.when)).forEach(n=>L.push(`・NEXT ACTION（${n.when}）：${n.what}`));
+  if (a.training_theme) L.push(`・重点練習：${a.training_theme}`);
+  return L.join('\n') || '・記録なし';
 }
 
 /* ============ ② 育成カルテ ============ */
+/* 育成カルテの一覧：商談AI分析とAIロープレを1本の時系列にまとめる */
+function karteRows(){
+  const S = DATA.s.map(x=>{ const m=metaOf(x); return { src:'s', id:x.id, at:x.created_at, rep:x.rep, type:m.sales_type, kind:m.kind, score:x.total_score, title:x.customer, sub:`${x.product||''}　${x.stage||''}`, result:x.result, x }; });
+  const R = DATA.r.map(x=>({ src:'r', id:x.id, at:x.created_at, rep:x.rep, type:rpType(x), kind:'ロープレ', score:x.score, title:`AIロープレ「${x.category||''}」`, sub:`「${x.objection||''}」`, passed:x.passed, x }));
+  return [...S, ...R].sort((p,q)=>new Date(q.at)-new Date(p.at));
+}
+const kindLabel = r => r.src==='r' ? 'AIロープレ' : (r.kind==='ロープレ'?'ロープレ':'実商談');
+function karteList(){
+  const f = VIEWS.karte.f ||= { rep:'', type:'', kind:'' };
+  const all = karteRows();
+  const reps = [...new Set(all.map(r=>r.rep).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const rows = all.filter(r=>(!f.rep||r.rep===f.rep)&&(!f.type||r.type===f.type)&&(!f.kind||r.kind===f.kind));
+  const seg = (key, list) => `<div class="seg">${[['','全体'],...list].map(([v,l])=>`<button data-fk="${key}" data-fv="${esc(v)}" class="${f[key]===v?'on':''}">${esc(l)}</button>`).join('')}</div>`;
+  $('#main').innerHTML = `${banner()}<h1>育成カルテ</h1><p class="lead">商談のAI分析とロープレの採点を、担当者ごとに積み上げています。全員の記録を誰でも見られます。</p>
+  <div class="panel filters">
+    <div><label class="f" for="kRep">担当者</label><select id="kRep" style="width:auto;min-width:180px"><option value="">全体</option>${reps.map(r=>`<option ${r===f.rep?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
+    <div><span class="f">区分</span>${seg('type',[['FS','FS'],['IS','IS']])}</div>
+    <div><span class="f">種別</span>${seg('kind',[['商談','実商談'],['ロープレ','ロープレ']])}</div>
+    <div class="small muted" style="align-self:end">${rows.length}件</div>
+  </div>
+  ${f.rep ? growthPanel(f.rep, rows) : ''}
+  <div class="panel">${rows.length?rows.slice(0,300).map(r=>`<div class="list-item" ${r.src==='s'?`data-id="${r.id}"`:`data-rp="${r.id}"`}><div class="row" style="justify-content:space-between"><b>${esc(r.title)}</b><span class="total" style="font-size:28px">${r.score??'-'}</span></div>
+    <div class="small muted">${fmtDate(r.at)}　${esc(r.rep)}　<span class="tag">${esc(r.type)}</span> <span class="tag ${r.kind==='ロープレ'?'amber':''}">${kindLabel(r)}</span>　${esc(r.sub)}
+    ${r.src==='s'&&r.kind!=='ロープレ'?` <span class="tag ${r.result==='失注'?'red':r.result==='前進'?'green':''}">${esc(r.result)}</span>　断り文句 ${DATA.o.filter(o=>o.session_id===r.id).length}件`:''}${r.src==='r'?` <span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span>`:''}</div></div>`).join(''):`<div class="empty">条件に合う記録がありません。<br><button class="btn primary" onclick="go('home')" style="margin-top:10px">商談をAI分析</button></div>`}</div>`;
+  $('#kRep').onchange = e => { f.rep=e.target.value; karteList(); };
+  document.querySelectorAll('[data-fk]').forEach(b=>b.onclick=()=>{ f[b.dataset.fk]=b.dataset.fv; karteList(); });
+  document.querySelectorAll('.list-item[data-id]').forEach(el=>el.onclick=()=>go('karte',el.dataset.id));
+}
+/* 担当者を選んだときの成長推移：スコア推移・弱い項目・前回課題の改善状況 */
+function growthPanel(rep, rows){
+  const asc = [...rows].reverse().filter(r=>r.score!=null);
+  const last = asc.slice(-14);
+  const labels = last.map(r=>{ const d=new Date(r.at); return `${d.getMonth()+1}/${d.getDate()}`; });
+  const series = [['商談','実商談','#2F5D8A'],['ロープレ','ロープレ','#B97E0E']].map(([k,n,c])=>({ name:n, color:c, values:last.map(r=>r.kind===k?r.score:null) })).filter(x=>x.values.some(v=>v!=null));
+  const avg = k => { const v=rows.filter(r=>r.kind===k&&r.score!=null).map(r=>r.score); return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null; };
+  const sc = asc.map(r=>r.score), half = n => sc.slice(n).length ? Math.round(sc.slice(n).reduce((a,b)=>a+b,0)/sc.slice(n).length) : null;
+  const recent = sc.length>=2 ? Math.round(sc.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,sc.length)) : null;
+  const before = sc.length>=4 ? Math.round(sc.slice(-6,-3).reduce((a,b)=>a+b,0)/sc.slice(-6,-3).length) : null;
+  /* 弱い項目は、同じ採点基準（区分×種別）ごとに集計 */
+  const groups = {};
+  rows.forEach(r=>{ const sc2 = r.src==='s' ? (r.x.analysis?.scores||[]) : (r.x.feedback?.scores||[]); if(!sc2.length) return; const key=`${r.type}${r.kind==='ロープレ'?'ロープレ':'商談'}`; (groups[key] ||= []).push(...sc2); });
+  const weakHtml = Object.entries(groups).map(([k,list])=>{ const by={}; list.forEach(x=>(by[x.item] ||= []).push(+x.score||0)); const w=Object.entries(by).map(([n,v])=>[n,Math.round(v.reduce((a,b)=>a+b,0)/v.length)]).sort((a,b)=>a[1]-b[1]).slice(0,3); return `<div><div class="small muted">${esc(k)}</div>${w.map(([n,v])=>`<div class="row" style="justify-content:space-between"><span>${esc(n)}</span><b class="${v<50?'ng':v>=70?'ok':''}">${v}</b></div>`).join('')}</div>`; }).join('') || '<span class="muted small">まだ項目別の採点がありません</span>';
+  const checks = rows.flatMap(r=>((r.src==='s'?r.x.analysis?.previous_check:r.x.feedback?.previous_check)||[]).map(c=>({ ...c, at:r.at, title:r.title, r }))).slice(0,6);
+  const cnt = st => checks.filter(c=>c.status===st).length;
+  const issues = rows.filter(r=>r.src==='s').slice(0,3).map(r=>r.x.analysis?.bottleneck?.item).filter(Boolean);
+  return `<div class="panel">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(rep)} の成長カルテ</h2><button class="btn sm" onclick="VIEWS.karte.f.rep='';karteList()">全体に戻す</button></div>
+    <div class="row" style="gap:26px;margin:12px 0 6px">
+      <div><div class="small muted">記録</div><b style="font-size:22px">${rows.length}件</b></div>
+      <div><div class="small muted">実商談の平均</div><b style="font-size:22px">${avg('商談')??'-'}</b></div>
+      <div><div class="small muted">ロープレの平均</div><b style="font-size:22px">${avg('ロープレ')??'-'}</b></div>
+      <div><div class="small muted">直近3件 vs その前3件</div><b style="font-size:22px">${recent??'-'}</b> ${growthTag(recent,before,'点')}</div>
+    </div>
+    ${series.length&&last.length>=2?trendSVG(series,labels,200,'点','スコアの推移'):'<p class="small muted">記録が2件以上になると、スコアの推移を表示します。</p>'}
+    <div class="grid2" style="margin-top:14px">
+      <div><h3>弱い項目（平均点の低い順）</h3><div class="weak-grid">${weakHtml}</div>${issues.length?`<p class="small" style="margin:10px 0 0">直近の商談で落とした地点：${issues.map(x=>`<span class="tag red">${esc(x)}</span>`).join(' ')}</p>`:''}</div>
+      <div><h3>前回の課題は改善できたか</h3>${checks.length?`<p class="small" style="margin:0 0 8px"><span class="tag green">改善 ${cnt('改善')}</span> <span class="tag amber">一部改善 ${cnt('一部改善')}</span> <span class="tag red">未改善 ${cnt('未改善')}</span></p>${prevCheckHtml(checks, true)}`:'<p class="small muted">2回目以降の分析・ロープレから、前回の課題の改善状況を自動で判定します。</p>'}</div>
+    </div></div>`;
+}
+const CHECK_CLS = { '改善':'green', '一部改善':'amber', '未改善':'red' };
+function prevCheckHtml(list, withSrc){
+  return `<div class="checks">${(list||[]).map(c=>`<div class="check"><span class="tag ${CHECK_CLS[c.status]||''}">${esc(c.status||'-')}</span> <b>${esc(c.issue)}</b>${c.evidence?`<div class="small muted">${esc(c.evidence)}</div>`:''}${withSrc&&c.title?`<div class="small muted">${fmtDate(c.at)}　${esc(c.title)}</div>`:''}</div>`).join('')}</div>`;
+}
+/* ロープレ1回分のフィードバック（採点・良かった点・直す点・模範回答・前回課題の改善） */
+function rpDetailHtml(g){
+  const color = v => v>=70?'var(--green)':v>=50?'var(--amber)':'var(--red)';
+  return `${(g.scores||[]).length?`<div class="bars" style="margin:6px 0 14px">${g.scores.map(x=>`<div class="bar" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}</span><div class="track"><div class="fill" style="width:${+x.score||0}%;background:${color(+x.score||0)}"></div></div><span class="v">${+x.score||0}</span></div>`).join('')}</div>`:''}
+    ${(g.previous_check||[]).length?`<h3>前回の課題は改善できたか</h3>${prevCheckHtml(g.previous_check)}`:''}
+    <div class="grid2"><div><h3>良かった点</h3><ul>${(g.good||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><h3>次に直す点（NEXT ACTION）</h3><ul>${(g.improve||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>
+    ${g.model_answer?`<div class="fix t"><b>模範回答</b>${esc(g.model_answer)}</div>`:''}`;
+}
+function rpModal(id){
+  const r = DATA.r.find(x=>x.id===id); if(!r) return;
+  const g = r.feedback||{};
+  const el=document.createElement('div'); el.className='stamp-modal';
+  el.innerHTML = `<div class="stamp-box rp-box" role="dialog" aria-label="ロープレのフィードバック">
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="small muted">${fmtDate(r.created_at)}　${esc(r.rep)}　<span class="tag">${esc(rpType(r))}</span> ${g.challenge_id?'<span class="tag amber">学習コース</span>':''}</div>
+    <h2 style="margin:4px 0 0">AIロープレ「${esc(r.category)}」</h2><div class="small muted">お客様：「${esc(r.objection)}」</div></div>
+    <div style="text-align:right"><div class="total" style="font-size:44px">${r.score??'-'}<small>点</small></div><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'不合格'}</span></div></div>
+    ${g.feedback?coachSay('一番直すべき点', `<b>${esc(g.feedback)}</b>`, {style:'margin:12px 0'}):''}
+    ${rpDetailHtml(g)}
+    ${(r.log||[]).length?`<details style="margin-top:12px"><summary class="small">会話の記録を見る</summary><div class="chat" style="max-height:300px;margin-top:8px">${r.log.map(m=>`<div class="msg ${m.role==='assistant'?'c':'s'}"><span class="who">${m.role==='assistant'?'お客様（AI）':'営業'}</span>${esc(m.content)}</div>`).join('')}</div></details>`:''}
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-close>閉じる</button></div></div>`;
+  document.body.appendChild(el);
+  const close=()=>el.remove(); el.querySelector('[data-close]').onclick=close; el.onclick=e=>{ if(e.target===el) close(); };
+  document.addEventListener('keydown', function esc1(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown',esc1); } });
+}
+document.addEventListener('click', e=>{ const el=e.target.closest('[data-rp]'); if(el){ e.preventDefault(); rpModal(el.dataset.rp); } });
+
 VIEWS.karte = (id) => {
-  if (!id){
-    const rows = DATA.s;
-    $('#main').innerHTML = `${banner()}<h1>育成カルテ</h1><p class="lead">分析した商談の一覧です。開くとスコア・断り文句・次回行動が見られます。</p>
-    <div class="panel">${rows.length?rows.map(s=>`<div class="list-item" data-id="${s.id}"><div class="row" style="justify-content:space-between"><b>${esc(s.customer)}</b><span class="total" style="font-size:28px">${s.total_score??'-'}</span></div>
-    <div class="small muted">${fmtDate(s.created_at)}　${esc(s.rep)}　${esc(s.product)}　<span class="tag">${esc(s.stage)}</span> <span class="tag ${s.result==='失注'?'red':s.result==='前進'?'green':''}">${esc(s.result)}</span>　断り文句 ${DATA.o.filter(o=>o.session_id===s.id).length}件</div></div>`).join(''):'<div class="empty">まだ分析した商談がありません。<br><button class="btn primary" onclick="go(\'home\')" style="margin-top:10px">商談をAI分析</button></div>'}</div>`;
-    document.querySelectorAll('.list-item').forEach(el=>el.onclick=()=>go('karte',el.dataset.id));
-    return;
-  }
+  if (!id) return karteList();
   const s = DATA.s.find(x=>x.id===id); if(!s) return go('karte');
-  const a = s.analysis||{};
-  const scores = SCORE_ITEMS.map(it=>(a.scores||[]).find(x=>x.item===it)||{item:it,score:0,comment:''});
+  const a = s.analysis||{}; const mt = metaOf(s);
+  const items = a._meta?.items || SCORE_ITEMS.map(n=>({ name:n, points:10 }));
+  const scores = items.map(it=>({ ...((a.scores||[]).find(x=>x.item===it.name)||{item:it.name,score:0,comment:''}), points:it.points }));
+  const prevS = a._meta?.prev_id ? DATA.s.find(x=>x.id===a._meta.prev_id) : null;
+  const BL = { B:'予算', A:'決裁者', N:'必要性', T:'導入時期', C:'比較検討・競合' }, BC = { '確認済':'green', '一部':'amber', '未確認':'red' };
   const low = [...scores].sort((x,y)=>x.score-y.score).slice(0,3).map(x=>x.item);
   const color = v => v>=70?'var(--green)':v>=50?'var(--amber)':'var(--red)';
   const dm = DM_LEVELS.map(r=>(a.decision_maker?.levels||[]).find(l=>l.role===r)||{role:r,status:0});
   const dmLabel = ['未接触','話題のみ','接触済'];
   $('#main').innerHTML = `
   <div class="row no-print" style="justify-content:space-between;margin-bottom:10px"><button class="btn sm" onclick="go('karte')">← 一覧</button>
-  <div class="row"><button class="btn sm" onclick="window.print()">印刷</button><button class="btn sm" onclick="draftCaseFromSession('${s.id}','win')">🏆 勝ちパターンとして登録</button><button class="btn sm" onclick="draftCaseFromSession('${s.id}','lose')">📉 失敗事例として登録</button><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す</button></div></div>
+  <div class="row"><button class="btn sm" onclick="VIEWS.karte.f={rep:'${esc(s.rep)}',type:'',kind:''};go('karte')">${esc(s.rep)} の推移を見る</button><button class="btn sm" onclick="window.print()">印刷</button><button class="btn sm" onclick="draftCaseFromSession('${s.id}','win')">🏆 勝ちパターンとして登録</button><button class="btn sm" onclick="draftCaseFromSession('${s.id}','lose')">📉 失敗事例として登録</button><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す</button></div></div>
   ${(()=>{ const cs=DATA.c.filter(c=>c.session_id===s.id); return cs.length?`<div class="banner no-print" style="background:var(--green-bg);border-color:#BFE2D1;color:var(--green)">この商談は事例ライブラリに登録済み：${cs.map(c=>`<a href="#" onclick="go('cases','${c.id}');return false">${esc(c.title)}</a>`).join('、')}</div>`:''; })()}
   <h1>${esc(s.customer)}</h1>
-  <p class="lead">${fmtDate(s.created_at)}　担当 ${esc(s.rep)}　${esc(s.product)}　<span class="tag">${esc(s.stage)}</span> <span class="tag ${s.result==='失注'?'red':s.result==='前進'?'green':''}">${esc(s.result)}</span>${s.recording_url?`　<a href="${esc(s.recording_url)}" target="_blank" rel="noopener">録画</a>`:''}</p>
+  <p class="lead">${fmtDate(s.created_at)}　担当 ${esc(s.rep)}　<span class="tag">${esc(mt.sales_type)}</span> <span class="tag ${mt.kind==='ロープレ'?'amber':''}">${mt.kind==='ロープレ'?'ロープレ':'実商談'}</span>　${esc(s.product)}　<span class="tag">${esc(s.stage)}</span> <span class="tag ${s.result==='失注'?'red':s.result==='前進'?'green':''}">${esc(s.result)}</span>${s.recording_url?`　<a href="${esc(s.recording_url)}" target="_blank" rel="noopener">録画</a>`:''}</p>
 
-  ${(()=>{ const m=modelById(modelIdOf(s)); const cur=m.stages[stageIdx(m,s)]?.id; return `<div class="row no-print small" style="margin:-10px 0 16px"><span class="muted">${esc(m.name)}</span>
+  ${mt.kind==='ロープレ'?'':(()=>{ const m=modelById(modelIdOf(s)); const cur=m.stages[stageIdx(m,s)]?.id; return `<div class="row no-print small" style="margin:-10px 0 16px"><span class="muted">${esc(m.name)}</span>
     <select id="kStage" style="width:auto">${m.stages.map(x=>`<option value="${x.id}" ${x.id===cur?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
     <select id="kRes" style="width:auto">${opts(RESULTS,s.result)}</select><button class="btn sm" id="kUpd">段階・結果を更新</button>
     <span class="muted">商談が進んだら更新すると転換率に反映されます</span></div>`; })()}
   <div class="panel">
     <div class="score-head">
-      <div><div class="small muted">商談スコア</div><div class="total">${s.total_score??'-'}<small>/100</small></div></div>
+      <div><div class="small muted">${esc(a._meta?.rubric||'FS商談')}のスコア</div><div class="total">${s.total_score??'-'}<small>/100</small></div></div>
       <div style="flex:1;min-width:260px">${coachSay('この商談の総評', esc(a.summary), {pre:true})}</div>
     </div>
-    <div class="bars" style="margin-top:18px">${scores.map(x=>`<div class="bar ${low.includes(x.item)?'low':''}" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}</span><div class="track"><div class="fill" style="width:${x.score}%;background:${color(x.score)}"></div></div><span class="v">${x.score}</span></div>`).join('')}</div>
-    ${a.bottleneck?`<div class="bottleneck"><b>転換率を落とした地点：${esc(a.bottleneck.item)}</b><br>${esc(a.bottleneck.reason)}${a.bottleneck.impact?`<br><span class="small">${esc(a.bottleneck.impact)}</span>`:''}</div>`:''}
+    <div class="bars" style="margin-top:18px">${scores.map(x=>`<div class="bar ${low.includes(x.item)?'low':''}" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}<small class="muted"> ${x.points}点</small></span><div class="track"><div class="fill" style="width:${x.score}%;background:${color(x.score)}"></div></div><span class="v">${x.score}</span></div>`).join('')}</div>
+    ${a.bottleneck?`<div class="bottleneck"><b>${mt.sales_type==='IS'?'有効商談化':'転換率'}を落とした地点：${esc(a.bottleneck.item)}</b><br>${esc(a.bottleneck.reason)}${a.bottleneck.impact?`<br><span class="small">${esc(a.bottleneck.impact)}</span>`:''}</div>`:''}
     <details style="margin-top:12px"><summary class="small">項目別の根拠を見る</summary><table style="margin-top:8px">${scores.map(x=>`<tr><td style="width:170px">${esc(x.item)}</td><td class="n" style="width:50px">${x.score}</td><td class="small">${esc(x.comment)}</td></tr>`).join('')}</table></details>
     ${(a.good_points||[]).length?`<h3 style="margin-top:14px">再現すべき良かった点</h3><ul style="margin:0">${a.good_points.map(g=>`<li>${esc(g)}</li>`).join('')}</ul>`:''}
   </div>
 
+  ${(a.previous_check||[]).length?`<div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">前回の課題は改善できたか</h2>${prevS?`<a href="#" class="small" onclick="go('karte','${prevS.id}');return false">前回（${fmtDate(prevS.created_at)}・${esc(prevS.customer)}）を開く</a>`:''}</div><div style="margin-top:10px">${prevCheckHtml(a.previous_check)}</div></div>`:''}
+  ${a.bantc||a.valid_deal?`<div class="panel"><h2>BANTCと有効商談化</h2>
+    ${a.valid_deal?`<p style="margin-top:0"><span class="tag ${a.valid_deal.judge==='有効商談化'?'green':a.valid_deal.judge==='未達'?'red':'amber'}" style="font-size:14px">${esc(a.valid_deal.judge)}</span>　${esc(a.valid_deal.reason)}</p>`:''}
+    ${a.bantc?`<div class="bantc">${Object.keys(BL).map(k=>{ const v=a.bantc[k]||{}; return `<div class="bt ${BC[v.status]||''}"><b>${k}</b><span>${BL[k]}</span><span class="tag ${BC[v.status]||''}">${esc(v.status||'-')}</span><div class="small muted">${esc(v.note||'')}</div></div>`; }).join('')}</div>`:''}</div>`:''}
   <h2>断り文句AI</h2>
   ${(a.objections||[]).length ? a.objections.map(o=>objCard(o)).join('') : '<div class="panel muted">この商談では明確な断り文句は検出されませんでした。</div>'}
 
@@ -880,7 +1104,7 @@ VIEWS.karte = (id) => {
     ${a.training_theme?`<p style="margin:14px 0 0"><span class="tag amber">今週の重点練習</span> ${esc(a.training_theme)}</p>`:''}
   </div>
   <div class="go-wrap no-print"><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す（AIロープレ）</button></div>`;
-  $('#kUpd').onclick=async()=>{ const m=modelById(modelIdOf(s)); const sel=$('#kStage'); try{ await patch('s',s.id,{ stage:sel.selectedOptions[0].textContent, result:$('#kRes').value, analysis:{ ...a, _kpi:{ model_id:m.id, stage_id:sel.value } } }); const res=$('#kRes').value; DATA.o.filter(o=>o.session_id===s.id).forEach(o=>o.result=res); if(!LOCAL) await sb.from(T.o).update({result:res}).eq('session_id',s.id); else saveLocal('o'); toast('更新しました'); go('karte',s.id); }catch(e){ alert('更新できませんでした：'+e.message); } };
+  if ($('#kUpd')) $('#kUpd').onclick=async()=>{ const m=modelById(modelIdOf(s)); const sel=$('#kStage'); try{ await patch('s',s.id,{ stage:sel.selectedOptions[0].textContent, result:$('#kRes').value, analysis:{ ...a, _kpi:{ model_id:m.id, stage_id:sel.value } } }); const res=$('#kRes').value; DATA.o.filter(o=>o.session_id===s.id).forEach(o=>o.result=res); if(!LOCAL) await sb.from(T.o).update({result:res}).eq('session_id',s.id); else saveLocal('o'); toast('更新しました'); go('karte',s.id); }catch(e){ alert('更新できませんでした：'+e.message); } };
   const one=$('#cpOne'); if(one) one.onclick=()=>copy(`${a.decision_maker.onepager_title}\n\n${a.decision_maker.onepager}`);
   $('#cpNA').onclick=()=>copy(chatworkNA(s));
 };
@@ -957,6 +1181,15 @@ VIEWS.bank = (cat) => {
 
 /* ============ ④ AIロープレ ============ */
 let RP = null;
+/* ISロープレの場面（架電） */
+const IS_SCENES = [
+  { cat:'受付突破', opening:'はい、お電話ありがとうございます。○○株式会社でございます。どういったご用件でしょうか？', persona:'受付担当。営業電話には慎重で、用件が曖昧だと取り次がない。' },
+  { cat:'資料だけ送って', opening:'あー、太陽光の件ですか。とりあえず資料だけメールで送ってもらえますか。', persona:'発電所を管理している総務の担当者。忙しく、早く電話を切りたい。' },
+  { cat:'今は忙しい', opening:'すみません、今ちょっと手が離せないんですよ。', persona:'設備担当の課長。話を聞く余地はあるが、時間がない。' },
+  { cat:'間に合っています', opening:'発電所はO&M会社に任せているので、特に間に合っていますね。', persona:'発電所の担当者。現状に大きな不満はないが、発電量の低下には気づいていない。' },
+  { cat:'担当者が不在', opening:'太陽光の担当は、あいにく今日は不在にしておりまして…。', persona:'受付担当。担当者の名前や戻り時間を簡単には教えない。' },
+  { cat:'決裁者が別にいる', opening:'うちは発電所のことは社長が全部決めているので、私ではちょっと…。', persona:'事務の担当者。社長につなぐことには消極的。' }
+];
 function startRoleplay(sessionId, cat){
   const s = sessionId ? DATA.s.find(x=>x.id===sessionId) : null;
   let opening='', followups=[], category=cat||'', ctx='';
@@ -967,24 +1200,37 @@ function startRoleplay(sessionId, cat){
     const ex = DATA.o.filter(o=>o.category===cat); const pick = ex[0];
     opening = pick?.quote || cat; ctx = pick ? `${pick.customer}のような顧客。商品は${pick.product}。` : 'アースコムの提案を受けている事業会社の担当者。';
   }
-  RP = { product: s?.product || DATA.o.find(o=>o.category===cat)?.product || '', sessionId, category, opening, followups, ctx, rep: ME.name || (s?.rep||''), log: opening?[{role:'assistant',content:opening}]:[], result:null };
+  const sales_type = s ? metaOf(s).sales_type : (VIEWS.roleplay.type||'FS');
+  RP = { product: s?.product || DATA.o.find(o=>o.category===cat)?.product || '', sessionId, category, opening, followups, ctx, rep: ME.name || (s?.rep||''), log: opening?[{role:'assistant',content:opening}]:[], result:null, sales_type };
+  go('roleplay');
+}
+function startIsRoleplay(i){
+  const sc = IS_SCENES[i]; if(!sc) return;
+  RP = { product:'', sessionId:null, category:sc.cat, opening:sc.opening, followups:[], ctx:sc.persona, rep:ME.name, log:[{role:'assistant',content:sc.opening}], result:null, sales_type:'IS' };
   go('roleplay');
 }
 VIEWS.roleplay = () => {
   if (!RP || !RP.opening){
     const cats = topCats(DATA.o);
+    const tp = VIEWS.roleplay.type ||= ((()=>{ try{ return localStorage.getItem('scai_last_type'); }catch(e){} })()||'FS');
+    const rb = rbOf(tp,'ロープレ');
     $('#main').innerHTML = `<h1>AIロープレ</h1><p class="lead">AIがお客様役になります。合格（80点）するまで何度でもやり直せます。</p>
-    ${coachSay('練習のしかた', '私が手強いお客様になって断り文句を言います。<b>実績 → 技術的根拠 → 無料診断</b>の順で、筋の通った説明を返してください。最後に私が採点します。', {style:'margin-bottom:18px'})}
-    <div class="panel"><h2>断り文句を選んで始める</h2>
-    <div class="row">${(cats.length?cats.map(c=>c.cat):OBJ_CATS).map(c=>`<button class="btn" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-    <p class="small muted" style="margin-top:14px">育成カルテの「この商談をやり直す」から始めると、実際の商談の状況でロープレできます。</p></div>
+    <div class="src-tabs" style="justify-content:flex-start;margin-top:0">${SALES_TYPES.map(t=>`<button data-tp="${t}" class="${t===tp?'on':''}">${TYPE_JA[t]}</button>`).join('')}</div>
+    ${tp==='IS'
+      ? coachSay('練習のしかた', '私が電話を受けたお客様になります。<b>名乗りと用件 → 担当者接続 → 課題の深掘り → BANTC → FS商談の日程打診</b>の順で進めてください。最後に私が採点します。', {style:'margin-bottom:18px'})
+      : coachSay('練習のしかた', '私が手強いお客様になって断り文句を言います。<b>実績 → 技術的根拠 → 無料診断</b>の順で、筋の通った説明を返してください。最後に私が採点します。', {style:'margin-bottom:18px'})}
+    <div class="panel"><h2>${tp==='IS'?'架電の場面を選んで始める':'断り文句を選んで始める'}</h2>
+    <div class="row">${tp==='IS' ? IS_SCENES.map((c,i)=>`<button class="btn" data-is="${i}">${esc(c.cat)}</button>`).join('') : (cats.length?cats.map(c=>c.cat):OBJ_CATS).map(c=>`<button class="btn" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <p class="small muted" style="margin-top:14px">採点基準：${esc(rb.name)}（${rb.items.map(x=>esc(x.name)).join('／')}）${tp==='FS'?'。育成カルテの「この商談をやり直す」から始めると、実際の商談の状況でロープレできます。':''}</p></div>
     ${myRpHistory()}`;
     document.querySelectorAll('button[data-c]').forEach(b=>b.onclick=()=>startRoleplay(null,b.dataset.c));
+    document.querySelectorAll('button[data-is]').forEach(b=>b.onclick=()=>startIsRoleplay(+b.dataset.is));
+    document.querySelectorAll('button[data-tp]').forEach(b=>b.onclick=()=>{ VIEWS.roleplay.type=b.dataset.tp; try{ localStorage.setItem('scai_last_type',b.dataset.tp); }catch(e){} VIEWS.roleplay(); });
     return;
   }
   const speech = ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
   $('#main').innerHTML = `<div class="row" style="justify-content:space-between"><h1>AIロープレ</h1><button class="btn sm" onclick="RP=null;go('roleplay')">断り文句を選び直す</button></div>
-  <p class="lead">テーマ：<span class="tag red">${esc(RP.category)}</span>　${RP.challenge?`<span class="tag amber">学習コース ${esc(RP.challenge.level)}・${RP.challenge.pass}点で合格</span>`:RP.sessionId?'実商談の再現':'BANKから出題'}　お客様は簡単には納得しません。</p>
+  <p class="lead"><span class="tag">${esc(RP.sales_type||'FS')}</span> テーマ：<span class="tag red">${esc(RP.category)}</span>　${RP.challenge?`<span class="tag amber">学習コース ${esc(RP.challenge.level)}・${RP.challenge.pass}点で合格</span>`:RP.sessionId?'実商談の再現':'BANKから出題'}　お客様は簡単には納得しません。</p>
   <div class="chat" id="chat"></div>
   <div class="row" style="margin-top:10px;align-items:stretch">
     <textarea id="rpIn" rows="3" style="flex:1;min-width:220px" placeholder="営業として回答（Ctrl+Enterで送信）"></textarea>
@@ -1013,7 +1259,9 @@ function rpSystem(){
 設定：${RP.ctx}
 あなたの主な断り文句：「${RP.opening}」（分類：${RP.category}）
 追撃に使える疑問：${RP.followups.join('／')||'根拠・実績・費用対効果・社内決裁'}
-${RP.challenge?`難易度：学習コース「${RP.challenge.level}」。この難易度に合わせて手強さを調整する。\n`:''}ルール：1回の発言は40〜120字の話し言葉。営業の回答が数字だけ・根拠が曖昧・押し売りなら追撃する。実績→技術的根拠→無料診断の順で筋の通った説明を受けたら、少しずつ態度を軟化させる。お客様として以外の発言（解説や採点）はしない。`;
+${RP.challenge?`難易度：学習コース「${RP.challenge.level}」。この難易度に合わせて手強さを調整する。\n`:''}${RP.sales_type==='IS'
+  ? '場面：インサイドセールスの電話。あなたは電話を受けた側。\nルール：1回の発言は20〜80字の電話の話し言葉。名乗りや用件が曖昧なら切ろうとする。担当者の確認・課題を聞く質問・予算や決裁者や時期の確認・FS商談の日程打診を自然にされたら、少しずつ情報を出し、筋が通っていれば日程に応じてもよい。お客様として以外の発言（解説や採点）はしない。'
+  : 'ルール：1回の発言は40〜120字の話し言葉。営業の回答が数字だけ・根拠が曖昧・押し売りなら追撃する。実績→技術的根拠→無料診断の順で筋の通った説明を受けたら、少しずつ態度を軟化させる。お客様として以外の発言（解説や採点）はしない。'}`;
 }
 async function rpSend(){
   const v=$('#rpIn').value.trim(); if(!v) return;
@@ -1030,21 +1278,28 @@ async function rpSend(){
 async function rpGrade(){
   if (RP.log.filter(m=>m.role==='user').length<1) return alert('まず1回以上回答してください。');
   const convo = RP.log.map(m=>(m.role==='assistant'?'お客様：':'営業：')+m.content).join('\n');
-  const prompt = `以下は断り文句「${RP.opening}」（${RP.category}）へのロープレです。営業の対応を採点してください。
-評価観点：共感と受け止め／根拠の順序（実績→技術的根拠→無料診断）／経営・キャッシュフロー視点への転換／次の一歩（無料診断・現調・意思決定者同席）の提案／押し売りになっていないか。
-${RP.challenge?RP.challenge.pass:80}点以上を合格。JSONのみで返す：
-{"score":0,"passed":false,"feedback":"一番直すべき点を1〜2文で具体的に","good":["良かった点"],"improve":["次に直す点"],"model_answer":"模範回答（話し言葉200字程度）"}
+  const tp = RP.sales_type||'FS', rb = rbOf(tp,'ロープレ'), me = RP.rep||ME.name||who();
+  if (!me) return alert('担当者名が分からないため採点を記録できません。'+whoDiag());
+  const passLine = RP.challenge ? RP.challenge.pass : 80;
+  const prevTry = DATA.r.find(r=>r.rep===me && rpType(r)===tp && (RP.challenge ? (r.feedback?.challenge_id===RP.challenge.id || r.objection===RP.opening) : r.category===RP.category));
+  const prevImp = prevTry?.feedback?.improve || [];
+  const prompt = `以下は${tp==='IS'?'インサイドセールスの架電':'断り文句'}「${RP.opening}」（${RP.category}）へのロープレです。営業の対応を採点基準に沿って採点してください。
+${rbPrompt(rb)}
+各項目を0〜100点で採点する（item は項目名どおり）。${passLine}点以上を合格。
+${prevImp.length?`【前回（${fmtDate(prevTry.created_at)}・${prevTry.score}点）に指摘した「次に直す点」】\n${prevImp.map(x=>'・'+x).join('\n')}\nそれぞれ今回改善できたかを previous_check に書く（status：改善／一部改善／未改善／判断できない。evidence に今回の根拠）。\n`:''}JSONのみで返す：
+{"scores":[{"item":"${rb.items[0]?.name||''}","score":0,"comment":"根拠"}],"score":0,"feedback":"一番直すべき点を1〜2文で具体的に","good":["良かった点"],"improve":["次に直す点"],"model_answer":"模範回答（話し言葉200字程度）"${prevImp.length?',"previous_check":[{"issue":"","status":"","evidence":""}]':''}}
 ${convo}`;
   try{
     loading(true,'採点しています');
-    const g=await aiJSON({ system:companyFor(RP.product), prompt, max_tokens:1500 });
-    const passLine = RP.challenge ? RP.challenge.pass : 80;
+    const g=await aiJSON({ system:companyFor(RP.product), prompt, max_tokens:2000 });
+    if ((g.scores||[]).length) g.score = weighted(g.scores, rb.items);
     g.passed = (g.score||0)>=passLine; g.pass = passLine;
+    Object.assign(g, { sales_type:tp, kind:'ロープレ', rubric:rb.name, items:rb.items.map(x=>({ name:x.name, points:+x.points||0 })), challenge_id:RP.challenge?.id||null, prev_id:prevTry?.id||null });
     RP.result=g;
-    await insert('r',{ rep:RP.rep||ME.name, rep_email:ME.email, session_id:RP.sessionId, category:RP.category, objection:RP.opening, score:g.score, passed:g.passed, feedback:g, log:RP.log });
+    await insert('r',{ rep:me, rep_email:ME.email, session_id:RP.sessionId, category:RP.category, objection:RP.opening, score:g.score, passed:g.passed, feedback:g, log:RP.log });
     showRpResult(g);
-    if (g.passed && RP.challenge){ loading(false); try{ await giveStamp(findCh(RP.challenge.id), g.score); }catch(e){ alert('スタンプを記録できませんでした：'+e.message); } }
-  }catch(e){ alert('採点できませんでした：'+e.message); }
+    if (g.passed && RP.challenge){ loading(false); try{ await giveStamp(findCh(RP.challenge.id), g.score); }catch(e){ alert('スタンプを記録できませんでした：'+e.message+whoDiag()); } }
+  }catch(e){ alert('採点できませんでした：'+e.message+whoDiag()); }
   finally{ loading(false); }
 }
 function showRpResult(g){
@@ -1052,15 +1307,15 @@ function showRpResult(g){
     <div class="row" style="justify-content:space-between"><div><span class="small muted">今回</span><div class="total" style="font-size:54px">${g.score}<small>点</small></div></div>
     <span class="tag ${g.passed?'green':'red'}" style="font-size:16px;padding:4px 14px">${g.passed?'合格':`不合格（${g.pass||80}点で合格）`}</span></div>
     ${coachSay(g.passed?'合格です！':'ここを直せば合格', `<b>${esc(g.feedback)}</b>`, {style:'margin:10px 0 14px'})}
-    <div class="grid2"><div><h3>良かった点</h3><ul>${(g.good||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><h3>次に直す点</h3><ul>${(g.improve||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>
-    <div class="fix t"><b>模範回答</b>${esc(g.model_answer)}</div>
+    ${rpDetailHtml(g)}
+    <p class="small muted">このフィードバックは育成カルテと「あなたのロープレ履歴」から、いつでも見返せます。</p>
     <div class="row">${g.passed?'':'<button class="btn red" id="retry">もう一度やる</button>'}${RP.challenge?`<button class="btn" onclick="go('course')">スタンプカードに戻る</button>`:`<button class="btn" onclick="RP=null;go('roleplay')">別の断り文句で練習</button>`}</div></div>`;
   const r=$('#retry'); if(r) r.onclick=()=>{ RP.log=[{role:'assistant',content:RP.opening}]; RP.result=null; go('roleplay'); };
 }
 function myRpHistory(){
-  const rows = DATA.r.filter(r=>!ME.name||r.rep===ME.name).slice(0,15);
+  const rows = DATA.r.filter(r=>!ME.name||r.rep===ME.name).slice(0,20);
   if(!rows.length) return '';
-  return `<div class="panel"><h2>あなたのロープレ履歴</h2><table><tr><th>日付</th><th>断り文句</th><th class="n">点数</th><th>判定</th></tr>${rows.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.category)}<div class="small muted">「${esc(r.objection)}」</div></td><td class="n">${r.score}</td><td><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span></td></tr>`).join('')}</table></div>`;
+  return `<div class="panel"><h2>あなたのロープレ履歴</h2><p class="small muted" style="margin-top:-6px">行を押すと、AIの評価・直す点・模範回答を見返せます。</p><div class="scroll"><table><tr><th>日付</th><th>区分</th><th>テーマ</th><th class="n">点数</th><th>判定</th><th>前回課題</th></tr>${rows.map(r=>{ const pc=r.feedback?.previous_check||[]; const ok=pc.filter(c=>c.status==='改善').length; return `<tr class="clickrow" data-rp="${r.id}"><td>${fmtDate(r.created_at)}</td><td><span class="tag">${esc(rpType(r))}</span></td><td>${esc(r.category)}<div class="small muted">「${esc(r.objection)}」</div></td><td class="n">${r.score}</td><td><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span></td><td class="small">${pc.length?`改善 ${ok}/${pc.length}`:'-'}</td></tr>`; }).join('')}</table></div></div>`;
 }
 function setupMic(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition; const rec=new SR(); rec.lang='ja-JP'; rec.interimResults=false; rec.continuous=true;
@@ -1313,24 +1568,25 @@ function commonEditor(c, save){
 
 /* ============ ⑥ 転換率ダッシュボード（モデル別・チーム／個人・成長率） ============ */
 function avgScores(sessions){
-  const r={}; SCORE_ITEMS.forEach(it=>{ const vals=sessions.map(s=>(s.analysis?.scores||[]).find(x=>x.item===it)?.score).filter(v=>v!=null); r[it]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null; });
+  const names=[...new Set(sessions.flatMap(s=>(s.analysis?.scores||[]).map(x=>x.item)))];
+  const r={}; (names.length?names:SCORE_ITEMS).forEach(it=>{ const vals=sessions.map(s=>(s.analysis?.scores||[]).find(x=>x.item===it)?.score).filter(v=>v!=null); r[it]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null; });
   return r;
 }
 function weakest(avg){ return Object.entries(avg).filter(([,v])=>v!=null).sort((a,b)=>a[1]-b[1])[0]?.[0]; }
 const growthTag = (cur,prev,unit='pt') => (cur==null||prev==null) ? '<span class="muted small">比較なし</span>' : (()=>{ const d=Math.round((cur-prev)*10)/10; return `<span class="${d>0?'ok':d<0?'ng':'muted'}" style="font-weight:700">${d>0?'▲+':d<0?'▼':'±'}${d}${unit}</span>`; })();
 const rateCell = (r,t) => r.rate==null ? '<span class="muted">-</span>' : `<b class="${t==null?'':r.rate>=t?'ok':'ng'}">${r.rate}%</b><span class="small muted"> ${r.num}/${r.den}</span>`;
-function trendSVG(series,labels,height=220){
+function trendSVG(series,labels,height=220,unit='%',aria='転換率の推移'){
   const W=680,H=height,L=40,R=12,Tp=14,B=30, n=labels.length; const x=i=>L+(n<=1?0:(W-L-R)*i/(n-1)); const y=v=>Tp+(H-Tp-B)*(1-v/100);
-  let g=''; [0,25,50,75,100].forEach(v=>g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E3E8E5"/><text x="${L-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#5E6B75">${v}%</text>`);
+  let g=''; [0,25,50,75,100].forEach(v=>g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E3E8E5"/><text x="${L-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#5E6B75">${v}${unit}</text>`);
   labels.forEach((l,i)=>g+=`<text x="${x(i)}" y="${H-8}" font-size="11" text-anchor="middle" fill="#5E6B75">${esc(l)}</text>`);
   series.forEach(s=>{
     if(s.target!=null) g+=`<line x1="${L}" x2="${W-R}" y1="${y(s.target)}" y2="${y(s.target)}" stroke="${s.color}" stroke-dasharray="5 4" opacity=".55"/>`;
     let d=''; s.values.forEach((v,i)=>{ if(v==null) return; d+=(d?'L':'M')+x(i)+' '+y(v); });
     if(d) g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5"/>`;
-    s.values.forEach((v,i)=>{ if(v!=null) g+=`<circle cx="${x(i)}" cy="${y(v)}" r="3.5" fill="${s.color}"><title>${esc(s.name)} ${esc(labels[i])}：${v}%</title></circle>`; });
+    s.values.forEach((v,i)=>{ if(v!=null) g+=`<circle cx="${x(i)}" cy="${y(v)}" r="3.5" fill="${s.color}"><title>${esc(s.name)} ${esc(labels[i])}：${v}${unit}</title></circle>`; });
   });
-  return `<div class="scroll"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="転換率の推移">${g}</svg></div>
-  <div class="row small" style="gap:14px">${series.map(s=>`<span><span style="display:inline-block;width:14px;height:3px;background:${s.color};vertical-align:middle"></span> ${esc(s.name)}${s.target!=null?`（目標${s.target}%は点線）`:''}</span>`).join('')}</div>`;
+  return `<div class="scroll"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="${esc(aria)}">${g}</svg></div>
+  <div class="row small" style="gap:14px">${series.map(s=>`<span><span style="display:inline-block;width:14px;height:3px;background:${s.color};vertical-align:middle"></span> ${esc(s.name)}${s.target!=null?`（目標${s.target}${unit}は点線）`:''}</span>`).join('')}</div>`;
 }
 const PALETTE=['#18794E','#B8322A','#2F5D8A','#B97E0E','#6B4FA0','#1C2733'];
 VIEWS.dash = () => {
@@ -1725,7 +1981,7 @@ VIEWS.ceo = () => {
   const avg=a=>a.length?a.reduce((t,s)=>t+(s.total_score||0),0)/a.length:null;
   const improved=reps.map(r=>{ const now=avg(S.filter(s=>s.rep===r)), prev=avg(P.filter(s=>s.rep===r)); return {r,d:(now!=null&&prev!=null)?Math.round(now-prev):null,now:Math.round(now||0)}; }).filter(x=>x.d!=null).sort((a,b)=>b.d-a.d)[0];
   const weak=weakest(avgScores(S));
-  const theme = lostCats[0]?.cat ? `「${lostCats[0].cat}」への予防トーク` : (weak?THEME_BY_ITEM[weak]:'');
+  const theme = lostCats[0]?.cat ? `「${lostCats[0].cat}」への予防トーク` : (weak?(THEME_BY_ITEM[weak]||`「${weak}」の強化`):'');
   const rpWeek=DATA.r.filter(r=>inRange(r,wk));
   VIEWS.ceo.stats={S,cats,lostCats,improved,weak,theme,rpWeek,wk};
   $('#main').innerHTML = `${banner()}<h1>今週の営業AIレポート</h1>
@@ -2220,7 +2476,7 @@ const TASK_RULES = {
 const RANKS = [ ['見習い',0], ['ルーキー',1], ['エース',2], ['エキスパート',3], ['マスター',4] ];
 const allCh = () => COURSES.flatMap(c=>c.ch.map(x=>({...x, course:c})));
 const findCh = id => allCh().find(x=>x.id===id);
-const who = () => ME.name || (ME.name = (prompt('あなたの名前（担当営業名）を入れてください')||'').trim());
+const who = () => { if (ME.name) return ME.name; ME.name = (prompt('あなたの名前（担当営業名）を入れてください')||'').trim(); try{ if(ME.name) localStorage.setItem('scai_myname',ME.name); }catch(e){} return ME.name; };
 const myStamps = (me=ME.name) => DATA.p.filter(p=>p.rep===me);
 const hasStamp = (id,me=ME.name) => myStamps(me).some(p=>p.challenge_id===id);
 const courseDone = (c,me=ME.name) => c.ch.every(x=>hasStamp(x.id,me));
@@ -2290,10 +2546,19 @@ VIEWS.course = (chId) => {
         ${done?`<div class="row" style="margin-top:10px"><button class="btn sm" data-share="${c.id}">修了をChatworkで報告</button></div>`:''}
       </div>`; }).join('')}
   </div>
+  ${(()=>{ const ids=new Set(allCh().filter(x=>x.type==='rp').map(x=>x.id)); const ops=new Set(allCh().filter(x=>x.type==='rp').map(x=>x.opening)); const rows=DATA.r.filter(r=>r.rep===me && (ids.has(r.feedback?.challenge_id)||ops.has(r.objection))).slice(0,12); return rows.length?`<div class="panel"><h2>ロープレのフィードバック履歴</h2><p class="small muted" style="margin-top:-6px">行を押すと、AIの評価・直す点・模範回答を見返せます。</p><div class="scroll"><table><tr><th>日付</th><th>チャレンジ</th><th class="n">点数</th><th>判定</th><th>次に直す点</th></tr>${rows.map(r=>{ const ch=allCh().find(x=>x.id===r.feedback?.challenge_id||x.opening===r.objection); return `<tr class="clickrow" data-rp="${r.id}"><td>${fmtDate(r.created_at)}</td><td>${esc(ch?ch.course.name+'・'+ch.title:r.category)}</td><td class="n">${r.score}</td><td><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span></td><td class="small">${esc((r.feedback?.improve||[])[0]||'')}</td></tr>`; }).join('')}</table></div></div>`:''; })()}
   <div class="panel"><h2>スタンプランキング</h2>${reps.length?`<table><tr><th>順位</th><th>担当</th><th>称号</th><th class="n">スタンプ</th></tr>${reps.map((x,i)=>`<tr><td>${['🥇','🥈','🥉'][i]||i+1}</td><td><b>${esc(x.r)}</b></td><td>${esc(x.rank)}</td><td class="n">${x.n}</td></tr>`).join('')}</table>`:'<p class="muted small">まだ誰もスタンプを持っていません。一番乗りを目指しましょう！</p>'}</div>`;
   document.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{ const ch=findCh(b.dataset.ch); if(!unlocked(ch.course,me)) return toast('前のコースを修了すると解放されます'); go('course',ch.id); });
   document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>copy(courseChatwork(COURSES.find(c=>c.id===b.dataset.share))));
 };
+/* このチャレンジの過去の挑戦（AIの評価・直す点を見返し、前回の課題が直ったかを追う） */
+const chTries = (ch, me=ME.name) => DATA.r.filter(r=>r.rep===me && (r.feedback?.challenge_id===ch.id || r.objection===ch.opening));
+function chHistory(ch){
+  const rows = chTries(ch); if(!rows.length) return '';
+  return `<div class="panel"><h2>これまでの挑戦</h2><p class="small muted" style="margin-top:-6px">前回の「次に直す点」を確認してから挑戦しましょう。行を押すと詳しく見られます。</p>
+  ${rows[0].feedback?.improve?.length?`<div class="fix q" style="margin-bottom:12px"><b>前回（${fmtDate(rows[0].created_at)}・${rows[0].score}点）の次に直す点</b>${rows[0].feedback.improve.map(x=>'・'+esc(x)).join('<br>')}</div>`:''}
+  <table><tr><th>日付</th><th class="n">点数</th><th>判定</th><th>一番直すべき点</th></tr>${rows.map(r=>`<tr class="clickrow" data-rp="${r.id}"><td>${fmtDate(r.created_at)}</td><td class="n">${r.score}</td><td><span class="tag ${r.passed?'green':'red'}">${r.passed?'合格':'再挑戦'}</span></td><td class="small">${esc(r.feedback?.feedback||'')}</td></tr>`).join('')}</table></div>`;
+}
 function challengeView(id){
   const ch = findCh(id); if(!ch) return go('course'); const c=ch.course; const me=ME.name;
   if(!unlocked(c,me)) return go('course');
@@ -2310,7 +2575,8 @@ function challengeView(id){
   if (ch.type==='rp'){
     body.innerHTML = `<div class="panel"><p style="margin-top:0">お客様の最初のひと言：</p><div class="msg c" style="max-width:100%">「${esc(ch.opening)}」</div>
       <div class="go-wrap" style="margin-top:16px"><button class="btn go" id="chGo">▶ ロープレに挑戦する</button></div></div>`;
-    $('#chGo').onclick=()=>{ RP={ product:'', sessionId:null, category:ch.cat, opening:ch.opening, followups:[], ctx:`${ch.persona||c.persona}（${c.name}の練習相手）`, rep:ME.name, log:[{role:'assistant',content:ch.opening}], result:null, challenge:{ id:ch.id, pass:c.pass, level:c.name } }; go('roleplay'); };
+    body.insertAdjacentHTML('beforeend', chHistory(ch));
+    $('#chGo').onclick=()=>{ RP={ product:'', sessionId:null, category:ch.cat, opening:ch.opening, followups:[], ctx:`${ch.persona||c.persona}（${c.name}の練習相手）`, rep:ME.name, log:[{role:'assistant',content:ch.opening}], result:null, challenge:{ id:ch.id, pass:c.pass, level:c.name }, sales_type:'FS' }; go('roleplay'); };
   }
   if (ch.type==='quiz'){
     const qs=QUIZ[ch.quiz];
@@ -2336,11 +2602,89 @@ async function autoStamps(){
   for (const ch of allCh()){ if(ch.type==='task' && unlocked(ch.course,me) && !hasStamp(ch.id,me) && TASK_RULES[ch.rule](me)){ try{ await giveStamp(ch); }catch(e){ console.warn(e); } break; } }
 }
 
+/* ============ 採点基準（IS／FS × 商談／ロープレ） ============ */
+VIEWS.rubric = () => {
+  const V = VIEWS.rubric; V.cur ||= 'IS_商談'; if (!V.draft) V.draft = clone(RUBRICS);
+  const canEdit = !ME.role || ['admin','manager'].includes(ME.role);
+  const rb = V.draft[V.cur], tot = rbTotal(rb), dirty = JSON.stringify(V.draft)!==JSON.stringify(RUBRICS);
+  const ro = canEdit?'':'disabled';
+  $('#main').innerHTML = `<h1>採点基準</h1>
+  <p class="lead">AIは、区分（IS／FS）と種別（実商談／ロープレ）の組み合わせごとに、ここの基準で採点します。項目ごとに0〜100点をつけ、配点で加重して100点満点にします。</p>
+  ${RUBRIC_META?`<p class="small muted" style="margin:-24px 0 18px">最終更新：${fmtDate(RUBRIC_META.at)}　${esc(RUBRIC_META.by||'')}</p>`:''}
+  <div class="src-tabs" style="justify-content:flex-start">${RB_IDS.map(id=>`<button data-rb="${id}" class="${id===V.cur?'on':''}">${esc(V.draft[id].name)}</button>`).join('')}</div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(rb.name)}</h2><span class="tag ${/仮/.test(rb.source||'')?'amber':'green'}">${esc(rb.source||'標準')}</span></div>
+    <label class="f" for="rbFocus" style="margin-top:14px">評価の目的</label><input type="text" id="rbFocus" data-f="focus" value="${esc(rb.focus||'')}" ${ro}>
+    <div class="scroll" style="margin-top:14px"><table class="rb-table"><tr><th style="width:20%">評価項目</th><th style="width:70px" class="n">配点</th><th>できている状態</th><th>できていない状態</th>${canEdit?'<th></th>':''}</tr>
+    ${rb.items.map((x,i)=>`<tr><td><input type="text" data-i="${i}" data-k="name" value="${esc(x.name)}" ${ro}></td><td><input type="number" min="0" max="100" data-i="${i}" data-k="points" value="${+x.points||0}" style="width:64px" ${ro}></td><td><textarea data-i="${i}" data-k="good" ${ro}>${esc(x.good||'')}</textarea></td><td><textarea data-i="${i}" data-k="bad" ${ro}>${esc(x.bad||'')}</textarea></td>${canEdit?`<td><button class="btn sm" data-del="${i}" aria-label="${esc(x.name)}を削除">削除</button></td>`:''}</tr>`).join('')}</table></div>
+    <div class="row" style="justify-content:space-between;margin-top:10px">${canEdit?'<button class="btn sm" id="rbAdd">項目を追加</button>':'<span></span>'}<span>配点合計 <b id="rbTot" class="${tot===100?'ok':'ng'}">${tot}</b> / 100</span></div>
+    <label class="f" for="rbNotes" style="margin-top:14px">定義・判定ルール（BANTCの判定基準、有効商談の定義など。AIにそのまま渡します）</label>
+    <textarea id="rbNotes" data-f="notes" rows="6" ${ro}>${esc(rb.notes||'')}</textarea>
+    ${canEdit?`<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="rbReset">標準に戻す</button><button class="btn" id="rbCancel" ${dirty?'':'disabled'}>変更を取り消す</button><button class="btn primary" id="rbSave" ${dirty?'':'disabled'}>保存する</button></div>`:'<p class="small muted">採点基準の変更は、管理者・マネージャーが行います。</p>'}
+  </div>
+  ${canEdit?`<div class="panel"><h2>Googleドキュメントから取り込む</h2>
+    <p class="small muted" style="margin-top:-6px">採点基準のドキュメントの本文をすべてコピーして貼り付けると、AIが「${'商談'}」「${'ロープレ'}」の2つの基準に整理して入れます。保存前に内容を確認できます。</p>
+    <div class="row" style="margin-bottom:8px"><label class="small" for="impType">取り込み先</label><select id="impType" style="width:auto">${SALES_TYPES.map(t=>`<option value="${t}" ${V.cur.startsWith(t)?'selected':''}>${TYPE_JA[t]}の商談とロープレ</option>`).join('')}</select></div>
+    <textarea id="impText" rows="8" placeholder="ドキュメントの本文を貼り付け（評価項目・配点・良い例／悪い例・BANTCの判定基準・有効商談の定義など）"></textarea>
+    <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn go" id="impGo">AIで採点基準に変換する</button></div></div>`:''}`;
+  const m=$('#main');
+  m.oninput = e => { const t=e.target, r=V.draft[V.cur];
+    if (t.dataset.f) r[t.dataset.f]=t.value;
+    else if (t.dataset.k){ const it=r.items[+t.dataset.i]; it[t.dataset.k] = t.dataset.k==='points' ? (+t.value||0) : t.value; if(t.dataset.k==='points'){ const n=rbTotal(r), el=$('#rbTot'); el.textContent=n; el.className=n===100?'ok':'ng'; } }
+    const sv=$('#rbSave'), cc=$('#rbCancel'); if(sv){ sv.disabled=false; cc.disabled=false; } };
+  m.onclick = async e => { const b=e.target.closest('button'); if(!b) return; const r=V.draft[V.cur];
+    if (b.dataset.rb){ V.cur=b.dataset.rb; return VIEWS.rubric(); }
+    if (b.dataset.del){ r.items.splice(+b.dataset.del,1); return VIEWS.rubric(); }
+    if (b.id==='rbAdd'){ r.items.push({ name:'新しい項目', points:0, good:'', bad:'' }); return VIEWS.rubric(); }
+    if (b.id==='rbCancel'){ V.draft=clone(RUBRICS); return VIEWS.rubric(); }
+    if (b.id==='rbReset'){ if(!confirm(`「${r.name}」を標準の基準に戻しますか？（保存するまで反映されません）`)) return; V.draft[V.cur]=clone(RB_DEFAULT[V.cur]); return VIEWS.rubric(); }
+    if (b.id==='rbSave'){
+      const bad = RB_IDS.filter(id=>rbTotal(V.draft[id])!==100 || !V.draft[id].items.length);
+      if (bad.length && !confirm(`配点の合計が100点になっていない基準があります：${bad.map(id=>V.draft[id].name).join('、')}\n（採点は合計で割って100点満点に換算されます）このまま保存しますか？`)) return;
+      try{ await saveRubrics(V.draft); V.draft=clone(RUBRICS); toast('採点基準を保存しました。次の採点から使われます'); VIEWS.rubric(); }catch(err){ alert('保存できませんでした：'+err.message+whoDiag()); }
+      return; }
+    if (b.id==='impGo') return importRubric(); };
+};
+async function importRubric(){
+  const text=$('#impText').value.trim(), tp=$('#impType').value;
+  if (text.length<50) return alert('ドキュメントの本文を貼り付けてください。');
+  const prompt = `次の文書は、株式会社アースコムの${TYPE_JA[tp]}の採点基準です。AIが商談とロープレを採点するための設定に整理してください。
+ルール：
+・文書にある評価項目・配点・できている状態（良い例）・できていない状態（悪い例）をそのまま使う。文書に無い項目や数字を作らない。
+・「商談」と「ロープレ」で基準が分かれていればそれぞれに、1つしか無ければ両方に同じ内容を入れる。
+・BANTCの各要素の判定基準、有効商談の定義、カウント対象・対象外のルールなど、項目表に入らない判定ルールは notes に原文の意味を変えずに箇条書きで入れる。
+・focus は評価の目的を1文で。
+JSONのみで返す：
+{"商談":{"focus":"","items":[{"name":"","points":0,"good":"","bad":""}],"notes":""},"ロープレ":{"focus":"","items":[{"name":"","points":0,"good":"","bad":""}],"notes":""}}
+
+【文書】
+${text.slice(0,40000)}`;
+  try{
+    loading(true,'採点基準を読み取っています');
+    const j = await aiJSON({ system:COMPANY_BASE()+'\n出力は指定のJSONのみ。', prompt, max_tokens:6000 });
+    const V=VIEWS.rubric, today=new Date().toLocaleDateString('ja-JP');
+    KINDS.forEach(k=>{ const x=j[k]; if(!x||!(x.items||[]).length) return; V.draft[tp+'_'+k] = { name:tp+k, focus:x.focus||'', items:x.items.map(i=>({ name:String(i.name||''), points:+i.points||0, good:i.good||'', bad:i.bad||'' })), notes:x.notes||'', source:`ドキュメントから取込（${today}）` }; });
+    V.cur = tp+'_商談';
+    VIEWS.rubric(); toast('取り込みました。内容を確認して「保存する」を押してください');
+  }catch(e){ alert('取り込めませんでした：'+e.message); }
+  finally{ loading(false); }
+}
+
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const CHANGELOG = [
+  { v:'2.2.0', date:'2026-10-14', title:'IS／FS・実商談／ロープレ別の採点と、担当者ごとの育成カルテ', items:[
+    '「商談をAI分析」で、区分（IS／FS）と種別（実商談／ロープレ）を選べるようになりました。組み合わせごとに別の採点基準で採点します',
+    'IS商談はBANTCの確認状況と有効商談化（PH03到達）の判定も出します',
+    '評価対象の担当者を社員一覧から選べます。マネージャーがメンバーの商談・ロープレを分析できます',
+    '育成カルテに担当者・区分・種別の絞り込みを追加。担当者を選ぶと、スコア推移・弱い項目・前回課題の改善状況を表示します',
+    '2回目以降は、前回の課題（落とした地点・直す点）が今回改善できたかをAIが判定します',
+    'AIロープレにIS（架電）の練習場面を追加。ロープレの評価・直す点・模範回答を履歴から見返せます',
+    '学習コースに「これまでの挑戦」「ロープレのフィードバック履歴」を追加',
+    '「採点基準」画面で、4種類の採点基準を編集できます。採点基準のドキュメントを貼り付けてAIで取り込めます',
+    '採点できないときに、ログイン中の氏名・権限を表示して原因を確認しやすくしました' ]},
   { v:'2.1.0', date:'2026-09-29', title:'よくある断り文句を事前登録して、商談前予測に自動で出す', items:[
     '「よくある断り文句」画面で、断り文句と「先に聞く質問・予防トーク・切り返し」を登録できます（登録・編集は責任者）',
     '断り文句ごとに、出やすい商品・顧客属性・商談段階・キーワード（借入、FIT残り、課長など）を設定できます',
@@ -2393,14 +2737,18 @@ const CHANGELOG = [
     '商談をAI分析・育成カルテ・断り文句BANK・AIロープレ・商談前予測・転換率ダッシュボード・社長画面' ]}
 ];
 const GUIDE = [
-  { id:'home', who:'営業', since:'1.0.0', when:'商談が終わったら24時間以内',
-    what:'商談の文字起こしをAIが分析し、断り文句の原因地点と次の一手まで出します。',
-    steps:['文字起こしを貼り付ける（txt・Word・PDFはドロップでも可）','担当・顧客名・商品・商談段階・結果を入れる','【AIで徹底分析する】を押す'],
-    tips:['録画URLだけでは分析できません。文字起こしを必ず入れてください','「前回の内容を使う」で担当・属性・商品をまとめて入力できます'] },
-  { id:'karte', who:'営業', since:'1.0.0', when:'分析のあと／商談が進んだとき',
-    what:'商談スコア・断り文句の原因・意思決定者の到達度・NEXT ACTIONをまとめた育成カルテです。',
-    steps:['赤く表示された「転換率を落とした地点」を確認する','断り文句ごとの「その前に聞くべきだった質問」「予防トーク」を読む','NEXT ACTIONを「Chatwork用にコピー」して共有する','商談が進んだら「段階・結果を更新」を押す'],
-    tips:['「この商談をやり直す」で、同じ場面をAIロープレで練習できます','うまくいった／いかなかった商談は「事例として登録」へ'] },
+  { id:'home', who:'営業', since:'1.0.0', when:'商談・ロープレが終わったら24時間以内',
+    what:'商談やロープレの文字起こしをAIが分析し、採点基準に沿った採点・断り文句の原因地点・次の一手まで出します。',
+    steps:['文字起こしを貼り付ける（txt・Word・PDFはドロップでも可）','区分（IS／FS）と種別（実商談／ロープレ）を選ぶ','評価対象の担当者・顧客名・商品・商談段階・結果を入れる','【AIで徹底分析する】を押す'],
+    tips:['録画URLだけでは分析できません。文字起こしを必ず入れてください','マネージャーはメンバーを選んで、その人の商談・ロープレを分析できます','同じ担当者の2回目以降は、前回の課題が改善できたかも判定します','ロープレの断り文句は、断り文句BANK（実商談の統計）には入りません'] },
+  { id:'karte', who:'営業・マネージャー', since:'1.0.0', when:'分析のあと／1on1の前／商談が進んだとき',
+    what:'商談とロープレのスコア・断り文句の原因・BANTC・NEXT ACTIONを、担当者ごとに積み上げた育成カルテです。',
+    steps:['一覧で担当者・区分・種別を絞り込み、担当者を選んでスコア推移と弱い項目を見る','赤く表示された「転換率を落とした地点」を確認する','断り文句ごとの「その前に聞くべきだった質問」「予防トーク」を読む','NEXT ACTIONを「Chatwork用にコピー」して共有する','商談が進んだら「段階・結果を更新」を押す'],
+    tips:['「前回の課題は改善できたか」で、単発の点数ではなく成長を確認できます','「この商談をやり直す」で、同じ場面をAIロープレで練習できます','うまくいった／いかなかった商談は「事例として登録」へ'] },
+  { id:'rubric', who:'責任者', since:'2.2.0', when:'採点の基準を決めた・見直したとき',
+    what:'IS／FS × 実商談／ロープレ の4種類の採点基準（評価項目・配点・良い例／悪い例・判定ルール）を管理します。',
+    steps:['上のタブで基準を選ぶ','項目・配点・できている状態／できていない状態を直す（配点合計は100点）','BANTCの判定基準や有効商談の定義は「定義・判定ルール」に書く','【保存する】を押す'],
+    tips:['採点基準のドキュメントを丸ごと貼り付けて「AIで採点基準に変換する」と、項目表に整理して入れます','保存した基準は、次の採点から使われます（過去の採点は変わりません）'] },
   { id:'bank', who:'営業', since:'1.0.0', when:'よく言われる断り文句を調べたいとき',
     what:'全員の商談から集まった断り文句を、発生回数・失注率・切り返し・予防質問つきで見られます。',
     steps:['商品で絞り込む','気になる断り文句の「開く」を押す','予防質問と、前進した商談の切り返しを読む'],
@@ -2411,8 +2759,8 @@ const GUIDE = [
     tips:['再現率の高い事例は、責任者が★公式に認定します','「Chatworkで共有」でそのまま貼れる形にコピーできます'] },
   { id:'roleplay', who:'営業', since:'1.0.0', when:'商談の前／カルテで指摘されたあと',
     what:'AIが手強いお客様役になり、合格するまで何度でも練習できます。',
-    steps:['断り文句を選ぶ（またはカルテの「この商談をやり直す」）','文字か🎤音声で回答し、2〜3往復する','【採点する】を押し、模範回答を確認する'],
-    tips:['実績 → 技術的根拠 → 無料診断 の順で説明すると点数が上がります'] },
+    steps:['FS／ISを選ぶ','断り文句（ISは架電の場面）を選ぶ（またはカルテの「この商談をやり直す」）','文字か🎤音声で回答し、2〜3往復する','【採点する】を押し、模範回答を確認する'],
+    tips:['FSは 実績 → 技術的根拠 → 無料診断 の順で説明すると点数が上がります','ISは 名乗りと用件 → 担当者接続 → 課題の深掘り → BANTC → 日程打診 の順で進めます','「あなたのロープレ履歴」の行を押すと、過去の評価と直す点を見返せます'] },
   { id:'course', who:'営業', since:'1.6.0', when:'毎日の空き時間に1チャレンジ',
     what:'レベル別のチャレンジをクリアしてスタンプを集め、称号を獲得します。',
     steps:['「次のチャレンジ」の【挑戦する】を押す','ロープレ・クイズ・実践ミッションをクリアする','コースを修了したら「修了をChatworkで報告」'],
@@ -2519,6 +2867,7 @@ function showWhatsNew(){
   try{ sb = supabase.createClient(CFG.url, CFG.key); }catch(e){ console.warn(e); }
   try{ const m = window.EC?.me ? await EC.me() : null; if (m){ ME.name=m.full_name||m.name||m.user?.full_name||''; ME.email=m.email||m.user?.email||''; ME.role=m.role||m.user?.role||m.profile?.role||''; } }catch(e){}
   await resolveMe();
+  if (!ME.name){ try{ ME.name = localStorage.getItem('scai_myname')||''; }catch(e){} }
   try{ if (window.EC?.mountBadge) EC.mountBadge(document.getElementById('badge')); }catch(e){}
   renderMe();
   await loadAll();
@@ -2527,6 +2876,8 @@ function showWhatsNew(){
   await loadConf();
   await loadOps();
   await loadCommon();
+  await loadRubrics();
+  await loadMembers();
   go('home');
   markNavNew();
   showWhatsNew();
