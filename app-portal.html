@@ -838,6 +838,107 @@ const SEED=[
    desc:'受注日を起点に工程を自動作成し、遅れそうな工程を先にアラートします。',url:'',status:'準備中',perUse:25,build:0}
 ];
 
+/* =========================================================
+   アプリ台帳（リポジトリ内の全アプリ）
+   読み込み時に一覧へ無いものだけ自動で追加します。
+   一度追加したものは regSeen に記録するので、管理画面で削除したアプリは復活しません。
+   ========================================================= */
+const BASE_URL='https://marubayashi-bot.github.io/refort-studio-new/';
+const REGISTRY=[
+ {id:'r-refort_studio',file:'refort_studio.html',name:'ReFortスタジオ',tape:'ReF',cat:'営業支援',owner:'商品企画部',
+  desc:'Excelを取り込んでキャッシュフローを算出し、提案書（PowerPoint）まで自動生成します。',howto:['対象物件のExcelを用意する','画面に取り込む','内容を確認してPowerPointを書き出す']},
+ {id:'r-refort-board',file:'refort-board-chiba.html',name:'ReFort現場判断ボード',tape:'現場\n判断',cat:'営業支援',owner:'営業部',
+  desc:'5県＋全国の案件を一覧化し、現場・内勤どちらからでも進捗と次の一手を確認できます。',howto:['県を選ぶ','担当案件を開く','状況を更新して保存する']},
+ {id:'r-refort_deals',file:'refort_deals.html',name:'ReFort査定スタジオ',tape:'査定',cat:'営業支援',owner:'営業部',
+  desc:'セカンダリー物件の一次判定と3モデルのシミュレーション、案件管理・現調資料をまとめて扱えます。',howto:['案件を登録する','条件を入れて一次判定する','シミュレーション結果を確認する']},
+ {id:'r-refort-quick-sim',file:'refort-quick-sim.html',name:'ReFortクイック試算',tape:'試算',cat:'営業支援',owner:'営業部',
+  desc:'EXPOや商談の場で、iPadからReFortの概算効果をその場で試算できます。',howto:['発電所の基本情報を入れる','概算効果を確認する','お客様にそのまま見せる']},
+ {id:'r-battery_projects',file:'battery_projects.html',name:'系統蓄電池 提案シミュレーター',tape:'蓄電',cat:'商品企画',owner:'商品企画部',
+  desc:'太陽光とのセット提案を試算。Excel取込とスプレッドシート連携に対応しています。',howto:['容量と単価を入力する','セット提案の有無を選ぶ','試算結果を保存する']},
+ {id:'r-battery-board',file:'battery-board.html',name:'系統用蓄電池 案件管理ボード',tape:'蓄電\n案件',cat:'営業支援',owner:'営業部',
+  desc:'全国の系統用蓄電池案件を1枚のボードで管理します。',howto:['案件を探す','状況を更新する','次の対応を決める']},
+ {id:'r-battery_leads',file:'battery_leads.html',name:'商談パイプラインボード',tape:'商談',cat:'営業支援',owner:'営業部',
+  desc:'全社の商談を1枚で把握。四半期フォーカス・物件情報・地図表示をまとめています。',howto:['自分の担当で絞り込む','動いた案件のフェーズを進める','次回アクションの日付を入れる']},
+ {id:'r-earth-connect',file:'earth-connect.html',name:'EARTH CONNECT',tape:'名刺',cat:'営業支援',owner:'営業部',
+  desc:'名刺を登録して、次の商談につなげる営業名刺管理アプリです。',howto:['名刺を撮影・登録する','会社・担当者を確認する','次のアクションを入れる']},
+ {id:'r-expo',file:'expo-growth-360.html',name:'EXPO GROWTH 360',tape:'EXPO',cat:'営業支援',owner:'営業部',
+  desc:'展示会の集客から名刺獲得・フォロー・商談化までを管理します。',howto:['展示会を選ぶ','獲得した見込み客を登録する','フォロー状況を更新する']},
+ {id:'r-tools',file:'tools.html',name:'営業ツール棚',tape:'棚',cat:'営業支援',owner:'営業部',
+  desc:'全社の営業ツール・資料を1か所から探して使えます。',howto:['カテゴリで探す','ツールを開く','使い方を確認する']},
+ {id:'r-knowledge',file:'knowledge.html',name:'EARTHCOM ナレッジ',alias:['ナレッジ'],tape:'知識',cat:'営業支援',owner:'商品企画部',
+  desc:'FIT・FIP、出力制御、税制、補助金、当社商品などの知識と伝え方を、商談前に数分で確認できます。',howto:['知りたいテーマを検索する','要点と伝え方を読む','確認テストで定着させる']},
+ {id:'r-sales-coach',file:'earthcom-sales-coach.html',name:'EARTHCOM SALES COACH AI',alias:['SALES COACH AI'],tape:'育成',cat:'採用・人事',owner:'営業部',
+  desc:'断り文句BANKとAIロープレで、商談の切り返しと転換率を鍛える営業育成アプリです。',howto:['断り文句を選ぶ','AIとロープレする','フィードバックを振り返る']},
+ {id:'r-progress',file:'progress_studio.html',name:'工事進捗報告システム',tape:'進捗',cat:'現場・工事',owner:'工事部',
+  desc:'スタッフが入力した進捗を、お客様が専用リンクからそのまま閲覧できます。',howto:['現場を選ぶ','写真と進捗を入力する','お客様用リンクを発行して送る']},
+ {id:'r-refort-design',file:'refort-design.html',name:'ReFort DESIGN',tape:'設計',cat:'現場・工事',owner:'工事部',
+  desc:'現調後の設計を支援し、設計内容を自動で検証して品質をそろえます。',howto:['現調データを入れる','設計案を作る','自動検証の指摘を直す']},
+ {id:'r-refort_inspection',file:'refort_inspection.html',name:'ReFort完成検査',tape:'検査',cat:'現場・工事',owner:'工事部',
+  desc:'現地完工確認のチェック表をアプリ化。工事品質を現場で確認・記録します。',howto:['現場を選ぶ','チェック項目を確認する','結果を保存する']},
+ {id:'r-refort_album',file:'refort_album.html',name:'ReFort完工アルバム',tape:'写真',cat:'現場・工事',owner:'工事部',
+  desc:'完工した現場の写真をアルバムとしてまとめ、共有できます。',howto:['現場を選ぶ','写真を登録する','アルバムを共有する']},
+ {id:'r-field_map',file:'field_map.html',name:'外勤マップ',alias:['外勤スケジュール＆エリアマップ'],tape:'外勤',cat:'営業支援',owner:'営業部',
+  desc:'外勤予定を地図上に重ねて、訪問エリアの重複と空きを見つけます。',howto:['日付を選ぶ','地図で予定を確認する','訪問の組み合わせを調整する']},
+ {id:'r-naiteisha',file:'naiteisha.html',name:'内定者オンボーディング管理',tape:'内定',cat:'採用・人事',owner:'管理部',
+  desc:'内定者カルテと辞退リスクを可視化。卒年コホート単位で入社準備を管理します。',howto:['卒年を選ぶ','面談内容をカルテに記録する','リスクが高い人から連絡する']},
+ {id:'r-hito-karte',file:'hito-karte.html',name:'ひとカルテ',tape:'カルテ',cat:'採用・人事',owner:'管理部',
+  desc:'適性検査や面談の情報を個人カルテにまとめ、1on1と育成に活用します。',howto:['社員を選ぶ','カルテを確認する','1on1の内容を記録する']},
+ {id:'r-org-design',file:'org-design.html',name:'EARTHCOM ORG DESIGN',tape:'組織',cat:'経営管理',owner:'社長室',
+  desc:'組織図と人員配置をシミュレーションする組織設計アプリです。',howto:['現在の組織図を確認する','配置案を動かす','比較して決める']},
+ {id:'r-keikaku',file:'keikaku.html',name:'経営計画書ポータル',alias:['経営計画書アプリ'],tape:'計画',cat:'経営管理',owner:'社長室',
+  desc:'経営計画書の方針をいつでも確認できるポータルです。',howto:['方針を探す','内容を読む','自分の仕事に当てはめる']},
+ {id:'r-houshin',file:'houshin-board.html',name:'方針実行ボード',tape:'方針',cat:'経営管理',owner:'社長室',
+  desc:'経営計画書の方針を行事×タスクに分解し、実行者・日程・チェックを管理します。',howto:['行事を選ぶ','タスクと担当を確認する','完了したらチェックする']},
+ {id:'r-bumoncho',file:'bumoncho-board.html',name:'部門長会議ボード',tape:'会議',cat:'経営管理',owner:'社長室',
+  desc:'実行計画の達成状況を部門ごとにまとめ、部門長会議で確認します。',howto:['部門を選ぶ','達成状況を確認する','次の打ち手を決める']},
+ {id:'r-nippo',file:'nippo.html',name:'NIPPO ONE（日報）',alias:['NIPPO ONE','日報アプリ','AI日報'],tape:'日報',cat:'経営管理',owner:'社長室',
+  desc:'AIで日報を整理し、現場の情報を経営判断に集約します。',howto:['今日の日報を書く','AIの整理を確認する','提出する']},
+ {id:'r-kankyo',file:'kankyo_seibi.html',name:'環境整備 本番点検',tape:'環境',cat:'経営管理',owner:'管理部',
+  desc:'環境整備の本番点検をその場でチェック・記録します。',howto:['点検場所を選ぶ','項目をチェックする','結果を保存する']},
+ {id:'r-mind-flow',file:'earthcom-mind-flow.html',name:'EARTHCOM MIND FLOW',tape:'MIND',cat:'経営管理',owner:'社長室',
+  desc:'マインドマップで考えを整理し、そのまま実行タスクとして管理します。',howto:['テーマを書き出す','枝をタスクにする','実行状況を確認する']},
+ {id:'r-bank-brief',file:'bank-brief.html',name:'銀行説明スタジオ',tape:'銀行',cat:'経営管理',owner:'社長室',
+  desc:'試算表・決算書・長期計画をAIで分析し、銀行訪問用の説明資料を作成します。',howto:['試算表・決算書を取り込む','分析結果を確認する','説明資料を出力する'],
+  scope:'限定',members:'社長室'},
+ {id:'r-success_planner',file:'success_planner.html',name:'MY SUCCESS PLANNER',alias:['EARTHCOM SUCCESS PLANNER'],tape:'日次',cat:'経営管理',owner:'社長室',
+  desc:'朝と夕方の日次運用ツール。その日の狙いと結果を1本の流れで記録します。',howto:['朝、今日の狙いを書く','日中、動いたことを追記する','夕方、結果を振り返る'],
+  scope:'限定',members:'丸林のみ'},
+ {id:'r-manabi',file:'manabi-techo.html',name:'学びの検印帳',tape:'学び',cat:'経営管理',owner:'社長室',
+  desc:'インプット→アウトプット宣言→振り返りの流れで学びを記録します。',howto:['学んだことを記録する','実行することを宣言する','振り返る'],
+  scope:'限定',members:'丸林のみ'},
+ {id:'r-my-planner',file:'my-planner.html',name:'MY PLANNER',tape:'予定',cat:'経営管理',owner:'社長室',
+  desc:'仕事とプライベートのタスクを分けて管理する個人プランナーです。',howto:['タスクを書く','仕事／プライベートを分ける','完了したらチェックする'],
+  scope:'限定',members:'副社長のみ'},
+ {id:'r-ai-usage',file:'ai-usage.html',name:'AI利用状況',tape:'AI',cat:'経営管理',owner:'社長室',
+  desc:'アプリ別・社員別のAI利用量を確認します。',howto:['期間を選ぶ','アプリ別・社員別に確認する','使い方を見直す'],
+  scope:'限定',members:'管理者'},
+ {id:'r-ec-users',file:'ec-users.html',name:'社員・権限管理',tape:'権限',cat:'経営管理',owner:'社長室',
+  desc:'社員のログイン承認と、権限・利用できるアプリを設定します。',howto:['新しく登録された社員を確認する','権限を選ぶ','保存する'],
+  scope:'限定',members:'管理者'}
+];
+function mergeRegistry(){
+  if(!Array.isArray(state.regSeen)) state.regSeen=[];
+  const norm=t=>String(t||'').normalize('NFKC').replace(/[\s（）()｜|・\-＿_]/g,'').toLowerCase();
+  const fileOf=u=>{try{return String(u||'').split('?')[0].split('#')[0].split('/').pop();}catch(e){return '';}};
+  let changed=0;
+  REGISTRY.forEach(r=>{
+    if(state.regSeen.includes(r.id)) return;
+    const url=BASE_URL+r.file;
+    const names=[r.name,...(r.alias||[])].map(norm);
+    const hit=state.apps.find(a=>fileOf(a.url)===r.file)
+           || state.apps.find(a=>names.includes(norm(a.name)));
+    if(hit){
+      if(!hit.url){hit.url=url; if(hit.status==='準備中') hit.status='公開中'; changed++;}
+    }else{
+      const {file,alias,...rest}=r;
+      state.apps.push({...rest,url,status:'公開中',perUse:15,build:0});
+      changed++;
+    }
+    state.regSeen.push(r.id); changed++;
+  });
+  return changed>0;
+}
+
 let state={apps:SEED.map(a=>({...a})),wUser:2000,wDev:2000,adminKey:'earth2276',keyVersion:2,
            roster:{},notices:[],featuredId:'',sb:{url:SB_URL,key:SB_KEY,on:!!(SB_URL&&SB_KEY)}};
 let usage=[], reqs=[], me={name:'',dept:''}, favs=[], sbLive=false;
@@ -887,6 +988,7 @@ async function loadAll(){
       if(!configFound) await sbConfigSave();   /* 初回だけ今の一覧を登録 */
     }
   }
+  if(mergeRegistry()){ if(sbLive) await sbConfigSave(); try{await store.set(KEY_APPS,JSON.stringify(state),true);}catch(e){} }
   if(!Array.isArray(state.notices)) state.notices=[];
   if(state.keyVersion!==2){state.adminKey='earth2276';state.keyVersion=2;}
   state.apps.forEach(a=>{if(a.perUse===undefined) a.perUse=a.save?Math.max(5,Math.round(a.save/10)):15;});
