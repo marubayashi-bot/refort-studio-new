@@ -303,7 +303,11 @@ th.n{font-family:inherit;font-size:12px}
 .la b{flex-basis:100%;font-size:13.5px;display:flex;justify-content:space-between} .la b span{font-family:var(--num);font-size:16px}
 .la.red b span{color:var(--red)}
 .la a{font-weight:700}
-.stamp-modal{position:fixed;inset:0;z-index:70;background:rgba(8,24,48,.55);display:grid;place-items:center;backdrop-filter:blur(3px)}
+.stamp-modal{position:fixed;inset:0;z-index:70;background:rgba(8,24,48,.55);display:grid;place-items:center;backdrop-filter:blur(3px);overflow-y:auto;padding:16px;overscroll-behavior:contain}
+.stamp-modal .stamp-box{max-height:calc(100dvh - 32px);overflow-y:auto;position:relative}
+.m-x{position:sticky;top:0;float:right;margin:-12px -18px 0 0;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:20px;line-height:1;cursor:pointer;color:var(--navy);z-index:2}
+.m-x:focus-visible{outline:2px solid #2F5D8A;outline-offset:2px}
+.m-foot{position:sticky;bottom:-28px;background:#fff;padding:12px 0 4px;margin-bottom:-4px;border-top:1px solid var(--line)}
 .stamp-box{background:#fff;border-radius:20px;padding:28px 34px;text-align:center;max-width:380px;box-shadow:var(--shadow)}
 .nav .new{margin-left:auto;font-size:10px;font-weight:900;letter-spacing:.06em;color:#0A1F3C;background:#6FF0D8;border-radius:999px;padding:1px 7px}
 .help-fab{position:fixed;right:18px;bottom:18px;z-index:45;width:48px;height:48px;border-radius:50%;border:0;cursor:pointer;font-size:22px;font-weight:900;color:#fff;background:linear-gradient(180deg,#1A5C9E,#0D3264);box-shadow:0 8px 20px rgba(13,50,100,.35)}
@@ -2686,8 +2690,11 @@ ${text.slice(0,40000)}`;
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.2.2';
 const CHANGELOG = [
+  { v:'2.2.2', date:'2026-10-15', title:'お知らせ画面が閉じられない不具合を修正', items:[
+    '更新のお知らせが長いと「閉じる」ボタンが画面の外に出て、操作できなくなる不具合を修正',
+    'お知らせや詳細画面は、右上の×・外側のクリック・Escキーでも閉じられます' ]},
   { v:'2.2.1', date:'2026-10-14', title:'保存できない不具合を修正', items:[
     'ログインしているのに、分析・採点の保存で「row-level security」エラーになる不具合を修正',
     '保存の前にログインを確認し、切れている場合はAIを動かす前に再ログインを案内します' ]},
@@ -2868,13 +2875,19 @@ function showWhatsNew(){
   if (vNum(seen)>=vNum(APP_VERSION)) return;
   const news=CHANGELOG.filter(c=>vNum(c.v)>vNum(seen));
   const el=document.createElement('div'); el.className='stamp-modal';
-  el.innerHTML=`<div class="stamp-box" style="max-width:520px;text-align:left">
-    <div style="text-align:center"><img src="${IMG.coach}" alt="" style="height:120px"><h2 style="margin:6px 0 2px">アプリが新しくなりました！</h2><div class="small muted">v${esc(seen)} → v${esc(APP_VERSION)}</div></div>
+  el.innerHTML=`<div class="stamp-box" role="dialog" aria-modal="true" aria-label="更新のお知らせ" style="max-width:560px;width:calc(100vw - 32px);text-align:left">
+    <button class="m-x" id="wnX" aria-label="閉じる">×</button>
+    <div style="text-align:center"><img src="${IMG.coach}" alt="" style="height:96px"><h2 style="margin:6px 0 2px">アプリが新しくなりました！</h2><div class="small muted">v${esc(seen)} → v${esc(APP_VERSION)}</div></div>
     ${news.map(c=>`<div style="margin-top:12px"><b>${esc(c.title)}</b><ul style="margin:4px 0 0">${c.items.map(i=>`<li class="small">${esc(i)}</li>`).join('')}</ul></div>`).join('')}
-    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" id="wnOk">閉じる</button><button class="btn primary" id="wnGo">使い方を見る</button></div></div>`;
+    <div class="row m-foot" style="justify-content:flex-end;margin-top:16px"><button class="btn" id="wnOk">閉じる</button><button class="btn primary" id="wnGo">使い方を見る</button></div></div>`;
   document.body.appendChild(el);
-  const close=()=>{ localStorage.setItem(SEEN_KEY, APP_VERSION); el.remove(); markNavNew(); };
-  el.querySelector('#wnOk').onclick=close; el.querySelector('#wnGo').onclick=()=>{ el.remove(); go('guide'); };
+  const onKey=e=>{ if(e.key==='Escape') close(); };
+  function close(){ try{ localStorage.setItem(SEEN_KEY, APP_VERSION); }catch(e){} el.remove(); document.removeEventListener('keydown',onKey); markNavNew(); }
+  document.addEventListener('keydown',onKey);
+  el.querySelector('#wnOk').onclick=close; el.querySelector('#wnX').onclick=close;
+  el.onclick=e=>{ if(e.target===el) close(); };
+  el.querySelector('#wnGo').onclick=()=>{ close(); go('guide'); };
+  el.querySelector('#wnOk').focus();
 }
 
 /* ============ 起動 ============ */
