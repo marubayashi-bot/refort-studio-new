@@ -13,7 +13,9 @@
   ・正式組織は「下書き→承認→反映」、シナリオ（未来組織）は自由に組替え
   ・異動履歴（監査ログ）／異動CARE（7日・30日・90日フォロー）／組織診断（ルール＋AI）
   ・表・Excelの貼り付け取込、JSONバックアップ、PDF出力（印刷）
-  保存先: Supabase テーブル org_design_state（id='main' の1行にJSONで保存）
+  保存先: Supabase テーブル org_design_state（id='main' の1行にJSONで保存。版番号つき RPC org_design_save）
+  社員マスタ: ec_employees（社員番号・氏名・所属・役職・直属上司・在籍・適用開始日）は両アプリ共通。正式な異動は ec_transfers で
+              申請→承認→適用日に反映（サーバー関数・毎日0:05自動）。SQL未適用の環境では従来どおりに動作します。
   認証: ec-auth.js（会社Googleアカウント）。読込めない環境ではプレビューモードで動作（保存されません）
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -303,6 +305,46 @@ mark{background:#FFE89A;padding:0 1px}
 @media (max-width:820px){.mbodyw{grid-template-columns:1fr}.mtoc{display:none}.mcont{padding:16px 16px 60px}}
 @media print{body.printing-manual>*:not(#manual){display:none!important}body.printing-manual #manual{position:static;display:block}
   body.printing-manual .mh,body.printing-manual .mtoc{display:none!important}body.printing-manual .mbodyw{display:block}body.printing-manual .mcont{overflow:visible}}
+/* ===== ver.2026.10.18a 追加 ===== */
+.kbtn{float:right;margin:-2px -3px 0 6px;font-size:10.5px;line-height:1;padding:4px 6px;border-radius:999px;border:1px solid #C6D4E3;background:#fff;color:var(--cell);cursor:pointer;font-weight:700}
+.kbtn:hover{background:var(--cell);color:#fff}
+.mst{font-size:12px;color:var(--muted);background:var(--sky);border-radius:6px;padding:6px 10px;margin-top:10px}
+.kbox{display:flex;flex-direction:column;gap:8px;background:#F7FAFD;border:1px solid var(--grid);border-left:4px solid var(--sun);border-radius:var(--r-s);padding:10px 12px;font-size:13px}
+.kbox label{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.kbox label small{font-weight:400;margin-left:6px}
+.kbox p{margin:2px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}.chips span{font-size:11px;background:#E6ECF3;color:#1F4E79;border-radius:999px;padding:1px 8px}
+.un{color:#8A5A0B;background:#FFF3D6;border-radius:4px;padding:0 6px;font-size:12px}
+dl.pl{display:grid;grid-template-columns:9.5em 1fr;gap:3px 10px;margin:6px 0;font-size:12.5px}dl.pl dt{color:var(--muted)}dl.pl dd{margin:0;white-space:pre-wrap}
+.trt td.pcol{min-width:240px;max-width:420px}.trt summary{cursor:pointer;color:var(--ink)}
+.fu{border-top:1px solid var(--grid);padding:8px 0;font-size:13px}.fu .row small{color:var(--muted)}
+.fu.late .row small{color:var(--warn);font-weight:700}
+.fu p{margin:3px 0}.fu i,.td i{font-style:normal;color:var(--muted);font-size:11px;margin-right:6px}
+.fu-i{color:#2F6B47}.fu-u{color:#8A5A0B}
+.cpl{font-size:12.5px;margin:6px 0}.cpl summary{cursor:pointer;color:var(--cell)}
+.kind{display:inline-block;margin-left:6px;font-size:10.5px;background:#EEF3F8;border-radius:999px;padding:0 6px;color:var(--muted)}
+.mlm-set{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--paper);border:1px solid var(--grid);border-radius:var(--r-m);padding:10px 14px;margin:0 0 14px;font-size:13px}
+.tdh{font-size:15px;margin:18px 0 8px}
+.tdl{display:flex;flex-direction:column;gap:8px}
+.td{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:8px 14px;background:var(--paper);border:1px solid var(--grid);border-left:4px solid var(--cell);border-radius:var(--r-s);padding:10px 12px}
+.td.late{border-left-color:var(--warn)}.td.done{opacity:.55}
+.tdgo{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px}.tdgo b{color:var(--cell);text-decoration:underline}.tdgo span{font-size:12px;color:var(--muted)}
+.tdgo:focus-visible{outline:2px solid var(--cell);outline-offset:2px}
+.tdm{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;align-items:center}
+table.plan textarea{width:150px;min-height:52px;font-size:12px;border:1px solid #C6D4E3;border-radius:6px;padding:4px 6px}
+table.plan input{border:1px solid #C6D4E3;border-radius:6px;padding:3px 5px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.mailin{display:flex;flex-direction:column;gap:6px;margin-top:8px}.mailin input{border:1px solid #C6D4E3;border-radius:6px;padding:4px 6px}
+.noin{border:1px solid #C6D4E3;border-radius:6px;padding:3px 6px}
+@media (max-width:820px){
+  .td{grid-template-columns:1fr}
+  dl.pl{grid-template-columns:1fr}dl.pl dt{margin-top:4px}
+  .trt td.pcol{min-width:180px}
+  .kbtn{padding:6px 8px;font-size:11px}
+  .mbox{padding:16px 14px}
+}
+@media print{.kbtn,#retryBtn{display:none!important}}
+
 </style>
 </head>
 <body>
@@ -334,12 +376,15 @@ mark{background:#FFE89A;padding:0 1px}
   </aside>
   <section class="work">
     <div class="tabs" role="tablist">
+      <button role="tab" data-tab="todo" id="tabTodo" hidden>要対応<span class="cnt" id="cTodo" hidden></span></button>
       <button role="tab" data-tab="chart" aria-selected="true">組織図</button>
       <button role="tab" data-tab="pending">異動予定<span class="cnt" id="cPend" hidden></span></button>
       <button role="tab" data-tab="history">異動履歴</button>
       <button role="tab" data-tab="care">異動CARE<span class="cnt" id="cCare" hidden></span></button>
       <button role="tab" data-tab="diag">組織診断</button>
+      <button role="tab" data-tab="plan">未来組織計画</button>
       <button role="tab" data-tab="milme" id="tabMilme" hidden>ミルメ比較 🔒</button>
+      <button role="tab" data-tab="master" id="tabMaster" hidden>社員マスタ</button>
       <div class="zoom" id="zoomBox">
         <button id="zOut" aria-label="縮小">−</button>
         <button id="zReset">100%</button>
@@ -353,6 +398,7 @@ mark{background:#FFE89A;padding:0 1px}
   <span id="fStats"></span>
   <span class="sp"></span>
   <span class="save" id="saveState"></span>
+  <button class="btn sm sun" id="retryBtn" data-act="retrySave" hidden>保存を再試行</button>
   <button class="btn sm edit-only" id="saveBtn">保存</button>
   <button class="btn sm" id="pdfBtn">PDF出力</button>
   <button class="btn sm hide-sm" id="backupBtn">バックアップ</button>
@@ -377,10 +423,24 @@ const SPAN_LIMIT=8;
 
 /* ========== 状態 ========== */
 /* ========== バージョンと更新履歴 ========== */
-const APP_VERSION='ver.2026.10.01e';
+const APP_VERSION='ver.2026.10.18a';
 const SEEN_KEY='orgdesign_seen_version';
 /* 新しいものを上に。[版, 日付, [変更点...]] */
 const CHANGELOG=[
+  ['ver.2026.10.18a','2026/10/18',[
+    '社員情報（社員番号・氏名・所属・役職・直属上司・在籍・適用開始日）を、人材カルテと共通の「社員マスタ」で管理するようにしました。社員番号で対応付け、以後は変わらない共通社員IDで両アプリをつなぎます。氏名だけでは自動で紐付けません。',
+    '「社員マスタ」タブを追加。社員番号の未登録・重複・氏名の食い違いを確認一覧に出し、確認してから連携します。',
+    '異動の申請に「解決したい組織課題・目的・任せる役割・期待する成果・根拠・本人の希望・未確認事項・上司の支援・異動前の指標・30日／90日の目標・確認担当者」を追加しました。',
+    '承認した異動は、異動日にサーバーが自動で反映します（アプリを開いていなくても反映）。承認前の異動やシナリオの変更は、正式組織に反映されません。',
+    '異動CAREを「7日後・30日後・90日後の検証」に変更。何が改善し、何が未解決か、90日後の判断（継続・役割調整・追加育成・配置再検討）を残します。人材カルテの1on1からも同じ項目に記録されます。',
+    '社員カードと詳細画面に「人材カルテを開く」を追加。詳細画面では、役割と結果責任・直近の成果・本人の希望・強みが出る条件・育成テーマ・上司が試している関わり方・次回面談日を表示します（閲覧権限の範囲内）。',
+    'ミルメ比較を共通保存（サーバー側で閲覧を制限）に変更。受検日・検査条件・出典・確認者を記録し、差が基準を「超える」組み合わせを「関わり方の確認対象」として表示します（25点基準なら25点は対象外、26点は対象）。基準は管理者が出典つきで変更できます。',
+    '組織診断に「管理負荷」を追加。部署人数ではなく直属部下数で見て、基準（全社8名・部署ごとに変更可）、新入社員、異動フォロー中、兼務を確認できます。',
+    '「未来組織計画」タブを追加。シナリオごとに部署の目標・業務量・必要な役割と人数・不足・採用／異動／育成の計画・人件費の概算（計算式つき）を比較できます。',
+    '社長・管理者向けに「要対応」タブを追加。承認待ち、責任者不在、管理負荷、補う役割、期限超過のレビュー、上司の支援行動、情報不足を担当・期限・次の行動つきで一覧にします。',
+    '同時に編集したときの上書きを防ぎます。重ならない変更は自動で統合し、重なった項目はどちらを残すか選べます。保存に失敗したときは「保存済み」と表示せず、入力内容を端末に保持して再試行できます。',
+    '機密メモは管理者だけが読めるサーバー側の保存先に移しました（共有データには入りません）。'
+  ]],
   ['ver.2026.10.01e','2026/10/01',[
     '社長・副社長だけが見られる「ミルメ比較」タブを追加しました。ミルメの受検結果Excelを読み込むと、【基礎】点数・【応用】処理数の最高値・【応用】失敗平均・【応用】FP率平均を、組織図の社員と自動で結び付けて表示します。',
     '上司と部下の【応用】処理数（最高値）の差を一覧にし、差が25以上の組み合わせを赤で表示します。直属上司が未設定の人は、部署上の上位者と比較することもできます。',
@@ -470,7 +530,9 @@ const descendants=id=>{const out=[];const walk=x=>children(x).forEach(c=>{out.pu
 const rank=t=>TITLES.indexOf(t);
 const sortPeople=(a,b)=>(b.isHead-a.isHead)||((a.status==='採用予定')-(b.status==='採用予定'))||(rank(b.title)-rank(a.title))||a.name.localeCompare(b.name,'ja');
 const isActive=p=>p.status==='在籍'||p.status==='休職';
-const pendingOf=pid=>isOfficial()?D.pending.find(x=>x.personId===pid):null;
+const pendingOf=pid=>{if(!isOfficial())return null;const l=D.pending.find(x=>x.personId===pid);if(l||!MS.on)return l||null;
+  const p=D.official.people.find(x=>x.id===pid);const t=p&&p.empId?openTransferOf(p.empId):null;
+  return t?{to:t.to_dept_id,date:t.effective_date,status:t.status==='approved'?'approved':'draft',bossTo:t.change_manager?(personByEmp(t.to_manager_id)?.id||''):'__keep'}:null};
 
 function stats(o){
   const act=o.people.filter(isActive);
@@ -478,6 +540,7 @@ function stats(o){
   let spans=[];
   o.depts.forEach(d=>{const mem=o.people.filter(p=>p.deptId===d.id&&isActive(p));const heads=mem.filter(p=>p.isHead);
     if(heads.length){const sub=mem.length-heads.length+children(d.id,o).length;spans.push(sub)}});
+  const direct=act.map(m=>act.filter(x=>x.bossId===m.id).length).filter(n=>n>0);if(direct.length)spans=direct;
   return {head:act.length,mgr,span:spans.length?(spans.reduce((a,b)=>a+b,0)/spans.length):0,depts:o.depts.length,
     hire:o.people.filter(p=>p.status==='採用予定'||p.status==='内定').length,
     unassigned:o.people.filter(p=>!p.deptId||!deptById(p.deptId,o)).length};
@@ -486,15 +549,19 @@ function stats(o){
 /* ========== 描画 ========== */
 function render(){
   if(V.tab==='milme'&&!canMilme())V.tab='chart';
+  if((V.tab==='master'||V.tab==='todo')&&!canEdit())V.tab='chart';
   renderHeader();renderStats();renderBanner();renderSide();renderPane();
   document.body.classList.toggle('ro',!canEdit());
   document.querySelectorAll('.edit-only').forEach(b=>b.hidden=!canEdit());
   const cp=$('#cPend'),cc=$('#cCare');
-  cp.hidden=!D.pending.length;cp.textContent=D.pending.length;
-  const openCare=D.care.filter(c=>c.items.some(i=>!i.done)).length;cc.hidden=!openCare;cc.textContent=openCare;
+  const pendN=D.pending.length+(MS.on?MS.tr.filter(t=>t.status==='draft'||t.status==='approved').length:0);
+  cp.hidden=!pendN;cp.textContent=pendN;
+  const openCare=D.care.filter(c=>c.items.some(i=>!i.done)).length+(MS.on?new Set(MS.fu.filter(f=>f.status!=='done').map(f=>f.transfer_id)).size:0);cc.hidden=!openCare;cc.textContent=openCare;
+  if(canEdit()){try{const n=todoItems().filter(i=>!i.done).length;const ct=$('#cTodo');ct.hidden=!n;ct.textContent=n}catch(e){}}
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===V.tab));
   $('#zoomBox').style.visibility=V.tab==='chart'?'visible':'hidden';
   $('#tabMilme').hidden=!canMilme();
+  $('#tabMaster').hidden=!canEdit();$('#tabTodo').hidden=!canEdit();
   if(V.sel)renderDrawer();
 }
 function renderHeader(){
@@ -521,6 +588,8 @@ function renderBanner(){
       ${canEdit()?`<button class="btn sm" data-act="scnEdit">設定</button><button class="btn sm del" data-act="scnDel">削除</button>`:''}
       ${canApprove()?`<button class="btn sm sun" data-act="scnAdopt">この案を正式組織にする</button>`:''}</div>`;
   }
+  if(!MS.on&&mode==='live'&&canEdit())h+=`<div class="sample">社員マスタ（人材カルテとの共通化）のデータベース更新が未適用のため、従来の方式で動いています。${MS.err?esc(MS.err):'移行手順書に沿って SQL を実行してください。'}</div>`;
+  if(MS.on&&MS.mode==='mock')h+=`<div class="sample">プレビュー：社員マスタ・異動・ミルメはこのタブの中だけで動く見本です（保存されません）。</div>`;
   if(D.isSample)h+=`<div class="sample">表示中の社員はサンプルです。「取込」から役割定義シートなどを貼り付けると、実データに置き換わります。</div>`;
   $('#banner').innerHTML=h;
 }
@@ -538,7 +607,7 @@ function card(p){
   const hit=q&&(p.name+p.roleName+p.title+p.skills+p.tags.join('')).includes(q);
   const cls=['card',p.isHead?'lead':'',p.status==='採用予定'?'slot':'',pend?'pend':'',q?(hit?'hit':'dim'):''].join(' ');
   return `<div class="${cls}" data-pid="${p.id}" tabindex="0" role="button" aria-label="${esc(p.name)}の詳細">
-    <div class="cn">${esc(p.name)}</div>
+    <div class="cn">${esc(p.name)}${MS.on&&isOfficial()&&p.empId?`<button class="kbtn" data-act="openKarte" data-id="${p.id}" aria-label="${esc(p.name)}の人材カルテを開く" title="人材カルテを開く">カルテ</button>`:''}</div>
     <div class="cm">${esc(p.title)}${p.isHead?' ｜ <span class="head">部門長</span>':''}${p.roleName?' ｜ '+esc(p.roleName):''}</div>
     ${(()=>{const b=bossOf(p);return b?`<div class="cboss">上司：${esc(b.name)}</div>`:''})()}
     <div class="cs"><i class="dot s-${STATUS_KEY[p.status]||'on'}"></i>${esc(p.status)}${(p.tags||[]).map(t=>`<span class="tag">★ ${esc(t)}</span>`).join('')}</div>
@@ -559,11 +628,14 @@ function renderPane(){
       <div class="tree"><ul>${roots().map(deptNode).join('')}</ul></div></div>`;
     $('#zReset').textContent=Math.round(V.zoom*100)+'%';
     if(!V.centered){V.centered=true;requestAnimationFrame(()=>{pane.scrollLeft=(pane.scrollWidth-pane.clientWidth)/2})}
-  }else if(V.tab==='pending')pane.innerHTML=pendingView();
-  else if(V.tab==='history')pane.innerHTML=historyView();
-  else if(V.tab==='care')pane.innerHTML=careView();
+  }else if(V.tab==='pending')pane.innerHTML=MS.on?masterPendingView():pendingView();
+  else if(V.tab==='history')pane.innerHTML=MS.on?masterHistoryView():historyView();
+  else if(V.tab==='care')pane.innerHTML=MS.on?masterCareView():careView();
   else if(V.tab==='diag')pane.innerHTML=diagView();
-  else if(V.tab==='milme')pane.innerHTML=canMilme()?milmeView():'';
+  else if(V.tab==='plan')pane.innerHTML=planView();
+  else if(V.tab==='todo')pane.innerHTML=canEdit()?todoView():'';
+  else if(V.tab==='master')pane.innerHTML=canEdit()?masterView():'';
+  else if(V.tab==='milme')pane.innerHTML=canMilme()?(MS.on?milmeMasterView():milmeView()):'';
 }
 function pendingView(){
   const t=today();
@@ -626,10 +698,11 @@ function diagnose(o=org()){
   return out;
 }
 function diagView(){
-  const list=diagnose();
-  return `<div class="sheet"><h2>組織診断${isOfficial()?'（正式組織）':'（シナリオ：'+esc(org().name)+'）'}</h2>
-    <p class="lead">配置から読み取れる組織構造上の論点です。評価や昇格・降格を決めるものではなく、経営判断の材料として使います。</p>
-    <div class="diag">${list.map(x=>`<div class="dg ${x.lv==='info'?'info':''}"><b>${x.lv==='warn'?'⚠ ':''}${esc(x.t)}</b><span>${esc(x.s)}</span></div>`).join('')||'<div class="nodata">構造上の目立った論点は見つかりませんでした。</div>'}</div>
+  const list=diagnose2();
+  return `<div class="sheet" style="max-width:1200px"><h2>組織診断${isOfficial()?'（正式組織）':'（シナリオ：'+esc(org().name)+'）'}</h2>
+    <p class="lead">配置から読み取れる組織構造上の論点です。評価や昇格・降格を決めるものではなく、経営判断の材料として使います。部門長不在・直属上司未設定・一人依存・管理負荷の集中を確認できます。</p>
+    <div class="diag">${list.map(x=>`<div class="dg ${x.lv==='info'?'info':''}"><b>${x.lv==='warn'?'⚠ ':''}${esc(x.t)}</b><span>${esc(x.s)}</span>${x.goto?`<button class="btn sm" style="align-self:flex-start;margin-top:4px" data-act="diagGo" data-go="${esc(JSON.stringify(x.goto))}">該当箇所へ</button>`:''}</div>`).join('')||'<div class="nodata">構造上の目立った論点は見つかりませんでした。</div>'}</div>
+    ${loadTableHTML()}<div style="height:16px"></div>
     <div class="row" style="margin-bottom:12px"><button class="btn sun" data-act="aiRun">AIに改善案を出してもらう</button><span class="note">部署構成と人数・役職のみを送ります（機密メモは送りません）</span></div>
     ${V.aiText?`<div class="aiout">${esc(V.aiText)}</div>`:''}</div>`;
 }
@@ -640,7 +713,7 @@ async function runAI(){
       役職構成:TITLES.map(t=>`${t}${mem.filter(p=>p.title===t&&isActive(p)).length}`).filter(x=>!x.endsWith('0')).join(' '),採用予定:mem.filter(p=>p.status==='採用予定').length}});
   const sc=isOfficial()?null:o;
   const system='あなたは再生可能エネルギー企業「株式会社アースコム」の組織設計アドバイザーです。識学の考え方（責任と権限の明確化、1上司1部下の指揮系統、部門長の結果責任）を前提に、組織構造上の論点と改善案を日本語で示します。個人の評価・昇格・降格は判断しません。';
-  const prompt=`以下の組織データを診断し、次の構成でプレーンテキスト（Markdown記号・HTMLタグは使わない）で回答してください。\n■ 全体所見（3行以内）\n■ 優先度の高い論点（最大4つ。各「論点／理由／打ち手」）\n■ 組織案の提案（1〜2案）\n全体で1,200字以内にまとめること。\n${sc?`\nシナリオ名：${sc.name}／対象時期：${sc.when||'未設定'}／目標人数：${sc.target||'未設定'}`:''}\nルール診断の結果：${JSON.stringify(diagnose().map(x=>x.t))}\n組織データ：${JSON.stringify(summary)}`;
+  const prompt=`以下の組織データを診断し、次の構成でプレーンテキスト（Markdown記号・HTMLタグは使わない）で回答してください。\n■ 全体所見（3行以内）\n■ 優先度の高い論点（最大4つ。各「論点／理由／打ち手」）\n■ 組織案の提案（1〜2案）\n全体で1,200字以内にまとめること。\n${sc?`\nシナリオ名：${sc.name}／対象時期：${sc.when||'未設定'}／目標人数：${sc.target||'未設定'}`:''}\nルール診断の結果：${JSON.stringify(diagnose2().map(x=>x.t))}\n組織データ：${JSON.stringify(summary)}`;
   V.aiText='AIが診断しています…';renderPane();
   try{V.aiText=await callAI(prompt,system)}catch(e){V.aiText='AIの診断ができませんでした（'+e.message+'）。少し時間をおいて、もう一度「AIに改善案を出してもらう」を押してください。続く場合はログインし直してください。'}
   renderPane();
@@ -686,7 +759,7 @@ const MILME_VIEWERS=['丸林信宏','丸林綾子'];
 const MILME_EMAILS=[];
 const MILME_KEY='ecod_milme_v1';
 const nkey=t=>String(t||'').replace(/[\s\u3000]/g,'');
-const canMilme=()=>mode==='preview'||MILME_VIEWERS.includes(nkey(me.name))||MILME_EMAILS.includes(String(me.email||'').toLowerCase());
+const canMilme=()=>MS.on?MS.canSens:(mode==='preview'||MILME_VIEWERS.includes(nkey(me.name))||MILME_EMAILS.includes(String(me.email||'').toLowerCase()));
 const MV={only:false,auto:true,th:25};
 function milmeData(){if(!canMilme())return null;try{return JSON.parse(localStorage.getItem(MILME_KEY)||'null')}catch(e){return null}}
 function milmeMap(){const d=milmeData();const m=new Map();(d?.rows||[]).forEach(r=>m.set(nkey(r.name),r));return m}
@@ -728,7 +801,7 @@ function milmePairs(){
     if(!b)return;
     const ms=mm.get(nkey(p.name)),mb=mm.get(nkey(b.name));
     const gap=ms&&mb&&ms.procMax!=null&&mb.procMax!=null?mb.procMax-ms.procMax:null;
-    pairs.push({p,b,rel,ms,mb,gap,bad:gap!=null&&Math.abs(gap)>=MV.th});
+    pairs.push({p,b,rel,ms,mb,gap,bad:gap!=null&&Math.abs(gap)>MV.th});
   });
   return pairs;
 }
@@ -762,13 +835,13 @@ function milmeView(){
     <td class="n">${f1(m.basic)}</td><td class="n">${f1(m.procMax)} <span class="sub">${esc(m.procWhich)}</span></td><td class="n">${f1(m.fail)}</td><td class="n">${f2(m.fp)}</td></tr>`).join('');
   const notIn=d.rows.filter(r=>!inOrg.has(nkey(r.name)));
   const noData=D.official.people.filter(p=>p.status!=='採用予定'&&p.status!=='退職'&&!mm.has(nkey(p.name)));
-  return `<div class="sheet" style="max-width:1240px"><h2>ミルメ比較</h2><p class="lead">上司と部下の【応用】処理数（応用1〜3のうち一番高い回）の差を比べます。差が${MV.th}以上の組み合わせは赤で表示します。数字は「上司 / 部下」の順です。</p>${top}
-    <div class="mlm-kpi"><div><small>比較した組み合わせ</small><b>${all.length}</b></div><div class="bad"><small>差が${MV.th}以上</small><b>${bad.length}</b></div><div><small>比べられない（データなし）</small><b>${all.filter(x=>x.gap==null).length}</b></div></div>
-    <div class="mlm-opts"><label class="chk"><input type="checkbox" data-mf="only" ${MV.only?'checked':''}> 差が基準以上だけ表示</label>
+  return `<div class="sheet" style="max-width:1240px"><h2>ミルメ比較</h2><p class="lead">上司と部下の【応用】処理数（応用1〜3のうち一番高い回）の差を比べます。差が${MV.th}を超える組み合わせを「関わり方の確認対象」として赤で表示します（相性の良し悪しを示すものではありません）。数字は「上司 / 部下」の順です。</p>${top}
+    <div class="mlm-kpi"><div><small>比較した組み合わせ</small><b>${all.length}</b></div><div class="bad"><small>差が${MV.th}を超える</small><b>${bad.length}</b></div><div><small>比べられない（データなし）</small><b>${all.filter(x=>x.gap==null).length}</b></div></div>
+    <div class="mlm-opts"><label class="chk"><input type="checkbox" data-mf="only" ${MV.only?'checked':''}> 差が基準を超えるものだけ表示</label>
       <label class="chk"><input type="checkbox" data-mf="auto" ${MV.auto?'checked':''}> 直属上司が未設定の人は、部署上の上位者と比較</label>
-      <label>赤にする差 <input type="number" min="1" data-mf="th" value="${MV.th}"> 以上</label></div>
+      <label>赤にする差 <input type="number" min="1" data-mf="th" value="${MV.th}"> を超える</label></div>
     ${rows?`<div style="overflow-x:auto"><table class="mlm-t"><thead><tr><th>上司</th><th>部下</th><th>関係</th><th class="n">【基礎】点数</th><th class="n">【応用】処理数 最高</th><th class="n">処理数の差</th><th class="n">【応用】失敗平均</th><th class="n">【応用】FP率平均</th></tr></thead><tbody>${rows}</tbody></table></div>`
-      :`<div class="nodata">${MV.only?`差が${MV.th}以上の組み合わせはありません。`:'比べられる上司・部下の組み合わせがありません。直属上司を設定するか、「部署上の上位者と比較」にチェックを入れてください。'}</div>`}
+      :`<div class="nodata">${MV.only?`差が${MV.th}を超える組み合わせはありません。`:'比べられる上司・部下の組み合わせがありません。直属上司を設定するか、「部署上の上位者と比較」にチェックを入れてください。'}</div>`}
     <h2 style="margin-top:28px">社員ごとの結果</h2><p class="lead">組織図の社員と一致した${people.length}名を、【応用】処理数の最高値が高い順に並べています。</p>
     <div style="overflow-x:auto"><table class="mlm-t"><thead><tr><th>氏名</th><th>区分</th><th>所属</th><th>直属上司</th><th class="n">【基礎】点数</th><th class="n">【応用】処理数 最高</th><th class="n">【応用】失敗平均</th><th class="n">【応用】FP率平均</th></tr></thead><tbody>${prow}</tbody></table></div>
     ${notIn.length?`<div class="mlm-box"><b>組織図にいない受検者 ${notIn.length}名</b>（氏名の表記が違う可能性があります）<br>${notIn.map(r=>esc(r.name)).join('、')}</div>`:''}
@@ -783,7 +856,7 @@ function milmeDrawer(p){
     <label>処理数 最高</label><span>${f1(m.procMax)}（${esc(m.procWhich)}）</span>
     <label>失敗平均</label><span>${f1(m.fail)}</span>
     <label>FP率平均</label><span>${f2(m.fp)}</span></div>
-    ${gap!=null?`<div class="mlm-box ${Math.abs(gap)>=MV.th?'bad':''}">直属上司 ${esc(b.name)}（処理数 最高 ${f1(mb.procMax)}）との差：<b>${gap>0?'+':''}${f1(gap)}</b>${Math.abs(gap)>=MV.th?`　差が${MV.th}以上です`:''}</div>`:''}`;
+    ${gap!=null?`<div class="mlm-box ${Math.abs(gap)>MV.th?'bad':''}">直属上司 ${esc(b.name)}（処理数 最高 ${f1(mb.procMax)}）との差：<b>${gap>0?'+':''}${f1(gap)}</b>${Math.abs(gap)>MV.th?`　差が${MV.th}を超えています（関わり方の確認対象）`:''}</div>`:''}`;
 }
 document.addEventListener('change',e=>{
   if(e.target.id==='milmeFile'&&e.target.files[0]){importMilme(e.target.files[0]);return}
@@ -806,9 +879,12 @@ function renderDrawer(){
   const plink=x=>`<button class="plink" data-act="openPerson" data-id="${x.id}">${esc(x.name)}</button><small>${esc(x.title)}｜${esc(deptName(x.deptId))}${x.status==='退職'?'｜退職':''}</small>`;
   const hist=D.history.filter(h=>h.personId===p.id);
   const pend=pendingOf(p.id);
-  dr.innerHTML=`<header><b style="flex:1;font-size:17px">${esc(p.name)}</b><button class="btn sm" data-act="closeDrawer">閉じる</button></header>
+  const me2=MS.on&&isOfficial()?empOf(p):null;
+  dr.innerHTML=`<header><b style="flex:1;font-size:17px">${esc(p.name)}</b>${me2?`<button class="btn sm pri" data-act="openKarte" data-id="${p.id}">人材カルテを開く</button>`:''}<button class="btn sm" data-act="closeDrawer">閉じる</button></header>
   <div class="body">
     ${pend?`<div class="dg" style="margin-top:12px"><b>${esc(deptName(pend.to))}へ ${esc(pend.date)} 異動予定</b><span>${pend.status==='approved'?'承認済み。異動日に自動で反映されます':'異動予定タブで【承認】すると反映されます'}</span></div>`:''}
+    ${MS.on&&isOfficial()?`<div class="mst">${me2?`社員番号 <b>${esc(me2.employee_no||'未登録')}</b>｜所属・上司の適用開始日 ${esc(me2.effective_from||'—')}｜社員マスタ更新 ${esc(String(me2.updated_at||'').slice(0,10))}`:'<b>社員マスタ未連携</b>（社員番号を設定すると、人材カルテとつながります）'}</div>`:''}
+    ${karteBoxHTML(p)}
     <h5>上司・部下</h5>
     <div class="fg">
       <label>直属上司</label><div class="plist">${boss?`<div>${plink(boss)}</div>`:`<span>未設定${auto?`<small>（部署上の上位者：${esc(auto.name)}）</small>`:''}</span>`}</div>
@@ -835,7 +911,8 @@ function renderDrawer(){
     ${hist.length?`<ul class="mini">${hist.map(h=>`<li>${esc(h.date)}　${h.kind?esc(h.kind)+'：':''}${esc(h.from)} → ${esc(h.to)}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
     <div class="note" style="margin-top:8px">上司変更履歴</div>
     ${bh.length?`<ul class="mini">${bh.map(h=>`<li>${esc(h.date)}　${esc(h.from)} → ${esc(h.to)}${h.reason?`<span class="note">（${esc(h.reason)}）</span>`:''}</li>`).join('')}</ul>`:'<div class="note">記録なし</div>'}
-    ${milmeDrawer(p)}
+    ${MS.on?milmeMasterDrawer(p):milmeDrawer(p)}
+    ${me2?(()=>{const hs=MS.hist.filter(h=>h.employee_id===me2.id).sort((a,b)=>String(b.recorded_at).localeCompare(String(a.recorded_at))).slice(0,8);return hs.length?`<div class="note" style="margin-top:8px">社員マスタの変更履歴（出典つき）</div><ul class="mini">${hs.map(h=>`<li>${esc(h.effective_from||'')}　${esc(h.after?.department_name||'')}・${esc(h.after?.position||'')}${h.after?.manager_id?'・上司 '+esc(nameOfEmp(h.after.manager_id)):''}<span class="note">（${esc({transfer:'異動',edit:'編集',correction:'訂正',migration:'移行',create:'登録'}[h.source]||h.source||'')}）</span></li>`).join('')}</ul>`:''})():''}
     <h5>人材情報</h5>
     <div class="fg">
       <label>タグ</label><input data-f="tags" value="${esc((p.tags||[]).join('、'))}" placeholder="例：次世代幹部、宅建" ${ro}>
@@ -843,7 +920,7 @@ function renderDrawer(){
       <label>育成テーマ</label><textarea data-f="growth" ${ro}>${esc(p.growth)}</textarea>
       <label>キャリア希望</label><textarea data-f="career" ${ro}>${esc(p.career)}</textarea>
     </div>
-    ${seeSecret()?`<h5>機密メモ（管理者のみ表示）</h5><div class="secret"><textarea data-f="secret" style="width:100%;min-height:70px;border:1px solid #E8BDB3;border-radius:6px;padding:6px 8px" placeholder="評価・処遇など">${esc(p.secret)}</textarea></div>`:''}
+    ${seeSecret()?`<h5>機密メモ（管理者のみ表示${MS.on?'・サーバー側でも管理者だけが読めます':''}）</h5><div class="secret"><textarea data-f="secret" style="width:100%;min-height:70px;border:1px solid #E8BDB3;border-radius:6px;padding:6px 8px" placeholder="評価・処遇など">${esc(MS.on?(MS.secrets[p.id]?.memo||''):p.secret)}</textarea></div>`:''}
     ${canEdit()?`<div class="row" style="margin-top:22px"><button class="btn del" data-act="delPerson">この社員を削除</button></div>`:''}
   </div>`;
   dr.classList.add('open');dr.setAttribute('aria-hidden','false');
@@ -903,6 +980,14 @@ function closeDrawer(){V.sel=null;const dr=$('#drawer');dr.classList.remove('ope
 $('#drawer').addEventListener('change',e=>{
   const f=e.target.dataset.f;if(!f)return;const p=person(V.sel);if(!p)return;
   if(f==='deptId'){const to=e.target.value||null;e.target.value=p.deptId||'';requestMove(p.id,to);return}
+  if(f==='secret'&&MS.on){if(!seeSecret())return;const v=e.target.value;BK().saveSecret(p.id,v).then(()=>{MS.secrets[p.id]={memo:v};toast('機密メモを保存しました')}).catch(err=>toast('機密メモを保存できませんでした（入力は画面に残っています）：'+err.message));return}
+  if(MS.on&&isOfficial()&&p.empId){
+    if(!canEdit())return;
+    if(f==='bossId'){const v=e.target.value||'';e.target.value=p.bossId||'';masterRequestMove(p,p.deptId,{bossOnly:true,bossTo:v});return}
+    if(MFIELD[f]){const v=e.target.value;e.target.value=p[f];
+      if(f==='status'&&v==='退職'){warnSubs(p,'退職にしても部下の直属上司は自動では外れません。部下ごとに異動申請で新しい上司を設定してください。').then(ok=>{if(ok)masterFieldEdit(p,f,v)});return}
+      masterFieldEdit(p,f,v);return}
+  }
   if(f==='bossId'){if(!canEdit())return;const ch=setBoss(p,e.target.value||null,'社員情報の編集');if(ch){dirty();toast('直属上司を変更しました：'+ch)}render();renderDrawer();return}
   if(f==='status'&&e.target.value==='退職'&&p.status!=='退職'){const v=e.target.value;e.target.value=p.status;
     warnSubs(p,'退職にしても部下の直属上司は自動では外れません。部下の詳細から新しい上司を設定してください。').then(ok=>{if(!ok)return;p.status=v;dirty();render();renderDrawer()});return}
@@ -920,6 +1005,11 @@ function warnReadOnly(){
 async function requestMove(pid,to){
   const p=person(pid);if(!p||(p.deptId||null)===(to||null))return;
   if(!canEdit()){warnReadOnly();return}
+  if(MS.on&&isOfficial()){
+    if(p.empId)return masterRequestMove(p,to);
+    if(p.status==='採用予定'){const c=await modal({title:'採用予定枠の移動',body:`<div>採用予定枠「${esc(p.name)}」を ${esc(deptName(to))} へ移します（社員ではないため異動申請は不要です）。</div>`,actions:[{label:'やめる',key:null},{label:'移す',key:'ok',kind:'pri'}]});if(c.key){p.deptId=to;dirty();render()}return}
+    return needLinkModal(p);
+  }
   const off=isOfficial();const from=p.deptId;
   const body=`<div class="movebox"><b>${esc(p.name)}</b>さんを<br>${esc(deptName(from))} → <b>${esc(deptName(to))}</b> へ${off?'異動しますか？':'移動しますか？'}</div>
     ${off?`<label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>理由・メモ（任意）<input name="reason" placeholder="例：東京支社立上げのため"></label>`:''}
@@ -976,12 +1066,14 @@ function applyDueMoves(){
     applyMove(x.personId,x.to,x.date,x.reason,D.official,{kind:'反映',by:'自動反映（承認：'+(x.approvedBy||'')+'）',noCare:true,bossTo:x.bossTo})});
   return due.length;
 }
-function runDue(){if(!D)return;const n=applyDueMoves();if(n){if(canEdit())dirty();render();toast(`異動日を迎えた${n}件を組織図に反映しました`)}}
+function runDue(){if(!D)return;
+  if(MS.on){(async()=>{try{const n=await BK().applyDue();await masterReload();const c=syncOfficialFromMaster();if(n||c){if(canEdit())dirty();render();if(n)toast(`異動日を迎えた${n}件を正式組織に反映しました`)}}catch(e){console.warn(e)}})();return}
+  const n=applyDueMoves();if(n){if(canEdit())dirty();render();toast(`異動日を迎えた${n}件を組織図に反映しました`)}}
 
 /* ========== ドラッグ＆ドロップ（マウス／タッチ長押し） ========== */
 let drag=null;
 document.addEventListener('pointerdown',e=>{
-  const c=e.target.closest('.card');if(!c||e.button>0)return;
+  const c=e.target.closest('.card');if(!c||e.button>0)return;if(e.target.closest('.kbtn'))return;
   drag={pid:c.dataset.pid,el:c,x:e.clientX,y:e.clientY,type:e.pointerType,on:false,moved:false,timer:null};
   if(canEdit()&&e.pointerType!=='mouse')drag.timer=setTimeout(()=>startDrag(e.clientX,e.clientY),420);
 });
@@ -1041,9 +1133,10 @@ async function deptMenu(id){
   const d=deptById(id);if(!d)return;
   const r=await modal({title:'部署の設定',body:`<label>部署名<input name="name" value="${esc(d.name)}"></label>
     <label>上位部署<select name="parent">${deptOptions(d.parentId,[id,...descendants(id)])}</select></label>
-    <label>色<select name="hue">${HUES.map((h,i)=>`<option value="${i}" ${i===(d.hue%HUES.length)?'selected':''}>色${i+1}</option>`).join('')}</select></label>`,
+    <label>色<select name="hue">${HUES.map((h,i)=>`<option value="${i}" ${i===(d.hue%HUES.length)?'selected':''}>色${i+1}</option>`).join('')}</select></label>
+    <label>管理人数の基準（1人の上司あたりの直属部下数。空欄は全社基準 ${spanDefault()}名）<input name="span" type="number" min="1" value="${d.spanLimit||''}"></label>`,
     actions:[{label:'削除',key:'del',kind:'del'},{label:'下位部署を追加',key:'child'},{label:'採用予定枠を追加',key:'slot'},{label:'保存',key:'ok',kind:'pri'}]});
-  if(r.key==='ok'){d.name=r.form.name.trim()||d.name;d.parentId=r.form.parent||null;d.hue=+r.form.hue}
+  if(r.key==='ok'){d.name=r.form.name.trim()||d.name;d.parentId=r.form.parent||null;d.hue=+r.form.hue;d.spanLimit=parseInt(r.form.span,10)>0?parseInt(r.form.span,10):null}
   else if(r.key==='child'){return addDept(id)}
   else if(r.key==='slot'){org().people.push(newPerson({name:`（${d.name} 採用予定）`,deptId:id,status:'採用予定'}));toast('採用予定枠を追加しました')}
   else if(r.key==='del'){
@@ -1064,10 +1157,19 @@ async function addPerson(){
     <label>所属<select name="dept"><option value="">未配置</option>${o.depts.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></label>
     <label>役職<select name="title">${TITLES.map(t=>`<option>${t}</option>`).join('')}</select></label>
     <label>在籍状況<select name="status">${STATUS.filter(t=>t!=='退職').map(t=>`<option>${t}</option>`).join('')}</select></label>
-    <label>直属上司</label>${bossPicker({self:null,sel:'',attr:'name="boss"'})}`,
+    <label>直属上司</label>${bossPicker({self:null,sel:'',attr:'name="boss"'})}
+    ${MS.on&&isOfficial()?`<label>社員番号（社員マスタに登録します。採用予定枠は不要）<input name="no" placeholder="例：E1024"></label><label>会社のメールアドレス（人材カルテの閲覧権限に使います）<input name="mail" type="email" placeholder="name@earthcom-eco.jp"></label>`:''}`,
     actions:[{label:'やめる',key:null},{label:'追加する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
   if(!r.key)return;
   const p=newPerson({name:r.form.name.trim(),deptId:r.form.dept||null,title:r.form.title,status:r.form.status});
+  if(MS.on&&isOfficial()&&r.form.status!=='採用予定'){
+    const no=(r.form.no||'').trim();if(no&&MS.emps.some(e=>e.employee_no===no)){toast('この社員番号はすでに社員マスタにあります。社員マスタタブで確認してください');return}
+    const bp=r.form.boss?o.people.find(x=>x.id===r.form.boss):null;
+    try{const e=await BK().createEmp({employee_no:no||null,full_name:p.name,email:(r.form.mail||'').trim().toLowerCase()||null,department_id:p.deptId,department_name:p.deptId?deptName(p.deptId,o):null,position:p.title,status:p.status,effective_from:today(),manager_id:bp?.empId||null});
+      p.empId=e.id;p.empNo=e.employee_no||'';o.people.push(p);if(bp)p.bossId=bp.id;await masterReload();dirty();V.sel=p.id;render();toast(no?'社員マスタに登録しました':'社員マスタに登録しました（社員番号は未登録です。社員マスタタブで登録してください）');}
+    catch(err){toast('登録できませんでした：'+err.message)}
+    return;
+  }
   o.people.push(p);if(r.form.boss)setBoss(p,r.form.boss,'新規登録');dirty();V.sel=p.id;render();
 }
 
@@ -1108,16 +1210,23 @@ async function scnForm(sc){
   const r=await modal({title:sc?'シナリオの設定':'シナリオを作成',body:`<label>シナリオ名<input name="name" value="${esc(sc?.name||'')}" placeholder="例：2027年4月・60名体制"></label>
     <label>対象時期<input name="when" value="${esc(sc?.when||'')}" placeholder="例：2027年4月"></label>
     <label>目標人数（任意）<input name="target" type="number" min="0" value="${sc?.target||''}"></label>
+    <label>案の種別<select name="kind"><option value="">—</option>${SC_KINDS.map(k=>`<option value="${k}" ${k===sc?.kind?'selected':''}>${k}案</option>`).join('')}</select></label>
+    <div class="row" style="gap:8px"><label style="flex:1">対象期間（開始）<input name="from" type="month" value="${esc(sc?.from||'')}"></label><label style="flex:1">（終了）<input name="to" type="month" value="${esc(sc?.to||'')}"></label></div>
+    <label>責任者<input name="owner" value="${esc(sc?.owner||'')}"></label>
+    <label>1人あたり想定年間人件費（万円・概算の前提）<input name="unit" type="number" min="0" value="${sc?.unitCost||''}"></label>
+    <label>人件費の前提の説明（出典など）<input name="costNote" value="${esc(sc?.costNote||'')}" placeholder="例：営業職の平均（給与＋法定福利費）18期実績"></label>
     ${sc?'':`<label>元にする組織<select name="base"><option value="official">正式組織（現在）</option>${D.scenarios.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>`}`,
     actions:[{label:'やめる',key:null},{label:sc?'保存':'作成する',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=name]').value.trim()}]});
   if(!r.key)return;
-  if(sc){Object.assign(sc,{name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0})}
+  const ext={kind:r.form.kind||'',from:r.form.from||'',to:r.form.to||'',owner:r.form.owner||'',unitCost:+r.form.unit||0,costNote:r.form.costNote||''};
+  if(sc){Object.assign(sc,{name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0},ext)}
   else{const base=r.form.base==='official'?D.official:D.scenarios.find(s=>s.id===r.form.base);
-    const s={id:uid('s'),name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0,...JSON.parse(JSON.stringify({depts:base.depts,people:base.people}))};
+    const s={id:uid('s'),name:r.form.name.trim(),when:r.form.when,target:+r.form.target||0,...ext,plans:{},...JSON.parse(JSON.stringify({depts:base.depts,people:base.people}))};
     D.scenarios.push(s);V.scn=s.id;V.tab='chart'}
   dirty();render();
 }
 async function adoptScenario(){
+  if(MS.on)return adoptScenarioMaster();
   const sc=org();const moves=sc.people.filter(p=>{const o=D.official.people.find(x=>x.id===p.id);return o&&o.deptId!==p.deptId});
   const r=await modal({title:'シナリオを正式組織にする',body:`<div>「${esc(sc.name)}」の組織を正式組織として反映します。所属が変わる${moves.length}名は異動履歴と異動CAREに記録されます。今の正式組織は上書きされます。</div><label>異動日<input name="date" type="date" value="${nextMonth1()}"></label>`,
     actions:[{label:'やめる',key:null},{label:'正式組織にする',key:'ok',kind:'sun'}]});
@@ -1143,7 +1252,7 @@ function modal({title,body,actions}){
     const done=v=>{m.hidden=true;m.onclick=m.onkeydown=null;prev?.focus?.();res(v)};
     m.onclick=e=>{const b=e.target.closest('[data-i]');
       if(b){const a=actions[+b.dataset.i];if(a.key&&a.validate&&!a.validate(m)){m.querySelector('input')?.focus();return}
-        const form={};m.querySelectorAll('[name]').forEach(el=>form[el.name]=el.type==='checkbox'?el.checked:el.value);done({key:a.key,form})}
+        const form={};m.querySelectorAll('[name]').forEach(el=>{if(el.type==='radio'){if(el.checked)form[el.name]=el.value;return}form[el.name]=el.type==='checkbox'?el.checked:el.value});done({key:a.key,form})}
       else if(e.target===m)done({key:null})};
     m.onkeydown=e=>{if(e.key==='Escape')done({key:null});if(e.key==='Enter'&&e.target.tagName==='INPUT'){m.querySelector('.mact .pri')?.click()}};
   });
@@ -1184,6 +1293,8 @@ const MANUAL=[
   <ul>
    <li><b>組織図</b>：部署と社員カードで今の組織をひと目で把握。ドラッグで配置を組み替えられます。</li>
    <li><b>直属上司</b>：誰が誰の上司かを社員ごとに設定し、指揮命令系統をはっきりさせます。</li>
+   <li><b>社員マスタ・人材カルテ連携</b>：社員番号で人材カルテとつながり、社員カードから「人材カルテを開く」で、何を任せ、どう支援するかを確認できます。</li>
+   <li><b>要対応・未来組織計画</b>：社長が判断すべき項目の一覧と、経営目標から逆算した人員計画の比較ができます。</li>
    <li><b>異動の承認</b>：異動は「登録 → 承認 → 反映」。異動日が来たら自動で組織図に反映されます。</li>
    <li><b>異動履歴・上司変更履歴</b>：いつ・誰が・どこからどこへ動いたかを自動で記録します。</li>
    <li><b>異動CARE</b>：異動前の面談から90日後レビューまで、定着のフォローを抜け漏れなく管理します。</li>
@@ -1204,6 +1315,10 @@ const MANUAL=[
    ${row('シナリオを正式組織にする',canApprove())}
    ${row('異動CAREのチェックを付ける',canEdit())}
    ${row('機密メモを見る・書く',seeSecret())}
+   ${row('社員マスタの連携・メール登録（社員マスタタブ）',canEdit())}
+   ${row('要対応一覧を見る・担当と期限を変える',canEdit())}
+   ${row('ミルメ比較を見る（サーバーで許可された人のみ）',canMilme())}
+   ${row('所属部署・直属上司の訂正（異動申請を通さない直接修正）',me.role==='admin')}
   </tbody></table>
   <p class="note">権限は全アプリ共通の「社員・権限管理」で設定されています。変更が必要な場合は管理者に依頼してください。</p>`}},
  {id:'screen',grp:'基本操作',title:'画面の見方',since:'ver.2026.10.01c',body:()=>`
@@ -1290,21 +1405,24 @@ const MANUAL=[
   <div class="warn">「正式組織にする」と、今の正式組織は上書きされ、所属が変わる人全員の異動履歴・異動CAREが作られます。承認待ちの異動予定はクリアされます。実行前にバックアップを取っておくと安心です。</div>`},
  {id:'diag',grp:'計画',title:'組織診断・AI組織診断',since:'ver.2026.09.29a',body:()=>`
   <p>「組織診断」タブでは、次のような論点をルールで自動チェックします。</p>
-  <ul><li>部門長1名に対して直属が${SPAN_LIMIT}名を超える部署（マネジメント負荷）</li><li>部門長が未設定の部署</li><li>1名体制の部署（キーパーソン依存）</li><li>在籍者のいない部署、採用予定枠のある部署</li><li>未配置の社員、管理職比率が低い状態</li></ul>
+  <ul><li>直属部下数が基準（全社 ${spanDefault()}名・部署ごとに変更可）を超える上司（管理負荷）。部署の人数ではなく、直属上司として設定された部下の数で数えます</li><li>部門長が未設定の部署</li><li>1名体制の部署（キーパーソン依存）</li><li>在籍者のいない部署、採用予定枠のある部署</li><li>未配置の社員、管理職比率が低い状態</li></ul>
   <p>ヘッダーの <kbd>AI組織診断</kbd> を押すと、識学の考え方（責任と権限の明確化、部門長の結果責任）をもとに、全体所見・優先論点・組織案をAIが文章で出します。シナリオ表示中ならそのシナリオを診断します。</p>
   <p class="note">AIは組織構造を診断するもので、個人の評価・昇格の判断はしません。</p>`},
  {id:'milme',grp:'計画',title:'ミルメ比較（社長・副社長のみ）',since:'ver.2026.10.01e',show:()=>canMilme(),body:()=>`
   <p>このページは社長・副社長のログイン時だけ表示されます。他の社員のマニュアルには載りません。</p>
   <ol><li>「ミルメ比較 🔒」タブを開く</li><li>【Excelを読み込む】で、ミルメの従業員データ（xlsx／csv）を選ぶ</li><li>受検者名と組織図の氏名を突き合わせて、自動で表示</li></ol>
   <h3>表示する数字</h3><ul><li>【基礎】点数</li><li>【応用】処理数の最高値（応用1〜3のうち一番高い回。どの回かも表示）</li><li>【応用】失敗平均</li><li>【応用】FP率平均</li></ul>
-  <h3>上司と部下の比較</h3><p>上司の処理数（最高値）から部下の処理数（最高値）を引いた差を出します。<b>差が25以上（プラスでもマイナスでも）の組み合わせは赤</b>で表示し、上に並べます。基準の数字は画面で変えられます。直属上司が未設定の人は、チェックを入れると部署上の上位者と比べます。</p>
-  <div class="warn">読み込んだデータは、その端末の中だけに保存されます（サーバーに送らないので、他の社員が見る方法はありません）。端末を変えたときは、もう一度読み込んでください。不要になったら【この端末から削除】を押してください。</div>
+  <h3>上司と部下の比較</h3><p>上司の処理数（最高値）から部下の処理数（最高値）を引いた差を出します。<b>差の絶対値が基準を「超える」組み合わせ</b>（基準25なら26以上。25ちょうどは対象外）を<b>「関わり方の確認対象」</b>として表示します。相性の良し悪しを示すものではありません。直属上司が未設定の人は、チェックを入れると部署上の上位者と比べます。</p>
+  <p>社員マスタ導入後は、閲覧できる人をサーバー側で制限し（ec_sensitive_viewers）、受検日・検査条件・出典・確認者つきで共通保存します。検査条件が違う結果同士は比較せず、未受検・未確認は0点として扱いません。基準は管理者が出典つきで変更できます。</p>
+  <div class="warn">社員マスタ導入前の環境では、読み込んだデータはその端末の中だけに保存されます。導入後は【確認して共通保存に移す】で受検日と検査条件を確認して移せます。</div>
   <p>社員の詳細画面にも、ミルメの数字と直属上司との差が表示されます（社長・副社長のログイン時のみ）。</p>`},
  {id:'import',grp:'データ',title:'スプレッドシートから取り込む',since:'ver.2026.10.01b',body:()=>`
   <ol><li>役割定義シートなどの表を、<b>見出し行ごと</b>コピー</li><li>ヘッダーの <kbd>取込</kbd> に貼り付け</li><li>「今の組織を置き換える」か「今の組織に追加する」を選んで【取り込む】</li></ol>
   <p>使える列：部署（所属）・氏名・役職・役割・上位部署・<b>上司（直属上司）</b>・入社・勤務地。1人が複数行ある表でも氏名でまとめます。役割に「部門長」を含む人は部門長になります。上司列は氏名で突き合わせて自動設定します。</p>`},
- {id:'save',grp:'データ',title:'保存・PDF・バックアップ',since:'ver.2026.09.29a',body:()=>`
+ {id:'save',grp:'データ',title:'保存・PDF・バックアップ',since:'ver.2026.10.18a',body:()=>`
   <ul><li><b>保存</b>：変更すると約1.5秒後に自動保存されます。フッターに「保存済み 時刻」が出ていれば完了です。</li>
+   <li><b>同時に編集したとき</b>：ほかの人が先に保存していた場合、重ならない変更は自動で統合します。同じ項目を両方が変えていた場合は、どちらを残すか選ぶ画面が出ます（黙って上書きしません）。</li>
+   <li><b>保存に失敗したとき</b>：「保存済み」とは表示されず、フッターに赤字で理由と【保存を再試行】が出ます。入力内容は画面と端末内に保持され、次に開いたときにも復元を案内します。</li>
    <li><b>PDF出力</b>：組織図を印刷用に整えて出力します。部門長会議や社内掲示に。</li>
    <li><b>バックアップ</b>：正式組織・シナリオ・異動予定・履歴・上司変更履歴・CAREをまとめてJSONファイルに書き出し／読み込みできます。大きな組織改編の前に書き出しておきましょう。</li></ul>`},
  {id:'use',grp:'活用',title:'活用シーン別の使い方',since:'ver.2026.10.01b',body:()=>`
@@ -1323,6 +1441,50 @@ const MANUAL=[
   <h3>上司の候補に出てこない人がいる</h3><p>自分自身、自分の部下（孫部下を含む）、採用予定枠、退職者は候補に出ません。</p>
   <h3>AI組織診断の結果が出ない</h3><p>AIの混雑などで回答が返らないことがあります。少し時間をおいて、もう一度押してください。アプリ側で1回は自動でやり直します。続く場合はログインし直してください。</p>
   <h3>「プレビュー表示（保存されません）」と出る</h3><p>公開URLから会社のGoogleアカウントでログインして開いてください。</p>`},
+ {id:'todo',grp:'はじめに',title:'要対応一覧（社長・管理者向け）',since:'ver.2026.10.18a',body:()=>`
+  <p>管理者で開くと最初に表示されます。いま判断や手当てが必要な項目を、次の7つに分けて並べます。</p>
+  <table><tbody><tr><th>承認待ちの異動</th><td>申請されて承認されていない異動</td></tr><tr><th>責任者不在の部署</th><td>部門長が不在、直属上司が未設定の人がいる部署</td></tr>
+   <tr><th>管理負荷の確認対象</th><td>直属部下数が基準を超える上司</td></tr><tr><th>採用・育成で補う役割</th><td>未来組織計画の未充足、採用予定枠</td></tr>
+   <tr><th>期限を過ぎた異動後レビュー</th><td>7日・30日・90日の確認が期日を過ぎて未記録</td></tr><tr><th>未実施の上司の支援行動</th><td>人材カルテに登録された上司の行動で、期限を過ぎて実施中・未着手のもの</td></tr>
+   <tr><th>配置検討に必要な情報の不足</th><td>社員番号・直属上司・職務（結果責任）・メール・人材カルテ連携の未登録</td></tr></tbody></table>
+  <ol><li>項目名を押すと、該当の画面（異動予定・組織図の部署・社員の詳細・人材カルテなど）へ移動します</li>
+   <li>【変更】で担当者・期限・次の行動を決めます（全員で共有）。対応済みにしても、元の状態が解消されるまでは「対応済みも表示」で確認できます</li></ol>`},
+ {id:'master',grp:'基本操作',title:'社員マスタ（人材カルテとの共通化）',since:'ver.2026.10.18a',body:()=>`
+  <p>社員番号・氏名・所属部署・役職・直属上司・在籍状況・適用開始日は、人材カルテと共通の<b>社員マスタ</b>で管理します。二重に管理しないため、どちらのアプリでも同じ値が表示されます。</p>
+  <h3>はじめに（移行時の1回だけ）</h3>
+  <ol><li>「社員マスタ」タブを開く</li><li>① 組織図の社員ごとに社員番号を入れる（人材カルテに同じ氏名の人がいれば候補が出ますが、<b>氏名だけでは自動で紐付けません</b>。確認して【この番号を入力】）</li>
+   <li>【連携】または【まとめて連携】。社員マスタの氏名と違う場合は「確認して連携」になり、同じ人かを確認します</li>
+   <li>② 人材カルテの社員を、社員番号が1対1で一致するものだけ連携。同姓同名や番号違いは確認一覧に残ります</li>
+   <li>③ メール未登録の人のメールを入れる／組織図の直属上司を社員マスタへ初期登録（管理者）</li></ol>
+  <h3>その後の更新元</h3>
+  <table><tbody><tr><th>所属部署・直属上司</th><td>異動申請 → 承認 → 適用日に反映（訂正は管理者のみ直接可）</td></tr><tr><th>氏名・役職・在籍</th><td>社員の詳細で編集（社員マスタを直接更新）</td></tr>
+   <tr><th>役割名・タグ・スキル等</th><td>この組織設計アプリの中だけの情報</td></tr><tr><th>本人の希望・成果・面談</th><td>人材カルテ</td></tr></tbody></table>
+  <div class="warn">社員マスタに登録済みの社員は削除できません（履歴を守るため）。退職は在籍状況を「退職」にしてください。</div>`},
+ {id:'karte',grp:'基本操作',title:'組織図から人材カルテを開く',since:'ver.2026.10.18a',body:()=>`
+  <p>社員カードの <kbd>カルテ</kbd>、または社員の詳細画面の【人材カルテを開く】で、その社員の人材カルテが新しいタブで開きます（共通社員IDで開くので、同姓同名でも取り違えません）。</p>
+  <p>詳細画面には、まず<b>「何を任せ、どう支援するか」</b>が分かる要約を出します：現在の役割と結果責任／直近の成果／本人が希望する役割／強みが発揮される条件／現在の育成テーマ／上司が試している関わり方／次回の面談日。診断の数値や根拠は、人材カルテの「詳細：資料と診断」で必要なときに確認します。</p>
+  <p class="note">表示されるのは、あなたの閲覧権限の範囲内の情報だけです（人事・経営層、または直属上司・本人）。権限がない場合はその旨が表示されます。</p>`},
+ {id:'transfer2',grp:'異動',title:'異動申請に書くこと（目的と検証）',since:'ver.2026.10.18a',body:()=>`
+  <p>社員マスタ導入後の異動は、カードをドラッグ（スマホは長押し）すると申請画面が開きます。配置して終わりにせず、<b>なぜ動かし、何を期待し、どう確かめるか</b>を残します。</p>
+  <table><tbody>${PLAN_FIELDS.map(([k,l,r])=>`<tr><th>${l}</th><td>${r?'必須':'任意'}</td></tr>`).join('')}<tr><th>確認担当者</th><td>必須。7日・30日・90日の確認を行う人</td></tr></tbody></table>
+  <ul><li>【申請する】承認待ちになります。正式組織はまだ動きません</li><li>【申請して承認】承認権限がある人のみ。異動日が今日以前なら即時、未来日なら異動日にサーバーが自動で反映します（アプリを開いていなくても反映）</li>
+   <li>直属上司だけを変える場合も、詳細画面の「直属上司」を選ぶと同じ申請画面になります</li><li>シナリオ（未来組織）での移動は、正式組織に反映されません</li></ul>`},
+ {id:'care2',grp:'異動',title:'異動後の検証（7日・30日・90日）',since:'ver.2026.10.18a',body:()=>`
+  <table><thead><tr><th>時期</th><th>確認すること</th></tr></thead><tbody><tr><td>7日後</td><td>役割の理解（本人の発言）・引継ぎの状況（事実）・困りごと（本人の発言）</td></tr>
+   <tr><td>30日後</td><td>成果指標の結果（事実・数値）・本人の手応え（本人の発言）・上司の支援状況（事実）</td></tr>
+   <tr><td>90日後</td><td>成果指標の結果・本人の手応え・判断（継続／役割調整／追加育成／配置再検討）と理由</td></tr></tbody></table>
+  <p>どの時期も<b>「何が改善したか」「何が未解決か」</b>を必ず書きます。申請時の30日・90日の目標と異動前の指標が画面に出るので、比べながら記録できます。</p>
+  <p>人材カルテの1on1で、期日が近い確認項目があると「異動後の確認」欄が出ます。1on1と一緒に記録すれば、ここにも同時に反映されます（二重入力は不要）。同じ項目を同時に記録した場合は、内容を比べて選べます。</p>`},
+ {id:'load',grp:'計画',title:'管理負荷（直属部下数）の見方',since:'ver.2026.10.18a',body:()=>`
+  <p>組織診断の「管理負荷」は、部署の人数ではなく<b>直属上司として設定されている部下の数</b>で数えます。基準は全社 ${spanDefault()}名（組織診断の【変更】）で、部署ごとに部署の ⋯ から変えられます。</p>
+  <ul><li>新入社員（入社12か月以内・内定）、異動フォロー中の部下、兼務も並べて、育成の負荷が重なっていないかを見ます</li>
+   <li>部門長不在・直属上司未設定（責任者未設定）・1名体制（一人依存）・負荷集中を論点として出し、【該当箇所へ】で移動できます</li></ul>`},
+ {id:'plan',grp:'計画',title:'未来組織計画（経営目標とつなぐ）',since:'ver.2026.10.18a',body:()=>`
+  <ol><li>【＋シナリオ】で、案の種別（現状維持案／社内異動案／採用追加案）、対象期間、責任者、1人あたり想定年間人件費と前提を入れて作る</li>
+   <li>「未来組織計画」タブで、部署ごとに目標・想定業務量・必要な役割と人数（1行に「FS 4」のように）を入れる</li>
+   <li>現在の人数（正式組織）との差に対して、採用・異動・育成で補う人数を入れる → 未充足が出ます</li>
+   <li>上の比較表で、案ごとの必要人数・差・未充足・追加人件費を比べる</li></ol>
+  <div class="tip">人件費は「採用人数 × 1人あたり想定年間人件費」の概算で、計算式と前提を画面に表示します。診断結果から売上を予測することはしません。</div>`},
  {id:'news',grp:'更新',title:'最近の更新',since:'',body:()=>`
   <p class="note">このマニュアルはアプリと一体になっていて、アプリが更新されると同時に更新されます。新しく変わった項目には <span class="newtag">NEW</span> が付きます。</p>
   <div class="clwrap">${changelogHTML(CHANGELOG.slice(0,5))}</div>`}
@@ -1360,6 +1522,897 @@ function closeManual(){const b=$('#manual');b.hidden=true;b.innerHTML='';$('#man
 $('#manualBtn').onclick=()=>openManual();
 
 
+/* =====================================================================
+   社員マスタ連携（ver.2026.10.18a）
+   ・社員の「社員番号・氏名・所属・役職・直属上司・在籍・適用開始日」は Supabase の ec_employees が正。
+   ・正式な異動は ec_transfers（申請→承認→適用日に反映）。反映はサーバーの関数（毎日0:05自動）が行う。
+   ・7日・30日・90日フォローは ec_transfer_followups。人材カルテの1on1とも共有。
+   ・SQL未適用の環境では従来どおりの動作（MS.on=false）。プレビューでは同じ規則のモック（Mock）で動作。
+   ===================================================================== */
+const KARTE_URL='hito-karte.html';
+const FU_STAGES=[7,30,90];
+const FU_FIELDS={
+  7:[['role','役割の理解','本人の発言'],['handover','引継ぎの状況','事実'],['troubles','困りごと','本人の発言']],
+  30:[['metric','成果指標の結果','事実・数値'],['feel','本人の手応え','本人の発言'],['support','上司の支援状況','事実']],
+  90:[['metric','成果指標の結果','事実・数値'],['feel','本人の手応え','本人の発言']]
+};
+const FU_DECISIONS=['継続','役割調整','追加育成','配置再検討'];
+const PLAN_FIELDS=[['issue','解決したい組織課題',1],['purpose','異動の目的',1],['role','任せる役割',1],['expected','期待する成果',1],
+  ['evidence','任せる根拠となる経験・実績',0],['wish','本人の希望・確認内容',0],['unknowns','未確認事項',0],['support','上司が行う支援',0],
+  ['before','異動前の指標',0],['goal30','30日後の目標',0],['goal90','90日後の目標',0]];
+const MS={on:false,mode:'none',emps:[],tr:[],fu:[],hist:[],milme:[],settings:{},secrets:{},canSens:false,hr:null,bossActs:null,karte:{},err:''};
+const isSchemaErr=e=>/does not exist|Could not find|schema cache|42P01|42883|PGRST20[02]/i.test(String((e&&(e.message||''))+' '+(e&&e.code||'')));
+const empById=id=>MS.emps.find(e=>e.id===id);
+const empOf=p=>p&&p.empId?empById(p.empId):null;
+const personByEmp=(eid,o=D.official)=>o.people.find(p=>p.empId===eid);
+const nameOfEmp=id=>empById(id)?.full_name||'（未設定）';
+const openTransferOf=eid=>MS.tr.find(t=>t.employee_id===eid&&(t.status==='draft'||t.status==='approved'));
+const jstNow=()=>new Date().toISOString();
+
+/* ---------- モック（プレビュー用。サーバーと同じ規則で動く） ---------- */
+const Mock={
+  st:null,
+  seed(){
+    if(this.st)return;
+    const st={emps:[],tr:[],fu:[],hist:[],milme:[],settings:{milme_gap_threshold:{value:25,source:'初期値（既存アプリの設定を引継ぎ）',set_on:today(),set_by:'migration'}},secrets:{},hr:[],acts:[],state:{data:null,version:0}};
+    let n=1000;
+    D.official.people.forEach(p=>{
+      if(p.status==='採用予定')return;
+      if(p.name==='加藤 湊')return; // 社員番号未登録の例（確認一覧に出る）
+      const e={id:'e-'+(++n),employee_no:'E'+n,full_name:p.name,email:'',department_id:p.deptId,department_name:deptName(p.deptId,D.official),position:p.title,manager_id:null,status:p.status,effective_from:'2026-04-01',job_id:null,version:1,updated_at:jstNow()};
+      st.emps.push(e);p.empId=e.id;p.empNo=e.employee_no;
+    });
+    // 直属上司（部門長）をサンプルとして設定
+    D.official.people.forEach(p=>{if(!p.empId||p.isHead)return;const b=findBossIn(p,D.official);const e=st.emps.find(x=>x.id===p.empId);if(b&&b.empId)e.manager_id=b.empId;});
+    D.official.people.forEach(p=>{if(p.empId&&p.isHead&&p.deptId!=='top'){const ceo=D.official.people.find(x=>x.deptId==='top'&&x.isHead);const e=st.emps.find(x=>x.id===p.empId);if(ceo&&ceo.empId&&ceo.empId!==p.empId)e.manager_id=ceo.empId}});
+    const byName=nm=>st.emps.find(e=>e.full_name===nm);
+    // 人材カルテ側（同姓同名・社員番号違いの例を含む）
+    st.emps.forEach((e,i)=>st.hr.push({id:'h-'+i,full_name:e.full_name,employee_no:i===3?'':e.employee_no,employee_id:i<6&&i!==3?e.id:null,department:e.department_name}));
+    st.hr.push({id:'h-x',full_name:'高橋 翔',employee_no:'E9001',employee_id:null,department:'CS'});
+    // 上司の支援行動（期限超過の例）
+    const t=byName('田中 美咲'),boss=byName('鈴木 大輔');
+    if(t&&boss)st.acts.push({id:'a1',empId:t.id,person:'田中 美咲',action:'依頼時にゴール・期限・裁量の範囲を伝える',assignee:'鈴木 大輔',owner:'上司',due_on:addDays(today(),-5),status:'doing',metric:'聞き直しの回数'});
+    // ミルメ（受検日つき）
+    const mm=(nm,d,v,b,pm,fl,fp)=>{const e=byName(nm);st.milme.push({id:uid('mm'),employee_id:e?.id||null,employee_no:e?.employee_no||'',name_in_file:nm,test_date:d,test_version:v,source_file:'milme_sample.xlsx',metrics:{basic:b,proc_max:pm,proc_which:'応用2',fail:fl,fp},match_status:e?'linked':'unmatched',confirmed_by:e?'preview':null,confirmed_at:e?jstNow():null,imported_by:'preview',imported_at:jstNow()})};
+    mm('佐藤 健','2026-05-10','標準版',210,180,1.2,0.8);mm('鈴木 大輔','2026-05-10','標準版',200,155,1.5,1.1);mm('高橋 翔','2026-05-10','標準版',190,130,2.0,1.4);
+    mm('田中 美咲','2026-05-10','標準版',185,129,1.9,1.2);mm('伊藤 拓海','2026-05-10','短縮版',170,120,2.2,1.6);mm('鈴木 大輔','2025-11-02','標準版',195,148,1.6,1.2);
+    this.st=st;
+  },
+  clone:o=>JSON.parse(JSON.stringify(o)),
+  async load(){const s=this.st;return {emps:this.clone(s.emps),tr:this.clone(s.tr),fu:this.clone(s.fu),hist:this.clone(s.hist),settings:this.clone(s.settings),canSens:true,milme:this.clone(s.milme),secrets:this.clone(s.secrets)}},
+  hist(e,before,src,tid){this.st.hist.push({id:uid('eh'),employee_id:e.id,effective_from:e.effective_from||today(),before,after:{department_name:e.department_name,manager_id:e.manager_id,position:e.position,status:e.status},source:src,transfer_id:tid||null,recorded_by:me.email,recorded_at:jstNow()})},
+  async createEmp(row){if(row.employee_no&&this.st.emps.some(e=>e.employee_no===row.employee_no))throw new Error('この社員番号はすでに社員マスタにあります');
+    const e={id:uid('e-'),version:1,updated_at:jstNow(),status:'在籍',...row};this.st.emps.push(e);this.hist(e,null,'create');return this.clone(e)},
+  async updateEmp(id,patch,version){const e=this.st.emps.find(x=>x.id===id);if(!e)throw new Error('社員マスタに見つかりません');
+    if(e.version!==version){const err=new Error('conflict');err.conflict=true;err.server=this.clone(e);throw err}
+    if((('department_id' in patch)&&patch.department_id!==e.department_id)||(('manager_id' in patch)&&patch.manager_id!==e.manager_id))if(me.role!=='admin')throw new Error('所属部署と直属上司は、異動の承認と適用日を経て変更します');
+    if(patch.employee_no&&this.st.emps.some(x=>x.id!==id&&x.employee_no===patch.employee_no))throw new Error('この社員番号はすでに社員マスタにあります');
+    const before={department_name:e.department_name,manager_id:e.manager_id,position:e.position,status:e.status};
+    Object.assign(e,patch,{version:e.version+1,updated_at:jstNow()});this.hist(e,before,'edit');return this.clone(e)},
+  async requestTransfer(o){if(!canEdit())throw new Error('異動の申請には管理者・マネージャー権限が必要です');
+    const e=this.st.emps.find(x=>x.id===o.employee_id);if(!e)throw new Error('社員マスタに存在しない社員です');
+    if(this.st.tr.some(t=>t.employee_id===e.id&&t.status==='approved'))throw new Error('この社員には承認済みで未反映の異動があります。先に取り消してください');
+    this.st.tr.filter(t=>t.employee_id===e.id&&t.status==='draft').forEach(t=>{t.status='cancelled';t.cancel_reason='新しい申請に置き換え';t.cancelled_at=jstNow()});
+    const t={id:uid('t-'),employee_id:e.id,from_dept_id:e.department_id,from_dept_name:e.department_name,from_manager_id:e.manager_id,to_dept_id:o.to_dept_id,to_dept_name:o.to_dept_name,
+      change_manager:!!o.change_manager,to_manager_id:o.to_manager_id||null,effective_date:o.effective_date,status:'draft',plan:o.plan||{},reason:o.reason||'',requested_by:me.email,requested_at:jstNow(),version:1};
+    this.st.tr.push(t);return this.clone(t)},
+  applyOne(t){const e=this.st.emps.find(x=>x.id===t.employee_id);if(!e||t.status!=='approved')return;const before={department_name:e.department_name,manager_id:e.manager_id,position:e.position,status:e.status};
+    e.department_id=t.to_dept_id;e.department_name=t.to_dept_name;if(t.change_manager)e.manager_id=t.to_manager_id;e.effective_from=t.effective_date;e.version++;this.hist(e,before,'transfer',t.id);t.status='applied';t.applied_at=jstNow()},
+  async approve(id){if(!canApprove())throw new Error('承認には管理者・マネージャー権限が必要です');
+    const t=this.st.tr.find(x=>x.id===id);if(!t)throw new Error('異動申請が見つかりません');if(t.status!=='draft')return {status:t.status,already:true};
+    t.status='approved';t.approved_by=me.email;t.approved_at=jstNow();
+    FU_STAGES.forEach(s=>{if(!this.st.fu.some(f=>f.transfer_id===id&&f.stage===s))this.st.fu.push({id:uid('f-'),transfer_id:id,employee_id:t.employee_id,stage:s,due_on:addDays(t.effective_date,s),status:'open',record:{},version:1})});
+    if(t.effective_date<=today()){this.applyOne(t);return {status:'applied',already:false}}return {status:'approved',already:false}},
+  async cancel(id,reason){const t=this.st.tr.find(x=>x.id===id);if(!t)throw new Error('異動申請が見つかりません');if(!['draft','approved'].includes(t.status))return {status:t.status,already:true};
+    t.status='cancelled';t.cancel_reason=reason||'';t.cancelled_by=me.email;t.cancelled_at=jstNow();this.st.fu=this.st.fu.filter(f=>!(f.transfer_id===id&&f.status==='open'&&!Object.keys(f.record||{}).length));return {status:'cancelled'}},
+  async applyDue(){let n=0;this.st.tr.filter(t=>t.status==='approved'&&t.effective_date<=today()).forEach(t=>{this.applyOne(t);n++});return n},
+  async updateFollowup(id,patch,version){const f=this.st.fu.find(x=>x.id===id);if(!f)throw new Error('フォローが見つかりません');if(f.version!==version){const err=new Error('conflict');err.conflict=true;err.server=this.clone(f);throw err}
+    Object.assign(f,patch,{version:f.version+1});return this.clone(f)},
+  async saveMilme(rows){rows.forEach(r=>this.st.milme.push({id:uid('mm'),imported_by:me.email,imported_at:jstNow(),...r}));return rows.length},
+  async updateMilme(id,patch){const r=this.st.milme.find(x=>x.id===id);Object.assign(r,patch);return this.clone(r)},
+  async setSetting(key,value,source){if(me.role!=='admin')throw new Error('設定の変更は管理者のみです');this.st.settings[key]={value,source,set_on:today(),set_by:me.name||me.email};},
+  async saveSecret(key,memo){this.st.secrets[key]={memo,updated_by:me.email,updated_at:jstNow()}},
+  async hrPeople(){return this.clone(this.st.hr)},
+  async linkHr(hrId,empId){const h=this.st.hr.find(x=>x.id===hrId);if(this.st.hr.some(x=>x.employee_id===empId&&x.id!==hrId))throw new Error('この社員はすでに別の人材カルテと連携しています');h.employee_id=empId;const e=this.st.emps.find(x=>x.id===empId);if(e){h.full_name=e.full_name;h.employee_no=e.employee_no;h.department=e.department_name}},
+  async bossActions(){return this.clone(this.st.acts)},
+  async karte(eid){const h=this.st.hr.find(x=>x.employee_id===eid);if(!h)return {none:true};const e=this.st.emps.find(x=>x.id===eid);
+    return {hrId:h.id,issue:'商談予定の事前共有（プレビュー用の例）',current_job:(e.position||'')+'（'+e.department_name+'）',desired_role:'本人に確認中（プレビュー）',responsibility:'担当案件の受注と、工事・CSへの正確な引継ぎ（プレビュー用の例）',
+      result:{period:'18期2Q',body:'現調5件・合意書2件（プレビュー用の例）',at:'2026-09-20'},shine:{where:'目標と期限を決めて任せる役割',conds:['新規','自由度が高い','任せる'],status:'確認済み2件／仮説1件',at:'2026-09-10'},
+      theme:['報連相','顧客折衝'],bossActs:this.st.acts.filter(a=>a.empId===eid).map(a=>({action:a.action,due_on:a.due_on,status:a.status})),next_on:addDays(today(),9),updated:'2026-09-20',source:'人材カルテ（プレビュー用の例）'}},
+  async loadState(){return this.clone(this.st.state)},
+  async saveState(data,ver){if(this.st.state.version!==ver)return {ok:false,conflict:true,version:this.st.state.version};this.st.state={data:this.clone(data),version:ver+1};return {ok:true,version:ver+1}}
+};
+function findBossIn(p,o){const d=o.depts.find(x=>x.id===p.deptId);if(!d)return null;
+  if(!p.isHead){const h=o.people.find(x=>x.deptId===d.id&&x.isHead&&x.id!==p.id);if(h)return h}
+  let pd=o.depts.find(x=>x.id===d.parentId);while(pd){const h=o.people.find(x=>x.deptId===pd.id&&x.isHead);if(h)return h;pd=o.depts.find(x=>x.id===pd.parentId)}return null}
+
+/* ---------- 本番（Supabase） ---------- */
+const Live={
+  ok({data,error}){if(error)throw new Error(error.message);return data},
+  async load(){
+    const t=n=>sb.from(n);
+    const [emps,tr,fu,hist,set]=await Promise.all([t('ec_employees').select('*'),t('ec_transfers').select('*').order('requested_at',{ascending:false}).limit(500),
+      t('ec_transfer_followups').select('*'),t('ec_employee_history').select('*').order('recorded_at',{ascending:false}).limit(500),t('ec_settings').select('*')]);
+    const sv=await t('ec_sensitive_viewers').select('email').limit(1);
+    const canSens=!sv.error&&(sv.data||[]).length>0;
+    let milme=[],secrets={};
+    if(canSens){const r=await t('ec_milme_results').select('*').order('test_date',{ascending:false});milme=r.error?[]:r.data}
+    if(me.role==='admin'){const r=await t('ec_employee_secrets').select('*');if(!r.error)(r.data||[]).forEach(x=>secrets[x.person_key]=x)}
+    const settings={};(this.ok(set)||[]).forEach(x=>settings[x.key]=x);
+    return {emps:this.ok(emps),tr:this.ok(tr),fu:this.ok(fu),hist:this.ok(hist),settings,canSens,milme,secrets};
+  },
+  async createEmp(row){return this.ok(await sb.from('ec_employees').insert(row).select().single())},
+  async updateEmp(id,patch,version){
+    const {data,error}=await sb.from('ec_employees').update(patch).eq('id',id).eq('version',version).select();
+    if(error)throw new Error(error.message);
+    if(!data||!data.length){const cur=this.ok(await sb.from('ec_employees').select('*').eq('id',id).maybeSingle());const err=new Error('conflict');err.conflict=true;err.server=cur;throw err}
+    return data[0];
+  },
+  async requestTransfer(o){return this.ok(await sb.rpc('ec_request_transfer',{p_employee_id:o.employee_id,p_to_dept_id:o.to_dept_id,p_to_dept_name:o.to_dept_name,p_effective_date:o.effective_date,p_change_manager:!!o.change_manager,p_to_manager_id:o.to_manager_id||null,p_plan:o.plan||{},p_reason:o.reason||null}))},
+  async approve(id){return this.ok(await sb.rpc('ec_approve_transfer',{p_id:id}))},
+  async cancel(id,reason){return this.ok(await sb.rpc('ec_cancel_transfer',{p_id:id,p_reason:reason||null}))},
+  async applyDue(){return this.ok(await sb.rpc('ec_apply_due_transfers'))},
+  async updateFollowup(id,patch,version){
+    const {data,error}=await sb.from('ec_transfer_followups').update(patch).eq('id',id).eq('version',version).select();
+    if(error)throw new Error(error.message);
+    if(!data||!data.length){const cur=this.ok(await sb.from('ec_transfer_followups').select('*').eq('id',id).maybeSingle());if(!cur)throw new Error('このフォローを更新する権限がありません');const err=new Error('conflict');err.conflict=true;err.server=cur;throw err}
+    return data[0];
+  },
+  async saveMilme(rows){const r=await sb.from('ec_milme_results').insert(rows.map(x=>({...x,imported_by:me.email}))).select('id');return this.ok(r).length},
+  async updateMilme(id,patch){return this.ok(await sb.from('ec_milme_results').update(patch).eq('id',id).select().single())},
+  async setSetting(key,value,source){this.ok(await sb.from('ec_settings').upsert({key,value,source,set_on:today(),set_by:me.name||me.email,updated_at:jstNow()}))},
+  async saveSecret(key,memo){this.ok(await sb.from('ec_employee_secrets').upsert({person_key:key,memo,updated_by:me.email,updated_at:jstNow()}))},
+  async hrPeople(){const r=await sb.from('hr_people').select('id,full_name,employee_no,employee_id,department');if(r.error)return null;return r.data},
+  async linkHr(hrId,empId){const r=await sb.from('hr_people').update({employee_id:empId}).eq('id',hrId).select('id');if(r.error)throw new Error(r.error.message);if(!r.data.length)throw new Error('人材カルテを更新する権限がありません');
+    await sb.from('ec_employee_links').upsert({app:'hito-karte',local_id:hrId,employee_id:empId,linked_by:me.email})},
+  async bossActions(){
+    const r=await sb.from('hr_actions').select('id,person_id,action,owner,assignee,due_on,status,metric,decision').eq('owner','上司');
+    if(r.error)return null;
+    const ids=[...new Set(r.data.map(a=>a.person_id))];if(!ids.length)return [];
+    const h=await sb.from('hr_people').select('id,full_name,employee_id').in('id',ids);const hm=new Map((h.data||[]).map(x=>[x.id,x]));
+    return r.data.map(a=>({...a,empId:hm.get(a.person_id)?.employee_id||null,person:hm.get(a.person_id)?.full_name||''}));
+  },
+  async karte(eid){
+    const h=await sb.from('hr_people').select('id,full_name,current_job,desired_role,updated_at').eq('employee_id',eid).maybeSingle();
+    if(h.error)return {denied:true,msg:h.error.message};if(!h.data)return {none:true};
+    const pid=h.data.id;const q=(tb,cols)=>sb.from(tb).select(cols).eq('person_id',pid);
+    const [res,sh,acts,mt]=await Promise.all([q('hr_results','period,body,created_at').order('created_at',{ascending:false}).limit(1),
+      q('hr_shine','shine_where,conditions,status,created_at').order('created_at',{ascending:false}).limit(1),
+      q('hr_actions','action,owner,status,due_on,theme,decision,issue'),q('hr_meetings','held_on,next_on,themes').order('held_on',{ascending:false}).limit(1)]);
+    const e=empById(eid);let resp='';
+    if(e&&e.job_id){const j=await sb.from('hr_jobs').select('name,responsibility,summary').eq('id',e.job_id).maybeSingle();if(j.data)resp=(j.data.responsibility||j.data.summary||'')}
+    const s=(sh.data||[])[0];const conds=s?Object.values(s.conditions||{}).filter(c=>c&&c.value).map(c=>c.value+(c.status==='confirmed'?'':'（仮説）')):[];
+    const act=(acts.data||[]).filter(a=>(a.status==='planned'||a.status==='doing')&&a.decision!=='end');
+    const m=(mt.data||[])[0];
+    return {hrId:pid,issue:(act.find(a=>a.issue&&a.owner!=='上司')||{}).issue||'',current_job:h.data.current_job,desired_role:h.data.desired_role,responsibility:resp,
+      result:(res.data||[])[0]?{period:res.data[0].period,body:res.data[0].body,at:String(res.data[0].created_at).slice(0,10)}:null,
+      shine:s?{where:s.shine_where,conds,status:s.status==='confirmed'?'確定':'下書き',at:String(s.created_at).slice(0,10)}:null,
+      theme:[...new Set(act.map(a=>a.theme).filter(Boolean))].concat(act.length?[]:(m?.themes||[])),
+      bossActs:act.filter(a=>a.owner==='上司').map(a=>({action:a.action,due_on:a.due_on,status:a.status})),
+      next_on:m?.next_on||null,updated:String(h.data.updated_at||'').slice(0,10),source:'人材カルテ'};
+  },
+  async loadState(){const r=await sb.from(TABLE).select('data,version').eq('id',ROW).maybeSingle();if(r.error)throw r.error;return r.data?{data:r.data.data,version:r.data.version||0}:{data:null,version:0}},
+  async saveState(data,ver){const r=await sb.rpc('org_design_save',{p_id:ROW,p_data:data,p_expected:ver});if(r.error)throw r.error;return r.data}
+};
+const BK=()=>MS.mode==='live'?Live:Mock;
+
+async function masterInit(){
+  MS.on=false;MS.mode='none';
+  try{
+    if(mode==='live'){
+      const r=await sb.from('ec_employees').select('id').limit(1);
+      if(r.error){if(isSchemaErr(r.error)){MS.err='';return}throw r.error}
+      MS.mode='live';
+    }else{MS.mode='mock';Mock.seed()}
+    MS.on=true;await masterReload();
+  }catch(e){MS.on=false;MS.mode='none';MS.err=e.message||String(e)}
+}
+async function masterReload(){
+  if(!MS.on)return;
+  const r=await BK().load();Object.assign(MS,r);MS.karte={};
+  syncOfficialFromMaster();
+}
+/* 社員マスタの値を正式組織の社員カードへ反映（所属・役職・上司・在籍・氏名）。シナリオには反映しない */
+function syncOfficialFromMaster(){
+  if(!MS.on)return 0;let n=0;const o=D.official;
+  const t2p=new Map(o.people.filter(p=>p.empId).map(p=>[p.empId,p]));
+  o.people.forEach(p=>{
+    const e=empOf(p);if(!e)return;
+    const set=(k,v)=>{if(v!==undefined&&p[k]!==v){p[k]=v;n++}};
+    set('name',e.full_name);set('empNo',e.employee_no||'');
+    if(e.position&&TITLES.includes(e.position))set('title',e.position);
+    if(STATUS.includes(e.status))set('status',e.status);
+    if(e.department_id&&o.depts.some(d=>d.id===e.department_id)){if(p.deptId!==e.department_id){p.deptId=e.department_id;p.isHead=!!(p.headAfterMove&&p.headAfterMove.dept===e.department_id);delete p.headAfterMove;n++}}
+    const b=e.manager_id?t2p.get(e.manager_id):null;set('bossId',b?b.id:null);
+  });
+  return n;
+}
+function deptOfEmp(e){return e?.department_id&&D.official.depts.some(d=>d.id===e.department_id)?e.department_id:null}
+
+/* =====================================================================
+   二重操作の防止（承認・申請・記録の連打でデータが壊れないように）
+   ===================================================================== */
+const LOCKS=new Set();
+async function once(key,fn){if(LOCKS.has(key)){toast('処理中です。しばらくお待ちください');return}LOCKS.add(key);try{return await fn()}finally{LOCKS.delete(key)}}
+const ta=(name,val,ph='',h=48)=>`<textarea name="${name}" style="min-height:${h}px;font-size:13px" placeholder="${esc(ph)}">${esc(val||'')}</textarea>`;
+
+/* =====================================================================
+   異動申請（社員マスタ）：目的・役割・期待成果・根拠・30/90日目標・確認担当者
+   ===================================================================== */
+function needLinkModal(p){
+  return modal({title:'社員マスタに未連携です',body:`<div class="bwarn"><b>${esc(p.name)}</b>さんは社員マスタ（社員番号）と連携されていないため、正式な異動を登録できません。</div>
+    <div class="note">「社員マスタ」タブで社員番号を設定して連携してください。氏名だけでは自動で結び付けません（同姓同名の取り違えを防ぐため）。</div>`,
+    actions:[{label:'閉じる',key:null},...(canEdit()?[{label:'社員マスタを開く',key:'go',kind:'pri'}]:[])]}).then(r=>{if(r.key==='go'){V.tab='master';closeDrawer();render()}});
+}
+function checkerOptions(sel){
+  const list=MS.emps.filter(e=>e.status==='在籍'||e.status==='休職').sort((a,b)=>a.full_name.localeCompare(b.full_name,'ja'));
+  return `<option value="">選んでください</option>`+list.map(e=>`<option value="${e.id}" ${e.id===sel?'selected':''}>${esc(e.full_name)}｜${esc(e.department_name||'')}${e.email?'':'（メール未登録）'}</option>`).join('');
+}
+async function masterRequestMove(p,to,opt={}){
+  const e=empOf(p);if(!e){needLinkModal(p);return}
+  const ot=openTransferOf(e.id);
+  if(ot&&ot.status==='approved'){await modal({title:'承認済みの異動があります',body:`<div>${esc(p.name)}さんには ${esc(ot.effective_date)} に反映予定の承認済み異動（${esc(ot.to_dept_name||'')}）があります。変更する場合は、異動予定タブで取り消してから申請し直してください。</div>`,actions:[{label:'閉じる',key:null}]});return}
+  const pl=opt.plan||ot?.plan||{};const toId=to===undefined?p.deptId:to;
+  const curBoss=bossOf(p,D.official);
+  const bossSel=opt.bossOnly?(opt.bossTo||''):'__keep';
+  const body=`<div class="movebox"><b>${esc(p.name)}</b>さん（社員番号 ${esc(e.employee_no||'未登録')}）<br>${opt.bossOnly?`直属上司の変更：${esc(curBoss?.name||'未設定')} → 下で選択`:`${esc(e.department_name||deptName(p.deptId,D.official))} → <b>${esc(deptName(toId,D.official))}</b>`}</div>
+    <label>異動日（適用日）<input name="date" type="date" value="${esc(opt.date||ot?.effective_date||nextMonth1())}"></label>
+    <label>異動後の直属上司</label>${bossPicker({self:p.id,sel:bossSel,attr:'name="bossTo"',o:D.official,extra:opt.bossOnly?'':`<option value="__keep" selected>変更しない（現在：${esc(curBoss?.name||'未設定')}）</option>`})}
+    <div class="note" style="margin-top:4px"><b>異動の目的と検証</b>（承認後、異動CAREと人材カルテに引き継がれ、7日・30日・90日のフォローで確認します）</div>
+    ${PLAN_FIELDS.map(([k,l,req])=>`<label>${l}${req?' <b style="color:var(--warn)">必須</b>':''}${ta('pl_'+k,pl[k]||'',k==='before'?'例：現調→合意書 1/4件（直近3か月）':k==='goal30'?'例：担当顧客への挨拶と引継ぎ完了、商談2件':k==='unknowns'?'例：本人の家庭事情による勤務地の希望は未確認':'')}</label>`).join('')}
+    <label>確認担当者 <b style="color:var(--warn)">必須</b><select name="checker">${checkerOptions(pl.checker_id||'')}</select></label>
+    <label>理由・メモ（任意）<input name="reason" value="${esc(ot?.reason||'')}"></label>
+    <div class="note">【申請】承認待ちとして登録します。正式組織は動きません。<br>【申請して承認】承認権限のある人のみ。異動日が今日以前なら即時、未来日なら異動日に<b>サーバーが自動で</b>反映します（アプリを開いていなくても反映）。</div>`;
+  const need=['purpose','role','expected','issue'];
+  const r=await modal({title:opt.bossOnly?'直属上司の変更（異動申請）':'異動の申請',body,actions:[{label:'やめる',key:null},{label:'申請する（承認待ち）',key:'draft',kind:canApprove()?null:'pri',validate:m=>validPlan(m,need)},...(canApprove()?[{label:'申請して承認',key:'approve',kind:'pri',validate:m=>validPlan(m,need)}]:[])]});
+  if(!r.key)return;
+  const plan={};PLAN_FIELDS.forEach(([k])=>plan[k]=(r.form['pl_'+k]||'').trim());
+  const ck=empById(r.form.checker);plan.checker=ck?.full_name||'';plan.checker_id=ck?.id||'';plan.checker_email=(ck?.email||'').toLowerCase();
+  let change_manager=false,to_manager_id=null;
+  const bt=r.form.bossTo;
+  if(bt!==undefined&&bt!=='__keep'){change_manager=true;if(bt){const bp=D.official.people.find(x=>x.id===bt);if(!bp||!bp.empId){toast('選んだ上司が社員マスタに未連携のため設定できません。先に社員マスタで連携してください');return}to_manager_id=bp.empId}}
+  if(opt.bossOnly&&!change_manager){toast('直属上司を選んでください');return}
+  await once('req-'+e.id,async()=>{
+    try{
+      const t=await BK().requestTransfer({employee_id:e.id,to_dept_id:toId||null,to_dept_name:toId?deptName(toId,D.official):'未配置',effective_date:r.form.date||today(),change_manager,to_manager_id,plan,reason:r.form.reason||''});
+      let msg='異動を申請しました（承認待ち）';
+      if(r.key==='approve'){const a=await BK().approve(t.id);msg=a.status==='applied'?'承認して正式組織に反映しました':`承認しました。${fmtMD(t.effective_date)}に自動で反映します`}
+      await masterReload();dirty();render();if(V.sel)renderDrawer();toast(msg);
+    }catch(err){toast('登録できませんでした：'+err.message)}
+  });
+}
+function validPlan(m,need){
+  const miss=need.filter(k=>!m.querySelector(`[name=pl_${k}]`).value.trim()).map(k=>PLAN_FIELDS.find(f=>f[0]===k)[1]);
+  if(!m.querySelector('[name=checker]').value)miss.push('確認担当者');
+  if(miss.length){toast('入力してください：'+miss.join('、'));return false}return true;
+}
+function planHTML(pl,short){
+  const rows=PLAN_FIELDS.filter(([k])=>pl&&pl[k]).filter(([k])=>!short||['purpose','role','expected','goal30','goal90','support'].includes(k));
+  return `${rows.length?`<dl class="pl">${rows.map(([k,l])=>`<dt>${l}</dt><dd>${esc(pl[k])}</dd>`).join('')}${pl.checker?`<dt>確認担当者</dt><dd>${esc(pl.checker)}</dd>`:''}</dl>`:'<div class="note">目的・役割の記録はありません</div>'}`;
+}
+const TR_ST={draft:['承認待ち','wait'],approved:['承認済み（反映待ち）','ok'],applied:['反映済み','done'],cancelled:['取消','wait']};
+function trRow(t){
+  const e=empById(t.employee_id);const st=TR_ST[t.status]||[t.status,''];
+  const boss=t.change_manager?`<div class="note">直属上司：${esc(t.from_manager_id?nameOfEmp(t.from_manager_id):'未設定')} → <b>${esc(t.to_manager_id?nameOfEmp(t.to_manager_id):'未設定')}</b></div>`:'';
+  const btn=t.status==='draft'?`${canApprove()?`<button class="btn sm pri" data-act="trApprove" data-id="${t.id}">承認</button>`:`<button class="btn sm" disabled title="承認には管理者・マネージャー権限が必要です">承認</button>`}${canEdit()?`<button class="btn sm" data-act="trEdit" data-id="${t.id}">修正</button><button class="btn sm" data-act="trCancel" data-id="${t.id}">取消</button>`:''}`
+    :t.status==='approved'&&canEdit()?`<button class="btn sm" data-act="trCancel" data-id="${t.id}">取消</button>`:'';
+  return `<tr><td>${esc(t.effective_date)}</td><td><b>${esc(e?.full_name||'（不明）')}</b><div class="note">${esc(e?.employee_no||'')}</div></td>
+    <td>${esc(t.from_dept_name||'未配置')}<span class="arrow">→</span><b>${esc(t.to_dept_name||'未配置')}</b>${boss}</td>
+    <td class="pcol"><details><summary>${esc((t.plan&&t.plan.purpose)||t.reason||'（目的未記入）')}</summary>${planHTML(t.plan)}</details></td>
+    <td class="note">${esc(t.requested_by||'')}${t.approved_by?`<br>承認：${esc(t.approved_by)}`:''}</td><td><span class="pst ${st[1]}">${st[0]}</span></td><td class="row">${btn}</td></tr>`;
+}
+function masterPendingView(){
+  const list=MS.tr.filter(t=>t.status==='draft'||t.status==='approved').sort((a,b)=>a.effective_date.localeCompare(b.effective_date));
+  const wait=list.filter(t=>t.status==='draft').length;
+  const legacy=(D.pending||[]).length;
+  return `<div class="sheet"><h2>異動予定</h2><p class="lead">異動は「申請 → 承認 → 異動日に反映」。反映はサーバーが毎日0:05に自動で行うため、アプリを開いていなくても異動日に正式組織へ反映されます。承認すると7日・30日・90日のフォローが作られ、異動CAREと人材カルテに引き継がれます。</p>
+    ${canApprove()&&wait>1?`<div class="row" style="margin-bottom:10px"><button class="btn sun" data-act="trApproveAll">承認待ち ${wait}件をすべて承認</button></div>`:''}
+    ${list.length?`<div style="overflow-x:auto"><table class="trt"><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>目的（押すと詳細）</th><th>申請・承認</th><th>状態</th><th></th></tr></thead><tbody>${list.map(trRow).join('')}</tbody></table></div>`
+      :`<div class="nodata">異動予定はありません。組織図で社員カードを別の部署へドラッグすると申請できます。</div>`}
+    ${legacy?`<h2 style="margin-top:26px">旧形式の異動予定（社員マスタ導入前） ${legacy}件</h2><p class="lead">社員マスタ導入前に登録された異動予定です。このままでは社員マスタに反映されないため、新しい申請に移してください（承認済みのものは承認済みとして移します）。</p>
+      ${canApprove()?`<button class="btn pri" data-act="legacyPendMigrate">旧形式の異動予定を新しい申請に移す</button>`:''}${pendingView().replace(/^<div class="sheet"><h2>異動予定<\/h2>/,'<div>')}`:''}</div>`;
+}
+function masterHistoryView(){
+  const tr=MS.tr.filter(t=>t.status!=='draft').sort((a,b)=>(b.effective_date+(b.approved_at||'')).localeCompare(a.effective_date+(a.approved_at||'')));
+  const SRC={transfer:'異動',edit:'編集',correction:'訂正',migration:'移行',create:'登録'};
+  const hist=MS.hist.slice().sort((a,b)=>String(b.recorded_at).localeCompare(String(a.recorded_at))).slice(0,300);
+  const diff=h=>{const b=h.before||{},a=h.after||{};const out=[];
+    if((b.department_name||'')!==(a.department_name||''))out.push(`所属 ${b.department_name||'—'} → ${a.department_name||'—'}`);
+    if((b.manager_id||'')!==(a.manager_id||''))out.push(`上司 ${b.manager_id?nameOfEmp(b.manager_id):'未設定'} → ${a.manager_id?nameOfEmp(a.manager_id):'未設定'}`);
+    if((b.position||'')!==(a.position||''))out.push(`役職 ${b.position||'—'} → ${a.position||'—'}`);
+    if((b.status||'')!==(a.status||''))out.push(`在籍 ${b.status||'—'} → ${a.status||'—'}`);
+    if(h.before&&(b.full_name||'')!==(a.full_name||''))out.push(`氏名 ${b.full_name} → ${a.full_name}`);
+    return out.join('／')||(h.before?'—':'新規登録')};
+  return `<div class="sheet"><h2>異動履歴</h2><p class="lead">承認・反映・取消された異動です。異動の目的と、その後のフォロー結果をあわせて確認できます。</p>
+    ${tr.length?`<div style="overflow-x:auto"><table class="trt"><thead><tr><th>異動日</th><th>氏名</th><th>異動内容</th><th>目的（押すと詳細）</th><th>申請・承認</th><th>状態</th><th></th></tr></thead><tbody>${tr.map(trRow).join('')}</tbody></table></div>`:'<div class="nodata">まだ記録はありません。</div>'}
+    <h2 style="margin-top:26px">社員マスタの変更履歴</h2><p class="lead">所属・上司・役職・在籍の変化を、適用日と出典（異動／編集／訂正／移行）つきで追記しています。過去の記録は上書きされません。</p>
+    ${hist.length?`<div style="overflow-x:auto"><table><thead><tr><th>適用日</th><th>氏名</th><th>変化</th><th>出典</th><th>記録</th></tr></thead><tbody>${hist.map(h=>`<tr><td>${esc(h.effective_from||'')}</td><td>${esc(nameOfEmp(h.employee_id))}</td><td>${esc(diff(h))}</td><td><span class="pst done">${SRC[h.source]||esc(h.source||'')}</span></td><td class="note">${esc(h.recorded_by||'')}<br>${esc(String(h.recorded_at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="nodata">まだ記録はありません。</div>'}
+    ${(D.history||[]).length||(D.bossHistory||[]).length?`<h2 style="margin-top:26px">社員マスタ導入前の記録</h2>${historyView().replace(/^<div class="sheet"><h2>異動履歴<\/h2>/,'<div>')}`:''}</div>`;
+}
+
+/* ---------- 異動CARE（7・30・90日の検証） ---------- */
+function fuSummary(f){const r=f.record||{};
+  return `${r.improved?`<p class="fu-i"><i>改善したこと</i>${esc(r.improved)}</p>`:''}${r.unresolved?`<p class="fu-u"><i>未解決のこと</i>${esc(r.unresolved)}</p>`:''}${r.decision?`<p><i>判断</i><b>${esc(r.decision)}</b>${r.decision_note?`　${esc(r.decision_note)}`:''}</p>`:''}${f.meeting_id?'<p class="note">人材カルテの1on1記録と紐付け済み</p>':''}`}
+function masterCareCards(){
+  const t0=today();
+  const trs=MS.tr.filter(t=>(t.status==='approved'||t.status==='applied')&&MS.fu.some(f=>f.transfer_id===t.id)).sort((a,b)=>b.effective_date.localeCompare(a.effective_date));
+  return trs.map(t=>{
+    const e=empById(t.employee_id);const fus=MS.fu.filter(f=>f.transfer_id===t.id).sort((a,b)=>a.stage-b.stage);
+    const done=fus.filter(f=>f.status==='done').length;const pct=Math.round(done/Math.max(1,fus.length)*100);
+    const ba=(MS.bossActs||[]).filter(a=>a.empId===t.employee_id&&(a.status==='planned'||a.status==='doing'));
+    const p=personByEmp(t.employee_id);
+    return `<div class="care"><h4>${esc(e?.full_name||'')}</h4><div class="sub">${esc(t.from_dept_name||'')} → ${esc(t.to_dept_name||'')}　異動日 ${esc(t.effective_date)}${t.status==='approved'?' <b>（反映前）</b>':''}${t.change_manager&&t.to_manager_id?`<br>新しい直属上司：${esc(nameOfEmp(t.to_manager_id))}`:''}</div>
+      <details class="cpl"><summary>異動の目的・期待する成果</summary>${planHTML(t.plan)}</details>
+      <div class="row" style="justify-content:space-between;font-size:12px"><span>検証の進み</span><b>${pct}%</b></div><div class="bar"><i style="width:${pct}%"></i></div>
+      ${fus.map(f=>{const late=f.status!=='done'&&f.due_on<t0;return `<div class="fu ${f.status} ${late?'late':''}"><div class="row"><b>${f.stage}日後</b><small>${late?'期限超過 ':''}${fmtMD(f.due_on)}</small><span class="pst ${f.status==='done'?'ok':late?'wait':'done'}">${f.status==='done'?'記録済み':'未記録'}</span>
+        <button class="btn sm" style="margin-left:auto" data-act="fuEdit" data-id="${f.id}">${f.status==='done'?'見る・直す':'記録する'}</button></div>${fuSummary(f)}</div>`}).join('')}
+      ${ba.length?`<div class="note" style="margin-top:8px"><b>上司の支援行動</b></div><ul class="mini">${ba.map(a=>`<li>${esc(a.action)}（${esc(a.assignee||'上司')}${a.due_on?'・'+esc(a.due_on):''}）${a.due_on&&a.due_on<t0?' <b style="color:var(--warn)">期限超過</b>':''}</li>`).join('')}</ul>`:''}
+      ${p&&p.empId?`<div class="row" style="margin-top:8px"><button class="btn sm" data-act="openKarte" data-id="${p.id}">人材カルテ（1on1と一緒に記録）</button></div>`:''}</div>`}).join('');
+}
+async function editFollowup(id){
+  const f=MS.fu.find(x=>x.id===id);if(!f)return;const t=MS.tr.find(x=>x.id===f.transfer_id);const e=empById(f.employee_id);const r=f.record||{};
+  const goal=f.stage===7?'':f.stage===30?(t.plan?.goal30||''):(t.plan?.goal90||'');
+  const body=`<div class="movebox"><b>${esc(e?.full_name||'')}</b>　${f.stage}日後の確認（期日 ${esc(f.due_on)}）<br>${esc(t.from_dept_name||'')} → ${esc(t.to_dept_name||'')}</div>
+    ${goal?`<div class="dg"><b>${f.stage}日後の目標（申請時）</b><span>${esc(goal)}</span></div>`:''}${f.stage!==7&&t.plan?.before?`<div class="note">異動前の指標：${esc(t.plan.before)}</div>`:''}
+    <label>確認日<input type="date" name="checked_on" value="${esc(r.checked_on||today())}"></label>
+    ${FU_FIELDS[f.stage].map(([k,l,kind])=>`<label>${l}<span class="kind">${kind}</span>${ta(k,r[k])}</label>`).join('')}
+    ${f.stage===90?`<label>90日後の判断 <b style="color:var(--warn)">必須</b><select name="decision"><option value="">選んでください</option>${FU_DECISIONS.map(d=>`<option ${d===r.decision?'selected':''}>${d}</option>`).join('')}</select></label><label>判断の理由${ta('decision_note',r.decision_note)}</label>`:''}
+    <label>何が改善したか <b style="color:var(--warn)">必須</b>${ta('improved',r.improved,'例：顧客への引継ぎが完了し、問い合わせへの一次回答が当日中になった')}</label>
+    <label>何が未解決か <b style="color:var(--warn)">必須</b>${ta('unresolved',r.unresolved,'なければ「なし」と記入')}</label>
+    <div class="note">人材カルテの1on1で記録すると、この項目にも同時に記録されます（二重入力は不要です）。${f.meeting_id?'この記録は1on1記録と紐付いています。':''}</div>`;
+  const val=m=>{const need=['improved','unresolved'].concat(f.stage===90?['decision']:[]);const miss=need.filter(k=>!m.querySelector(`[name=${k}]`).value.trim());if(miss.length){toast('「何が改善したか」「何が未解決か」'+(f.stage===90?'「判断」':'')+'を入力してください');return false}return true};
+  const res=await modal({title:`異動後の確認（${f.stage}日後）`,body,actions:[{label:'閉じる',key:null},{label:'一時保存',key:'save'},{label:'記録して完了',key:'done',kind:'pri',validate:val}]});
+  if(!res.key)return; // 更新できるかはサーバー側（RLS）で判定する
+  const rec={...r};['checked_on','improved','unresolved','decision','decision_note',...FU_FIELDS[f.stage].map(x=>x[0])].forEach(k=>{if(res.form[k]!==undefined)rec[k]=String(res.form[k]).trim()});
+  rec.recorded_by=me.name||me.email;rec.recorded_at=jstNow();
+  const patch={record:rec};if(res.key==='done'){patch.status='done';patch.done_by=me.email;patch.done_at=jstNow()}
+  await once('fu-'+id,async()=>{
+    try{await BK().updateFollowup(id,patch,f.version);await masterReload();render();toast(res.key==='done'?'記録しました':'一時保存しました')}
+    catch(err){
+      if(err.conflict){const s=err.server.record||{};
+        const c=await modal({title:'ほかの人が先に記録しています',body:`<div class="note">あなたが開いた後に、この確認項目が更新されました。内容を比べて選んでください（あなたの入力は消えていません）。</div>
+          <table><thead><tr><th>項目</th><th>先に保存された内容</th><th>あなたの入力</th></tr></thead><tbody>${['improved','unresolved','decision',...FU_FIELDS[f.stage].map(x=>x[0])].filter(k=>(s[k]||'')!==(rec[k]||'')).map(k=>`<tr><td>${esc(k==='improved'?'改善したこと':k==='unresolved'?'未解決のこと':k==='decision'?'判断':(FU_FIELDS[f.stage].find(x=>x[0]===k)||[k,k])[1])}</td><td>${esc(s[k]||'')}</td><td>${esc(rec[k]||'')}</td></tr>`).join('')}</tbody></table>`,
+          actions:[{label:'先に保存された内容を残す',key:null},{label:'あなたの入力で上書き',key:'mine',kind:'pri'}]});
+        if(c.key==='mine'){try{await BK().updateFollowup(id,patch,err.server.version);toast('記録しました')}catch(e2){toast('保存できませんでした：'+e2.message)}}
+        await masterReload();render();
+      }else toast('保存できませんでした（入力内容は画面に残っていません。もう一度開いて入力してください）：'+err.message);
+    }
+  });
+}
+
+/* =====================================================================
+   社員マスタ連携（確認一覧）
+   ===================================================================== */
+const MV2={hr:null,hrErr:'',input:{}};
+async function loadHrForMaster(){if(MV2.hr!==null)return;const r=await BK().hrPeople();MV2.hr=r||[];MV2.hrErr=r?'':'人材カルテの社員一覧を読む権限がありません（人事・経営層の権限が必要です）'}
+function orgLinkRows(){
+  const o=D.official;const ppl=o.people.filter(p=>p.status!=='採用予定');
+  const nos={};ppl.forEach(p=>{const n=(p.empNo||MV2.input[p.id]||'').trim();if(n)(nos[n]=nos[n]||[]).push(p)});
+  const linkedEmp=new Map(ppl.filter(p=>p.empId).map(p=>[p.empId,p]));
+  return ppl.map(p=>{
+    if(p.empId){const e=empOf(p);return {p,st:e?'linked':'broken',msg:e?'連携済み':'連携先が社員マスタにありません',e}}
+    const no=(MV2.input[p.id]||'').trim();
+    const sameName=(MV2.hr||[]).filter(h=>nkey(h.full_name)===nkey(p.name)&&(h.employee_no||'').trim());
+    const sugg=sameName.length===1?sameName[0].employee_no:'';
+    const amb=sameName.length>1;
+    if(!no)return {p,st:'nono',msg:'社員番号が未登録',sugg,amb};
+    if(nos[no]&&nos[no].length>1)return {p,st:'dup',msg:'社員番号が組織図の中で重複'};
+    const e=MS.emps.find(x=>x.employee_no===no);
+    if(e&&linkedEmp.has(e.id))return {p,st:'taken',msg:`この社員番号は ${linkedEmp.get(e.id).name} さんに連携済み`};
+    if(e&&nkey(e.full_name)!==nkey(p.name))return {p,st:'namediff',msg:`社員マスタの氏名が違います（${e.full_name}）。表記違いか別人か確認してください`,e};
+    if(e)return {p,st:'ready',msg:'社員マスタと一致。連携できます',e};
+    return {p,st:'new',msg:'社員マスタに新規登録して連携します'};
+  });
+}
+function hrLinkRows(){
+  const hr=MV2.hr||[];const cnt={};hr.forEach(h=>{const n=(h.employee_no||'').trim();if(n)cnt[n]=(cnt[n]||0)+1});
+  return hr.map(h=>{
+    if(h.employee_id){const e=empById(h.employee_id);return {h,st:'linked',msg:e?`連携済み（${e.employee_no||''}）`:'連携先が見つかりません'}}
+    const n=(h.employee_no||'').trim();
+    if(!n){const nm=MS.emps.filter(e=>nkey(e.full_name)===nkey(h.full_name));return {h,st:'nono',msg:nm.length>1?'社員番号が未登録（同姓同名あり。氏名では紐付けません）':'社員番号が未登録（人材カルテの基本情報で登録してください）'}}
+    if(cnt[n]>1)return {h,st:'dup',msg:'人材カルテ内で社員番号が重複'};
+    const e=MS.emps.find(x=>x.employee_no===n);
+    if(!e)return {h,st:'nomaster',msg:'この社員番号は社員マスタにありません'};
+    if(hr.some(x=>x.employee_id===e.id))return {h,st:'taken',msg:'この社員は別の人材カルテと連携済み'};
+    if(nkey(e.full_name)!==nkey(h.full_name))return {h,st:'namediff',msg:`社員番号は一致・氏名が違います（マスタ：${e.full_name}）`,e};
+    return {h,st:'ready',msg:'社員番号が1対1で一致。連携できます',e};
+  });
+}
+function masterView(){
+  if(!MS.on)return `<div class="sheet"><h2>社員マスタ</h2><div class="nodata">社員マスタ（共通化）のデータベース更新が未適用です。移行手順書の「01_common_employee.sql」を実行してください。</div></div>`;
+  if(MV2.hr===null){loadHrForMaster().then(()=>{if(V.tab==='master')renderPane()});}
+  const rows=orgLinkRows();const hr=hrLinkRows();
+  const c=k=>rows.filter(r=>r.st===k).length;
+  const ST={linked:'ok',ready:'done',new:'done',nono:'wait',dup:'wait',namediff:'wait',taken:'wait',broken:'wait'};
+  const noMail=MS.emps.filter(e=>e.status==='在籍'&&!e.email);
+  const bossGap=D.official.people.filter(p=>p.empId&&p.bossId&&!empOf(p)?.manager_id&&D.official.people.find(x=>x.id===p.bossId)?.empId);
+  return `<div class="sheet" style="max-width:1200px"><h2>社員マスタ（両アプリ共通の社員情報）</h2>
+    <p class="lead">社員番号で既存データを対応付け、以後は変わらない<b>共通社員ID</b>で組織設計アプリと人材カルテをつなぎます。<b>氏名だけでは自動で紐付けません。</b>候補が出ても、確認してから連携してください。面談・異動履歴は各アプリの元のIDのまま残り、対応表で結び付きます。</p>
+    <div class="mlm-kpi"><div><small>正式組織の社員</small><b>${rows.length}</b></div><div><small>連携済み</small><b>${c('linked')}</b></div><div class="${c('nono')?'bad':''}"><small>社員番号が未登録</small><b>${c('nono')}</b></div><div class="${c('dup')+c('namediff')+c('taken')?'bad':''}"><small>重複・要確認</small><b>${c('dup')+c('namediff')+c('taken')}</b></div><div><small>人材カルテ 連携済み</small><b>${hr.filter(x=>x.st==='linked').length}/${hr.length}</b></div></div>
+    <h3>① 組織図の社員 → 社員マスタ</h3>
+    ${canEdit()&&rows.some(r=>r.st==='ready'||r.st==='new')?`<div class="row" style="margin:6px 0 10px"><button class="btn pri" data-act="linkAllReady">「連携できます」「新規登録」の行をまとめて連携（${rows.filter(r=>r.st==='ready'||r.st==='new').length}名）</button></div>`:''}
+    <div style="overflow-x:auto"><table><thead><tr><th>氏名</th><th>所属</th><th>社員番号</th><th>状態</th><th></th></tr></thead><tbody>
+    ${rows.sort((a,b)=>(a.st==='linked')-(b.st==='linked')||a.p.name.localeCompare(b.p.name,'ja')).map(r=>`<tr><td><button class="plink" data-act="openPerson" data-id="${r.p.id}">${esc(r.p.name)}</button></td><td>${esc(deptName(r.p.deptId,D.official))}</td>
+      <td>${r.st==='linked'?esc(r.e?.employee_no||'—'):canEdit()?`<input class="noin" data-noin="${r.p.id}" value="${esc(MV2.input[r.p.id]||'')}" placeholder="例：E1024" style="width:110px">`:'—'}
+        ${r.sugg?`<div class="note">候補：人材カルテの同じ氏名 <b>${esc(r.sugg)}</b>（氏名一致のみ・要確認）<button class="btn sm" data-act="useSugg" data-id="${r.p.id}" data-no="${esc(r.sugg)}">この番号を入力</button></div>`:''}${r.amb?'<div class="note">人材カルテに同姓同名が複数います（自動では選びません）</div>':''}</td>
+      <td><span class="pst ${ST[r.st]||''}">${esc(r.msg)}</span></td>
+      <td>${canEdit()&&['ready','new','namediff'].includes(r.st)?`<button class="btn sm ${r.st==='namediff'?'':'pri'}" data-act="linkOne" data-id="${r.p.id}">${r.st==='namediff'?'確認して連携':'連携'}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+    <h3 style="margin-top:22px">② 人材カルテ → 社員マスタ</h3>
+    ${MV2.hrErr?`<div class="note">${esc(MV2.hrErr)}</div>`:MV2.hr===null?'<div class="note">読み込み中…</div>':`${hr.some(x=>x.st==='ready')&&canEdit()?`<div class="row" style="margin:6px 0 10px"><button class="btn pri" data-act="hrLinkAll">社員番号が1対1で一致する ${hr.filter(x=>x.st==='ready').length}名を連携</button></div>`:''}
+      <div style="overflow-x:auto"><table><thead><tr><th>人材カルテの氏名</th><th>部署</th><th>社員番号</th><th>状態</th><th></th></tr></thead><tbody>${hr.sort((a,b)=>(a.st==='linked')-(b.st==='linked')).map(x=>`<tr><td>${esc(x.h.full_name)}</td><td>${esc(x.h.department||'')}</td><td>${esc(x.h.employee_no||'—')}</td><td><span class="pst ${x.st==='linked'?'ok':x.st==='ready'?'done':'wait'}">${esc(x.msg)}</span></td>
+        <td>${canEdit()&&(x.st==='ready'||x.st==='namediff')?`<button class="btn sm" data-act="hrLinkOne" data-id="${x.h.id}">${x.st==='namediff'?'確認して連携':'連携'}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`}
+    <h3 style="margin-top:22px">③ そのほかの確認</h3>
+    <div class="diag">
+      ${noMail.length?`<div class="dg"><b>メールアドレス未登録の在籍者 ${noMail.length}名</b><span>人材カルテの閲覧権限（上司・本人）はメールで判定します。上司のメールが無いと、部下のカルテを上司が開けません。人材カルテとの連携時に本人のログインメールを引き継ぎます。${canEdit()?'下で直接登録もできます。':''}</span>
+        ${canEdit()?`<div class="mailin">${noMail.slice(0,40).map(e=>`<label class="row"><span style="min-width:8em">${esc(e.full_name)}</span><input data-mailin="${e.id}" type="email" placeholder="name@earthcom-eco.jp" style="flex:1"></label>`).join('')}<button class="btn sm pri" data-act="saveMails">メールを保存</button></div>`:''}</div>`:''}
+      ${bossGap.length?`<div class="dg"><b>組織図の直属上司が社員マスタに未登録 ${bossGap.length}名</b><span>組織図で設定済みの直属上司を、社員マスタに初期登録できます（初回移行のみ。以後の変更は異動申請で行います）。</span>${me.role==='admin'?`<button class="btn sm pri" data-act="seedBoss">直属上司を社員マスタに登録（管理者）</button>`:'<span class="note">管理者が実行できます</span>'}</div>`:''}
+      ${!noMail.length&&!bossGap.length?'<div class="nodata">ほかに確認が必要な項目はありません。</div>':''}
+    </div></div>`;
+}
+async function linkOrgPerson(p,force){
+  const no=(MV2.input[p.id]||'').trim();
+  const r=orgLinkRows().find(x=>x.p.id===p.id);if(!r||!['ready','new','namediff'].includes(r.st))return false;
+  if(r.st==='namediff'&&!force){const c=await modal({title:'氏名が違います',body:`<div>組織図：<b>${esc(p.name)}</b><br>社員マスタ（${esc(no)}）：<b>${esc(r.e.full_name)}</b></div><div class="note">同じ人の表記違いである場合だけ連携してください。連携すると、組織図の氏名は社員マスタの氏名に合わせて表示されます。別人の場合は社員番号を確認してください。</div>`,actions:[{label:'やめる',key:null},{label:'同じ人なので連携する',key:'ok',kind:'pri'}]});if(!c.key)return false}
+  let e=r.e;
+  if(!e){const b=p.bossId?D.official.people.find(x=>x.id===p.bossId):null;
+    e=await BK().createEmp({employee_no:no,full_name:p.name,department_id:p.deptId||null,department_name:p.deptId?deptName(p.deptId,D.official):null,position:p.title,status:STATUS.includes(p.status)?p.status:'在籍',effective_from:today(),manager_id:b&&b.empId?b.empId:null});}
+  p.empId=e.id;p.empNo=e.employee_no;delete MV2.input[p.id];
+  if(MS.mode==='live')await sb.from('ec_employee_links').upsert({app:'org-design',local_id:p.id,employee_id:e.id,linked_by:me.email});
+  return true;
+}
+async function linkHrOne(hid,force){
+  const x=hrLinkRows().find(r=>r.h.id===hid);if(!x||!['ready','namediff'].includes(x.st))return false;
+  if(x.st==='namediff'&&!force){const c=await modal({title:'氏名が違います',body:`<div>人材カルテ：<b>${esc(x.h.full_name)}</b><br>社員マスタ（${esc(x.e.employee_no)}）：<b>${esc(x.e.full_name)}</b></div><div class="note">同じ人の表記違いの場合だけ連携してください。</div>`,actions:[{label:'やめる',key:null},{label:'同じ人なので連携する',key:'ok',kind:'pri'}]});if(!c.key)return false}
+  await BK().linkHr(hid,x.e.id);return true;
+}
+
+/* =====================================================================
+   人材カルテの要約（組織図の詳細画面）：何を任せ、どう支援するか
+   ===================================================================== */
+function karteBoxHTML(p){
+  if(!MS.on||!isOfficial())return '';
+  const e=empOf(p);
+  if(!e)return `<h5>人材カルテ</h5><div class="note">社員マスタに未連携のため、人材カルテと結び付いていません。${canEdit()?'<button class="btn sm" data-act="goMaster">社員マスタで連携</button>':''}</div>`;
+  const k=MS.karte[e.id];
+  if(!k){BK().karte(e.id).then(x=>{MS.karte[e.id]=x||{none:true};if(V.sel===p.id)renderDrawer()}).catch(err=>{MS.karte[e.id]={denied:true,msg:err.message};if(V.sel===p.id)renderDrawer()});
+    return `<h5>人材カルテ</h5><div class="note">読み込み中…</div>`}
+  const btn=`<button class="btn sm pri" data-act="openKarte" data-id="${p.id}">人材カルテを開く</button>`;
+  if(k.denied)return `<h5>人材カルテ</h5><div class="note">この社員の人材カルテを見る権限がありません（人事・経営層、または直属上司・本人のみ閲覧できます）。</div>`;
+  if(k.none)return `<h5>人材カルテ</h5><div class="note">人材カルテがまだ連携されていません。社員マスタの「② 人材カルテ → 社員マスタ」で連携してください。</div>`;
+  const un=t=>`<span class="un">${t}</span>`;
+  const tr=openTransferOf(e.id)||MS.tr.filter(t=>t.employee_id===e.id&&t.status==='applied').sort((a,b)=>b.effective_date.localeCompare(a.effective_date))[0];
+  return `<h5>人材カルテ（何を任せ、どう支援するか）</h5><div class="kbox">
+    <div><label>現在の役割と結果責任</label><b>${esc(k.current_job||p.roleName||p.title)}</b>${k.responsibility?`<p>${esc(k.responsibility)}</p>`:'<p class="note">結果責任：職務（人材カルテの配置・育成検討）が未設定</p>'}${tr&&tr.plan?.role?`<p class="note">異動時に任せた役割：${esc(tr.plan.role)}</p>`:''}</div>
+    <div><label>直近の成果と課題${k.result?`<small>${esc(k.result.period||'')}</small>`:''}</label>${k.result?esc(k.result.body):un('成果は未登録')}${k.issue?`<p><span class="note">いま取り組む課題：</span>${esc(k.issue)}</p>`:''}</div>
+    <div><label>本人が希望する役割</label>${k.desired_role?esc(k.desired_role):un('本人に確認')}</div>
+    <div><label>強みが発揮される条件</label>${k.shine?`${k.shine.where?esc(k.shine.where):''}${k.shine.conds?.length?`<div class="chips">${k.shine.conds.map(c=>`<span>${esc(c)}</span>`).join('')}</div>`:''}<small class="note">${esc(k.shine.status||'')}</small>`:un('未作成')}</div>
+    <div><label>現在の育成テーマ</label>${k.theme&&k.theme.length?`<div class="chips">${k.theme.map(c=>`<span>${esc(c)}</span>`).join('')}</div>`:un('未設定')}</div>
+    <div><label>上司が試している関わり方</label>${k.bossActs&&k.bossActs.length?`<ul class="mini">${k.bossActs.map(a=>`<li>${esc(a.action)}${a.due_on?`（${esc(a.due_on)}）`:''}</li>`).join('')}</ul>`:un('未登録')}</div>
+    <div><label>次回の面談日</label>${k.next_on?`<b>${esc(k.next_on)}</b>`:un('未設定')}</div>
+    <p class="note">出典：${esc(k.source||'人材カルテ')}　更新 ${esc(k.updated||'')}　詳しい根拠・診断結果は人材カルテで確認できます。</p>
+    <div class="row">${btn}</div></div>`;
+}
+function openKarte(p){const e=empOf(p);if(!e){needLinkModal(p);return}
+  if(MS.mode==='mock'){toast('プレビューでは人材カルテを開けません（本番では新しいタブで開きます）');return}
+  window.open(`${KARTE_URL}?emp=${encodeURIComponent(e.id)}`,'_blank','noopener')}
+
+/* =====================================================================
+   ミルメ比較（共通保存・権限つき）
+   ・絶対差が基準を「超えた」場合だけ確認対象（25点基準なら 25 は対象外、26 は対象）
+   ・検査条件が違う結果同士は比較しない／未受検・未確認は0点として扱わない
+   ・表示は「関わり方の確認対象」。相性の良し悪しを断定しない
+   ===================================================================== */
+const milmeTh=()=>{const s=MS.settings.milme_gap_threshold;const v=s?Number(s.value):25;return isFinite(v)&&v>0?v:25};
+function milmeJudge(gap,th){if(gap==null||!isFinite(gap))return 'na';return Math.abs(gap)>th?'check':'ok'}
+function milmeLatest(eid){return MS.milme.filter(r=>r.employee_id===eid&&r.match_status==='linked'&&r.confirmed_by&&r.metrics&&r.metrics.proc_max!=null).sort((a,b)=>String(b.test_date||'').localeCompare(String(a.test_date||''))||String(b.imported_at||'').localeCompare(String(a.imported_at||'')))[0]||null}
+function milmeCompare(sub,boss){
+  const a=milmeLatest(sub),b=milmeLatest(boss);
+  if(!a||!b)return {state:'na',why:!a&&!b?'双方とも未受検・未確認':!a?'部下が未受検・未確認':'上司が未受検・未確認',ra:a,rb:b};
+  if(a.test_version!==b.test_version)return {state:'incomparable',why:`検査条件が違うため比較しません（${a.test_version}／${b.test_version}）`,ra:a,rb:b};
+  const gap=Number(b.metrics.proc_max)-Number(a.metrics.proc_max);
+  return {state:milmeJudge(gap,milmeTh()),gap,ra:a,rb:b};
+}
+const MM={only:false,auto:true};
+function milmeMasterPairs(){
+  const o=D.official;const out=[];
+  o.people.filter(p=>p.empId&&p.status!=='採用予定'&&p.status!=='退職').forEach(p=>{
+    let b=bossOf(p,o),rel='直属上司';if(!b&&MM.auto){b=findBossIn(p,o);rel='部署上の上位者'}
+    if(!b||!b.empId)return;out.push({p,b,rel,...milmeCompare(p.empId,b.empId)});
+  });return out;
+}
+function milmeLegacyRows(){try{return JSON.parse(localStorage.getItem(MILME_KEY)||'null')}catch(e){return null}}
+function milmeMasterView(){
+  const th=milmeTh();const set=MS.settings.milme_gap_threshold||{};
+  const legacy=milmeLegacyRows();
+  const all=milmeMasterPairs();const chk=all.filter(x=>x.state==='check');
+  const list=(MM.only?chk:all).sort((a,b)=>((b.state==='check')-(a.state==='check'))||(Math.abs(b.gap??-1)-Math.abs(a.gap??-1)));
+  const un=MS.milme.filter(r=>r.match_status!=='linked'||!r.confirmed_by);
+  const ver=[...new Set(MS.milme.map(r=>r.test_version))];
+  const f=(v,d=1)=>v==null||v===''?'—':(+v).toFixed(d);
+  const cell=(x,k,d)=>`<td class="n">${f(x.rb?.metrics?.[k],d)}<span class="sub"> / </span>${f(x.ra?.metrics?.[k],d)}</td>`;
+  const lab={check:['関わり方の確認対象','bad'],ok:['基準内',''],na:['比べられない（未受検・未確認）','na'],incomparable:['比較しない（検査条件が違う）','na']};
+  const rows=list.map(x=>`<tr class="${x.state==='check'?'bad':''}"><td><button class="plink" data-act="openPerson" data-id="${x.b.id}">${esc(x.b.name)}</button></td><td><button class="plink" data-act="openPerson" data-id="${x.p.id}">${esc(x.p.name)}</button><div class="sub">${esc(deptName(x.p.deptId,D.official))}</div></td>
+    <td><span class="rel ${x.rel==='直属上司'?'':'auto'}">${x.rel}</span></td>${cell(x,'basic',1)}<td class="n">${f(x.rb?.metrics?.proc_max)} / ${f(x.ra?.metrics?.proc_max)}</td>
+    <td class="n gap">${x.gap==null?'—':`${x.gap>0?'+':''}${f(x.gap)}`}<div class="sub">${esc(lab[x.state][0])}${x.why?'：'+esc(x.why):''}</div></td>${cell(x,'fail',1)}${cell(x,'fp',2)}
+    <td class="note">${esc(x.rb?.test_date||'—')} / ${esc(x.ra?.test_date||'—')}</td></tr>`).join('');
+  return `<div class="sheet" style="max-width:1260px"><h2>ミルメ比較</h2>
+    <p class="lead">上司と部下の【応用】処理数（最高値）の差が基準を超える組み合わせを<b>「関わり方の確認対象」</b>として表示します。相性の良し悪しや能力を断定するものではありません。指示の出し方・報告の頻度などを本人たちと確認するきっかけとして使ってください。</p>
+    <div class="mlm-top"><span class="mlm-lock">🔒 閲覧はサーバーで許可した人だけ</span><span>受検結果 ${MS.milme.length}件（検査条件：${esc(ver.join('、')||'—')}）</span><span class="sp"></span>
+      <label class="btn sm pri" style="cursor:pointer">Excelを取り込む<input type="file" id="milmeFile2" accept=".xlsx,.xls,.csv" hidden></label></div>
+    ${legacy&&legacy.rows?.length?`<div class="dg"><b>この端末に旧形式のミルメデータがあります（${esc(legacy.file)}・${legacy.rows.length}名）</b><span>端末内だけに保存されていたデータです。受検日と検査条件を確認して共通保存に移せます。</span><div class="row"><button class="btn sm pri" data-act="milmeLegacyMove">確認して共通保存に移す</button><button class="btn sm del" data-act="milmeDel">この端末から削除</button></div></div>`:''}
+    <div class="mlm-set"><b>確認対象にする差：${th}点を超える場合</b>（${th}点ちょうどは対象外）<span class="note">基準の出典：${esc(set.source||'未登録')}　設定日：${esc(set.set_on||'—')}　設定者：${esc(set.set_by||'—')}</span>${me.role==='admin'?'<button class="btn sm" data-act="milmeTh">基準を変更（管理者）</button>':''}</div>
+    <div class="mlm-kpi"><div><small>比較した組み合わせ</small><b>${all.length}</b></div><div class="bad"><small>関わり方の確認対象</small><b>${chk.length}</b></div><div><small>比べられない・比較しない</small><b>${all.filter(x=>x.state==='na'||x.state==='incomparable').length}</b></div><div class="${un.length?'bad':''}"><small>紐付けの確認待ち</small><b>${un.length}</b></div></div>
+    <div class="mlm-opts"><label class="chk"><input type="checkbox" data-mm="only" ${MM.only?'checked':''}> 確認対象だけ表示</label><label class="chk"><input type="checkbox" data-mm="auto" ${MM.auto?'checked':''}> 直属上司が未設定の人は、部署上の上位者と比較</label></div>
+    ${rows?`<div style="overflow-x:auto"><table class="mlm-t"><thead><tr><th>上司</th><th>部下</th><th>関係</th><th class="n">【基礎】点数</th><th class="n">【応用】処理数 最高</th><th class="n">差・判定</th><th class="n">【応用】失敗平均</th><th class="n">【応用】FP率平均</th><th>受検日</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="nodata">比べられる組み合わせがありません。</div>'}
+    <p class="note">数字は「上司 / 部下」。各人の最新の受検結果（受検日順）を使います。未受検・紐付け未確認は0点として扱わず「比べられない」と表示します。</p>
+    ${un.length?`<h2 style="margin-top:24px">紐付けの確認待ち ${un.length}件</h2><p class="lead">社員番号で一致しなかった結果です。氏名だけでは自動で紐付けません。社員を選んで「確認して紐付け」を押すと、確認者と確認日時が記録されます。</p>
+      <div style="overflow-x:auto"><table><thead><tr><th>ファイル上の氏名</th><th>受検日</th><th>検査条件・出典</th><th>処理数 最高</th><th>紐付ける社員</th><th></th></tr></thead><tbody>${un.map(r=>{const cand=MS.emps.filter(e=>nkey(e.full_name)===nkey(r.name_in_file));
+        return `<tr><td>${esc(r.name_in_file)}${cand.length>1?'<div class="note">同姓同名が複数います</div>':''}</td><td>${esc(r.test_date||'—')}</td><td>${esc(r.test_version)}<div class="note">${esc(r.source_file||'')}</div></td><td class="n">${f(r.metrics?.proc_max)}</td>
+        <td><select data-mmlink="${r.id}"><option value="">選んでください</option>${(cand.length?cand:[]).map(e=>`<option value="${e.id}">${esc(e.full_name)}（${esc(e.employee_no||'番号なし')}・${esc(e.department_name||'')}）候補</option>`).join('')}<option disabled>──すべての社員──</option>${MS.emps.map(e=>`<option value="${e.id}">${esc(e.full_name)}（${esc(e.employee_no||'番号なし')}）</option>`).join('')}</select></td>
+        <td><button class="btn sm pri" data-act="mmLink" data-id="${r.id}">確認して紐付け</button></td></tr>`}).join('')}</tbody></table></div>`:''}
+    <h2 style="margin-top:24px">受検結果の履歴（経年変化）</h2><p class="lead">受検日ごとに保持し、過去の結果は上書きしません。</p>
+    ${milmeHistoryTable()}</div>`;
+}
+function milmeHistoryTable(eid){
+  const rows=MS.milme.filter(r=>r.match_status==='linked'&&(!eid||r.employee_id===eid)).sort((a,b)=>(nameOfEmp(a.employee_id)).localeCompare(nameOfEmp(b.employee_id),'ja')||String(a.test_date||'').localeCompare(String(b.test_date||'')));
+  if(!rows.length)return '<div class="note">記録はありません</div>';
+  const f=(v,d=1)=>v==null?'—':(+v).toFixed(d);
+  return `<div style="overflow-x:auto"><table class="mlm-t"><thead><tr>${eid?'':'<th>氏名</th>'}<th>受検日</th><th>検査条件</th><th class="n">基礎</th><th class="n">処理数 最高</th><th class="n">失敗平均</th><th class="n">FP率</th><th>出典・確認</th></tr></thead><tbody>${rows.map(r=>`<tr>${eid?'':`<td>${esc(nameOfEmp(r.employee_id))}</td>`}<td>${esc(r.test_date||'—')}</td><td>${esc(r.test_version)}</td><td class="n">${f(r.metrics?.basic)}</td><td class="n">${f(r.metrics?.proc_max)}</td><td class="n">${f(r.metrics?.fail)}</td><td class="n">${f(r.metrics?.fp,2)}</td><td class="note">${esc(r.source_file||'')}<br>確認：${esc(r.confirmed_by||'未確認')} ${esc(String(r.confirmed_at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function milmeMasterDrawer(p){
+  if(!MS.on||!MS.canSens||!p.empId)return '';const b=bossOf(p,D.official);
+  const c=b&&b.empId?milmeCompare(p.empId,b.empId):null;
+  const has=MS.milme.some(r=>r.employee_id===p.empId&&r.match_status==='linked');
+  if(!has&&!c)return '';
+  return `<h5>ミルメ（許可された人のみ表示）</h5>${milmeHistoryTable(p.empId)}
+    ${c?`<div class="mlm-box ${c.state==='check'?'bad':''}">直属上司 ${esc(b.name)} との処理数の差：${c.gap!=null?`<b>${c.gap>0?'+':''}${(+c.gap).toFixed(1)}</b>`:'—'}　${c.state==='check'?'関わり方の確認対象（指示の出し方・報告の頻度などを確認）':c.state==='ok'?'基準内':esc(c.why||'')}</div>`:''}`;
+}
+async function parseMilmeFile(file){
+  await loadXLSX();const buf=await file.arrayBuffer();let wb;
+  if(/\.csv$/i.test(file.name)){let t=new TextDecoder('utf-8').decode(buf);if(t.includes('\ufffd'))t=new TextDecoder('shift_jis').decode(buf);wb=XLSX.read(t,{type:'string'})}else wb=XLSX.read(buf,{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const hi=rows.findIndex(r=>r.some(c=>/受検者名|氏名/.test(String(c))));if(hi<0)throw new Error('「受検者名」の列が見つかりません');
+  const H=rows[hi].map(h=>String(h).trim());const col=re=>H.findIndex(h=>re.test(h));
+  const ci={name:col(/受検者名|氏名/),no:col(/社員番号|社員コード|従業員番号|受検者ID|受検者番号/),date:col(/受検日|実施日|受験日/),kind:col(/^区分$/),basic:col(/【基礎】点数/),fail:col(/【応用】失敗平均/),fp:col(/【応用】FP率平均/)};
+  const procCols=H.map((h,i)=>{const m=h.match(/【応用(\d)】処理数/);return m?{i,n:m[1]}:null}).filter(Boolean);
+  const miss=[!(ci.basic>=0)&&'【基礎】点数',!procCols.length&&'【応用1〜3】処理数',!(ci.fail>=0)&&'【応用】失敗平均',!(ci.fp>=0)&&'【応用】FP率平均'].filter(Boolean);
+  if(miss.length)throw new Error('列が見つかりません：'+miss.join('、'));
+  const num=v=>{const x=parseFloat(String(v).replace(/,/g,''));return isFinite(x)?x:null};
+  const dt=v=>{if(v===''||v==null)return '';if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return ymd(d)}const m=String(v).match(/(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/);return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:''};
+  const labels={basic:H[ci.basic],proc:procCols.map(c=>H[c.i]).join('・'),fail:H[ci.fail],fp:H[ci.fp]};
+  return {labels,rows:rows.slice(hi+1).filter(r=>String(r[ci.name]||'').trim()).map(r=>{let best=null,which='';procCols.forEach(c=>{const v=num(r[c.i]);if(v!=null&&(best==null||v>best)){best=v;which='応用'+c.n}});
+    return {name:String(r[ci.name]).trim(),no:ci.no>=0?String(r[ci.no]).trim():'',date:ci.date>=0?dt(r[ci.date]):'',kind:ci.kind>=0?String(r[ci.kind]).trim():'',basic:num(r[ci.basic]),procMax:best,procWhich:which,fail:num(r[ci.fail]),fp:num(r[ci.fp])}})};
+}
+async function importMilmeMaster(parsed,fileName){
+  const rows=parsed.rows;if(!rows.length){toast('受検者のデータがありません');return}
+  const noDate=rows.filter(r=>!r.date).length;
+  const vers=[...new Set(MS.milme.map(r=>r.test_version))];
+  const r=await modal({title:'ミルメ結果の取り込み',body:`<div class="movebox">${esc(fileName)}：${rows.length}名${rows.some(x=>x.no)?'（社員番号の列あり）':'（社員番号の列なし → すべて紐付けの確認待ちになります）'}</div>
+    <label>受検日${noDate?`（ファイルに受検日がない ${noDate}名に使います）`:'（ファイルの受検日を使います）'}<input type="date" name="date" value="${today()}" ${noDate?'':'disabled'}></label>
+    <label>検査条件（版・形式）<input name="ver" list="mmver" value="${esc(vers[0]||'標準版')}" placeholder="例：標準版"><datalist id="mmver">${vers.map(v=>`<option value="${esc(v)}">`).join('')}</datalist></label>
+    <div class="note">検査条件が違う結果同士は比較しません。同じ検査を受けた場合は、同じ名称にしてください。<br>指標名：${esc(Object.values(parsed.labels).join('／'))}</div>
+    <div class="note">過去の結果は上書きせず、受検日ごとに追加します。</div>`,
+    actions:[{label:'やめる',key:null},{label:'取り込む',key:'ok',kind:'pri',validate:m=>!!m.querySelector('[name=ver]').value.trim()}]});
+  if(!r.key)return;
+  const out=rows.map(x=>{const byNo=x.no?MS.emps.filter(e=>e.employee_no&&nkey(e.employee_no)===nkey(x.no)):[];
+    const e=byNo.length===1?byNo[0]:null;
+    return {employee_id:e?.id||null,employee_no:x.no||e?.employee_no||'',name_in_file:x.name,test_date:x.date||r.form.date||null,test_version:r.form.ver.trim(),source_file:fileName,kind:x.kind,
+      metrics:{basic:x.basic,proc_max:x.procMax,proc_which:x.procWhich,fail:x.fail,fp:x.fp,labels:parsed.labels},
+      match_status:e?'linked':(MS.emps.filter(y=>nkey(y.full_name)===nkey(x.name)).length>1?'ambiguous':'unmatched'),
+      confirmed_by:e?(me.name||me.email)+'（社員番号で一致）':null,confirmed_at:e?jstNow():null}});
+  await once('milme-import',async()=>{try{const n=await BK().saveMilme(out);await masterReload();render();toast(`${n}件を取り込みました（社員番号で紐付け ${out.filter(x=>x.employee_id).length}件／確認待ち ${out.filter(x=>!x.employee_id).length}件）`)}catch(e){toast('取り込めませんでした：'+e.message)}});
+}
+document.addEventListener('change',async e=>{
+  if(e.target.id==='milmeFile2'&&e.target.files[0]){const file=e.target.files[0];try{importMilmeMaster(await parseMilmeFile(file),file.name)}catch(err){toast('読み込めませんでした：'+err.message)}e.target.value='';return}
+  const k=e.target.dataset?.mm;if(k){MM[k]=e.target.checked;renderPane();return}
+  const ni=e.target.dataset?.noin;if(ni!==undefined){MV2.input[ni]=e.target.value.trim();renderPane();return}
+});
+
+/* =====================================================================
+   管理人数・組織診断（直属部下数と部署人数を分けて見る）
+   ===================================================================== */
+const spanDefault=()=>{const v=+(D.settings&&D.settings.spanDefault);return v>0?v:SPAN_LIMIT};
+const spanOf=d=>{const v=+(d&&d.spanLimit);return v>0?v:spanDefault()};
+function isNewcomer(p){if(p.status==='内定')return true;if(!p.joined)return false;const [y,m]=p.joined.split('-').map(Number);if(!y)return false;const t=new Date();return (t.getFullYear()-y)*12+(t.getMonth()+1-m)<12}
+function loadAnalysis(o=org()){
+  const act=o.people.filter(isActive);
+  const careOpen=new Set();if(MS.on&&o===D.official){MS.fu.filter(f=>f.status!=='done').forEach(f=>{const p=personByEmp(f.employee_id);if(p)careOpen.add(p.id)})}
+  (D.care||[]).filter(c=>c.items.some(i=>!i.done)).forEach(c=>careOpen.add(c.personId));
+  const mgrs=act.filter(p=>act.some(x=>x.bossId===p.id)).map(m=>{
+    const subs=act.filter(x=>x.bossId===m.id);const d=deptById(m.deptId,o);const lim=spanOf(d);
+    const nw=subs.filter(isNewcomer).length,cr=subs.filter(x=>careOpen.has(x.id)).length;
+    const heads=o.depts.filter(dd=>o.people.some(x=>x.deptId===dd.id&&x.isHead&&x.id===m.id)).length+(m.concurrent?1:0);
+    return {m,subs:subs.length,lim,nw,cr,conc:m.concurrent?deptName(m.concurrent,o):'',heads,load:subs.length+nw+cr,over:subs.length>lim};
+  }).sort((a,b)=>b.load-a.load);
+  const depts=o.depts.map(d=>{const mem=act.filter(p=>p.deptId===d.id);const head=mem.find(p=>p.isHead);
+    const conc=act.filter(p=>p.concurrent===d.id).length;const noBoss=mem.filter(p=>!p.isHead&&!p.bossId).length;
+    return {d,n:mem.length,head,direct:head?act.filter(x=>x.bossId===head.id).length:null,lim:spanOf(d),conc,nw:mem.filter(isNewcomer).length,cr:mem.filter(x=>careOpen.has(x.id)).length,noBoss,kids:children(d.id,o).length}});
+  return {mgrs,depts};
+}
+function diagnose2(o=org()){
+  const out=[];const {mgrs,depts}=loadAnalysis(o);
+  depts.forEach(x=>{
+    if(!x.head&&x.n)out.push({lv:'warn',t:`${x.d.name}：部門長が不在`,s:'結果責任を持つ人が決まっていません。部門長（役割）を設定するか、上位部署の部門長が兼ねることを明記してください。',goto:{dept:x.d.id}});
+    if(x.noBoss&&x.n)out.push({lv:'warn',t:`${x.d.name}：直属上司が未設定 ${x.noBoss}名`,s:'誰に報告し、誰の指示で動くかが決まっていない人がいます（責任者未設定）。',goto:{dept:x.d.id}});
+    if(x.n===1&&!x.kids)out.push({lv:'warn',t:`${x.d.name}：1名体制（一人依存）`,s:'休職・退職時に機能が止まる可能性があります。業務の手順化や兼務・育成での手当てを確認してください。',goto:{dept:x.d.id}});
+    if(!x.n&&!x.kids)out.push({lv:'info',t:`${x.d.name}：在籍者なし`,s:'採用予定枠や兼務での手当てが必要か確認してください。',goto:{dept:x.d.id}});
+  });
+  mgrs.filter(m=>m.over).forEach(m=>out.push({lv:'warn',t:`${m.m.name}：直属部下 ${m.subs}名（基準 ${m.lim}名）`,s:`管理負荷の確認対象です。${m.nw?`うち新入社員 ${m.nw}名。`:''}${m.cr?`異動フォロー中 ${m.cr}名。`:''}係長・主任への一部委任やチーム分割を検討できます。`,goto:{person:m.m.id}}));
+  mgrs.filter(m=>!m.over&&m.nw+m.cr>=3).forEach(m=>out.push({lv:'info',t:`${m.m.name}：育成負荷が集中（新入社員 ${m.nw}名・異動フォロー ${m.cr}名）`,s:'直属部下数は基準内ですが、育成・フォローの対象が重なっています。',goto:{person:m.m.id}}));
+  mgrs.filter(m=>m.heads>=2).forEach(m=>out.push({lv:'info',t:`${m.m.name}：兼務あり（${m.heads}部署）`,s:'部門長や兼務が重なっています。どちらの結果責任を優先するかを明確にしてください。',goto:{person:m.m.id}}));
+  const un=o.people.filter(p=>!p.deptId||!deptById(p.deptId,o)).length;if(un)out.push({lv:'warn',t:`未配置 ${un}名`,s:'所属部署が決まっていない社員がいます。'});
+  const hire=o.people.filter(p=>p.status==='採用予定').length;if(hire)out.push({lv:'info',t:`採用予定枠 ${hire}名`,s:'採用計画と入社時期の確認対象です。',goto:{tab:'plan'}});
+  const s=stats(o);if(s.head&&s.mgr/s.head<0.1)out.push({lv:'info',t:`管理職比率 ${Math.round(s.mgr/s.head*100)}%`,s:'今後の人数増に対して、課長以上の育成・登用計画が必要になる水準です。'});
+  return out;
+}
+function loadTableHTML(o=org()){
+  const {mgrs,depts}=loadAnalysis(o);
+  return `<h3 style="margin:18px 0 6px">管理負荷（直属部下数）</h3><p class="note">部署の人数ではなく、<b>直属上司として設定されている部下の数</b>で見ます。基準は部署ごとに変えられます（部署の ⋯ → 設定）。全社の基準：<b>${spanDefault()}名</b>${canEdit()?` <button class="btn sm" data-act="spanEdit">変更</button>`:''}</p>
+    ${mgrs.length?`<div style="overflow-x:auto"><table><thead><tr><th>上司</th><th>所属</th><th>直属部下</th><th>基準</th><th>新入社員</th><th>異動フォロー中</th><th>兼務</th><th>育成負荷</th></tr></thead><tbody>${mgrs.map(m=>`<tr class="${m.over?'bad':''}"><td><button class="plink" data-act="openPerson" data-id="${m.m.id}">${esc(m.m.name)}</button></td><td>${esc(deptName(m.m.deptId,o))}</td><td class="n"><b>${m.subs}</b>${m.over?' <span class="pst wait">確認対象</span>':''}</td><td class="n">${m.lim}</td><td class="n">${m.nw}</td><td class="n">${m.cr}</td><td>${esc(m.conc||'—')}</td><td class="n">${m.load}<div class="note">部下＋新入＋フォロー</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="nodata">直属上司が設定された社員がいないため、直属部下数を出せません。社員の詳細で直属上司を設定してください。</div>'}
+    <h3 style="margin:18px 0 6px">部署ごとの状況</h3><div style="overflow-x:auto"><table><thead><tr><th>部署</th><th>部署の人数</th><th>部門長</th><th>部門長の直属部下</th><th>兼務で関わる人</th><th>新入社員</th><th>直属上司 未設定</th></tr></thead><tbody>${depts.map(x=>`<tr><td>${esc(x.d.name)}${x.d.spanLimit?`<div class="note">基準 ${x.lim}名</div>`:''}</td><td class="n">${x.n}</td><td>${x.head?esc(x.head.name):'<b style="color:var(--warn)">不在</b>'}</td><td class="n">${x.direct==null?'—':x.direct}</td><td class="n">${x.conc}</td><td class="n">${x.nw}</td><td class="n">${x.noBoss||0}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* =====================================================================
+   未来組織計画（シナリオ × 経営目標）
+   概算は「採用人数 × 1人あたり想定年間人件費」。診断結果から売上は予測しない
+   ===================================================================== */
+const SC_KINDS=['現状維持','社内異動','採用追加'];
+function planOf(sc,did){sc.plans=sc.plans||{};return sc.plans[did]=sc.plans[did]||{goal:'',workload:'',roles:'',hire:0,move:0,develop:0,owner:''}}
+const roleNeed=t=>String(t||'').split(/\n/).map(l=>{const m=l.match(/(\d+)\s*(名|人)?\s*$/);return m?+m[1]:0}).reduce((a,b)=>a+b,0);
+function scenarioCalc(sc){
+  const off=D.official;const rows=sc.depts.map(d=>{const pl=(sc.plans||{})[d.id]||{};const cur=off.people.filter(p=>p.deptId===d.id&&isActive(p)).length;
+    const inScn=sc.people.filter(p=>p.deptId===d.id&&isActive(p)).length;const need=roleNeed(pl.roles);
+    const gap=need?need-cur:0;const fill=(+pl.hire||0)+(+pl.move||0)+(+pl.develop||0);
+    return {d,pl,cur,inScn,need,gap,fill,rest:need?Math.max(0,gap-fill):0}});
+  const sum=k=>rows.reduce((a,r)=>a+(+r[k]||0),0);
+  const hire=rows.reduce((a,r)=>a+(+r.pl.hire||0),0),move=rows.reduce((a,r)=>a+(+r.pl.move||0),0),dev=rows.reduce((a,r)=>a+(+r.pl.develop||0),0);
+  const unit=+sc.unitCost||0;
+  return {rows,need:sum('need'),cur:sum('cur'),gap:rows.reduce((a,r)=>a+(r.need?r.gap:0),0),hire,move,dev,rest:sum('rest'),unit,cost:unit?hire*unit:null};
+}
+function planView(){
+  const scs=D.scenarios;
+  const cmp=scs.map(sc=>({sc,c:scenarioCalc(sc)}));
+  const cmpHTML=cmp.length?`<div style="overflow-x:auto"><table><thead><tr><th>シナリオ</th><th>種別</th><th>対象期間</th><th>必要人数</th><th>現在人数</th><th>差</th><th>採用</th><th>異動</th><th>育成</th><th>未充足</th><th>追加人件費（年）の概算</th><th>責任者</th></tr></thead><tbody>
+    ${cmp.map(({sc,c})=>`<tr ${sc.id===V.scn?'style="background:#FFF8EA"':''}><td><button class="plink" data-act="goScn" data-id="${sc.id}">${esc(sc.name)}</button></td><td>${esc(sc.kind||'—')}</td><td>${esc([sc.from,sc.to].filter(Boolean).join('〜')||sc.when||'—')}</td><td class="n">${c.need||'—'}</td><td class="n">${c.cur}</td><td class="n">${c.need?(c.gap>0?'+':'')+c.gap:'—'}</td><td class="n">${c.hire}</td><td class="n">${c.move}</td><td class="n">${c.dev}</td><td class="n">${c.need?c.rest:'—'}</td>
+      <td>${c.cost==null?'<span class="note">単価未設定</span>':`<b>${c.cost.toLocaleString()}万円</b><div class="note">＝採用 ${c.hire}名 × ${c.unit.toLocaleString()}万円</div>`}</td><td>${esc(sc.owner||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="nodata">シナリオがありません。ヘッダーの【＋シナリオ】で「現状維持案」「社内異動案」「採用追加案」を作ると比較できます。</div>';
+  const head=`<div class="sheet" style="max-width:1260px"><h2>未来組織計画</h2><p class="lead">シナリオごとに、部署の目標・想定業務量・必要な役割と人数を入れ、現在の人数との差と、採用・異動・育成で補う計画を比べます。人件費は「採用人数 × 1人あたり想定年間人件費」の概算で、前提はシナリオごとに表示します。<b>診断結果から売上を予測することはしません。</b></p>
+    <h3>シナリオの比較</h3>${cmpHTML}`;
+  if(isOfficial())return head+`<p class="note" style="margin-top:12px">個別の計画を入力するには、ヘッダーで対象のシナリオを選んでください。</p></div>`;
+  const sc=org();const c=scenarioCalc(sc);const ro=canEdit()?'':'disabled';
+  return head+`<h3 style="margin-top:22px">シナリオ「${esc(sc.name)}」の計画</h3>
+    <div class="row note">種別：<b>${esc(sc.kind||'未設定')}</b>　対象期間：<b>${esc([sc.from,sc.to].filter(Boolean).join('〜')||sc.when||'未設定')}</b>　責任者：<b>${esc(sc.owner||'未設定')}</b>　${canEdit()?'<button class="btn sm" data-act="scnEdit">シナリオの設定</button>':''}</div>
+    <div class="dg" style="margin:10px 0"><b>人件費概算の計算式</b><span>追加人件費（年）＝ 採用人数の合計 × 1人あたり想定年間人件費。前提：${sc.unitCost?`${(+sc.unitCost).toLocaleString()}万円／人・年`:'未設定（シナリオの設定で入力）'}${sc.costNote?`（${esc(sc.costNote)}）`:''}。社内異動・育成は追加人件費0として扱います（昇給・研修費などは含みません）。</span></div>
+    <div style="overflow-x:auto"><table class="plan"><thead><tr><th>部署</th><th>部署の目標</th><th>想定業務量</th><th>必要な役割と人数<div class="note">1行に「役割 人数」</div></th><th>必要</th><th>現在<div class="note">正式組織</div></th><th>差</th><th>採用</th><th>異動</th><th>育成</th><th>未充足</th><th>責任者</th></tr></thead><tbody>
+    ${c.rows.map(r=>`<tr><td><b>${esc(r.d.name)}</b><div class="note">シナリオ配置 ${r.inScn}名</div></td>
+      <td><textarea data-plan="${r.d.id}" data-k="goal" ${ro} placeholder="例：高圧ReFort 月3件受注">${esc(r.pl.goal||'')}</textarea></td>
+      <td><textarea data-plan="${r.d.id}" data-k="workload" ${ro} placeholder="例：現調 月20件">${esc(r.pl.workload||'')}</textarea></td>
+      <td><textarea data-plan="${r.d.id}" data-k="roles" ${ro} placeholder="FS 4&#10;IS 2">${esc(r.pl.roles||'')}</textarea></td>
+      <td class="n">${r.need||'—'}</td><td class="n">${r.cur}</td><td class="n">${r.need?`<b style="color:${r.gap>0?'var(--warn)':'inherit'}">${r.gap>0?'+':''}${r.gap}</b>`:'—'}</td>
+      ${['hire','move','develop'].map(k=>`<td><input type="number" min="0" data-plan="${r.d.id}" data-k="${k}" value="${+r.pl[k]||0}" ${ro} style="width:56px"></td>`).join('')}
+      <td class="n">${r.need?r.rest:'—'}</td><td><input data-plan="${r.d.id}" data-k="owner" value="${esc(r.pl.owner||'')}" ${ro} style="width:90px"></td></tr>`).join('')}
+    <tr style="background:#F3F7FB"><td><b>合計</b></td><td></td><td></td><td></td><td class="n"><b>${c.need}</b></td><td class="n">${c.cur}</td><td class="n"><b>${c.gap>0?'+':''}${c.gap}</b></td><td class="n">${c.hire}</td><td class="n">${c.move}</td><td class="n">${c.dev}</td><td class="n">${c.rest}</td><td></td></tr></tbody></table></div>
+    <p class="note">「現在」は正式組織の在籍・休職の人数です。シナリオ内でカードを動かしても、正式組織の所属は変わりません。</p></div>`;
+}
+document.addEventListener('change',e=>{const did=e.target.dataset?.plan;if(!did||isOfficial()||!canEdit())return;const pl=planOf(org(),did);const k=e.target.dataset.k;
+  pl[k]=['hire','move','develop'].includes(k)?Math.max(0,parseInt(e.target.value,10)||0):e.target.value;dirty();renderPane()});
+
+/* =====================================================================
+   要対応一覧（社長向け）：各項目に担当者・期限・次の行動
+   ===================================================================== */
+function todoItems(){
+  const t0=today();const items=[];const o=D.official;
+  const add=(key,cat,title,detail,goto,owner,due,next)=>{const m=(D.todoMeta||{})[key]||{};items.push({key,cat,title,detail,goto,owner:m.owner||owner||'',due:m.due||due||'',next:m.next||next||'',done:!!m.done})};
+  if(MS.on){MS.tr.filter(t=>t.status==='draft').forEach(t=>add('tr:'+t.id,'承認待ちの異動',`${nameOfEmp(t.employee_id)}：${t.from_dept_name||'未配置'} → ${t.to_dept_name||'未配置'}`,`異動日 ${t.effective_date}／目的：${t.plan?.purpose||'未記入'}`,{tab:'pending'},'承認者',t.effective_date,'内容を確認して承認または差し戻し'))}
+  (D.pending||[]).filter(x=>x.status!=='approved').forEach(x=>{const p=o.people.find(y=>y.id===x.personId);add('lp:'+x.id,'承認待ちの異動',`${p?.name||''}（旧形式）`,`異動日 ${x.date}`,{tab:'pending'},'承認者',x.date,'新しい申請に移して承認')});
+  const la=loadAnalysis(o);
+  la.depts.filter(x=>!x.head&&x.n).forEach(x=>add('nohead:'+x.d.id,'責任者不在の部署',`${x.d.name}：部門長が不在`,`在籍 ${x.n}名`,{dept:x.d.id},'社長','', '部門長（結果責任者）を決める'));
+  la.depts.filter(x=>x.noBoss&&x.n).forEach(x=>add('noboss:'+x.d.id,'責任者不在の部署',`${x.d.name}：直属上司が未設定 ${x.noBoss}名`,'',{dept:x.d.id},'部門長','', '直属上司を設定（異動申請）'));
+  la.mgrs.filter(m=>m.over).forEach(m=>add('span:'+m.m.id,'管理負荷の確認対象',`${m.m.name}：直属部下 ${m.subs}名（基準 ${m.lim}名）`,`新入社員 ${m.nw}名・異動フォロー ${m.cr}名`,{tab:'diag'},'社長','', '委任先（係長・主任）やチーム分割を検討'));
+  D.scenarios.forEach(sc=>{const c=scenarioCalc(sc);c.rows.filter(r=>r.need&&r.rest>0).forEach(r=>add(`gap:${sc.id}:${r.d.id}`,'採用・育成で補う役割',`${sc.name}／${r.d.name}：未充足 ${r.rest}名`,`必要 ${r.need}名・現在 ${r.cur}名・計画 採用${+r.pl.hire||0}/異動${+r.pl.move||0}/育成${+r.pl.develop||0}`,{tab:'plan',scn:sc.id},r.pl.owner||sc.owner||'',sc.from||'', '採用・異動・育成の計画を決める'))});
+  o.people.filter(p=>p.status==='採用予定').forEach(p=>add('slot:'+p.id,'採用・育成で補う役割',`${deptName(p.deptId,o)}：採用予定枠`,p.name,{person:p.id},'採用担当','', '採用計画・入社時期を確認'));
+  if(MS.on)MS.fu.filter(f=>f.status!=='done'&&f.due_on<t0).forEach(f=>{const t=MS.tr.find(x=>x.id===f.transfer_id);add('fu:'+f.id,'期限を過ぎた異動後レビュー',`${nameOfEmp(f.employee_id)}：${f.stage}日後の確認`,`期日 ${f.due_on}／${t?.to_dept_name||''}`,{tab:'care'},t?.plan?.checker||'確認担当者',f.due_on,'面談して記録（改善したこと・未解決のこと）')});
+  (D.care||[]).forEach(c=>c.items.filter(i=>!i.done&&i.due<t0).forEach((i,k)=>add(`lc:${c.id}:${i.label}`,'期限を過ぎた異動後レビュー',`${c.name}：${i.label}（旧形式）`,`期日 ${i.due}`,{tab:'care'},'上司',i.due,'実施して記録')));
+  if(MS.bossActs)MS.bossActs.filter(a=>(a.status==='planned'||a.status==='doing')&&a.due_on&&a.due_on<t0&&a.decision!=='end').forEach(a=>{const p=a.empId?personByEmp(a.empId):null;add('ba:'+a.id,'未実施の上司の支援行動',`${a.assignee||'上司'}：${a.action}`,`対象：${a.person||''}／期限 ${a.due_on}${a.metric?`／確認指標：${a.metric}`:''}`,p?{karte:p.id}:{tab:'care'},a.assignee||'上司',a.due_on,'実施状況と結果を人材カルテに記録')});
+  if(MS.on){o.people.filter(p=>p.status!=='採用予定'&&p.status!=='退職').forEach(p=>{const miss=[];if(!p.empId)miss.push('社員番号・社員マスタ連携');if(!p.bossId&&!(p.isHead&&p.deptId==='top'))miss.push('直属上司');
+    const e=empOf(p);if(e&&!e.job_id)miss.push('職務（結果責任）');if(e&&!e.email)miss.push('メール');const k=e?MS.karte[e.id]:null;if(k&&k.none)miss.push('人材カルテ連携');
+    if(miss.length)add('info:'+p.id,'配置検討に必要な情報の不足',`${p.name}：${miss.join('、')}が未登録`,deptName(p.deptId,o),miss[0].startsWith('社員番号')||miss[0]==='メール'?{tab:'master'}:{person:p.id},'管理部','', '不足している情報を登録')})}
+  return items;
+}
+const TODO_CATS=['承認待ちの異動','責任者不在の部署','管理負荷の確認対象','採用・育成で補う役割','期限を過ぎた異動後レビュー','未実施の上司の支援行動','配置検討に必要な情報の不足'];
+const TD={showDone:false};
+function todoView(){
+  if(MS.on&&MS.bossActs===null){MS.bossActs=[];BK().bossActions().then(r=>{MS.bossActs=r;if(r===null)MS.bossActsDenied=true;if(V.tab==='todo')renderPane()})}
+  const items=todoItems();const open=items.filter(i=>!i.done);const t0=today();
+  const grp=TODO_CATS.map(c=>({c,xs:(TD.showDone?items:open).filter(i=>i.cat===c)}));
+  return `<div class="sheet" style="max-width:1200px"><h2>要対応一覧</h2><p class="lead">いま判断や手当てが必要な項目です。項目を押すと該当の画面へ移動します。担当者・期限・次の行動は変更できます（全員で共有されます）。</p>
+    <div class="mlm-kpi">${grp.map(g=>`<div class="${g.xs.length?'bad':''}"><small>${g.c}</small><b>${open.filter(i=>i.cat===g.c).length}</b></div>`).join('')}</div>
+    <label class="chk" style="margin:4px 0 12px"><input type="checkbox" data-act="todoShowDone" ${TD.showDone?'checked':''}> 対応済みにした項目も表示</label>
+    ${grp.map(g=>`<h3 class="tdh">${g.c} <span class="cnt">${g.xs.length}</span></h3>${g.xs.length?`<div class="tdl">${g.xs.map(i=>`<div class="td ${i.done?'done':''} ${i.due&&i.due<t0&&!i.done?'late':''}">
+      <button class="tdgo" data-act="todoGo" data-key="${esc(i.key)}"><b>${esc(i.title)}</b>${i.detail?`<span>${esc(i.detail)}</span>`:''}</button>
+      <div class="tdm"><span><i>担当</i>${esc(i.owner||'未設定')}</span><span><i>期限</i>${esc(i.due||'未設定')}${i.due&&i.due<t0&&!i.done?' <b style="color:var(--warn)">超過</b>':''}</span><span><i>次の行動</i>${esc(i.next||'未設定')}</span>
+      ${canEdit()?`<button class="btn sm" data-act="todoEdit" data-key="${esc(i.key)}">変更</button>`:''}</div></div>`).join('')}</div>`:`<div class="note" style="margin-bottom:10px">${g.c==='未実施の上司の支援行動'&&MS.bossActsDenied?'人材カルテの閲覧権限がないため確認できません':'ありません'}</div>`}`).join('')}</div>`;
+}
+async function todoGo(key){const it=todoItems().find(i=>i.key===key);if(!it)return;const g=it.goto||{};
+  if(g.tab){if(g.scn){V.scn=g.scn}else if(g.tab!=='plan')V.scn='official';V.tab=g.tab;render();return}
+  if(g.dept){V.scn='official';render();flashDept(g.dept);return}
+  if(g.person){V.scn='official';V.tab='chart';render();V.sel=g.person;renderDrawer();return}
+  if(g.karte){const p=D.official.people.find(x=>x.id===g.karte);if(p)openKarte(p)}}
+async function todoEdit(key){const it=todoItems().find(i=>i.key===key);if(!it)return;
+  const r=await modal({title:'担当・期限・次の行動',body:`<div class="movebox">${esc(it.title)}</div><label>担当者<input name="owner" value="${esc(it.owner)}"></label><label>期限<input type="date" name="due" value="${esc(it.due)}"></label><label>次の行動<input name="next" value="${esc(it.next)}"></label><label class="chk"><input type="checkbox" name="done" ${it.done?'checked':''}> 対応済みにする（元の状態が解消されると一覧から自動で消えます）</label>`,
+    actions:[{label:'やめる',key:null},{label:'保存',key:'ok',kind:'pri'}]});
+  if(!r.key)return;D.todoMeta=D.todoMeta||{};D.todoMeta[key]={owner:r.form.owner,due:r.form.due,next:r.form.next,done:!!r.form.done,by:me.name||me.email,at:jstNow()};dirty();renderPane()}
+
+/* =====================================================================
+   保存の信頼性：版番号つき保存・競合時の差分確認・失敗時の端末内保持と再試行
+   ===================================================================== */
+const STASH_KEY='ecod_unsaved_v1';
+let BASE=null,SVER=0,STATE_RPC=false;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const eqv=(a,b)=>JSON.stringify(a===undefined?null:a)===JSON.stringify(b===undefined?null:b);
+function stripForSave(d){const x=clone(d);if(MS.on){const st=ps=>(ps||[]).forEach(p=>{delete p.secret});st(x.official?.people);(x.scenarios||[]).forEach(s=>st(s.people))}return x}
+function stash(){try{localStorage.setItem(STASH_KEY,JSON.stringify({at:jstNow(),data:D,base:BASE,ver:SVER,by:me.email}))}catch(e){}}
+function clearStash(){try{localStorage.removeItem(STASH_KEY)}catch(e){}}
+const ARR_PATHS=[['official','depts'],['official','people'],['scenarios'],['pending'],['history'],['care'],['bossHistory']];
+const FIELD_JA={name:'氏名',deptId:'所属',title:'役職',isHead:'部門長',roleName:'役割名',status:'在籍状況',bossId:'直属上司',tags:'タグ',skills:'スキル・資格',growth:'育成テーマ',career:'キャリア希望',concurrent:'兼務',joined:'入社年月',location:'勤務地',empType:'雇用区分',parentId:'上位部署',spanLimit:'管理人数の基準',plans:'計画',items:'CARE項目',people:'配置',depts:'部署'};
+function merge3(base,mine,theirs){
+  const conflicts=[];const out=clone(theirs);
+  const get=(o,p)=>p.reduce((a,k)=>a?a[k]:undefined,o);
+  const setp=(o,p,v)=>{let x=o;p.slice(0,-1).forEach(k=>{x[k]=x[k]||{};x=x[k]});x[p[p.length-1]]=v};
+  ARR_PATHS.forEach(path=>{
+    const b=get(base,path)||[],m=get(mine,path)||[],t=get(theirs,path)||[];
+    const B=new Map(b.map(x=>[x.id,x])),M=new Map(m.map(x=>[x.id,x])),T=new Map(t.map(x=>[x.id,x]));
+    const ids=[...t.map(x=>x.id),...m.map(x=>x.id).filter(id=>!T.has(id))];const res=[];
+    ids.forEach(id=>{const bb=B.get(id),mm=M.get(id),tt=T.get(id);
+      const label=(mm||tt||bb||{}).name||id;
+      if(!bb){res.push(mm&&tt?mergeObj(bb||{},mm,tt,label,conflicts):(mm||tt));return}
+      if(!mm&&!tt)return;
+      if(!mm){if(eqv(bb,tt))return;conflicts.push({label,field:'（削除）',mine:'削除した',theirs:'他の人が変更',apply:c=>{if(c==='mine'){const i=res.indexOf(tt);if(i>=0)res.splice(i,1)}}});res.push(tt);return}
+      if(!tt){if(eqv(bb,mm))return;const obj=mm;conflicts.push({label,field:'（削除）',mine:'変更した',theirs:'他の人が削除',apply:c=>{if(c==='theirs'){const i=res.indexOf(obj);if(i>=0)res.splice(i,1)}}});res.push(mm);return}
+      res.push(mergeObj(bb,mm,tt,label,conflicts));
+    });
+    setp(out,path,res);
+  });
+  ['settings','todoMeta'].forEach(k=>{const b=base[k]||{},m=mine[k]||{},t=theirs[k]||{};out[k]=mergeObj(b,m,t,k==='settings'?'設定':'要対応の担当',conflicts)});
+  out.isSample=mine.isSample&&theirs.isSample;
+  return {merged:out,conflicts};
+}
+function mergeObj(b,m,t,label,conflicts){
+  const o={...t};new Set([...Object.keys(m),...Object.keys(t)]).forEach(k=>{
+    if(eqv(m[k],t[k])){o[k]=m[k];return}if(eqv(b[k],m[k])){o[k]=t[k];return}if(eqv(b[k],t[k])){o[k]=m[k];return}
+    o[k]=m[k];conflicts.push({label,field:FIELD_JA[k]||k,mine:m[k],theirs:t[k],apply:c=>{o[k]=c==='mine'?m[k]:t[k]}});
+  });return o;
+}
+const showVal=v=>v==null||v===''?'（空）':typeof v==='object'?JSON.stringify(v).slice(0,60):String(v);
+async function resolveConflict(){
+  const srv=await BK().loadState();
+  const {merged,conflicts}=merge3(BASE||{},D,srv.data||{});
+  if(conflicts.length){
+    const r=await modal({title:'ほかの人の変更と重なっています',body:`<div class="note">あなたが開いている間に、ほかの人が同じデータを保存しました。重ならない変更は自動で統合しました。次の${conflicts.length}件はどちらを残すか選んでください。</div>
+      <div style="overflow:auto;max-height:50dvh"><table><thead><tr><th>対象</th><th>項目</th><th>あなたの変更</th><th>ほかの人の変更</th></tr></thead><tbody>${conflicts.map((c,i)=>`<tr><td>${esc(c.label)}</td><td>${esc(c.field)}</td>
+        <td><label class="chk"><input type="radio" name="c${i}" value="mine" checked>${esc(showVal(c.mine))}</label></td><td><label class="chk"><input type="radio" name="c${i}" value="theirs">${esc(showVal(c.theirs))}</label></td></tr>`).join('')}</tbody></table></div>`,
+      actions:[{label:'あとで（保存しない）',key:null},{label:'選んだ内容で保存',key:'ok',kind:'pri'}]});
+    if(!r.key){stash();setSave('ほかの人の変更と重なっています（未保存）',true);showRetry(true);return false}
+    const box=document.querySelectorAll('#modal input[type=radio]');// modal は閉じた後なので form から読む
+    conflicts.forEach((c,i)=>c.apply(r.form['c'+i]==='theirs'?'theirs':'mine'));
+  }
+  D=merged;BASE=clone(srv.data||{});SVER=srv.version;
+  if(MS.on)syncOfficialFromMaster();
+  render();toast(conflicts.length?'選んだ内容で統合しました':'ほかの人の変更と自動で統合しました');
+  return true;
+}
+function showRetry(on){const b=$('#retryBtn');if(b)b.hidden=!on}
+
+/* ---------- 社員マスタ項目の編集（版番号で同時編集を検出） ---------- */
+const MFIELD={name:'full_name',title:'position',status:'status'};
+async function masterFieldEdit(p,f,v){
+  const e=empOf(p);if(!e)return;const mf=MFIELD[f];
+  await once('emp-'+e.id,async()=>{
+    try{await BK().updateEmp(e.id,{[mf]:v},e.version);await masterReload();dirty();render();toast('社員マスタを更新しました（両アプリに反映）')}
+    catch(err){
+      if(err.conflict){const s=err.server||{};
+        const c=await modal({title:'ほかの人が先に更新しています',body:`<div class="note">${esc(p.name)}さんの社員情報が、あなたが開いた後に更新されました。</div><table><thead><tr><th>項目</th><th>現在の内容</th><th>あなたの入力</th></tr></thead><tbody><tr><td>${esc(FIELD_JA[f]||f)}</td><td>${esc(s[mf]??'')}</td><td>${esc(v)}</td></tr></tbody></table>`,
+          actions:[{label:'現在の内容を残す',key:null},{label:'あなたの入力で更新',key:'mine',kind:'pri'}]});
+        if(c.key==='mine'){try{await BK().updateEmp(e.id,{[mf]:v},s.version);toast('更新しました')}catch(e2){toast('更新できませんでした：'+e2.message)}}
+        await masterReload();render();
+      }else{toast('更新できませんでした：'+err.message);render()}
+    }
+  });
+}
+async function migrateLegacyPending(){
+  let ok=0,skip=0;
+  for(const x of (D.pending||[]).slice()){
+    const p=D.official.people.find(y=>y.id===x.personId);if(!p||!p.empId){skip++;continue}
+    try{
+      const bp=x.bossTo&&x.bossTo!=='__keep'?D.official.people.find(y=>y.id===x.bossTo):null;
+      const t=await BK().requestTransfer({employee_id:p.empId,to_dept_id:x.to||null,to_dept_name:x.to?deptName(x.to,D.official):'未配置',effective_date:x.date||today(),
+        change_manager:!!(x.bossTo!==undefined&&x.bossTo!=='__keep'),to_manager_id:bp?.empId||null,plan:{purpose:x.reason||'（社員マスタ導入前の異動予定を移行）',migrated_from:x.id},reason:x.reason||''});
+      if(x.status==='approved'){await BK().approve(t.id);D.care=(D.care||[]).filter(c=>c.pendingId!==x.id)}
+      D.pending=D.pending.filter(y=>y.id!==x.id);ok++;
+    }catch(e){skip++;toast(`${p.name}：${e.message}`)}
+  }
+  await masterReload();dirty();render();toast(`新しい申請に移しました ${ok}件${skip?`（移せなかった ${skip}件：社員マスタ未連携など）`:''}`);
+}
+function masterCareView(){
+  if(MS.bossActs===null){MS.bossActs=[];BK().bossActions().then(r=>{MS.bossActs=r||[];if(V.tab==='care')renderPane()})}
+  const cards=masterCareCards();const legacy=(D.care||[]).length;
+  return `<div class="sheet" style="max-width:1200px"><h2>異動CARE</h2><p class="lead">承認された異動ごとに、申請時の<b>目的・任せる役割・期待する成果</b>を引き継ぎ、7日後（役割理解・引継ぎ・困りごと）、30日後（成果指標・本人の手応え・上司の支援）、90日後（継続／役割調整／追加育成／配置再検討の判断）を記録します。チェックだけで終わらせず、<b>何が改善し、何が未解決か</b>を残します。人材カルテの1on1で記録した内容もここに反映されます。</p>
+    ${cards?`<div class="carewrap">${cards}</div>`:'<div class="nodata">フォロー中の異動はありません。</div>'}
+    ${legacy?`<h2 style="margin-top:26px">社員マスタ導入前のCARE</h2>${careView().replace(/^<div class="sheet"><h2>異動CARE<\/h2>/,'<div>')}`:''}</div>`;
+}
+/* ---------- シナリオを正式組織にする（社員マスタ版：異動申請＋承認として記録） ---------- */
+async function adoptScenarioMaster(){
+  const sc=org();const offById=new Map(D.official.people.map(p=>[p.id,p]));
+  const moves=sc.people.filter(sp=>{const op=offById.get(sp.id);return op&&op.empId&&((sp.deptId||null)!==(op.deptId||null)||(sp.bossId||null)!==(op.bossId||null))});
+  const unlinkedMoves=sc.people.filter(sp=>{const op=offById.get(sp.id);return op&&!op.empId&&op.status!=='採用予定'&&(sp.deptId||null)!==(op.deptId||null)});
+  const r=await modal({title:'シナリオを正式組織にする',body:`<div>「${esc(sc.name)}」の部署構成を正式組織に反映し、所属・上司が変わる<b>${moves.length}名</b>は異動として申請・承認します（異動日に自動反映、7・30・90日フォローを作成）。</div>
+    ${unlinkedMoves.length?`<div class="bwarn">社員マスタ未連携の ${unlinkedMoves.length}名（${unlinkedMoves.map(x=>esc(x.name)).join('、')}）は異動できないため、元の所属のままになります。</div>`:''}
+    <label>異動日<input name="date" type="date" value="${nextMonth1()}"></label><label>解決したい組織課題（全員共通）<input name="issue" value="${esc(sc.name)}"></label>`,
+    actions:[{label:'やめる',key:null},{label:'正式組織にする',key:'ok',kind:'sun'}]});
+  if(!r.key)return;const date=r.form.date||today();
+  await once('adopt',async()=>{
+    D.official.depts=clone(sc.depts);
+    const next=[];sc.people.forEach(sp=>{const op=offById.get(sp.id);
+      if(op&&op.empId){next.push({...clone(sp),deptId:op.deptId,bossId:op.bossId,name:op.name,title:op.title,status:op.status,empId:op.empId,empNo:op.empNo,isHead:(sp.deptId||null)===(op.deptId||null)?sp.isHead:op.isHead,headAfterMove:sp.isHead&&(sp.deptId||null)!==(op.deptId||null)?{dept:sp.deptId}:undefined})}
+      else if(op&&!op.empId&&op.status!=='採用予定'){next.push({...clone(sp),deptId:op.deptId,bossId:op.bossId})}
+      else next.push(clone(sp))});
+    D.official.people.filter(op=>op.empId&&!sc.people.some(x=>x.id===op.id)).forEach(op=>next.push(op));
+    D.official.people=next;let ok=0;const errs=[];
+    for(const sp of moves){const op=next.find(x=>x.id===sp.id);
+      try{const bp=sp.bossId?next.find(x=>x.id===sp.bossId):null;const bossCh=(sp.bossId||null)!==(op.bossId||null);
+        const t=await BK().requestTransfer({employee_id:op.empId,to_dept_id:sp.deptId||null,to_dept_name:sp.deptId?deptName(sp.deptId,D.official):'未配置',effective_date:date,change_manager:bossCh,to_manager_id:bossCh?(bp?.empId||null):null,
+          plan:{issue:r.form.issue||sc.name,purpose:`シナリオ「${sc.name}」を採用`,role:sp.roleName||'',expected:'',checker:me.name||me.email,checker_email:(me.email||'').toLowerCase()},reason:`シナリオ「${sc.name}」を採用`});
+        await BK().approve(t.id);ok++}catch(e){errs.push(`${sp.name}：${e.message}`)}}
+    D.pending=[];V.scn='official';await masterReload();dirty();render();
+    toast(`正式組織にしました（異動 ${ok}件を承認${errs.length?`／失敗 ${errs.length}件`:''}）`);if(errs.length)modal({title:'異動にできなかった社員',body:`<ul class="mini">${errs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`,actions:[{label:'閉じる',key:null}]});
+  });
+}
+/* ---------- クリック操作（社員マスタ版の機能） ---------- */
+document.addEventListener('click',async e=>{
+  const a=e.target.closest('[data-act]');if(!a)return;const id=a.dataset.id;
+  switch(a.dataset.act){
+    case 'trApprove':{const t=MS.tr.find(x=>x.id===id);if(!t||!canApprove())break;const fut=t.effective_date>today();
+      const r=await modal({title:'異動を承認',body:`<div class="movebox"><b>${esc(nameOfEmp(t.employee_id))}</b>さん<br>${esc(t.from_dept_name||'未配置')} → <b>${esc(t.to_dept_name||'未配置')}</b><br>異動日 ${esc(t.effective_date)}</div>${planHTML(t.plan)}<div class="note">${fut?'異動日が未来のため、承認済みとして保持し、異動日にサーバーが自動で反映します。':'異動日が今日以前のため、承認するとすぐに正式組織へ反映します。'}<br>7日・30日・90日のフォローが作られます。</div>`,
+        actions:[{label:'やめる',key:null},{label:fut?'承認する（異動日に反映）':'承認して反映',key:'ok',kind:'pri'}]});
+      if(!r.key)break;await once('ap-'+id,async()=>{try{const x=await BK().approve(id);await masterReload();dirty();render();toast(x.already?'この異動はすでに処理済みです':x.status==='applied'?'承認して正式組織に反映しました':`承認しました。${fmtMD(t.effective_date)}に自動で反映します`)}catch(err){toast('承認できませんでした：'+err.message)}});break}
+    case 'trApproveAll':{if(!canApprove())break;await once('apall',async()=>{let now=0,later=0,err=0;for(const t of MS.tr.filter(x=>x.status==='draft')){try{const x=await BK().approve(t.id);if(x.status==='applied')now++;else if(!x.already)later++}catch(e){err++}}
+      await masterReload();dirty();render();toast(`承認しました（即時反映 ${now}件／異動日に反映 ${later}件${err?`／失敗 ${err}件`:''}）`)});break}
+    case 'trCancel':{const t=MS.tr.find(x=>x.id===id);if(!t)break;const r=await modal({title:'異動を取り消す',body:`<div>${esc(nameOfEmp(t.employee_id))}さんの異動（${esc(t.to_dept_name||'')}・${esc(t.effective_date)}）を取り消します。未記録のフォローは削除され、取消として履歴に残ります。</div><label>取消の理由<input name="why"></label>`,actions:[{label:'やめる',key:null},{label:'取り消す',key:'ok',kind:'del'}]});
+      if(!r.key)break;await once('cx-'+id,async()=>{try{await BK().cancel(id,r.form.why);await masterReload();render();toast('取り消しました')}catch(err){toast('取り消せませんでした：'+err.message)}});break}
+    case 'trEdit':{const t=MS.tr.find(x=>x.id===id);if(!t)break;const p=personByEmp(t.employee_id);if(!p)break;
+      masterRequestMove(p,t.to_dept_id,{plan:t.plan,date:t.effective_date,bossOnly:false});break}
+    case 'legacyPendMigrate':migrateLegacyPending();break;
+    case 'fuEdit':editFollowup(id);break;
+    case 'openKarte':{const p=D.official.people.find(x=>x.id===id);if(p)openKarte(p);break}
+    case 'goMaster':V.scn='official';V.tab='master';closeDrawer();render();break;
+    case 'useSugg':MV2.input[id]=a.dataset.no;renderPane();break;
+    case 'linkOne':{const p=D.official.people.find(x=>x.id===id);if(!p)break;await once('ln-'+id,async()=>{try{if(await linkOrgPerson(p)){await masterReload();dirty();render();toast(`${p.name}さんを社員マスタに連携しました`)}}catch(err){toast('連携できませんでした：'+err.message)}});break}
+    case 'linkAllReady':await once('lnall',async()=>{let ok=0,ng=0;const ready=orgLinkRows().filter(r=>r.st==='ready'||r.st==='new');
+      for(const r of ready){try{if(await linkOrgPerson(r.p,false))ok++}catch(err){ng++}}await masterReload();dirty();render();toast(`連携しました ${ok}名${ng?`（失敗 ${ng}名）`:''}`)});break;
+    case 'hrLinkOne':await once('hl-'+id,async()=>{try{if(await linkHrOne(id)){MV2.hr=null;await masterReload();render();toast('人材カルテと連携しました')}}catch(err){toast('連携できませんでした：'+err.message)}});break;
+    case 'hrLinkAll':await once('hlall',async()=>{let ok=0,ng=0;for(const x of hrLinkRows().filter(r=>r.st==='ready')){try{await BK().linkHr(x.h.id,x.e.id);ok++}catch(err){ng++}}MV2.hr=null;await masterReload();render();toast(`人材カルテと連携しました ${ok}名${ng?`（失敗 ${ng}名）`:''}`)});break;
+    case 'saveMails':await once('mails',async()=>{let ok=0,ng=[];for(const el of document.querySelectorAll('[data-mailin]')){const v=el.value.trim().toLowerCase();if(!v)continue;if(!/^[^@\s]+@[^@\s]+$/.test(v)){ng.push(v);continue}
+      const em=empById(el.dataset.mailin);try{await BK().updateEmp(em.id,{email:v},em.version);ok++}catch(err){ng.push(`${em.full_name}：${err.conflict?'他の人が更新済み':err.message}`)}}
+      await masterReload();render();toast(`メールを保存しました ${ok}件${ng.length?`（保存できなかった ${ng.length}件）`:''}`)});break;
+    case 'seedBoss':if(me.role!=='admin')break;await once('seedboss',async()=>{let ok=0,ng=0;for(const p of D.official.people.filter(p=>p.empId&&p.bossId)){const e=empOf(p);const b=D.official.people.find(x=>x.id===p.bossId);if(!e||e.manager_id||!b?.empId)continue;
+      try{await BK().updateEmp(e.id,{manager_id:b.empId},e.version);ok++}catch(err){ng++}}await masterReload();render();toast(`直属上司を社員マスタに登録しました ${ok}名${ng?`（失敗 ${ng}名）`:''}`)});break;
+    case 'mmLink':{const sel=document.querySelector(`[data-mmlink="${id}"]`);const eid=sel?.value;if(!eid){toast('紐付ける社員を選んでください');break}const em=empById(eid);
+      const r=await modal({title:'紐付けの確認',body:`<div>ファイル上の氏名「${esc(MS.milme.find(x=>x.id===id)?.name_in_file||'')}」を <b>${esc(em.full_name)}</b>（${esc(em.employee_no||'番号なし')}・${esc(em.department_name||'')}）に紐付けます。</div><div class="note">確認者（あなた）と確認日時が記録されます。</div>`,actions:[{label:'やめる',key:null},{label:'確認して紐付け',key:'ok',kind:'pri'}]});
+      if(!r.key)break;await once('mm-'+id,async()=>{try{await BK().updateMilme(id,{employee_id:eid,employee_no:em.employee_no||'',match_status:'linked',confirmed_by:me.name||me.email,confirmed_at:jstNow()});await masterReload();render();toast('紐付けました')}catch(err){toast('紐付けできませんでした：'+err.message)}});break}
+    case 'milmeLegacyMove':{const lg=milmeLegacyRows();if(!lg)break;importMilmeMaster({labels:{basic:'【基礎】点数',proc:'【応用1〜3】処理数',fail:'【応用】失敗平均',fp:'【応用】FP率平均'},rows:lg.rows.map(r=>({name:r.name,no:'',date:'',kind:r.kind,basic:r.basic,procMax:r.procMax,procWhich:r.procWhich,fail:r.fail,fp:r.fp}))},lg.file+'（端末から移行）');break}
+    case 'milmeTh':{if(me.role!=='admin')break;const s=MS.settings.milme_gap_threshold||{};const r=await modal({title:'ミルメ比較の基準',body:`<label>確認対象にする差（この点数を「超えた」場合）<input type="number" min="1" name="v" value="${milmeTh()}"></label><label>基準の出典（例：ミルメ社の解説資料 p.12、2026年10月 経営会議で決定）<input name="src" value="${esc(s.source||'')}"></label><div class="note">設定日と設定者は自動で記録されます。</div>`,
+      actions:[{label:'やめる',key:null},{label:'保存',key:'ok',kind:'pri',validate:m=>+m.querySelector('[name=v]').value>0&&!!m.querySelector('[name=src]').value.trim()}]});
+      if(!r.key)break;try{await BK().setSetting('milme_gap_threshold',+r.form.v,r.form.src.trim());await masterReload();render();toast('基準を変更しました')}catch(err){toast('変更できませんでした：'+err.message)}break}
+    case 'spanEdit':{const r=await modal({title:'管理人数の基準（全社）',body:`<label>1人の上司あたりの直属部下数の目安<input type="number" min="1" name="v" value="${spanDefault()}"></label><div class="note">部署ごとの基準は、組織図の部署の ⋯ から設定できます（部署の設定が優先）。</div>`,actions:[{label:'やめる',key:null},{label:'保存',key:'ok',kind:'pri'}]});
+      if(!r.key)break;D.settings=D.settings||{};D.settings.spanDefault=Math.max(1,parseInt(r.form.v,10)||SPAN_LIMIT);dirty();render();break}
+    case 'goScn':V.scn=id;V.tab='plan';render();break;
+    case 'todoGo':todoGo(a.dataset.key);break;
+    case 'todoEdit':todoEdit(a.dataset.key);break;
+    case 'todoShowDone':TD.showDone=a.checked;renderPane();break;
+    case 'diagGo':{const g=JSON.parse(a.dataset.go||'{}');if(g.dept){flashDept(g.dept)}else if(g.person){V.sel=g.person;renderDrawer()}else if(g.tab){V.tab=g.tab;render()}break}
+    case 'retrySave':save(true);break;
+  }
+});
+
 /* ========== イベント ========== */
 document.addEventListener('click',async e=>{
   const go=e.target.closest('[data-go]');if(go){if(innerWidth<=820)$('#aside').classList.remove('open');flashDept(go.dataset.go);document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab==='chart'));return}
@@ -1370,6 +2423,7 @@ document.addEventListener('click',async e=>{
     case 'deptMenu':deptMenu(id);break;
     case 'closeDrawer':closeDrawer();break;
     case 'delPerson':{const p=person(V.sel);const subs=subsOf(p.id);
+      if(MS.on&&isOfficial()&&p.empId){await modal({title:'削除できません',body:`<div>${esc(p.name)}さんは社員マスタに登録されているため、削除できません（異動・面談の履歴を守るため）。退職の場合は在籍状況を「退職」にしてください。</div>`,actions:[{label:'閉じる',key:null}]});break}
       const r=await modal({title:'社員を削除',body:`<div>${esc(p.name)}さんを組織から削除します。異動履歴は残ります。</div>${subs.length?`<div class="bwarn"><b>直属の部下が${subs.length}名います。</b><br>${subs.map(x=>esc(x.name)).join('、')}<br>削除すると、この${subs.length}名の直属上司は「未設定」になります（上司変更履歴に記録）。</div>`:''}`,actions:[{label:'やめる',key:null},{label:'削除する',key:'ok',kind:'del'}]});
       if(r.key){const o=org();subs.forEach(x=>setBoss(x,null,`上司（${p.name}）の削除により解除`));
         o.people=o.people.filter(x=>x.id!==p.id);D.pending=D.pending.filter(x=>x.personId!==p.id);closeDrawer();dirty();render()}break}
@@ -1416,25 +2470,53 @@ $('#zReset').onclick=()=>{V.zoom=1;renderPane()};
 $('#pdfBtn').onclick=()=>{V.tab='chart';render();setTimeout(()=>window.print(),150)};
 $('#saveBtn').onclick=()=>save(true);
 $('#backupBtn').onclick=async()=>{
-  const r=await modal({title:'バックアップ',body:`<div class="note">全データ（正式組織・シナリオ・異動予定・履歴・上司変更履歴・CARE）をJSONファイルで書き出し／読み込みできます。</div>${canEdit()?`<label>読み込むファイル<input name="file" type="file" accept=".json"></label>`:''}`,
+  const r=await modal({title:'バックアップ',body:`<div class="note">全データ（正式組織・シナリオ・異動予定・履歴・上司変更履歴・CARE）をJSONファイルで書き出し／読み込みできます。${MS.on?'社員マスタ（所属・上司・在籍）・異動申請・フォロー・ミルメはサーバー側で管理しているため、このファイルには含まれず、読み込んでも上書きされません。':''}</div>${canEdit()?`<label>読み込むファイル<input name="file" type="file" accept=".json"></label>`:''}`,
     actions:[{label:'閉じる',key:null},...(canEdit()?[{label:'読み込む',key:'in'}]:[]),{label:'書き出す',key:'out',kind:'pri'}]});
   if(r.key==='out')download(`org-design_${today()}.json`,JSON.stringify(D,null,1),'application/json');
   if(r.key==='in'){const f=$('#modal [name=file]')?.files?.[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.official)throw 0;D=j;V.scn='official';dirty();render();toast('読み込みました')}catch{toast('このファイルは読み込めません。書き出したJSONを選んでください')}}
 };
 
-/* ========== 保存（Supabase） ========== */
-let saveT=null,saving=false;
+/* ========== 保存（Supabase：版番号つき。競合は差分を確認。失敗時は端末に保持して再試行） ========== */
+let saveT=null,saving=false,resolving=false;
 function dirty(){setSave('未保存の変更があります');clearTimeout(saveT);saveT=setTimeout(()=>save(),1500)}
 function setSave(t,err){const s=$('#saveState');s.textContent=t;s.classList.toggle('err',!!err)}
 async function save(manual){
   clearTimeout(saveT);
   if(mode!=='live'){setSave('プレビュー表示（保存されません）');if(manual)toast('プレビューでは保存されません。公開URLから開いてください');return}
-  if(saving){saveT=setTimeout(()=>save(),800);return}
-  saving=true;setSave('保存中…');
-  const {error}=await sb.from(TABLE).upsert({id:ROW,data:D,updated_at:new Date().toISOString(),updated_by:me.email});
-  saving=false;
-  if(error)setSave('保存できませんでした：'+error.message,true);
-  else{setSave('保存済み '+new Date().toTimeString().slice(0,5));if(manual)toast('保存しました')}
+  if(!canEdit()){setSave('閲覧のみ（保存されません）');return}
+  if(saving||resolving){saveT=setTimeout(()=>save(manual),1200);return}
+  saving=true;setSave('保存中…');showRetry(false);
+  try{
+    let snap=stripForSave(D);
+    if(STATE_RPC){
+      let r=await Live.saveState(snap,SVER);
+      if(r&&r.conflict){
+        resolving=true;let ok=false;
+        try{ok=await resolveConflict()}finally{resolving=false}
+        if(!ok)return;
+        snap=stripForSave(D);r=await Live.saveState(snap,SVER);
+        if(r&&r.conflict)throw new Error('ほかの人の保存が続いています。少し待ってから【保存を再試行】を押してください');
+      }
+      if(!r||!r.ok)throw new Error('サーバーが保存を確認できませんでした');
+      SVER=r.version;
+    }else{
+      const {error}=await sb.from(TABLE).upsert({id:ROW,data:snap,updated_at:new Date().toISOString(),updated_by:me.email});
+      if(error)throw error;
+    }
+    BASE=snap;clearStash();
+    setSave('保存済み '+new Date().toTimeString().slice(0,5));if(manual)toast('保存しました');
+  }catch(e){
+    stash();setSave('保存できませんでした：'+(e.message||e)+'（入力内容は保持しています）',true);showRetry(true);
+  }finally{saving=false}
+}
+window.addEventListener('beforeunload',e=>{if(mode==='live'&&canEdit()&&/未保存|保存できません|重なって/.test($('#saveState').textContent)){stash();e.preventDefault();e.returnValue=''}});
+async function restoreStash(){
+  let st=null;try{st=JSON.parse(localStorage.getItem(STASH_KEY)||'null')}catch(e){}
+  if(!st||!st.data||mode!=='live'||st.by!==me.email||!canEdit())return;
+  const r=await modal({title:'保存できなかった変更があります',body:`<div>${esc(String(st.at).slice(0,16).replace('T',' '))} に保存できなかった変更が、この端末に残っています。</div><div class="note">【復元して保存】を押すと、いまのサーバーのデータと比べて統合します。同じ項目をほかの人も変えていた場合は、どちらを残すか選べます。</div>`,
+    actions:[{label:'破棄する',key:'drop',kind:'del'},{label:'復元して保存',key:'ok',kind:'pri'}]});
+  if(r.key==='ok'){D=st.data;BASE=st.base||BASE;SVER=typeof st.ver==='number'?st.ver:SVER;render();await save(true)}
+  else if(r.key==='drop')clearStash();
 }
 async function boot(){
   try{
@@ -1443,21 +2525,33 @@ async function boot(){
       const m=typeof EC.me==='function'?await EC.me():EC.me;
       if(m)me={email:m.email,name:m.full_name||m.name||m.email,role:m.role||'viewer'};
       sb=EC.sb||EC.client||window.supabase.createClient(SB_URL,SB_KEY);
-      const {data,error}=await sb.from(TABLE).select('data').eq('id',ROW).maybeSingle();
-      if(error)throw error;
-      D=data?.data||sample();mode='live';
-      setSave(data?'保存済み':'サンプルを表示中（まだ保存されていません）');
+      let r=await sb.from(TABLE).select('data,version').eq('id',ROW).maybeSingle();
+      if(r.error&&isSchemaErr(r.error)){r=await sb.from(TABLE).select('data').eq('id',ROW).maybeSingle();STATE_RPC=false}
+      else STATE_RPC=true;
+      if(r.error)throw r.error;
+      D=r.data?.data||sample();SVER=r.data?.version||0;BASE=clone(r.data?.data||{});mode='live';
+      setSave(r.data?'保存済み':'サンプルを表示中（まだ保存されていません）');
     }else throw new Error('preview');
   }catch(e){
     D=D||sample();mode='preview';setSave(e.message==='preview'?'プレビュー表示（保存されません）':'データを読み込めませんでした：'+e.message,e.message!=='preview');
   }
   ['scenarios','pending','history','care','bossHistory'].forEach(k=>D[k]=D[k]||[]);
+  D.settings=D.settings||{};D.todoMeta=D.todoMeta||{};
   D.pending.forEach(x=>{if(!x.status)x.status='draft'});
-  const nDue=applyDueMoves();if(nDue&&canEdit())dirty();
+  await masterInit();
+  let nDue=0;
+  if(MS.on){
+    try{nDue=await BK().applyDue();if(nDue)await masterReload()}catch(e){console.warn(e)}
+    // 社員マスタ導入前の機密メモを管理者専用の保存先へ移す（共有データから消す前に必ず退避）
+    if(me.role==='admin'){for(const p of D.official.people.filter(p=>p.secret&&!MS.secrets[p.id])){try{await BK().saveSecret(p.id,p.secret);MS.secrets[p.id]={memo:p.secret}}catch(e){}}}
+    if(syncOfficialFromMaster()&&canEdit()&&mode==='live')dirty();
+  }else{nDue=applyDueMoves();if(nDue&&canEdit())dirty()}
+  if(me.role==='admin')V.tab='todo';
   render();
-  if(nDue)setTimeout(()=>toast(`異動日を迎えた${nDue}件を組織図に反映しました`),600);
+  if(nDue)setTimeout(()=>toast(`異動日を迎えた${nDue}件を正式組織に反映しました`),600);
   setInterval(runDue,10*60*1000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)runDue()});
+  await restoreStash();
   setTimeout(()=>showWhatsNew(true),350);
 }
 boot();
