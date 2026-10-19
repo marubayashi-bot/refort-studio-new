@@ -95,6 +95,15 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .btn-g{background:var(--green);color:#fff;font-weight:700;font-size:15px;padding:13px 22px;border-radius:9px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .btn-g:hover{background:var(--green-d)}
 
+/* 閲覧のみ */
+.ro-badge{display:none;align-items:center;gap:6px;background:var(--slate-l);color:var(--slate);font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;white-space:nowrap}
+body.ro .ro-badge{display:inline-flex}
+body.ro #newCycleBtn{display:none}
+.ev:disabled{cursor:default}
+.ev:disabled:not(.on){opacity:.35}
+.ev:disabled:hover{border-color:#d4dbe2}
+.date-in:disabled{background:var(--bg);color:var(--ink)}
+.memo textarea[readonly],.hw textarea[readonly]{background:var(--bg);resize:none}
 /* KPI */
 .kpis{display:grid;grid-template-columns:1.55fr 1fr 1fr 1fr 1fr;gap:16px;margin-bottom:18px}
 .kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;display:flex;align-items:center;gap:16px;min-width:0}
@@ -180,6 +189,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .isc{font-size:15px;font-weight:800;width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink3);flex-shrink:0}
 .isc.ok{color:var(--green)} .isc.ng{color:var(--red)} .isc.half{color:var(--amber-d)}
 .evals{display:flex;gap:6px;flex-shrink:0}
+.ev svg.i{display:block}
 .ev{width:46px;height:42px;border:1px solid #d4dbe2;border-radius:7px;background:#fff;color:var(--ink2);font-size:17px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;transition:all .12s}
 .ev small{font-size:10px;font-weight:500;margin-top:2px}
 .ev:hover{border-color:#aeb9c3}
@@ -379,6 +389,9 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 6v8"/><path d="M12 18.2v.1"/></symbol>
   <symbol id="i-items" viewBox="0 0 24 24"><path d="M9 7h10M9 12h10M9 17h10M5 7h.01M5 12h.01M5 17h.01"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
@@ -460,6 +473,7 @@ create policy "kankyo photo delete" on storage.objects
         <h1 id="pageTitle">環境整備点検</h1>
         <p id="pageSub">職場の環境を整え、仕事の質と安全性を高めます。</p>
       </div>
+      <div class="ro-badge" title="点検結果の入力は係長以上の方のみ行えます"><svg class="i" style="width:16px;height:16px"><use href="#i-lock"/></svg>閲覧のみ</div>
       <div class="cycle-sel"><select id="cycleSelect" aria-label="サイクル"></select></div>
       <button class="btn-g" id="newCycleBtn"><svg class="i" style="width:18px;height:18px;stroke-width:2.4"><use href="#i-plus"/></svg>新規サイクル</button>
     </div>
@@ -754,7 +768,10 @@ let seg = 'inspect';    // ホーム右パネル：inspect / summary
 let editMode = false;
 let photoTargetItemNo = null;
 let saveTimers = {};
-let pending = 0;          // 未保存の部署数（保存前にページを閉じないよう警告）
+let pending = 0;
+/* 入力できるのは係長以上（権限管理画面で 管理者／マネージャー のロール）。それ以外は閲覧のみ */
+const EDIT_ROLES = ['admin','manager'];
+let canEdit = false;          // 未保存の部署数（保存前にページを閉じないよう警告）
 const openMemos = new Set();
 
 const $ = id => document.getElementById(id);
@@ -818,6 +835,8 @@ async function boot(){
   $('userRl').textContent = ROLE_JA[u.role] || '';
   $('userAv').textContent = (nm||'?').slice(0,1);
   $('userBox').classList.remove('hidden');
+  canEdit = EDIT_ROLES.includes(u.role);
+  document.body.classList.toggle('ro', !canEdit);
 
   // テーブル存在チェック
   const {error} = await sb.from(TABLE).select('id',{head:true,count:'exact'}).limit(1);
@@ -845,6 +864,7 @@ function renderCycleSelect(){
 $('cycleSelect').onchange = async e=>{ curCycle=e.target.value; await loadCycleRows(); };
 
 $('newCycleBtn').onclick = ()=>{
+  if(!canEdit) return;
   let guess='18期サイクル';
   if(cycles.length){
     const m = cycles[0].cycle.match(/^(.*?)(\d+)(サイクル)$/);
@@ -963,9 +983,10 @@ function renderDateCard(){
   $('dateCard').classList.toggle('hidden', seg!=='inspect' || !row);
   if(!row) return;
   $('deptDate').value = row.inspection_date||'';
+  $('deptDate').disabled = !canEdit;
   $('dateNote').textContent = row.department+' の点検日';
 }
-$('deptDate').onchange = e=>{ const row=curRow(); if(!row)return; row.inspection_date=e.target.value||null; queueSave(row); };
+$('deptDate').onchange = e=>{ if(!canEdit) return; const row=curRow(); if(!row)return; row.inspection_date=e.target.value||null; queueSave(row); };
 
 function renderCounts(){
   let lost=0, ph=0;
@@ -975,7 +996,7 @@ function renderCounts(){
 
 /* ================= 右パネル ================= */
 function renderPanel(){
-  $('editBtn').classList.toggle('hidden', seg!=='inspect');
+  $('editBtn').classList.toggle('hidden', seg!=='inspect' || !canEdit);
   if(!rows.length){ $('panel').innerHTML = emptyHtml(); return; }
   if(seg==='summary'){ $('panel').innerHTML = summaryHtml(false); return; }
   renderDept();
@@ -1002,29 +1023,30 @@ function renderDept(){
   <div class="card hw">
     <h2>社長の宿題</h2>
     <div class="lbl">前回の宿題（確認用）</div>
-    <textarea onchange="setHw('prev_homework',this.value)" placeholder="前回サイクルの宿題">${esc(row.prev_homework||'')}</textarea>
+    <textarea onchange="setHw('prev_homework',this.value)" placeholder="${canEdit?'前回サイクルの宿題':'未入力'}" ${canEdit?'':'readonly'}>${esc(row.prev_homework||'')}</textarea>
     <div class="lbl">今回の社長の宿題</div>
-    <textarea onchange="setHw('homework',this.value)" placeholder="例：ホワイトボードの汚れ除去 ／ キャンペーングラフの修正">${esc(row.homework||'')}</textarea>
+    <textarea onchange="setHw('homework',this.value)" placeholder="${canEdit?'例：ホワイトボードの汚れ除去 ／ キャンペーングラフの修正':'未入力'}" ${canEdit?'':'readonly'}>${esc(row.homework||'')}</textarea>
   </div>`;
   $('panel').innerHTML = html;
 }
 
 function itemHtml(it){
+  const DIS = canEdit?'':'disabled';
   const sc=itemScore(it), stc=itemState(it);
   let evals;
   if(it.type==='grade'){
-    evals = ['A','B','C'].map(g=>`<button class="ev ${g} ${it.eval===g?'on':''}" onclick="setEval(${it.no},'${g}')" aria-label="${g}">${g}<small>${g==='A'?it.pts:g==='B'?Math.round(it.pts/2):0}点</small></button>`).join('');
+    evals = ['A','B','C'].map(g=>`<button class="ev ${g} ${it.eval===g?'on':''}" onclick="setEval(${it.no},'${g}')" aria-label="${g}" ${DIS}>${g}<small>${g==='A'?it.pts:g==='B'?Math.round(it.pts/2):0}点</small></button>`).join('');
   }else{
-    evals = `<button class="ev o ${it.eval==='o'?'on':''}" onclick="setEval(${it.no},'o')" aria-label="◯ 満点">◯</button>
-             <button class="ev x ${it.eval==='x'?'on':''}" onclick="setEval(${it.no},'x')" aria-label="✕ 0点">✕</button>
-             <button class="ev na ${it.eval==='na'?'on':''}" onclick="setEval(${it.no},'na')" aria-label="対象外">−</button>`;
+    evals = `<button class="ev o ${it.eval==='o'?'on':''}" onclick="setEval(${it.no},'o')" aria-label="◯ 満点" ${DIS}>${ico('o','width:22px;height:22px;stroke-width:2.2')}</button>
+             <button class="ev x ${it.eval==='x'?'on':''}" onclick="setEval(${it.no},'x')" aria-label="✕ 0点" ${DIS}>${ico('x','width:20px;height:20px;stroke-width:2.4')}</button>
+             <button class="ev na ${it.eval==='na'?'on':''}" onclick="setEval(${it.no},'na')" aria-label="対象外" ${DIS}>−</button>`;
   }
   const nPh=(it.photos||[]).length;
   const photos = nPh? `<div class="thumbs">${it.photos.map((p,pi)=>`
       <div class="thumb"><img src="${esc(p.url)}" loading="lazy" alt="" onclick="showLightbox('${jsq(p.url)}')">
-      <button class="del" onclick="delPhoto(${it.no},${pi})" aria-label="写真を削除">×</button></div>`).join('')}</div>`:'';
-  const memoOpen = openMemos.has(it.no) || !!it.memo;
-  const memo = memoOpen? `<div class="memo"><textarea placeholder="失点理由・指摘内容など" onchange="setMemo(${it.no},this.value)">${esc(it.memo||'')}</textarea></div>`:'';
+      ${canEdit?`<button class="del" onclick="delPhoto(${it.no},${pi})" aria-label="写真を削除">×</button>`:''}</div>`).join('')}</div>`:'';
+  const memoOpen = canEdit ? (openMemos.has(it.no) || !!it.memo) : !!it.memo;
+  const memo = memoOpen? `<div class="memo"><textarea placeholder="失点理由・指摘内容など" onchange="setMemo(${it.no},this.value)" ${canEdit?'':'readonly'}>${esc(it.memo||'')}</textarea></div>`:'';
   const editBlock = editMode?`
     <div class="item-edit">
       <textarea onchange="editItem(${it.no},'text',this.value)">${esc(it.text)}</textarea>
@@ -1051,7 +1073,7 @@ function itemHtml(it){
       </div>
       <div class="isc ${stc}">${sc===null?(it.eval==='na'?'対象外':'–'):sc+'点'}</div>
       <div class="evals">${evals}</div>
-      <div class="iacts">
+      <div class="iacts${canEdit?'':' hidden'}">
         <button class="ia ${nPh?'has':''}" id="pAdd${it.no}" onclick="addPhoto(${it.no})">${ico('cam')}<span>写真${nPh?' '+nPh:''}</span></button>
         <button class="ia ${it.memo?'has':''}" onclick="toggleMemo(${it.no})">${ico('cmt')}<span>コメント</span></button>
       </div>
@@ -1137,27 +1159,30 @@ function renderPhotos(){
 function curRow(){ return rows.find(r=>r.department===curDept); }
 function refresh(row){ renderDept(); renderChips(); renderKpis(); renderRates(); renderCounts(); queueSave(row); }
 window.setEval = (no,val)=>{
+  if(!canEdit) return;
   const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
   it.eval = (it.eval===val)? null : val;
   if((val==='x'||val==='B'||val==='C') && it.eval===val) openMemos.add(no);  // 失点時はコメント欄を開く
   refresh(row);
 };
-window.setMemo = (no,val)=>{ const row=curRow(); const it=row.items.find(i=>i.no===no); if(it){it.memo=val; queueSave(row);} };
+window.setMemo = (no,val)=>{ if(!canEdit) return; const row=curRow(); const it=row.items.find(i=>i.no===no); if(it){it.memo=val; queueSave(row);} };
 window.toggleMemo = no=>{
   const row=curRow(); const it=row.items.find(i=>i.no===no);
   if(openMemos.has(no) && !(it&&it.memo)) openMemos.delete(no); else openMemos.add(no);
   renderDept();
   const ta=document.querySelector('#it'+no+' .memo textarea'); if(ta) ta.focus();
 };
-window.setHw = (key,val)=>{ const row=curRow(); row[key]=val; queueSave(row); };
-window.toggleEdit = ()=>{ editMode=!editMode; renderDept(); };
+window.setHw = (key,val)=>{ if(!canEdit) return; const row=curRow(); row[key]=val; queueSave(row); };
+window.toggleEdit = ()=>{ if(!canEdit) return; editMode=!editMode; renderDept(); };
 window.editItem = (no,key,val)=>{
+  if(!canEdit) return;
   const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
   it[key] = key==='pts'? (Number(val)||0) : val;
   if(key==='type') it.eval=null;
   refresh(row);
 };
 window.delItem = no=>{
+  if(!canEdit) return;
   if(!confirm('項目 No'+no+' を削除しますか？'))return;
   const row=curRow();
   row.items = row.items.filter(i=>i.no!==no);
@@ -1166,6 +1191,7 @@ window.delItem = no=>{
   refresh(row);
 };
 window.addItem = ()=>{
+  if(!canEdit) return;
   const row=curRow();
   row.items.push({no:row.items.length+1,cat:'規律',text:'新しいチェック項目',pts:5,inspector:'社長',type:'ox',eval:null,memo:'',photos:[]});
   refresh(row);
@@ -1173,7 +1199,7 @@ window.addItem = ()=>{
 window.showLightbox = url=>{ $('lightboxImg').src=url; $('lightbox').style.display='flex'; };
 
 /* ================= 写真 ================= */
-window.addPhoto = no=>{ photoTargetItemNo=no; $('photoInput').value=''; $('photoInput').click(); };
+window.addPhoto = no=>{ if(!canEdit) return; photoTargetItemNo=no; $('photoInput').value=''; $('photoInput').click(); };
 $('photoInput').addEventListener('change', async e=>{
   const files=[...e.target.files]; if(!files.length)return;
   const row=curRow(); const it=row.items.find(i=>i.no===photoTargetItemNo); if(!it)return;
@@ -1198,6 +1224,7 @@ $('photoInput').addEventListener('change', async e=>{
   if(btn)btn.classList.remove('busy');
 });
 window.delPhoto = async (no,pi)=>{
+  if(!canEdit) return;
   if(!confirm('この写真を削除しますか？'))return;
   const row=curRow(); const it=row.items.find(i=>i.no===no); if(!it)return;
   const p=it.photos[pi];
