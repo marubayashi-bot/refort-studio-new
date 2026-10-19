@@ -853,8 +853,14 @@ function role(){return ME?ME.role:'';}
 function canEdit(){return ['admin','manager','sales','field','staff'].indexOf(role())>=0;}
 function canApprove(){return ['admin','manager'].indexOf(role())>=0;}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function lsGet(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}}
-function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+/* localStorage は全社アプリ（同じ公開ドメイン）で容量5MBを共有しており、満杯・無効の端末では保存に失敗する。
+   失敗しても画面の動作が止まらないよう、メモリにも必ず保持する */
+const MEM={};
+function lsGet(k,d){
+  if(Object.prototype.hasOwnProperty.call(MEM,k))return MEM[k]==null?d:MEM[k];
+  try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}
+}
+function lsSet(k,v){MEM[k]=v;try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 async function copyText(t,msg){try{await navigator.clipboard.writeText(t);toast(msg||'コピーしました');}catch(e){toast('コピーできませんでした');}}
 function isMissingErr(e){const m=String((e&&(e.message||e.code))||e||'');return /does not exist|schema cache|relation|42P01|PGRST205|Could not find/i.test(m);}
 
@@ -868,6 +874,7 @@ function kNorm(x){
 }
 function isArchived(x){return ARCHIVE_BIZ.indexOf(x.biz)>=0||!!x.ext.archived;}
 async function loadAll(){
+  const t0=new Date(Date.now()-60000).toISOString();
   K=lsGet(LS.k,[]).map(kNorm); INFO=lsGet(LS.i,[]); PROG=lsGet(LS.p,[]); CSET=lsGet(LS.c,{});
   if(sb){
     const r=await sb.from('knowledge').select('*').order('updated_at',{ascending:false});
@@ -877,7 +884,16 @@ async function loadAll(){
     const ri=await sb.from('kn_info').select('*').order('updated_at',{ascending:false});
     if(ri.error){MISSING.kn_info=isMissingErr(ri.error);}else{INFO=(ri.data||[]).map(r=>Object.assign({},r.data,{id:r.id,updated_at:r.updated_at}));lsSet(LS.i,INFO);}
     const rp=await sb.from('kn_progress').select('*').order('created_at',{ascending:false}).limit(5000);
-    if(rp.error){MISSING.kn_progress=isMissingErr(rp.error);}else{PROG=rp.data||[];lsSet(LS.p,PROG);}
+    if(rp.error){MISSING.kn_progress=isMissingErr(rp.error);}
+    else{
+      const srv=rp.data||[]; const ids=new Set(srv.map(x=>x.id));
+      /* 読み込み中に回答した分や、保存に失敗した自分の記録は消さずに残して再送する */
+      const pend=PROG.filter(x=>!ids.has(x.id)&&x.user_email===myKey()&&(x._pending||String(x.created_at)>=t0));
+      PROG=pend.concat(srv); lsSet(LS.p,PROG);
+      for(const x of pend){const row=Object.assign({},x);delete row._pending;
+        const r=await sb.from('kn_progress').upsert(row); if(!r.error)delete x._pending;}
+      if(pend.length)lsSet(LS.p,PROG);
+    }
     const rc=await sb.from('kn_settings').select('*').eq('key','curriculum');
     if(rc.error){MISSING.kn_settings=isMissingErr(rc.error);}else if(rc.data&&rc.data[0]){CSET=rc.data[0].value||{};lsSet(LS.c,CSET);}
     if(!MISSING.ext&&K.length===0){const t=await sb.from('knowledge').select('ext').limit(1);if(t.error&&/ext/.test(t.error.message||''))MISSING.ext=true;}
@@ -927,7 +943,13 @@ async function delI(id){
 async function addProg(kind,ref,score,total){
   const rec={id:uid('p'),user_email:myKey(),user_name:myName(),kind,ref:String(ref),score:score==null?null:score,total:total==null?null:total,created_at:new Date().toISOString()};
   PROG.unshift(rec); lsSet(LS.p,PROG);
-  if(sb&&!MISSING.kn_progress){const r=await sb.from('kn_progress').insert(rec);if(r.error&&isMissingErr(r.error)){MISSING.kn_progress=true;showBanner();}}
+  if(sb&&!MISSING.kn_progress){
+    const r=await sb.from('kn_progress').insert(rec);
+    if(r.error){
+      if(isMissingErr(r.error)){MISSING.kn_progress=true;showBanner();}
+      else{rec._pending=true;lsSet(LS.p,PROG);toast('記録をサーバーに保存できませんでした。次回開いたときに再送します（'+(r.error.message||'')+'）',4500);}
+    }
+  }
   return rec;
 }
 async function delProg(kind,ref){
@@ -1050,6 +1072,17 @@ function renderTabBadges(){
 /* =====================================================================
    ホーム
    ===================================================================== */
+function ymd(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* 今日の1問の記録：ref = 日付|分野|選んだ番号 */
+function dailyRecs(){return myProg('daily').map(p=>{const a=String(p.ref).split('|');return a.length===3?{day:a[0],f:a[1],ch:+a[2],ok:p.score===1}:null;}).filter(Boolean);}
+function dailyAnsToday(){const r=dailyRecs().find(x=>x.day===today());return r?r.ch:null;}
+function dailyStreak(){
+  const byDay={}; dailyRecs().forEach(r=>{if(!(r.day in byDay))byDay[r.day]=r.ok;});
+  let n=0, d=new Date();
+  if(!(ymd(d) in byDay))d.setDate(d.getDate()-1);   /* 今日まだ答えていなければ昨日から数える */
+  while(byDay[ymd(d)]===true){n++;d.setDate(d.getDate()-1);}
+  return n;
+}
 function dailyQ(){
   const d=new Date(); const n=d.getFullYear()*372+d.getMonth()*31+d.getDate();
   return QBANK[(n*7)%QBANK.length];
@@ -1059,9 +1092,10 @@ function level(passed){
 }
 function quizFields(){return FIELDS.filter(f=>f.k!=='common');}
 function renderHome(){
-  const q=dailyQ(); const dkey='ec_kn_daily_'+today(); const ans=lsGet(dkey,null);
+  const q=dailyQ(); const dkey='ec_kn_daily_'+myKey()+'_'+today();
+  let ans=dailyAnsToday(); if(ans==null)ans=lsGet(dkey,null);
   const order=lsGet(dkey+'_o',null)||shuffle([0,1,2,3]); lsSet(dkey+'_o',order);
-  const streak=lsGet('ec_kn_streak',{n:0,last:''});
+  const streak={n:dailyStreak()};
   const live=liveK();
   const read=live.filter(x=>hasRead(x.id)).length;
   const cdone=CURRICULUM.filter(c=>courseDone(c.no)).length;
@@ -1105,11 +1139,8 @@ function renderHome(){
     ${talks.length?`<div class="mini-list">${talks.map(x=>`<button data-k="${esc(x.id)}"><span class="badge b-kind">${esc(KIND[x.category]||'')}</span><span class="t">${esc(x.title)}<br><span class="note">${esc(x.ext.talk.slice(0,90))}</span></span></button>`).join('')}</div>`:'<div class="note">「お客様にはこう伝える」が入ったナレッジがまだありません。</div>'}
   </div>`;
   $$('#dOpts button').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.i; lsSet(dkey,i);
-    const st=lsGet('ec_kn_streak',{n:0,last:''});
-    const y=new Date(Date.now()-86400000); const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
-    if(st.last!==today()){ if(i===q.a){st.n=(st.last===ys?st.n:0)+1;}else st.n=0; st.last=today(); lsSet('ec_kn_streak',st);}
-    addProg('daily',q.f,i===q.a?1:0,1); renderHome();
+    const i=+b.dataset.i; if(dailyAnsToday()!=null)return; lsSet(dkey,i);
+    addProg('daily',today()+'|'+q.f+'|'+i,i===q.a?1:0,1); renderHome();
   });
   $$('#v-home [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   $$('#v-home [data-info]').forEach(b=>b.onclick=()=>openInfo(b.dataset.info));
