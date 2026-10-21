@@ -1166,6 +1166,29 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
   box-shadow:0 1px 6px rgba(0,0,0,.18)}
 .mlegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 @media(max-width:900px){.map-split{grid-template-columns:1fr}.map-list{height:280px;min-height:0}}
+
+/* ===== 表紙：金融機関にも出せる落ち着いたデザイン（2026.10.21） ===== */
+.cv-kpi{background:#fff;border:1px solid #d9e1ea;border-top:3px solid #123a6b;border-radius:3px;padding:16px 12px 14px}
+.cv-kpi .cv-ico{display:none}
+.cv-kpi .cv-k{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#4a5b70;padding-bottom:6px;margin-bottom:9px;border-bottom:1px solid #c8a24a}
+.cv-kpi .cv-v{font-size:25px;color:#0d2340;letter-spacing:.01em}
+.cv-kpi:nth-child(2) .cv-v,.cv-kpis.k5 .cv-kpi:nth-child(2) .cv-v,.cv-kpis.k5 .cv-kpi:nth-child(4) .cv-v{color:#0d2340}
+.cv-kpis.k5 .cv-kpi .cv-v{font-size:21px}
+.cv-info{background:#fff;border:1px solid #d9e1ea;border-radius:3px}
+.cv-info-h{border-left:3px solid #c8a24a;padding-left:9px;letter-spacing:.06em}
+.cv-kpi-title,.cv-flow-title{letter-spacing:.12em;color:#0d2340}
+.cv-spec div{border-radius:3px;border-color:#d9e1ea}
+.cv-step{background:#fff;border-color:#d9e1ea;border-radius:3px}
+.cv-step .cv-num{background:#123a6b}
+.cv-conf{position:absolute;right:26px;bottom:9px;max-width:62%;text-align:right;font-size:8.6px;color:#5a6a7c;line-height:1.5}
+.cv-conf b{color:#8e2f1d;letter-spacing:.14em;font-weight:800}
+#allRoot.case-mode .cv-conf{display:none}
+.cv-spec div.cv-spec-alert{border-color:#e2c4bd;background:#fdf8f6;color:#8e2f1d;font-weight:800}
+.cv-spec div.cv-spec-alert b{color:#8e2f1d}
+.cv-flow{padding-bottom:34px}
+/* 表紙以外の各ページ右下にも機密表示（社内用の説明ページ・事例用・導入事例画像は除く） */
+#allRoot:not(.case-mode) .sheet:not(.cover-sheet):not(.cover):not(.gd)::before,
+#printRoot .sheet:not(.cover-sheet):not(.cover)::before{content:'CONFIDENTIAL ｜ 機密情報・第三者への開示禁止';position:absolute;right:10mm;bottom:2.6mm;font-size:7.2px;font-weight:700;letter-spacing:.06em;color:#8a939c;z-index:5;pointer-events:none}
 </style>
 <style id="skin-2609">
 /* ===== 2026.09.19 デザイン刷新：左サイドバー＋明るい作業面 ===== */
@@ -3961,18 +3984,19 @@ function sheetCover(deal){
       <div class="cv-photo">${photo?`<img src="${photo}" alt="現地">`:'<span class="cv-nophoto">現地画像を「① 案件基本情報」で取り込めます</span>'}</div>
     </div>
     <div class="cv-info">
-      <div class="cv-info-h">📍 案件概要</div>
+      <div class="cv-info-h">案件概要</div>
       <div class="cv-info-body"><div><b>お客様：</b>${esc(cust)} 様</div><div><b>案件：</b>${esc(plant)}</div><div><b>場所：</b>${esc(I.location||'—')}</div></div>
     </div>
     <div class="cv-kpi-title">主要指標（投資効果）</div>
     <div class="cv-kpis">
-      <div class="cv-kpi"><div class="cv-ico">¥</div><div class="cv-k">工事代（税込）</div><div class="cv-v">${yenLoose(rfIncl)}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">📈</div><div class="cv-k">予測発電量UP率</div><div class="cv-v">${upPct}<small>%</small></div></div>
-      <div class="cv-kpi"><div class="cv-ico">💰</div><div class="cv-k">20年増収益（税込）</div><div class="cv-v">${yenLoose(gain20)}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">⏱</div><div class="cv-k">投資回収年数</div><div class="cv-v">${pay}<small>年</small></div></div>
+      <div class="cv-kpi"><div class="cv-k">工事代（税込）</div><div class="cv-v">${yenLoose(rfIncl)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">予測発電量UP率</div><div class="cv-v">${upPct}<small>%</small></div></div>
+      <div class="cv-kpi"><div class="cv-k">20年増収益（税込）</div><div class="cv-v">${yenLoose(gain20)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">投資回収年数</div><div class="cv-v">${pay}<small>年</small></div></div>
     </div>
     <div class="cv-flow-title">ご検討から工事完了までの流れ</div>
     <div class="cv-flow">${flow.map((f,i)=>`<div class="cv-step"><div class="cv-num">${f[0]}</div><div class="cv-st-name">${f[1]}</div>${f[2]?`<div class="cv-st-note">${f[2]}</div>`:''}</div>${i<flow.length-1?'<div class="cv-arrow">&#9654;</div>':''}`).join('')}</div>
+    <div class="cv-conf"><b>CONFIDENTIAL</b>｜本資料は${esc(cust)}様のご検討用に作成した機密情報です。第三者への開示・転送・複製はご遠慮ください。</div>
   </div>`;
 }
 
@@ -4182,16 +4206,16 @@ function sheetCoverSK(deal){
     </div>
     ${(photo&&map)?'<div class="cv-photo-cap">クリックでGoogleマップ</div>':''}
     <div class="cv-info">
-      <div class="cv-info-h">📍 案件概要</div>
+      <div class="cv-info-h">案件概要</div>
       <div class="cv-info-body"><div><b>お客様：</b>${esc(cust)} 様</div><div><b>案件：</b>${esc(plant)}</div><div><b>場所：</b>${locHtml}</div></div>
     </div>
     <div class="cv-kpi-title">主要指標（投資効果）</div>
     <div class="cv-kpis k5">
-      <div class="cv-kpi"><div class="cv-ico">¥</div><div class="cv-k">セカンダリー設備代（税込）</div><div class="cv-v">${yenLoose(d.saleIn)}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">🔧</div><div class="cv-k">リフォート工事代（税込）</div><div class="cv-v">${yenLoose(d.rfIn)}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">💰</div><div class="cv-k">総投資額（税込）</div><div class="cv-v">${yenLoose(s.totalInv)}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">📈</div><div class="cv-k">事業IRR</div><div class="cv-v">${s.dealIRR!=null?pct(s.dealIRR):'—'}</div></div>
-      <div class="cv-kpi"><div class="cv-ico">📉</div><div class="cv-k">除却損（RF時）</div><div class="cv-v">${yenLoose(retire)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">セカンダリー設備代（税込）</div><div class="cv-v">${yenLoose(d.saleIn)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">リフォート工事代（税込）</div><div class="cv-v">${yenLoose(d.rfIn)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">総投資額（税込）</div><div class="cv-v">${yenLoose(s.totalInv)}</div></div>
+      <div class="cv-kpi"><div class="cv-k">事業IRR</div><div class="cv-v">${s.dealIRR!=null?pct(s.dealIRR):'—'}</div></div>
+      <div class="cv-kpi"><div class="cv-k">除却損（RF時）</div><div class="cv-v">${yenLoose(retire)}</div></div>
     </div>
     <div class="cv-kpi-title" style="margin-bottom:0">物件スペック</div>
     <div class="cv-spec">
@@ -4201,12 +4225,13 @@ function sheetCoverSK(deal){
       <div><b>発電量 RF前→後</b>${kwh(d.gen)} → ${kwh(d.rfGenAfter)} kWh</div>
       <div><b>発電量UP率</b>${pct(d.rfGenRate)}</div>
       <div><b>FIT期間 平均CF</b>${yenLoose(s.fitAvgCF)}</div>
-      ${(()=>{const pm=postFitModel(I); return (pm.sotsu&&pm.P>0)?`<div style="border-color:#AE3D28;color:#AE3D28"><b style="color:#AE3D28">何もしない場合の卒FIT後の売上差</b>▲${yenLoose(pm.postGap)}円（${pm.P}年）</div>`:'';})()}
+      ${(()=>{const pm=postFitModel(I); return (pm.sotsu&&pm.P>0)?`<div class="cv-spec-alert"><b>何もしない場合の卒FIT後の売上差</b>▲${yenLoose(pm.postGap)}円（${pm.P}年）</div>`:'';})()}
     </div>
     <div style="flex:1"></div>
-    <div style="padding:0 26px 18px;font-size:10px;color:#8a939c;line-height:1.6">
+    <div style="padding:0 26px 40px;font-size:10px;color:#8a939c;line-height:1.6">
       ※ 本試算は現時点の想定値です。除却損の計上時期・可否については税理士等の専門家によるご確認が必要です。
     </div>
+    <div class="cv-conf"><b>CONFIDENTIAL</b>｜本資料は${esc(cust)}様のご検討用に作成した機密情報です。第三者への開示・転送・複製はご遠慮ください。</div>
   </div>`;
 }
 
@@ -6592,6 +6617,8 @@ const CHANGELOG = [
     'セカンダリーRFの表紙「物件スペック」に「何もしない場合の卒FIT後の売上差」を追加しました。案件画面の提案シートにも「★ 卒FIT後比較」を追加しています',
     '<b>リフォート提案（一括）にも「卒FIT後比較」を追加しました。</b>放置リスク比較の次（導入事例の前）に出力されます。社内用（説明ポイント付き）ではトーク例・強調する数字も入ります',
     '卒FIT後比較のグラフで、右端の差額（▲○○万円）が切れて表示されない不具合を直しました',
+    '<b>表紙（リフォート提案・セカンダリーRF提案）を、金融機関にもお見せできる落ち着いたデザインにしました。</b>指標のアイコン（¥・絵文字）を外し、紺と金の細い罫線で整えています',
+    '<b>機密表示を追加しました。</b>表紙の右下に「CONFIDENTIAL｜本資料は○○様のご検討用に作成した機密情報です。第三者への開示・転送・複製はご遠慮ください」、他のページの右下にも「CONFIDENTIAL｜機密情報・第三者への開示禁止」を表示します（事例（サンプル）用・社内用の説明ページには出しません）',
   ]],
   ['2026.10.06', [
     '<b>案件画面の結果タブに「現調AIチェック」を追加しました。</b>現調スライドのPDF（Googleスライドは「ファイル→ダウンロード→PDF」）や現地写真を入れると、AIが提案・見積の前に把握すべき懸念材料を、重要度・根拠ページ・提案前の確認先・見積への反映案つきで一覧にします',
