@@ -1196,6 +1196,8 @@ table.ledger .pr-S{color:#c0392b;font-weight:800}.ledger .pr-A{color:#c8721c;fon
 /* Googleマップへのリンク */
 a.maplink{color:inherit;text-decoration:underline;text-decoration-color:#c8a24a;text-underline-offset:2px}
 .lp-btns a.b-gmap{display:inline-block;padding:4px 9px;border-radius:6px;border:1px solid #c3c9c1;background:#fff;color:#123a6b;font-size:11px;font-weight:700;text-decoration:none}
+
+.sync-warn{margin-top:8px;padding:9px 11px;border-radius:8px;background:#fff4f1;border:1px solid #e9b8ab;color:#7a2a17;font-size:12px;line-height:1.65}
 </style>
 <style id="skin-2609">
 /* ===== 2026.09.19 デザイン刷新：左サイドバー＋明るい作業面 ===== */
@@ -3281,7 +3283,8 @@ function fldHTML(f){
     <input data-k="${k}" type="url" value="${esc(val)}" placeholder="GASウェブアプリURL（…/exec）を貼り付け" style="text-align:left">
     <button type="button" class="sync-btn pull" data-syncpull="1" ${val?'':'disabled'}>⭳ 読込</button>
     <button type="button" class="sync-btn push" data-syncpush="1" ${val?'':'disabled'}>⭱ 書出</button></div>
-    <div class="sync-hint">🔄 URLを設定すると、案件を開いた時と45秒ごとに自動で読込します（編集中・未保存時は上書きしません）</div></div>`; }
+    <div class="sync-hint">🔄 URLを設定すると、案件を開いた時と45秒ごとに自動で読込します（編集中・未保存時は上書きしません）</div>
+    <div class="sync-warn" id="syncWarn" style="display:none"></div></div>`; }
   if(type==='url'){ return `<div class="fld full"><label>${label}</label><div class="ctrl url-ctrl">
     <input data-k="${k}" type="url" value="${esc(val)}" placeholder="https://docs.google.com/... を貼り付け" style="text-align:left">
     <button type="button" class="url-open" data-urlopen="${k}" ${val?'':'disabled'}>🔗 開く</button></div></div>`; }
@@ -3326,6 +3329,7 @@ function wireForm(){
     });
   });
   const spull=$('[data-syncpull]'); if(spull)spull.onclick=simSyncPull;
+  if(curDeal) showSyncWarn([]);
   const spush=$('[data-syncpush]'); if(spush)spush.onclick=simSyncPush;
   $$('[data-urlopen]').forEach(btn=>btn.onclick=()=>{
     const inp=btn.parentNode.querySelector('input'); let u=(inp&&inp.value||'').trim();
@@ -5262,6 +5266,7 @@ function importExcelNew(file){
   readExcelFile(file).then(wb=>{
     if(isLedgerWB(wb)){ const added=importLedgerRows(wb); saveDB(DB); nav('ledger'); renderLedger(); toast('案件管理台帳から '+added+' 件を取込みました'); return; }
     const {inputs,name,count,dd}=parseExcelToInputs(wb);
+    inputs._xlsSnap=xlsSnapOf(inputs);
     const d={id:uid(),name:name||'(無題案件)',stage:'ph03',createdAt:Date.now(),updatedAt:Date.now(),inputs,dd:dd||{}};
     try{ d.perfDiag=scanPerfWorkbook(wb,file&&file.name); }catch(e){ console.warn('[refort] 発電性能診断スキャン失敗',e); }  /* 診断用（計算には不使用） */
     DB.deals.unshift(d);saveDB(DB,d);curDeal=d;dirty=false;resTab='judge';nav('deal');renderDeal();
@@ -5296,6 +5301,7 @@ function importExcelCur(file){
       if(same(v,merged[k]))return;                 /* 変化なし */
       merged[k]=v; applied++;
     });
+    merged._xlsSnap=xlsSnapOf(Object.assign({},merged,inputs));
     curDeal.inputs=merged;
     lastImportUndo={id:curDeal.id,inputs:before,perfDiag:curDeal.perfDiag||null};
     try{ curDeal.perfDiag=scanPerfWorkbook(wb,file&&file.name); }catch(e){ console.warn('[refort] 発電性能診断スキャン失敗',e); }  /* 診断用（計算には不使用） */
@@ -5954,6 +5960,54 @@ function riskPrefillScript(p){
     +'var f=document.getElementById("gnow");if(f)f.dispatchEvent(new Event("input"));'
     +'}catch(e){}})();</scr'+'ipt>';
 }
+/* ===== 連携先（GAS）の取り違え防止 =====
+   1つのGAS /exec URLは1つのスプレッドシートにしかつながらない。案件を複製したり、別案件のURLを貼ったまま
+   にすると、45秒ごとの自動読込で「別の発電所の所在地・実績発電量・容量・連系日」に上書きされてしまう。
+   そこで ①Excel取込時の値（_xlsSnap）と連携先の値を比べ、所在地・連系日・容量が食い違えば別物件と判断して止める
+          ②同じGAS URLを、原本の違う別案件でも使っていれば止める */
+function sheetIdOf(u){ const m=String(u||'').match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/); return m?m[1]:''; }
+function xlsSnapOf(inp){
+  const o={};
+  ['location','actualGen','dcExisting','gridDate'].forEach(k=>{ const v=inp&&inp[k];
+    if(v!==undefined&&v!==null&&String(v).trim()!==''&&!(+v===0&&k!=='location'&&k!=='gridDate')) o[k]=v; });
+  o.at=Date.now(); return o;
+}
+function syncSharedWith(deal){
+  const u=String((deal.inputs||{}).simSyncUrl||'').trim(); if(!u) return [];
+  const my=sheetIdOf(deal.inputs.simSheetUrl);
+  return (DB.deals||[]).filter(o=>o&&o.id!==deal.id&&o.inputs&&String(o.inputs.simSyncUrl||'').trim()===u
+    &&(!my||sheetIdOf(o.inputs.simSheetUrl)!==my));
+}
+function syncMismatch(deal,d){
+  const out=[], snap=(deal.inputs||{})._xlsSnap;
+  const nl=x=>String(x||'').replace(/[\s　]/g,'');
+  if(snap){
+    if(snap.location&&d.location){
+      const a=prefOf(snap.location), b=prefOf(d.location);
+      const diff=(a&&b)? (a!==b || nl(snap.location).slice(0,7)!==nl(d.location).slice(0,7)) : nl(snap.location).slice(0,5)!==nl(d.location).slice(0,5);
+      if(diff) out.push(['所在地',snap.location,d.location]);
+    }
+    if(snap.gridDate&&d.gridDate&&normDate(snap.gridDate).slice(0,7)!==normDate(d.gridDate).slice(0,7))
+      out.push(['連系日',normDate(snap.gridDate),normDate(d.gridDate)]);
+    const a=n(snap.dcExisting), b=n(d.dcExisting);
+    if(a>0&&b>0&&Math.abs(a-b)/a>0.05) out.push(['パネル容量(DC)',a.toLocaleString()+'kW',b.toLocaleString()+'kW']);
+  }
+  return out;
+}
+function syncWarnHTML(deal,mm){
+  const sh=syncSharedWith(deal);
+  if(!(mm&&mm.length)&&!sh.length) return '';
+  let h='<b>⚠ 連携URLが、別の発電所のスプレッドシートにつながっている可能性があります。</b>自動読込・書出を止めました。';
+  if(mm&&mm.length) h+='<br>'+mm.map(([k,a,b])=>esc(k)+'：Excel取込 <b>'+esc(a)+'</b> ／ 連携先 <b style="color:#c0392b">'+esc(b)+'</b>').join('<br>');
+  if(sh.length) h+='<br>同じ連携URLを、別の原本の案件でも使っています：'+sh.slice(0,3).map(o=>'<b>'+esc(o.name||'(無題案件)')+'</b>').join('、')+(sh.length>3?' ほか':'');
+  h+='<br>→ この案件の原本スプレッドシートで「デプロイ」したGASのURL（…/exec）に貼り替えてください。貼り替えるまでは、Excel取込の値が使われます。';
+  return h;
+}
+function showSyncWarn(mm){
+  const el=$('#syncWarn'); if(!el||!curDeal) return;
+  const h=syncWarnHTML(curDeal,mm);
+  el.innerHTML=h; el.style.display=h?'block':'none';
+}
 const SYNC_KEYS=['location','fitPrice','actualGen','dcExisting','acExisting','secSaleEx','secCostEx','gridDate'];
 const SYNC_TOKEN='earthcom';
 async function simSyncPull(){
@@ -5974,7 +6028,16 @@ async function simSyncPull(){
     }
     if(!j.ok){toast('読込失敗：'+(j.error||'GAS側エラー'));return;}
     const d=j.data||{}; let cnt=0;
+    const mm=syncMismatch(curDeal,d), sh=syncSharedWith(curDeal);
+    if(mm.length||sh.length){
+      showSyncWarn(mm);
+      if(!confirm('連携先のスプレッドシートの内容が、この案件のExcelと食い違っています。\n'+
+        mm.map(([k,a,b])=>'・'+k+'：Excel取込 '+a+' ／ 連携先 '+b).join('\n')+
+        (sh.length?'\n・同じ連携URLを別案件（'+sh.map(o=>o.name).slice(0,3).join('、')+'）でも使っています':'')+
+        '\n\n別の発電所の原本につながっている可能性があります。それでも読み込みますか？'))return;
+    }
     SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); cnt++; } });
+    if(mm.length) curDeal.inputs._xlsSnap=xlsSnapOf(curDeal.inputs);   /* 確認して読み込んだ値を新しい基準にする */
     markDirty(); renderDeal();
     toast('シートから読み込みました（'+cnt+'項目）※保存で確定');
   }catch(e){ toast('読込エラー：接続がブロックされました。GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください'); }
@@ -5983,6 +6046,14 @@ async function simSyncPush(){
   if(!curDeal)return;
   const url=(curDeal.inputs.simSyncUrl||'').trim();
   if(!url){toast('RFSK連携URL（GAS）を入力してください');return;}
+  { const sh=syncSharedWith(curDeal);
+    let mm=[]; try{ const r0=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{redirect:'follow'});
+      const j0=JSON.parse(await r0.text()); if(j0&&j0.ok) mm=syncMismatch(curDeal,j0.data||{}); }catch(_){}
+    if(mm.length||sh.length){ showSyncWarn(mm);
+      alert('書出を中止しました。\n連携URLが別の発電所のスプレッドシートにつながっている可能性があります。\n'+
+        mm.map(([k,a,b])=>'・'+k+'：Excel取込 '+a+' ／ 連携先 '+b).join('\n')+
+        (sh.length?'\n・同じ連携URLを別案件（'+sh.map(o=>o.name).slice(0,3).join('、')+'）でも使っています':'')+
+        '\n\nこの案件の原本で発行したGAS URLに貼り替えてから書き出してください。'); return; } }
   if(!confirm('アプリの主要項目（所在地・FIT・発電量・容量・売価・原価・連系日）で\nスプレッドシートの原本を上書きします。よろしいですか？'))return;
   const data={}; SYNC_KEYS.forEach(k=>{data[k]=curDeal.inputs[k];});
   toast('スプレッドシートへ書出中…');
@@ -6001,6 +6072,7 @@ function stopAutoSync(){ if(autoSyncTimer){clearInterval(autoSyncTimer);autoSync
 function startAutoSync(){
   stopAutoSync();
   if(!curDeal || !(curDeal.inputs.simSyncUrl||'').trim()) return;
+  if(syncSharedWith(curDeal).length){ setTimeout(()=>showSyncWarn([]),50); return; }   /* 別案件と共用のURLは自動読込しない */
   autoPull(true);                                    // 案件を開いた時に自動読込
   autoSyncTimer=setInterval(()=>autoPull(false), 45000); // 数十秒ごと（45秒）に自動読込
 }
@@ -6025,6 +6097,10 @@ async function autoPull(onOpen){
     const txt=await res.text(); let j=null; try{ j=JSON.parse(txt); }catch(_){}
     if(j&&j.ok){
       const d=j.data||{}; let changed=0;
+      const mm=syncMismatch(curDeal,d);
+      if(mm.length){ stopAutoSync(); showSyncWarn(mm);
+        if(onOpen) toast('⚠ 連携URLが別の発電所の原本につながっている可能性があるため、自動読込を止めました');
+        autoSyncBusy=false; return; }
       SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
         if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); changed++; } } });
       if(changed>0 && !dirty){
@@ -6640,9 +6716,14 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.10.21c';
+const APP_VERSION = '2026.10.21d';
 
 const CHANGELOG = [
+  ['2026.10.21d', [
+    '<b>【重要】RFSK連携（GAS）の取り違え防止を入れました。</b>別の発電所のスプレッドシートにつながったGAS URLが入っていると、自動読込で所在地・実績発電量・容量・連系日が別物件の値に上書きされ、発電量UP率・FIT残・回収年数が原本と食い違う不具合がありました',
+    'Excel取込した時の「所在地・連系日・パネル容量」と連携先の値を比べ、食い違えば別物件と判断して自動読込・書出を止め、連携URL欄の下に警告を出します。同じGAS URLを原本の違う別案件でも使っている場合も止めます',
+    '手動の「読込」は確認画面を出してから読み込みます。「書出」は連携先を確認し、食い違いがあれば中止します（別の発電所の原本を上書きしないため）',
+  ]],
   ['2026.10.21c', [
     '<b>発電所の場所をGoogleマップで開けるようにしました。</b>リフォート提案・セカンダリーRF提案の表紙（場所の文字・現地写真）、各提案シートの「所在地」、案件画面の位置URL欄の「📍 Googleマップで開く」ボタン（位置URLが空なら所在地で検索）、地図画面のピンから開けます',
     '位置URLがあればそのURL、なければ地図機能で取得済みの緯度経度、それもなければ所在地の住所で検索して開きます。PDFに保存してもリンクは有効です（事例（サンプル）用は場所を伏せるためリンクしません）',
