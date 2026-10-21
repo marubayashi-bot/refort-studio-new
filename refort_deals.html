@@ -904,7 +904,7 @@ table.st.qt th,table.st.qt td{padding:3.4px 5px}
 .pf-cards{display:grid;grid-template-rows:auto auto auto;gap:5px}
 .pf-card{border:1px solid #e3e9f0;border-radius:9px;padding:5px 10px}
 .pf-card .h{font-size:9.4px;font-weight:800;color:#0d2340;margin-bottom:3px}
-.pf-card .r{display:grid;grid-template-columns:8.6em 1fr 1fr;gap:4px;align-items:baseline;font-size:8.6px;padding:1px 0}
+.pf-card .r{display:grid;grid-template-columns:10.5em 1fr 1fr;gap:4px;align-items:baseline;font-size:8.6px;padding:1px 0}
 .pf-card .r .k{color:#5a6a7c}
 .pf-card .r .a{font-weight:800;color:#AE3D28;font-variant-numeric:tabular-nums}
 .pf-card .r .b{font-weight:800;color:#9a6a12;font-variant-numeric:tabular-nums}
@@ -4758,7 +4758,7 @@ function postFitModel(I){
     endYear:d.gridYear?d.gridYear+20:null};
 }
 function postFitChartSVG(m){
-  const W=560,H=238,pL=46,pR=118,pT=30,pB=30, iw=W-pL-pR, ih=H-pT-pB, P=m.P;
+  const W=600,H=238,pL=46,pR=176,pT=30,pB=30, iw=W-pL-pR, ih=H-pT-pB, P=m.P;
   const man=v=>v/10000;
   const max=Math.max(1,man(m.cumB[P]))*1.08;
   const X=k=>pL+iw*(k/P), Y=v=>pT+ih-ih*(man(v)/max);
@@ -4787,9 +4787,9 @@ function postFitChartSVG(m){
   g+=`<circle cx="${xe}" cy="${yb}" r="3.5" fill="#B67E1E"/><circle cx="${xe}" cy="${ya}" r="3.5" fill="#AE3D28"/>`;
   g+=`<text x="${xe+8}" y="${yb-2}" font-size="9" font-weight="800" fill="#9a6a12">ReFortした場合</text><text x="${xe+8}" y="${yb+10}" font-size="9" fill="#9a6a12">${Math.round(man(m.cumB[P])).toLocaleString('ja-JP')}万円</text>`;
   g+=`<text x="${xe+8}" y="${ya-2}" font-size="9" font-weight="800" fill="#AE3D28">何もしない</text><text x="${xe+8}" y="${ya+10}" font-size="9" fill="#AE3D28">${Math.round(man(m.cumA[P])).toLocaleString('ja-JP')}万円</text>`;
-  const bx=xe+86, ym=(yb+ya)/2;
+  const bx=xe+88, ym=(yb+ya)/2;
   g+=`<path d="M${bx-6} ${yb} H${bx} V${ya} H${bx-6}" fill="none" stroke="#AE3D28" stroke-width="1.4"/>`;
-  g+=`<text x="${bx+4}" y="${ym-1}" font-size="8.5" fill="#AE3D28">差</text><text x="${bx+4}" y="${ym+11}" font-size="10" font-weight="800" fill="#AE3D28">▲${Math.round(man(m.postGap)).toLocaleString('ja-JP')}</text>`;
+  g+=`<text x="${bx+5}" y="${ym-4}" font-size="8.5" fill="#AE3D28">差</text><text x="${bx+5}" y="${ym+9}" font-size="10.5" font-weight="800" fill="#AE3D28">▲${Math.round(man(m.postGap)).toLocaleString('ja-JP')}</text><text x="${bx+5}" y="${ym+20}" font-size="8.5" fill="#AE3D28">万円</text>`;
   g+='</svg>';
   return g;
 }
@@ -6268,14 +6268,14 @@ function riskParamsFor(deal){
   return p;
 }
 /* 一括提案：出力するシートの選択（現調前は見積を外す等） */
-const ALL_SHEETS=[['cover','表紙'],['mon','発電シミュ'],['m3f','リフォート提案（FIT残期間）'],['m3','リフォート提案（20年）'],['est','お見積'],['risk','放置リスク比較'],['case','導入事例']];
+const ALL_SHEETS=[['cover','表紙'],['mon','発電シミュ'],['m3f','リフォート提案（FIT残期間）'],['m3','リフォート提案（20年）'],['est','お見積'],['risk','放置リスク比較'],['post','卒FIT後比較（何もしない vs ReFort）'],['case','導入事例']];
 /* セカンダリーRF提案：9枚構成（…⑦月別発電 ⑧年別収支 ⑨卒FIT後比較＝何もしない vs ReFort） */
 const SK_SHEETS=[['skcover','① 表紙'],['flyer','② 物件チラシ'],['points','③ 投資ポイント'],['scheme','④ スキーム図'],
   ['support','⑤ アースコムサポート'],['sched','⑥ スケジュール'],['mon','⑦ 発電シミュ（月別）'],['m2','⑧ 年別収支（セカンダリーRF）'],['post','⑨ 卒FIT後比較（何もしない vs ReFort）']];
 let ALL_MODE='rf';
 let ALL_AUD='cust';   // 'cust'＝お客様用／'staff'＝社内用（説明ポイント付き）／'case'＝事例（サンプル）用
 let ALL_CASE_PHOTO=false;   // 事例用で表紙の現地写真を載せるか（場所が特定されやすいので既定はOFF）
-let ALL_OPT={cover:true,mon:true,m3f:true,m3:true,est:true,risk:true,case:true};
+let ALL_OPT={cover:true,mon:true,m3f:true,m3:true,est:true,risk:true,post:true,case:true};
 let SK_OPT={skcover:true,flyer:true,points:true,scheme:true,support:true,sched:true,mon:true,m2:true,post:true};
 let ALL_OPT_DEAL=null;
 const allSheetDefs=()=>ALL_MODE==='sk'?SK_SHEETS:ALL_SHEETS;
@@ -6287,7 +6287,8 @@ function openAllSheets(deal,mode){
   const hasQuote=!!quoteRows(deal.inputs).length;
   // 案件が変わったら判定し直す（同じ案件内での手動チェックは維持）
   if(ALL_OPT_DEAL!==deal.id){
-    ALL_OPT={cover:true,mon:true,m3f:true,m3:(deal.inputs&&deal.inputs.sotsuApply==='適応'),est:hasQuote,risk:true,case:true};
+    { const pm=postFitModel(deal.inputs||{});
+      ALL_OPT={cover:true,mon:true,m3f:true,m3:(deal.inputs&&deal.inputs.sotsuApply==='適応'),est:hasQuote,risk:true,post:(pm.sotsu&&pm.P>0),case:true}; }
     { const pm=postFitModel(deal.inputs||{});
       SK_OPT={skcover:true,flyer:true,points:flyerHasPoints(deal),scheme:true,support:true,sched:true,mon:true,m2:true,post:(pm.sotsu&&pm.P>0)}; }
     ALL_OPT_DEAL=deal.id;
@@ -6345,6 +6346,7 @@ function renderAllSheets(){
     if(O.m3)    add('m3',buildSheet(D,'m3',isCase?false:showOwner));
     if(O.est)   add('est',buildSheet(D,'est',isCase?false:showOwner));
     if(O.risk)  add('risk',sheetRisk(D));
+    if(O.post)  add('post',buildSheet(D,'post',isCase?false:showOwner));
     if(O.case)  add('case',sheetRefCase());
     if(isCase)  html=caseScrub(html,deal);
   }
@@ -6435,6 +6437,7 @@ function gdSheet(k,G){
       '<b>リフォート提案 20年（2分）</b>：卒FIT後も含めると、さらにどれだけ上乗せされるか',
       '<b>お見積（3分）</b>：何にいくらかかるか。見積条件（有効期限・工期・備考）も必ず読む',
       '<b>放置リスク比較（3分）</b>：「何もしない」にもコストがあることを、数字で静かに示す',
+      '<b>卒FIT後比較（2分）</b>：FITが終わっても発電所は動く。何もしなければ卒FIT後の売上がいくら減るか、後回しでは回収できないことを示す',
       '<b>導入事例（2分）</b>：規模の近い事例で安心していただく',
       '<b>締め</b>：表紙の「ご検討から工事完了までの流れ」を指し、次の一歩の日程を決める',
     ];
@@ -6512,7 +6515,8 @@ function gdSheet(k,G){
          ['見積の金額は変わるか','現地確認で仕様が確定すると変わりうる。部材価格の改定の可能性も備考のとおり伝える']];
     warn=['金額・割引・工期の約束は、社内確認の前にしない','見積の有効期限（30日）を伝え、次回の日程につなげる'];
   }else if(k==='risk'){
-    next='「実際に同じような発電所でどれだけ改善したか、事例をご覧ください」→ 導入事例へ';
+    next=ALL_OPT.post? '「FITが終わった後だけを切り出すと、どうなるかもご覧ください」→ 卒FIT後比較へ'
+                     : '「実際に同じような発電所でどれだけ改善したか、事例をご覧ください」→ 導入事例へ';
     const m=G.rk&&G.rk.m;
     T='放置リスク比較'; P='⑤ 放置リスク比較';
     goal='「何もしない」ことにもコストがあると、数字で静かに示す。不安をあおらず、判断材料として出す';
@@ -6524,6 +6528,20 @@ function gdSheet(k,G){
     faq=[['故障損失は大げさでは','「'+(m?m._failY:'—')+'年目にPCSが故障、停止'+(m?m._failm:'—')+'か月、交換費は目安」という想定であることを正直に伝える。過去の故障事例や実際の交換見積があれば、それで置き換えて説明'],
          ['PCS交換だけでよいのでは','PCS交換のみの欄（発電量UPと回収年数）を指して、パネル劣化が残る点を説明']];
     warn=['「必ず壊れる」「今やらないと損」とは言わない','故障損失を含めない場合の差（増収−工事代）も答えられるようにしておく'+(m?'（'+(Math.round(m.s3.upRevTotal/10000)-Math.round(m.s3.invest/10000)).toLocaleString('ja-JP')+'万円）':'')];
+  }else if(k==='post'){
+    next='「実際に同じような発電所でどれだけ改善したか、事例をご覧ください」→ 導入事例へ';
+    const pm=postFitModel(I), M=v=>Math.round(v/10000).toLocaleString('ja-JP')+'万円';
+    T='卒FIT後比較（何もしない vs ReFort）'; P='⑤-2 卒FIT後比較';
+    goal='FIT終了後も発電所は動き続ける。何もしなければ劣化で卒FIT後の売上が大きく減ること、後回しでは回収が難しく「今やる」ほうが有利なことを示す';
+    talk=(pm.sotsu&&pm.P>0)?['「FITが終わった後も、発電所は動き続けます。何もしなければ卒FIT後'+pm.P+'年で約'+M(pm.postGap)+'、売上が少なくなります」',
+          '「1日あたりにすると約'+Math.round(pm.postGap/(pm.P*365)).toLocaleString('ja-JP')+'円を取りこぼしている計算です」',
+          'グラフ（ワニの口）を指し、差が毎年積み上がることを見せる。左上の発電量で「今より何%落ちるか」も示す',
+          '③後回しの欄：「卒FIT後に工事をすると単価が下がるため、'+(pm.latePB!=null?'回収に'+pm.latePB.toFixed(1)+'年かかります':'残り期間では回収できません')+'。FIT期間中なら増えた分をFIT単価で売れます」']
+         :['卒FIT後の売電なし（不適合）の案件では、このページは使わない'];
+    nums=(pm.sotsu&&pm.P>0)?[['卒FIT後の売上差',M(pm.postGap)],['20年全体の差',M(pm.totalGap)],['純効果 今実施／後回し',M(pm.nowNet)+'／'+M(pm.lateNet)],['卒FIT単価',n(pm.post)+'円/kWh']]:[];
+    faq=[['卒FIT後の単価は確実か','取込Excelの想定単価。売電先・市場で変わるため「想定」と伝える。単価が変わっても、劣化で発電量そのものが減る点は変わらない'],
+         ['後で工事してもよいのでは','③の後回しの欄を指す。卒FIT後は単価が下がり、回収に時間がかかる（工事費は現在の見積と同額と仮定した参考値）']];
+    warn=['「今やらないと損」と断定しない。判断材料として出す','卒FIT後の差額は売上（税込）の差で、工事代は引いていない。純効果は③の欄で答える'];
   }else if(k==='case'){
     next='「本日のお話を踏まえて、次は現地確認（または正式なお見積の確定）に進めさせていただけますか。ご都合のよい日はいつ頃でしょうか」→ その場で日程を決める';
     T='導入事例'; P='⑥ 導入事例';
@@ -6572,6 +6590,8 @@ const CHANGELOG = [
     '累計売電収入の「ワニの口」グラフ、発電量の推移（現在→卒FIT初年→20年目）、卒FIT後の年別表（差額と累計）を1枚にまとめました。参考として「卒FIT後にReFortした場合（後回し）」の回収年数と、今実施した場合との純効果の比較も載せています',
     '数値はすべて取込Excelの値（実績発電量・リフォート後発電量・劣化率・FIT単価・卒FIT単価・工事費）から自動で反映します。卒FIT後の差額は「リフォート提案（20年）」の「うち卒FIT後」と同じ計算です。卒FIT後の売電なし（不適合）の案件では既定でチェックを外します',
     'セカンダリーRFの表紙「物件スペック」に「何もしない場合の卒FIT後の売上差」を追加しました。案件画面の提案シートにも「★ 卒FIT後比較」を追加しています',
+    '<b>リフォート提案（一括）にも「卒FIT後比較」を追加しました。</b>放置リスク比較の次（導入事例の前）に出力されます。社内用（説明ポイント付き）ではトーク例・強調する数字も入ります',
+    '卒FIT後比較のグラフで、右端の差額（▲○○万円）が切れて表示されない不具合を直しました',
   ]],
   ['2026.10.06', [
     '<b>案件画面の結果タブに「現調AIチェック」を追加しました。</b>現調スライドのPDF（Googleスライドは「ファイル→ダウンロード→PDF」）や現地写真を入れると、AIが提案・見積の前に把握すべき懸念材料を、重要度・根拠ページ・提案前の確認先・見積への反映案つきで一覧にします',
