@@ -1198,6 +1198,9 @@ a.maplink{color:inherit;text-decoration:underline;text-decoration-color:#c8a24a;
 .lp-btns a.b-gmap{display:inline-block;padding:4px 9px;border-radius:6px;border:1px solid #c3c9c1;background:#fff;color:#123a6b;font-size:11px;font-weight:700;text-decoration:none}
 
 .sync-warn{margin-top:8px;padding:9px 11px;border-radius:8px;background:#fff4f1;border:1px solid #e9b8ab;color:#7a2a17;font-size:12px;line-height:1.65}
+
+.cv-title .cv-plant{font-size:13px;font-weight:700;color:#8a6a1e;letter-spacing:.06em;margin-bottom:4px}
+.cv-title .cv-h1{letter-spacing:.04em}
 </style>
 <style id="skin-2609">
 /* ===== 2026.09.19 デザイン刷新：左サイドバー＋明るい作業面 ===== */
@@ -3325,7 +3328,8 @@ function wireForm(){
       if(inp.type==='number') v=inp.value===''?'':v;
       setI(k,v);
       if(inp.type==='url'){const btn=inp.parentNode.querySelector('.url-open');if(btn)btn.disabled=!inp.value.trim();}
-      if(inp.dataset.k==='simSyncUrl'){inp.parentNode.querySelectorAll('.sync-btn').forEach(b=>b.disabled=!inp.value.trim());}
+      if(inp.dataset.k==='simSyncUrl'){inp.parentNode.querySelectorAll('.sync-btn').forEach(b=>b.disabled=!inp.value.trim());
+        delete curDeal.inputs._syncMode; delete curDeal.inputs._syncOk; showSyncWarn([]);}
     });
   });
   const spull=$('[data-syncpull]'); if(spull)spull.onclick=simSyncPull;
@@ -4014,7 +4018,7 @@ function sheetCover(deal){
     <div class="cv-top">
       <div class="cv-brand">
         <div class="cv-logo"><img src="${EC_LOGO}" alt="アースコム"></div>
-        <div class="cv-title"><div class="cv-h1">${esc(plant)} リフォート工事</div><div class="cv-sub">案件概要・投資効果・工事完了までの流れ</div></div>
+        <div class="cv-title"><div class="cv-plant">${esc(plant)}</div><div class="cv-h1">太陽光発電所 新事業計画書</div><div class="cv-sub">～発電収益最大化・投資回収・FIT終了後の事業戦略～</div></div>
       </div>
       <div class="cv-photo">${photo?(map?`<a href="${esc(map)}" target="_blank" rel="noopener"><img src="${photo}" alt="現地"></a>`:`<img src="${photo}" alt="現地">`):'<span class="cv-nophoto">現地画像を「① 案件基本情報」で取り込めます</span>'}</div>
     </div>
@@ -5974,9 +5978,10 @@ function xlsSnapOf(inp){
 }
 function syncSharedWith(deal){
   const u=String((deal.inputs||{}).simSyncUrl||'').trim(); if(!u) return [];
+  if(deal.inputs._syncMode==='master'||deal.inputs._syncOk===u) return [];
   const my=sheetIdOf(deal.inputs.simSheetUrl);
   return (DB.deals||[]).filter(o=>o&&o.id!==deal.id&&o.inputs&&String(o.inputs.simSyncUrl||'').trim()===u
-    &&(!my||sheetIdOf(o.inputs.simSheetUrl)!==my));
+    &&o.inputs._syncMode!=='master'&&(!my||sheetIdOf(o.inputs.simSheetUrl)!==my));
 }
 function syncMismatch(deal,d){
   const out=[], snap=(deal.inputs||{})._xlsSnap;
@@ -6010,6 +6015,47 @@ function showSyncWarn(mm){
 }
 const SYNC_KEYS=['location','fitPrice','actualGen','dcExisting','acExisting','secSaleEx','secCostEx','gridDate'];
 const SYNC_TOKEN='earthcom';
+/* ===== 連携先の2方式 =====
+   ・原本ごとのGAS（従来）：GETで {location, actualGen, …} を返す。書出（POST）も可
+   ・マスタ連携GAS（全案件で1つのURL）：?mode=deal&id=<原本のスプレッドシートID> で「09_APP連動」を返す（読込専用）
+   アプリは常に「原本URL（RFSKシミュレーション）」のIDを付けて問い合わせるので、マスタ連携なら取り違えが起きない */
+const SYNC_MASTER_MAP={site_address:'location',map_url:'mapUrl',grid_connect_date:'gridDate',fit_price:'fitPrice',post_fit_price:'sotsuFit',
+  dc_kw:'dcExisting',ac_kw:'acExisting',gen_actual:'actualGen',dc_kw_after_rf:'rfDcAfter',gen_after_rf:'rfGenAfter',
+  purchase_cost:'secCostEx',sale_price:'secSaleEx',rf_price:'rfPriceEx',site_lat:'siteLat',site_lng:'siteLng'};
+function syncFetchUrl(deal){
+  const u=String(deal.inputs.simSyncUrl||'').trim(), id=sheetIdOf(deal.inputs.simSheetUrl);
+  return u+(u.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN)+(id?'&mode=deal&id='+encodeURIComponent(id):'');
+}
+function normSyncResp(j,deal){
+  let d=j.data;
+  if(Array.isArray(d)) return {err:'連携先がマスタ一覧（全案件）を返しました。この案件の「RFSKシミュレーション（原本URL）」を入力してください'};
+  if(d==null) return {err:'連携先に「09_APP連動」タブが見つからないか、原本URLが正しくありません'};
+  if(d.spreadsheet_id!==undefined||d.site_address!==undefined||d.gen_actual!==undefined){
+    const my=sheetIdOf(deal.inputs.simSheetUrl);
+    if(!my) return {err:'マスタ連携には「RFSKシミュレーション（原本URL）」の入力が必要です'};
+    if(d.spreadsheet_id&&String(d.spreadsheet_id)!==my) return {err:'連携先が別のスプレッドシートの値を返しました（原本URLをご確認ください）'};
+    const o={};
+    Object.keys(SYNC_MASTER_MAP).forEach(k=>{ let v=d[k]; if(v===undefined||v===null||v==='')return;
+      if(typeof v==='string'&&/^-?[\d,]+(\.\d+)?$/.test(v.trim())) v=v.replace(/,/g,'');
+      o[SYNC_MASTER_MAP[k]]=v; });
+    return {data:o,mode:'master',keys:Object.values(SYNC_MASTER_MAP)};
+  }
+  return {data:d,mode:'sheet',keys:SYNC_KEYS};
+}
+function applySync(r,onlyChanged){
+  let cnt=0;
+  r.keys.forEach(k=>{ const v=r.data[k]; if(v===undefined||v===''||v===null)return;
+    const nv=(k==='gridDate'?normDate(v):v);
+    if(onlyChanged&&String(curDeal.inputs[k])===String(nv))return;
+    curDeal.inputs[k]=nv; cnt++; });
+  curDeal.inputs._syncMode=r.mode;
+  return cnt;
+}
+async function syncGet(deal){
+  const res=await fetch(syncFetchUrl(deal),{method:'GET',redirect:'follow'});
+  const txt=await res.text(); let j=null; try{ j=JSON.parse(txt); }catch(_){}
+  return {j,txt};
+}
 async function simSyncPull(){
   if(!curDeal)return;
   const url=(curDeal.inputs.simSyncUrl||'').trim();
@@ -6017,9 +6063,7 @@ async function simSyncPull(){
   if(!/\/exec(\?|$)/.test(url)){toast('URLは末尾が /exec のデプロイURLを貼ってください（/dev は不可）');return;}
   toast('スプレッドシートから読込中…');
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{method:'GET',redirect:'follow'});
-    const txt=await res.text();
-    let j=null; try{ j=JSON.parse(txt); }catch(_){}
+    const {j,txt}=await syncGet(curDeal);
     if(!j){
       if(/<html|<!doctype|accounts\.google|ログイン|sign ?in|authorization/i.test(txt))
         toast('読込失敗：GASを「アクセス：全員」で再デプロイしてください（ログインが要求されています）');
@@ -6027,28 +6071,32 @@ async function simSyncPull(){
       return;
     }
     if(!j.ok){toast('読込失敗：'+(j.error||'GAS側エラー'));return;}
-    const d=j.data||{}; let cnt=0;
-    const mm=syncMismatch(curDeal,d), sh=syncSharedWith(curDeal);
-    if(mm.length||sh.length){
-      showSyncWarn(mm);
-      if(!confirm('連携先のスプレッドシートの内容が、この案件のExcelと食い違っています。\n'+
-        mm.map(([k,a,b])=>'・'+k+'：Excel取込 '+a+' ／ 連携先 '+b).join('\n')+
-        (sh.length?'\n・同じ連携URLを別案件（'+sh.map(o=>o.name).slice(0,3).join('、')+'）でも使っています':'')+
-        '\n\n別の発電所の原本につながっている可能性があります。それでも読み込みますか？'))return;
+    const r=normSyncResp(j,curDeal);
+    if(r.err){ toast('読込失敗：'+r.err); return; }
+    if(r.mode==='sheet'){
+      const mm=syncMismatch(curDeal,r.data), sh=syncSharedWith(curDeal);
+      if(mm.length||sh.length){
+        showSyncWarn(mm);
+        if(!confirm('連携先のスプレッドシートの内容が、この案件のExcelと食い違っています。\n'+
+          mm.map(([k,a,b])=>'・'+k+'：Excel取込 '+a+' ／ 連携先 '+b).join('\n')+
+          (sh.length?'\n・同じ連携URLを別案件（'+sh.map(o=>o.name).slice(0,3).join('、')+'）でも使っています':'')+
+          '\n\n別の発電所の原本につながっている可能性があります。それでも読み込みますか？'))return;
+        curDeal.inputs._syncOk=String(curDeal.inputs.simSyncUrl||'').trim();   /* 確認済みのURLとして扱う */
+      }
     }
-    SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); cnt++; } });
-    if(mm.length) curDeal.inputs._xlsSnap=xlsSnapOf(curDeal.inputs);   /* 確認して読み込んだ値を新しい基準にする */
+    const cnt=applySync(r,false);
+    curDeal.inputs._xlsSnap=xlsSnapOf(curDeal.inputs);   /* 読み込んだ原本の値を新しい基準にする */
     markDirty(); renderDeal();
-    toast('シートから読み込みました（'+cnt+'項目）※保存で確定');
+    toast('シートから読み込みました（'+cnt+'項目'+(r.mode==='master'?'・マスタ連携':'')+'）※保存で確定');
   }catch(e){ toast('読込エラー：接続がブロックされました。GASを「アクセス：全員」で再デプロイし /exec URLをご確認ください'); }
 }
 async function simSyncPush(){
   if(!curDeal)return;
   const url=(curDeal.inputs.simSyncUrl||'').trim();
   if(!url){toast('RFSK連携URL（GAS）を入力してください');return;}
-  { const sh=syncSharedWith(curDeal);
-    let mm=[]; try{ const r0=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{redirect:'follow'});
-      const j0=JSON.parse(await r0.text()); if(j0&&j0.ok) mm=syncMismatch(curDeal,j0.data||{}); }catch(_){}
+  { let r=null; try{ const {j}=await syncGet(curDeal); if(j&&j.ok) r=normSyncResp(j,curDeal); }catch(_){}
+    if(r&&r.mode==='master'){ alert('マスタ連携（全案件共通のGAS）は読込専用です。\n原本スプレッドシートの「01_物件情報」を直接編集してください。アプリには自動で反映されます。'); return; }
+    const sh=syncSharedWith(curDeal); const mm=(r&&!r.err)?syncMismatch(curDeal,r.data):[];
     if(mm.length||sh.length){ showSyncWarn(mm);
       alert('書出を中止しました。\n連携URLが別の発電所のスプレッドシートにつながっている可能性があります。\n'+
         mm.map(([k,a,b])=>'・'+k+'：Excel取込 '+a+' ／ 連携先 '+b).join('\n')+
@@ -6072,8 +6120,7 @@ function stopAutoSync(){ if(autoSyncTimer){clearInterval(autoSyncTimer);autoSync
 function startAutoSync(){
   stopAutoSync();
   if(!curDeal || !(curDeal.inputs.simSyncUrl||'').trim()) return;
-  if(syncSharedWith(curDeal).length){ setTimeout(()=>showSyncWarn([]),50); return; }   /* 別案件と共用のURLは自動読込しない */
-  autoPull(true);                                    // 案件を開いた時に自動読込
+  autoPull(true);                                    // 案件を開いた時に自動読込（方式の判定もここで行う）
   autoSyncTimer=setInterval(()=>autoPull(false), 45000); // 数十秒ごと（45秒）に自動読込
 }
 function refreshFormValues(){
@@ -6092,21 +6139,26 @@ async function autoPull(onOpen){
   if(autoSyncBusy) return;
   if(dirty && !onOpen) return;                        // 未保存の編集中は自動読込しない（上書き防止）
   autoSyncBusy=true;
+  const deal=curDeal;
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(SYNC_TOKEN),{redirect:'follow'});
-    const txt=await res.text(); let j=null; try{ j=JSON.parse(txt); }catch(_){}
-    if(j&&j.ok){
-      const d=j.data||{}; let changed=0;
-      const mm=syncMismatch(curDeal,d);
-      if(mm.length){ stopAutoSync(); showSyncWarn(mm);
-        if(onOpen) toast('⚠ 連携URLが別の発電所の原本につながっている可能性があるため、自動読込を止めました');
-        autoSyncBusy=false; return; }
-      SYNC_KEYS.forEach(k=>{ if(d[k]!==undefined&&d[k]!==''&&d[k]!==null){
-        if(String(curDeal.inputs[k])!==String(d[k])){ curDeal.inputs[k]=(k==='gridDate'?normDate(d[k]):d[k]); changed++; } } });
-      if(changed>0 && !dirty){
-        curDeal.updatedAt=Date.now(); saveDB(DB,curDeal);
+    const {j}=await syncGet(deal);
+    if(j&&j.ok&&deal===curDeal){
+      const r=normSyncResp(j,deal);
+      if(r.err){ stopAutoSync(); if(onOpen) toast('⚠ 自動読込を止めました：'+r.err); autoSyncBusy=false; return; }
+      if(r.mode==='sheet'){
+        const confirmed=deal.inputs._syncOk&&deal.inputs._syncOk===url;
+        const mm=confirmed?[]:syncMismatch(deal,r.data), sh=confirmed?[]:syncSharedWith(deal);
+        if(mm.length||sh.length){ stopAutoSync(); showSyncWarn(mm);
+          if(onOpen) toast('⚠ 連携URLが別の発電所の原本につながっている可能性があるため、自動読込を止めました');
+          autoSyncBusy=false; return; }
+      }
+      const before=deal.inputs._syncMode;
+      const changed=applySync(r,true);
+      if(r.mode==='master'){ deal.inputs._xlsSnap=xlsSnapOf(deal.inputs); showSyncWarn([]); }
+      if((changed>0||before!==r.mode) && !dirty){
+        deal.updatedAt=Date.now(); saveDB(DB,deal);
         if(activeView()==='deal'){ refreshFormValues(); recompute(); }
-        toast('シートから自動反映（'+changed+'項目）');
+        if(changed>0) toast('シートから自動反映（'+changed+'項目）');
       }
     }
   }catch(e){/* silent */}
@@ -6716,9 +6768,17 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.10.21d';
+const APP_VERSION = '2026.10.22';
 
 const CHANGELOG = [
+  ['2026.10.22', [
+    '<b>リフォート提案（一括）の表紙タイトルを「太陽光発電所 新事業計画書」に変更しました。</b>副題は「～発電収益最大化・投資回収・FIT終了後の事業戦略～」、発電所名はタイトルの上に表示します',
+  ]],
+  ['2026.10.21e', [
+    '<b>マスタ連携GAS（全案件で1つのURL）に対応しました。</b>アプリは「RFSKシミュレーション（原本URL）」のスプレッドシートIDを付けて問い合わせ、その原本の「09_APP連動」タブだけを読みます。返ってきたIDが原本URLと違えば反映しません（取り違えが起きない方式）',
+    'マスタ連携では、所在地・位置URL・連系日・FIT単価・卒FIT単価・パネル容量（DC/AC）・実績発電量・RF後DC・RF後想定発電量・リフォート価格・仕入原価・販売価格・緯度経度を読み込みます。マスタ連携は読込専用です（原本を直接編集すると、アプリに自動で反映されます）',
+    '従来の「原本ごとのGAS」もそのまま使えます（取り違え防止のチェック付き）',
+  ]],
   ['2026.10.21d', [
     '<b>【重要】RFSK連携（GAS）の取り違え防止を入れました。</b>別の発電所のスプレッドシートにつながったGAS URLが入っていると、自動読込で所在地・実績発電量・容量・連系日が別物件の値に上書きされ、発電量UP率・FIT残・回収年数が原本と食い違う不具合がありました',
     'Excel取込した時の「所在地・連系日・パネル容量」と連携先の値を比べ、食い違えば別物件と判断して自動読込・書出を止め、連携URL欄の下に警告を出します。同じGAS URLを原本の違う別案件でも使っている場合も止めます',
