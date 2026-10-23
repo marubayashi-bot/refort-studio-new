@@ -158,6 +158,31 @@ main{max-width:960px;margin:0 auto;padding:22px 18px 80px}
 .kpicard .kt{font-size:11px;color:var(--muted);margin-top:3px}
 .kpicard .kv{font-size:20px;font-weight:800;line-height:1.1;margin-top:5px;font-variant-numeric:tabular-nums}
 .kpicard .kv small{font-size:11px;font-weight:700;color:var(--muted);margin-left:3px}
+/* 数値への考え */
+.mnlist{display:flex;flex-direction:column;gap:14px;margin-top:10px}
+.mnb{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#FBFCFD}
+.mnb > label:first-child{margin-top:0}
+.mnj{font-size:12.5px;margin:9px 0 2px;padding:8px 11px;border-radius:7px;background:#EEF2F6;color:var(--muted);line-height:1.6}
+.mnj.ok{background:var(--accent-soft);color:var(--accent)}
+.mnj.behind{background:var(--warn-soft);color:var(--warn)}
+.mnj.behind b{font-size:13px}
+.mnl{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:10px 0 4px}
+.mnl .req{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:10.5px;background:var(--warn);color:#fff;vertical-align:1px}
+.mnl .opt{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:10.5px;background:var(--line);color:var(--muted);vertical-align:1px}
+.mnb textarea{min-height:54px}
+.mnprev{margin-top:10px;padding:8px 11px;border-left:3px solid var(--amber);background:#FFF9EC;border-radius:0 7px 7px 0}
+.mnprev .mndecl{font-size:13px;color:var(--ink);margin:3px 0 7px;line-height:1.6}
+.mnpbtn button{padding:5px 11px;font-size:12px}
+.mnnotes{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.mnnotes > .lab{font-size:12px;font-weight:700;color:var(--ink)}
+.mnn{margin-top:7px;padding:7px 11px;border-left:3px solid var(--line);border-radius:0 7px 7px 0;background:#fff;font-size:13px;line-height:1.7}
+.mnn.behind{border-left-color:var(--warn);background:var(--warn-soft)}
+.mnn.ok{border-left-color:var(--accent)}
+.mnn .mnh{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:2px}
+.mnn .k{display:inline-block;min-width:68px;font-size:11px;font-weight:700;color:var(--muted)}
+.mnst{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px;background:#EEF2F6;color:var(--muted)}
+.mnst.behind{background:var(--warn);color:#fff}
+.mnst.ok{background:var(--accent);color:#fff}
 .kbar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin:6px 0 3px}
 .kbar span{display:block;height:100%;border-radius:3px}
 .kbtn{margin-top:6px;padding:3px 10px;font-size:11px}
@@ -620,6 +645,10 @@ async function boot(){
   }
   await loadGoals();
   await loadApprovedTargets();
+  // 「数値への考え」用の列があるか確認（SQL未実行でも日報アプリが止まらないように）
+  { const { error: mnErr } = await EC.supabase.from('report_metric_values')
+      .select('metric_id,comment,next_action,prev_check,pace').limit(1);
+    MT_NOTE_OK = !mnErr; }
   await loadReports();
   await loadNippoMode();
   if (OPEN_ID) TAB = 'feed';
@@ -636,7 +665,8 @@ async function loadReports(fromDate){
     LOAD_FROM = since.toISOString().slice(0,10);
   }
   const { data, error } = await EC.supabase.from('daily_reports')
-    .select('*, report_metric_values(metric_id,value), report_comments(*), report_views(viewer_id,viewed_at)')
+    .select('*, report_metric_values(' + (MT_NOTE_OK ? 'metric_id,value,comment,next_action,prev_check,pace' : 'metric_id,value')
+      + '), report_comments(*), report_views(viewer_id,viewed_at)')
     .gte('report_date', LOAD_FROM)
     .order('report_date', { ascending: false });
   if (error) { toast('日報の読み込みに失敗: ' + error.message); REPORTS = []; return; }
@@ -1493,6 +1523,217 @@ function canSeeAll(u){
   return t.job_grade === '役員・経営' || t.role === 'admin' || t.exec_watch === true;
 }
 
+/* ================= 数値への考え =================
+   日報の数値項目ごとに「本人の考え」を必須にする。
+   ・今日の数値を入れた瞬間に、今週のペース（順調／未達ペース）を自動判定して見せる
+   ・順調なら「うまくいった要因」、未達ペースなら「未達の要因」と「明日の行動（数字入り）」を必須にする
+   ・前回の日報で宣言した「明日の行動」を表示し、やった／一部／できなかったを答えてから書く
+   保存先は report_metric_values の comment / next_action / prev_check / pace 列。
+   列が無い（SQL未実行）ときは MT_NOTE_OK=false となり、この機能は出さずに従来どおり動く。 */
+let MT_NOTE_OK = false;
+const MT_INFO = {};          // metricId -> { name, unit, tgt }
+const MN_MIN = 10;           // 考え・行動の最低文字数
+const MN_EMO = /(頑張|がんば|ガンバ|気合|気をつけ|気を付け|意識し|反省し|申し訳|努力し|しっかり)/;
+const MN_DIGIT = /[0-9０-９一二三四五六七八九十]/;
+const mnR1 = x => Math.round(Number(x) * 10) / 10;
+
+/* 週の何日目か・週の日数（週の始まり〜週次報告の曜日まで） */
+function mnWeekPos(day){
+  const start = (ME.week_start_dow == null) ? 1 : ME.week_start_dow;
+  const w = weeklyDowOf(ME.id);
+  const end = (w === null) ? 5 : w;
+  const span = ((end - start + 7) % 7) + 1;
+  const idx = (dowOf(day) - start + 7) % 7;
+  return { span, idx };
+}
+/* 今日の値を含めた今週のペース判定 */
+function mtPace(metricId, tgt, day, todayVal){
+  const wk = mondayOf(new Date(day));
+  const sofar = actualSum(metricId, wk, prevDay(day));
+  const total = sofar + (Number(todayVal) || 0);
+  if (tgt === null || tgt === undefined || Number.isNaN(tgt)) return { state: 'none', total };
+  if (isZeroGoal(tgt)) return { state: total > 0 ? 'behind' : 'ok', total, zero: true };
+  const { span, idx } = mnWeekPos(day);
+  const frac = Math.min(1, (idx + 1) / span);
+  const expect = tgt * frac;
+  const daysLeft = Math.max(0, span - idx - 1);
+  const remain = Math.max(0, tgt - total);
+  return { state: total >= expect ? 'ok' : 'behind', total, expect, rate: goalRate(total, tgt),
+           gap: Math.max(0, expect - total), remain, daysLeft,
+           perDay: daysLeft ? Math.ceil(remain / daysLeft * 10) / 10 : remain };
+}
+/* 前回の日報（7日以内）で、この項目に書いた「明日の行動」 */
+function mtPrevDecl(metricId, day){
+  const from = addDays(day, -7);
+  const list = REPORTS.filter(r => r.author_id === ME.id && r.report_date < day && r.report_date >= from
+      && r.status !== 'off' && r.status !== 'scheduled')
+    .sort((a, b) => b.report_date.localeCompare(a.report_date));
+  for (const r of list){
+    const v = (r.report_metric_values || []).find(x => x.metric_id === metricId);
+    if (!v) continue;
+    return v.next_action ? { date: r.report_date, text: v.next_action } : null;
+  }
+  return null;
+}
+function mnIntro(){
+  if (MT_NOTE_OK) return `<p class="note" style="margin-top:4px"><b>数値ごとに、あなたの考えを書いて提出します。</b>
+    数値を入れると今週のペースが判定されます。未達ペースの項目は「要因」と「明日の行動（数字入り）」まで決めてください。</p>`;
+  return ME && ME.role === 'admin'
+    ? `<p class="note" style="margin-top:4px;color:var(--warn)">※「数値への考え」欄は、Supabaseで追加SQLを実行すると有効になります（管理者にだけ表示）。</p>` : '';
+}
+/* 数値1項目ぶんの入力ブロック */
+function mtBlock(m, mine){
+  const day = EDIT_DATE || TODAY;
+  const wk = mondayOf(new Date(day));
+  const sofar = actualSum(m.id, wk, prevDay(day));
+  const tgt = m.tgt;
+  const none = (tgt === null || tgt === undefined || Number.isNaN(tgt));
+  const zero = !none && isZeroGoal(tgt);
+  const rate = none ? 0 : goalRate(sofar, tgt);
+  const sv = (mine && (mine.report_metric_values || []).find(x => x.metric_id === m.id)) || {};
+  MT_INFO[m.id] = { name: m.name, unit: m.unit || '', tgt: none ? null : tgt };
+  const prev = MT_NOTE_OK ? mtPrevDecl(m.id, day) : null;
+  const progress = none ? '<div class="note">週の目標が未設定です</div>'
+    : zero
+      ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
+          ${sofar > 0 ? '今週すでに ' + mnR1(sofar) + esc(m.unit) + ' 発生しています' : '今週はここまで発生ゼロ。維持しましょう'}</div>`
+      : `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
+          background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
+        <div class="note num">前日まで ${mnR1(sofar)}${esc(m.unit)} / ${tgt}${esc(m.unit)}（${rate}%）　
+          残り <b>${Math.max(0, mnR1(tgt - sofar))}${esc(m.unit)}</b></div>`;
+  return `<div class="mnb" id="mnb_${m.id}">
+    <label>${esc(m.name)}（${esc(m.unit)}）
+      ${m.kind === 'KGI' ? '<span class="pill">KGI</span>' : ''}　
+      <span class="note">${none ? '' : zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + tgt}</span></label>
+    <input type="number" step="any" id="mt_${m.id}" value="${sv.value ?? ''}" placeholder="未入力（0件なら0）" required>
+    ${progress}
+    ${MT_NOTE_OK ? `
+    ${prev ? `<div class="mnprev">
+      <div class="note">前回（${prev.date.slice(5).replace('-', '/')}）あなたが宣言した行動</div>
+      <div class="mndecl">${esc(prev.text)}</div>
+      <div class="row mnpbtn" id="mnpb_${m.id}">
+        ${[['done', 'やった'], ['partial', '一部やった'], ['not', 'できなかった']].map(([k, l]) =>
+          `<button type="button" class="ghost" data-v="${k}" onclick="mtSetPrev('${m.id}','${k}')">${l}</button>`).join('')}
+      </div>
+      <input type="hidden" id="mn_p_${m.id}" value="${esc(sv.prev_check || '')}"></div>` : ''}
+    <div class="mnj" id="mnj_${m.id}">数値を入れると、今週のペース判定が出ます</div>
+    <label class="mnl" id="mncl_${m.id}">この数字への考え<span class="req">必須</span></label>
+    <textarea id="mn_c_${m.id}" placeholder="数字の背景にある事実と、あなたの見立てを書いてください">${esc(sv.comment || '')}</textarea>
+    <label class="mnl" id="mnal_${m.id}">明日の行動（何を・いつまでに・どれだけ）<span class="opt">任意</span></label>
+    <textarea id="mn_a_${m.id}" placeholder="例：10時〜12時に既存オーナーへ20件架電し、現調アポを2件取る">${esc(sv.next_action || '')}</textarea>` : ''}
+  </div>`;
+}
+/* 数値を打つたびに判定と見出しを切り替える */
+function mtUpdate(id){
+  const info = MT_INFO[id]; if (!info || !MT_NOTE_OK) return;
+  const el = document.getElementById('mt_' + id);
+  const j = document.getElementById('mnj_' + id); if (!el || !j) return;
+  const raw = String(el.value).trim();
+  const day = EDIT_DATE || TODAY;
+  const u = esc(info.unit);
+  const p = mtPace(id, info.tgt, day, raw === '' ? 0 : Number(raw));
+  const state = raw === '' ? '' : p.state;
+  j.dataset.state = state;
+  j.className = 'mnj ' + state;
+  if (raw === '') j.innerHTML = '数値を入れると、今週のペース判定が出ます';
+  else if (p.state === 'none') j.innerHTML = '週の目標が未設定のため、ペース判定はありません。数字の背景と見立てを書いてください。';
+  else if (p.zero) j.innerHTML = p.state === 'behind'
+      ? `<b>今週 ${mnR1(p.total)}${u} 発生しています（目標は発生ゼロ）</b><br>なぜ発生したのか、再発させない行動まで決めてください。`
+      : '今週はここまで発生ゼロです。維持できている理由を書いてください。';
+  else j.innerHTML = p.state === 'behind'
+      ? `<b>未達ペースです</b>　今日までの合計 ${mnR1(p.total)}${u} / 今日時点の目安 ${mnR1(p.expect)}${u}（${mnR1(p.gap)}${u} 不足）<br>
+         ${p.daysLeft ? '週目標まで残り ' + mnR1(p.remain) + u + '。残り' + p.daysLeft + '日で、1日あたり <b>' + p.perDay + u + '</b> 必要です。'
+                      : '今週の目標まで ' + mnR1(p.remain) + u + ' 足りません。'}`
+      : `<b>順調です</b>　今日までの合計 ${mnR1(p.total)}${u} / 今日時点の目安 ${mnR1(p.expect)}${u}（週目標の${p.rate}%）`;
+  const pv = (document.getElementById('mn_p_' + id) || {}).value || '';
+  const missed = pv === 'not' || pv === 'partial';
+  const cl = document.getElementById('mncl_' + id), ca = document.getElementById('mn_c_' + id);
+  const al = document.getElementById('mnal_' + id), aa = document.getElementById('mn_a_' + id);
+  const tail = missed ? '（前回の宣言ができなかった理由も）' : '';
+  if (state === 'behind'){
+    cl.innerHTML = '未達の要因（事実で）' + tail + '<span class="req">必須</span>';
+    ca.placeholder = '例：架電は予定どおり20件したが、つながったのは4件。午前中は不在が多く、時間帯の選び方に問題がある';
+    al.innerHTML = '明日の行動（何を・いつまでに・どれだけ。数字を入れる）<span class="req">必須</span>';
+  } else if (state === 'ok'){
+    cl.innerHTML = 'うまくいった要因（次も再現できる形で）' + tail + '<span class="req">必須</span>';
+    ca.placeholder = '例：前日にトークを見直し、決裁者がいる夕方に絞って架電したらアポ率が上がった';
+    al.innerHTML = '明日の行動（何を・いつまでに・どれだけ）<span class="opt">任意</span>';
+  } else {
+    cl.innerHTML = 'この数字への考え' + tail + '<span class="req">必須</span>';
+    al.innerHTML = '明日の行動（何を・いつまでに・どれだけ）<span class="opt">任意</span>';
+  }
+}
+function mtSetPrev(id, v){
+  const h = document.getElementById('mn_p_' + id); if (!h) return;
+  h.value = v; mtPaintPrev(id); mtUpdate(id);
+  const box = document.getElementById('mnpb_' + id); if (box){ box.style.borderColor = ''; box.style.background = ''; }
+  if (typeof ndSave === 'function') ndSave();
+}
+function mtPaintPrev(id){
+  const h = document.getElementById('mn_p_' + id), box = document.getElementById('mnpb_' + id);
+  if (!h || !box) return;
+  box.querySelectorAll('button').forEach(b => { b.className = b.dataset.v === h.value ? 'act' : 'ghost'; });
+}
+function mtRefreshAll(){ Object.keys(MT_INFO).forEach(id => { mtPaintPrev(id); mtUpdate(id); }); }
+document.addEventListener('input', e => {
+  const id = e.target && e.target.id;
+  if (TAB === 'write' && id && id.indexOf('mt_') === 0) mtUpdate(id.slice(3));
+});
+/* 提出前チェック。ダメなら該当欄に移動して false */
+function mtCheck(){
+  const bad = (el, msg) => {
+    if (el){ el.style.borderColor = 'var(--warn)'; el.style.background = 'var(--warn-soft)';
+      el.focus && el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.addEventListener('input', () => { el.style.borderColor = ''; el.style.background = ''; }, { once: true }); }
+    toast(msg); return false;
+  };
+  for (const id of Object.keys(MT_INFO)){
+    if (!document.getElementById('mt_' + id)) continue;
+    mtUpdate(id);
+    const nm = '「' + MT_INFO[id].name + '」';
+    const h = document.getElementById('mn_p_' + id);
+    if (h && !h.value) return bad(document.getElementById('mnpb_' + id), nm + '：前回宣言した行動ができたか選んでください');
+    const ca = document.getElementById('mn_c_' + id);
+    const c = String(ca.value || '').trim();
+    if (c.length < MN_MIN) return bad(ca, nm + '：この数字への考えを' + MN_MIN + '文字以上で書いてください');
+    if (MN_EMO.test(c) && !MN_DIGIT.test(c)) return bad(ca, nm + '：気持ちだけになっています。数字や事実で要因を書いてください');
+    const st = (document.getElementById('mnj_' + id) || {}).dataset || {};
+    if (st.state === 'behind'){
+      const aa = document.getElementById('mn_a_' + id);
+      const a = String(aa.value || '').trim();
+      if (a.length < MN_MIN) return bad(aa, nm + '：未達ペースです。明日の行動を書いてください');
+      if (!MN_DIGIT.test(a)) return bad(aa, nm + '：明日の行動に数字（件数・時刻・回数など）を入れてください');
+    }
+  }
+  return true;
+}
+function mtRowExtra(id){
+  const g = k => { const el = document.getElementById(k); return el ? String(el.value || '').trim() : ''; };
+  const st = (document.getElementById('mnj_' + id) || { dataset: {} }).dataset.state || '';
+  return { comment: g('mn_c_' + id) || null, next_action: g('mn_a_' + id) || null,
+           prev_check: g('mn_p_' + id) || null, pace: st || null };
+}
+/* 日報一覧：数値への考え（未達ペースを上に） */
+function mnNotesHtml(vals){
+  if (!MT_NOTE_OK) return '';
+  const rows = (vals || []).filter(v => v.comment || v.next_action || v.prev_check);
+  if (!rows.length) return '';
+  const ord = { behind: 0, none: 1, ok: 2 };
+  rows.sort((a, b) => (ord[a.pace] ?? 1) - (ord[b.pace] ?? 1));
+  const PV = { done: 'やった', partial: '一部やった', not: 'できなかった' };
+  const ST = { behind: '未達ペース', ok: '順調', none: '判定なし' };
+  return `<div class="mnnotes"><div class="lab">数値への考え</div>
+    ${rows.map(v => { const m = METRICS_ALL.find(x => x.id === v.metric_id) || { name: '(項目)', unit: '' };
+      return `<div class="mnn ${v.pace || ''}">
+        <div class="mnh"><b>${esc(m.name)}</b><span class="num">${esc(v.value)}${esc(m.unit || '')}</span>
+          ${v.pace ? `<span class="mnst ${v.pace}">${ST[v.pace] || ''}</span>` : ''}
+          ${v.prev_check ? `<span class="note">前回の宣言：<b style="color:${v.prev_check === 'done' ? 'var(--accent)' : 'var(--warn)'}">${PV[v.prev_check] || ''}</b></span>` : ''}</div>
+        ${v.comment ? `<div><span class="k">考え</span>${linkify(v.comment)}</div>` : ''}
+        ${v.next_action ? `<div><span class="k">明日の行動</span>${linkify(v.next_action)}</div>` : ''}
+      </div>`; }).join('')}
+  </div>`;
+}
+
 /* ---------- 1. 日報を書く ---------- */
 /* 週次報告の日に「日報を書く」を開いたとき：どちらを出すか選ぶ */
 function vWeeklyChoice(day){
@@ -1510,6 +1751,8 @@ function vWeeklyChoice(day){
 
 function vWrite(){
   const day = EDIT_DATE || TODAY;
+  Object.keys(MT_INFO).forEach(k => delete MT_INFO[k]);
+  setTimeout(mtRefreshAll, 80);
   // 別の週の日報を開いたら、その週の承認済み目標を読み直す
   if (WK_APPROVED_WEEK !== mondayOf(new Date(day))){
     loadApprovedTargets(day).then(() => { if (TAB === 'write') render(); });
@@ -1542,51 +1785,18 @@ function vWrite(){
 
   ${WK_APPROVED.length ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
     <p class="note">上司が承認した今週の目標です。月曜から前日までの実績を横に出しています。</p>
-    <div class="grid">${WK_APPROVED.map(t => {
-      const g = t.quarter_goals;
-      const day = EDIT_DATE || TODAY;
-      const wk  = mondayOf(new Date(day));
-      const sofar = actualSum(g.metric_id, wk, prevDay(day));
-      const tgt = Number(t.target) || 0;
-      const zero = isZeroGoal(tgt);
-      const rate = goalRate(sofar, tgt);
-      return `<div><label>${esc(g.name)}（${esc(g.unit)}）
-        ${g.kind === 'KGI' ? '<span class="pill">KGI</span>' : ''}　
-        <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + tgt}</span></label>
-      <input type="number" step="any" id="mt_${g.metric_id}" value="${mv(g.metric_id)}" placeholder="未入力（0件なら0）" required>
-      ${zero
-        ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
-            ${sofar > 0
-              ? '今週すでに ' + Math.round(sofar*10)/10 + esc(g.unit) + ' 発生しています'
-              : '今週はここまで発生ゼロ。維持しましょう'}</div>`
-        : `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
-            background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
-          <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(g.unit)} / ${tgt}${esc(g.unit)}（${rate}%）　
-            残り <b>${Math.max(0, Math.round((tgt - sofar)*10)/10)}${esc(g.unit)}</b></div>`}</div>`;}).join('')}
+    ${mnIntro()}
+    <div class="mnlist">${WK_APPROVED.map(t => { const g = t.quarter_goals;
+      return mtBlock({ id: g.metric_id, name: g.name, unit: g.unit, tgt: Number(t.target) || 0, kind: g.kind }, mine); }).join('')}
     </div></div>`
     : (!APPROVAL_STRICT && METRICS.length
       ? `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <div class="sec s-rival"><span class="lab">暫定表示</span>
         <div>今週の目標がまだ上司に承認されていないため、「管理」タブの<b>数値項目の設定</b>で「日報」にチェックが入っている項目を表示しています。
           承認されると、承認された項目だけに切り替わります。</div></div>
-      <div class="grid" style="margin-top:12px">${METRICS.map(m => {
-        const day = EDIT_DATE || TODAY;
-        const wk  = mondayOf(new Date(day));
-        const sofar = actualSum(m.id, wk, prevDay(day));
-        const tgt = Number(m.target) || 0;
-        const zero = isZeroGoal(tgt);
-        const rate = goalRate(sofar, tgt);
-        return `<div><label>${esc(m.name)}（${esc(m.unit)}）　
-          <span class="note">${zero ? '今週の目標 0（発生ゼロを維持）' : '今週の目標 ' + (m.target ?? '—')}</span></label>
-        <input type="number" step="any" id="mt_${m.id}" value="${mv(m.id)}" placeholder="未入力（0件なら0）" required>
-        ${zero
-          ? `<div class="note num" style="color:${sofar > 0 ? 'var(--warn)' : 'var(--accent)'}">
-              ${sofar > 0 ? '今週すでに ' + Math.round(sofar*10)/10 + esc(m.unit) + ' 発生しています'
-                          : '今週はここまで発生ゼロ。維持しましょう'}</div>`
-          : (tgt ? `<div class="wkbar"><span style="width:${Math.min(100, rate)}%;
-              background:${rate >= 100 ? 'var(--accent)' : rate >= 60 ? 'var(--amber)' : 'var(--warn)'}"></span></div>
-            <div class="note num">前日まで ${Math.round(sofar*10)/10}${esc(m.unit)} / ${tgt}${esc(m.unit)}（${rate}%）</div>`
-            : '<div class="note">週の目標が未設定です</div>')}</div>`;}).join('')}
+      ${mnIntro()}
+      <div class="mnlist">${METRICS.map(m => mtBlock({ id: m.id, name: m.name, unit: m.unit,
+        tgt: (m.target === null || m.target === undefined || m.target === '') ? null : Number(m.target), kind: null }, mine)).join('')}
       </div></div>`
       : `<div class="card"><h3><span class="eyebrow">必須 01</span>数値情報</h3>
       <p class="note">今週の目標がまだ承認されていないため、入力欄は出ていません。<br>
@@ -1733,6 +1943,7 @@ async function submitReport(scheduled){
     toast('数値が未入力です：' + names.join('、') + '（実績がない日は 0 を入力）');
     return;
   }
+  if (MT_NOTE_OK && !mtCheck()) return;
   if (!body.voice && !body.thought){ toast('お客様の声か、自分の考えのどちらかは入力してください'); return; }
   if (isEmptyGood(body.good_news)){
     toast('グッドニュースを書いてください。「無し」では提出できません');
@@ -1749,7 +1960,8 @@ async function submitReport(scheduled){
   const inputMetrics = WK_APPROVED.length
     ? WK_APPROVED.map(t => ({ id: t.quarter_goals.metric_id }))
     : (APPROVAL_STRICT ? [] : METRICS.map(m => ({ id: m.id })));
-  const vals = inputMetrics.map(m => ({ report_id: data.id, metric_id: m.id, value: Number(g('mt_' + m.id)) }))
+  const vals = inputMetrics.map(m => Object.assign({ report_id: data.id, metric_id: m.id, value: Number(g('mt_' + m.id)) },
+      MT_NOTE_OK ? mtRowExtra(m.id) : {}))
     .filter(x => !Number.isNaN(x.value)
       && document.getElementById('mt_' + x.metric_id)
       && document.getElementById('mt_' + x.metric_id).value !== '');
@@ -2434,6 +2646,7 @@ function kpiPanel(r, vals){
              ${mine ? `<button class="ghost kbtn" onclick="editReport('${r.id}')">入力する</button>` : ''}`}
       </div>`;}).join('')}
     </div>
+    ${mnNotesHtml(vals)}
   </div>`;
 }
 
@@ -3088,7 +3301,7 @@ async function srToTasks(){
    同じ日（週）の画面を開くと入力途中の内容が戻る。提出に成功すると一時保存は消える。 */
 const ND_PREFIX = 'nippo_draft';
 const ND_FORMS = {
-  write:  { anchor: 'f_voice', re: /^(f_voice|f_rival|f_industry|f_thought|f_good|f_sub|f_attach|f_imp|mt_.+)$/,
+  write:  { anchor: 'f_voice', re: /^(f_voice|f_rival|f_industry|f_thought|f_good|f_sub|f_attach|f_imp|mt_.+|mn_.+)$/,
             key: () => 'd:' + (EDIT_DATE || TODAY),
             serverAt: () => { const r = REPORTS.find(x => x.author_id === ME.id && x.report_date === (EDIT_DATE || TODAY));
                               return r && r.status !== 'off' ? (r.updated_at || r.created_at || '') : ''; } },
