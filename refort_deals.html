@@ -1201,6 +1201,8 @@ a.maplink{color:inherit;text-decoration:underline;text-decoration-color:#c8a24a;
 
 .cv-title .cv-plant{font-size:13px;font-weight:700;color:#8a6a1e;letter-spacing:.06em;margin-bottom:4px}
 .cv-title .cv-h1{letter-spacing:.04em}
+
+.sh-foot .sh-foot-warn{display:block;color:#c0392b;font-weight:800;margin:1px 0 2px}
 </style>
 <style id="skin-2609">
 /* ===== 2026.09.19 デザイン刷新：左サイドバー＋明るい作業面 ===== */
@@ -3907,7 +3909,7 @@ function shHead(deal,title,subt,badge){
 function shSpec(chips){return `<div class="sh-spec">${chips.map(c=>`<span class="chip ${c[2]||''}">${c[0]}<b>${c[1]}</b></span>`).join('')}</div>`;}
 function shKpiTiles(arr){return `<div class="sh-kpis">${arr.map(k=>`<div class="sh-kpi ${k.cls||''}"><div class="l">${k.l}</div><div class="v">${k.v}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('')}</div>`;}
 function shMsg(html){return `<div class="sh-msg">${html}</div>`;}
-function shFoot(){return `<div class="sh-foot"><b>ご留意事項：</b>本資料は現地調査・ヒアリング情報に基づく想定シミュレーションであり、記載の発電量・収益・利回り・税制効果等を保証するものではありません。FIT／FIP制度・税制・出力制御等の前提は変動する可能性があります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;}
+function shFoot(m){return `<div class="sh-foot"><b>ご留意事項：</b>${m==='m1'?'':'<span class="sh-foot-warn">工事期間中の売電停止、ならびに電力会社への申請・受理手続きの遅延等により生じた売電収入の減少について、売電補填はいたしません。</span>'}本資料は現地調査・ヒアリング情報に基づく想定シミュレーションであり、記載の発電量・収益・利回り・税制効果等を保証するものではありません。FIT／FIP制度・税制・出力制御等の前提は変動する可能性があります。最終的なご判断は税理士・会計士等の専門家にご確認ください。　株式会社アースコム</div>`;}
 
 /* ==================== お見積・月別発電量 ==================== */
 const QUOTE_PRESET=[
@@ -5010,7 +5012,7 @@ function buildSheet(deal,model,showOwner){
   const badges={m1:'① セカンダリー（取得・運用）',m2:'② セカンダリーリフォート',post:'卒FIT後比較（何もしなかった場合）',m3f:'③-1 リフォート提案｜FIT残期間',m3:'③-2 リフォート提案｜20年',cmp:'3シナリオ比較',est:'④ お見積書（お客様用）',mon:'⑤ 発電シミュレーション（お客様用）'};
   const i=deal.inputs;
   const subt=`${esc(i.plantName||deal.name||'')}${i.location?'｜'+esc(i.location):''}`;
-  return `<div class="sheet">${shHead(deal,titles[m],subt,badges[m])}${body}${shFoot()}</div>`;
+  return `<div class="sheet">${shHead(deal,titles[m],subt,badges[m])}${body}${shFoot(m)}</div>`;
 }
 
 
@@ -6768,9 +6770,12 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.10.22';
+const APP_VERSION = '2026.10.26';
 
 const CHANGELOG = [
+  ['2026.10.26', [
+    '<b>提案シートの「ご留意事項」に、売電補填をしない旨を赤字で追記しました。</b>「工事期間中の売電停止、ならびに電力会社への申請・受理手続きの遅延等により生じた売電収入の減少について、売電補填はいたしません。」（リフォート提案・セカンダリーRF・3シナリオ比較・お見積・発電シミュ・卒FIT後比較。工事を伴わない①セカンダリーには表示しません）',
+  ]],
   ['2026.10.22', [
     '<b>リフォート提案（一括）の表紙タイトルを「太陽光発電所 新事業計画書」に変更しました。</b>副題は「～発電収益最大化・投資回収・FIT終了後の事業戦略～」、発電所名はタイトルの上に表示します',
   ]],
