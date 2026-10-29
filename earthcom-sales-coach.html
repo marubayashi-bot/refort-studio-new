@@ -464,10 +464,34 @@ function rbPrompt(rb){
   return `【採点基準：${rb.name}】評価の目的：${rb.focus||''}\n` + rb.items.map((x,i)=>`${i+1}. ${x.name}（配点${x.points}点）${x.good?`\n   できている状態：${x.good}`:''}${x.bad?`\n   できていない状態：${x.bad}`:''}`).join('\n') + (rb.notes?`\n【定義・判定ルール】\n${rb.notes}`:'');
 }
 /* 各項目0〜100点 × 配点 で100点満点に換算 */
-function weighted(scores, items){
-  const tot = items.reduce((a,x)=>a+(+x.points||0),0) || 1;
-  return Math.round(items.reduce((a,x)=>{ const v=(scores||[]).find(y=>y.item===x.name)?.score; return a+(+v||0)*(+x.points||0); },0)/tot);
+const normItem = t => String(t||'').replace(/[\s・／/（）()「」、。:：\-－]/g,'');
+function scoreOf(scores, name){
+  const L=(scores||[]).filter(x=>x && x.score!=null && x.score!=='' && !isNaN(+x.score)), n=normItem(name);
+  return L.find(x=>x.item===name) || L.find(x=>{ const m=normItem(x.item); return m && (m===n || m.includes(n) || n.includes(m)); }) || null;
 }
+/* 採点基準の順に並べ直す。採点が無い項目は null（＝未採点） */
+const alignScores = (scores, items) => items.map(it=>{ const f=scoreOf(scores,it.name); return f ? { item:it.name, score:Math.max(0,Math.min(100,Math.round(+f.score))), comment:f.comment||'' } : null; });
+/* 各項目0〜100点 × 配点 で100点満点に換算（未採点の項目は除いて換算） */
+function weighted(scores, items){
+  const al = alignScores(scores, items);
+  const tot = items.reduce((a,x,i)=>a+(al[i]?(+x.points||0):0),0);
+  if (!tot) return 0;
+  return Math.round(items.reduce((a,x,i)=>a+(al[i]?al[i].score*(+x.points||0):0),0)/tot);
+}
+/* 採点の抜けた項目だけ、AIにもう一度採点させる */
+async function fillScores(scores, rb, text, label, product){
+  let al = alignScores(scores, rb.items);
+  const miss = rb.items.filter((_,i)=>!al[i]);
+  if (miss.length && text){
+    try{
+      const j = await aiJSON({ system:companyFor(product)+'\n出力は指定のJSONのみ。', max_tokens:2500,
+        prompt:`次の${label}を、採点基準のうち下の${miss.length}項目だけ0〜100点で採点してください。項目を飛ばさず、すべて採点すること。\n${rbPrompt({ ...rb, items:miss })}\nJSONのみで返す：\n{"scores":[${miss.map(m=>`{"item":"${m.name}","score":0,"comment":"根拠となる発言や場面"}`).join(',')}]}\n\n【内容】\n${String(text).slice(0,60000)}` });
+      const al2 = alignScores(j.scores, rb.items); al = al.map((x,i)=>x||al2[i]);
+    }catch(e){ console.warn('採点の補完に失敗', e); }
+  }
+  return { scores: al.filter(Boolean), missing: rb.items.filter((_,i)=>!al[i]).map(x=>x.name) };
+}
+const scoreListJSON = (rb, comment) => rb.items.map(x=>`{"item":"${x.name}","score":0,"comment":"${comment}"}`).join(',');
 const metaOf = s => ({ sales_type: s?.analysis?._meta?.sales_type || 'FS', kind: s?.analysis?._meta?.kind || '商談' });
 const rpType = r => r?.feedback?.sales_type || 'FS';
 async function loadRubrics(){
@@ -921,14 +945,14 @@ ${rbPrompt(rb)}
 【同商品で過去に多い断り文句】${bankTop}
 ${prev?`【この担当者の前回（${fmtDate(prev.created_at)}・${metaOf(prev).kind==='ロープレ'?'ロープレ':'実商談'}）の課題】\n${prevIssueText(prev)}\n`:''}
 【分析ルール】
-1. 採点基準の各項目を0〜100点で採点する（item は採点基準の項目名をそのまま使う）。comment には根拠となる発言・場面を書く。total_score は配点で加重した100点満点の値。
+1. 採点基準の${rb.items.length}項目すべてを、1つも飛ばさず0〜100点で採点する（item は採点基準の項目名をそのまま使う）。comment には根拠となる発言・場面を書く。total_score は配点で加重した100点満点の値。
 2. 総合点より「どこで${isIS?'有効商談化':'転換率'}を落としたか」を bottleneck に書く。
 __R3__
 ${extra.join('\n')}
 
 【JSON形式】
 {"summary":"3行要約","total_score":0,
-"scores":[{"item":"${rb.items[0]?.name||''}","score":0,"comment":"根拠となる発言や場面"}],
+"scores":[${scoreListJSON(rb,'根拠となる発言や場面')}],
 "bottleneck":{"item":"","reason":"","impact":"${isIS?'有効商談化':'転換率'}への影響"},
 "good_points":["再現すべき良かった点"],
 "objections":[{"quote":"顧客の実際の発言","category":"","timing":"商談○分頃／場面","surface":"表面的理由","background":"背景","sales_issue":"営業側の問題","cause_chain":["原因","…","断り文句"],"cause_point":"原因地点の説明","prevention_question":"本来事前に聞く質問","prevention_talk":"反論される前の予防トーク","rebuttal":"言われた後の切り返し","severity":"高|中|低"}],
@@ -945,7 +969,10 @@ ${SRC.text.slice(0,60000)}`.replace('__R3__', R3_RULES());
     a._kpi = { model_id:meta._model, stage_id:meta._stage };
     a._meta = { sales_type:type, kind, rubric:rb.name, items:rb.items.map(x=>({ name:x.name, points:+x.points||0 })), prev_id:prev?.id||null };
     const { _model, _stage, ...row } = meta;
-    const total = (a.scores||[]).length ? weighted(a.scores, rb.items) : Math.round(a.total_score||0);
+    loading(true, '採点の抜けがないか確認しています');
+    const fs = await fillScores(a.scores, rb, SRC.text, isRp?'ロープレ':'商談', meta.product);
+    a.scores = fs.scores; if (fs.missing.length) a._meta.missing = fs.missing;
+    const total = a.scores.length ? weighted(a.scores, rb.items) : Math.round(a.total_score||0);
     const sess = await insert('s', { ...row, rep_email:ME.email, transcript:SRC.text, total_score:total, analysis:a });
     if (!isRp){ /* ロープレの断り文句は、断り文句BANK（実商談の統計）に入れない */
       const objs = (a.objections||[]).map(o=>({ session_id:sess.id, rep:meta.rep, customer:meta.customer, product:meta.product, result:meta.result, category:OBJ_CATS.includes(o.category)?o.category:'その他', quote:o.quote, detail:o }));
@@ -967,7 +994,7 @@ function prevIssueText(p){
   const a=p.analysis||{}, L=[];
   if (a.bottleneck?.item) L.push(`・落とした地点：${a.bottleneck.item}（${a.bottleneck.reason||''}）`);
   const items = a._meta?.items || SCORE_ITEMS.map(n=>({name:n}));
-  const low = items.map(it=>(a.scores||[]).find(x=>x.item===it.name)).filter(Boolean).sort((x,y)=>x.score-y.score).slice(0,2);
+  const low = items.map(it=>scoreOf(a.scores,it.name)).filter(Boolean).sort((x,y)=>x.score-y.score).slice(0,2);
   low.forEach(x=>L.push(`・低かった項目：${x.item} ${x.score}点（${x.comment||''}）`));
   (a.next_actions||[]).filter(n=>['ロープレ','次回商談'].includes(n.when)).forEach(n=>L.push(`・NEXT ACTION（${n.when}）：${n.what}`));
   if (a.training_theme) L.push(`・重点練習：${a.training_theme}`);
@@ -1069,10 +1096,11 @@ VIEWS.karte = (id) => {
   const s = DATA.s.find(x=>x.id===id); if(!s) return go('karte');
   const a = s.analysis||{}; const mt = metaOf(s);
   const items = a._meta?.items || SCORE_ITEMS.map(n=>({ name:n, points:10 }));
-  const scores = items.map(it=>({ ...((a.scores||[]).find(x=>x.item===it.name)||{item:it.name,score:0,comment:''}), points:it.points }));
+  const scores = items.map(it=>{ const f=scoreOf(a.scores,it.name); return f ? { item:it.name, score:Math.round(+f.score), comment:f.comment||'', points:it.points } : { item:it.name, score:null, comment:'', points:it.points }; });
+  const unscored = scores.filter(x=>x.score==null).map(x=>x.item);
   const prevS = a._meta?.prev_id ? DATA.s.find(x=>x.id===a._meta.prev_id) : null;
   const BL = { B:'予算', A:'決裁者', N:'必要性', T:'導入時期', C:'比較検討・競合' }, BC = { '確認済':'green', '一部':'amber', '未確認':'red' };
-  const low = [...scores].sort((x,y)=>x.score-y.score).slice(0,3).map(x=>x.item);
+  const low = scores.filter(x=>x.score!=null).sort((x,y)=>x.score-y.score).slice(0,3).map(x=>x.item);
   const color = v => v>=70?'var(--green)':v>=50?'var(--amber)':'var(--red)';
   const dm = DM_LEVELS.map(r=>(a.decision_maker?.levels||[]).find(l=>l.role===r)||{role:r,status:0});
   const dmLabel = ['未接触','話題のみ','接触済'];
@@ -1092,9 +1120,10 @@ VIEWS.karte = (id) => {
       <div><div class="small muted">${esc(a._meta?.rubric||'FS商談')}のスコア</div><div class="total">${s.total_score??'-'}<small>/100</small></div></div>
       <div style="flex:1;min-width:260px">${coachSay('この商談の総評', esc(a.summary), {pre:true})}</div>
     </div>
-    <div class="bars" style="margin-top:18px">${scores.map(x=>`<div class="bar ${low.includes(x.item)?'low':''}" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}<small class="muted"> ${x.points}点</small></span><div class="track"><div class="fill" style="width:${x.score}%;background:${color(x.score)}"></div></div><span class="v">${x.score}</span></div>`).join('')}</div>
+    <div class="bars" style="margin-top:18px">${scores.map(x=>`<div class="bar ${low.includes(x.item)?'low':''}" title="${esc(x.comment)}"><span class="lbl">${esc(x.item)}<small class="muted"> ${x.points}点</small></span><div class="track"><div class="fill" style="width:${x.score??0}%;background:${color(x.score??0)}"></div></div><span class="v">${x.score??'<span class=\"small muted\">未採点</span>'}</span></div>`).join('')}</div>
+    ${unscored.length?`<div class="banner no-print" style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>採点できていない項目が${unscored.length}つあります（${unscored.map(esc).join('、')}）。スコアは採点できた項目だけで計算しています。</span>${s.transcript?`<button class="btn sm primary" id="kRescore">抜けた項目を採点し直す</button>`:''}</div>`:''}
     ${a.bottleneck?`<div class="bottleneck"><b>${mt.sales_type==='IS'?'有効商談化':'転換率'}を落とした地点：${esc(a.bottleneck.item)}</b><br>${esc(a.bottleneck.reason)}${a.bottleneck.impact?`<br><span class="small">${esc(a.bottleneck.impact)}</span>`:''}</div>`:''}
-    <details style="margin-top:12px"><summary class="small">項目別の根拠を見る</summary><table style="margin-top:8px">${scores.map(x=>`<tr><td style="width:170px">${esc(x.item)}</td><td class="n" style="width:50px">${x.score}</td><td class="small">${esc(x.comment)}</td></tr>`).join('')}</table></details>
+    <details style="margin-top:12px"><summary class="small">項目別の根拠を見る</summary><table style="margin-top:8px">${scores.map(x=>`<tr><td style="width:170px">${esc(x.item)}</td><td class="n" style="width:50px">${x.score??'-'}</td><td class="small">${esc(x.comment)}</td></tr>`).join('')}</table></details>
     ${(a.good_points||[]).length?`<h3 style="margin-top:14px">再現すべき良かった点</h3><ul style="margin:0">${a.good_points.map(g=>`<li>${esc(g)}</li>`).join('')}</ul>`:''}
   </div>
 
@@ -1120,6 +1149,19 @@ VIEWS.karte = (id) => {
     ${a.training_theme?`<p style="margin:14px 0 0"><span class="tag amber">今週の重点練習</span> ${esc(a.training_theme)}</p>`:''}
   </div>
   <div class="go-wrap no-print"><button class="btn red" onclick="startRoleplay('${s.id}')">▶ この商談をやり直す（AIロープレ）</button></div>`;
+  if ($('#kRescore')) $('#kRescore').onclick=async()=>{
+    const rb = { ...rbOf(mt.sales_type, mt.kind), items: items.map(it=>{ const d=rbOf(mt.sales_type, mt.kind).items.find(x=>x.name===it.name); return d || { name:it.name, points:it.points, good:'', bad:'' }; }) };
+    if (!(await requireLogin())) return;
+    try{
+      loading(true,'抜けた項目を採点しています');
+      const fs = await fillScores(a.scores, rb, s.transcript, mt.kind==='ロープレ'?'ロープレ':'商談', s.product);
+      const na = { ...a, scores:fs.scores, _meta:{ ...(a._meta||{}), missing:fs.missing.length?fs.missing:undefined } };
+      await patch('s', s.id, { analysis:na, total_score:weighted(fs.scores, rb.items) });
+      toast(fs.missing.length?`まだ${fs.missing.length}項目が採点できませんでした。もう一度お試しください`:'すべての項目を採点しました');
+      go('karte', s.id);
+    }catch(e){ alert('採点し直せませんでした：'+saveErr(e)+whoDiag()); }
+    finally{ loading(false); }
+  };
   if ($('#kUpd')) $('#kUpd').onclick=async()=>{ const m=modelById(modelIdOf(s)); const sel=$('#kStage'); try{ await patch('s',s.id,{ stage:sel.selectedOptions[0].textContent, result:$('#kRes').value, analysis:{ ...a, _kpi:{ model_id:m.id, stage_id:sel.value } } }); const res=$('#kRes').value; DATA.o.filter(o=>o.session_id===s.id).forEach(o=>o.result=res); if(!LOCAL) await sb.from(T.o).update({result:res}).eq('session_id',s.id); else saveLocal('o'); toast('更新しました'); go('karte',s.id); }catch(e){ alert('更新できませんでした：'+e.message); } };
   const one=$('#cpOne'); if(one) one.onclick=()=>copy(`${a.decision_maker.onepager_title}\n\n${a.decision_maker.onepager}`);
   $('#cpNA').onclick=()=>copy(chatworkNA(s));
@@ -1302,14 +1344,16 @@ async function rpGrade(){
   const prevImp = prevTry?.feedback?.improve || [];
   const prompt = `以下は${tp==='IS'?'インサイドセールスの架電':'断り文句'}「${RP.opening}」（${RP.category}）へのロープレです。営業の対応を採点基準に沿って採点してください。
 ${rbPrompt(rb)}
-各項目を0〜100点で採点する（item は項目名どおり）。${passLine}点以上を合格。
+${rb.items.length}項目すべてを、1つも飛ばさず0〜100点で採点する（item は項目名どおり）。${passLine}点以上を合格。
 ${prevImp.length?`【前回（${fmtDate(prevTry.created_at)}・${prevTry.score}点）に指摘した「次に直す点」】\n${prevImp.map(x=>'・'+x).join('\n')}\nそれぞれ今回改善できたかを previous_check に書く（status：改善／一部改善／未改善／判断できない。evidence に今回の根拠）。\n`:''}JSONのみで返す：
-{"scores":[{"item":"${rb.items[0]?.name||''}","score":0,"comment":"根拠"}],"score":0,"feedback":"一番直すべき点を1〜2文で具体的に","good":["良かった点"],"improve":["次に直す点"],"model_answer":"模範回答（話し言葉200字程度）"${prevImp.length?',"previous_check":[{"issue":"","status":"","evidence":""}]':''}}
+{"scores":[${scoreListJSON(rb,'根拠')}],"score":0,"feedback":"一番直すべき点を1〜2文で具体的に","good":["良かった点"],"improve":["次に直す点"],"model_answer":"模範回答（話し言葉200字程度）"${prevImp.length?',"previous_check":[{"issue":"","status":"","evidence":""}]':''}}
 ${convo}`;
   try{
     loading(true,'採点しています');
     const g=await aiJSON({ system:companyFor(RP.product), prompt, max_tokens:2000 });
-    if ((g.scores||[]).length) g.score = weighted(g.scores, rb.items);
+    const fs = await fillScores(g.scores, rb, convo, 'ロープレ', RP.product);
+    g.scores = fs.scores; if (fs.missing.length) g.missing = fs.missing;
+    if (g.scores.length) g.score = weighted(g.scores, rb.items);
     g.passed = (g.score||0)>=passLine; g.pass = passLine;
     Object.assign(g, { sales_type:tp, kind:'ロープレ', rubric:rb.name, items:rb.items.map(x=>({ name:x.name, points:+x.points||0 })), challenge_id:RP.challenge?.id||null, prev_id:prevTry?.id||null });
     RP.result=g;
@@ -2690,8 +2734,13 @@ ${text.slice(0,40000)}`;
 /* ============ ⑪ 使い方ガイド・更新情報 ============
    ★アプリを改善したら、ここ（APP_VERSION・CHANGELOG・GUIDE）を必ず更新する。
      画面のガイド・NEW表示・更新のお知らせ・Chatwork文面はすべてここから自動で作られる。 */
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.2.3';
 const CHANGELOG = [
+  { v:'2.2.3', date:'2026-10-29', title:'採点の一部が0点になる不具合を修正', items:[
+    'AI分析・ロープレ採点で、一部の項目しか採点されず残りが0点になる不具合を修正',
+    '採点が抜けた項目は、AIが自動でもう一度採点します',
+    'それでも採点できなかった項目は0点ではなく「未採点」と表示し、スコアの計算から外します',
+    '過去の記録は、育成カルテの「抜けた項目を採点し直す」で直せます' ]},
   { v:'2.2.2', date:'2026-10-15', title:'お知らせ画面が閉じられない不具合を修正', items:[
     '更新のお知らせが長いと「閉じる」ボタンが画面の外に出て、操作できなくなる不具合を修正',
     'お知らせや詳細画面は、右上の×・外側のクリック・Escキーでも閉じられます' ]},
