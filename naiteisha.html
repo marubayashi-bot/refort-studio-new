@@ -455,6 +455,11 @@ document.documentElement.style.setProperty('--bgimg','url('+ASSET.bg+')');
       <div style="overflow:auto"><table id="mphTbl"></table></div>
     </div>
 
+    <div class="card"><h3>紹介会社別の数値 <span class="tag" id="rtTag"></span></h3>
+      <p class="hint">学生管理シートの「紹介会社」列ごとに、各PHの人数（太字＝合格・出席・通知・承諾）と歩留まりを集計します。数値は上の「月別 PH推移」でスプレッドシートを読み込むと更新されます。</p>
+      <div style="overflow:auto" id="rtTbl"></div>
+    </div>
+
     <div class="card"><h3>目標達成までの人数・進捗率</h3>
       <p class="hint">各ステージの<b>目標数</b>を入力すると、「残り（目標−実数）」と「進捗率（実数÷目標）」を自動計算します。残りがマイナス＝超過達成。</p>
       <div class="tgt" id="tgtRest"></div>
@@ -709,6 +714,10 @@ async function afterLogin(){
    更新のお知らせ（アップデートのたびに先頭へ1件追加する）
    ================================================================== */
 const CHANGELOG=[
+  {ver:'2.6',date:'2026-10-29',items:[
+    {tag:'辞退アラート',tab:'p-alerts',text:'アルバイト回数の「直近2週間」の基準日を、スプレッドシートの最新日ではなく「今日」に変更しました。今日を含む過去14日間の回数を表示します（列見出しに対象期間を表示）。',by:'東田'},
+    {tag:'新卒採用進捗',tab:'p-recruit',text:'「紹介会社別の数値」を追加しました。紹介会社ごとに各PHの人数・内定率・承諾率を一覧で確認できます。表示には「月別 PH推移」でスプレッドシートを1回読み込み直してください。',by:'東田'},
+  ]},
   {ver:'2.5',date:'2026-10-12',items:[
     {tag:'辞退アラート',tab:'p-alerts',text:'「アルバイト回数（内定者ごと）」の月別（6ヶ月）表示をやめ、「直近2週間の回数」に変更しました。基準日は今日ではなく、スプレッドシートに記載のある最新日から遡って14日間で数えます。※日付単位の記録が必要なため、一度「CSVを取り込む（または スプレッドシートから更新）」を実行してください。',by:'東田'},
   ]},
@@ -872,7 +881,7 @@ function mergeFunnel(old){
     if(o.target)f.years[y].target=o.target;
     if(o.rate)f.years[y].rate=o.rate;
     if(o.cost&&o.cost.items&&o.cost.items.length)f.years[y].cost=o.cost;
-    if(o.monthly){f.years[y].monthly=o.monthly; if(o.src)f.years[y].src=o.src; if(o.monthly.synced){f.years[y].v=o.v; if(o.route)f.years[y].route=o.route;}}
+    if(o.monthly){f.years[y].monthly=o.monthly; if(o.src)f.years[y].src=o.src; if(o.monthly.synced){f.years[y].v=o.v; if(o.route)f.years[y].route=o.route;if(o.byRoute)f.years[y].byRoute=o.byRoute;}}
   });
   Object.keys(old.years).forEach(y=>{ if(!f.years[y]) f.years[y]=old.years[y]; });
   return f;
@@ -981,7 +990,7 @@ const NAVGROUPS=[
   ['管理',[['p-guide','使い方'],['p-settings','設定']]],
 ];
 const TABS=NAVGROUPS.flatMap(g=>g[1]);
-const APP_VERSION='2026.10 v2.5（アルバイト回数を直近2週間表示に変更）｜v2.4（アルバイト回数を辞退アラートへ／集計修正／Looker削除）｜v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
+const APP_VERSION='2026.10 v2.6（直近2週間を今日基準に／紹介会社別の数値）｜v2.5（アルバイト回数を直近2週間表示に変更）｜v2.4（アルバイト回数を辞退アラートへ／集計修正／Looker削除）｜v2.3（＋スプシ反映の導線改善）｜v2.2（＋更新のお知らせ表示）｜v2.1（＋月別PH推移・スプシ連動／28卒採用コスト／アルバイト回数連動）｜v2.0（＋社長AI採用マネージャー／採用会議／資料・ツール／次回アクション必須化／採用コスト／ブランドデザイン）';
 function buildNav(){const n=document.getElementById('nav');n.innerHTML='';let first=true;
   NAVGROUPS.forEach(g=>{const h=document.createElement('div');h.className='navgrp';h.textContent=g[0];n.appendChild(h);
     g[1].forEach(t=>{const b=document.createElement('button');b.textContent=t[1];b.onclick=()=>show(t[0]);if(first){b.classList.add('active');first=false;}b.dataset.id=t[0];n.appendChild(b);});});}
@@ -1090,7 +1099,7 @@ function renderArbeitTable(){
   const L=SL(),gid=(L.arbeitGid||{})[S.cohort],tgt=+L.arbeitTarget||4,ppl=cur().people;
   document.getElementById('arbTag').textContent=S.cohort+'卒';
   const op=document.getElementById('arbOpen');op.href=`https://docs.google.com/spreadsheets/d/${L.arbeitId}/edit`+(gid?`#gid=${gid}`:'');
-  document.getElementById('arbHint').textContent=`「内定者データ」スプレッドシート（${S.cohort}アルバイト数）の記録1行＝1回として集計します。直近2週間＝データ上の最新日${arbeitRefDate()?('（'+arbeitRefDate()+'）'):''}から遡って14日間の回数です（基準日はスプレッドシートの日付。判定は週間目標×2と比較）。`;
+  document.getElementById('arbHint').textContent=`「内定者データ」スプレッドシート（${S.cohort}アルバイト数）の記録1行＝1回として集計します。直近2週間＝今日（${arbeitRefDate().slice(5).replace('-','/')}）を含む過去14日間の回数です（判定は週間目標×2と比較）。スプレッドシートへの記入が遅れている場合は、最新の記録を取り込んでから確認してください。`;
   const anySheet=ppl.some(p=>p.arbeitCnt&&p.arbeitCnt.byMonth&&Object.keys(p.arbeitCnt.byMonth).length);
   const gd=document.getElementById('arbGuide');gd.style.display=(!L.url&&!anySheet)?'':'none';
   gd.innerHTML=`<b>直近2週間の回数を出すには、記録の読み込みが必要です。</b>①「スプレッドシートを開く」→ ②「${esc(S.cohort)}アルバイト数」シートで「ファイル → ダウンロード → カンマ区切り形式（.csv）」→ ③「CSVを取り込む」で選択（全員分が一度に反映されます）。`;
@@ -1098,7 +1107,7 @@ function renderArbeitTable(){
   const ref=arbeitRefDate(),t2=Math.max(1,Math.round(tgt/2));
   const rows=ppl.map(p=>({p,a:arbeitInfo(p),w:arbeit2w(p)})).sort((x,y)=>((y.w.count||0)-(x.w.count||0))||((y.a.total||0)-(x.a.total||0)));
   const anyDates=ppl.some(p=>p.arbeitCnt&&p.arbeitCnt.dates&&p.arbeitCnt.dates.length);
-  el.innerHTML=`<table><thead><tr><th>氏名</th><th style="text-align:right">直近2週間${ref?`<div class="small muted" style="font-weight:400">${ref.slice(5).replace('-','/')}まで</div>`:''}</th><th style="text-align:right">累計</th><th>判定</th><th class="small">出典</th></tr></thead><tbody>`+
+  el.innerHTML=`<table><thead><tr><th>氏名</th><th style="text-align:right">直近2週間${ref?`<div class="small muted" style="font-weight:400">${(()=>{const f=new Date();f.setDate(f.getDate()-13);return (f.getMonth()+1)+'/'+f.getDate();})()}〜${ref.slice(5).replace('-','/').replace(/^0/,'')}（今日）</div>`:''}</th><th style="text-align:right">累計</th><th>判定</th><th class="small">出典</th></tr></thead><tbody>`+
     rows.map(({p,a,w})=>{
       const lv=(!w.has||w.count==null)?['—','gray']:w.count>=t2?['目標ペース','ok']:w.count>=1?['やや不足','warn']:['要フォロー','danger'];
       const src=a.src==='sheet'?'スプシ '+fmtDT(p.arbeitCnt.synced):a.src==='snap'?`スプシ集計値（${ARBEIT_SNAP.date}時点）`:a.src==='manual'?'手入力':'未反映';
@@ -1630,13 +1639,14 @@ function aggRecruit(year,header,rows,srcName){
   Object.entries(col).forEach(([st,c])=>{if(c.d<0)return;const nxt=bounds.find(b=>b>c.d)??H.length;const re=PH_SRC[st].r||/PH|結果|状況/;
     for(let i=c.d+1;i<nxt;i++){if(re.test(H[i])){c.r=i;break;}}});
   const missing=Object.entries(col).filter(([st,c])=>c.d<0).map(([st])=>st);
-  const months={},tot={},route={};let n=0;
-  const bump=(m,st,k)=>{m=m||'日付不明';months[m]=months[m]||{};months[m][st]=months[m][st]||{};months[m][st][k]=(months[m][st][k]||0)+1;tot[st]=tot[st]||{};tot[st][k]=(tot[st][k]||0)+1;};
+  const months={},tot={},route={},byRoute={};let n=0,curRt='（未記入）';
+  const bump=(m,st,k)=>{m=m||'日付不明';months[m]=months[m]||{};months[m][st]=months[m][st]||{};months[m][st][k]=(months[m][st][k]||0)+1;tot[st]=tot[st]||{};tot[st][k]=(tot[st][k]||0)+1;
+    const R=byRoute[curRt]=byRoute[curRt]||{};R[st]=R[st]||{};R[st][k]=(R[st][k]||0)+1;};
   rows.forEach(r=>{
     const g=i=>i>=0&&r[i]!=null?String(r[i]).trim():'';
     if(iYear>=0&&g(iYear)!==year)return;
     if(!r.some(x=>String(x==null?'':x).trim()!==''))return;
-    n++;
+    n++;curRt=g(iRoute)||'（未記入）';
     bump(ymOf(g(iShokai),year)||ymOf(g(iOubo),year),'エントリー','合計');
     if(g(iRoute))route[g(iRoute)]=(route[g(iRoute)]||0)+1;
     Object.entries(col).forEach(([st,c])=>{if(c.d<0)return;const dv=g(c.d),rv=c.r>=0?g(c.r):'';if(!dv&&!rv)return;
@@ -1650,9 +1660,31 @@ function aggRecruit(year,header,rows,srcName){
   const rt=Object.entries(route).sort((a,b)=>b[1]-a[1]);if(rt.length)Y.route=rt.slice(0,6);
   const now=new Date().toISOString();
   Y.monthly={months,synced:now,rows:n,missing};
+  Y.byRoute=byRoute;
   Y.src=`出典：${srcName||'採用管理スプレッドシート'}（${year}）${fmtDT(now)}に自動反映／${n}件`;
   return n;}
+function renderRouteTbl(){
+  const el=document.getElementById('rtTbl');if(!el)return;
+  const Y=S.funnel.years[S.curYear];document.getElementById('rtTag').textContent=S.curYear;
+  const B=Y.byRoute;
+  if(!B||!Object.keys(B).length){el.innerHTML=`<p class="muted small">${(SL().recruitSheet||{})[S.curYear]?'紹介会社別のデータがまだありません。「月別 PH推移」の「スプレッドシートから更新」または「CSVを取り込む」で読み込み直すと表示されます。':'この年代はスプレッドシート連動の対象外です（27卒・28卒で利用できます）。'}</p>`;return;}
+  const main=(R,st)=>((R[st]||{})[MAINKEY[st]]||0);
+  const all=(R,st)=>Object.values(R[st]||{}).reduce((a,b)=>a+b,0);
+  const ent=R=>main(R,'エントリー')||all(R,'エントリー');
+  const pr=(a,b)=>b>0?Math.round(a/b*100)+'%':'—';
+  const names=Object.keys(B).sort((a,b)=>ent(B[b])-ent(B[a])||a.localeCompare(b,'ja'));
+  const T={};names.forEach(nm=>{Object.entries(B[nm]).forEach(([st,o])=>{T[st]=T[st]||{};Object.entries(o).forEach(([k,x])=>{T[st][k]=(T[st][k]||0)+x;});});});
+  const cell=(R,st)=>{const m=main(R,st),a=all(R,st);if(!a)return '<td style="text-align:center;color:#b8c0cc">·</td>';
+    const sub=Object.entries(R[st]||{}).filter(([k,x])=>k!==MAINKEY[st]&&x>0).map(([k,x])=>k+x).join(' ');
+    return `<td style="text-align:center"><b style="color:var(--navy)">${m}</b>${sub?`<div class="muted" style="font-size:10px;white-space:nowrap">${esc(sub)}</div>`:''}</td>`;};
+  const hasN=Y.order.includes('内定'),hasA=Y.order.includes('内定承諾');
+  const row=(nm,R,tot)=>{const e=ent(R),nt=hasN?main(R,'内定'):0,ac=hasA?main(R,'内定承諾'):0;
+    return `<tr ${tot?'style="background:#f1f4f9"':''}><td style="white-space:nowrap"><b>${esc(nm)}</b></td>${Y.order.map(st=>cell(R,st)).join('')}<td style="text-align:right"><b>${pr(nt,e)}</b></td><td style="text-align:right">${pr(ac,nt)}</td></tr>`;};
+  el.innerHTML=`<table><thead><tr><th>紹介会社</th>${Y.order.map(st=>`<th style="text-align:center;white-space:nowrap">${st}<div class="muted" style="font-size:10px;font-weight:400">${MAINKEY[st]}</div></th>`).join('')}<th style="text-align:right;white-space:nowrap">内定率<div class="muted" style="font-size:10px;font-weight:400">内定÷エントリー</div></th><th style="text-align:right;white-space:nowrap">承諾率<div class="muted" style="font-size:10px;font-weight:400">承諾÷内定</div></th></tr></thead><tbody>`+
+    names.map(nm=>row(nm,B[nm],false)).join('')+row('合計',T,true)+`</tbody></table>`;
+}
 function renderMonthlyPH(){
+  renderRouteTbl();
   const tb=document.getElementById('mphTbl');if(!tb)return;
   const Y=S.funnel.years[S.curYear];const sheet=(SL().recruitSheet||{})[S.curYear];
   const st=document.getElementById('mphStatus');
@@ -1698,9 +1730,11 @@ function isoOf(v){if(v==null)return null;const s=String(v).trim();if(!s)return n
   if(m)return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
   const d=new Date(s);if(!isNaN(d.getTime())&&/\d{4}/.test(s))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return null;}
-function arbeitRefDate(){let mx='';[].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])).forEach(p=>{const ds=p.arbeitCnt&&p.arbeitCnt.dates;if(ds&&ds.length){const d=ds[ds.length-1];if(d>mx)mx=d;}});return mx||null;}
-function arbeit2w(p){const ref=arbeitRefDate();const ds=(p.arbeitCnt&&p.arbeitCnt.dates)||[];if(!ref)return{has:false,count:null,ref:null,from:null};
-  const refD=new Date(ref+'T00:00:00');const from=new Date(refD);from.setDate(from.getDate()-13);const fromS=from.toISOString().slice(0,10);
+function ymdLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function arbeitRefDate(){return ymdLocal(new Date());}  /* 基準日＝今日（アプリを開いた日） */
+function arbeitHasDates(){return [].concat(...Object.values(S.cohorts).map(c=>(c&&c.people)||[])).some(p=>p.arbeitCnt&&p.arbeitCnt.dates&&p.arbeitCnt.dates.length);}
+function arbeit2w(p){const ref=arbeitRefDate();const ds=(p.arbeitCnt&&p.arbeitCnt.dates)||[];if(!arbeitHasDates())return{has:false,count:null,ref:ref,from:null};
+  const from=new Date();from.setDate(from.getDate()-13);const fromS=ymdLocal(from);
   const c=ds.filter(d=>d>=fromS&&d<=ref).length;return{has:true,count:c,ref:ref,from:fromS};}
 /* スプシの集計欄（27アルバイト数 E1:I2）の値。記録を読み込むまでの暫定表示 */
 const ARBEIT_SNAP={date:'2026/10/8',totals:{'太田朋希':57,'茅島圭汰':71,'磯辺館太一':29,'笹川裕平':13,'小林柊羽':20}};
