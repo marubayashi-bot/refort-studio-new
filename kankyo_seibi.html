@@ -827,8 +827,8 @@ document.addEventListener('click', ()=> $('userMenu').classList.remove('open'));
 const ROLE_JA = {admin:'管理者',manager:'マネージャー',sales:'営業',field:'現場',viewer:'閲覧のみ'};
 
 async function boot(){
-  /* ===== 認証ゲート：会社のGoogleアカウントでログイン（承認済みの全社員が利用可） ===== */
-  const me = await EC.guard({ allow:['admin','manager','sales','field'] });
+  /* ===== 認証ゲート：会社のGoogleアカウントでログインした全員が閲覧可（未承認＝viewer も含む）。入力は EDIT_ROLES のみ ===== */
+  const me = await EC.guard({ allow:['admin','manager','sales','field','viewer'] });
   const u = me || EC.me || {};
   const nm = u.full_name || (u.email||'').split('@')[0] || '';
   $('userNm').textContent = nm;
