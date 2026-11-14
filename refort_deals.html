@@ -600,6 +600,7 @@ tr:hover .ec-pen{color:var(--gold)}
 .sh-spec .chip.up{background:#fff6e8;border-color:#f0d6a0}
 .sh-spec .chip.up b{color:#b9770e}
 .sh-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:6px 0}
+.sh-kpis.c3{grid-template-columns:repeat(3,1fr);margin-top:-1px}
 .sh-kpi{border:1px solid #e3e9f0;border-radius:7px;padding:6px 9px}
 .sh-kpi.gold{background:#f3ead0;border-color:#ecdcb4}
 .sh-kpi.nv{background:#0d2340;border-color:#0d2340}
@@ -3933,6 +3934,29 @@ function monGenArr(inp){
 }
 function monSolarArr(inp){return arr12(inp.monSolar)||MON_SOLAR;}
 function quoteRows(inp){const a=inp.quoteItems;return (Array.isArray(a)&&a.length)?a:[];}
+/* 実質出力kW単価・W単価（2026.11.14）
+   実質出力(kW)＝パネル枚数×1枚あたりの実質W数。トリナ両面（588W級／TSM-5xx）は1枚730Wで計算する。
+   実質出力kW単価＝工事費計（税抜・値引き後）÷実質出力、W単価＝パネル金額（税抜）÷実質W数 */
+const TRINA_REAL_W=730;
+function panelRealW(r){
+  const t=((r.n||'')+' '+(r.s||'')), isTrina=/トリナ|trina|TSM[-‐－]?\d/i.test(t);
+  const m=t.match(/(?:TSM[-‐－]?)?(\d{3})\s*(?:W|NEG|DE|DEG|NE|$|[^\d])/i);
+  const nom=m? +m[1] : 0;
+  if(isTrina && (!nom || (nom>=560&&nom<=600))) return {w:TRINA_REAL_W,nom,trina:true};
+  if(nom>=100&&nom<=900) return {w:nom,nom,trina:false};
+  return null;
+}
+function unitPrices(inp){
+  const rows=quoteRows(inp).filter(r=>!r.d), sub=quoteTotal(inp);
+  const pr=rows.find(r=>(/枚/.test(r.u||'')||/パネル|モジュール|両面|トリナ|trina|TSM/i.test((r.n||'')+(r.s||''))) && n(r.q)>0 && panelRealW(r));
+  let kw=0, basis='', pw=null, panelAmt=0, cnt=0;
+  if(pr){ pw=panelRealW(pr); cnt=n(pr.q); panelAmt=n(pr.a)||n(pr.p)*cnt;
+    kw=cnt*pw.w/1000; basis=Math.round(cnt).toLocaleString('ja-JP')+'枚 × '+pw.w+'W'+(pw.trina?'（トリナ実質）':''); }
+  else if(n(inp.realOutput)>0){ kw=n(inp.realOutput); basis='入力値（⑤ 実質出力）'; }
+  const kwUnit= kw>0&&sub>0? Math.round(sub/kw) : null;
+  const wUnit = pr&&panelAmt>0&&kw>0? panelAmt/(kw*1000) : null;
+  return {kw,basis,kwUnit,wUnit,panelAmt,cnt,pw,sub};
+}
 function quoteTotal(inp){return Math.round(quoteRows(inp).reduce((x,r)=>x+(+r.a||0),0));}
 function quoteAutoFill(){
   const inp=I(), base=n(inp.rfPriceEx)||0;
@@ -4447,7 +4471,12 @@ function sheetEST(deal){
     {l:'工事費計（税抜）',v:yen(sub)},
     {l:'消費税（10%）',v:yen(tax)},
     {l:'発電量アップ（想定）',v:pct(d.rfGenRate),s:nfn(d.gen)+' → '+nfn(d.rfGenAfter)+' kWh',cls:'nv'},
-  ]);
+  ])+(()=>{ const u=unitPrices(inp); if(!u.kw) return '';
+    return '<div class="sh-kpis c3">'+[
+      {l:'実質出力',v:(Math.round(u.kw*100)/100).toLocaleString('ja-JP',{maximumFractionDigits:2})+' kW',s:u.basis},
+      {l:'実質出力kW単価（税抜）',v:u.kwUnit!=null?yen(u.kwUnit)+'<small style="font-size:10px">/kW</small>':'—',s:'工事費計（税抜） ÷ 実質出力',cls:'gold'},
+      {l:'W単価（パネル・税抜）',v:u.wUnit!=null?'¥'+u.wUnit.toFixed(1)+'<small style="font-size:10px">/W</small>':'—',s:u.wUnit!=null?'パネル '+yen(u.panelAmt)+' ÷ '+Math.round(u.kw*1000).toLocaleString('ja-JP')+'W':'パネル明細（枚数・W数）がありません'},
+    ].map(k=>`<div class="sh-kpi ${k.cls||''}"><div class="l">${k.l}</div><div class="v">${k.v}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('')+'</div>'; })();
   const qnum=v=>Math.round(+v||0).toLocaleString('ja-JP');
   const yn=v=>'¥'+Math.round(+v||0).toLocaleString('ja-JP');
   const body=rows.filter(r=>!r.d), disc=rows.filter(r=>r.d);
@@ -6698,6 +6727,7 @@ function gdSheet(k,G){
           '「有効期限は発行日から30日、工期は着工後おおむね2〜4か月を想定しています」',
           '備考欄（配線の仕様、部材価格の改定の可能性、停電工事など）を必ず読み上げる'];
     nums=[['お見積金額（税込）',gdMan(s.rfIn)],['発電量アップ（想定）',rate]].concat(top.slice(0,2).map((t,i)=>['主な項目'+(i+1),t]));
+    { const u=unitPrices(G.deal?G.deal.inputs:{}); if(u&&u.kwUnit!=null) nums.splice(2,0,['実質出力kW単価（税抜）',yen(u.kwUnit)+'/kW（実質出力 '+(Math.round(u.kw*10)/10).toLocaleString('ja-JP')+'kW）']); if(u&&u.wUnit!=null) nums.splice(3,0,['W単価（パネル）','¥'+u.wUnit.toFixed(1)+'/W'+(u.pw&&u.pw.trina?'（トリナは1枚730Wで計算）':'')]); }
     faq=[['値引きはできるか','その場で約束しない。「社内で確認して回答します」と持ち帰り、上長に相談'],
          ['支払い条件は','契約書で定める。標準の条件を社内で確認してから回答する'],
          ['見積の金額は変わるか','現地確認で仕様が確定すると変わりうる。部材価格の改定の可能性も備考のとおり伝える']];
@@ -6770,9 +6800,13 @@ function closeAll(){ $('#allOverlay').classList.remove('show'); $('#allRoot').in
    ▼更新のしかた：APP_VERSION を上げて、CHANGELOG の先頭に1行足すだけ。
      ヘッダーのバージョン表示・更新履歴・「新着」印はすべて自動で反映されます。
    ======================================================== */
-const APP_VERSION = '2026.10.26';
+const APP_VERSION = '2026.11.14';
 
 const CHANGELOG = [
+  ['2026.11.14', [
+    '<b>お見積ページ（リフォート提案（一括）・提案シート）に「実質出力kW単価」と「W単価」を追加しました。</b>実質出力kW単価 ＝ 工事費計（税抜・値引き後）÷ 実質出力、W単価 ＝ パネル金額（税抜）÷ 実質W数 です',
+    '実質出力は見積明細のパネル行（枚数 × 1枚のW数）から計算します。<b>トリナ両面パネル（588W級／TSM-5xx）は1枚730Wで計算</b>します。パネル行が無い場合は「⑤ リフォート想定」の実質出力の入力値を使います',
+  ]],
   ['2026.10.26', [
     '<b>提案シートの「ご留意事項」に、売電補填をしない旨を赤字で追記しました。</b>「工事期間中の売電停止、ならびに電力会社への申請・受理手続きの遅延等により生じた売電収入の減少について、売電補填はいたしません。」（リフォート提案・セカンダリーRF・3シナリオ比較・お見積・発電シミュ・卒FIT後比較。工事を伴わない①セカンダリーには表示しません）',
   ]],
