@@ -197,6 +197,35 @@ nav button[aria-selected=true]{color:var(--navy);border-image:linear-gradient(90
 .mo.now{border-color:#1f6fd1;box-shadow:0 0 0 1px #1f6fd1,0 8px 20px -12px rgba(31,111,209,.6)}
 .mo.now h4{background:linear-gradient(115deg,#0f3a7a,#1a5cb4);color:#fff}
 .trow:hover,.evhead:hover{background:#f3f8fe}
+/* ===== 反映チェック（2026/11 追加） ===== */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.tile{background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.tile .k{font-size:11.5px;color:var(--ink-2)}
+.tile .v{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--navy)}
+.tile.ng .v{color:var(--red)} .tile.warn .v{color:var(--amber)} .tile.ok .v{color:var(--green)}
+.tscroll{overflow-x:auto}
+table.ck td.it{font-weight:700;width:220px}
+table.ck .who2{font-weight:400;font-size:11px;color:var(--ink-3)}
+table.ck td.rl{width:170px;font-size:12px;color:var(--ink-2)}
+table.ck td.ds{min-width:180px}
+table.ck td.jd{width:280px}
+table.ck td.op{width:190px;white-space:nowrap}
+.chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:0 6px;border:1px solid var(--line);border-radius:9px;margin:1px 2px;background:#fff;color:var(--ink-2)}
+.chip.x{background:var(--sky);border-color:#b9d3f2;color:var(--navy)}
+.chip button{border:none;background:none;color:var(--red);cursor:pointer;padding:0 0 0 4px;font-size:11px}
+.iss{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+.chk{font-size:11.5px;color:var(--amber);margin-top:3px}
+.op input{border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:12px}
+.op button{margin-left:4px;border:1px solid var(--navy-2);background:var(--navy-2);color:#fff;border-radius:4px;padding:2px 9px;font-size:12px;cursor:pointer}
+.fix{display:flex;gap:10px;align-items:flex-start;padding:8px 14px;border-bottom:1px solid #f0f1f3;font-size:13px;cursor:pointer}
+.fix:last-child{border-bottom:none}
+.fix input{width:16px;height:16px;margin-top:3px;accent-color:var(--navy)}
+.fix span{flex:1}
+.fix em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.fix.isdone span{color:var(--ink-3);text-decoration:line-through}
+.kd{font-size:10px;border:1px solid #eddcb8;background:var(--amber-bg);color:var(--amber);border-radius:3px;padding:0 3px;margin-right:4px}
+.kd.add{border-color:#b9d3f2;background:var(--sky);color:var(--navy)}
+@media (max-width:760px){ .tiles{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
 <body>
@@ -234,6 +263,7 @@ nav button[aria-selected=true]{color:var(--navy);border-image:linear-gradient(90
   <button role="tab" id="t-cal"  aria-selected="false">年間カレンダー</button>
   <button role="tab" id="t-ev"   aria-selected="false">行事別</button>
   <button role="tab" id="t-ho"   aria-selected="false">方針別</button>
+  <button role="tab" id="t-ck"   aria-selected="false">反映チェック<span class="count" id="c-ck" hidden></span></button>
   <button role="tab" id="t-al"   aria-selected="false">未実施<span class="count" id="c-al" hidden></span></button>
 </nav>
 
@@ -242,6 +272,7 @@ nav button[aria-selected=true]{color:var(--navy);border-image:linear-gradient(90
   <section id="v-cal" hidden></section>
   <section id="v-ev"  hidden></section>
   <section id="v-ho"  hidden></section>
+  <section id="v-ck"  hidden></section>
   <section id="v-al"  hidden></section>
 
   <div class="tools">
@@ -262,7 +293,8 @@ nav button[aria-selected=true]{color:var(--navy);border-image:linear-gradient(90
 <script>
 /* ============================================================
    方針実行ボード
-   データ出典：事業年度カレンダー（19期ブロック）より抽出
+   データ出典：19期経営計画書（2026/11/11版）事業年度計画 p.112〜125 と各方針
+   2026/11 改：方針ルールマスタと「反映チェック」タブを追加（方針の頻度・時期と年間予定の突き合わせ）
    ============================================================ */
 
 /* ---------- 保存先（全アプリ共通のSupabaseプロジェクト） ---------- */
@@ -270,7 +302,8 @@ const SB = {
   url: "https://aakofrzurgwrkctunthw.supabase.co",
   key: "sb_publishable_yAUGrTJjqg56S16D7BI2oQ_pbt1olLa",
   status: "houshin_task_status",   // チェック記録
-  owner:  "houshin_task_owner"     // タスクごとの実行者
+  owner:  "houshin_task_owner",    // タスクごとの実行者
+  extra:  "houshin_extra_date"     // 方針ルールから追加した日程
 };
 
 let ONLINE = true;   // Supabaseに到達できているか
@@ -295,6 +328,15 @@ async function sbUpsert(table, rows){
   });
   if(!r.ok) throw new Error(`${table} 保存失敗 (${r.status})`);
 }
+async function sbInsert(table, rows){
+  const r = await fetch(`${SB.url}/rest/v1/${table}`, {
+    method:"POST",
+    headers: sbHeaders({"Prefer":"return=representation"}),
+    body: JSON.stringify(rows)
+  });
+  if(!r.ok) throw new Error(`${table} 保存失敗 (${r.status})`);
+  return r.json();
+}
 async function sbDelete(table, query){
   const r = await fetch(`${SB.url}/rest/v1/${table}?${query}`, {method:"DELETE", headers:sbHeaders()});
   if(!r.ok) throw new Error(`${table} 削除失敗 (${r.status})`);
@@ -318,51 +360,79 @@ const FYS = [
   {ki:20, y:2027},
   {ki:21, y:2028}
 ];
+/* 行事・期限の日程を登録済みの期（これ以外の期は19期の日程を仮に流用） */
+const DATA_KI = 19;
 
-/* ---------- 方針マスタ（カレンダー方針列の37区分／出現順） ---------- */
-const HOUSHIN = ["内部A","内部B","幹部","社員A","社員B","社員C","パート","IT","ルール","発表","経営",
-"環境A","環境B","戦略","情報","会議","お客様A","お客様B","姿勢","商品","商品開発A","商品開発B",
-"マーケ","営業","メンテ","カスタマ","ライバル","クレーム","クレーマ","コミュA","コミュB",
-"採用A","採用B","教育","人事A","人事B","運転"];
+/* ---------- 方針マスタ（19期経営計画書の方針／掲載ページ） ---------- */
+const POLICIES = [
+ ["経営方針",28],["環境整備",32],["情報マネジメント",36],["情報展開のプロセス",40],
+ ["再エネ お客様",42],["再エネ 商品",44],["再エネ 営業",46],["再エネ ライバル",48],["再エネ 業界情報",50],
+ ["保守管理",52],["FC事業",56],["クレーム",58],["クレーマー",60],["コミュニケーション",64],
+ ["採用",68],["教育",72],["人事評価",76],["運転",84],["内部体制",86],["幹部",90],["社員",92],
+ ["パート・アルバイト",96],["資金運用",98],["決算",100],["お客様への正しい姿勢",102],["ルール",104],
+ ["出張旅費",106],["表彰・褒賞",108],["始末書・反省文",110]
+];
+const HOUSHIN = POLICIES.map(p=>p[0]);
+const POLICY_PAGE = Object.fromEntries(POLICIES);
 
-/* ---------- 行事マスタ（31件） ----------
-   dates: [月, 日] ／ 12月は期首年、1〜11月は期首年+1 */
+/* ---------- 行事マスタ ----------
+   出典：19期経営計画書（2026/11/11版）事業年度計画 p.112〜125
+   dates: [月, 日] ／ 12月は期首年、1〜11月は期首年+1
+   kind: "行事"＝事業年度計画に載っている予定／"期限"＝方針で期日が決まっている提出・手続き */
 const EVENTS = [
-{id:"E01",name:"経営計画発表会",cat:"経営",freq:"年1回",dept:"社長・総務",ho:["発表","経営"],dates:[[12,7]]},
-{id:"E02",name:"全体会同",cat:"経営",freq:"四半期",dept:"社長・全部門",ho:["経営"],dates:[[12,3],[3,8],[6,13],[9,6]]},
-{id:"E03",name:"部門長会議",cat:"会議",freq:"毎月",dept:"部門長全員",ho:["会議"],dates:[[12,17],[12,22],[1,14],[2,12],[3,11],[4,8],[5,13],[6,10],[7,8],[9,9],[10,7],[11,11]]},
-{id:"E04",name:"環境整備点検（埼玉）",cat:"環境整備",freq:"毎月",dept:"全社",ho:["環境A","環境B"],dates:[[12,9],[1,7],[2,4],[3,4],[4,1],[5,1],[6,4],[7,23],[8,27],[9,17],[10,15],[11,12]]},
-{id:"E05",name:"環境整備点検（福島）",cat:"環境整備",freq:"毎月",dept:"福島拠点",ho:["環境A","環境B"],dates:[[12,10],[1,8],[2,5],[3,5],[4,2],[5,2],[6,5],[7,24],[8,28],[9,18],[10,16],[11,13]]},
-{id:"E06",name:"サイクル環境整備点検",cat:"環境整備",freq:"隔月",dept:"全社",ho:["環境A","環境B"],dates:[[5,15],[5,19],[7,8],[7,10]]},
-{id:"E07",name:"早朝勉強会",cat:"教育",freq:"毎月",dept:"希望者・幹部",ho:["教育"],dates:[[4,18],[5,15],[6,13],[6,27],[7,17],[8,8],[9,19],[10,17],[11,14]]},
-{id:"E08",name:"アースコムアカデミー用語集勉強会",cat:"教育",freq:"毎月〜隔月",dept:"全社",ho:["教育"],dates:[[12,18],[1,15],[2,19],[3,19],[5,22],[6,19],[7,17],[9,24],[10,5]]},
-{id:"E09",name:"全社員勉強会",cat:"教育",freq:"年3回",dept:"全社",ho:["教育","社員A"],dates:[[1,25],[3,8],[6,12]]},
-{id:"E10",name:"クレーム勉強会",cat:"教育",freq:"年1回",dept:"全社",ho:["クレーム","クレーマ"],dates:[[1,25]]},
-{id:"E11",name:"給与体系勉強会",cat:"人事",freq:"年2回",dept:"全社",ho:["人事A","人事B"],dates:[[1,27],[6,13]]},
-{id:"E12",name:"MRAG勉強会",cat:"教育",freq:"年2回",dept:"幹部",ho:["教育"],dates:[[12,18],[7,17]]},
-{id:"E13",name:"査定面談",cat:"人事",freq:"年2回",dept:"社長・部門長",ho:["人事A","人事B"],dates:[[12,11],[6,12]]},
-{id:"E14",name:"賞与面談",cat:"人事",freq:"年2回",dept:"部門長",ho:["人事A","人事B"],dates:[[1,12]]},
-{id:"E15",name:"賞与支給",cat:"人事",freq:"年2回",dept:"総務・経理",ho:["人事A","人事B"],dates:[[2,19],[8,18]]},
-{id:"E16",name:"銀行訪問",cat:"財務",freq:"年3回",dept:"社長・経理",ho:["経営","情報"],dates:[[12,8],[6,10],[10,7]]},
-{id:"E17",name:"ルール改定（部門長）",cat:"ルール",freq:"年2回",dept:"部門長全員",ho:["ルール"],dates:[[1,6],[5,10]]},
-{id:"E18",name:"組織プロフィール",cat:"経営",freq:"年3〜4回",dept:"幹部・部門長",ho:["経営","戦略"],dates:[[2,15],[5,24],[8,7],[8,23]]},
-{id:"E19",name:"事業部アセスメント（全社）",cat:"経営",freq:"年3回",dept:"全社",ho:["経営","戦略"],dates:[[2,15],[5,24],[8,23]]},
-{id:"E20",name:"実行計画アセスメント",cat:"経営",freq:"年1回",dept:"部門長全員",ho:["経営"],dates:[[11,15]]},
-{id:"E21",name:"入社式",cat:"人事",freq:"年1回",dept:"総務・採用課",ho:["採用A","採用B"],dates:[[3,31]]},
-{id:"E22",name:"内定式",cat:"採用",freq:"年1回",dept:"採用課",ho:["採用A","採用B"],dates:[[10,1]]},
-{id:"E23",name:"社員旅行",cat:"社員",freq:"年1回",dept:"総務",ho:["社員A","社員B"],dates:[[9,13]]},
-{id:"E24",name:"夢合宿",cat:"経営",freq:"年1回",dept:"社長・幹部",ho:["経営","戦略"],dates:[[8,21]]},
-{id:"E25",name:"夢合宿（方針編）",cat:"経営",freq:"年1回",dept:"社長・幹部",ho:["発表","経営"],dates:[[10,3]]},
-{id:"E26",name:"河口湖研修",cat:"教育",freq:"年1回",dept:"全社",ho:["教育"],dates:[[7,25]]},
-{id:"E27",name:"社長同行研修",cat:"教育",freq:"年1回",dept:"社長・営業",ho:["営業","教育"],dates:[[10,22]]},
-{id:"E28",name:"ベンチマーク受入",cat:"社外",freq:"年1回",dept:"総務・全社",ho:["環境A","環境B"],dates:[[3,12]]},
-{id:"E29",name:"武蔵野経営計画発表会",cat:"社外",freq:"年1回",dept:"社長",ho:["発表"],dates:[[5,7]]},
-{id:"E30",name:"実践経営塾（丸林）",cat:"社外",freq:"年4回",dept:"社長",ho:["経営"],dates:[[4,23],[5,20],[6,19],[9,22]]},
-{id:"E31",name:"地域会",cat:"社外",freq:"随時",dept:"社長",ho:["環境A","コミュA"],dates:[[12,25],[1,17],[5,16]]}
+{id:"E01",name:"経営計画発表会",cat:"経営",kind:"行事",freq:"年1回",dept:"社長・総務",ho:["情報展開のプロセス","表彰・褒賞"],dates:[[12,2]]},
+{id:"E02",name:"経営推進会議",cat:"会議",kind:"行事",freq:"月2回（隔週）",dept:"社長・副社長・社外役員",ho:["情報展開のプロセス"],dates:[[12,1],[12,14],[12,15],[12,22],[1,12],[2,2],[2,8],[2,16],[3,8],[4,12],[5,10],[6,14],[7,12],[8,16],[9,13],[10,12],[11,8]]},
+{id:"E03",name:"部門長会議",cat:"会議",kind:"行事",freq:"毎月",dept:"社長・幹部",ho:["情報展開のプロセス","資金運用"],dates:[[12,14],[1,13],[2,10],[3,10],[4,14],[6,9],[7,14],[8,18],[9,14],[10,13],[11,10]]},
+{id:"E04",name:"環境整備点検（埼玉）",cat:"環境整備",kind:"行事",freq:"毎月",dept:"全社・環境整備チーム",ho:["環境整備","教育"],dates:[[12,9],[1,7],[2,4],[3,4],[4,8],[5,6],[6,3],[7,8],[8,5],[9,9],[10,7],[11,4]]},
+{id:"E05",name:"環境整備点検（福島）",cat:"環境整備",kind:"行事",freq:"毎月",dept:"福島拠点",ho:["環境整備"],dates:[[12,10],[1,8],[2,5],[3,5],[4,9],[5,7],[6,4],[7,9],[8,6],[9,10],[10,8],[11,5]]},
+{id:"E06",name:"案件進捗会議",cat:"会議",kind:"行事",freq:"毎週金曜",dept:"関係者",ho:["情報展開のプロセス"],dates:[[12,4],[12,11],[12,18],[12,25],[1,8],[1,15],[1,22],[1,29],[2,5],[2,12],[2,19],[2,26],[3,5],[3,12],[3,19],[3,26],[4,2],[4,9],[4,16],[4,23],[4,30],[5,7],[5,14],[5,21],[5,28],[6,4],[6,11],[6,18],[7,2],[7,9],[7,16],[7,23],[7,30],[8,6],[8,20],[8,27],[9,3],[9,10],[9,17],[9,24],[10,1],[10,8],[10,15],[10,22],[10,29],[11,5],[11,12],[11,19],[11,26]]},
+{id:"E07",name:"銀行訪問",cat:"財務",kind:"行事",freq:"3ヶ月に1回",dept:"社長・経理・幹部",ho:["資金運用","教育"],dates:[[12,7],[3,10],[6,9],[9,14]]},
+{id:"E08",name:"アースコムアワード（全体会同）",cat:"経営",kind:"行事",freq:"年2回",dept:"社長・役員・全従業員",ho:["情報展開のプロセス","表彰・褒賞"],dates:[[12,2],[6,11],[6,18]]},
+{id:"E09",name:"査定面談",cat:"人事",kind:"行事",freq:"年2回",dept:"社長・部門長",ho:["人事評価"],dates:[[12,11],[6,11],[6,18]]},
+{id:"E10",name:"賞与面談",cat:"人事",kind:"行事",freq:"年2回",dept:"部門長",ho:["人事評価"],dates:[[1,8],[7,16]]},
+{id:"E11",name:"全社員勉強会",cat:"教育",kind:"行事",freq:"年4回",dept:"全社員・教育チーム",ho:["教育","表彰・褒賞"],dates:[[1,8],[6,11],[6,18],[9,3]]},
+{id:"E12",name:"アースコムアカデミー用語集勉強会",cat:"教育",kind:"行事",freq:"毎月〜隔月",dept:"全従業員・総務",ho:["教育"],dates:[[12,18],[1,22],[2,13],[3,19],[4,23],[5,8],[6,18],[7,16],[8,20],[10,15],[11,12]]},
+{id:"E13",name:"クレーム勉強会",cat:"教育",kind:"行事",freq:"年3回",dept:"全従業員・総務",ho:["教育","クレーム"],dates:[[1,22],[2,13],[7,23]]},
+{id:"E14",name:"給与体系勉強会",cat:"人事",kind:"行事",freq:"年3回",dept:"全社員・総務",ho:["教育","人事評価"],dates:[[1,22],[2,13],[6,11],[6,18]]},
+{id:"E15",name:"組織プロフィール振り返り・事業部アセスメント",cat:"経営",kind:"行事",freq:"年4回（2・5・8・11月）",dept:"社長・全従業員",ho:["情報展開のプロセス","情報マネジメント"],dates:[[2,13],[5,22],[8,21],[11,13]]},
+{id:"E16",name:"組織プロフィール作成研修（役員）",cat:"経営",kind:"行事",freq:"年1回",dept:"役員・石野・大澤",ho:["情報マネジメント"],dates:[[5,20]]},
+{id:"E17",name:"アースコムガイダンス",cat:"教育",kind:"行事",freq:"随時",dept:"教育チーム",ho:["教育","パート・アルバイト"],dates:[[5,22]]},
+{id:"E18",name:"社長と幹部の夢合宿（数字編）",cat:"経営",kind:"行事",freq:"年1回",dept:"社長・幹部",ho:["教育","経営方針"],dates:[[7,21]]},
+{id:"E19",name:"夢合宿（方針編）カスタマイズ",cat:"経営",kind:"行事",freq:"年1回",dept:"役員・幹部3名",ho:["教育","情報展開のプロセス"],dates:[[10,1]]},
+{id:"E20",name:"短期計画作成合宿",cat:"経営",kind:"行事",freq:"年1回",dept:"社長・副社長・幹部",ho:["情報展開のプロセス","情報マネジメント"],dates:[[9,13]]},
+{id:"E21",name:"長期資金運用作成合宿",cat:"財務",kind:"行事",freq:"年1回",dept:"社長・幹部",ho:["資金運用"],dates:[[9,15]]},
+{id:"E22",name:"内定式",cat:"採用",kind:"行事",freq:"年1回",dept:"採用課",ho:["採用","内部体制"],dates:[[10,1]]},
+{id:"E23",name:"入社式",cat:"採用",kind:"行事",freq:"年1回",dept:"総務・採用課",ho:["採用","内部体制"],dates:[[3,31]]},
+{id:"E24",name:"内定者懇親会（役員）",cat:"採用",kind:"行事",freq:"年2〜3回",dept:"役員・人事",ho:["コミュニケーション","採用"],dates:[[3,31]]},
+{id:"E25",name:"社員旅行",cat:"社員",kind:"行事",freq:"年1回",dept:"総務",ho:["社員","コミュニケーション"],dates:[[6,25]]},
+{id:"E26",name:"河口湖研修（内定者）",cat:"教育",kind:"行事",freq:"年1回",dept:"採用",ho:["教育","採用"],dates:[[12,4]]},
+{id:"E27",name:"社長と幹部の河口湖研修",cat:"教育",kind:"行事",freq:"年1回",dept:"社長・幹部",ho:["幹部","教育"],dates:[[2,17]]},
+{id:"E28",name:"出雲大社研修",cat:"教育",kind:"行事",freq:"年1回",dept:"部門長・役員",ho:["教育"],dates:[[1,23]]},
+{id:"E29",name:"内定者研修（社会人基礎・セールス・MG・習慣整備）",cat:"採用",kind:"行事",freq:"随時",dept:"採用",ho:["教育","採用"],dates:[[12,11],[12,23],[12,24],[1,22],[2,24],[3,26]]},
+{id:"E30",name:"EXPO出展",cat:"営業",kind:"行事",freq:"年2回",dept:"営業",ho:["再エネ 営業","再エネ ライバル"],dates:[[3,17],[9,8]]},
+{id:"E31",name:"埼玉地域会・ベンチマーク",cat:"社外",kind:"行事",freq:"随時",dept:"社長・社員",ho:["教育"],dates:[[12,25],[1,15],[3,11]]},
+{id:"E32",name:"実践経営塾・幹部塾（武蔵野）",cat:"社外",kind:"行事",freq:"随時",dept:"社長・幹部",ho:["教育","情報マネジメント"],dates:[[3,17],[6,17],[7,23]]},
+{id:"E33",name:"キャリアデザインセミナー（武蔵野・選抜）",cat:"教育",kind:"行事",freq:"随時",dept:"選抜者",ho:["教育"],dates:[[12,18],[9,3],[9,9]]},
+{id:"E34",name:"マルコポーロ・ミルメ研修（役員）",cat:"教育",kind:"行事",freq:"随時",dept:"役員",ho:["教育","コミュニケーション"],dates:[[1,14],[2,3]]},
+{id:"E35",name:"小山社長かばん持ち",cat:"社外",kind:"行事",freq:"年2回",dept:"社長",ho:["教育"],dates:[[6,11],[7,20]]},
+{id:"E36",name:"経営幹部忘年会・課長忘年会",cat:"社員",kind:"行事",freq:"年1回",dept:"社長・副社長",ho:["コミュニケーション"],dates:[[12,18],[5,28]]},
+{id:"E37",name:"社長のかばん持ち",cat:"教育",kind:"行事",freq:"毎月",dept:"全社員・総務",ho:["教育","採用"],dates:[[12,1],[1,7],[2,1],[3,1],[4,1],[5,6],[6,1],[7,1],[8,2],[9,1],[10,1],[11,1]]},
+/* ---- 期限もの（方針で期日が決まっているもの。土日祝は前倒し／「1日」は翌営業日） ---- */
+{id:"D01",name:"試算表・資金繰り表の提出（毎月7日）",cat:"期限",kind:"期限",freq:"毎月",dept:"経理→役員",ho:["資金運用"],dates:[[12,7],[1,7],[2,5],[3,5],[4,7],[5,7],[6,7],[7,7],[8,6],[9,7],[10,7],[11,5]]},
+{id:"D02",name:"成績報告書の提出（毎月1日10時）",cat:"期限",kind:"期限",freq:"毎月",dept:"総務→社長",ho:["人事評価"],dates:[[12,1],[1,4],[2,1],[3,1],[4,1],[5,6],[6,1],[7,1],[8,2],[9,1],[10,1],[11,1]]},
+{id:"D03",name:"ライバル調査の締切（四半期開始月の5営業日以内）",cat:"期限",kind:"期限",freq:"四半期",dept:"営業",ho:["再エネ ライバル"],dates:[[12,7],[3,5],[6,7],[9,7]]},
+{id:"D04",name:"お金の棚卸し（8月・2月）",cat:"期限",kind:"期限",freq:"年2回",dept:"経理・社長",ho:["資金運用"],dates:[[2,26],[8,31]]},
+{id:"D05",name:"役員賞与の事前確定（1/15まで）",cat:"期限",kind:"期限",freq:"年1回",dept:"経理",ho:["決算"],dates:[[1,15]]},
+{id:"D06",name:"決算の完了（1/31まで）",cat:"期限",kind:"期限",freq:"年1回",dept:"経理",ho:["決算"],dates:[[1,29]]},
+{id:"D07",name:"住宅手当の申請（4/15まで）",cat:"期限",kind:"期限",freq:"年1回",dept:"総務・対象者",ho:["社員"],dates:[[4,15]]},
+{id:"D08",name:"奨学金補助手当の支給（8月・2月）",cat:"期限",kind:"期限",freq:"年2回",dept:"総務",ho:["採用"],dates:[[2,26],[8,31]]},
+{id:"D09",name:"翌々年度の新卒採用計画の策定（5月）",cat:"期限",kind:"期限",freq:"年1回",dept:"採用",ho:["採用"],dates:[[5,31]]},
+{id:"D10",name:"安全運転講習の修了証回収（内定者・入社前）",cat:"期限",kind:"期限",freq:"年1回",dept:"総務",ho:["運転"],dates:[[3,30]]}
 ];
 
-/* ---------- タスクマスタ（106件） ----------
-   [行事ID, タスク名, 行事日からの相対日数, 完了条件] */
+/* ---------- タスクマスタ ----------
+   [行事ID, タスク名, 行事日からの相対日数, 完了条件]
+   ※タスクIDは並び順で T001〜 を振るため、既存タスクの順番は変えないこと（E01の7件は従来どおり先頭） */
 const TASKS_RAW = [
 ["E01","会場・日程の確定",-90,"会場予約完了"],
 ["E01","翌期方針の確定（夢合宿方針編の反映）",-60,"経営計画書の原稿確定"],
@@ -371,105 +441,214 @@ const TASKS_RAW = [
 ["E01","リハーサル",-3,"通し実施"],
 ["E01","当日運営",0,"開催完了"],
 ["E01","経営計画書の全社配布と訂正票の運用開始",7,"全社員へ配布完了"],
-["E02","議題・登壇部門の決定",-14,"アジェンダ確定"],
-["E02","会場・オンライン設定",-7,"接続確認完了"],
-["E02","当日運営・議事録作成",1,"議事録を全社共有"],
+["E02","議題・資料の準備",-3,"資料を参加者へ共有"],
+["E02","実施・決定事項の記録",0,"決定事項・担当・期限を記録"],
 ["E03","実行計画達成状況報告書の記入依頼",-7,"全部門が記入完了"],
-["E03","数値（MQ・FM比率）の締め",-3,"数値管理シート更新完了"],
+["E03","月次決算・数値（MQ・FM比率）の締め",-3,"数値管理シート更新完了"],
 ["E03","アジェンダ確定",-2,"アジェンダ配布"],
 ["E03","会議実施・決定事項の記録",0,"決定事項・担当・期限を記録"],
-["E03","決定事項のフォロー",7,"未着手ゼロ"],
+["E03","決定事項のフォロー（翌営業日までに自部門へ展開）",7,"未着手ゼロ"],
 ["E04","点検チェックリストの確定",-7,"当期版を配布"],
-["E04","点検班の編成",-3,"班割り確定"],
+["E04","捨てる日（点検前日）",-1,"全部門の捨てる日を確認"],
 ["E04","点検実施・採点",0,"全エリア採点完了"],
-["E04","結果の全社共有と改善指示",3,"改善担当と期限を設定"],
+["E04","指摘事項の写真報告（翌営業日18:30まで）",1,"全件報告"],
+["E04","点検フィードバック視聴・振り返り報告",3,"振り返りを全社共有"],
 ["E05","点検班の編成・移動手配",-3,"班割りと移動手配完了"],
+["E05","捨てる日（点検前日）",-1,"捨てる日の実施確認"],
 ["E05","点検実施・採点",0,"全エリア採点完了"],
-["E05","結果の全社共有と改善指示",3,"改善担当と期限を設定"],
-["E06","サイクル対象範囲の決定",-14,"対象エリア確定"],
-["E06","点検実施・採点",0,"採点完了"],
-["E06","前回サイクルとの比較レポート",7,"改善率を全社共有"],
-["E07","テーマ・講師の決定",-14,"テーマ確定"],
-["E07","案内配信",-7,"全社へ配信"],
-["E07","実施・出席記録",0,"出席簿記録"],
-["E08","対象用語の選定",-7,"当日の用語リスト確定"],
-["E08","実施・理解度確認",0,"出席簿と確認テスト記録"],
-["E08","用語集への追記・改訂",7,"用語集マスタ更新"],
-["E09","テーマ・講師の決定",-30,"テーマ確定"],
-["E09","会場・資料準備",-7,"資料配布完了"],
-["E09","実施・出席記録",0,"出席簿記録"],
-["E09","受講レポートの回収",7,"全員提出"],
-["E10","直近1年のクレーム事例の集約",-14,"事例集作成"],
-["E10","実施",0,"出席簿記録"],
-["E10","再発防止ルールの改定要否判断",14,"改定案を部門長会議へ上程"],
-["E11","説明資料の更新",-7,"当期版の資料確定"],
-["E11","実施",0,"出席簿記録"],
-["E12","テーマ決定・案内",-14,"対象者へ案内"],
-["E12","実施・記録",0,"出席簿記録"],
-["E13","役割定義シートの実績記入依頼",-14,"全員記入完了"],
-["E13","Wチェック・社長承認",-7,"承認完了"],
-["E13","面談実施",0,"対象者全員完了"],
-["E13","評価点の確定と人事記録への反映",7,"人事記録更新"],
-["E14","賞与原資・配分案の作成",-14,"社長承認"],
-["E14","面談実施",0,"対象者全員完了"],
-["E14","支給明細の作成依頼",3,"経理へ連携"],
-["E15","支給額の最終確定",-10,"社長承認"],
-["E15","振込データ作成・銀行提出",-3,"提出完了"],
-["E15","支給・明細配布",0,"全員へ配布"],
-["E16","試算表・資金繰り表の準備",-7,"資料確定"],
-["E16","訪問実施",0,"訪問完了"],
-["E16","面談内容の記録と社内共有",3,"記録を共有"],
-["E17","改定要望の収集",-21,"全部門から回収"],
-["E17","改定案の作成",-7,"案を部門長へ配布"],
-["E17","改定会議・決定",0,"改定内容確定"],
-["E17","経営計画書・アプリへの反映と訂正票配布",14,"デジタル版更新・訂正票配布"],
-["E18","前回版の見直しと更新箇所の洗い出し",-21,"更新箇所リスト確定"],
-["E18","作成・記入",-7,"記入完了"],
-["E18","レビュー・確定",0,"社長承認"],
-["E19","アセスメントシートの配布",-14,"全部門へ配布"],
-["E19","各部門の記入",-3,"全部門提出"],
-["E19","集計・フィードバック",7,"結果を全社共有"],
-["E20","当期実行計画の達成率集計",-14,"全部門の達成率確定"],
-["E20","未達要因の分析",-7,"部門ごとに要因記載"],
-["E20","アセスメント実施",0,"実施完了"],
-["E20","翌期実行計画への反映",21,"翌期計画へ反映"],
-["E21","入社手続書類の回収",-14,"全員回収"],
-["E21","備品・アカウント・席の準備",-7,"準備完了"],
-["E21","式次第・配属発表の確定",-3,"社長承認"],
-["E21","入社式実施",0,"開催完了"],
-["E21","初期研修の開始",1,"研修スケジュール開始"],
+["E05","指摘事項の写真報告（翌営業日18:30まで）",1,"全件報告"],
+["E07","試算表・資金繰り表・説明資料の準備",-7,"資料確定"],
+["E07","訪問実施",0,"訪問完了"],
+["E07","面談内容の記録と社内共有",3,"記録を共有"],
+["E08","受賞者のノミネート・選考（役員会）",-21,"受賞者確定"],
+["E08","表彰状・賞金の準備",-7,"準備完了"],
+["E08","表彰の実施",0,"表彰完了"],
+["E09","役割定義シートの実績記入依頼",-14,"全員記入完了"],
+["E09","Wチェック・社長承認",-7,"承認完了"],
+["E09","面談実施",0,"対象者全員完了"],
+["E09","評価点の確定と人事記録への反映",7,"人事記録更新"],
+["E10","賞与原資・配分案の作成",-14,"社長承認"],
+["E10","面談実施",0,"対象者全員完了"],
+["E10","支給明細の作成依頼",3,"経理へ連携"],
+["E11","テーマ・講師の決定",-30,"テーマ確定"],
+["E11","会場・資料準備",-7,"資料配布完了"],
+["E11","実施・出席記録",0,"出席簿記録"],
+["E11","受講レポートの回収",7,"全員提出"],
+["E12","対象用語の選定",-7,"当日の用語リスト確定"],
+["E12","実施・理解度確認",0,"出席簿と確認テスト記録"],
+["E12","用語集への追記・改訂",7,"用語集マスタ更新"],
+["E13","直近のクレーム事例の集約",-14,"事例集作成"],
+["E13","実施",0,"出席簿記録"],
+["E13","再発防止ルールの改定要否判断",14,"改定案を部門長会議へ上程"],
+["E14","説明資料の更新",-7,"当期版の資料確定"],
+["E14","実施",0,"出席簿記録"],
+["E15","前回版の見直しと更新箇所の洗い出し",-21,"更新箇所リスト確定"],
+["E15","アセスメントシートの配布",-14,"全部門へ配布"],
+["E15","各部門の記入",-3,"全部門提出"],
+["E15","実施・レビュー",0,"社長承認"],
+["E15","集計・フィードバック",7,"結果を全社共有"],
+["E15","実行計画への反映",14,"実行計画を更新"],
+["E16","参加者・内容の確定",-14,"参加者確定"],
+["E16","実施",0,"実施完了"],
+["E17","対象者（新人・新人パート）の抽出と案内",-14,"対象者へ案内"],
+["E17","実施・出席記録",0,"出席簿記録"],
+["E18","日程・会場の確保",-60,"予約完了"],
+["E18","テーマ・進行の設計",-14,"進行表確定"],
+["E18","実施",0,"実施完了"],
+["E18","アウトプットの整理と共有",7,"成果物を全社共有"],
+["E19","当期方針の振り返り資料作成",-14,"資料確定"],
+["E19","実施（翌期方針の骨子づくり）",0,"骨子確定"],
+["E19","経営計画書原稿への反映",21,"原稿へ反映"],
+["E20","各部門の当期実績・課題の整理",-14,"資料確定"],
+["E20","実施",0,"実施完了"],
+["E20","短期計画の確定",14,"社長承認"],
+["E21","長期財務・資金計画の資料準備",-14,"資料確定"],
+["E21","実施",0,"実施完了"],
+["E21","経営計画書原稿への反映",21,"原稿へ反映"],
 ["E22","内定者への案内送付",-30,"全員へ送付・出欠確認"],
 ["E22","式次第・配布資料の準備",-7,"準備完了"],
 ["E22","内定式実施",0,"開催完了"],
 ["E22","入社までのフォロー計画開始",7,"フォロー予定を登録"],
-["E23","行き先・日程の決定",-120,"社長承認"],
-["E23","予約・手配",-90,"予約完了"],
-["E23","参加者確定・しおり作成",-14,"しおり配布"],
-["E23","実施",0,"実施完了"],
-["E24","日程・会場の確保",-60,"予約完了"],
-["E24","テーマ・進行の設計",-14,"進行表確定"],
+["E23","入社手続書類の回収",-14,"全員回収"],
+["E23","備品・アカウント・席の準備",-7,"準備完了"],
+["E23","式次第・配属発表の確定",-3,"社長承認"],
+["E23","入社式実施",0,"開催完了"],
+["E23","初期研修の開始",1,"研修スケジュール開始"],
+["E24","参加者・会場の確定",-14,"案内完了"],
 ["E24","実施",0,"実施完了"],
-["E24","アウトプットの整理と共有",7,"成果物を全社共有"],
-["E25","当期方針の振り返り資料作成",-14,"資料確定"],
-["E25","実施（翌期方針の骨子づくり）",0,"骨子確定"],
-["E25","経営計画書原稿への反映",21,"原稿へ反映"],
-["E26","日程・会場の確保",-90,"予約完了"],
-["E26","プログラム設計",-21,"進行表確定"],
+["E25","行き先・日程の決定",-120,"社長承認"],
+["E25","予約・手配",-90,"予約完了"],
+["E25","参加者確定・しおり作成",-14,"しおり配布"],
+["E25","実施",0,"実施完了"],
+["E26","日程・会場の確保",-30,"予約完了"],
+["E26","プログラム設計",-14,"進行表確定"],
 ["E26","実施",0,"実施完了"],
 ["E26","受講レポート回収",7,"全員提出"],
-["E27","同行対象者・訪問先の決定",-14,"対象確定"],
+["E27","日程・会場の確保",-60,"予約完了"],
 ["E27","実施",0,"実施完了"],
-["E27","振り返りコメントの返却",3,"対象者へ返却"],
-["E28","受入先・日程の調整",-30,"日程確定"],
-["E28","見学ルート・説明担当の確定",-7,"担当確定"],
-["E28","環境整備の最終確認",-1,"全エリア確認完了"],
-["E28","受入実施",0,"実施完了"],
-["E29","参加申込",-30,"申込完了"],
-["E29","参加・持ち帰り事項の整理",3,"幹部へ共有"],
-["E30","日程確保・スケジュール調整",-30,"予定確定"],
-["E30","参加・学びの整理",3,"幹部へ共有"],
+["E27","学びの整理と共有",7,"幹部へ共有"],
+["E28","参加者・行程の確定",-30,"行程確定"],
+["E28","実施",0,"実施完了"],
+["E29","案内・出欠確認",-7,"出欠確定"],
+["E29","実施・研修報告（翌営業日正午まで）",0,"研修報告提出"],
+["E30","出展準備（ブース・資料・人員）",-30,"準備完了"],
+["E30","集客案内の配信",-14,"配信完了"],
+["E30","出展",0,"出展完了"],
+["E30","名刺・商談のCRM登録",3,"全件登録"],
 ["E31","出欠の確定",-14,"出欠回答"],
-["E31","参加",0,"参加完了"]
+["E31","参加",0,"参加完了"],
+["E32","日程確保・スケジュール調整",-30,"予定確定"],
+["E32","参加・学びの整理",3,"幹部へ共有"],
+["E33","選抜者の確定",-21,"選抜者確定"],
+["E33","参加",0,"参加完了"],
+["E33","研修報告",1,"研修報告提出"],
+["E34","参加",0,"参加完了"],
+["E34","学びの共有",3,"役員へ共有"],
+["E35","参加",0,"参加完了"],
+["E35","学びの整理と共有",3,"幹部へ共有"],
+["E36","参加者確定",-14,"参加者確定"],
+["E36","実施",0,"実施完了"],
+["D01","試算表・資金繰り表の提出",0,"役員へ提出完了"],
+["D02","成績報告書の社長提出",0,"10時までに提出"],
+["D03","ライバル動向・価格帯・広告・提案内容の調査",-5,"調査完了"],
+["D03","調査結果の全社共有",0,"全社共有完了"],
+["D04","お金の棚卸し・他行への資金移動",0,"実施記録を保存"],
+["D05","役員賞与の事前確定届の提出",0,"提出完了"],
+["D06","決算の確定",0,"決算完了"],
+["D07","対象者への申請案内",-14,"案内完了"],
+["D07","申請の確認",0,"全対象者の申請を確認"],
+["D08","評価基準にもとづく支給額の確定",-10,"社長承認"],
+["D08","支給",0,"支給完了"],
+["D09","採用人数・人物像・募集経路・選考日程の案作成",-14,"案作成"],
+["D09","策定・承認",0,"社長承認"],
+["D10","内定者への受講案内",-60,"案内完了"],
+["D10","修了証の回収",0,"全員提出"]
+];
+
+/* ---------- 方針ルールマスタ（19期経営計画書から頻度・時期が決まっている項目） ----------
+   need   : 期内に必要な回数（null＝回数の定めなし）
+   perMon : 毎月この回数以上必要（月2回など）
+   months : この月に必要（例 [2,5,8,11]）
+   dayMax : 日付がこの日以内であること（「月初」など）
+   ev     : 対応する行事・期限ID（空＝事業年度計画に未登録）
+   check  : 自動判定とは別に人が確認すべき点 */
+const RULES = [
+{id:"R01",ho:"情報展開のプロセス",item:"経営計画発表会",rule:"年1回（12月）",need:1,months:[12],ev:["E01"],who:"社長・役員・全社員"},
+{id:"R02",ho:"情報展開のプロセス",item:"経営推進会議",rule:"月2回（隔週）",need:24,perMon:2,ev:["E02"],who:"社長・副社長・社外役員"},
+{id:"R03",ho:"情報展開のプロセス",item:"部門長会議",rule:"毎月（月初）",need:12,perMon:1,dayMax:10,ev:["E03"],who:"社長・幹部",check:"月次決算（翌月7日）を共有する会議のため中旬開催が実態。方針の「月初」を直すか日程を直すかを決める"},
+{id:"R04",ho:"情報展開のプロセス",item:"案件進捗会議",rule:"月2回",need:24,perMon:2,ev:["E06"],who:"関係者",check:"計画は毎週金曜。方針の「月2回」を「毎週」に直すかを決める"},
+{id:"R05",ho:"情報展開のプロセス",item:"月次会議",rule:"毎月（月末）",need:12,perMon:1,ev:[],who:"本部長・部長・課長・社員"},
+{id:"R06",ho:"情報展開のプロセス",item:"商品アセスメント会議",rule:"月2回",need:24,perMon:2,ev:[],who:"関係者"},
+{id:"R07",ho:"情報展開のプロセス",item:"組織プロフィール・実行計画作成",rule:"年4回（2・5・8・11月）",need:4,months:[2,5,8,11],ev:["E15"],who:"社長・全従業員"},
+{id:"R08",ho:"情報展開のプロセス",item:"短期計画作成",rule:"年1回（10月）",need:1,months:[10],ev:["E20"],who:"社長・副社長・幹部"},
+{id:"R09",ho:"情報展開のプロセス",item:"経営計画書作成（夢合宿方針編）",rule:"年1回（10月）",need:1,months:[10],ev:["E19"],who:"社長・幹部",check:"計画は「方針編カスタマイズ（役員・幹部3名）」のみ。合宿本番の日程を確認"},
+{id:"R10",ho:"情報展開のプロセス",item:"アースコムアワード",rule:"年2回（表彰一覧では1月・6月）",need:2,months:[1,6],ev:["E08"],who:"社長・役員・全従業員",check:"計画は12月・6月で、6月は6/11と6/18の2回入っている"},
+{id:"R11",ho:"環境整備",item:"環境整備点検",rule:"年12回",need:12,perMon:1,ev:["E04"],who:"社長・全社員"},
+{id:"R12",ho:"資金運用",item:"銀行訪問（金融機関報告）",rule:"3ヶ月に1回",need:4,ev:["E07"],who:"社長・経理・幹部"},
+{id:"R13",ho:"資金運用",item:"試算表・資金繰り表の提出",rule:"毎月7日まで",need:12,perMon:1,ev:["D01"],who:"経理→役員"},
+{id:"R14",ho:"資金運用",item:"お金の棚卸し",rule:"年2回（8月・2月）",need:2,months:[2,8],ev:["D04"],who:"経理"},
+{id:"R15",ho:"資金運用",item:"定期預金の満期管理",rule:"満期日をスケジュールに落とし込む",need:null,ev:[],who:"経理",check:"満期日を「日程を追加」で登録する"},
+{id:"R16",ho:"決算",item:"役員賞与の事前確定",rule:"1月15日まで",need:1,months:[1],ev:["D05"],who:"経理"},
+{id:"R17",ho:"決算",item:"決算の完了",rule:"1月31日まで",need:1,months:[1],ev:["D06"],who:"経理"},
+{id:"R18",ho:"人事評価",item:"査定面談",rule:"年2回",need:2,ev:["E09"],who:"社長・部門長"},
+{id:"R19",ho:"人事評価",item:"成績報告書の提出",rule:"毎月1日10時（総務→社長）",need:12,perMon:1,ev:["D02"],who:"総務"},
+{id:"R20",ho:"コミュニケーション",item:"社長質問会",rule:"年10回",need:10,ev:[],who:"経営企画・総務"},
+{id:"R21",ho:"コミュニケーション",item:"部長会",rule:"年3回",need:3,ev:[],who:"経営幹部"},
+{id:"R22",ho:"コミュニケーション",item:"社長食事会",rule:"年4回（四半期ごと）",need:4,ev:[],who:"総務"},
+{id:"R23",ho:"コミュニケーション",item:"役員懇親会",rule:"年1回",need:1,ev:[],who:"経営企画"},
+{id:"R24",ho:"コミュニケーション",item:"新卒・内定者懇親会",rule:"年2〜3回",need:2,ev:["E24"],who:"人事"},
+{id:"R25",ho:"コミュニケーション",item:"中途社員交流会",rule:"年2回（半期ごと）",need:2,ev:[],who:"人事"},
+{id:"R26",ho:"パート・アルバイト",item:"副社長とパート・アルバイトのランチ会",rule:"2ヶ月に1回",need:6,ev:[],who:"副社長"},
+{id:"R27",ho:"コミュニケーション",item:"副社長・幹部と部下・パートの交流",rule:"四半期に1回",need:4,ev:[],who:"副社長・幹部"},
+{id:"R28",ho:"コミュニケーション",item:"ミルメ（全社員）",rule:"年1回（5月）",need:1,months:[5],ev:[],who:"人事"},
+{id:"R29",ho:"コミュニケーション",item:"コミュニケーションアンケート",rule:"年1回（7月）",need:1,months:[7],ev:[],who:"人事"},
+{id:"R30",ho:"コミュニケーション",item:"マルコポーロ（全社員）",rule:"年1回（12月）",need:1,months:[12],ev:[],who:"人事"},
+{id:"R31",ho:"社員",item:"社員旅行",rule:"年1回・全員参加",need:1,ev:["E25"],who:"総務"},
+{id:"R32",ho:"再エネ ライバル",item:"ライバル調査",rule:"四半期に1回（開始月の5営業日以内）",need:4,months:[12,3,6,9],ev:["D03"],who:"営業"},
+{id:"R33",ho:"再エネ ライバル",item:"ライバル・業界情報コンテスト",rule:"四半期に1回",need:4,ev:[],who:"営業"},
+{id:"R34",ho:"再エネ お客様",item:"ロイヤルカスタマーとの会食・意見交換",rule:"月1回（役員主導）",need:12,perMon:1,ev:[],who:"役員"},
+{id:"R35",ho:"再エネ お客様",item:"実行計画レビュー（お客様の声・失注・クレームの共有）",rule:"月1回",need:12,perMon:1,ev:[],who:"部門長",check:"部門長会議で兼ねる場合は、会議のアジェンダに入っているかを確認"},
+{id:"R36",ho:"保守管理",item:"パートナー企業との品質会議",rule:"年4回",need:4,ev:[],who:"保守管理責任者"},
+{id:"R37",ho:"保守管理",item:"保守管理総点検レビュー",rule:"年1回",need:1,ev:[],who:"保守管理責任者"},
+{id:"R38",ho:"保守管理",item:"年間保守計画の策定",rule:"年1回",need:1,ev:[],who:"保守管理責任者"},
+{id:"R39",ho:"採用",item:"翌々年度の新卒採用計画の策定",rule:"毎年5月",need:1,months:[5],ev:["D09"],who:"採用"},
+{id:"R40",ho:"採用",item:"奨学金補助手当の支給",rule:"年2回（8月・2月）",need:2,months:[2,8],ev:["D08"],who:"総務"},
+{id:"R41",ho:"社員",item:"住宅手当の申請",rule:"毎年4月15日まで",need:1,months:[4],ev:["D07"],who:"対象者・総務"},
+{id:"R42",ho:"運転",item:"安全運転講習の受講（内定者）",rule:"入社前まで",need:1,ev:["D10"],who:"総務"},
+{id:"R43",ho:"教育",item:"河口湖研修（内定者）",rule:"義務教育",need:1,ev:["E26"],who:"採用"},
+{id:"R44",ho:"教育",item:"伊勢神宮研修（部門長）",rule:"義務教育",need:1,ev:[],who:"役員",check:"計画には「出雲大社」（1/23〜24）が入っている。研修先の変更なら教育方針の表を直す"},
+{id:"R45",ho:"教育",item:"夢合宿（数値編）",rule:"義務教育",need:1,ev:["E18"],who:"役員"},
+{id:"R46",ho:"教育",item:"MG研修（全社員）",rule:"義務教育",need:1,ev:[],who:"―",check:"計画には内定者向けのMG研修だけが入っている"},
+{id:"R47",ho:"教育",item:"AI研修（全従業員）",rule:"スキルアップ",need:1,ev:[],who:"―"},
+{id:"R48",ho:"教育",item:"全社員勉強会",rule:"義務教育",need:null,ev:["E11"],who:"教育チーム"},
+{id:"R49",ho:"教育",item:"用語集勉強会",rule:"義務教育",need:null,ev:["E12"],who:"総務"},
+{id:"R50",ho:"教育",item:"クレーム勉強会",rule:"義務教育",need:null,ev:["E13"],who:"総務"},
+{id:"R51",ho:"教育",item:"給与体系勉強会",rule:"義務教育",need:null,ev:["E14"],who:"総務"},
+{id:"R52",ho:"教育",item:"アースコムガイダンス",rule:"義務教育（新人パートは必ず受講）",need:null,ev:["E17"],who:"教育チーム"},
+{id:"R53",ho:"教育",item:"社長のかばん持ち",rule:"義務教育",need:null,ev:["E37"],who:"総務"},
+{id:"R54",ho:"教育",item:"地域会ベンチマーク",rule:"スキルアップ",need:null,ev:["E31"],who:"社員"},
+{id:"R55",ho:"教育",item:"内定者研修",rule:"義務教育",need:null,ev:["E29"],who:"採用"},
+{id:"R56",ho:"表彰・褒賞",item:"半期優秀部門賞・環境整備表彰",rule:"年2回（6月・12月の全体会同）",need:2,months:[6,12],ev:["E08"],who:"役員会"},
+{id:"R57",ho:"表彰・褒賞",item:"永年勤続表彰",rule:"年1回（12月）",need:1,months:[12],ev:["E01"],who:"役員会"},
+{id:"R58",ho:"採用",item:"内定式",rule:"年1回",need:1,ev:["E22"],who:"採用課"},
+{id:"R59",ho:"採用",item:"入社式",rule:"年1回",need:1,ev:["E23"],who:"総務・採用課"}
+];
+
+/* ---------- 事業年度計画の修正点（19期・2026/11/16 照合結果） ---------- */
+const FIXES = [
+ "経営推進会議が12/14と12/15に重複している",
+ "5月の部門長会議が入っていない",
+ "6/11と6/18に「査定面談・全社員勉強会・給与体系勉強会・アースコムアワード」が重複している",
+ "5/28に「経営幹部忘年会・課長忘年会」が入っている（12月分の貼り付け残りと思われる）",
+ "アースコムアワードの時期：表彰一覧は1月・6月、計画は12月・6月",
+ "10/5「アースコムアカデミー（18期表記：第711回）」が18期表記のまま",
+ "伊勢神宮研修（教育方針）と出雲大社（計画）のどちらが正しいか",
+ "夢合宿（方針編）がカスタマイズのみで、合宿本番の日程がない",
+ "短期計画作成：情報展開のプロセスは10月、計画は9/13",
+ "案件進捗会議：方針は月2回、計画は毎週金曜",
+ "部門長会議：方針は月初、計画は毎月10〜18日",
+ "社員旅行：コミュニケーション年間運用スケジュールが「未定・検討」のまま（計画は6/25〜26で確定）",
+ "事業年度計画の「方針」欄がすべて空欄"
 ];
 
 /* ---------- 導出 ---------- */
@@ -477,9 +656,32 @@ const EV = Object.fromEntries(EVENTS.map(e=>[e.id,e]));
 const TASKS = TASKS_RAW.map((t,i)=>({tid:"T"+String(i+1).padStart(3,"0"),ev:t[0],name:t[1],off:t[2],cond:t[3]}));
 const TASKS_BY_EV = {};
 TASKS.forEach(t=>{(TASKS_BY_EV[t.ev]=TASKS_BY_EV[t.ev]||[]).push(t)});
+const RULE = Object.fromEntries(RULES.map(r=>[r.id,r]));
 
 /* ---------- 状態 ---------- */
-const state = { fy:null, today:null, done:{}, owner:{}, open:{}, me:null, selfOnly:false };
+const state = { fy:null, today:null, done:{}, owner:{}, open:{}, me:null, selfOnly:false,
+  extra:[], extraOff:false, ckFilter:"todo" };
+
+/* 方針ルールから追加した日程（houshin_extra_date）を行事として扱う */
+const VTASK = {};
+function vtask(rid){
+  return VTASK[rid] || (VTASK[rid] = {tid:"R-"+rid, ev:"R-"+rid, name:"実施", off:0, cond:RULE[rid].item+"の実施"});
+}
+function extraEvents(){
+  const by = {};
+  state.extra.forEach(x=>{ if(RULE[x.rule_id]) (by[x.rule_id]=by[x.rule_id]||[]).push(x); });
+  return Object.keys(by).sort().map(rid=>{
+    const r = RULE[rid];
+    const xs = by[rid].slice().sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+    return {id:"R-"+rid, name:r.item, cat:"方針ルールから追加", kind:"追加", freq:r.rule, dept:r.who, ho:[r.ho],
+      virtual:true, rule:rid, xrows:xs,
+      dates: xs.map(x=>{ const p=x.d.split("-").map(Number); return [p[1],p[2]]; })};
+  });
+}
+function allEvents(){ return EVENTS.concat(extraEvents()); }
+function tasksOf(e){ return e.virtual ? [vtask(e.rule)] : (TASKS_BY_EV[e.id]||[]); }
+function allTasks(){ return TASKS.concat(extraEvents().map(e=>vtask(e.rule))); }
+function canEdit(){ return !state.me || ["admin","manager"].includes(state.me.role); }
 
 const MS = 86400000;
 const ymd = d => d.toISOString().slice(0,10);
@@ -497,14 +699,15 @@ function evDate(md, fyYear){
 function buildInstances(){
   const fyYear = state.fy.y;
   const out = [];
-  EVENTS.forEach(e=>{
+  allEvents().forEach(e=>{
     e.dates.forEach((md,oi)=>{
       const base = evDate(md, fyYear);
-      (TASKS_BY_EV[e.id]||[]).forEach(t=>{
+      const occIdx = e.virtual ? e.xrows[oi].id : oi;   /* 追加日程は行IDで記録（並び替わってもずれない） */
+      tasksOf(e).forEach(t=>{
         const due = new Date(base.getTime() + t.off*MS);
         out.push({
-          key:`${state.fy.ki}|${t.tid}|${oi}`,
-          ev:e, occIdx:oi, occDate:base, task:t, due
+          key:`${state.fy.ki}|${t.tid}|${occIdx}`,
+          ev:e, oi, occIdx, occDate:base, task:t, due
         });
       });
     });
@@ -605,6 +808,10 @@ async function loadAll(){
     state.done = {}; state.owner = {};
     st.forEach(r=>{ state.done[r.key] = {at:r.done_at, by:r.done_by||""}; });
     ow.forEach(r=>{ if(r.owner) state.owner[r.task_id] = r.owner; });
+    try{
+      state.extra = await sbGet(SB.extra, `ki=eq.${state.fy.ki}&select=id,rule_id,d,note,created_by&order=d`);
+      state.extraOff = false;
+    }catch(e){ state.extra = []; state.extraOff = true; }
     ONLINE = true; banner(null); setSave("ok","保存済み");
   }catch(e){
     ONLINE = false; setSave("off","未接続");
@@ -674,25 +881,26 @@ function viewCal(){
     const box = document.createElement("div"); box.className="mo";
     if(m===nowM && y===nowY) box.classList.add("now");
     const occs = [];
-    EVENTS.forEach(e=>e.dates.forEach((md,oi)=>{ if(md[0]===m) occs.push({e,oi,d:evDate(md,state.fy.y)}); }));
+    allEvents().forEach(e=>e.dates.forEach((md,oi)=>{ if(md[0]===m) occs.push({e,oi,d:evDate(md,state.fy.y)}); }));
     occs.sort((a,b)=>a.d-b.d);
     box.innerHTML = `<h4><span>${y}年 ${m}月</span><span style="font-family:var(--mono)">${occs.length}</span></h4>`;
     const ul = document.createElement("ul");
     if(!occs.length) ul.innerHTML = `<li style="color:var(--ink-3)">行事なし</li>`;
     occs.forEach(o=>{
-      const set = INST.filter(i=>i.ev.id===o.e.id && i.occIdx===o.oi);
+      const set = INST.filter(i=>i.ev.id===o.e.id && i.oi===o.oi);
       const done = set.filter(i=>isDone(i.key)).length;
       const overdue = set.some(i=>!isDone(i.key) && i.due < state.today);
       let st = ""; if(set.length && done===set.length) st="ok"; else if(overdue) st="over"; else if(done>0) st="part";
       const li = document.createElement("li");
-      li.innerHTML = `<span class="st ${st}"></span><span class="d">${fmt(o.d)}</span><span class="nm">${esc(o.e.name)}</span>`;
+      const tag = o.e.kind==="期限" ? `<span class="kd">期限</span>` : o.e.virtual ? `<span class="kd add">追加</span>` : "";
+      li.innerHTML = `<span class="st ${st}"></span><span class="d">${fmt(o.d)}</span><span class="nm">${tag}${esc(o.e.name)}</span>`;
       ul.appendChild(li);
     });
     box.appendChild(ul); wrap.appendChild(box);
   });
   el.appendChild(wrap);
   const legend = document.createElement("p"); legend.className="note";
-  legend.innerHTML = "●緑＝その回のタスクが全て完了　●黄＝一部完了　●赤＝期限超過あり　●灰＝未着手";
+  legend.innerHTML = "●緑＝その回のタスクが全て完了　●黄＝一部完了　●赤＝期限超過あり　●灰＝未着手（案件進捗会議・かばん持ちは予定表示のみ）<br>「期限」＝方針で期日が決まっている提出・手続き　「追加」＝反映チェックから追加した日程";
   el.appendChild(legend);
 }
 
@@ -701,7 +909,8 @@ function viewEv(){
   const el = document.getElementById("v-ev"); el.innerHTML="";
 
   const f = document.createElement("div"); f.className="filters";
-  const cats = [...new Set(EVENTS.map(e=>e.cat))];
+  const EVS = allEvents();
+  const cats = [...new Set(EVS.map(e=>e.cat))];
   f.innerHTML = `<label for="fcat" style="font-size:12.5px;color:var(--ink-2)">区分</label>
     <select id="fcat"><option value="">すべて</option>${cats.map(c=>`<option ${state.fcat===c?"selected":""}>${c}</option>`).join("")}</select>
     <input type="search" id="fq" placeholder="行事名で絞り込む" value="${esc(state.fq||"")}" style="min-width:200px">`;
@@ -711,14 +920,14 @@ function viewEv(){
 
   const card = document.createElement("div"); card.className="card";
   let shown = 0;
-  EVENTS.forEach(e=>{
+  EVS.forEach(e=>{
     if(state.fcat && e.cat!==state.fcat) return;
     if(state.fq && !e.name.includes(state.fq)) return;
     shown++;
     const set = INST.filter(i=>i.ev.id===e.id);
     const done = set.filter(i=>isDone(i.key)).length;
     const pct = set.length ? Math.round(done/set.length*100) : 0;
-    const noOwner = (TASKS_BY_EV[e.id]||[]).filter(t=>!ownerOf(t)).length;
+    const noOwner = tasksOf(e).filter(t=>!ownerOf(t)).length;
 
     const box = document.createElement("div"); box.className="ev";
     box.dataset.open = state.open[e.id] ? "1" : "0";
@@ -743,7 +952,9 @@ function viewEv(){
         const occ = document.createElement("div"); occ.className="occ";
         occ.textContent = `${fmtFull(d)}（${WD[d.getDay()]}）実施回`;
         body.appendChild(occ);
-        INST.filter(i=>i.ev.id===e.id && i.occIdx===oi).forEach(i=>body.appendChild(taskRow(i,false)));
+        const its = INST.filter(i=>i.ev.id===e.id && i.oi===oi);
+        if(!its.length){ const n=document.createElement("div"); n.className="empty"; n.style.padding="8px 14px"; n.textContent="予定のみ（タスクなし）"; body.appendChild(n); }
+        its.forEach(i=>body.appendChild(taskRow(i,false)));
       });
       box.appendChild(body);
     }
@@ -756,29 +967,213 @@ function viewEv(){
 /* ---------- 4. 方針別 ---------- */
 function viewHo(){
   const el = document.getElementById("v-ho"); el.innerHTML="";
+  const EVS = allEvents();
   const card = document.createElement("div"); card.className="card";
-  card.innerHTML = `<h3><span>方針と行事の対応</span><span class="pill">${HOUSHIN.length}区分</span></h3>`;
+  card.innerHTML = `<h3><span>方針と行事・期限の対応（19期経営計画書）</span><span class="pill">${HOUSHIN.length}方針</span></h3>`;
+  const wrap = document.createElement("div"); wrap.className="tscroll";
   const tb = document.createElement("table"); tb.className="h";
-  tb.innerHTML = `<thead><tr><th class="no">No</th><th>方針（カレンダー表記）</th><th>紐づく行事</th><th>実行状況</th></tr></thead>`;
+  tb.innerHTML = `<thead><tr><th class="no">No</th><th>方針（掲載ページ）</th><th>紐づく行事・期限</th><th>頻度の規定</th><th>実行状況</th></tr></thead>`;
   const body = document.createElement("tbody");
   HOUSHIN.forEach((h,idx)=>{
-    const evs = EVENTS.filter(e=>e.ho.includes(h));
+    const evs = EVS.filter(e=>e.ho.includes(h));
+    const rs = RULES.filter(r=>r.ho===h);
+    const ng = rs.filter(r=>judge(r).level==="ng").length;
     const set = INST.filter(i=>evs.some(e=>e.id===i.ev.id));
     const done = set.filter(i=>isDone(i.key)).length;
     const pct = set.length ? Math.round(done/set.length*100) : 0;
     const tr = document.createElement("tr");
-    if(!evs.length) tr.className="orphan";
+    if(!evs.length && !rs.length) tr.className="orphan";
     tr.innerHTML = `<td class="no">${idx+1}</td>
-      <td class="nm">${esc(h)}</td>
-      <td class="ev">${evs.length ? evs.map(e=>esc(e.name)).join("、") : "<span style='color:var(--ink-3)'>行事に紐づいていない（日々の実行のみ）</span>"}</td>
+      <td class="nm">${esc(h)}<div style="font-weight:400;font-size:11px;color:var(--ink-3)">p.${POLICY_PAGE[h]}</div></td>
+      <td class="ev">${evs.length ? evs.map(e=>esc(e.name)).join("、") : "<span style='color:var(--ink-3)'>行事・期限なし（日々の実行のみ）</span>"}</td>
+      <td class="ev" style="width:150px">${rs.length ? `${rs.length}項目${ng?` <span class="pill over">要対応 ${ng}</span>`:` <span class="pill done">OK</span>`}` : "—"}</td>
       <td class="pr">${set.length ? `<div class="prog"><span class="track"><i style="width:${pct}%"></i></span><span class="pct">${pct}%</span></div>` : "—"}</td>`;
+    tr.querySelector("td:nth-child(4)").style.cursor = rs.length ? "pointer" : "";
+    if(rs.length) tr.querySelector("td:nth-child(4)").addEventListener("click",()=>{ state.ckFilter="all"; state.ckHo=h; current="t-ck"; render(); });
     body.appendChild(tr);
   });
-  tb.appendChild(body); card.appendChild(tb); el.appendChild(card);
-  const n = HOUSHIN.filter(h=>!EVENTS.some(e=>e.ho.includes(h))).length;
+  tb.appendChild(body); wrap.appendChild(tb); card.appendChild(wrap); el.appendChild(card);
   const p = document.createElement("p"); p.className="note";
-  p.innerHTML = `${n}区分は行事に紐づいていません。輪読のみで実行タスクを持たない方針か、行事の登録漏れかを切り分ける材料になります。`;
+  p.innerHTML = `「頻度の規定」を押すと、その方針の反映チェックを開きます。`;
   el.appendChild(p);
+}
+
+/* ---------- 6. 反映チェック（方針ルール × 事業年度計画） ---------- */
+const MONTH_ORDER = [12,1,2,3,4,5,6,7,8,9,10,11];
+function ruleDates(r){
+  const out = [];
+  r.ev.forEach(id=>{ const e=EV[id]; if(e) e.dates.forEach(md=>out.push({d:evDate(md,state.fy.y), src:e.name, x:null})); });
+  state.extra.filter(x=>x.rule_id===r.id).forEach(x=>out.push({d:parseYmd(x.d), src:"追加", x}));
+  return out.sort((a,b)=>a.d-b.d);
+}
+function judge(r){
+  const ds = ruleDates(r), iss = [];
+  let level = "ok";
+  const up = l => { if(l==="ng" || (l==="warn" && level==="ok")) level = l; };
+  if(!ds.length){
+    return {level:"ng", ds, iss:["事業年度計画に日程がありません"]};
+  }
+  if(r.need!=null){
+    if(ds.length < r.need){ up("ng"); iss.push(`規定${r.need}回に対し予定${ds.length}回（${r.need-ds.length}回不足）`); }
+    else if(ds.length > r.need){ up("warn"); iss.push(`規定${r.need}回に対し予定${ds.length}回（重複・過多）`); }
+  }
+  if(r.perMon){
+    const c = {}; ds.forEach(o=>{ const m=o.d.getMonth()+1; c[m]=(c[m]||0)+1; });
+    const short = MONTH_ORDER.filter(m=>(c[m]||0) < r.perMon);
+    if(short.length){ up("ng"); iss.push(`月${r.perMon}回に届かない月：${short.map(m=>m+"月").join("・")}`); }
+  }
+  if(r.months){
+    const have = new Set(ds.map(o=>o.d.getMonth()+1));
+    const miss = r.months.filter(m=>!have.has(m));
+    if(miss.length){
+      up("warn");
+      const other = [...have].filter(m=>!r.months.includes(m));
+      iss.push(`規定の月（${miss.map(m=>m+"月").join("・")}）に予定がない` + (other.length?`／予定は${other.map(m=>m+"月").join("・")}`:""));
+    }
+  }
+  if(r.dayMax){
+    const late = ds.filter(o=>o.d.getDate() > r.dayMax);
+    if(late.length){ up("warn"); iss.push(`「月初」の規定に対し${late.length}回が${r.dayMax+1}日以降`); }
+  }
+  if(r.check) up("warn");
+  return {level, ds, iss};
+}
+const LV = {ng:["要対応","over"], warn:["要確認","soon"], ok:["OK","done"]};
+
+function viewCk(){
+  const el = document.getElementById("v-ck"); el.innerHTML="";
+  const J = Object.fromEntries(RULES.map(r=>[r.id, judge(r)]));
+  const n = {ng:0,warn:0,ok:0}; RULES.forEach(r=>n[J[r.id].level]++);
+
+  if(state.fy.ki !== DATA_KI){
+    const b = document.createElement("p"); b.className="banner"; b.style.margin="0 0 12px";
+    b.textContent = `${state.fy.ki}期の事業年度計画はまだ登録されていません。表示は${DATA_KI}期の日程を当てはめたものです。`;
+    el.appendChild(b);
+  }
+
+  const tiles = document.createElement("div"); tiles.className="tiles";
+  tiles.innerHTML = `
+    <div class="tile"><div class="k">頻度・時期の決まった方針項目</div><div class="v">${RULES.length}</div></div>
+    <div class="tile ng"><div class="k">要対応（未登録・回数不足）</div><div class="v">${n.ng}</div></div>
+    <div class="tile warn"><div class="k">要確認（時期ズレ・重複・文言）</div><div class="v">${n.warn}</div></div>
+    <div class="tile ok"><div class="k">OK</div><div class="v">${n.ok}</div></div>`;
+  el.appendChild(tiles);
+
+  const f = document.createElement("div"); f.className="filters";
+  const opts = [["todo","要対応＋要確認"],["ng","要対応のみ"],["all","すべて"]];
+  f.innerHTML = `<span class="selfsw">${opts.map(([v,l])=>`<button data-v="${v}" aria-pressed="${state.ckFilter===v}">${l}</button>`).join("")}</span>
+    <select id="ckho"><option value="">全方針</option>${HOUSHIN.filter(h=>RULES.some(r=>r.ho===h)).map(h=>`<option ${state.ckHo===h?"selected":""}>${esc(h)}</option>`).join("")}</select>`;
+  f.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ state.ckFilter=b.dataset.v; render(); }));
+  f.querySelector("#ckho").addEventListener("change",e=>{ state.ckHo=e.target.value; render(); });
+  el.appendChild(f);
+
+  const show = r => {
+    const lv = J[r.id].level;
+    if(state.ckHo && r.ho!==state.ckHo) return false;
+    if(state.ckFilter==="ng") return lv==="ng";
+    if(state.ckFilter==="todo") return lv!=="ok";
+    return true;
+  };
+  const edit = canEdit() && !state.extraOff && ONLINE;
+  let shown = 0;
+  HOUSHIN.forEach(h=>{
+    const rs = RULES.filter(r=>r.ho===h && show(r));
+    if(!rs.length) return;
+    shown += rs.length;
+    const card = document.createElement("div"); card.className="card";
+    card.innerHTML = `<h3><span>${esc(h)}に関する方針　p.${POLICY_PAGE[h]}</span><span class="pill">${rs.length}項目</span></h3>`;
+    const wrap = document.createElement("div"); wrap.className="tscroll";
+    const tb = document.createElement("table"); tb.className="h ck";
+    tb.innerHTML = `<thead><tr><th>項目</th><th>方針の規定</th><th>事業年度計画の予定</th><th>判定</th>${edit?"<th>日程を追加</th>":""}</tr></thead>`;
+    const body = document.createElement("tbody");
+    rs.forEach(r=>{
+      const j = J[r.id];
+      const tr = document.createElement("tr");
+      const chips = j.ds.map(o=> o.x
+        ? `<span class="chip x" title="反映チェックから追加">${fmt(o.d)}${edit?`<button data-del="${o.x.id}" aria-label="削除">×</button>`:""}</span>`
+        : `<span class="chip">${fmt(o.d)}</span>`).join("");
+      tr.innerHTML = `
+        <td class="it">${esc(r.item)}<div class="who2">${esc(r.who)}</div></td>
+        <td class="rl">${esc(r.rule)}</td>
+        <td class="ds">${chips || "<span style='color:var(--ink-3)'>なし</span>"}</td>
+        <td class="jd"><span class="pill ${LV[j.level][1]}">${LV[j.level][0]}</span>
+          ${j.iss.map(t=>`<div class="iss">${esc(t)}</div>`).join("")}
+          ${r.check?`<div class="chk">確認：${esc(r.check)}</div>`:""}</td>
+        ${edit?`<td class="op"><input type="date" min="${ymd(new Date(state.fy.y,11,1))}" max="${ymd(new Date(state.fy.y+1,10,30))}"><button>追加</button></td>`:""}`;
+      tr.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>delExtra(Number(b.dataset.del))));
+      if(edit){
+        const inp = tr.querySelector(".op input");
+        tr.querySelector(".op button").addEventListener("click",()=>addExtra(r, inp.value));
+      }
+      body.appendChild(tr);
+    });
+    tb.appendChild(body); wrap.appendChild(tb); card.appendChild(wrap); el.appendChild(card);
+  });
+  if(!shown){ const c=document.createElement("div"); c.className="card"; c.innerHTML=`<div class="empty">該当する項目はありません</div>`; el.appendChild(c); }
+
+  if(state.fy.ki === DATA_KI){
+    const fc = document.createElement("div"); fc.className="card";
+    const fdone = FIXES.filter((_,i)=>isDone(fixKey(i))).length;
+    fc.innerHTML = `<h3><span>事業年度計画の修正点（経営計画書との照合結果）</span><span class="pill ${fdone===FIXES.length?"done":"soon"}">${fdone}/${FIXES.length} 対応済み</span></h3>`;
+    FIXES.forEach((t,i)=>{
+      const k = fixKey(i), d = isDone(k), rec = state.done[k];
+      const row = document.createElement("label"); row.className = "fix" + (d?" isdone":"");
+      row.innerHTML = `<input type="checkbox" ${d?"checked":""} ${canEdit()?"":"disabled"}><span>${esc(t)}</span>${d&&rec?`<em>${esc(rec.at||"")} ${esc(rec.by||"")}</em>`:""}`;
+      row.querySelector("input").addEventListener("change",async e=>{
+        const on = e.target.checked;
+        const who = state.me ? (state.me.full_name || state.me.email) : "";
+        if(on) state.done[k] = {at: ymd(state.today), by: who}; else delete state.done[k];
+        render();
+        await saveStatus({key:k, task:{tid:fixId(i)}, occIdx:0}, on, who);
+      });
+      fc.appendChild(row);
+    });
+    el.appendChild(fc);
+  }
+
+  const note = document.createElement("p"); note.className="note";
+  note.innerHTML = state.extraOff
+    ? "追加日程の保存先（houshin_extra_date）に接続できないため、日程の追加はできません。"
+    : (edit ? "「日程を追加」で登録した日は「追加」として年間カレンダー・今週のやることに入り、実行者の設定と完了チェックができます。事業年度計画（経営計画書）にも同じ日を書き加えてください。"
+            : "日程の追加は管理者・マネージャーのみ行えます。");
+  el.appendChild(note);
+
+  const badge = document.getElementById("c-ck");
+  badge.hidden = n.ng===0; badge.textContent = n.ng;
+}
+const fixId = i => "FIX" + String(i+1).padStart(2,"0");
+const fixKey = i => `${state.fy.ki}|${fixId(i)}|0`;
+
+async function addExtra(r, v){
+  if(!v){ toast("日付を選んでください"); return; }
+  const d = parseYmd(v), s = new Date(state.fy.y,11,1), e = new Date(state.fy.y+1,10,30);
+  if(d < s || d > e){ toast(`${state.fy.ki}期（${fmtFull(s)}〜${fmtFull(e)}）の日付を選んでください`); return; }
+  const who = state.me ? (state.me.full_name || state.me.email) : "";
+  setSave("busy","保存中…");
+  try{
+    const rows = await sbInsert(SB.extra, [{ki:state.fy.ki, rule_id:r.id, d:v, created_by:who}]);
+    state.extra.push(rows[0]);
+    setSave("ok","保存済み"); render();
+    toast(`「${r.item}」に${fmt(d)}を追加しました`);
+  }catch(err){ setSave("off","未保存"); toast("追加できませんでした（"+err.message+"）"); }
+}
+async function delExtra(id){
+  const x = state.extra.find(v=>v.id===id); if(!x) return;
+  if(!confirmDel(x)) return;
+  setSave("busy","保存中…");
+  try{
+    await sbDelete(SB.extra, `id=eq.${id}`);
+    state.extra = state.extra.filter(v=>v.id!==id);
+    setSave("ok","保存済み"); render(); toast("日程を削除しました");
+  }catch(err){ setSave("off","未保存"); toast("削除できませんでした（"+err.message+"）"); }
+}
+/* ブラウザの確認ダイアログは使わず、2回押しで削除する */
+let pendingDel = null;
+function confirmDel(x){
+  if(pendingDel === x.id){ pendingDel = null; return true; }
+  pendingDel = x.id; toast(`${x.d.slice(5).replace("-","/")} を削除するにはもう一度 × を押してください`);
+  setTimeout(()=>{ if(pendingDel===x.id) pendingDel=null; }, 4000);
+  return false;
 }
 
 /* ---------- 5. 未実施 ---------- */
@@ -787,7 +1182,8 @@ function viewAl(){
   const over = INST.filter(i=>!isDone(i.key) && i.due < state.today);
   el.appendChild(group("期限を過ぎているタスク", over, true, "over"));
 
-  const noOwner = TASKS.filter(t=>!ownerOf(t));
+  const noOwner = allTasks().filter(t=>!ownerOf(t));
+  const EVM = Object.fromEntries(allEvents().map(e=>[e.id,e]));
   const c = document.createElement("div"); c.className="card";
   c.innerHTML = `<h3><span>実行者が決まっていないタスク</span><span class="pill ${noOwner.length?"soon":"done"}">${noOwner.length}件</span></h3>`;
   if(!noOwner.length){ c.insertAdjacentHTML("beforeend",`<div class="empty">全てのタスクに実行者が設定されています</div>`); }
@@ -797,7 +1193,7 @@ function viewAl(){
     Object.keys(byEv).forEach(eid=>{
       const d = document.createElement("div");
       d.style.cssText="padding:8px 14px;border-bottom:1px solid #f0f1f3;font-size:13px";
-      d.innerHTML = `<b>${esc(EV[eid].name)}</b><span style="color:var(--ink-3);font-size:12px">（${byEv[eid].length}件）</span>
+      d.innerHTML = `<b>${esc(EVM[eid].name)}</b><span style="color:var(--ink-3);font-size:12px">（${byEv[eid].length}件）</span>
         <div style="color:var(--ink-2);font-size:12.5px;margin-top:2px">${byEv[eid].map(t=>esc(t.name)).join("／")}</div>`;
       c.appendChild(d);
     });
@@ -827,7 +1223,7 @@ function viewRuler(){
 }
 
 /* ---------- タブ ---------- */
-const TABS = [["t-now","v-now"],["t-cal","v-cal"],["t-ev","v-ev"],["t-ho","v-ho"],["t-al","v-al"]];
+const TABS = [["t-now","v-now"],["t-cal","v-cal"],["t-ev","v-ev"],["t-ho","v-ho"],["t-ck","v-ck"],["t-al","v-al"]];
 let current = "t-now";
 TABS.forEach(([tb,vw])=>{
   document.getElementById(tb).addEventListener("click",()=>{ current=tb; render(); });
@@ -835,7 +1231,7 @@ TABS.forEach(([tb,vw])=>{
 
 function render(){
   INST = buildInstances();
-  viewRuler(); viewNow(); viewCal(); viewEv(); viewHo(); viewAl();
+  viewRuler(); viewNow(); viewCal(); viewEv(); viewHo(); viewCk(); viewAl();
   TABS.forEach(([tb,vw])=>{
     const on = tb===current;
     document.getElementById(tb).setAttribute("aria-selected", on?"true":"false");
