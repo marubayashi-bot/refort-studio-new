@@ -4461,12 +4461,31 @@ async function haraTap(d,id){
   renderRitHome();try{renderRings();}catch(e){}
 }
 
-/* ---------- シート連携（GAS） ---------- */
+/* ---------- シート連携（SUCCESS PLAN専用のGASウェブアプリ） ---------- */
+function haraCfg(){if(!profile.haraGas)profile.haraGas={url:'',token:''};return profile.haraGas;}
+function haraIntegOK(){return /^https:\/\/script\.google\.com\//.test(haraCfg().url||'');}
+function haraSetCfg(k,v){haraCfg()[k]=String(v||'').trim();lsSet('profile',profile);cloudSet('profile',profile);}
+async function haraGet(params){
+  const c=haraCfg();const r=await fetch(c.url+'?token='+encodeURIComponent(c.token||'')+'&'+params,{redirect:'follow'});
+  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+}
+async function haraPost(body){
+  const c=haraCfg();body.token=c.token||'';
+  const r=await fetch(c.url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+}
+async function haraTest(){
+  const s=el('hrTestSt');if(s)s.textContent='接続中…';
+  if(!haraIntegOK()){if(s)s.textContent='❌ URLの形式が違います（https://script.google.com/… で始まるURL）';return;}
+  try{await haraGet('mode=ping');if(s)s.textContent='✅ 接続できました。「シートから取り込む」を押してください';}
+  catch(e){if(s)s.textContent='❌ '+(e.message==='unauthorized'?'合言葉が一致しません':'接続できません：'+e.message);}
+}
+
 async function haraPull(){
-  if(!integOK()){toast('先に「目的・目標」タブで外部連携（GAS）を設定してください');showTab('purpose');return;}
+  if(!haraIntegOK()){toast('先に下の「接続設定」にURLと合言葉を入れてください');return;}
   const b=el('hrPullBtn');if(b){b.disabled=true;b.textContent='取り込み中…';}
   try{
-    const j=await gasGet('mode=haradaPull');
+    const j=await haraGet('mode=haradaPull');
     delete j.ok;
     HARA=Object.assign(j,{pulledAt:new Date().toISOString()});
     haraSave();
@@ -4485,7 +4504,7 @@ async function haraDayRecs(dates){
   return out;
 }
 async function haraPush(dates,quiet){
-  if(!integOK()||!HARA){if(!quiet)toast('外部連携（GAS）と取り込みを先に設定してください');return;}
+  if(!haraIntegOK()||!HARA){if(!quiet)toast('接続設定と取り込みを先に済ませてください');return;}
   const recs=await haraDayRecs(dates);
   const days=Object.keys(recs).sort().map(d=>{
     const v=recs[d].vision||{},j=v.jn||{},f=v.focus||{};
@@ -4493,7 +4512,7 @@ async function haraPush(dates,quiet){
   });
   if(!days.length){if(!quiet)toast('書き戻す記録がありません');return;}
   try{
-    const r=await gasPost({mode:'haradaPush',days:days});
+    const r=await haraPost({mode:'haradaPush',days:days});
     HARA.pushedAt=new Date().toISOString();haraSave();
     if(!quiet)toast('シートへ書き戻しました（'+(r.wrote||0)+'日分'+(r.skipped?'、期間外 '+r.skipped+'日':'')+'）');
     else if(r.skipped)toast('この日はシートの2週間の期間外です。シートの開始日を更新してください');
@@ -4515,7 +4534,11 @@ async function haraRenderTab(noFetch){
     (HARA&&HARA.start?'<button class="addbtn ghost" style="margin-top:0" onclick="haraPush(haraDates())">📤 この2週間をシートへ書き戻す</button>':'')+
     '<button class="addbtn ghost" style="margin-top:0" onclick="window.open(HARA_SHEET_URL,\'_blank\')">📄 シートを開く</button></div>'+
     '<div class="hint" id="hrSyncInfo"></div>'+
-    '<div class="hint">使命・目標設定用紙・OW64・ルーティン項目はシートで書き換えて、ここで取り込みます。ルーティンの○×と日誌は、夜の1分を終えたときに自動で書き戻されます。</div></div>';
+    '<div class="hint">使命・目標設定用紙・OW64・ルーティン項目はシートで書き換えて、ここで取り込みます。ルーティンの○×と日誌は、夜の1分を終えたときに自動で書き戻されます。</div>'+
+    '<details'+(haraIntegOK()?'':' open')+' style="margin-top:10px"><summary><b>接続設定</b>（SUCCESS PLAN専用のGASウェブアプリ）</summary>'+
+    '<div class="lbl">ウェブアプリのURL</div><input type="text" style="width:100%" placeholder="https://script.google.com/macros/s/…/exec" value="'+esc(haraCfg().url)+'" onchange="haraSetCfg(\'url\',this.value)">'+
+    '<div class="lbl">合言葉（GASの HARADA_TOKEN）</div><input type="text" style="width:100%" value="'+esc(haraCfg().token)+'" onchange="haraSetCfg(\'token\',this.value)">'+
+    '<div class="row" style="gap:8px;align-items:center"><button class="addbtn ghost" onclick="haraTest()">🔌 接続テスト</button><span class="hint" id="hrTestSt" style="margin:0"></span></div></details></div>';
   if(!HARA){
     w.innerHTML=sync+'<div class="card"><div class="hint" style="font-size:13px">まだ取り込んでいません。スプレッドシートに記入してから「シートから取り込む」を押してください。<br>（初回は GAS に harada.gs の追加が必要です）</div></div>';
     haraRenderSyncInfo();return;
