@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReFort発電実績</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 共通認証：GitHub Pages 上の ec-auth.js を読み込む -->
+<script src="ec-auth.js" onerror="window.__ecAuthMissing=true"></script>
+<style>
+:root{
+  --bg:#f4f5f2; --card:#ffffff; --line:#e1e3dc; --ink:#1b1d1a; --ink2:#55594f; --ink3:#868a80;
+  --brand:#1f4e3d; --brand2:#2e6b55; --accent:#2a78d6;
+  --before:#9a9d94; --after:#2a78d6; --exp:#eb6834;
+  --good:#0b7a3e; --good-bg:#e3f3e8; --warn:#9a6a00; --warn-bg:#fdf1d6; --bad:#b42318; --bad-bg:#fbe5e3;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",Meiryo,system-ui,sans-serif;font-size:14px;line-height:1.55}
+header{background:var(--brand);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.02em}
+header .sync{font-size:12px;opacity:.85}
+header .sp{flex:1}
+nav.tabs{display:flex;gap:4px}
+nav.tabs button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;padding:6px 14px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+nav.tabs button.on{background:#fff;color:var(--brand);border-color:#fff;font-weight:700}
+main{max-width:1240px;margin:0 auto;padding:20px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 10px;font-weight:700}
+.card h2 small{font-weight:400;color:var(--ink3);font-size:12px;margin-left:8px}
+.lead{font-size:15px;margin:0 0 4px}
+.muted{color:var(--ink3);font-size:12px}
+select,button.btn,input[type=month]{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+button.btn{cursor:pointer}
+button.btn.pri{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:700}
+button.btn:disabled{opacity:.5;cursor:default}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.kpi .l{font-size:12px;color:var(--ink2)}
+.kpi .v{font-size:26px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--ink3)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:border-color .15s}
+.pcard:hover{border-color:var(--brand2)}
+.pcard .nm{font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.pcard .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.pcard .meta{display:flex;gap:14px;font-size:12px;color:var(--ink2)}
+.pcard .meta b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pcard.empty{opacity:.6}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.chip.g{background:var(--good-bg);color:var(--good)} .chip.y{background:var(--warn-bg);color:var(--warn)} .chip.r{background:var(--bad-bg);color:var(--bad)} .chip.n{background:#eef0ea;color:var(--ink2)}
+.chip.star{background:#e8f0fb;color:#1d5fae}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:#f7f8f4;color:var(--ink2);font-weight:600;font-size:12px;position:sticky;top:0}
+td.l,th.l{text-align:left}
+tbody tr:hover{background:#fafbf8}
+.tw{overflow-x:auto}
+.num{font-variant-numeric:tabular-nums}
+.alert{border-left:4px solid var(--bad);background:var(--bad-bg);padding:10px 14px;border-radius:6px;margin-bottom:8px;font-size:13px}
+.alert.y{border-color:#d29a00;background:var(--warn-bg)}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 18px;font-size:13px}
+.info div span{display:block;font-size:11px;color:var(--ink3)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink2);margin:4px 0 6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.legend i.line{height:2px;border-radius:0;vertical-align:3px}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.tip{position:absolute;pointer-events:none;background:#1b1d1a;color:#fff;font-size:12px;padding:8px 10px;border-radius:6px;white-space:nowrap;z-index:5;display:none;line-height:1.6}
+textarea{width:100%;min-height:340px;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1b1d1a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;display:none;z-index:50}
+.empty-state{text-align:center;padding:50px 20px;color:var(--ink2)}
+.empty-state code{background:#eef0ea;padding:2px 6px;border-radius:4px}
+.hide{display:none!important}
+a{color:#1d5fae}
+.print-only{display:none}
+@media (max-width:700px){main{padding:12px} .kpi .v{font-size:22px}}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff;font-size:11px}
+  header,nav,.no-print,.toast{display:none!important}
+  main{max-width:none;padding:0}
+  .card,.kpi,.pcard{break-inside:avoid;border-color:#ccc}
+  .print-only{display:block}
+  body.p-report section:not(#v-report){display:none!important}
+  body.p-karte section:not(#v-karte){display:none!important}
+  th{position:static}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>ReFort発電実績</h1>
+  <nav class="tabs" id="tabs">
+    <button data-v="dash" class="on">全体</button>
+    <button data-v="karte">発電所カルテ</button>
+    <button data-v="report">月次報告</button>
+  </nav>
+  <span class="sp"></span>
+  <span class="sync" id="syncInfo"></span>
+  <span id="userBadge"></span>
+</header>
+
+<main id="main">
+  <div class="empty-state" id="loading">読み込み中…</div>
+
+  <!-- ===================== 全体 ===================== -->
+  <section id="v-dash" class="hide">
+    <div class="row no-print" style="margin-bottom:12px">
+      <label>対象月 <select id="dashMonth"></select></label>
+      <span class="muted">月を選ぶと、その月の各発電所の実績と判定を表示します。</span>
+    </div>
+    <div class="kpis" id="dashKpis"></div>
+    <div id="dashAlerts"></div>
+    <div class="card">
+      <h2 id="dashMonthTitle">当月の発電所別実績</h2>
+      <div class="grid" id="dashCards"></div>
+    </div>
+    <div class="card">
+      <h2>リフォート後の通算成績<small>After入力済みで、同月のBeforeと想定がそろっている月だけを合計</small></h2>
+      <div class="tw"><table id="sumTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== 発電所カルテ ===================== -->
+  <section id="v-karte" class="hide">
+    <div class="row no-print" style="margin-bottom:12px">
+      <label>発電所 <select id="plantSel"></select></label>
+      <button class="btn" id="printKarte">このカルテを印刷・PDF</button>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div><h2 id="kName" style="font-size:18px;margin-bottom:2px"></h2><div class="muted" id="kSub"></div></div>
+        <div id="kChip"></div>
+      </div>
+      <div class="info" id="kInfo" style="margin-top:12px"></div>
+    </div>
+    <div class="kpis" id="kKpis"></div>
+    <div class="card">
+      <h2 id="kChartTitle">月別発電量（Before・After・想定）</h2>
+      <div class="legend"><span><i style="background:var(--before)"></i>Before（基準期間の同じ月）</span><span><i style="background:var(--after)"></i>After（実績）</span><span><i class="line" style="background:var(--exp)"></i>想定</span><span><i class="line" style="background:#6b6f66;height:0;border-top:2px dashed #6b6f66"></i>工事・出来事</span></div>
+      <div class="chart" id="kChart"></div>
+    </div>
+    <div class="card">
+      <h2>月別の比較<small>日照補正後＝（After÷After日照）÷（Before÷Before日照）</small></h2>
+      <div class="tw"><table id="kMonthTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>売電実績</h2>
+      <div class="tw"><table id="kSalesTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>施工・機器イベント</h2>
+      <div class="tw"><table id="kEventTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>年別の発電量<small>入力のある月だけの合計。入力月数が12未満の年は参考値</small></h2>
+      <div class="tw"><table id="kYearTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== 月次報告 ===================== -->
+  <section id="v-report" class="hide">
+    <div class="row no-print" style="margin-bottom:12px">
+      <label>対象月 <select id="repMonth"></select></label>
+      <button class="btn" id="copyCw">報告文をコピー</button>
+      <button class="btn pri" id="sendCw">Chatworkに送信</button>
+      <button class="btn" id="printRep">報告書を印刷・PDF</button>
+      <span class="muted" id="sendTo"></span>
+    </div>
+    <div class="card no-print">
+      <h2>Chatwork報告文<small>そのまま送れます。直したいところは直接書き換えてから送信してください</small></h2>
+      <textarea id="cwText"></textarea>
+    </div>
+    <div class="card" id="repDoc">
+      <h2 id="repTitle" style="font-size:17px"></h2>
+      <p class="lead" id="repLead"></p>
+      <div class="kpis" id="repKpis" style="margin-top:12px"></div>
+      <div class="tw"><table id="repTable"></table></div>
+      <p class="muted" style="margin-top:10px">昨年対比＝当月実績÷基準期間の同じ月の発電量。想定対比＝当月実績÷提案時の想定発電量。稼働日数を入れた月は、Beforeと想定を日数分に按分して比較。</p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* =====================================================================
+   ReFort発電実績（refort-perf.html）
+   入力：Googleスプレッドシート「ReFort発電実績 入力シート」
+         → GAS → Edge Function refort-sync → テーブル refort_perf（1行）
+   閲覧：このアプリ（共通認証 ec-auth.js、社員のみ）
+   報告：Chatwork（Edge Function refort-report）・印刷/PDF
+   ===================================================================== */
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19Sz2xZYTd6WGPAephd5u0hD9_xzD5fJMv5vNcY0pZZs/edit';
+const CW_ROOM = '441792999';           // 送信先：【アプリ（社内開発）共有】。本番に変えるときはここと refort-report の ROOMS
+const CW_ROOM_LABEL = '【アプリ（社内開発）共有】';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => n == null || isNaN(n) ? '－' : Math.round(n).toLocaleString('ja-JP');
+const pct = n => n == null || !isFinite(n) ? '－' : (n * 100).toFixed(1) + '%';
+const yen = n => n == null || isNaN(n) ? '－' : '¥' + Math.round(n).toLocaleString('ja-JP');
+const ymLabel = ym => ym ? `${+ym.slice(0,4)}年${+ym.slice(5,7)}月` : '';
+const ymShort = ym => ym ? `${ym.slice(2,4)}/${+ym.slice(5,7)}` : '';
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',3200); }
+
+/* ---------------- 値の読み取り ---------------- */
+const toYM = v => {
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})[-\/年](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}`;
+  return null;
+};
+const toDate = v => { if (!v) return null; const m = String(v).match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/); return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null; };
+const num = v => { if (v == null || v === '') return null; const n = Number(String(v).replace(/[,¥円\s]/g,'')); return isFinite(n) ? n : null; };
+const daysIn = ym => new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
+
+/* ---------------- 計算モデル ---------------- */
+let M = null;   // {plants, rows, sales, events, set, byPlant}
+
+function build(raw){
+  const sh = raw.sheets || {};
+  const body = a => (a || []).slice(1);
+  const plants = body(sh.master).filter(r => r[0]).map(r => ({
+    id:String(r[0]).trim(), name:r[1]||r[0], kind:r[2]||'', group:r[3]||'',
+    bAC:num(r[4]), bDC:num(r[5]), aAC:num(r[6]), aDC:num(r[7]), price:num(r[8]), rate:num(r[9]),
+    bStart:toYM(r[10]), bEnd:toYM(r[11]), aStart:toYM(r[12]), basis:r[13]||'', owner:r[14]||'',
+    mail:r[15]||'', photo:r[16]||'', report:r[17]||'', oldUrl:r[18]||'', status:r[19]||'稼働'
+  }));
+  const pmap = Object.fromEntries(plants.map(p => [p.id, p]));
+  const expected = {};
+  body(sh.expected).forEach(r => { if (!r[0]) return; const m = num(r[1]); if (!m) return; (expected[r[0]] ??= {})[m] = num(r[2]); });
+  const setRows = body(sh.settings);
+  const sv = (i, d) => { const v = num(setRows[i]?.[1]); return v == null ? d : v; };
+  const set = { red: sv(0, .95), yellow: sv(1, 1), star: sv(2, 1.5) };
+
+  const rows = body(sh.monthly).filter(r => r[0] && toYM(r[2])).map(r => {
+    const p = pmap[r[0]]; const ym = toYM(r[2]);
+    let cls = '参考';
+    if (p && p.aStart && ym >= p.aStart) cls = 'After';
+    else if (p && p.bStart && p.bEnd && ym >= p.bStart && ym <= p.bEnd) cls = 'Before';
+    return { id:String(r[0]).trim(), ym, kwh:num(r[3]), sun:num(r[4]), days:num(r[5]), state:r[6]||'', memo:r[7]||'', url:r[8]||'', cls, month:+ym.slice(5,7) };
+  });
+  // Beforeの同月（基準期間内に同じ月が複数あれば合計）
+  const bef = {};
+  rows.filter(x => x.cls === 'Before').forEach(x => {
+    const k = x.id + '|' + x.month; const o = bef[k] ??= {kwh:0, sun:0, n:0, sunN:0};
+    if (x.kwh != null) { o.kwh += x.kwh; o.n++; } if (x.sun != null) { o.sun += x.sun; o.sunN++; }
+  });
+  rows.forEach(x => {
+    if (x.cls !== 'After') return;
+    const f = x.days ? x.days / daysIn(x.ym) : 1; x.factor = f;
+    const b = bef[x.id + '|' + x.month];
+    x.bKwh = b && b.n ? b.kwh * f : null;
+    x.bSun = b && b.sunN ? b.sun : null;
+    const e = expected[x.id]?.[x.month]; x.eKwh = e != null ? e * f : null;
+    const ok = x.kwh != null && x.state !== '欠測';
+    x.rB = ok && x.bKwh ? x.kwh / x.bKwh : null;
+    x.rE = ok && x.eKwh ? x.kwh / x.eKwh : null;
+    x.judge = judge(x.rE, set);
+    x.counted = x.rB != null && x.rE != null;
+    x.rSun = x.counted && x.sun && x.bSun ? (x.kwh / x.sun) / (x.bKwh / x.bSun) : null;
+  });
+  const sales = body(sh.sales).filter(r => r[0] && toYM(r[2])).map(r => ({ id:String(r[0]).trim(), ym:toYM(r[2]), from:toDate(r[3]), to:toDate(r[4]), kwh:num(r[5]), amt:num(r[6]), url:r[7]||'', memo:r[8]||'' }));
+  sales.forEach(s => { const p = pmap[s.id]; s.cls = p && p.aStart && s.ym >= p.aStart ? 'After' : (p && p.bStart && s.ym >= p.bStart && s.ym <= p.bEnd ? 'Before' : '参考'); });
+  sales.forEach(s => { if (s.cls !== 'After') return; const m = +s.ym.slice(5,7);
+    const b = sales.filter(t => t.id === s.id && t.cls === 'Before' && +t.ym.slice(5,7) === m && t.amt != null);
+    s.bAmt = b.length ? b.reduce((a,t) => a + t.amt, 0) : null; s.rB = s.bAmt && s.amt != null ? s.amt / s.bAmt : null; });
+  const events = body(sh.events).filter(r => r[0]).map(r => ({ id:String(r[0]).trim(), date:toDate(r[2]), kind:r[3]||'', text:r[4]||'', maker:r[5]||'', qty:r[6], cost:num(r[7]), effect:r[8]||'', url:r[9]||'' }));
+  M = { plants, pmap, rows, sales, events, set, expected };
+  plants.forEach(p => p.sum = summarize(rows.filter(x => x.id === p.id && x.cls === 'After'), p));
+  return M;
+}
+function judge(r, set){ if (r == null) return null; return r < set.red ? '赤' : r < set.yellow ? '黄' : '緑'; }
+function summarize(after, p){
+  const c = after.filter(x => x.counted);
+  const A = c.reduce((s,x) => s + x.kwh, 0), B = c.reduce((s,x) => s + x.bKwh, 0), E = c.reduce((s,x) => s + x.eKwh, 0);
+  const rB = B ? A / B : null, rE = E ? A / E : null;
+  const last = after.filter(x => x.kwh != null).map(x => x.ym).sort().pop() || null;
+  return { n:c.length, A, B, E, rB, rE, judge:judge(rE, M.set), add:A - B, addYen:p && p.price != null ? (A - B) * p.price : null, star: rB != null && rB >= M.set.star, last };
+}
+const chip = j => j ? `<span class="chip ${j==='緑'?'g':j==='黄'?'y':'r'}">${j==='緑'?'✓':j==='黄'?'▲':'●'} ${j}</span>` : '<span class="chip n">－</span>';
+const activePlants = () => M.plants.filter(p => p.status !== '休止');
+function months(){ return [...new Set(M.rows.filter(x => x.cls === 'After').map(x => x.ym))].sort().reverse(); }
+function latestMonth(){ return M.rows.filter(x => x.cls === 'After' && x.kwh != null).map(x => x.ym).sort().pop(); }
+function monthRow(id, ym){ return M.rows.find(x => x.id === id && x.ym === ym && x.cls === 'After'); }
+// 要点検：直近2か月（数値のある月）が続けて赤
+function needsCheck(p){
+  const a = M.rows.filter(x => x.id === p.id && x.cls === 'After' && x.judge).sort((x,y) => x.ym < y.ym ? 1 : -1);
+  return a.length >= 2 && a[0].judge === '赤' && a[1].judge === '赤' ? a.slice(0,2) : null;
+}
+
+/* ---------------- 全体 ---------------- */
+function renderDash(){
+  const ym = $('#dashMonth').value;
+  const ps = activePlants();
+  const cur = ps.map(p => ({ p, x: monthRow(p.id, ym) }));
+  const entered = cur.filter(o => o.x && o.x.kwh != null);
+  const tot = ps.reduce((o,p) => { const s = p.sum; o.A += s.A; o.B += s.B; o.E += s.E; o.yen += s.addYen || 0; return o; }, {A:0,B:0,E:0,yen:0});
+  const mA = entered.filter(o => o.x.counted).reduce((s,o) => s + o.x.kwh, 0), mB = entered.filter(o => o.x.counted).reduce((s,o) => s + o.x.bKwh, 0), mE = entered.filter(o => o.x.counted).reduce((s,o) => s + o.x.eKwh, 0);
+  const due = ps.filter(p => p.aStart && p.aStart <= ym);
+  $('#dashKpis').innerHTML = `
+    <div class="kpi"><div class="l">${ymLabel(ym)}の昨年対比</div><div class="v">${pct(mB ? mA/mB : null)}</div><div class="s">比較できた発電所の合計</div></div>
+    <div class="kpi"><div class="l">${ymLabel(ym)}の想定対比</div><div class="v">${pct(mE ? mA/mE : null)}</div><div class="s">${chip(judge(mE ? mA/mE : null, M.set))}</div></div>
+    <div class="kpi"><div class="l">通算の昨年対比</div><div class="v">${pct(tot.B ? tot.A/tot.B : null)}</div><div class="s">想定対比 ${pct(tot.E ? tot.A/tot.E : null)}</div></div>
+    <div class="kpi"><div class="l">通算の増収額（推定）</div><div class="v">${yen(tot.yen)}</div><div class="s">（After−Before）×売電単価</div></div>
+    <div class="kpi"><div class="l">${ymLabel(ym)}の入力</div><div class="v">${entered.length} / ${due.length}</div><div class="s">After開始済みの発電所</div></div>`;
+  // アラート
+  const al = [];
+  ps.forEach(p => { const c = needsCheck(p); if (c) al.push(`<div class="alert"><b>要点検：${esc(p.name)}</b>　想定比が${ymLabel(c[1].ym)}・${ymLabel(c[0].ym)}と2か月続けて赤（${pct(c[1].rE)}、${pct(c[0].rE)}）。天候か設備かを確認し、施工・機器イベントに記録してください。</div>`); });
+  const miss = due.filter(p => !entered.some(o => o.p.id === p.id));
+  if (miss.length) al.push(`<div class="alert y"><b>${ymLabel(ym)}が未入力：</b>${miss.map(p => esc(p.name)).join('、')}　<a href="${SHEET_URL}" target="_blank" rel="noopener">入力シートを開く</a></div>`);
+  $('#dashAlerts').innerHTML = al.join('');
+  $('#dashMonthTitle').textContent = `${ymLabel(ym)}の発電所別実績`;
+  $('#dashCards').innerHTML = cur.map(({p, x}) => {
+    if (!x || x.kwh == null) return `<div class="pcard empty" data-p="${esc(p.id)}"><div class="nm">${esc(p.name)}${chip(null)}</div><div class="big">－</div><div class="meta">${p.aStart && p.aStart > ym ? 'After開始前' : x && x.state === '欠測' ? '欠測' : '未入力'}</div></div>`;
+    return `<div class="pcard" data-p="${esc(p.id)}"><div class="nm">${esc(p.name)}${chip(x.judge)}</div>
+      <div class="big">${fmt(x.kwh)}<span class="muted"> kWh</span></div>
+      <div class="meta"><span>昨年対比 <b>${pct(x.rB)}</b></span><span>想定対比 <b>${pct(x.rE)}</b></span></div>
+      ${x.days ? `<div class="muted">稼働${x.days}日で按分して比較</div>` : ''}</div>`;
+  }).join('');
+  document.querySelectorAll('#dashCards .pcard').forEach(el => el.onclick = () => openKarte(el.dataset.p));
+  // 通算表
+  const head = `<thead><tr><th class="l">発電所</th><th>比較月数</th><th>After(kWh)</th><th>同月Before(kWh)</th><th>同月想定(kWh)</th><th>昨年対比</th><th>想定対比</th><th class="l">判定</th><th>増加量(kWh)</th><th>増収額（推定）</th><th class="l">最新のAfter月</th></tr></thead>`;
+  const rowsH = ps.map(p => { const s = p.sum; return `<tr data-p="${esc(p.id)}" style="cursor:pointer"><td class="l"><a href="#" onclick="return false">${esc(p.name)}</a> ${s.star ? '<span class="chip star">★ 成功事例</span>' : ''}</td><td>${s.n}</td><td>${fmt(s.A)}</td><td>${fmt(s.B)}</td><td>${fmt(s.E)}</td><td>${pct(s.rB)}</td><td>${pct(s.rE)}</td><td class="l">${chip(s.judge)}</td><td>${fmt(s.add)}</td><td>${yen(s.addYen)}</td><td class="l">${ymLabel(s.last)}</td></tr>`; }).join('');
+  const groups = [...new Set(ps.map(p => p.group).filter(Boolean))].map(g => {
+    const gp = ps.filter(p => p.group === g); const A = gp.reduce((a,p)=>a+p.sum.A,0), B = gp.reduce((a,p)=>a+p.sum.B,0), E = gp.reduce((a,p)=>a+p.sum.E,0), Y = gp.reduce((a,p)=>a+(p.sum.addYen||0),0);
+    return `<tr style="background:#f7f8f4"><td class="l"><b>${esc(g)}（合算）</b></td><td>${gp.reduce((a,p)=>a+p.sum.n,0)}</td><td>${fmt(A)}</td><td>${fmt(B)}</td><td>${fmt(E)}</td><td>${pct(B?A/B:null)}</td><td>${pct(E?A/E:null)}</td><td class="l">${chip(judge(E?A/E:null,M.set))}</td><td>${fmt(A-B)}</td><td>${yen(Y)}</td><td></td></tr>`; }).join('');
+  const total = `<tr style="font-weight:700;background:#f0f2ec"><td class="l">全体</td><td>${ps.reduce((a,p)=>a+p.sum.n,0)}</td><td>${fmt(tot.A)}</td><td>${fmt(tot.B)}</td><td>${fmt(tot.E)}</td><td>${pct(tot.B?tot.A/tot.B:null)}</td><td>${pct(tot.E?tot.A/tot.E:null)}</td><td class="l">${chip(judge(tot.E?tot.A/tot.E:null,M.set))}</td><td>${fmt(tot.A-tot.B)}</td><td>${yen(tot.yen)}</td><td></td></tr>`;
+  $('#sumTable').innerHTML = head + `<tbody>${rowsH}${groups}${total}</tbody>`;
+  document.querySelectorAll('#sumTable tr[data-p]').forEach(el => el.onclick = () => openKarte(el.dataset.p));
+}
+
+/* ---------------- 発電所カルテ ---------------- */
+function openKarte(id){ $('#plantSel').value = id; show('karte'); }
+function renderKarte(){
+  const p = M.pmap[$('#plantSel').value]; if (!p) return;
+  const s = p.sum;
+  $('#kName').textContent = p.name;
+  $('#kSub').textContent = [p.id, p.kind, p.group && `${p.group}グループ`].filter(Boolean).join('　');
+  $('#kChip').innerHTML = chip(s.judge) + (s.star ? ' <span class="chip star">★ 成功事例</span>' : '');
+  const kw = (a, b) => a == null && b == null ? '－' : `AC ${a ?? '－'} kW ／ DC ${b ?? '－'} kW`;
+  const link = (u, t) => u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${t}</a>` : '－';
+  $('#kInfo').innerHTML = `
+    <div><span>Before 容量</span>${kw(p.bAC, p.bDC)}</div>
+    <div><span>After 容量</span>${kw(p.aAC, p.aDC)}</div>
+    <div><span>売電単価</span>${p.price != null ? p.price + ' 円/kWh' : '－'}</div>
+    <div><span>想定改善率</span>${p.rate != null ? pct(p.rate) : '－'}</div>
+    <div><span>基準（Before）期間</span>${ymLabel(p.bStart)}〜${ymLabel(p.bEnd)}</div>
+    <div><span>After開始月</span>${ymLabel(p.aStart) || '－'}</div>
+    <div style="grid-column:span 2"><span>基準期間の根拠</span>${esc(p.basis) || '－'}</div>
+    <div><span>担当者</span>${esc(p.owner) || '－'}</div>
+    <div><span>資料</span>${link(p.photo,'写真')}　${link(p.report,'完工報告書')}　${link(p.oldUrl,'元シート')}</div>`;
+  $('#kKpis').innerHTML = `
+    <div class="kpi"><div class="l">昨年対比（通算）</div><div class="v">${pct(s.rB)}</div><div class="s">比較できた${s.n}か月の合計</div></div>
+    <div class="kpi"><div class="l">想定対比（通算）</div><div class="v">${pct(s.rE)}</div><div class="s">${chip(s.judge)}</div></div>
+    <div class="kpi"><div class="l">増加した発電量</div><div class="v">${fmt(s.add)}<span class="muted"> kWh</span></div><div class="s">After−Before（同月比較）</div></div>
+    <div class="kpi"><div class="l">増収額（推定）</div><div class="v">${yen(s.addYen)}</div><div class="s">増加量×売電単価</div></div>`;
+  const after = M.rows.filter(x => x.id === p.id && x.cls === 'After').sort((a,b) => a.ym < b.ym ? -1 : 1);
+  drawChart(after, M.events.filter(e => e.id === p.id && e.date), p);
+  $('#kMonthTable').innerHTML = `<thead><tr><th class="l">年月</th><th>Before(kWh)</th><th>After(kWh)</th><th>想定(kWh)</th><th>昨年対比</th><th>想定対比</th><th class="l">判定</th><th>日照 B/A(h)</th><th>日照補正後</th><th class="l">状態・メモ</th></tr></thead><tbody>` +
+    after.slice().reverse().map(x => `<tr><td class="l">${ymLabel(x.ym)}</td><td>${fmt(x.bKwh)}</td><td>${fmt(x.kwh)}</td><td>${fmt(x.eKwh)}</td><td>${pct(x.rB)}</td><td>${pct(x.rE)}</td><td class="l">${chip(x.judge)}</td><td>${x.bSun ?? '－'} / ${x.sun ?? '－'}</td><td>${x.rSun != null && (x.rSun > 2 || x.rSun < .5) ? '<span class="chip y" title="日照時間の取得元や入力値を確認してください">日照要確認</span>' : pct(x.rSun)}</td><td class="l" style="white-space:normal;min-width:180px">${esc(x.state)}${x.days ? `・稼働${x.days}日` : ''}${x.memo ? '・' + esc(x.memo) : ''}${x.url ? ` <a href="${esc(x.url)}" target="_blank" rel="noopener">根拠</a>` : ''}</td></tr>`).join('') + '</tbody>';
+  const sl = M.sales.filter(t => t.id === p.id && t.cls === 'After').sort((a,b) => a.ym < b.ym ? 1 : -1);
+  $('#kSalesTable').innerHTML = sl.length ? `<thead><tr><th class="l">計上月</th><th class="l">検針期間</th><th>売電金額</th><th>同月Before</th><th>対Before</th></tr></thead><tbody>` +
+    sl.map(t => `<tr><td class="l">${ymLabel(t.ym)}</td><td class="l">${t.from ? t.from.replaceAll('-','/') + '〜' + (t.to || '').replaceAll('-','/') : '－'}</td><td>${yen(t.amt)}</td><td>${yen(t.bAmt)}</td><td>${pct(t.rB)}</td></tr>`).join('') +
+    `<tr style="font-weight:700;background:#f0f2ec"><td class="l">合計</td><td></td><td>${yen(sl.reduce((a,t)=>a+(t.amt||0),0))}</td><td>${yen(sl.reduce((a,t)=>a+(t.bAmt||0),0))}</td><td></td></tr></tbody>` : '<tbody><tr><td class="l muted">After期間の売電実績はまだありません</td></tr></tbody>';
+  const ev = M.events.filter(e => e.id === p.id).sort((a,b) => (a.date||'') < (b.date||'') ? 1 : -1);
+  $('#kEventTable').innerHTML = ev.length ? `<thead><tr><th class="l">日付</th><th class="l">種別</th><th class="l">内容</th><th class="l">メーカー・型式</th><th>数量</th><th>費用</th><th class="l">期待効果</th></tr></thead><tbody>` +
+    ev.map(e => `<tr><td class="l">${e.date ? e.date.replaceAll('-','/') : '日付未入力'}</td><td class="l">${esc(e.kind)}</td><td class="l" style="white-space:normal;min-width:240px">${esc(e.text)}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">写真</a>` : ''}</td><td class="l">${esc(e.maker)}</td><td>${esc(e.qty ?? '')}</td><td>${e.cost != null ? yen(e.cost) : ''}</td><td class="l">${esc(e.effect)}</td></tr>`).join('') + '</tbody>' : '<tbody><tr><td class="l muted">記録はまだありません</td></tr></tbody>';
+  const yrs = {};
+  M.rows.filter(x => x.id === p.id && x.kwh != null).forEach(x => { const y = x.ym.slice(0,4); const o = yrs[y] ??= {k:0, n:0, c:new Set()}; o.k += x.kwh; o.n++; o.c.add(x.cls); });
+  const yk = Object.keys(yrs).sort().reverse();
+  $('#kYearTable').innerHTML = `<thead><tr><th class="l">年</th><th>発電量(kWh)</th><th>入力月数</th><th class="l">区分</th></tr></thead><tbody>` +
+    yk.map(y => `<tr><td class="l">${y}年</td><td>${fmt(yrs[y].k)}</td><td>${yrs[y].n}</td><td class="l">${[...yrs[y].c].join('・')}</td></tr>`).join('') + '</tbody>';
+}
+
+/* 月別グラフ：Before（灰）とAfter（青）の棒、想定（橙）の線、工事の縦線 */
+function drawChart(after, events, p){
+  const box = $('#kChart');
+  if (!after.length) { box.innerHTML = '<p class="muted">After期間のデータがまだありません。</p>'; return; }
+  const W = 1000, H = 330, L = 64, R = 16, T = 30, B = 44;
+  const vals = after.flatMap(x => [x.bKwh, x.kwh, x.eKwh]).filter(v => v != null);
+  const max = Math.max(...vals, 1);
+  const step = niceStep(max / 5), top = Math.ceil(max / step) * step;
+  const n = after.length, cw = (W - L - R) / n, bw = Math.min(26, cw * 0.32);
+  const y = v => T + (H - T - B) * (1 - v / top);
+  const cx = i => L + cw * i + cw / 2;
+  let g = '';
+  for (let v = 0; v <= top + 1e-9; v += step) g += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e6e8e1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#868a80">${v >= 1000 ? (v/1000).toLocaleString('ja-JP') + '千' : v}</text>`;
+  // 工事・出来事の縦線（月の中の位置に置く）
+  let ev = '';
+  events.forEach((e, k) => {
+    const ym = e.date.slice(0,7); const i = after.findIndex(x => x.ym === ym);
+    let xpos;
+    if (i >= 0) xpos = L + cw * i + cw * ((+e.date.slice(8,10) - 1) / daysIn(ym));
+    else if (e.date.slice(0,7) < after[0].ym) return; else return;
+    ev += `<line x1="${xpos}" x2="${xpos}" y1="${T-6}" y2="${H-B}" stroke="#6b6f66" stroke-dasharray="4 4"/><text x="${xpos+4}" y="${T-10+(k%2)*12}" font-size="11" fill="#55594f">${esc(e.kind)} ${+e.date.slice(5,7)}/${+e.date.slice(8,10)}</text>`;
+  });
+  let bars = '', hits = '', line = '', dots = '';
+  const r4 = (x, yy, w, h, c) => h <= 0 ? '' : `<path d="M${x},${yy+h} V${yy+Math.min(4,h)} Q${x},${yy} ${x+Math.min(4,w/2)},${yy} H${x+w-Math.min(4,w/2)} Q${x+w},${yy} ${x+w},${yy+Math.min(4,h)} V${yy+h} Z" fill="${c}"/>`;
+  const pts = [];
+  after.forEach((x, i) => {
+    const c = cx(i);
+    if (x.bKwh != null) bars += r4(c - bw - 1, y(x.bKwh), bw, y(0) - y(x.bKwh), 'var(--before)');
+    if (x.kwh != null) bars += r4(c + 1, y(x.kwh), bw, y(0) - y(x.kwh), 'var(--after)');
+    else bars += `<text x="${c+1+bw/2}" y="${y(0)-6}" text-anchor="middle" font-size="10" fill="#868a80">${x.state === '欠測' ? '欠測' : '未'}</text>`;
+    if (x.eKwh != null) pts.push([c, y(x.eKwh)]);
+    bars += `<text x="${c}" y="${H-B+16}" text-anchor="middle" font-size="11" fill="#55594f">${ymShort(x.ym)}</text>`;
+    hits += `<rect x="${L + cw*i}" y="${T}" width="${cw}" height="${H-T-B}" fill="transparent" data-i="${i}"/>`;
+  });
+  if (pts.length) { line = `<polyline points="${pts.map(q => q.join(',')).join(' ')}" fill="none" stroke="var(--exp)" stroke-width="2"/>`; dots = pts.map(q => `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="var(--exp)" stroke="#fff" stroke-width="2"/>`).join(''); }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(p.name)}の月別発電量">${g}<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="#b9bcb3"/>${bars}${line}${dots}${ev}<text x="${L}" y="14" font-size="11" fill="#868a80">kWh</text>${hits}</svg>`;
+  const tip = $('#tip');
+  box.querySelectorAll('rect[data-i]').forEach(r => {
+    r.addEventListener('mousemove', e => {
+      const x = after[+r.dataset.i];
+      tip.innerHTML = `<b>${ymLabel(x.ym)}</b><br>After：${fmt(x.kwh)} kWh<br>Before：${fmt(x.bKwh)} kWh<br>想定：${fmt(x.eKwh)} kWh<br>昨年対比 ${pct(x.rB)}／想定対比 ${pct(x.rE)}${x.days ? `<br>稼働${x.days}日で按分` : ''}`;
+      tip.style.display = 'block';
+      const bx = box.getBoundingClientRect();
+      let left = e.clientX + 14; if (left + 220 > window.innerWidth) left = e.clientX - 230;
+      tip.style.left = left + 'px'; tip.style.top = (e.clientY + window.scrollY - 20) + 'px'; tip.style.position = 'absolute';
+      r.setAttribute('fill', 'rgba(31,78,61,.06)');
+    });
+    r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
+  });
+}
+function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+
+/* ---------------- 月次報告 ---------------- */
+function reportData(ym){
+  return activePlants().map(p => ({ p, x: monthRow(p.id, ym) })).filter(o => o.p.aStart && o.p.aStart <= ym);
+}
+function cwText(ym){
+  const base = location.href.split('#')[0].split('?')[0];
+  const list = reportData(ym);
+  const done = list.filter(o => o.x && o.x.kwh != null);
+  const miss = list.filter(o => !(o.x && o.x.kwh != null));
+  const m = +ym.slice(5,7);
+  const updn = r => r == null ? '－' : pct(r) + (r >= 1 ? '（増）' : '（減）');
+  const cA = done.filter(o => o.x.counted).reduce((s,o)=>s+o.x.kwh,0), cB = done.filter(o => o.x.counted).reduce((s,o)=>s+o.x.bKwh,0), cE = done.filter(o => o.x.counted).reduce((s,o)=>s+o.x.eKwh,0);
+  let t = `[info][title]${ymLabel(ym)} ReFort自社発電所 実績報告[/title]\n`;
+  t += `お疲れ様です。${ymLabel(ym)}の発電所実績につきまして、下記のとおりご報告いたします。\n`;
+  t += `【全体】昨年対比 ${pct(cB ? cA/cB : null)} ／ 想定対比 ${pct(cE ? cA/cE : null)}（入力 ${done.length}／${list.length}発電所）\n`;
+  done.forEach(o => {
+    const x = o.x;
+    t += `[hr]\n■ ${o.p.name}${x.judge ? '【' + x.judge + '】' : ''}\n`;
+    t += `・${m}月実績：${fmt(x.kwh)}kWh${x.days ? `（稼働${x.days}日）` : ''}\n`;
+    t += `・昨年対比：${updn(x.rB)}\n・想定対比：${updn(x.rE)}\n`;
+    t += `・詳細：${base}#p=${encodeURIComponent(o.p.id)}\n`;
+  });
+  t += '[hr]\n';
+  const chk = activePlants().map(p => [p, needsCheck(p)]).filter(a => a[1]);
+  if (chk.length) t += `【要点検】${chk.map(([p,c]) => `${p.name}（想定比が2か月続けて赤）`).join('、')}\n`;
+  t += `【未入力】${miss.length ? miss.map(o => o.p.name).join('、') : 'なし'}\n`;
+  t += `以上、ご確認のほどよろしくお願いいたします。[/info]`;
+  return t;
+}
+function renderReport(){
+  const ym = $('#repMonth').value;
+  $('#cwText').value = cwText(ym);
+  const list = reportData(ym);
+  const done = list.filter(o => o.x && o.x.kwh != null && o.x.counted);
+  const A = done.reduce((s,o)=>s+o.x.kwh,0), Bv = done.reduce((s,o)=>s+o.x.bKwh,0), E = done.reduce((s,o)=>s+o.x.eKwh,0);
+  $('#repTitle').textContent = `${ymLabel(ym)} ReFort自社発電所 実績報告`;
+  const reds = done.filter(o => o.x.judge === '赤').map(o => o.p.name);
+  $('#repLead').textContent = done.length ? `比較できた${done.length}発電所の合計は、昨年対比${pct(Bv?A/Bv:null)}、想定対比${pct(E?A/E:null)}です。` + (reds.length ? `想定比95%未満（赤）は${reds.join('、')}。` : '赤の発電所はありません。') : 'この月の実績はまだ入力されていません。';
+  $('#repKpis').innerHTML = `<div class="kpi"><div class="l">当月発電量（比較分）</div><div class="v">${fmt(A)}<span class="muted"> kWh</span></div></div><div class="kpi"><div class="l">昨年対比</div><div class="v">${pct(Bv?A/Bv:null)}</div></div><div class="kpi"><div class="l">想定対比</div><div class="v">${pct(E?A/E:null)}</div><div class="s">${chip(judge(E?A/E:null,M.set))}</div></div>`;
+  $('#repTable').innerHTML = `<thead><tr><th class="l">発電所</th><th>当月実績(kWh)</th><th>同月Before(kWh)</th><th>想定(kWh)</th><th>昨年対比</th><th>想定対比</th><th class="l">判定</th><th class="l">通算 昨年対比／想定対比</th></tr></thead><tbody>` +
+    list.map(o => { const x = o.x; return `<tr><td class="l">${esc(o.p.name)}</td><td>${fmt(x?.kwh)}</td><td>${fmt(x?.bKwh)}</td><td>${fmt(x?.eKwh)}</td><td>${pct(x?.rB)}</td><td>${pct(x?.rE)}</td><td class="l">${x && x.kwh != null ? chip(x.judge) : '<span class="chip n">未入力</span>'}</td><td class="l">${pct(o.p.sum.rB)}／${pct(o.p.sum.rE)}</td></tr>`; }).join('') + '</tbody>';
+}
+
+/* ---------------- 画面切り替え ---------------- */
+function show(v){
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  ['dash','karte','report'].forEach(k => $('#v-' + k).classList.toggle('hide', k !== v));
+  if (v === 'dash') renderDash(); if (v === 'karte') renderKarte(); if (v === 'report') renderReport();
+  window.scrollTo(0, 0);
+}
+function fillSelect(sel, items, val){ sel.innerHTML = items.map(([v,t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join(''); if (val != null) sel.value = val; }
+
+function startUI(raw, syncedAt){
+  build(raw);
+  $('#loading').classList.add('hide');
+  const ms = months(), lm = latestMonth() || ms[0];
+  fillSelect($('#dashMonth'), ms.map(m => [m, ymLabel(m)]), lm);
+  fillSelect($('#repMonth'), ms.map(m => [m, ymLabel(m)]), lm);
+  fillSelect($('#plantSel'), M.plants.map(p => [p.id, p.name]), M.plants[0]?.id);
+  $('#syncInfo').innerHTML = `シート反映：${syncedAt ? new Date(syncedAt).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '－'}　<a href="${SHEET_URL}" target="_blank" rel="noopener" style="color:#fff">入力シート</a>`;
+  $('#sendTo').textContent = `送信先：${CW_ROOM_LABEL}`;
+  $('#dashMonth').onchange = renderDash; $('#repMonth').onchange = renderReport; $('#plantSel').onchange = renderKarte;
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => show(b.dataset.v));
+  $('#copyCw').onclick = () => navigator.clipboard.writeText($('#cwText').value).then(() => toast('コピーしました。Chatworkに貼り付けてください'), () => toast('コピーできませんでした'));
+  $('#sendCw').onclick = sendCw;
+  $('#printRep').onclick = () => { document.body.className = 'p-report'; window.print(); document.body.className = ''; };
+  $('#printKarte').onclick = () => { document.body.className = 'p-karte'; window.print(); document.body.className = ''; };
+  const h = location.hash.match(/p=([^&]+)/);
+  if (h && M.pmap[decodeURIComponent(h[1])]) openKarte(decodeURIComponent(h[1])); else show('dash');
+}
+
+async function sendCw(){
+  const body = $('#cwText').value.trim(); if (!body) return;
+  if (!confirm(`${CW_ROOM_LABEL}に送信します。よろしいですか？`)) return;
+  const b = $('#sendCw'); b.disabled = true; b.textContent = '送信中…';
+  try {
+    const { data, error } = await window.EC.supabase.functions.invoke('refort-report', { body: { action: 'post', room: CW_ROOM, body } });
+    if (error || data?.error) throw new Error(data?.error || error.message);
+    toast('Chatworkに送信しました');
+  } catch (e) { toast('送信できませんでした：' + e.message); }
+  finally { b.disabled = false; b.textContent = 'Chatworkに送信'; }
+}
+
+async function loadData(){
+  const { data, error } = await window.EC.supabase.from('refort_perf').select('data,synced_at').eq('id', 1).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+(async function main(){
+  if (window.__ecAuthMissing || !window.EC) {
+    $('#loading').innerHTML = '共通認証（ec-auth.js）を読み込めませんでした。社内アプリと同じ場所（GitHub Pages）に置いて開いてください。';
+    return;
+  }
+  await EC.guard({ name: 'ReFort発電実績', allow: ['admin','manager','sales','field','staff'] });
+  if (EC.mountBadge) EC.mountBadge('#userBadge');
+  try {
+    const row = await loadData();
+    if (!row) {
+      $('#loading').innerHTML = `まだ入力シートのデータが届いていません。<br><br><a href="${SHEET_URL}" target="_blank" rel="noopener">入力シート</a>の［拡張機能］→［Apps Script］に同期用のコードを貼り、<code>setup</code> を1回実行してください。`;
+      return;
+    }
+    startUI(row.data, row.synced_at);
+  } catch (e) {
+    $('#loading').textContent = 'データを読み込めませんでした：' + (e.message || e);
+  }
+})();
+</script>
+</body>
+</html>
